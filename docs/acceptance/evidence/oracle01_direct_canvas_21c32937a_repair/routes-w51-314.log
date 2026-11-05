@@ -1,0 +1,301 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-05 08:29:23 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-05 08:29:23 [    INFO] EscalationManager initialized
+2026-11-05 08:29:23 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:29:23 [    INFO] EscalationManager initialized
+2026-11-05 08:29:23 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:29:23 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 08:29:23 [    INFO] MCP Service initialized
+
+tests/api/test_canvas_routes_coverage_w51.py::TestForkCanvas::test_fork_success 
+-------------------------------- live log setup --------------------------------
+2026-11-05 08:29:24 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:29:24 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-1/fork "HTTP/1.1 500 Internal Server Error"
+FAILED                                                                   [  1%]
+tests/api/test_canvas_routes_coverage_w51.py::TestForkCanvas::test_fork_source_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:29:24 [    INFO] HTTP Request: POST http://testserver/api/canvas/ghost/fork "HTTP/1.1 404 Not Found"
+PASSED                                                                   [  3%]
+tests/api/test_canvas_routes_coverage_w51.py::TestGetCanvasSummary::test_summary_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:29:24 [    INFO] HTTP Request: GET http://testserver/api/canvas/c-1/summary "HTTP/1.1 200 OK"
+PASSED                                                                   [  5%]
+tests/api/test_canvas_routes_coverage_w51.py::TestGetCanvasSummary::test_summary_context_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:29:24 [    INFO] HTTP Request: GET http://testserver/api/canvas/c-1/summary "HTTP/1.1 404 Not Found"
+PASSED                                                                   [  6%]
+tests/api/test_canvas_routes_coverage_w51.py::TestGetCanvasSummary::test_summary_timeout 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:29:24 [    INFO] HTTP Request: GET http://testserver/api/canvas/c-1/summary "HTTP/1.1 504 Gateway Timeout"
+PASSED                                                                   [  8%]
+tests/api/test_canvas_routes_coverage_w51.py::TestGetCanvasSummary::test_summary_error_500 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:29:24 [   ERROR] Failed to generate summary for canvas c-1: boom
+2026-11-05 08:29:24 [    INFO] HTTP Request: GET http://testserver/api/canvas/c-1/summary "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 10%]
+tests/api/test_canvas_routes_coverage_w51.py::TestGetCanvasSummary::test_summary_empty_500 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:29:25 [    INFO] HTTP Request: GET http://testserver/api/canvas/c-1/summary "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 12%]
+tests/api/test_canvas_routes_coverage_w51.py::TestCanvasHistory::test_history_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:29:25 [    INFO] HTTP Request: GET http://testserver/api/canvas/c-hist-1/history "HTTP/1.1 200 OK"
+PASSED                                                                   [ 13%]
+tests/api/test_canvas_routes_coverage_w51.py::TestCanvasHistory::test_history_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:29:25 [    INFO] HTTP Request: GET http://testserver/api/canvas/ghost/history "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 15%]
+tests/api/test_canvas_routes_coverage_w51.py::TestConnectionManager::test_connect_disconnect PASSED [ 17%]
+tests/api/test_canvas_routes_coverage_w51.py::TestConnectionManager::test_broadcast_state PASSED [ 18%]
+tests/api/test_canvas_routes_coverage_w51.py::TestConnectionManager::test_broadcast_dead_connection_removed 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:29:25 [ WARNING] Failed to send to WebSocket connection: dead
+PASSED                                                                   [ 20%]
+tests/api/test_canvas_routes_coverage_w51.py::TestConnectionManager::test_broadcast_unknown_canvas PASSED [ 22%]
+tests/api/test_canvas_routes_coverage_w51.py::TestCanvasLogic::test_put_logic_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:29:25 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-logic-1/logic "HTTP/1.1 200 OK"
+PASSED                                                                   [ 24%]
+tests/api/test_canvas_routes_coverage_w51.py::TestCanvasLogic::test_put_logic_canvas_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:29:25 [    INFO] HTTP Request: PUT http://testserver/api/canvas/ghost/logic "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 25%]
+tests/api/test_canvas_routes_coverage_w51.py::TestCanvasLogic::test_put_logic_private_canvas_forbidden 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:29:25 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-priv-1/logic "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 27%]
+tests/api/test_canvas_routes_coverage_w51.py::TestCanvasLogic::test_put_logic_agent_governance 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:29:25 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-logic-2/logic "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 29%]
+tests/api/test_canvas_routes_coverage_w51.py::TestCanvasLogic::test_get_logic_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:29:25 [    INFO] HTTP Request: GET http://testserver/api/canvas/c-1/logic "HTTP/1.1 200 OK"
+PASSED                                                                   [ 31%]
+tests/api/test_canvas_routes_coverage_w51.py::TestCanvasLogic::test_get_logic_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:29:25 [    INFO] HTTP Request: GET http://testserver/api/canvas/c-1/logic "HTTP/1.1 200 OK"
+FAILED                                                                   [ 32%]
+tests/api/test_canvas_routes_coverage_w51.py::TestCanvasLogic::test_run_logic_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:29:25 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-1/logic/run "HTTP/1.1 200 OK"
+PASSED                                                                   [ 34%]
+tests/api/test_canvas_routes_coverage_w51.py::TestCanvasLogic::test_run_logic_agent_governance 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:29:25 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-1/logic/run "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 36%]
+tests/api/test_canvas_routes_coverage_w51.py::TestCanvasCRUD::test_read_canvas_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:29:25 [    INFO] HTTP Request: GET http://testserver/api/canvas/c-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 37%]
+tests/api/test_canvas_routes_coverage_w51.py::TestCanvasCRUD::test_read_canvas_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:29:25 [    INFO] HTTP Request: GET http://testserver/api/canvas/ghost "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 39%]
+tests/api/test_canvas_routes_coverage_w51.py::TestCanvasCRUD::test_update_canvas_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:29:25 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-update-3040fd25 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 41%]
+tests/api/test_canvas_routes_coverage_w51.py::TestCanvasCRUD::test_update_canvas_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:29:25 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-update-37760131 "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 43%]
+tests/api/test_canvas_routes_coverage_w51.py::TestCanvasCRUD::test_delete_canvas_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:29:25 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/c-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 44%]
+tests/api/test_canvas_routes_coverage_w51.py::TestCanvasCRUD::test_delete_canvas_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:29:25 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/c-1 "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 46%]
+tests/api/test_canvas_routes_coverage_w51.py::TestCanvasCRUD::test_list_canvas_types 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:29:25 [    INFO] HTTP Request: GET http://testserver/api/canvas/types?agent_id=agent-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 48%]
+tests/api/test_canvas_routes_coverage_w51.py::TestCanvasCRUD::test_list_canvas_types_denied 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:29:25 [ WARNING] API Error: GOVERNANCE_DENIED - nope
+2026-11-05 08:29:25 [    INFO] HTTP Request: GET http://testserver/api/canvas/types?agent_id=agent-1 "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 50%]
+tests/api/test_canvas_routes_coverage_w51.py::TestRecordings::test_get_recording_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:29:25 [    INFO] HTTP Request: GET http://testserver/api/canvas/recordings/rec-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 51%]
+tests/api/test_canvas_routes_coverage_w51.py::TestRecordings::test_get_recording_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:29:25 [    INFO] HTTP Request: GET http://testserver/api/canvas/recordings/ghost "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 53%]
+tests/api/test_canvas_routes_coverage_w51.py::TestRecordings::test_get_recording_ownership_mismatch_404 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:29:25 [    INFO] HTTP Request: GET http://testserver/api/canvas/recordings/rec-1 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 55%]
+tests/api/test_canvas_routes_coverage_w51.py::TestCanvasStateWebSocket::test_ws_missing_token PASSED [ 56%]
+tests/api/test_canvas_routes_coverage_w51.py::TestCanvasStateWebSocket::test_ws_state_update_flow PASSED [ 58%]
+tests/api/test_canvas_routes_coverage_w51.py::TestCanvasStateWebSocket::test_ws_invalid_token PASSED [ 60%]
+tests/api/test_canvas_routes_coverage_w51.py::TestCanvasStateWebSocket::test_ws_unauthorized_canvas PASSED [ 62%]
+tests/api/test_canvas_routes_coverage_w51.py::TestContextEndpoints::test_create_context 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:29:25 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-1/context "HTTP/1.1 200 OK"
+PASSED                                                                   [ 63%]
+tests/api/test_canvas_routes_coverage_w51.py::TestContextEndpoints::test_create_context_with_initial_state 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:29:25 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-1/context "HTTP/1.1 200 OK"
+PASSED                                                                   [ 65%]
+tests/api/test_canvas_routes_coverage_w51.py::TestContextEndpoints::test_get_context_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:29:25 [    INFO] HTTP Request: GET http://testserver/api/canvas/c-1/context "HTTP/1.1 200 OK"
+PASSED                                                                   [ 67%]
+tests/api/test_canvas_routes_coverage_w51.py::TestContextEndpoints::test_get_context_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:29:25 [    INFO] HTTP Request: GET http://testserver/api/canvas/c-1/context "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 68%]
+tests/api/test_canvas_routes_coverage_w51.py::TestContextEndpoints::test_update_state_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:29:25 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-1/context/state "HTTP/1.1 200 OK"
+PASSED                                                                   [ 70%]
+tests/api/test_canvas_routes_coverage_w51.py::TestContextEndpoints::test_update_state_empty 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:29:25 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-1/context/state "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 72%]
+tests/api/test_canvas_routes_coverage_w51.py::TestContextEndpoints::test_update_state_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:29:25 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-1/context/state "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 74%]
+tests/api/test_canvas_routes_coverage_w51.py::TestContextEndpoints::test_record_correction 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:29:25 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-1/context/correction "HTTP/1.1 200 OK"
+PASSED                                                                   [ 75%]
+tests/api/test_canvas_routes_coverage_w51.py::TestContextEndpoints::test_record_correction_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:29:25 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-1/context/correction "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 77%]
+tests/api/test_canvas_routes_coverage_w51.py::TestListRecordings::test_list_recordings_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:29:25 [    INFO] HTTP Request: GET http://testserver/api/canvas/recordings "HTTP/1.1 200 OK"
+PASSED                                                                   [ 79%]
+tests/api/test_canvas_routes_coverage_w51.py::TestListUserCanvases::test_list_canvases_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:29:25 [    INFO] HTTP Request: GET http://testserver/api/canvas/ "HTTP/1.1 200 OK"
+PASSED                                                                   [ 81%]
+tests/api/test_canvas_routes_coverage_w51.py::TestListUserCanvases::test_list_canvases_filtered 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:29:25 [    INFO] HTTP Request: GET http://testserver/api/canvas/?canvas_type=docs "HTTP/1.1 200 OK"
+PASSED                                                                   [ 82%]
+tests/api/test_canvas_routes_coverage_w51.py::TestForkCanvasNotFound::test_fork_db_canvas_missing 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:29:25 [    INFO] HTTP Request: POST http://testserver/api/canvas/ghost/fork "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 84%]
+tests/api/test_canvas_routes_coverage_w51.py::TestStartRecording::test_start_recording_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:29:25 [    INFO] HTTP Request: POST http://testserver/api/canvas/recordings/start "HTTP/1.1 200 OK"
+PASSED                                                                   [ 86%]
+tests/api/test_canvas_routes_coverage_w51.py::TestHistoryError::test_history_db_error_500 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:29:25 [   ERROR] Canvas audit history failed: db down
+Traceback (most recent call last):
+  File "/private/tmp/atom-oracle01-21c-314/backend/api/canvas_routes.py", line 1131, in get_canvas_history
+    if not _verify_canvas_owner(db, canvas_id, str(current_user.id)):
+           ~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/atom-oracle01-21c-314/backend/tools/canvas_crud_tool.py", line 74, in _verify_canvas_owner
+    canvas = db.query(Canvas).filter(Canvas.id == canvas_id).first()
+             ~~~~~~~~^^^^^^^^
+  File "/Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/unittest/mock.py", line 1176, in __call__
+    return self._mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/unittest/mock.py", line 1180, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/unittest/mock.py", line 1241, in _execute_mock_call
+    raise effect
+RuntimeError: db down
+2026-11-05 08:29:25 [    INFO] HTTP Request: GET http://testserver/api/canvas/c-1/history "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 87%]
+tests/api/test_canvas_routes_coverage_w51.py::TestSubmitCanvas::test_submit_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:29:25 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 200 OK"
+PASSED                                                                   [ 89%]
+tests/api/test_canvas_routes_coverage_w51.py::TestSubmitCanvas::test_submit_agent_governance 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:29:25 [ WARNING] API Error: GOVERNANCE_DENIED - denied
+2026-11-05 08:29:25 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 91%]
+tests/api/test_canvas_routes_coverage_w51.py::TestSubmitCanvas::test_submit_persistence_failure_swallowed 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:29:25 [ WARNING] Canvas submit persistence failed (non-fatal): db down
+2026-11-05 08:29:25 [    INFO] HTTP Request: POST http://testserver/api/canvas/submit "HTTP/1.1 200 OK"
+PASSED                                                                   [ 93%]
+tests/api/test_canvas_routes_coverage_w51.py::TestCanvasStateWebSocketEndToEnd::test_ws_not_authorized PASSED [ 94%]
+tests/api/test_canvas_routes_coverage_w51.py::TestCanvasStateWebSocketEndToEnd::test_ws_broadcast_loop_and_persist FAILED [ 96%]
+tests/api/test_canvas_routes_coverage_w51.py::TestCanvasStateWebSocketErrors::test_ws_persist_failure_swallowed FAILED [ 98%]
+tests/api/test_canvas_routes_coverage_w51.py::TestCanvasStateWebSocketErrors::test_ws_broadcast_error_disconnects FAILED [100%]
+
+=================================== FAILURES ===================================
+E   assert 500 == 200
+     +  where 500 = <Response [500 Internal Server Error]>.status_code
+------------------------------ Captured log setup ------------------------------
+INFO     core.agent_task_registry:agent_task_registry.py:64 AgentTaskRegistry initialized
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/canvas/c-1/fork "HTTP/1.1 500 Internal Server Error"
+/private/tmp/atom-oracle01-21c-314/backend/tests/api/test_canvas_routes_coverage_w51.py:164: assert 500 == 200
+E   assert 200 == 404
+     +  where 200 = <Response [200 OK]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/api/canvas/c-1/logic "HTTP/1.1 200 OK"
+/private/tmp/atom-oracle01-21c-314/backend/tests/api/test_canvas_routes_coverage_w51.py:379: assert 200 == 404
+E   starlette.websockets.WebSocketDisconnect
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:144: starlette.websockets.WebSocketDisconnect
+E   starlette.websockets.WebSocketDisconnect
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:144: starlette.websockets.WebSocketDisconnect
+E   starlette.websockets.WebSocketDisconnect
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:144: starlette.websockets.WebSocketDisconnect
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+core/graphrag_engine.py:203
+  /private/tmp/atom-oracle01-21c-314/backend/core/graphrag_engine.py:203: SyntaxWarning: "\%" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\%"? A raw string is also an option.
+    Escaped pattern where % and _ are escaped to \%
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 116 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/api/test_canvas_routes_coverage_w51.py::TestForkCanvas::test_fork_success
+FAILED tests/api/test_canvas_routes_coverage_w51.py::TestCanvasLogic::test_get_logic_not_found
+FAILED tests/api/test_canvas_routes_coverage_w51.py::TestCanvasStateWebSocketEndToEnd::test_ws_broadcast_loop_and_persist
+FAILED tests/api/test_canvas_routes_coverage_w51.py::TestCanvasStateWebSocketErrors::test_ws_persist_failure_swallowed
+FAILED tests/api/test_canvas_routes_coverage_w51.py::TestCanvasStateWebSocketErrors::test_ws_broadcast_error_disconnects
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================= 5 failed, 53 passed, 124 warnings in 11.07s ==================

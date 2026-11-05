@@ -7,6 +7,8 @@ import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional, Tuple
 
+from sqlalchemy import update
+
 from core.database import get_db_session
 from core.models import HITLAction, HITLActionStatus, User
 from core.communication_service import communication_service
@@ -32,9 +34,9 @@ class HITLService:
             Dict containing final status and any required next steps (e.g. 2FA).
         """
         with get_db_session() as db:
-            # Bug 6 fix: TOCTOU race — concurrent approve calls both read
-            # status==PENDING, both pass the guard, and both execute.
-            # Use a conditional UPDATE (check-and-set) to atomically claim the action.
+            # The conditional UPDATE below is the real claim. with_for_update
+            # is kept for PostgreSQL; SQLite ignores it, so status alone is
+            # never treated as an atomic guard.
             action = (
                 db.query(HITLAction)
                 .filter(HITLAction.id == action_id)
@@ -44,19 +46,68 @@ class HITLService:
             if not action:
                 raise ValueError(f"HITL Action {action_id} not found")
 
-            if action.status in [HITLActionStatus.APPROVED.value, HITLActionStatus.REJECTED.value]:
-                return {"status": action.status, "message": "Action already resolved"}
-
             user = db.query(User).filter(User.id == resolver_id).first()
             if not user:
                 raise ValueError(f"Resolver user {resolver_id} not found")
 
+            def _current_status() -> str:
+                current = (
+                    db.query(HITLAction)
+                    .filter(HITLAction.id == action_id)
+                    .first()
+                )
+                return str(getattr(current, "status", "unknown") or "unknown")
+
+            def _claim(values: Dict[str, Any], allowed_statuses) -> bool:
+                result = db.execute(
+                    update(HITLAction)
+                    .where(
+                        HITLAction.id == action_id,
+                        HITLAction.status.in_(list(allowed_statuses)),
+                    )
+                    .values(**values)
+                )
+                return result.rowcount == 1
+
+            now = datetime.now(timezone.utc)
+
             # 1. Handle Rejection
             if resolution == "rejected":
-                action.status = HITLActionStatus.REJECTED.value
-                action.resolver_id = resolver_id
-                action.resolved_at = datetime.now(timezone.utc)
-                db.commit()
+                if action.status in (
+                        HITLActionStatus.APPROVED.value,
+                        HITLActionStatus.REJECTED.value):
+                    return {
+                        "status": action.status,
+                        "message": "Action already resolved",
+                    }
+                with db.no_autoflush:
+                    claimed = _claim(
+                        {
+                            "status": HITLActionStatus.REJECTED.value,
+                            "reviewed_by": resolver_id,
+                            "reviewed_at": now,
+                        },
+                        (
+                            HITLActionStatus.PENDING.value,
+                            HITLActionStatus.PENDING_2FA.value,
+                        ),
+                    )
+                    if not claimed:
+                        db.rollback()
+                        return {
+                            "status": _current_status(),
+                            "message": "Action already resolved",
+                        }
+                    db.expire(action)
+                    action = (
+                        db.query(HITLAction)
+                        .filter(HITLAction.id == action_id)
+                        .first()
+                    )
+                    # Callback compatibility only; reviewed_by/reviewed_at are
+                    # the durable columns.
+                    action.resolver_id = resolver_id
+                    db.commit()
                 logger.info(f"HITL Action {action_id} REJECTED by {user.email}")
 
                 # Student agents learn from corrections: a human rejection is
@@ -76,25 +127,75 @@ class HITLService:
             # 2. Check for 2FA Enforcement (Phase 5)
             # High-stakes actions (URGENT priority) require 2FA if enabled for user
             if action.priority == "URGENT" and user.two_factor_enabled:
-                # Check session/metadata for recent 2FA verification
-                # For now, we transition to PENDING_2FA and prompt
                 verified_2fa = metadata.get("verified_2fa", False) if metadata else False
-                
                 if not verified_2fa:
-                    action.status = HITLActionStatus.PENDING_2FA.value
-                    db.commit()
-                    logger.info(f"HITL Action {action_id} requires 2FA from {user.email}")
-                    
-                    # Notify user to verify 2FA
+                    if action.status == HITLActionStatus.PENDING_2FA.value:
+                        return {
+                            "status": "pending_2fa",
+                            "message": "2FA verification required",
+                        }
+                    with db.no_autoflush:
+                        claimed = _claim(
+                            {"status": HITLActionStatus.PENDING_2FA.value},
+                            (HITLActionStatus.PENDING.value,),
+                        )
+                        if not claimed:
+                            db.rollback()
+                            return {
+                                "status": _current_status(),
+                                "message": "Action already resolved",
+                            }
+                        db.expire(action)
+                        action = (
+                            db.query(HITLAction)
+                            .filter(HITLAction.id == action_id)
+                            .first()
+                        )
+                        db.commit()
+                    logger.info(
+                        f"HITL Action {action_id} requires 2FA from {user.email}")
                     await self._prompt_for_2fa(action, user)
-                    return {"status": "pending_2fa", "message": "2FA verification required"}
+                    return {
+                        "status": "pending_2fa",
+                        "message": "2FA verification required",
+                    }
+
+            if action.status in (
+                    HITLActionStatus.APPROVED.value,
+                    HITLActionStatus.REJECTED.value):
+                return {
+                    "status": action.status,
+                    "message": "Action already resolved",
+                }
 
             # 3. Handle Approval
-            action.status = HITLActionStatus.APPROVED.value
-            action.resolver_id = resolver_id
-            action.resolved_at = datetime.now(timezone.utc)
-            db.commit()
-            
+            with db.no_autoflush:
+                claimed = _claim(
+                    {
+                        "status": HITLActionStatus.APPROVED.value,
+                        "reviewed_by": resolver_id,
+                        "reviewed_at": now,
+                    },
+                    (
+                        HITLActionStatus.PENDING.value,
+                        HITLActionStatus.PENDING_2FA.value,
+                    ),
+                )
+                if not claimed:
+                    db.rollback()
+                    return {
+                        "status": _current_status(),
+                        "message": "Action already resolved",
+                    }
+                db.expire(action)
+                action = (
+                    db.query(HITLAction)
+                    .filter(HITLAction.id == action_id)
+                    .first()
+                )
+                action.resolver_id = resolver_id
+                db.commit()
+
             logger.info(f"HITL Action {action_id} APPROVED by {user.email}")
 
             # Student agents learn from approvals: what humans keep
@@ -111,7 +212,6 @@ class HITLService:
             ))
 
             # 4. Resume Workflow (Phase 4)
-            # This would typically notify the waiting agent or trigger a QStash callback
             await self._resume_workflow(action)
 
             return {"status": "approved"}

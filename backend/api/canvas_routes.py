@@ -725,14 +725,19 @@ async def update_canvas_content(
     if result.get("status") == "refused":
         # BUG FIX: not-found errors must return 404 (consistent with GET
         # /{canvas_id}), not 400 — a missing canvas is not a bad request.
-        # A stale revision is a 409, not a generic refusal.
+        # A stale revision is a 409; a foreign tenant/workspace is 403 and
+        # never reaches the append.
         error = str(result.get("error", ""))
-        status = 409 if result.get("conflict") else (
-            404 if "not found" in error.lower() else 400)
+        status = int(result.get("http_status") or (
+            409 if result.get("conflict") else (
+                404 if "not found" in error.lower() else 400)))
         raise HTTPException(status_code=status, detail=error)
-    # The save itself must never be blocked by the learning capture. A
-    # no-change/already-applied result is not a new user edit.
-    if (result.get("success") and not result.get("no_change")
+    # The save itself must never be blocked by the learning capture. Only a
+    # verified new edit feeds learning; a no-change/already-applied or
+    # committed-but-unverified result is not a clean new user edit.
+    verification_status = (result.get("verification") or {}).get("status")
+    if (result.get("success") and verification_status == "verified"
+            and not result.get("no_change")
             and not result.get("already_applied")):
         _maybe_record_canvas_correction(
             str(current_user.id),
@@ -775,8 +780,9 @@ async def restore_canvas_version(
     )
     if result.get("status") == "refused":
         error = str(result.get("error", ""))
-        status = 409 if result.get("conflict") else (
-            404 if "not found" in error.lower() else 400)
+        status = int(result.get("http_status") or (
+            409 if result.get("conflict") else (
+                404 if "not found" in error.lower() else 400)))
         raise HTTPException(status_code=status, detail=error)
     return result
 

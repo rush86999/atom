@@ -1,0 +1,62 @@
+{
+  "schema": "atom-oracle-direct-canvas-manifest-atomic-scope-1",
+  "status": "atomic-scope repair submitted for independent verification; whole-app ORACLE-01 remains open",
+  "branch": "codex/oracle01-http-canvas-20261105",
+  "base_source": "81c5962bd17b3ffa90cd5107d5b3134821c0ffa1",
+  "previous_source": "18e8af4a63a5f952e14a9c5f27dc81d6d313b918",
+  "previous_evidence_commit": "48ee4cee9778c1ddb27255eadf7561ecf4278de9",
+  "repair_source": "82ac9681ad66b276a135ce06e1d2b7f03cbb30d9",
+  "tree_clean_at_execution": true,
+  "source_files": {
+    "backend/api/canvas_routes.py": "c49b48409fb7d78c62a95503721642ca99eab6ea7081da79fc8071978733772c",
+    "backend/core/canvas_write_service.py": "e28326508bc6a31c027e0d971d56df43ea43ba7e3b933996043375b0b6b22d96",
+    "backend/core/oracle/postcondition_verifiers.py": "a62a3fb41d93d07d95a66eaccd9492c04a8f9f65ac0f355fee06de0afe13d723",
+    "backend/tools/canvas_crud_tool.py": "be810f46a3d6be3a9a3b8ed069a075e746d18bf04e2fe3947ec144380c33ebc3",
+    "backend/tests/test_oracle_direct_canvas_writes.py": "71964d2c26a398b652e775819b91eb356a07b0af82d982ed7c1a7e8e1447a993",
+    "backend/tests/test_verifier_canvas_scope_5eede.py": "066be1342ddcc7bfad4b80cc203f0c830a7f9627547b660db77c004c1dbfe489",
+    "backend/tests/test_verifier_canvas_scope_commit_18e8.py": "7b98e3a5696aaadc50cf055e7cd491de56f9759900ae09ae86998f3049d84c4e",
+    "backend/main_api_app.py": "83f6c051d58d39c70c94617cd6eedc9ce65e6414047c1297899dc6e771321af0"
+  },
+  "artifacts": {
+    "README.md": "7dac78c0a192eccc8860872c9d18ecf01c03f7efb3a069a06b4d9170dcb0a5ea",
+    "TEST_RESULTS.md": "d971fb6785635fef37643688f4e242872300bed200d3c7121b28e23c61465fb6",
+    "adjacent-311.log": "b3c1ee9bdc6f397362fe19f24a396b47e1484f42cc1fa4858dac4f23a1a2ceda",
+    "adjacent-314.log": "fa8cb22f4695ad0336894a3d8cdcdbe6e07f81247b2a9a03c902edabb5a866de",
+    "affected-311.log": "25ac7ed4cf50f32cd618f05475c103fc942db28510ac9fd235a8bfe04ccc08d4",
+    "affected-314.log": "7dee62cc88159072800f88403522e7249e9cc1a5492f8c67b09b9f9baa83cf5e",
+    "external-probe-314.log": "8d747ede416a4d4374401d1cde304ec3811f70cf1ea1c87a8092731a11a7a8d2",
+    "focused-311.log": "7303fcb902779a9793a49ef8592d1529f6ef00024e89ed4d580ad5bde4b5c577",
+    "focused-314.log": "d5e615ddbf5d1c847eb01f7a7e2280a33816ca440335a01b560eb5f387b8d5dc",
+    "routes.json": "7c3c1ae66224a4c422513b54707c2fc59b03955d02f58515691212a112359bca",
+    "verification.json": "4a81533af3a77aa46b3c5360cb02d5e939733361afc733e87eb4bfb69a425d92",
+    "verifier-affected-before.log": "e78bfeec1892ccd2391514aa0bd670ebd066bd040e2c9f9cd072d9222cdc38a8",
+    "verifier-atomic-before.log": "b450dac9c048575c0a720b0ca615945f3f44fe8f6e18044f8269d50fa35b48cd",
+    "verifier-focused-before.log": "7051f3e9c6901797e5bc04f2e673aebe9aec839ad57a75412d7bbbf00813213e"
+  },
+  "checks": {
+    "focused_python314": "55 passed",
+    "focused_python311": "55 passed",
+    "affected_python314": "187 passed, 8 deselected",
+    "affected_python311": "187 passed, 8 deselected",
+    "adjacent_python314": "34 passed",
+    "adjacent_python311": "34 passed",
+    "external_probe_python314": "4 passed",
+    "verifier_atomic_before": "4 failed on previous source",
+    "model_calls": 0,
+    "provider_calls": 0
+  },
+  "ordering": {
+    "scope_move_before_effect": "409 zero effect",
+    "scope_move_after_authorized_commit": "committed_unverified, identity retained, no replay"
+  },
+  "boundaries": [
+    "bounded two-route family, not whole-app ORACLE-01 coverage",
+    "no second store/router/process-local lock/new oracle",
+    "PostgreSQL concurrency/soak not claimed",
+    "other canvas routes, goals routes, provider writes and whole-app inventory remain outside this slice",
+    "auth/2FA remains read-only next-family preparation",
+    "feedback/shared CAS/wait/employee acceptance remains closed",
+    "no new provider, credential, consent, spend, send, download or deployment authority",
+    "historical 111/123, tags and model scores unchanged"
+  ]
+}

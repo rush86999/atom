@@ -20,6 +20,7 @@ Bugs found (TDD red first):
   (400 start_date>end_date) swallowed by bare `except Exception` -> 500.
 """
 import asyncio
+import contextlib
 import os
 import uuid
 from datetime import datetime, timedelta, timezone
@@ -44,7 +45,7 @@ from api.stage_router_routes import router as stage_router_router
 from api.workflow_debugging import router as wf_debug_router
 from core.auth import get_current_user
 from core.database import Base, get_db
-from core.models import DeepLinkAudit, User, UserRole
+from core.models import AuditLog, DeepLinkAudit, HITLAction, User, UserRole
 
 
 # ============================================================================
@@ -104,14 +105,31 @@ def bypass_2fa_rate_limit():
 
 
 @pytest.fixture
-def db():
+def db(tmp_path, monkeypatch):
     engine = create_engine(
-        "sqlite://",
+        f"sqlite:///{tmp_path}/w80b.db",
         connect_args={"check_same_thread": False},
-        poolclass=StaticPool,
     )
     Base.metadata.create_all(bind=engine)
-    session = sessionmaker(bind=engine)()
+    Session = sessionmaker(bind=engine)
+    session = Session()
+
+    @contextlib.contextmanager
+    def fresh_session():
+        fresh = Session()
+        try:
+            yield fresh
+            fresh.commit()
+        except Exception:
+            fresh.rollback()
+            raise
+        finally:
+            fresh.close()
+
+    monkeypatch.setattr("core.database.SessionLocal", Session)
+    monkeypatch.setattr("core.database.get_db_session", fresh_session)
+    monkeypatch.setattr("core.intervention_service.get_db_session", fresh_session)
+    monkeypatch.setattr("core.hitl_service.get_db_session", fresh_session)
     yield session
     session.close()
     engine.dispose()
@@ -136,6 +154,23 @@ def _make_2fa_user(db, user_id="u2fa", *, enabled=False, secret=None, codes=None
     db.add(user)
     db.commit()
     return user
+
+
+def _make_2fa_action(db, action_id="act-1", user_id="u2fa"):
+    action = HITLAction(
+        id=action_id,
+        tenant_id="t1",
+        workspace_id=None,
+        action_type="send_message",
+        platform="internal",
+        params={},
+        status="pending",
+        priority="MEDIUM",
+        user_id=user_id,
+    )
+    db.add(action)
+    db.commit()
+    return action
 
 
 @pytest.fixture
@@ -184,6 +219,7 @@ class Test2FASetup:
 
     def test_setup_saves_secret(self, db, client_factory):
         client_factory().post("/api/auth/2fa/setup")
+        db.expire_all()
         u = db.query(User).filter(User.id == "u2fa").first()
         assert u.two_factor_secret
 
@@ -201,17 +237,21 @@ class Test2FAEnable:
     def test_enable_success_with_backup_codes(self, db, client_factory):
         u = _make_2fa_user(db, "u2fa", secret=TEST_SECRET)
         code = pyotp.TOTP(TEST_SECRET).now()
-        with patch("api.auth_2fa_routes.audit_service") as audit:
-            resp = client_factory().post("/api/auth/2fa/enable", json={"code": code})
-        assert resp.status_code == 200
+        resp = client_factory().post(
+            "/api/auth/2fa/enable", json={"code": code})
+        assert resp.status_code == 200, resp.text
         body = resp.json()
         assert body["success"] is True
+        assert body["verification"]["status"] == "verified"
         codes = body["data"]["backup_codes"]
         assert len(codes) == 5
         assert all("-" in c and len(c) == 19 for c in codes)
+        db.expire_all()
+        u = db.query(User).filter(User.id == "u2fa").first()
         assert u.two_factor_enabled is True
         assert len(u.two_factor_backup_codes) == 5
-        audit.log_event.assert_called_once()
+        assert db.query(AuditLog).filter(
+            AuditLog.action == "2fa_enabled").count() == 1
 
     def test_enable_invalid_code(self, db, client_factory):
         _make_2fa_user(db, "u2fa", secret=TEST_SECRET)
@@ -250,14 +290,18 @@ class Test2FADisable:
         u = _make_2fa_user(db, "u2fa", enabled=True, secret=TEST_SECRET,
                            codes=["A1B2-C3D4-E5F6-G7H8"])
         code = pyotp.TOTP(TEST_SECRET).now()
-        with patch("api.auth_2fa_routes.audit_service") as audit:
-            resp = client_factory().post("/api/auth/2fa/disable", json={"code": code})
-        assert resp.status_code == 200
+        resp = client_factory().post(
+            "/api/auth/2fa/disable", json={"code": code})
+        assert resp.status_code == 200, resp.text
         assert resp.json()["success"] is True
+        assert resp.json()["verification"]["status"] == "verified"
+        db.expire_all()
+        u = db.query(User).filter(User.id == "u2fa").first()
         assert u.two_factor_enabled is False
         assert u.two_factor_secret is None
         assert u.two_factor_backup_codes is None
-        audit.log_event.assert_called_once()
+        assert db.query(AuditLog).filter(
+            AuditLog.action == "2fa_disabled").count() == 1
 
     def test_disable_not_enabled(self, client_factory):
         resp = client_factory().post("/api/auth/2fa/disable", json={"code": "000000"})
@@ -283,17 +327,18 @@ class Test2FADisable:
 
 class Test2FABackupVerify:
     def test_backup_verify_success_consumes_code(self, db, client_factory):
-        u = _make_2fa_user(db, "u2fa", enabled=True, secret=TEST_SECRET,
-                           codes=["AAAA-BBBB-CCCC-DDDD", "1111-2222-3333-4444"])
-        with patch("api.auth_2fa_routes.audit_service") as audit:
-            resp = client_factory().post(
-                "/api/auth/2fa/backup/verify", json={"code": "AAAA-BBBB-CCCC-DDDD"})
-        assert resp.status_code == 200
+        _make_2fa_user(db, "u2fa", enabled=True, secret=TEST_SECRET,
+                       codes=["AAAA-BBBB-CCCC-DDDD", "1111-2222-3333-4444"])
+        resp = client_factory().post(
+            "/api/auth/2fa/backup/verify", json={"code": "AAAA-BBBB-CCCC-DDDD"})
+        assert resp.status_code == 200, resp.text
         body = resp.json()
         assert body["success"] is True
         assert body["data"]["remaining_codes"] == 1
+        assert body["verification"]["status"] == "verified"
+        db.expire_all()
+        u = db.query(User).filter(User.id == "u2fa").first()
         assert u.two_factor_backup_codes == ["1111-2222-3333-4444"]
-        audit.log_event.assert_called_once()
 
     def test_backup_verify_not_enabled(self, client_factory):
         resp = client_factory().post("/api/auth/2fa/backup/verify", json={"code": "X"})
@@ -322,21 +367,21 @@ class Test2FAVerifyAction:
 
     def test_verify_action_success(self, db, client_factory):
         self._action_user(db)
+        _make_2fa_action(db, "act-1", "u2fa")
         code = pyotp.TOTP(TEST_SECRET).now()
-        fake_hitl = AsyncMock()
-        fake_hitl.resolve_action.return_value = {"action_id": "a1", "status": "approved"}
-        with patch("core.hitl_service.hitl_service", fake_hitl), \
-                patch("api.auth_2fa_routes.audit_service") as audit:
-            resp = client_factory().post(
-                "/api/auth/2fa/verify-action/act-1", json={"code": code})
-        assert resp.status_code == 200
+        resp = client_factory().post(
+            "/api/auth/2fa/verify-action/act-1", json={"code": code})
+        assert resp.status_code == 200, resp.text
         body = resp.json()
         assert body["success"] is True
-        assert body["data"]["action_id"] == "a1"
-        fake_hitl.resolve_action.assert_awaited_once_with(
-            action_id="act-1", resolution="approved",
-            resolver_id="u2fa", metadata={"verified_2fa": True})
-        audit.log_event.assert_called_once()
+        assert body["data"] == {"status": "approved"}
+        assert body["verification"]["status"] == "verified"
+        db.expire_all()
+        action = db.query(HITLAction).filter(
+            HITLAction.id == "act-1").one()
+        assert action.status == "approved"
+        assert action.reviewed_by == "u2fa"
+        assert action.reviewed_at is not None
 
     def test_verify_action_not_enabled(self, client_factory):
         resp = client_factory().post("/api/auth/2fa/verify-action/act-1", json={"code": "X"})
@@ -344,18 +389,17 @@ class Test2FAVerifyAction:
 
     def test_verify_action_invalid_code(self, db, client_factory):
         self._action_user(db)
+        _make_2fa_action(db, "act-1", "u2fa")
         resp = client_factory().post("/api/auth/2fa/verify-action/act-1", json={"code": "000000"})
         assert resp.status_code == 422
 
-    def test_verify_action_service_failure_500(self, db, client_factory):
+    def test_verify_action_missing_action_404(self, db, client_factory):
         self._action_user(db)
         code = pyotp.TOTP(TEST_SECRET).now()
-        fake_hitl = AsyncMock()
-        fake_hitl.resolve_action.side_effect = RuntimeError("boom")
-        with patch("core.hitl_service.hitl_service", fake_hitl):
-            resp = client_factory().post(
-                "/api/auth/2fa/verify-action/act-1", json={"code": code})
-        assert resp.status_code == 500
+        resp = client_factory().post(
+            "/api/auth/2fa/verify-action/missing-action",
+            json={"code": code})
+        assert resp.status_code == 404
 
     def test_verify_action_rate_limited_429(self, db, client_factory):
         self._action_user(db)

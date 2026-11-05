@@ -1,0 +1,108 @@
+
+tests/test_acceptance_canvas_projection.py::test_pending_review_row_is_projected_not_the_snapshot 
+-------------------------------- live log setup --------------------------------
+2026-11-05 08:33:46 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-05 08:33:47 [    INFO] EscalationManager initialized
+2026-11-05 08:33:47 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:33:47 [    INFO] EscalationManager initialized
+2026-11-05 08:33:47 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:33:47 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 08:33:47 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  2%]
+tests/test_acceptance_canvas_projection.py::test_the_snapshot_reader_would_have_reported_the_edit_missing PASSED [  5%]
+tests/test_acceptance_canvas_projection.py::test_accepted_and_mirrored_row_agrees_with_the_snapshot PASSED [  8%]
+tests/test_acceptance_canvas_projection.py::test_event_stamp_falls_back_to_the_content_bearing_row PASSED [ 11%]
+tests/test_acceptance_canvas_projection.py::test_legacy_canvas_with_no_audit_body_falls_back_to_the_snapshot PASSED [ 14%]
+tests/test_acceptance_canvas_projection.py::test_email_draft_state_read_merges_the_draft_body PASSED [ 17%]
+tests/test_acceptance_canvas_projection.py::test_review_state_semantics_are_exposed_not_flattened PASSED [ 20%]
+tests/test_acceptance_canvas_projection.py::test_the_runners_preservation_reader_is_the_projection PASSED [ 23%]
+tests/test_acceptance_canvas_projection.py::test_unknown_canvas_fails_closed PASSED [ 26%]
+tests/test_acceptance_canvas_projection.py::test_deleted_canvas_is_reported_not_projected PASSED [ 29%]
+tests/test_canvas_feedback_episode_integration.py::TestFeedbackScoreCalculation::test_mixed_feedback_scores PASSED [ 32%]
+tests/test_canvas_feedback_episode_integration.py::TestFeedbackScoreCalculation::test_positive_only_feedback PASSED [ 35%]
+tests/test_canvas_feedback_episode_integration.py::TestFeedbackScoreCalculation::test_empty_feedback PASSED [ 38%]
+tests/test_canvas_feedback_episode_integration.py::TestCanvasInsightsExtraction::test_extract_canvas_type_counts 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:33:47 [    INFO] Creating isolated LanceDBHandler for workspace: default at ./data/atom_memory/default
+2026-11-05 08:33:47 [    INFO] EscalationManager initialized
+2026-11-05 08:33:47 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:33:47 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 08:33:47 [    INFO] LanceDBHandler initialized. ID: 4981526992. LANCEDB_AVAILABLE: True
+PASSED                                                                   [ 41%]
+tests/test_canvas_feedback_episode_integration.py::TestCanvasInsightsExtraction::test_extract_user_interaction_patterns PASSED [ 44%]
+tests/test_canvas_feedback_episode_integration.py::TestCanvasInsightsExtraction::test_extract_high_engagement_canvases PASSED [ 47%]
+tests/test_canvas_feedback_episode_integration.py::TestCanvasContextFetching::test_fetch_canvas_context_by_ids PASSED [ 50%]
+tests/test_canvas_feedback_episode_integration.py::TestCanvasContextFetching::test_fetch_canvas_context_empty_list PASSED [ 52%]
+tests/test_canvas_feedback_episode_integration.py::TestFeedbackContextFetching::test_fetch_feedback_context_by_ids PASSED [ 55%]
+tests/test_canvas_feedback_episode_integration.py::TestFeedbackContextFetching::test_fetch_feedback_context_empty_list PASSED [ 58%]
+tests/test_canvas_feedback_episode_integration.py::TestEpisodeSerialization::test_serialize_episode_with_canvas_feedback_fields PASSED [ 61%]
+tests/test_canvas_feedback_episode_integration.py::TestFeedbackWeightedRetrieval::test_positive_feedback_boost PASSED [ 64%]
+tests/test_canvas_feedback_episode_integration.py::TestFeedbackWeightedRetrieval::test_negative_feedback_penalty PASSED [ 67%]
+tests/test_canvas_feedback_episode_integration.py::TestFeedbackWeightedRetrieval::test_neutral_feedback_no_change PASSED [ 70%]
+tests/test_canvas_feedback_episode_integration.py::TestCanvasTypeFiltering::test_canvas_type_filter_logic PASSED [ 73%]
+tests/test_canvas_feedback_episode_integration.py::TestCanvasTypeFiltering::test_canvas_action_filter_logic PASSED [ 76%]
+tests/test_canvas_connected_binding.py::test_scoped_lookup_refuses_missing_workspace PASSED [ 79%]
+tests/test_canvas_connected_binding.py::test_grant_state_distinguishes_revoked_from_disconnected PASSED [ 82%]
+tests/test_canvas_connected_binding.py::test_connected_bind_preserves_snapshot_and_upstream_identity 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:33:47 [    INFO] sheet datasets: materialized 2 sheet(s) of connected.xlsx (hash 0de4c207edb1)
+PASSED                                                                   [ 85%]
+tests/test_canvas_connected_binding.py::test_connected_refresh_rebinds_and_invalidates_reuse 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:33:47 [    INFO] sheet datasets: materialized 2 sheet(s) of connected.xlsx (hash 0de4c207edb1)
+2026-11-05 08:33:47 [    INFO] sheet datasets: materialized 2 sheet(s) of connected.xlsx (hash 07d51cde2d50)
+PASSED                                                                   [ 88%]
+tests/test_canvas_connected_binding.py::test_connected_assessment_is_bounded_and_names_unassessed 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:33:47 [    INFO] sheet datasets: materialized 2 sheet(s) of connected.xlsx (hash 0de4c207edb1)
+PASSED                                                                   [ 91%]
+tests/test_canvas_connected_binding.py::test_connected_negatives_are_distinguishable 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:33:47 [    INFO] sheet datasets: materialized 2 sheet(s) of connected.xlsx (hash 0de4c207edb1)
+2026-11-05 08:33:47 [    INFO] sheet datasets: materialized 2 sheet(s) of other.xlsx (hash 0de4c207edb1)
+PASSED                                                                   [ 94%]
+tests/test_canvas_connected_binding.py::test_client_paths_hashes_and_rows_are_rejected_by_the_request_model PASSED [ 97%]
+tests/test_canvas_connected_binding.py::test_duplicate_subjects_cannot_be_assessed 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:33:47 [    INFO] sheet datasets: materialized 2 sheet(s) of connected.xlsx (hash 6df4ec74231b)
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 68 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_acceptance_canvas_projection.py::test_pending_review_row_is_projected_not_the_snapshot
+  /private/tmp/atom-oracle01-18e-314/backend/core/graphrag_engine.py:203: SyntaxWarning: "\%" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\%"? A raw string is also an option.
+    Escaped pattern where % and _ are escaped to \%
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 34 passed, 75 warnings in 10.31s =======================

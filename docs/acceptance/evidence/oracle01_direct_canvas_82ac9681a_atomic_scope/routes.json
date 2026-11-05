@@ -1,0 +1,58 @@
+{
+  "schema": "atom-oracle-direct-canvas-atomic-scope-routes-1",
+  "repair_source": "82ac9681ad66b276a135ce06e1d2b7f03cbb30d9",
+  "previous_source": "18e8af4a63a5f952e14a9c5f27dc81d6d313b918",
+  "prefix": "/api/canvas",
+  "routes": [
+    {
+      "method": "PUT",
+      "path": "/api/canvas/{canvas_id}",
+      "handler": "api.canvas_routes.update_canvas_content",
+      "service": "core.canvas_write_service.update_canvas_verified",
+      "writer": "tools.canvas_crud_tool.update_canvas_content",
+      "verifier": "canvas.update",
+      "authorization_snapshot": "Canvas.tenant_id/workspace_id captured before the final scope check",
+      "commit_guard": "UPDATE canvases SET content/canvas_type/name/last_edited... WHERE id = :id AND exact tenant/workspace snapshot",
+      "linearization": "the guarded DML is the transaction's write reservation and linearization point",
+      "zero_match": "rollback pending audit/mirror work; 409 conflict; no broadcast; no learning capture",
+      "duplicate_operation_branch": "conditional mirror refresh guarded the same way; zero match refuses",
+      "pending_review_branch": "guarded no-op scope claim binds the audit append",
+      "unchanged_scope": "verified; exact snapshot predicates match",
+      "null_empty_default": "bound exactly; a move between null/empty/default is a scope move and matches zero rows"
+    },
+    {
+      "method": "POST",
+      "path": "/api/canvas/{canvas_id}/restore",
+      "handler": "api.canvas_routes.restore_canvas_version",
+      "service": "core.canvas_write_service.restore_canvas_verified",
+      "writer": "tools.canvas_crud_tool.restore_canvas_version",
+      "verifier": "canvas.restore_version",
+      "authorization_snapshot": "Canvas.tenant_id/workspace_id captured before the final scope check",
+      "commit_guard": "guarded UPDATE ... WHERE id = :id AND exact tenant/workspace snapshot",
+      "linearization": "the guarded DML is the transaction's write reservation and linearization point",
+      "zero_match": "rollback pending audit/mirror work; 409 conflict; no broadcast; no learning capture",
+      "no_change": "separate zero-effect contract; no write receipt; scope change on readback refutes",
+      "unchanged_scope": "verified; exact snapshot predicates match"
+    }
+  ],
+  "ordering_contract": {
+    "scope_move_commits_before_old_effect": "the old principal's write matches zero rows and has zero effect",
+    "scope_move_commits_after_authorized_effect": "the post-effect verifier refutes the later readback and reports committed_unverified with identity retained and replay=do_not_repeat"
+  },
+  "covered_controls": [
+    "PUT/restore workspace/tenant move after the final check",
+    "null/empty to default move",
+    "duplicate-operation mirror refresh",
+    "unchanged-scope PUT and restore twins",
+    "fresh-session state, audit/mirror rollback, winning scope preservation",
+    "zero broadcast and zero correction capture on conflict",
+    "post-commit scope and stale-mirror defense retained"
+  ],
+  "not_covered": [
+    "PostgreSQL runtime concurrency/soak",
+    "other canvas routes",
+    "goals routes",
+    "provider writes",
+    "whole-app ORACLE-01 inventory"
+  ]
+}

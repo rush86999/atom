@@ -1,0 +1,92 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-05 08:16:15 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-05 08:16:16 [    INFO] EscalationManager initialized
+2026-11-05 08:16:16 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:16:16 [    INFO] EscalationManager initialized
+2026-11-05 08:16:16 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:16:16 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 08:16:16 [    INFO] MCP Service initialized
+
+tests/api/test_canvas_routes_coverage_w51.py::TestForkCanvas::test_fork_success 
+-------------------------------- live log setup --------------------------------
+2026-11-05 08:16:17 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:16:17 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-1/fork "HTTP/1.1 500 Internal Server Error"
+FAILED                                                                   [ 20%]
+tests/api/test_canvas_routes_coverage_w51.py::TestCanvasLogic::test_get_logic_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:16:17 [    INFO] HTTP Request: GET http://testserver/api/canvas/c-1/logic "HTTP/1.1 200 OK"
+FAILED                                                                   [ 40%]
+tests/api/test_canvas_routes_coverage_w51.py::TestCanvasStateWebSocketEndToEnd::test_ws_broadcast_loop_and_persist FAILED [ 60%]
+tests/api/test_canvas_routes_coverage_w51.py::TestCanvasStateWebSocketErrors::test_ws_persist_failure_swallowed FAILED [ 80%]
+tests/api/test_canvas_routes_coverage_w51.py::TestCanvasStateWebSocketErrors::test_ws_broadcast_error_disconnects FAILED [100%]
+
+=================================== FAILURES ===================================
+E   assert 500 == 200
+     +  where 500 = <Response [500 Internal Server Error]>.status_code
+------------------------------ Captured log setup ------------------------------
+INFO     core.agent_task_registry:agent_task_registry.py:64 AgentTaskRegistry initialized
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/canvas/c-1/fork "HTTP/1.1 500 Internal Server Error"
+/private/tmp/atom-base-81c/backend/tests/api/test_canvas_routes_coverage_w51.py:128: assert 500 == 200
+E   assert 200 == 404
+     +  where 200 = <Response [200 OK]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/api/canvas/c-1/logic "HTTP/1.1 200 OK"
+/private/tmp/atom-base-81c/backend/tests/api/test_canvas_routes_coverage_w51.py:343: assert 200 == 404
+E   starlette.websockets.WebSocketDisconnect
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:144: starlette.websockets.WebSocketDisconnect
+E   starlette.websockets.WebSocketDisconnect
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:144: starlette.websockets.WebSocketDisconnect
+E   starlette.websockets.WebSocketDisconnect
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:144: starlette.websockets.WebSocketDisconnect
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+core/graphrag_engine.py:203
+  /private/tmp/atom-base-81c/backend/core/graphrag_engine.py:203: SyntaxWarning: "\%" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\%"? A raw string is also an option.
+    Escaped pattern where % and _ are escaped to \%
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 10 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/api/test_canvas_routes_coverage_w51.py::TestForkCanvas::test_fork_success
+FAILED tests/api/test_canvas_routes_coverage_w51.py::TestCanvasLogic::test_get_logic_not_found
+FAILED tests/api/test_canvas_routes_coverage_w51.py::TestCanvasStateWebSocketEndToEnd::test_ws_broadcast_loop_and_persist
+FAILED tests/api/test_canvas_routes_coverage_w51.py::TestCanvasStateWebSocketErrors::test_ws_persist_failure_swallowed
+FAILED tests/api/test_canvas_routes_coverage_w51.py::TestCanvasStateWebSocketErrors::test_ws_broadcast_error_disconnects
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 5 failed, 18 warnings in 10.95s ========================

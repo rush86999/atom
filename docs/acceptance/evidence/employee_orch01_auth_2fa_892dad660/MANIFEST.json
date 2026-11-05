@@ -1,0 +1,59 @@
+{
+  "schema": "atom-employee-evidence-1",
+  "status": "five-route auth/2FA slice submitted for independent verification; whole-app ORACLE-01 remains open",
+  "branch": "codex/oracle01-auth-2fa-20261105",
+  "accepted_canvas_base": "fe401e1112fdb544ce07650f7733519c14b25790",
+  "accepted_canvas_runtime": "82ac9681ad66b276a135ce06e1d2b7f03cbb30d9",
+  "executed_source": "892dad66025c35febc5b6cdebe3bad0e292cfdfb",
+  "tree_clean_at_execution": true,
+  "source_files": {
+    "backend/api/auth_2fa_routes.py": "53a0e99bfdc97a7d69e54f3ff38f221ddad2989f2f5c48972378e5788c558797",
+    "backend/core/auth_2fa_write_service.py": "ca9d8d3a7290b177992a0cd7fb1b328d6e9771b37b2204cbb76e0bcf623bbca7",
+    "backend/core/hitl_service.py": "8c4d232a8277954d9cc07483d7af2ce475e5f6dd28cf3a7d2e2b4227193ac6f6",
+    "backend/core/models.py": "4b238c35f6f235d94779f4598040f0c9fcd39599c26705e7016e8b045b51c3ef",
+    "backend/alembic/versions/20261105_auth_2fa_durable_state.py": "157e0853e39f02b0dbdd10ff22d8491dcbcd7712b56a1543b1ce4c157cc491ac",
+    "backend/tests/test_covpush_w89_auth_2fa.py": "0740a24c451b63fa6c42aa6474f140afc65fe4214d0b8681d30d5bd826ccb44b",
+    "backend/tests/test_covpush_w80b_api_routes.py": "1601ca44be3dbaa823f0fbf7275bac220beb104d0b794dd661f358f61abfbab9",
+    "backend/tests/test_oracle_auth_2fa_writes.py": "1fe2f6d80d92f5854ebdfbbde713de89281b3ed7e933e1eeb0040d2c33d4d6ed",
+    "backend/main_api_app.py": "83f6c051d58d39c70c94617cd6eedc9ce65e6414047c1297899dc6e771321af0",
+    "backend/core/lazy_integration_registry.py": "98464346c6b1d00a8f511fff46e3d9ce305f1c720c0adcaaf118f5a335967698"
+  },
+  "artifacts": {
+    "README.md": "eb6d9a9f5dbe0fe86bcf9ab499ee0a8b0e3f2bf5ad6d9e82286fad198ce6e020",
+    "TEST_RESULTS.md": "58cbcea843d3c4536c8519c03785d064f10f66e974cfd37778100dc52e419048",
+    "affected-311.log": "4d69bc29913767a89788efcbba4c9ae5c8c9714370d00c61ad83f0d5818c39ab",
+    "affected-314.log": "c1d616b6f169ee41c3d6161b226e880e5fe09185b58eee242a9b0f8fbf59ce36",
+    "base-pre-existing.log": "1139d22c23867417a8e74bb1b72c5e6a203312bc608616bea6ba2f48bdebaa3e",
+    "focused-311.log": "fc51de0295a73f13307f6745952db52724ff0110299f66f77ac9b8250ee28cc8",
+    "focused-314.log": "667a1c9efe9f6f0c5ccd01d928ce6525793e0f83fec1fe71e9b6d8ef6240d82e",
+    "routes.json": "f3a47da104484923a9566d9a3ab3ec257893d6205413c2009caf621486034323",
+    "verification.json": "4f13c4517f27a96bb538b02095dd65feefff2ecfcfa0e4038702a7861790419c",
+    "w80b-2fa-311.log": "9205c6dea1081a9f987c42bb789baacea93dc2ab57a3d2867869285426a4406c",
+    "w80b-2fa-314.log": "192cf1a57484bdb4f6fd434f6323f6116bbac5dcc83d0ab2e9d378a1ba1fecb1"
+  },
+  "checks": {
+    "focused_python314": "47 passed",
+    "focused_python311": "47 passed",
+    "w80b_2fa_python314": "33 passed, 308 deselected",
+    "w80b_2fa_python311": "33 passed, 308 deselected",
+    "affected_python314": "199 passed, 1 pre-existing failure",
+    "affected_python311": "199 passed, 1 pre-existing failure",
+    "unique_passing_total": 279,
+    "model_calls": 0,
+    "provider_calls": 0
+  },
+  "exclusions": {
+    "intervention_default_workspace": "pre-existing on accepted base fe401e111",
+    "w75_auth_environment": "JWT-secret/rate-limit test-seam failures reproduce on accepted base; unrelated and excluded",
+    "w80b_workflow_debug": "unrelated classes deselected via -k 2FA"
+  },
+  "boundaries": [
+    "five routes only; login/password/SSO/passkeys/mobile biometric/provider disconnect remain outside",
+    "no live account/factor change, credential/provider setup, message, spend or deployment",
+    "no second authentication/OTP/review/approval/operation engine",
+    "PostgreSQL concurrency/soak and live identity-provider operation not claimed",
+    "registration counts do not establish runtime qualification",
+    "whole-app ORACLE-01 remains open",
+    "accepted canvas/feedback/wait/employee lanes and historical 111/123/tags/model scores unchanged"
+  ]
+}
