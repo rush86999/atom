@@ -608,6 +608,10 @@ def _canvas_write_postcondition(restore: bool):
 
                 _, restored_content = canonical_restore_content(
                     latest, target)
+                if restored_content is None:
+                    return OracleResult(
+                        action, False,
+                        "no-change target carries no restorable content")
                 target_digest = _content_digest(restored_content)
                 latest_digest = _content_digest(
                     _details(latest).get("content",
@@ -699,6 +703,10 @@ def _canvas_write_postcondition(restore: bool):
                 )
 
                 _, restored_content = canonical_restore_content(row, target)
+                if restored_content is None:
+                    return OracleResult(
+                        action, False,
+                        "authorized target carries no restorable content")
                 expected_digest = _content_digest(restored_content)
             else:
                 expected_digest = str(
