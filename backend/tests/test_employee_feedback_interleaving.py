@@ -250,6 +250,14 @@ def test_pending_business_cannot_erase_committed_legacy_verdict(
     assert row.prompt_features.get("verdict") == legacy_verdict, (
         weak, row.prompt_features)
 
+    # The legacy judgement remains consumable by the selector even though the
+    # row also carries the business pending marker.
+    reset_capability_evidence_cache()
+    evidence = load_feedback_evidence(
+        get_profile("employee_evidence_selection"),
+        workspace_id="ws-ctrl", tenant_id="tenant-ctrl")
+    assert "local_ctrl1234/llama3.1:8b" in evidence, evidence
+
 
 def test_stale_legacy_grounding_cannot_overwrite_committed_business_failure(
         feedback_db, fresh_router, monkeypatch):
@@ -301,6 +309,14 @@ def test_stale_legacy_grounding_cannot_overwrite_committed_business_failure(
     assert row.prompt_features.get("verdict") == (
         "wrong_evidence_selection"), (weak, row.prompt_features)
     assert row.prompt_features.get("evaluation_revision", 0) >= 1
+
+    reset_capability_evidence_cache()
+    evidence = load_feedback_evidence(
+        get_profile("employee_evidence_selection"),
+        workspace_id="ws-ctrl", tenant_id="tenant-ctrl")
+    route = evidence["local_ctrl1234/llama3.1:8b"]
+    assert route["semantic_failures"] == 1, evidence
+    assert route["successes"] == 0, evidence
 
 
 def test_changed_binding_during_evaluation_refuses(
