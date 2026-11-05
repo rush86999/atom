@@ -197,42 +197,88 @@ def _fresh_session(db: Session) -> Session:
     return sessionmaker(bind=db.get_bind())()
 
 
-def _actor_snapshot(actor: Any) -> Dict[str, Any]:
-    return {
-        "id": str(getattr(actor, "id", "") or ""),
-        "email": str(getattr(actor, "email", "") or ""),
-        "role": str(getattr(actor, "role", "") or ""),
-        "status": str(getattr(actor, "status", "") or ""),
-        "is_active": bool(getattr(actor, "is_active", True)),
-        "tenant_id": str(resolve_tenant_id(actor)),
-    }
+def _actor_refusal(actor: Dict[str, Any]) -> Dict[str, Any]:
+    return _refused(
+        str(actor.get("message") or "TEAM_LEAD+ reviewer authority is required"),
+        http_status=int(actor.get("http_status") or 403),
+        error_code=str(actor.get("error_code") or "AUTHORITY_REQUIRED"),
+    )
 
 
-def _actor_authorized(actor: Dict[str, Any]) -> bool:
-    if not actor["id"]:
-        return False
-    if not actor["is_active"] or actor["status"].strip().lower() != "active":
-        return False
-    return role_level(actor["role"]) >= role_level(UserRole.TEAM_LEAD)
+def _resolve_actor(db: Session, actor: Any) -> Dict[str, Any]:
+    """Resolve the authoritative User row before any decision.
 
-
-def _actor_predicates(actor: Dict[str, Any]):
-    allowed = [
-        role.value for role in UserRole
-        if role_level(role) >= role_level(UserRole.TEAM_LEAD)
-    ]
-    return [
-        User.id == actor["id"],
-        User.is_active.is_(True),
-        User.status == "active",
-        User.role.in_(allowed),
-    ]
+    The request-entry User object is a snapshot. A concurrent deactivation,
+    demotion or tenant reassignment must not let a decision commit under stale
+    authority. The frozen status/is_active/role/raw tenant are later bound in
+    the guarded no-op UPDATE in the same transaction as the target CAS.
+    """
+    actor_id = str(getattr(actor, "id", "") or "")
+    if not actor_id:
+        return {
+            "ok": False, "http_status": 401,
+            "error_code": "UNAUTHENTICATED",
+            "message": "Authentication required",
+        }
+    try:
+        with _fresh_session(db) as fresh:
+            row = fresh.query(User).filter(User.id == actor_id).first()
+            if row is None:
+                return {
+                    "ok": False, "http_status": 401,
+                    "error_code": "UNAUTHENTICATED",
+                    "message": "Authentication required",
+                }
+            if not bool(row.is_active) or str(row.status or "") != "active":
+                return {
+                    "ok": False, "http_status": 403,
+                    "error_code": "ACCOUNT_INACTIVE",
+                    "message": (
+                        "This account is not active; refresh and sign in "
+                        "again"),
+                }
+            if role_level(row.role) < role_level(UserRole.TEAM_LEAD):
+                return {
+                    "ok": False, "http_status": 403,
+                    "error_code": "AUTHORITY_REQUIRED",
+                    "message": "TEAM_LEAD+ reviewer authority is required",
+                }
+            return {
+                "ok": True,
+                "id": actor_id,
+                "email": str(row.email or ""),
+                "role": str(row.role or ""),
+                "status": str(row.status or ""),
+                "is_active": bool(row.is_active),
+                "tenant_id": str(resolve_tenant_id(row)),
+                "raw_tenant_id": row.tenant_id,
+            }
+    except Exception as exc:  # noqa: BLE001 — unreadable authority fails closed
+        logger.warning(
+            "community-skill authority read failed: actor=%s error_class=%s",
+            actor_id, type(exc).__name__)
+        return {
+            "ok": False, "http_status": 503,
+            "error_code": "AUTHORITY_UNAVAILABLE",
+            "message": "Authorization could not be confirmed; retry",
+        }
 
 
 def _claim_actor(db: Session, actor: Dict[str, Any]) -> bool:
+    """Bind the frozen principal in the decision transaction.
+
+    A zero-match means the User row was deactivated, demoted or moved after the
+    service resolved it. The caller rolls back all attempted target/audit work.
+    """
     result = db.execute(
         update(User)
-        .where(*_actor_predicates(actor))
+        .where(
+            User.id == actor["id"],
+            User.is_active.is_(True),
+            User.status == actor["status"],
+            User.role == actor["role"],
+            _exact(User.tenant_id, actor["raw_tenant_id"]),
+        )
         .values(updated_at=User.updated_at)
     )
     return result.rowcount == 1
@@ -612,11 +658,9 @@ def promote_community_skill(
     skill_id = str(skill_id or "").strip()
     if not skill_id:
         return _refused("skill_id must be non-empty", field="skill_id")
-    actor_snapshot = _actor_snapshot(actor)
-    if not _actor_authorized(actor_snapshot):
-        return _refused(
-            "TEAM_LEAD+ reviewer authority is required",
-            http_status=403, error_code="AUTHORITY_REQUIRED")
+    actor_snapshot = _resolve_actor(db, actor)
+    if not actor_snapshot.get("ok"):
+        return _actor_refusal(actor_snapshot)
     try:
         operation_id = _operation_id("promote", operation_id)
     except ValueError as exc:
@@ -745,11 +789,9 @@ def delete_community_skill(
     skill_id = str(skill_id or "").strip()
     if not skill_id:
         return _refused("skill_id must be non-empty", field="skill_id")
-    actor_snapshot = _actor_snapshot(actor)
-    if not _actor_authorized(actor_snapshot):
-        return _refused(
-            "TEAM_LEAD+ reviewer authority is required",
-            http_status=403, error_code="AUTHORITY_REQUIRED")
+    actor_snapshot = _resolve_actor(db, actor)
+    if not actor_snapshot.get("ok"):
+        return _actor_refusal(actor_snapshot)
     try:
         operation_id = _operation_id("delete", operation_id)
     except ValueError as exc:
