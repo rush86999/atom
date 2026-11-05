@@ -228,6 +228,7 @@ def register_compiled_workflow(compiled: Dict[str, Any]) -> bool:
             # Never activate a recurring trigger at design time.
             triggers=[],
             allow_event_critical=False,
+            definition_digest=str(compiled.get("definition_digest") or ""),
         )
         get_orchestrator().register_workflow(definition)
         return True

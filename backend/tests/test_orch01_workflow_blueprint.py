@@ -261,7 +261,7 @@ def test_execution_ready_entity_design_registers_for_manual_execution(
     assert orch_env["fake"].executed == []
 
 
-def test_route_persisted_definition_stops_at_real_checkpoint_consumer(
+def test_route_persisted_definition_stops_at_checkpoint_consumer(
         orch_env, monkeypatch):
     from contextlib import contextmanager
     from types import SimpleNamespace
@@ -306,6 +306,19 @@ def test_route_persisted_definition_stops_at_real_checkpoint_consumer(
 
     effects = []
     orch = AdvancedWorkflowOrchestrator.__new__(AdvancedWorkflowOrchestrator)
+
+    async def checkpoint_row(_material):
+        return SimpleNamespace(status="pending", id="hitl-route-control")
+
+    async def create_checkpoint(_material, _step, _context):
+        return "hitl-route-control"
+
+    # This control exercises the route -> persisted definition -> consumer
+    # wiring with a controlled durable seam. Real HITLAction rows and fresh
+    # sessions are covered by test_orch01_resume_durable.py.
+    monkeypatch.setattr(orch, "_find_durable_approval", checkpoint_row)
+    monkeypatch.setattr(orch, "_create_durable_approval", create_checkpoint)
+
     async def conditions(*args, **kwargs):
         return True
     async def dispatch(workflow, current_step, ctx):

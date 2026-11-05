@@ -46,6 +46,41 @@ ALLOWED_METADATA_KEYS = frozenset({
 })
 
 
+def _entity_executable_actions():
+    """Return the handler-owned entity operation contract, or None.
+
+    The executor module owns the set; the compiler must not maintain a
+    second, drifting copy. A missing contract fails closed.
+    """
+    try:
+        from advanced_workflow_orchestrator import ENTITY_EXECUTABLE_ACTIONS
+    except Exception:  # noqa: BLE001 — fail closed
+        return None
+    return frozenset(ENTITY_EXECUTABLE_ACTIONS)
+
+
+def _registered_action_names():
+    """Return the actual action-registry names, or None when unavailable."""
+    try:
+        from core.action_registry import action_registry
+    except Exception:  # noqa: BLE001 — fail closed
+        return None
+    return frozenset(action_registry.list_actions())
+
+
+def _is_registered_action(service: str, action_name: str) -> bool:
+    """Resolve a declared service/action pair against the real registry."""
+    names = _registered_action_names()
+    if not names:
+        return False
+    return bool({
+        f"{service}.{action_name}",
+        f"connected.{service}.{action_name}",
+        f"brennan.{service}.{action_name}",
+    } & names)
+
+
+
 class WorkflowNodeAction(BaseModel):
     """The design intent of one node, never executable plumbing."""
 
@@ -364,16 +399,32 @@ def compile_blueprint(
         })
         action = node.get("action") or {}
         kind = str(action.get("kind") or "").strip().lower()
+        service = str(action.get("service") or "").strip().lower()
         action_name = str(action.get("action") or "").strip().lower()
         mutating = _is_mutating(node) or action_name in MUTATING_ACTION_NAMES
         if node.get("type") == "trigger":
             mutating = False
             parameters.pop("action", None)
         elif node.get("type") == "entity":
-            # The model's label is not the effect authority. The trusted
-            # mutation classification (label + action name) selects the
-            # executable action; metadata cannot inject a different one.
-            parameters["action"] = "create" if mutating else "lookup"
+            # The model's label is not the effect authority, but a DECLARED
+            # specific operation must not be replaced by a different one.
+            # Bind to the actual entity executor contract; an unsupported
+            # operation stays non-executable with an honest blocker.
+            if action_name:
+                supported = _entity_executable_actions()
+                parameters["action"] = action_name
+                if supported is None:
+                    execution_blockers.append(
+                        f"{node['id']}: the entity executor contract is "
+                        "unavailable; the declared operation cannot be "
+                        "certified")
+                elif action_name not in supported:
+                    execution_blockers.append(
+                        f"{node['id']}: entity action {action_name!r} is not "
+                        "supported by the current entity executor; supported "
+                        f"operations are {', '.join(sorted(supported))}")
+            else:
+                parameters["action"] = "create" if mutating else "lookup"
             parameters["entity_name"] = str(
                 safe_metadata.get("entity_name") or node["name"])
             parameters["entity_type"] = str(
@@ -406,6 +457,14 @@ def compile_blueprint(
                     f"{node['id']}: capability "
                     f"{capability or '<none>'} is not bound to a registered "
                     "business agent")
+            # A declared connector action is executable only when the actual
+            # action registry contains that pair (including its connector
+            # namespaces). Design vocabulary alone is not a binding.
+            if service and action_name and not _is_registered_action(
+                    service, action_name):
+                execution_blockers.append(
+                    f"{node['id']}: action {service}.{action_name} is not a "
+                    "registered executable action")
         steps.append({
             "step_id": node["id"],
             "step_type": _step_type(node["type"]),
@@ -413,6 +472,27 @@ def compile_blueprint(
             "parameters": parameters,
             "next_steps": list(adjacency.get(node["id"]) or []),
         })
+
+    # Bind each server-required checkpoint to the immutable compiled material
+    # of the step it guards. A changed reviewed effect cannot reuse an old
+    # approval receipt even when the workflow/step ids are unchanged.
+    steps_by_id = {step["step_id"]: step for step in steps}
+    for step in steps:
+        if step.get("step_type") != "approval_required":
+            continue
+        guarded_id = str(
+            (step.get("parameters") or {}).get("guarded_step") or "")
+        guarded = steps_by_id.get(guarded_id)
+        if guarded is None:
+            continue
+        step["parameters"]["guarded_digest"] = hashlib.sha256(
+            json.dumps(
+                {
+                    "parameters": guarded.get("parameters") or {},
+                    "next_steps": list(guarded.get("next_steps") or []),
+                },
+                sort_keys=True, default=str,
+            ).encode()).hexdigest()
 
     execution_ready = not execution_blockers
     trigger_descriptors = [

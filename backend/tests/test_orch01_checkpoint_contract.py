@@ -252,3 +252,111 @@ def test_unbound_capability_is_non_executable_not_registered(monkeypatch):
             register_workflow=lambda definition: registered.append(definition)))
     assert service.register_compiled_workflow(compiled) is False
     assert registered == []
+
+
+def test_unsupported_entity_operation_is_non_executable_not_rewritten():
+    compiled = _compile([{
+        "id": "record", "type": "entity", "name": "Delete existing record",
+        "action": {"kind": "write", "service": "knowledge",
+                   "action": "delete"},
+        "metadata": {"entity_name": "existing record",
+                     "entity_type": "business_record"},
+    }])
+    assert compiled["execution_ready"] is False
+    step = next(raw for raw in compiled["steps"]
+                if raw["step_id"] == "record")
+    # The declared operation is preserved; it is never silently changed to
+    # create. The design is simply not executable.
+    assert step["parameters"]["action"] == "delete"
+    assert any("delete" in blocker
+               for blocker in compiled["execution_blockers"])
+
+
+@pytest.mark.parametrize(
+    "operation,kind",
+    [("create", "write"), ("update", "write"),
+     ("query", "read"), ("lookup", "read")],
+)
+def test_supported_entity_operations_are_preserved(operation, kind):
+    compiled = _compile([{
+        "id": "record", "type": "entity", "name": "Entity operation",
+        "action": {"kind": kind, "service": "knowledge",
+                   "action": operation},
+        "metadata": {"entity_name": "record", "entity_type": "record"},
+    }])
+    assert compiled["execution_ready"] is True
+    step = next(raw for raw in compiled["steps"]
+                if raw["step_id"] == "record")
+    assert step["parameters"]["action"] == operation
+
+
+def test_declared_entity_read_label_is_not_silently_aliased():
+    compiled = _compile([{
+        "id": "record", "type": "entity", "name": "Read entity",
+        "action": {"kind": "read", "service": "knowledge",
+                   "action": "read"},
+        "metadata": {"entity_name": "record", "entity_type": "record"},
+    }])
+    assert compiled["execution_ready"] is False
+    step = next(raw for raw in compiled["steps"]
+                if raw["step_id"] == "record")
+    assert step["parameters"]["action"] == "read"
+    assert compiled["execution_blockers"]
+
+
+def test_skill_action_must_exist_in_the_real_action_registry():
+    compiled = _compile([{
+        "id": "skill", "type": "skill", "name": "Delete knowledge",
+        "capability_required": "accounting",
+        "action": {"kind": "write", "service": "knowledge",
+                   "action": "delete"},
+    }])
+    assert compiled["execution_ready"] is False
+    assert any("knowledge.delete" in blocker
+               for blocker in compiled["execution_blockers"])
+
+    supported = _compile([{
+        "id": "skill", "type": "skill", "name": "Query knowledge",
+        "capability_required": "accounting",
+        "action": {"kind": "read", "service": "knowledge",
+                   "action": "query"},
+    }])
+    assert supported["execution_ready"] is True
+    assert supported["execution_blockers"] == []
+
+
+def test_full_execution_completes_after_successful_required_work():
+    compiled = _compile([{
+        "id": "read", "type": "entity", "name": "Read record",
+        "action": {"kind": "read"},
+        "metadata": {"entity_name": "record", "entity_type": "record"},
+    }])
+    orch = AdvancedWorkflowOrchestrator.__new__(AdvancedWorkflowOrchestrator)
+    effects = []
+
+    async def conditions(*args, **kwargs):
+        return True
+
+    async def dispatch(workflow, step, context):
+        effects.append(step.step_id)
+        return {"status": "completed"}
+
+    orch._check_conditions = conditions
+    orch._execute_step_by_type = dispatch
+    orch._create_snapshot = lambda *args, **kwargs: None
+    definition = WorkflowDefinition(
+        workflow_id=compiled["workflow_id"],
+        name=compiled["name"],
+        description="",
+        steps=_steps(compiled),
+        start_step=compiled["start_step"],
+    )
+    orch.workflows = {definition.workflow_id: definition}
+    orch.active_contexts = {}
+    orch.ai_service = None
+    orch._save_execution_state = lambda *args, **kwargs: None
+
+    context = asyncio.run(orch.execute_workflow(
+        definition.workflow_id, {"workspace_id": "ws-1"}))
+    assert context.status.value == "completed"
+    assert effects == ["read"]
