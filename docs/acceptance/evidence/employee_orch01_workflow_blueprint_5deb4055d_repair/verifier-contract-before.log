@@ -1,0 +1,255 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-05 08:30:43 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+
+tests/test_orch01_workflow_blueprint.py::test_two_domains_validate_persist_and_read_back_exactly 
+-------------------------------- live log setup --------------------------------
+2026-11-05 08:30:43 [    INFO] EscalationManager initialized
+2026-11-05 08:30:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:30:43 [    INFO] EscalationManager initialized
+2026-11-05 08:30:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:30:43 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 08:30:43 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:30:44 [    INFO] EscalationManager initialized
+2026-11-05 08:30:44 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:30:44 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 08:30:44 [    INFO] EscalationManager initialized
+2026-11-05 08:30:44 [    INFO] CognitiveTierService initialized for workspace: ws-1
+2026-11-05 08:30:44 [    INFO] MCP Service initialized
+2026-11-05 08:30:44 [    INFO] workflow blueprint ai_wf_de9a3926fd75 is a reviewable design but is not registered: intake: capability <none> is not bound to a registered business agent; triage: capability <none> is not bound to a registered business agent; notify: capability <none> is not bound to a registered business agent
+2026-11-05 08:30:44 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+2026-11-05 08:30:44 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/generated/ai_wf_de9a3926fd75 "HTTP/1.1 200 OK"
+2026-11-05 08:30:44 [    INFO] EscalationManager initialized
+2026-11-05 08:30:44 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:30:44 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 08:30:44 [    INFO] EscalationManager initialized
+2026-11-05 08:30:44 [    INFO] CognitiveTierService initialized for workspace: ws-1
+2026-11-05 08:30:44 [    INFO] workflow blueprint ai_wf_9b1a7928c478 is a reviewable design but is not registered: collect: capability <none> is not bound to a registered business agent; compare: capability <none> is not bound to a registered business agent
+2026-11-05 08:30:44 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+PASSED                                                                   [  3%]
+tests/test_orch01_workflow_blueprint.py::test_execution_ready_entity_design_registers_for_manual_execution 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:30:45 [    INFO] EscalationManager initialized
+2026-11-05 08:30:45 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:30:45 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 08:30:45 [    INFO] EscalationManager initialized
+2026-11-05 08:30:45 [    INFO] CognitiveTierService initialized for workspace: ws-1
+2026-11-05 08:30:45 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+PASSED                                                                   [  7%]
+tests/test_orch01_workflow_blueprint.py::test_route_persisted_definition_stops_at_real_checkpoint_consumer 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:30:45 [    INFO] EscalationManager initialized
+2026-11-05 08:30:45 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:30:45 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 08:30:45 [    INFO] EscalationManager initialized
+2026-11-05 08:30:45 [    INFO] CognitiveTierService initialized for workspace: ws-1
+2026-11-05 08:30:45 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+2026-11-05 08:30:45 [    INFO] Executing step: approval_record - Approve Review record
+2026-11-05 08:30:45 [   ERROR] Failed to request intervention: 'types.SimpleNamespace' object has no attribute 'add'
+2026-11-05 08:30:45 [    INFO] Step approval_record returned waiting_approval status. Pausing workflow execution.
+PASSED                                                                   [ 10%]
+tests/test_orch01_workflow_blueprint.py::test_hitl_gate_is_inserted_before_mutating_steps 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:30:46 [    INFO] EscalationManager initialized
+2026-11-05 08:30:46 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:30:46 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 08:30:46 [    INFO] EscalationManager initialized
+2026-11-05 08:30:46 [    INFO] CognitiveTierService initialized for workspace: ws-1
+2026-11-05 08:30:46 [    INFO] workflow blueprint ai_wf_2e86c5a75144 is a reviewable design but is not registered: intake: capability <none> is not bound to a registered business agent; triage: capability <none> is not bound to a registered business agent; notify: capability <none> is not bound to a registered business agent
+2026-11-05 08:30:46 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+PASSED                                                                   [ 14%]
+tests/test_orch01_workflow_blueprint.py::test_forged_body_identity_is_ignored_and_read_scope_is_exact 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:30:46 [    INFO] EscalationManager initialized
+2026-11-05 08:30:46 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:30:46 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 08:30:46 [    INFO] EscalationManager initialized
+2026-11-05 08:30:46 [    INFO] CognitiveTierService initialized for workspace: ws-1
+2026-11-05 08:30:46 [    INFO] workflow blueprint ai_wf_ba5ccc2f82e7 is a reviewable design but is not registered: intake: capability <none> is not bound to a registered business agent; triage: capability <none> is not bound to a registered business agent; notify: capability <none> is not bound to a registered business agent
+2026-11-05 08:30:46 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 200 OK"
+2026-11-05 08:30:46 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/generated/ai_wf_ba5ccc2f82e7 "HTTP/1.1 404 Not Found"
+2026-11-05 08:30:46 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/generated/ai_wf_ba5ccc2f82e7 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 17%]
+tests/test_orch01_workflow_blueprint.py::test_invalid_route_drafts_are_refused_without_persistence[draft0-422-workflow_blueprint_invalid] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:30:47 [    INFO] EscalationManager initialized
+2026-11-05 08:30:47 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:30:47 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 08:30:47 [    INFO] EscalationManager initialized
+2026-11-05 08:30:47 [    INFO] CognitiveTierService initialized for workspace: ws-1
+2026-11-05 08:30:47 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 21%]
+tests/test_orch01_workflow_blueprint.py::test_invalid_route_drafts_are_refused_without_persistence[draft1-422-workflow_blueprint_invalid] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:30:48 [    INFO] EscalationManager initialized
+2026-11-05 08:30:48 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:30:48 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 08:30:48 [    INFO] EscalationManager initialized
+2026-11-05 08:30:48 [    INFO] CognitiveTierService initialized for workspace: ws-1
+2026-11-05 08:30:48 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 25%]
+tests/test_orch01_workflow_blueprint.py::test_invalid_route_drafts_are_refused_without_persistence[draft2-422-workflow_blueprint_invalid] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:30:48 [    INFO] EscalationManager initialized
+2026-11-05 08:30:48 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:30:48 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 08:30:48 [    INFO] EscalationManager initialized
+2026-11-05 08:30:48 [    INFO] CognitiveTierService initialized for workspace: ws-1
+2026-11-05 08:30:48 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 28%]
+tests/test_orch01_workflow_blueprint.py::test_invalid_route_drafts_are_refused_without_persistence[draft3-422-workflow_dependency_missing] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:30:49 [    INFO] EscalationManager initialized
+2026-11-05 08:30:49 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:30:49 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 08:30:49 [    INFO] EscalationManager initialized
+2026-11-05 08:30:49 [    INFO] CognitiveTierService initialized for workspace: ws-1
+2026-11-05 08:30:49 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 32%]
+tests/test_orch01_workflow_blueprint.py::test_invalid_route_drafts_are_refused_without_persistence[draft4-422-workflow_cycle] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:30:50 [    INFO] EscalationManager initialized
+2026-11-05 08:30:50 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:30:50 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 08:30:50 [    INFO] EscalationManager initialized
+2026-11-05 08:30:50 [    INFO] CognitiveTierService initialized for workspace: ws-1
+2026-11-05 08:30:50 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 35%]
+tests/test_orch01_workflow_blueprint.py::test_invalid_route_drafts_are_refused_without_persistence[draft5-422-workflow_start_ambiguous] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:30:51 [    INFO] EscalationManager initialized
+2026-11-05 08:30:51 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:30:51 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 08:30:51 [    INFO] EscalationManager initialized
+2026-11-05 08:30:51 [    INFO] CognitiveTierService initialized for workspace: ws-1
+2026-11-05 08:30:51 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 39%]
+tests/test_orch01_workflow_blueprint.py::test_invalid_route_drafts_are_refused_without_persistence[draft6-422-workflow_trigger_required] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:30:51 [    INFO] EscalationManager initialized
+2026-11-05 08:30:51 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:30:51 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 08:30:51 [    INFO] EscalationManager initialized
+2026-11-05 08:30:51 [    INFO] CognitiveTierService initialized for workspace: ws-1
+2026-11-05 08:30:51 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 42%]
+tests/test_orch01_workflow_blueprint.py::test_missing_capability_is_a_safe_refusal_not_an_integration 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:30:52 [    INFO] EscalationManager initialized
+2026-11-05 08:30:52 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:30:52 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 08:30:52 [    INFO] EscalationManager initialized
+2026-11-05 08:30:52 [    INFO] CognitiveTierService initialized for workspace: ws-1
+2026-11-05 08:30:52 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 46%]
+tests/test_orch01_workflow_blueprint.py::test_model_failure_is_typed_and_creates_no_workflow[failure0-504-workflow_blueprint_timeout] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:30:53 [    INFO] EscalationManager initialized
+2026-11-05 08:30:53 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:30:53 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 08:30:53 [    INFO] EscalationManager initialized
+2026-11-05 08:30:53 [    INFO] CognitiveTierService initialized for workspace: ws-1
+2026-11-05 08:30:53 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 504 Gateway Timeout"
+PASSED                                                                   [ 50%]
+tests/test_orch01_workflow_blueprint.py::test_model_failure_is_typed_and_creates_no_workflow[failure1-503-workflow_blueprint_unavailable] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:30:53 [    INFO] EscalationManager initialized
+2026-11-05 08:30:53 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:30:53 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 08:30:53 [    INFO] EscalationManager initialized
+2026-11-05 08:30:53 [    INFO] CognitiveTierService initialized for workspace: ws-1
+2026-11-05 08:30:53 [ WARNING] Queen: structured workflow blueprint generation failed: provider down
+2026-11-05 08:30:53 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 53%]
+tests/test_orch01_workflow_blueprint.py::test_empty_request_does_not_call_the_model 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:30:54 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/generate-from-agent "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 57%]
+tests/test_orch01_workflow_blueprint.py::test_compile_rejects_duplicate_ids_and_unknown_action PASSED [ 60%]
+tests/test_orch01_checkpoint_contract.py::test_pending_governance_blocks_descendants 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:30:54 [    INFO] Executing step: approval_write - Approve Write
+2026-11-05 08:30:54 [    INFO] Step approval_write returned waiting_approval status. Pausing workflow execution.
+PASSED                                                                   [ 64%]
+tests/test_orch01_checkpoint_contract.py::test_blocked_governance_blocks_descendants 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:30:54 [    INFO] Executing step: approval_write - Approve Write
+PASSED                                                                   [ 67%]
+tests/test_orch01_checkpoint_contract.py::test_mature_agent_cannot_waive_server_checkpoint 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:30:54 [    INFO] Executing step: approval_write - Approve Write
+2026-11-05 08:30:54 [    INFO] Step approval_write returned waiting_approval status. Pausing workflow execution.
+PASSED                                                                   [ 71%]
+tests/test_orch01_checkpoint_contract.py::test_rejected_durable_approval_blocks_descendants 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:30:54 [    INFO] Executing step: approval_write - Approve Write
+PASSED                                                                   [ 75%]
+tests/test_orch01_checkpoint_contract.py::test_valid_approval_dispatches_exactly_one_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:30:54 [    INFO] Executing step: approval_write - Approve Write
+2026-11-05 08:30:54 [    INFO] Executing step: write - Write
+2026-11-05 08:30:54 [    INFO] Step approval_write already completed in this context; skipping duplicate dispatch
+PASSED                                                                   [ 78%]
+tests/test_orch01_checkpoint_contract.py::test_entity_read_label_cannot_inject_metadata_create PASSED [ 82%]
+tests/test_orch01_checkpoint_contract.py::test_unknown_action_reference_is_refused PASSED [ 85%]
+tests/test_orch01_checkpoint_contract.py::test_unbound_capability_is_non_executable_not_registered 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:30:54 [    INFO] workflow blueprint ai_wf_bde63e8d7c55 is a reviewable design but is not registered: x: capability not_a_known_business_agent is not bound to a registered business agent
+PASSED                                                                   [ 89%]
+::test_unknown_execution_reference_is_not_accepted_as_supported_workflow PASSED [ 92%]
+::test_model_read_label_cannot_compile_ungated_entity_create 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:30:54 [   ERROR] Entity node failed: 'Engine' object has no attribute 'canonical_search'
+PASSED                                                                   [ 96%]
+::test_generated_checkpoint_consumes_actual_pending_governance_contract 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:30:54 [   ERROR] Failed to request intervention: 'types.SimpleNamespace' object has no attribute 'add'
+2026-11-05 08:30:54 [    INFO] Executing step: approval_x - Approve change
+2026-11-05 08:30:54 [   ERROR] Failed to request intervention: 'types.SimpleNamespace' object has no attribute 'add'
+2026-11-05 08:30:54 [    INFO] Step approval_x returned waiting_approval status. Pausing workflow execution.
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 56 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_orch01_workflow_blueprint.py::test_two_domains_validate_persist_and_read_back_exactly
+  /private/tmp/verifier-orch01-4d3f/backend/core/graphrag_engine.py:203: SyntaxWarning: "\%" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\%"? A raw string is also an option.
+    Escaped pattern where % and _ are escaped to \%
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 28 passed, 64 warnings in 20.66s =======================

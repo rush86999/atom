@@ -1,0 +1,72 @@
+{
+  "artifacts": {
+    "README.md": "32f24f426f4502faf212b8d2499c9042cb6667c75d1142170d42d85ddf529dae",
+    "TEST_RESULTS.md": "590ce95758646ddaf7b566795c95942196e9d4d88bd0045071bab2c395d8007b",
+    "affected-311.log": "194dc339c27f3405f3ee2c37f74123b271213d69c5aebdfe2be19313c72285f0",
+    "affected-314.log": "db506963ee6a5e73b416eefbc443433acd2e417011d317aba04de0a01e7b6054",
+    "base-round67-round19-pre-existing.log": "cffb0f0f6f47156548ac0e12c808e569ef26f7407db55a4149e02716ab4a1d8c",
+    "base-scheduler-pre-existing.log": "7463342146e2374c5f2d82ab8a33de2ba38dddc8629dea9768d315dd5ee6da82",
+    "contracts.json": "8459bcbab66a3bd97605c822beb68d28f05e9b88e69a213587b212f69aba4dab",
+    "focused-311.log": "0bbe0e3b400fe60a3a1ac9a5897441364fd1510df7ea9560f0e55dfb31afde2c",
+    "focused-314.log": "547303bfdca8763ea8167e814beeac6718d0236d9433759ef6deeb1a2514b403",
+    "verification.json": "741542f7a4a88259f685269066077794a7b1ad190020eb43a295744d48526058",
+    "verifier-binding-resume-before.log": "da8ae7fc7913400d84a355b37209540a62cb2e86e21d51545dddf2b850f7667e",
+    "verifier-contract-before.log": "b812f98795a5e6b880d0d2ed1326d79d331031b4d7aeefff85bd6d2e70da66f8",
+    "verifier-probes-final-311.log": "f2276cc730cc09aa4547757df19356942b7a7aa637e5085549b5649df01596dc",
+    "verifier-probes-final-314.log": "378e6475846d1f1d49330d9fac64b97ce72f5a344d2f9a1bb565108a7c3fa985",
+    "verifier-review-binding-before.log": "9970a48187985da2346ade4e1942fff2023e8992377cdba8032f8be2703fb256"
+  },
+  "base_source": "81c5962bd17b3ffa90cd5107d5b3134821c0ffa1",
+  "boundaries": [
+    "controlled scratch SQLite and fresh sessions; no model/browser/provider",
+    "no new review store or engine",
+    "reviewable design and executable workflow remain separate",
+    "unsupported or unbound designs are non-executable and unregistered",
+    "PostgreSQL concurrency/soak and execution quality are not claimed",
+    "ORCH-02/07 remain read-only preparation",
+    "accepted feedback/wait and employee episode lanes remain closed",
+    "historical 111/123 and served-candidate scores/tags unchanged"
+  ],
+  "branch": "codex/orch01-blueprint-20261105",
+  "checks": {
+    "affected_python311": "654 passed, 2 pre-existing failures",
+    "affected_python314": "654 passed, 2 pre-existing failures",
+    "focused_python311": "89 passed",
+    "focused_python314": "89 passed",
+    "model_calls": 0,
+    "prior_contract_controls": "28 passed",
+    "provider_calls": 0,
+    "review_binding_matrix": "20 passed",
+    "verifier_negative_before": "4 failed on withheld source",
+    "verifier_probes_final_python311": "27 passed (-p no:randomly)",
+    "verifier_probes_final_python314": "27 passed"
+  },
+  "code_source": "5deb4055d8530e6b75103ebc34a080025feafd74",
+  "exclusions": {
+    "round67_round19": "2 pre-existing failures on withheld source 4d3fb66c5",
+    "scheduler_timing": "2 disclosed baseline timing failures; not in repair selection"
+  },
+  "executed_source": "5deb4055d8530e6b75103ebc34a080025feafd74",
+  "parent_repair_source": "e7f551bc8449dfccf4120e9b7ba298fe49fca258",
+  "previous_evidence_commit": "0a850d14d8c85a62a72d95c93355f5b23766a0ab",
+  "previous_withheld_source": "4d3fb66c54a20cc8a864bfbea45967a8429ebdf8",
+  "repair_source": "5deb4055d8530e6b75103ebc34a080025feafd74",
+  "schema": "atom-employee-evidence-1",
+  "source_files": {
+    "backend/advanced_workflow_orchestrator.py": "aada4b309be636e2abc72a2a0faad8b3a93beb5d6bb5000479c4e080859cbdd5",
+    "backend/core/agents/workflow_blueprint.py": "4510d9cf96c8dca1f4b5e9644699f535b33a5b910f298bca400985cdb885f9f0",
+    "backend/core/hitl_resume.py": "243e03e050f93dbce3db70e2ba31fe2d6c580bdc6d33f3117da303bf77bb303c",
+    "backend/core/lazy_integration_registry.py": "98464346c6b1d00a8f511fff46e3d9ce305f1c720c0adcaaf118f5a335967698",
+    "backend/core/workflow_blueprint_service.py": "718c0ceb489823334e6cee0f59894ebc8db45dde3e67f2ab9128d3bcaee1454c",
+    "backend/integrations/workflow_approval_routes.py": "369b55c19e77f29df7795e6cb0574be4a58cd57ae0a6b5db731544236e2a2a70",
+    "backend/tests/test_covpush_w105_workflow_approval_routes.py": "f1a6529c8787085fad2483e860e726a6c15b3b986062c02978190b5b4529770c",
+    "backend/tests/test_orch01_checkpoint_contract.py": "67def0eaf39a3f79f91aa637ce5be854deee90baf20e26918afc76a2518af572",
+    "backend/tests/test_orch01_real_checkpoint_contract.py": "ebbd1aed3d8d6911c9a736e5e2c8e00779da881c2e5aefd1fb293e8b187a8da9",
+    "backend/tests/test_orch01_resume_durable.py": "f65c95da59e0dc40ca197fc8c43bd93950dd423349ede3af75d0659c78c902df",
+    "backend/tests/test_orch01_review_binding_matrix.py": "ffacf1c29781359f1dda17033a54edb4ffa22056bce031f8bf364a54d3b50081",
+    "backend/tests/test_orch01_workflow_blueprint.py": "1b0848eadf9aed1a60291ddbefbedd1e25238708205956aaa7af32b8553c5a79",
+    "backend/tests/test_verifier_orch01_binding_resume_4d3f.py": "5f6a7177009dc5332eea06c0b4f9883c4020a0fae127c5af4c823f5df0838a57"
+  },
+  "status": "repair submitted for independent verification; ORCH-02/07 remain read-only preparation",
+  "tree_clean_at_execution": true
+}
