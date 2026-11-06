@@ -58,6 +58,7 @@ _ACTION_UPDATE = "agent_updated"
 _ACTION_PROMOTE = "agent_promoted"
 _ACTION_DELETE = "agent_deleted"
 _ACTION_RUN = "agent_run_admitted"
+_ACTION_STOP = "agent_stopped"
 
 
 # ---------------------------------------------------------------------------
@@ -1413,3 +1414,177 @@ def admit_agent_run(
         authority=authority,
         replay_check=_run_target_check(db),
         replay_data=_run_success_data(db))
+
+
+# ---------------------------------------------------------------------------
+# Stop/cancel decision
+# ---------------------------------------------------------------------------
+
+def _stop_target_check(db: Session):
+    def check(expected: Dict[str, Any]) -> bool:
+        current = _load_agent(db, str(expected.get("target_id") or ""))
+        return (
+            current is not None
+            and _state_digest(_state_material(current))
+            == expected["result_digest"])
+
+    return check
+
+
+def _stop_success_data(expected: Dict[str, Any]) -> Dict[str, Any]:
+    extra = expected.get("extra") or {}
+    return {
+        "agent_id": str(expected.get("target_id") or ""),
+        "cancelled_tasks": int(extra.get("cancelled_tasks") or 0),
+    }
+
+
+def _active_task_count(agent_id: str) -> int:
+    try:
+        from core.agent_task_registry import agent_task_registry
+        return len(agent_task_registry.get_agent_tasks(str(agent_id)))
+    except Exception:  # noqa: BLE001 — unreadable task state is not a block
+        return 0
+
+
+async def stop_agent(
+    db: Session, *, actor: Any, agent_id: str,
+    operation_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Cancel an agent's active tasks with current scope and a durable receipt."""
+    authority = _resolve_actor(
+        db, actor, minimum_role=UserRole.MEMBER,
+        authority_label="AGENT_RUN")
+    if not authority.get("ok"):
+        return _actor_refusal(authority)
+
+    agent_id = str(agent_id or "").strip()
+    if not agent_id:
+        return _refused(
+            "agent_id must be non-empty", http_status=422,
+            error_code="VALIDATION_ERROR", field="agent_id")
+    try:
+        operation_id = _operation_id("stop", operation_id)
+    except ValueError as exc:
+        return _refused(
+            str(exc), http_status=422, error_code="VALIDATION_ERROR",
+            field="operation_id")
+
+    agent = _load_agent(db, agent_id)
+    if agent is None or not _agent_visible(authority, agent):
+        return _refused(
+            f"Agent not found: {agent_id}", http_status=404,
+            error_code="NOT_FOUND")
+    prior_status = str(agent.status or "")
+    prior_digest = _state_digest(_state_material(agent))
+
+    request_digest = _fingerprint("agent-stop-request", agent_id)
+    expected_base = {
+        "operation_id": operation_id,
+        "schema": REVIEW_SCHEMA,
+        "action": _ACTION_STOP,
+        "event_type": AuditEventType.UPDATE.value,
+        "target_id": agent_id,
+        "request_digest": request_digest,
+        "actor_id": authority["id"],
+    }
+    replay = _replay(
+        db, operation_id, expected_base, authority=authority,
+        target_check=_stop_target_check(db),
+        success_data=_stop_success_data)
+    if replay is not None:
+        return replay
+
+    if _active_task_count(agent_id) == 0:
+        return _no_change(
+            {"agent_id": agent_id, "cancelled_tasks": 0},
+            "No running tasks found for this agent")
+
+    if not _claim_actor(db, authority):
+        db.rollback()
+        return _conflict(
+            "run authority changed; refresh and retry",
+            code="AUTHORITY_CHANGED")
+
+    try:
+        claimed = db.execute(
+            update(AgentRegistry)
+            .where(*_run_agent_predicates(agent, prior_status))
+            .values(updated_at=AgentRegistry.updated_at))
+        if claimed.rowcount != 1:
+            db.rollback()
+            return _conflict(
+                "agent material changed; refresh and retry",
+                code="STALE_TARGET")
+    except Exception as exc:  # noqa: BLE001 — mutation did not commit
+        db.rollback()
+        logger.error(
+            "agent stop claim failed before cancel: operation_id=%s "
+            "target=%s error_class=%s", operation_id, agent_id,
+            type(exc).__name__)
+        return _not_applied(
+            "The agent stop could not be admitted; no task was cancelled")
+
+    try:
+        from core.agent_task_registry import agent_task_registry
+        cancelled = int(
+            await agent_task_registry.cancel_agent_tasks(agent_id) or 0)
+    except Exception as exc:  # noqa: BLE001 — cancellation did not run
+        db.rollback()
+        logger.error(
+            "agent stop cancellation failed: operation_id=%s target=%s "
+            "error_class=%s", operation_id, agent_id,
+            type(exc).__name__)
+        return _not_applied(
+            "The agent tasks could not be cancelled; no receipt was written")
+
+    if cancelled == 0:
+        db.rollback()
+        return _no_change(
+            {"agent_id": agent_id, "cancelled_tasks": 0},
+            "No running tasks found for this agent")
+
+    expected = _audit_expected(
+        operation_id=operation_id, action=_ACTION_STOP,
+        event_type=AuditEventType.UPDATE.value, agent=agent,
+        prior_status=prior_status, result_status=prior_status,
+        request_digest=request_digest, prior_digest=prior_digest,
+        result_digest=prior_digest, actor=authority,
+        extra={"cancelled_tasks": cancelled})
+    audit_row = _audit_row(expected=expected, actor=authority)
+    try:
+        db.add(audit_row)
+        db.commit()
+    except Exception as exc:  # noqa: BLE001 — cancellation already occurred
+        db.rollback()
+        logger.error(
+            "agent stop receipt failed after cancellation: operation_id=%s "
+            "target=%s error_class=%s", operation_id, agent_id,
+            type(exc).__name__)
+        result = _effect_unknown(operation_id, agent_id)
+        result["data"] = {
+            "agent_id": agent_id,
+            "cancelled_tasks": cancelled,
+        }
+        return result
+
+    audit_state = _verify_audit(db, expected)
+    current = _load_agent(db, agent_id)
+    target_ok = (
+        current is not None
+        and _state_digest(_state_material(current)) == prior_digest)
+    if audit_state["status"] == "verified" and not target_ok:
+        audit_state = {"status": "refuted", "audit_id": operation_id}
+    if audit_state["status"] == "verified" and target_ok:
+        return {
+            "status": "verified",
+            "data": _with_receipt(
+                {"agent_id": agent_id, "cancelled_tasks": cancelled},
+                operation_id=operation_id, audit_id=operation_id),
+            "message": f"Successfully stopped {cancelled} running task(s)",
+            "operation_id": operation_id,
+            "audit_id": operation_id,
+            "target_id": agent_id,
+        }
+    return _committed_unverified(
+        operation_id, audit_state, target_id=agent_id)
