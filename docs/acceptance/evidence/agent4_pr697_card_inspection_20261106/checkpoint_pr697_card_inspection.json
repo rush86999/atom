@@ -1,0 +1,40 @@
+{
+  "checkpoint": "Agent 4 one-time core-profile card inspection of PR697 (Documents search-card release alignment) — the finite follow-through ordered by the lead",
+  "verdict": "REPAIRED CARD VERIFIED at the ordinary member boundary on served source 4ef61ef2c: the misleading 'Search & Verify / Test your uploaded documents immediately' promise and the /search CTA are GONE; truthful deferred copy is present with usable supported destinations ('Ask in Chat' -> /chat, 'Open Agents' -> /agents, both real pages); profile gate preserved (deferred state truthful; no search enablement).",
+  "attribution": {
+    "verified_source": "4ef61ef2c86035b5a90e1d14c04854a633d6b6ac (PR697 exact head, branch codex/documents-deferred-search-card-20261106; open and UNMERGED at inspection time — verified with git merge-base --is-ancestor)",
+    "head_lineage": "diff over base 66e09c5ee touches only frontend-nextjs/pages/documents.tsx, tests/pages/documents.test.tsx and .github/workflows/ci.yml (3 files, matches the lead's reviewed 3-file diff)",
+    "served_identity": "backend health reported git_commit 4ef61ef2c860, pid 63121, cwd /private/tmp/atom-agent4-upload-journey/backend (worktree checked out at 4ef61ef2c, .next purged before boot)",
+    "world": "REUSED isolated scratch world 4 (/private/tmp/atom-agent4-w4-scratch, ports 18123/18124, own DB/SECRET_KEY): the existing member, its workspace and the previously fixture-uploaded document persist — no account re-creation, no upload rerun, no auth-flow rerun",
+    "servers_stopped_after_capture": true,
+    "python": "3.11.16",
+    "frontend": "Next.js dev server, node v20.19.6",
+    "role": "member (existing user)"
+  },
+  "member_identity": {
+    "email": "a4doc-4c848b84-1106@example.com",
+    "user_id": "68e530df-d1f3-4a42-8804-a46b9de1218d",
+    "workspace_id": "3c14bfec-f17e-4dfc-9049-4a40f0fe4eb5",
+    "role": "member",
+    "how_reached": "single UI sign-in as the EXISTING member to reach the Documents page (not an auth-flow rerun; no new account)"
+  },
+  "inspections": [
+    { "id": "C1_deferred_copy_truthful", "observed": "card titled 'Search' shows 'Search is not part of this release.' plus explanatory copy 'Cross-surface search is deferred in this release. Your uploaded documents remain available to your agent in Chat.'", "result": "pass" },
+    { "id": "C2_misleading_promise_removed", "observed": "'Search & Verify' promise ABSENT; 'Test your uploaded documents immediately' ABSENT; 'Go to Search Page' CTA ABSENT; zero anchors pointing at /search", "result": "pass" },
+    { "id": "C3_supported_controls_visible", "observed": "'Ask in Chat' and 'Open Agents' controls visible on the card (rendered as BUTTONS with router navigation — no href, hence absent from a naive anchor scan; found by role/text scan)", "result": "pass" },
+    { "id": "C4_destinations_real", "boundary": "browser-UI", "action": "click each control once; no model prompt submitted in either destination", "observed": "Ask in Chat -> /chat (chat heading + composer present); Open Agents -> /agents (agents heading present); both are the actual supported pages", "result": "pass" },
+    { "id": "C5_profile_gate_preserved", "observed": "deferred state remains truthful on the core profile; search code not activated; no force-enable performed by inspection", "result": "pass" }
+  ],
+  "durable_readback": { "users": 3, "workspaces": 3, "user_workspaces": 2, "note": "unchanged from the prior journey's final state — inspection added no rows" },
+  "artifacts": [
+    { "file": "40_pr697_card_core_profile.png", "note": "repaired Documents page on core profile: repaired Search card, Upload card unchanged, fixture document listed with content preview" },
+    { "file": "card_safe_pagetext.txt", "note": "safe page text captured at inspection time" }
+  ],
+  "scope_and_exclusions": [
+    "Card/route affordance only — NOT functional search quality (functional search remains deferred); no upload rerun; no auth rerun beyond the single sign-in needed to reach the page; no full-profile force",
+    "The alternate (enabled) branch of the capability gate is covered by Agent 1's committed supported-profile component twin, not duplicated here",
+    "Inspection executed on the reviewable candidate head; the served source is bound above — re-inspection is needed only if the relevant Documents source changes again",
+    "Merge/acceptance decisions remain with the lead/owner; CI worker owns hosted checks"
+  ],
+  "pending_item_closed": "the retained-forceframe clarification from c8fbde84e was already delivered as 51fa2b031 before this inspection (recorded; no further action)"
+}
