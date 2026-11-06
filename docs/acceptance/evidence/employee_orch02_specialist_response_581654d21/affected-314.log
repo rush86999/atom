@@ -1,0 +1,1354 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-05 19:21:40 [    INFO] MCP Service initialized
+2026-11-05 19:21:40 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-05 19:21:40 [    INFO] EscalationManager initialized
+2026-11-05 19:21:40 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:21:40 [    INFO] EscalationManager initialized
+2026-11-05 19:21:40 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:21:40 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+
+tests/test_orch02_specialist_response.py::test_enforced_response_consumes_specialist_work 
+-------------------------------- live log setup --------------------------------
+2026-11-05 19:21:41 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:42 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-05 19:21:42 [    INFO] EscalationManager initialized
+2026-11-05 19:21:42 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:21:42 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 19:21:42 [    INFO] LanceDBHandler initialized. ID: 4987040976. LANCEDB_AVAILABLE: True
+2026-11-05 19:21:42 [    INFO] Lazy loading LanceDB connection...
+2026-11-05 19:21:42 [    INFO] Connecting to LanceDB at /private/tmp/atom-orch02-verify/backend/data/atom_memory with storage_options=None
+2026-11-05 19:21:42 [    INFO] LanceDB connected successfully
+PASSED                                                                   [  0%]
+tests/test_orch02_specialist_response.py::test_partial_success_preserves_failed_specialist 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:42 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-05 19:21:42 [    INFO] EscalationManager initialized
+2026-11-05 19:21:42 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:21:42 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 19:21:42 [    INFO] LanceDBHandler initialized. ID: 4979008016. LANCEDB_AVAILABLE: True
+2026-11-05 19:21:42 [    INFO] Lazy loading LanceDB connection...
+2026-11-05 19:21:42 [    INFO] Connecting to LanceDB at /private/tmp/atom-orch02-verify/backend/data/atom_memory with storage_options=None
+2026-11-05 19:21:42 [    INFO] LanceDB connected successfully
+PASSED                                                                   [  0%]
+tests/test_orch02_specialist_response.py::test_all_failed_is_explicit_non_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:43 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-05 19:21:43 [    INFO] EscalationManager initialized
+2026-11-05 19:21:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:21:43 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 19:21:43 [    INFO] LanceDBHandler initialized. ID: 4977756624. LANCEDB_AVAILABLE: True
+2026-11-05 19:21:43 [    INFO] Lazy loading LanceDB connection...
+2026-11-05 19:21:43 [    INFO] Connecting to LanceDB at /private/tmp/atom-orch02-verify/backend/data/atom_memory with storage_options=None
+2026-11-05 19:21:43 [    INFO] LanceDB connected successfully
+PASSED                                                                   [  1%]
+tests/test_orch02_specialist_response.py::test_missing_or_foreign_specialist_is_no_suitable 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:44 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-05 19:21:44 [    INFO] EscalationManager initialized
+2026-11-05 19:21:44 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:21:44 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 19:21:44 [    INFO] LanceDBHandler initialized. ID: 4977757232. LANCEDB_AVAILABLE: True
+2026-11-05 19:21:44 [    INFO] Lazy loading LanceDB connection...
+2026-11-05 19:21:44 [    INFO] Connecting to LanceDB at /private/tmp/atom-orch02-verify/backend/data/atom_memory with storage_options=None
+2026-11-05 19:21:44 [    INFO] LanceDB connected successfully
+PASSED                                                                   [  1%]
+tests/test_orch02_specialist_response.py::test_wrong_capability_is_not_dispatched 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:45 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-05 19:21:45 [    INFO] EscalationManager initialized
+2026-11-05 19:21:45 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:21:45 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 19:21:45 [    INFO] LanceDBHandler initialized. ID: 5010690064. LANCEDB_AVAILABLE: True
+2026-11-05 19:21:45 [    INFO] Lazy loading LanceDB connection...
+2026-11-05 19:21:45 [    INFO] Connecting to LanceDB at /private/tmp/atom-orch02-verify/backend/data/atom_memory with storage_options=None
+2026-11-05 19:21:45 [    INFO] LanceDB connected successfully
+PASSED                                                                   [  1%]
+tests/test_orch02_specialist_response.py::test_disabled_specialist_is_not_dispatched 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:46 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-05 19:21:46 [    INFO] EscalationManager initialized
+2026-11-05 19:21:46 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:21:46 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 19:21:46 [    INFO] LanceDBHandler initialized. ID: 5010495136. LANCEDB_AVAILABLE: True
+2026-11-05 19:21:46 [    INFO] Lazy loading LanceDB connection...
+2026-11-05 19:21:46 [    INFO] Connecting to LanceDB at /private/tmp/atom-orch02-verify/backend/data/atom_memory with storage_options=None
+2026-11-05 19:21:46 [    INFO] LanceDB connected successfully
+PASSED                                                                   [  2%]
+tests/test_orch02_specialist_response.py::test_cancellation_stops_before_next_specialist 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:47 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-05 19:21:47 [    INFO] EscalationManager initialized
+2026-11-05 19:21:47 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:21:47 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 19:21:47 [    INFO] LanceDBHandler initialized. ID: 5010489696. LANCEDB_AVAILABLE: True
+2026-11-05 19:21:47 [    INFO] Lazy loading LanceDB connection...
+2026-11-05 19:21:47 [    INFO] Connecting to LanceDB at /private/tmp/atom-orch02-verify/backend/data/atom_memory with storage_options=None
+2026-11-05 19:21:47 [    INFO] LanceDB connected successfully
+PASSED                                                                   [  2%]
+tests/test_orch02_specialist_response.py::test_duplicate_continuation_uses_cached_result 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:47 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-05 19:21:47 [    INFO] EscalationManager initialized
+2026-11-05 19:21:47 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:21:47 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 19:21:47 [    INFO] LanceDBHandler initialized. ID: 4978456656. LANCEDB_AVAILABLE: True
+2026-11-05 19:21:47 [    INFO] Lazy loading LanceDB connection...
+2026-11-05 19:21:47 [    INFO] Connecting to LanceDB at /private/tmp/atom-orch02-verify/backend/data/atom_memory with storage_options=None
+2026-11-05 19:21:47 [    INFO] LanceDB connected successfully
+2026-11-05 19:21:47 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-05 19:21:47 [    INFO] EscalationManager initialized
+2026-11-05 19:21:47 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:21:47 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 19:21:47 [    INFO] LanceDBHandler initialized. ID: 4978457680. LANCEDB_AVAILABLE: True
+2026-11-05 19:21:47 [    INFO] Lazy loading LanceDB connection...
+2026-11-05 19:21:47 [    INFO] Connecting to LanceDB at /private/tmp/atom-orch02-verify/backend/data/atom_memory with storage_options=None
+2026-11-05 19:21:47 [    INFO] LanceDB connected successfully
+PASSED                                                                   [  2%]
+tests/test_orch02_specialist_response.py::test_chat_handler_returns_specialist_work_as_user_message 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:49 [    INFO] ComputerUseAgent initialized for tenant default
+2026-11-05 19:21:49 [ WARNING] Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+2026-11-05 19:21:49 [    INFO] No token storage file found, starting empty
+2026-11-05 19:21:49 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-05 19:21:49 [    INFO] EscalationManager initialized
+2026-11-05 19:21:49 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:21:49 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-05 19:21:49 [    INFO] EscalationManager initialized
+2026-11-05 19:21:49 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:21:49 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 19:21:49 [    INFO] Slack Enhanced Service initialized
+2026-11-05 19:21:49 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-05 19:21:49 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-05 19:21:49 [    INFO] EscalationManager initialized
+2026-11-05 19:21:49 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:21:49 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 19:21:49 [    INFO] LanceDBHandler initialized. ID: 5183834784. LANCEDB_AVAILABLE: True
+2026-11-05 19:21:49 [    INFO] Lazy loading LanceDB connection...
+2026-11-05 19:21:49 [    INFO] Connecting to LanceDB at /private/tmp/atom-orch02-verify/backend/data/atom_memory with storage_options=None
+2026-11-05 19:21:49 [    INFO] LanceDB connected successfully
+PASSED                                                                   [  3%]
+tests/test_orch02_specialist_response.py::test_empty_roster_is_explicit_no_suitable 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:50 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-05 19:21:50 [    INFO] EscalationManager initialized
+2026-11-05 19:21:50 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:21:50 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 19:21:50 [    INFO] LanceDBHandler initialized. ID: 5185784720. LANCEDB_AVAILABLE: True
+2026-11-05 19:21:50 [    INFO] Lazy loading LanceDB connection...
+2026-11-05 19:21:50 [    INFO] Connecting to LanceDB at /private/tmp/atom-orch02-verify/backend/data/atom_memory with storage_options=None
+2026-11-05 19:21:50 [    INFO] LanceDB connected successfully
+PASSED                                                                   [  3%]
+tests/test_orch07_fleet_audit_consumer.py::test_shadow_consumer_writes_scoped_decision_and_exact_outcome 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:51 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-05 19:21:51 [    INFO] EscalationManager initialized
+2026-11-05 19:21:51 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:21:51 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 19:21:51 [    INFO] LanceDBHandler initialized. ID: 5185008400. LANCEDB_AVAILABLE: True
+2026-11-05 19:21:51 [    INFO] Lazy loading LanceDB connection...
+2026-11-05 19:21:51 [    INFO] Connecting to LanceDB at /private/tmp/atom-orch02-verify/backend/data/atom_memory with storage_options=None
+2026-11-05 19:21:51 [    INFO] LanceDB connected successfully
+2026-11-05 19:21:51 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-1: Tenant tenant-1 not found
+2026-11-05 19:21:51 [    INFO] EscalationManager initialized
+2026-11-05 19:21:51 [    INFO] CognitiveTierService initialized for workspace: workspace-1
+PASSED                                                                   [  3%]
+tests/test_orch07_fleet_audit_consumer.py::test_outcome_join_is_exact_idempotent_and_stale_refused PASSED [  4%]
+tests/test_orch07_fleet_audit_consumer.py::test_scope_conflict_and_missing_execution_do_not_default PASSED [  4%]
+tests/test_orch07_fleet_audit_consumer.py::test_calibration_excludes_pending_and_scope_unverified PASSED [  4%]
+tests/test_orch07_fleet_audit_consumer.py::test_shadow_only_healthy_data_queues_consent_not_silent_enforce PASSED [  5%]
+tests/test_orch07_fleet_audit_consumer.py::test_attempted_route_is_not_reported_as_served 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:55 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-05 19:21:55 [    INFO] EscalationManager initialized
+2026-11-05 19:21:55 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:21:55 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 19:21:55 [    INFO] LanceDBHandler initialized. ID: 5010531152. LANCEDB_AVAILABLE: True
+2026-11-05 19:21:55 [    INFO] Lazy loading LanceDB connection...
+2026-11-05 19:21:55 [    INFO] Connecting to LanceDB at /private/tmp/atom-orch02-verify/backend/data/atom_memory with storage_options=None
+2026-11-05 19:21:55 [    INFO] LanceDB connected successfully
+2026-11-05 19:21:55 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-1: Tenant tenant-1 not found
+PASSED                                                                   [  5%]
+tests/unit/test_fleet_routing_stats.py::TestWorkloadKey::test_normalizes_case_and_whitespace PASSED [  6%]
+tests/unit/test_fleet_routing_stats.py::TestWorkloadKey::test_unknown_for_empty PASSED [  6%]
+tests/unit/test_fleet_routing_stats.py::TestWorkloadKey::test_stable_hex_signature PASSED [  6%]
+tests/unit/test_fleet_routing_stats.py::TestRecordFleetDecision::test_writes_row_with_all_fields PASSED [  7%]
+tests/unit/test_fleet_routing_stats.py::TestRecordFleetDecision::test_never_raises_on_db_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:55 [ WARNING] Fleet routing audit write failed: db down
+PASSED                                                                   [  7%]
+tests/unit/test_fleet_routing_stats.py::TestRecordFleetDecision::test_truncates_request_text PASSED [  7%]
+tests/unit/test_fleet_routing_stats.py::TestRecordFleetExecutionOutcome::test_joins_success_onto_matching_rows PASSED [  8%]
+tests/unit/test_fleet_routing_stats.py::TestRecordFleetExecutionOutcome::test_joins_failure_with_error PASSED [  8%]
+tests/unit/test_fleet_routing_stats.py::TestRecordFleetExecutionOutcome::test_never_raises_on_db_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:55 [ WARNING] Fleet routing outcome join failed: db down
+PASSED                                                                   [  8%]
+tests/unit/test_fleet_routing_stats.py::TestCalibrationStatus::test_phase_off_when_routing_disabled PASSED [  9%]
+tests/unit/test_fleet_routing_stats.py::TestCalibrationStatus::test_phase_collecting_below_min_rows PASSED [  9%]
+tests/unit/test_fleet_routing_stats.py::TestCalibrationStatus::test_phase_blocked_on_unhealthy_recruitment PASSED [  9%]
+tests/unit/test_fleet_routing_stats.py::TestCalibrationStatus::test_phase_ready_when_healthy_and_sufficient PASSED [ 10%]
+tests/unit/test_fleet_routing_stats.py::TestCalibrationStatus::test_phase_enforced_when_override_active PASSED [ 10%]
+tests/unit/test_fleet_routing_stats.py::TestCalibrationStatus::test_never_raises_and_reports_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:55 [ WARNING] Fleet calibration status failed: db down
+PASSED                                                                   [ 10%]
+tests/unit/test_fleet_routing_audit_wire.py::test_shadow_writes_audit_not_enforced 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:55 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-05 19:21:55 [    INFO] Queen: Designing architecture for goal: analyze my sales pipeline in detail this quarter (Mode: one_off)
+2026-11-05 19:21:55 [   ERROR] Queen: Failed to generate blueprint: the JSON object must be str, bytes or bytearray, not AsyncMock
+2026-11-05 19:21:55 [   ERROR] [SpendAggregationService] Error updating spend: (sqlite3.ProgrammingError) Error binding parameter 1: type 'MagicMock' is not supported
+[SQL: SELECT tenants.id AS tenants_id, tenants.name AS tenants_name, tenants.subdomain AS tenants_subdomain, tenants.domain AS tenants_domain, tenants.plan_type AS tenants_plan_type, tenants.edition AS tenants_edition, tenants.segregated_namespaces AS tenants_segregated_namespaces, tenants.is_active AS tenants_is_active, tenants.billing_email AS tenants_billing_email, tenants.budget_limit_usd AS tenants_budget_limit_usd, tenants.metadata_json AS tenants_metadata_json, tenants.current_spend_usd AS tenants_current_spend_usd, tenants.total_spend_usd AS tenants_total_spend_usd, tenants.created_at AS tenants_created_at, tenants.updated_at AS tenants_updated_at, tenants.computer_use_count AS tenants_computer_use_count, tenants.last_desktop_sync AS tenants_last_desktop_sync, tenants.api_key AS tenants_api_key, tenants.status AS tenants_status, tenants.user_id AS tenants_user_id, tenants.api_calls_count AS tenants_api_calls_count, tenants.ai_mode AS tenants_ai_mode 
+FROM tenants 
+WHERE tenants.id = ?
+ LIMIT ? OFFSET ?]
+[parameters: (<MagicMock name='SessionLocal().__enter__().query().filter().first().tenant_id' id='4995713744'>, 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2026-11-05 19:21:55 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant <MagicMock name='SessionLocal().__enter__().query().filter().first().tenant_id' id='4995713744'>: (sqlite3.ProgrammingError) Error binding parameter 1: type 'MagicMock' is not supported
+[SQL: SELECT tenants.id AS tenants_id, tenants.name AS tenants_name, tenants.subdomain AS tenants_subdomain, tenants.domain AS tenants_domain, tenants.plan_type AS tenants_plan_type, tenants.edition AS tenants_edition, tenants.segregated_namespaces AS tenants_segregated_namespaces, tenants.is_active AS tenants_is_active, tenants.billing_email AS tenants_billing_email, tenants.budget_limit_usd AS tenants_budget_limit_usd, tenants.metadata_json AS tenants_metadata_json, tenants.current_spend_usd AS tenants_current_spend_usd, tenants.total_spend_usd AS tenants_total_spend_usd, tenants.created_at AS tenants_created_at, tenants.updated_at AS tenants_updated_at, tenants.computer_use_count AS tenants_computer_use_count, tenants.last_desktop_sync AS tenants_last_desktop_sync, tenants.api_key AS tenants_api_key, tenants.status AS tenants_status, tenants.user_id AS tenants_user_id, tenants.api_calls_count AS tenants_api_calls_count, tenants.ai_mode AS tenants_ai_mode 
+FROM tenants 
+WHERE tenants.id = ?
+ LIMIT ? OFFSET ?]
+[parameters: (<MagicMock name='SessionLocal().__enter__().query().filter().first().tenant_id' id='4995713744'>, 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2026-11-05 19:21:55 [    INFO] EscalationManager initialized
+2026-11-05 19:21:55 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:21:55 [    INFO] EscalationManager initialized
+2026-11-05 19:21:55 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:21:55 [    INFO] Listed 0 skills (status=Active, type=None)
+2026-11-05 19:21:56 [ WARNING] Stage router audit persist failed (non-fatal): (sqlite3.ProgrammingError) Error binding parameter 2: type 'MagicMock' is not supported
+[SQL: INSERT INTO llm_stage_router_audit (id, tenant_id, workspace_id, agent_id, execution_id, step_index, picker, confidence_threshold, signals, selected_group, applied_group, split_group, default_group, confidence, decision_source, enforced, policy_source, model_type, handoff_note, rationale, created_at, success, quality_satisfied, actual_cost, actual_latency_ms, actual_model, actual_provider) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)]
+[parameters: ('a1df9e05-8e12-4f22-93ec-58a721c83543', <MagicMock name='SessionLocal().__enter__().query().filter().first().tenant_id' id='4995713744'>, 'test-ws', 'atom_main', None, 0, 'efficient_first', 0.5, '"{\\"severity\\": 0.0, \\"spinning\\": false, \\"exploring\\": false, \\"production_intensity\\": 0.0, \\"critical\\": false}"', 'efficient', 'efficient', None, 'efficient', 0.0, 'fall_open', 0, 'global', None, None, 'stage_router selected efficient (confidence 0.000, fall_open)', '2026-11-06 00:21:56.490778', None, None, None, None, None, None)]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2026-11-05 19:21:56 [   ERROR] Failed to record Atom governance outcome: 'MagicMock' object can't be awaited
+PASSED                                                                   [ 11%]
+tests/unit/test_fleet_routing_audit_wire.py::test_enforced_writes_audit_enforced_and_returns_summary 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+PASSED                                                                   [ 11%]
+tests/unit/test_fleet_routing_audit_wire.py::test_failed_recruitment_is_audited 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-05 19:21:56 [ WARNING] Fleet routing failed, falling back to Queen→ReAct: fleet admiral unavailable
+2026-11-05 19:21:56 [    INFO] Queen: Designing architecture for goal: analyze my sales pipeline in detail this quarter (Mode: one_off)
+2026-11-05 19:21:56 [   ERROR] Queen: Failed to generate blueprint: the JSON object must be str, bytes or bytearray, not AsyncMock
+2026-11-05 19:21:56 [   ERROR] [SpendAggregationService] Error updating spend: (sqlite3.ProgrammingError) Error binding parameter 1: type 'MagicMock' is not supported
+[SQL: SELECT tenants.id AS tenants_id, tenants.name AS tenants_name, tenants.subdomain AS tenants_subdomain, tenants.domain AS tenants_domain, tenants.plan_type AS tenants_plan_type, tenants.edition AS tenants_edition, tenants.segregated_namespaces AS tenants_segregated_namespaces, tenants.is_active AS tenants_is_active, tenants.billing_email AS tenants_billing_email, tenants.budget_limit_usd AS tenants_budget_limit_usd, tenants.metadata_json AS tenants_metadata_json, tenants.current_spend_usd AS tenants_current_spend_usd, tenants.total_spend_usd AS tenants_total_spend_usd, tenants.created_at AS tenants_created_at, tenants.updated_at AS tenants_updated_at, tenants.computer_use_count AS tenants_computer_use_count, tenants.last_desktop_sync AS tenants_last_desktop_sync, tenants.api_key AS tenants_api_key, tenants.status AS tenants_status, tenants.user_id AS tenants_user_id, tenants.api_calls_count AS tenants_api_calls_count, tenants.ai_mode AS tenants_ai_mode 
+FROM tenants 
+WHERE tenants.id = ?
+ LIMIT ? OFFSET ?]
+[parameters: (<MagicMock name='SessionLocal().__enter__().query().filter().first().tenant_id' id='5277900416'>, 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2026-11-05 19:21:56 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant <MagicMock name='SessionLocal().__enter__().query().filter().first().tenant_id' id='5277900416'>: (sqlite3.ProgrammingError) Error binding parameter 1: type 'MagicMock' is not supported
+[SQL: SELECT tenants.id AS tenants_id, tenants.name AS tenants_name, tenants.subdomain AS tenants_subdomain, tenants.domain AS tenants_domain, tenants.plan_type AS tenants_plan_type, tenants.edition AS tenants_edition, tenants.segregated_namespaces AS tenants_segregated_namespaces, tenants.is_active AS tenants_is_active, tenants.billing_email AS tenants_billing_email, tenants.budget_limit_usd AS tenants_budget_limit_usd, tenants.metadata_json AS tenants_metadata_json, tenants.current_spend_usd AS tenants_current_spend_usd, tenants.total_spend_usd AS tenants_total_spend_usd, tenants.created_at AS tenants_created_at, tenants.updated_at AS tenants_updated_at, tenants.computer_use_count AS tenants_computer_use_count, tenants.last_desktop_sync AS tenants_last_desktop_sync, tenants.api_key AS tenants_api_key, tenants.status AS tenants_status, tenants.user_id AS tenants_user_id, tenants.api_calls_count AS tenants_api_calls_count, tenants.ai_mode AS tenants_ai_mode 
+FROM tenants 
+WHERE tenants.id = ?
+ LIMIT ? OFFSET ?]
+[parameters: (<MagicMock name='SessionLocal().__enter__().query().filter().first().tenant_id' id='5277900416'>, 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2026-11-05 19:21:56 [    INFO] EscalationManager initialized
+2026-11-05 19:21:56 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:21:56 [    INFO] EscalationManager initialized
+2026-11-05 19:21:56 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:21:56 [    INFO] Listed 0 skills (status=Active, type=None)
+2026-11-05 19:21:56 [ WARNING] Stage router audit persist failed (non-fatal): (sqlite3.ProgrammingError) Error binding parameter 2: type 'MagicMock' is not supported
+[SQL: INSERT INTO llm_stage_router_audit (id, tenant_id, workspace_id, agent_id, execution_id, step_index, picker, confidence_threshold, signals, selected_group, applied_group, split_group, default_group, confidence, decision_source, enforced, policy_source, model_type, handoff_note, rationale, created_at, success, quality_satisfied, actual_cost, actual_latency_ms, actual_model, actual_provider) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)]
+[parameters: ('b5e4c70f-7bef-4e50-af48-2d60aa5e76e2', <MagicMock name='SessionLocal().__enter__().query().filter().first().tenant_id' id='5277900416'>, 'test-ws', 'atom_main', None, 0, 'efficient_first', 0.5, '"{\\"severity\\": 0.0, \\"spinning\\": false, \\"exploring\\": false, \\"production_intensity\\": 0.0, \\"critical\\": false}"', 'efficient', 'efficient', None, 'efficient', 0.0, 'fall_open', 0, 'global', None, None, 'stage_router selected efficient (confidence 0.000, fall_open)', '2026-11-06 00:21:56.516780', None, None, None, None, None, None)]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2026-11-05 19:21:56 [   ERROR] Failed to record Atom governance outcome: 'MagicMock' object can't be awaited
+PASSED                                                                   [ 12%]
+tests/unit/test_fleet_routing_audit_wire.py::test_failed_recruitment_still_joins_fallback_outcome 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-05 19:21:56 [ WARNING] Fleet routing failed, falling back to Queen→ReAct: fleet admiral unavailable
+2026-11-05 19:21:56 [    INFO] Queen: Designing architecture for goal: analyze my sales pipeline in detail this quarter (Mode: one_off)
+2026-11-05 19:21:56 [   ERROR] Queen: Failed to generate blueprint: the JSON object must be str, bytes or bytearray, not AsyncMock
+2026-11-05 19:21:56 [   ERROR] [SpendAggregationService] Error updating spend: (sqlite3.ProgrammingError) Error binding parameter 1: type 'MagicMock' is not supported
+[SQL: SELECT tenants.id AS tenants_id, tenants.name AS tenants_name, tenants.subdomain AS tenants_subdomain, tenants.domain AS tenants_domain, tenants.plan_type AS tenants_plan_type, tenants.edition AS tenants_edition, tenants.segregated_namespaces AS tenants_segregated_namespaces, tenants.is_active AS tenants_is_active, tenants.billing_email AS tenants_billing_email, tenants.budget_limit_usd AS tenants_budget_limit_usd, tenants.metadata_json AS tenants_metadata_json, tenants.current_spend_usd AS tenants_current_spend_usd, tenants.total_spend_usd AS tenants_total_spend_usd, tenants.created_at AS tenants_created_at, tenants.updated_at AS tenants_updated_at, tenants.computer_use_count AS tenants_computer_use_count, tenants.last_desktop_sync AS tenants_last_desktop_sync, tenants.api_key AS tenants_api_key, tenants.status AS tenants_status, tenants.user_id AS tenants_user_id, tenants.api_calls_count AS tenants_api_calls_count, tenants.ai_mode AS tenants_ai_mode 
+FROM tenants 
+WHERE tenants.id = ?
+ LIMIT ? OFFSET ?]
+[parameters: (<MagicMock name='SessionLocal().__enter__().query().filter().first().tenant_id' id='5279400016'>, 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2026-11-05 19:21:56 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant <MagicMock name='SessionLocal().__enter__().query().filter().first().tenant_id' id='5279400016'>: (sqlite3.ProgrammingError) Error binding parameter 1: type 'MagicMock' is not supported
+[SQL: SELECT tenants.id AS tenants_id, tenants.name AS tenants_name, tenants.subdomain AS tenants_subdomain, tenants.domain AS tenants_domain, tenants.plan_type AS tenants_plan_type, tenants.edition AS tenants_edition, tenants.segregated_namespaces AS tenants_segregated_namespaces, tenants.is_active AS tenants_is_active, tenants.billing_email AS tenants_billing_email, tenants.budget_limit_usd AS tenants_budget_limit_usd, tenants.metadata_json AS tenants_metadata_json, tenants.current_spend_usd AS tenants_current_spend_usd, tenants.total_spend_usd AS tenants_total_spend_usd, tenants.created_at AS tenants_created_at, tenants.updated_at AS tenants_updated_at, tenants.computer_use_count AS tenants_computer_use_count, tenants.last_desktop_sync AS tenants_last_desktop_sync, tenants.api_key AS tenants_api_key, tenants.status AS tenants_status, tenants.user_id AS tenants_user_id, tenants.api_calls_count AS tenants_api_calls_count, tenants.ai_mode AS tenants_ai_mode 
+FROM tenants 
+WHERE tenants.id = ?
+ LIMIT ? OFFSET ?]
+[parameters: (<MagicMock name='SessionLocal().__enter__().query().filter().first().tenant_id' id='5279400016'>, 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2026-11-05 19:21:56 [    INFO] EscalationManager initialized
+2026-11-05 19:21:56 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:21:56 [    INFO] EscalationManager initialized
+2026-11-05 19:21:56 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:21:56 [    INFO] Listed 0 skills (status=Active, type=None)
+2026-11-05 19:21:56 [ WARNING] Stage router audit persist failed (non-fatal): (sqlite3.ProgrammingError) Error binding parameter 2: type 'MagicMock' is not supported
+[SQL: INSERT INTO llm_stage_router_audit (id, tenant_id, workspace_id, agent_id, execution_id, step_index, picker, confidence_threshold, signals, selected_group, applied_group, split_group, default_group, confidence, decision_source, enforced, policy_source, model_type, handoff_note, rationale, created_at, success, quality_satisfied, actual_cost, actual_latency_ms, actual_model, actual_provider) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)]
+[parameters: ('14069dc0-005d-498a-9dcc-3a1cd8be2cee', <MagicMock name='SessionLocal().__enter__().query().filter().first().tenant_id' id='5279400016'>, 'test-ws', 'atom_main', None, 0, 'efficient_first', 0.5, '"{\\"severity\\": 0.0, \\"spinning\\": false, \\"exploring\\": false, \\"production_intensity\\": 0.0, \\"critical\\": false}"', 'efficient', 'efficient', None, 'efficient', 0.0, 'fall_open', 0, 'global', None, None, 'stage_router selected efficient (confidence 0.000, fall_open)', '2026-11-06 00:21:56.530267', None, None, None, None, None, None)]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2026-11-05 19:21:56 [   ERROR] Failed to record Atom governance outcome: 'MagicMock' object can't be awaited
+PASSED                                                                   [ 12%]
+tests/unit/test_fleet_router_automation.py::TestVerdict::test_collecting_below_min_rows PASSED [ 12%]
+tests/unit/test_fleet_router_automation.py::TestVerdict::test_blocked_on_unhealthy_recruitment PASSED [ 13%]
+tests/unit/test_fleet_router_automation.py::TestVerdict::test_revoke_on_baseline_regression PASSED [ 13%]
+tests/unit/test_fleet_router_automation.py::TestVerdict::test_collecting_when_baseline_below_floor PASSED [ 13%]
+tests/unit/test_fleet_router_automation.py::TestVerdict::test_enable_when_healthy PASSED [ 14%]
+tests/unit/test_fleet_router_automation.py::TestModes::test_off_mode_is_noop PASSED [ 14%]
+tests/unit/test_fleet_router_automation.py::TestModes::test_approve_mode_queues_approval PASSED [ 14%]
+tests/unit/test_fleet_router_automation.py::TestModes::test_approve_mode_dedupes_pending PASSED [ 15%]
+tests/unit/test_fleet_router_automation.py::TestModes::test_auto_mode_applies_immediately PASSED [ 15%]
+tests/unit/test_fleet_router_automation.py::TestModes::test_revoke_applies_immediately_in_approve_mode PASSED [ 15%]
+tests/unit/test_fleet_router_automation.py::TestModes::test_approval_apply_flips_override PASSED [ 16%]
+tests/unit/test_fleet_router_automation.py::TestModes::test_approval_reject_then_unchanged_is_kept PASSED [ 16%]
+tests/unit/test_fleet_router_automation.py::TestModes::test_no_pending_approval_reports_reason PASSED [ 17%]
+tests/unit/test_fleet_router_automation.py::TestResolvedEnforce::test_env_kill_switch_wins PASSED [ 17%]
+tests/unit/test_fleet_router_automation.py::TestResolvedEnforce::test_applied_enable_override_enforces PASSED [ 17%]
+tests/unit/test_fleet_router_automation.py::TestResolvedEnforce::test_revoked_row_means_shadow PASSED [ 18%]
+tests/unit/test_fleet_router_automation.py::TestResolvedEnforce::test_approval_row_does_not_enforce PASSED [ 18%]
+tests/unit/test_fleet_router_automation.py::TestResolvedEnforce::test_empty_db_means_shadow PASSED [ 18%]
+tests/unit/test_fleet_router_automation.py::TestConfigStatus::test_set_automation_config_validates_mode PASSED [ 19%]
+tests/unit/test_fleet_router_automation.py::TestConfigStatus::test_run_auto_certification_off_mode PASSED [ 19%]
+tests/unit/test_fleet_router_automation.py::TestConfigStatus::test_run_auto_certification_never_raises 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [ WARNING] Fleet router automation pass failed: db down
+PASSED                                                                   [ 19%]
+tests/unit/test_fleet_router_automation.py::TestConfigStatus::test_get_automation_status_shape PASSED [ 20%]
+tests/unit/test_fleet_routing_wire.py::test_flag_off_never_routes_through_governance 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-05 19:21:56 [    INFO] Queen: Designing architecture for goal: analyze my sales pipeline in detail this quarter (Mode: one_off)
+2026-11-05 19:21:56 [   ERROR] Queen: Failed to generate blueprint: the JSON object must be str, bytes or bytearray, not AsyncMock
+2026-11-05 19:21:56 [   ERROR] [SpendAggregationService] Error updating spend: (sqlite3.ProgrammingError) Error binding parameter 1: type 'MagicMock' is not supported
+[SQL: SELECT tenants.id AS tenants_id, tenants.name AS tenants_name, tenants.subdomain AS tenants_subdomain, tenants.domain AS tenants_domain, tenants.plan_type AS tenants_plan_type, tenants.edition AS tenants_edition, tenants.segregated_namespaces AS tenants_segregated_namespaces, tenants.is_active AS tenants_is_active, tenants.billing_email AS tenants_billing_email, tenants.budget_limit_usd AS tenants_budget_limit_usd, tenants.metadata_json AS tenants_metadata_json, tenants.current_spend_usd AS tenants_current_spend_usd, tenants.total_spend_usd AS tenants_total_spend_usd, tenants.created_at AS tenants_created_at, tenants.updated_at AS tenants_updated_at, tenants.computer_use_count AS tenants_computer_use_count, tenants.last_desktop_sync AS tenants_last_desktop_sync, tenants.api_key AS tenants_api_key, tenants.status AS tenants_status, tenants.user_id AS tenants_user_id, tenants.api_calls_count AS tenants_api_calls_count, tenants.ai_mode AS tenants_ai_mode 
+FROM tenants 
+WHERE tenants.id = ?
+ LIMIT ? OFFSET ?]
+[parameters: (<MagicMock name='SessionLocal().__enter__().query().filter().first().tenant_id' id='5278985456'>, 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2026-11-05 19:21:56 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant <MagicMock name='SessionLocal().__enter__().query().filter().first().tenant_id' id='5278985456'>: (sqlite3.ProgrammingError) Error binding parameter 1: type 'MagicMock' is not supported
+[SQL: SELECT tenants.id AS tenants_id, tenants.name AS tenants_name, tenants.subdomain AS tenants_subdomain, tenants.domain AS tenants_domain, tenants.plan_type AS tenants_plan_type, tenants.edition AS tenants_edition, tenants.segregated_namespaces AS tenants_segregated_namespaces, tenants.is_active AS tenants_is_active, tenants.billing_email AS tenants_billing_email, tenants.budget_limit_usd AS tenants_budget_limit_usd, tenants.metadata_json AS tenants_metadata_json, tenants.current_spend_usd AS tenants_current_spend_usd, tenants.total_spend_usd AS tenants_total_spend_usd, tenants.created_at AS tenants_created_at, tenants.updated_at AS tenants_updated_at, tenants.computer_use_count AS tenants_computer_use_count, tenants.last_desktop_sync AS tenants_last_desktop_sync, tenants.api_key AS tenants_api_key, tenants.status AS tenants_status, tenants.user_id AS tenants_user_id, tenants.api_calls_count AS tenants_api_calls_count, tenants.ai_mode AS tenants_ai_mode 
+FROM tenants 
+WHERE tenants.id = ?
+ LIMIT ? OFFSET ?]
+[parameters: (<MagicMock name='SessionLocal().__enter__().query().filter().first().tenant_id' id='5278985456'>, 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2026-11-05 19:21:56 [    INFO] EscalationManager initialized
+2026-11-05 19:21:56 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:21:56 [    INFO] EscalationManager initialized
+2026-11-05 19:21:56 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:21:56 [    INFO] Listed 0 skills (status=Active, type=None)
+2026-11-05 19:21:56 [ WARNING] Stage router audit persist failed (non-fatal): (sqlite3.ProgrammingError) Error binding parameter 2: type 'MagicMock' is not supported
+[SQL: INSERT INTO llm_stage_router_audit (id, tenant_id, workspace_id, agent_id, execution_id, step_index, picker, confidence_threshold, signals, selected_group, applied_group, split_group, default_group, confidence, decision_source, enforced, policy_source, model_type, handoff_note, rationale, created_at, success, quality_satisfied, actual_cost, actual_latency_ms, actual_model, actual_provider) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)]
+[parameters: ('1a8eaed6-b40d-4e2b-9661-1308c2e02c0e', <MagicMock name='SessionLocal().__enter__().query().filter().first().tenant_id' id='5278985456'>, 'test-ws', 'atom_main', None, 0, 'efficient_first', 0.5, '"{\\"severity\\": 0.0, \\"spinning\\": false, \\"exploring\\": false, \\"production_intensity\\": 0.0, \\"critical\\": false}"', 'efficient', 'efficient', None, 'efficient', 0.0, 'fall_open', 0, 'global', None, None, 'stage_router selected efficient (confidence 0.000, fall_open)', '2026-11-06 00:21:56.560341', None, None, None, None, None, None)]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2026-11-05 19:21:56 [   ERROR] Failed to record Atom governance outcome: 'MagicMock' object can't be awaited
+PASSED                                                                   [ 20%]
+tests/unit/test_fleet_routing_wire.py::test_flag_on_force_enforce_routes_to_governance 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-05 19:21:56 [ WARNING] Fleet routing audit write failed: (sqlite3.ProgrammingError) Error binding parameter 2: type 'MagicMock' is not supported
+[SQL: INSERT INTO fleet_routing_audit (id, tenant_id, workspace_id, agent_id, execution_id, workload_key, request_text, chain_id, specialists_count, roster_json, recruitment_succeeded, enforced, decision_source, error, success, actual_latency_ms, actual_model, actual_provider) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING created_at]
+[parameters: ('8375890e-8bf0-4f82-81bd-855bbd370263', <MagicMock name='SessionLocal().__enter__().query().filter().first().tenant_id' id='5281233760'>, 'test-ws', 'atom_main', '2215022c-bc9a-4661-881a-10c8f3f5a61a', 'fcff2e47395c11e1', 'analyze my sales pipeline in detail this quarter', 'chain-1', 2, '[]', 1, 1, 'scope_unverified', 'authenticated execution scope unavailable', None, None, None, None)]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+PASSED                                                                   [ 20%]
+tests/unit/test_fleet_routing_wire.py::test_flag_on_shadow_computes_but_does_not_return_summary 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-05 19:21:56 [ WARNING] Fleet routing audit write failed: (sqlite3.ProgrammingError) Error binding parameter 2: type 'MagicMock' is not supported
+[SQL: INSERT INTO fleet_routing_audit (id, tenant_id, workspace_id, agent_id, execution_id, workload_key, request_text, chain_id, specialists_count, roster_json, recruitment_succeeded, enforced, decision_source, error, success, actual_latency_ms, actual_model, actual_provider) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING created_at]
+[parameters: ('6c6a1580-1e17-4b70-ae60-05c2fc32b568', <MagicMock name='SessionLocal().__enter__().query().filter().first().tenant_id' id='5282056240'>, 'test-ws', 'atom_main', '4a463439-7bc7-45f5-8184-6c5c9362f1c3', 'fcff2e47395c11e1', 'analyze my sales pipeline in detail this quarter', 'chain-9', 0, '[]', 0, 0, 'scope_unverified', 'authenticated execution scope unavailable', None, None, None, None)]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2026-11-05 19:21:56 [    INFO] Queen: Designing architecture for goal: analyze my sales pipeline in detail this quarter (Mode: one_off)
+2026-11-05 19:21:56 [   ERROR] Queen: Failed to generate blueprint: the JSON object must be str, bytes or bytearray, not AsyncMock
+2026-11-05 19:21:56 [   ERROR] [SpendAggregationService] Error updating spend: (sqlite3.ProgrammingError) Error binding parameter 1: type 'MagicMock' is not supported
+[SQL: SELECT tenants.id AS tenants_id, tenants.name AS tenants_name, tenants.subdomain AS tenants_subdomain, tenants.domain AS tenants_domain, tenants.plan_type AS tenants_plan_type, tenants.edition AS tenants_edition, tenants.segregated_namespaces AS tenants_segregated_namespaces, tenants.is_active AS tenants_is_active, tenants.billing_email AS tenants_billing_email, tenants.budget_limit_usd AS tenants_budget_limit_usd, tenants.metadata_json AS tenants_metadata_json, tenants.current_spend_usd AS tenants_current_spend_usd, tenants.total_spend_usd AS tenants_total_spend_usd, tenants.created_at AS tenants_created_at, tenants.updated_at AS tenants_updated_at, tenants.computer_use_count AS tenants_computer_use_count, tenants.last_desktop_sync AS tenants_last_desktop_sync, tenants.api_key AS tenants_api_key, tenants.status AS tenants_status, tenants.user_id AS tenants_user_id, tenants.api_calls_count AS tenants_api_calls_count, tenants.ai_mode AS tenants_ai_mode 
+FROM tenants 
+WHERE tenants.id = ?
+ LIMIT ? OFFSET ?]
+[parameters: (<MagicMock name='SessionLocal().__enter__().query().filter().first().tenant_id' id='5282056240'>, 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2026-11-05 19:21:56 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant <MagicMock name='SessionLocal().__enter__().query().filter().first().tenant_id' id='5282056240'>: (sqlite3.ProgrammingError) Error binding parameter 1: type 'MagicMock' is not supported
+[SQL: SELECT tenants.id AS tenants_id, tenants.name AS tenants_name, tenants.subdomain AS tenants_subdomain, tenants.domain AS tenants_domain, tenants.plan_type AS tenants_plan_type, tenants.edition AS tenants_edition, tenants.segregated_namespaces AS tenants_segregated_namespaces, tenants.is_active AS tenants_is_active, tenants.billing_email AS tenants_billing_email, tenants.budget_limit_usd AS tenants_budget_limit_usd, tenants.metadata_json AS tenants_metadata_json, tenants.current_spend_usd AS tenants_current_spend_usd, tenants.total_spend_usd AS tenants_total_spend_usd, tenants.created_at AS tenants_created_at, tenants.updated_at AS tenants_updated_at, tenants.computer_use_count AS tenants_computer_use_count, tenants.last_desktop_sync AS tenants_last_desktop_sync, tenants.api_key AS tenants_api_key, tenants.status AS tenants_status, tenants.user_id AS tenants_user_id, tenants.api_calls_count AS tenants_api_calls_count, tenants.ai_mode AS tenants_ai_mode 
+FROM tenants 
+WHERE tenants.id = ?
+ LIMIT ? OFFSET ?]
+[parameters: (<MagicMock name='SessionLocal().__enter__().query().filter().first().tenant_id' id='5282056240'>, 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2026-11-05 19:21:56 [    INFO] EscalationManager initialized
+2026-11-05 19:21:56 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:21:56 [    INFO] EscalationManager initialized
+2026-11-05 19:21:56 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:21:56 [    INFO] Listed 0 skills (status=Active, type=None)
+2026-11-05 19:21:56 [ WARNING] Stage router audit persist failed (non-fatal): (sqlite3.ProgrammingError) Error binding parameter 2: type 'MagicMock' is not supported
+[SQL: INSERT INTO llm_stage_router_audit (id, tenant_id, workspace_id, agent_id, execution_id, step_index, picker, confidence_threshold, signals, selected_group, applied_group, split_group, default_group, confidence, decision_source, enforced, policy_source, model_type, handoff_note, rationale, created_at, success, quality_satisfied, actual_cost, actual_latency_ms, actual_model, actual_provider) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)]
+[parameters: ('43d4ccdc-c5e6-475a-b9be-1aff32615adc', <MagicMock name='SessionLocal().__enter__().query().filter().first().tenant_id' id='5282056240'>, 'test-ws', 'atom_main', None, 0, 'efficient_first', 0.5, '"{\\"severity\\": 0.0, \\"spinning\\": false, \\"exploring\\": false, \\"production_intensity\\": 0.0, \\"critical\\": false}"', 'efficient', 'efficient', None, 'efficient', 0.0, 'fall_open', 0, 'global', None, None, 'stage_router selected efficient (confidence 0.000, fall_open)', '2026-11-06 00:21:56.579513', None, None, None, None, None, None)]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2026-11-05 19:21:56 [   ERROR] Failed to record Atom governance outcome: 'MagicMock' object can't be awaited
+PASSED                                                                   [ 21%]
+tests/unit/test_fleet_routing_wire.py::test_broken_module_level_route_with_governance_removed PASSED [ 21%]
+tests/test_contribution_credit_p4.py::TestComputeChainCredit::test_all_success_sums_to_outcome_last_gets_most PASSED [ 21%]
+tests/test_contribution_credit_p4.py::TestComputeChainCredit::test_failed_step_gets_zero_upstream_survives PASSED [ 22%]
+tests/test_contribution_credit_p4.py::TestComputeChainCredit::test_late_failure_dampens_but_does_not_zero PASSED [ 22%]
+tests/test_contribution_credit_p4.py::TestComputeChainCredit::test_unknown_status_counts_half PASSED [ 23%]
+tests/test_contribution_credit_p4.py::TestComputeChainCredit::test_empty_and_single PASSED [ 23%]
+tests/test_contribution_credit_p4.py::TestComputeChainCredit::test_duplicate_agents_aggregate PASSED [ 23%]
+tests/test_contribution_credit_p4.py::TestApplyCredit::test_strong_credit_records_verified_success PASSED [ 24%]
+tests/test_contribution_credit_p4.py::TestApplyCredit::test_moderate_credit_records_unverified_only PASSED [ 24%]
+tests/test_contribution_credit_p4.py::TestApplyCredit::test_zero_weight_skipped_no_poison PASSED [ 24%]
+tests/test_contribution_credit_p4.py::TestRecordChainCredit::test_flag_off_noop PASSED [ 25%]
+tests/test_contribution_credit_p4.py::TestRecordChainCredit::test_happy_path_applies_credits 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [    INFO] contribution_credit: 3 specialists credited for exec exec-9
+PASSED                                                                   [ 25%]
+tests/test_contribution_credit_p4.py::TestRecordChainCredit::test_missing_execution_is_noop_never_raises PASSED [ 25%]
+tests/test_contribution_credit_p4.py::TestFinalizeWireIn::test_record_fleet_execution_outcome_calls_credit PASSED [ 26%]
+tests/test_fleet_admiral.py::TestTaskAnalysis::test_analyze_simple_task_low_complexity PASSED [ 26%]
+tests/test_fleet_admiral.py::TestTaskAnalysis::test_analyze_medium_complexity_task PASSED [ 26%]
+tests/test_fleet_admiral.py::TestTaskAnalysis::test_analyze_complex_multistep_task PASSED [ 27%]
+tests/test_fleet_admiral.py::TestTaskAnalysis::test_analyze_task_with_llm_failure_fallback 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [   ERROR] [FleetAdmiral] Task analysis failed: LLM service unavailable
+PASSED                                                                   [ 27%]
+tests/test_fleet_admiral.py::TestTaskAnalysis::test_analyze_task_passes_user_id_to_llm PASSED [ 28%]
+tests/test_fleet_admiral.py::TestFleetRecruitment::test_recruit_fleet_for_simple_task 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Recruiting fleet for task: Simple task...
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Task analysis: {'complexity': 'low', 'required_capabilities': ['general'], 'estimated_duration': '5 minutes', 'specialist_count': 1, 'reasoning': 'Simple task'}
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Initialized fleet chain: chain-001
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] RecruitmentIntelligenceService initialized (single-tenant mode)
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Recruited General Assistant for general
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Fleet recruitment complete: 1 specialists, chain chain-001
+PASSED                                                                   [ 28%]
+tests/test_fleet_admiral.py::TestFleetRecruitment::test_recruit_fleet_with_multiple_specialists 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Recruiting fleet for task: Complex multi-step task...
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Task analysis: {'complexity': 'high', 'required_capabilities': ['data_analysis', 'integration', 'reporting'], 'estimated_duration': '2 hours', 'specialist_count': 3, 'reasoning': 'Complex task'}
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Initialized fleet chain: chain-002
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] RecruitmentIntelligenceService initialized (single-tenant mode)
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Recruited Data Analyst for data_analysis
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Recruited Integration Specialist for integration
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Recruited Report Generator for reporting
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Fleet recruitment complete: 3 specialists, chain chain-002
+PASSED                                                                   [ 28%]
+tests/test_fleet_admiral.py::TestFleetRecruitment::test_recruit_fleet_with_custom_root_agent 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Recruiting fleet for task: Test task...
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Task analysis: {'complexity': 'medium', 'required_capabilities': ['analysis'], 'estimated_duration': '1 hour', 'specialist_count': 2, 'reasoning': 'Medium task'}
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Initialized fleet chain: chain-003
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] RecruitmentIntelligenceService initialized (single-tenant mode)
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Fleet recruitment complete: 0 specialists, chain chain-003
+PASSED                                                                   [ 29%]
+tests/test_fleet_admiral.py::TestFleetRecruitment::test_recruit_fleet_handles_recruitment_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Recruiting fleet for task: Impossible task...
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Task analysis: {'complexity': 'medium', 'required_capabilities': ['analysis'], 'estimated_duration': '1 hour', 'specialist_count': 2, 'reasoning': 'Medium task'}
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Initialized fleet chain: chain-fail-001
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] RecruitmentIntelligenceService initialized (single-tenant mode)
+2026-11-05 19:21:56 [   ERROR] [FleetAdmiral] Recruitment failed: No suitable specialists found
+PASSED                                                                   [ 29%]
+tests/test_fleet_admiral.py::TestBlackboardManagement::test_blackboard_updated_with_task_analysis 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Recruiting fleet for task: Complex task...
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Task analysis: {'complexity': 'high', 'required_capabilities': ['web_scraping', 'analysis'], 'estimated_duration': '2 hours', 'specialist_count': 3, 'reasoning': 'Complex task'}
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Initialized fleet chain: chain-bb-001
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] RecruitmentIntelligenceService initialized (single-tenant mode)
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Recruited Web Scraper for web_scraping
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Fleet recruitment complete: 1 specialists, chain chain-bb-001
+PASSED                                                                   [ 29%]
+tests/test_fleet_admiral.py::TestBlackboardManagement::test_blackboard_tracks_recruitment_completion_time 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Recruiting fleet for task: Test task...
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Task analysis: {'complexity': 'medium', 'required_capabilities': ['analysis'], 'estimated_duration': '1 hour', 'specialist_count': 2, 'reasoning': 'Medium task'}
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Initialized fleet chain: chain-bb-002
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] RecruitmentIntelligenceService initialized (single-tenant mode)
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Fleet recruitment complete: 0 specialists, chain chain-bb-002
+PASSED                                                                   [ 30%]
+tests/test_fleet_admiral.py::TestBlackboardManagement::test_blackboard_tracks_recruited_specialists 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Recruiting fleet for task: Complex task...
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Task analysis: {'complexity': 'high', 'required_capabilities': ['analysis', 'integration', 'reporting'], 'estimated_duration': '2 hours', 'specialist_count': 3, 'reasoning': 'Complex task'}
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Initialized fleet chain: chain-bb-003
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] RecruitmentIntelligenceService initialized (single-tenant mode)
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Recruited Analyst for analysis
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Recruited Integrator for integration
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Recruited Reporter for reporting
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Fleet recruitment complete: 3 specialists, chain chain-bb-003
+PASSED                                                                   [ 30%]
+tests/test_fleet_admiral.py::TestDelegationChain::test_chain_initialized_with_task_analysis_metadata 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Recruiting fleet for task: Complex task...
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Task analysis: {'complexity': 'high', 'required_capabilities': ['analysis'], 'estimated_duration': '2 hours', 'specialist_count': 3, 'reasoning': 'Complex task'}
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Initialized fleet chain: chain-dc-001
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] RecruitmentIntelligenceService initialized (single-tenant mode)
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Fleet recruitment complete: 0 specialists, chain chain-dc-001
+PASSED                                                                   [ 30%]
+tests/test_fleet_admiral.py::TestDelegationChain::test_chain_links_created_for_each_specialist 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Recruiting fleet for task: Medium task...
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Task analysis: {'complexity': 'medium', 'required_capabilities': ['analysis', 'reporting'], 'estimated_duration': '1 hour', 'specialist_count': 2, 'reasoning': 'Medium task'}
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Initialized fleet chain: chain-dc-002
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] RecruitmentIntelligenceService initialized (single-tenant mode)
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Recruited Analyst for analysis
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Recruited Reporter for reporting
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Fleet recruitment complete: 2 specialists, chain chain-dc-002
+PASSED                                                                   [ 31%]
+tests/test_fleet_admiral.py::TestDelegationChain::test_chain_id_returned_in_result 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Recruiting fleet for task: Simple task...
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Task analysis: {'complexity': 'low', 'required_capabilities': ['general'], 'estimated_duration': '5 minutes', 'specialist_count': 1, 'reasoning': 'Simple task'}
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Initialized fleet chain: expected-chain-id
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] RecruitmentIntelligenceService initialized (single-tenant mode)
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Fleet recruitment complete: 0 specialists, chain expected-chain-id
+PASSED                                                                   [ 31%]
+tests/test_fleet_admiral.py::TestRecruitmentIntelligence::test_recruitment_intelligence_lazy_initialized 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Recruiting fleet for task: Test task...
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Task analysis: {'complexity': 'low', 'required_capabilities': ['general'], 'estimated_duration': '5 minutes', 'specialist_count': 1, 'reasoning': 'Simple task'}
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Initialized fleet chain: chain-ri-001
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] RecruitmentIntelligenceService initialized (single-tenant mode)
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Fleet recruitment complete: 0 specialists, chain chain-ri-001
+PASSED                                                                   [ 31%]
+tests/test_fleet_admiral.py::TestRecruitmentIntelligence::test_recruitment_passes_chain_context 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Recruiting fleet for task: Test task...
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Task analysis: {'complexity': 'medium', 'required_capabilities': ['analysis'], 'estimated_duration': '1 hour', 'specialist_count': 2, 'reasoning': 'Medium task'}
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Initialized fleet chain: chain-ctx-001
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] RecruitmentIntelligenceService initialized (single-tenant mode)
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Fleet recruitment complete: 0 specialists, chain chain-ctx-001
+PASSED                                                                   [ 32%]
+tests/test_fleet_admiral.py::TestRecruitmentIntelligence::test_recruitment_respects_max_specialists_from_analysis 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Recruiting fleet for task: Complex task...
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Task analysis: {'complexity': 'high', 'required_capabilities': ['analysis', 'integration', 'reporting'], 'estimated_duration': '3 hours', 'specialist_count': 5, 'reasoning': 'Complex task'}
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Initialized fleet chain: chain-ms-001
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] RecruitmentIntelligenceService initialized (single-tenant mode)
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Fleet recruitment complete: 0 specialists, chain chain-ms-001
+PASSED                                                                   [ 32%]
+tests/test_fleet_admiral.py::TestErrorHandling::test_handles_empty_recruitment_roster 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Recruiting fleet for task: Simple task...
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Task analysis: {'complexity': 'low', 'required_capabilities': ['general'], 'estimated_duration': '5 minutes', 'specialist_count': 1, 'reasoning': 'No specialists needed but minimum is 1'}
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Initialized fleet chain: chain-er-001
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] RecruitmentIntelligenceService initialized (single-tenant mode)
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Fleet recruitment complete: 0 specialists, chain chain-er-001
+PASSED                                                                   [ 32%]
+tests/test_fleet_admiral.py::TestErrorHandling::test_handles_task_analysis_timeout 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [   ERROR] [FleetAdmiral] Task analysis failed: LLM request timed out
+PASSED                                                                   [ 33%]
+tests/test_fleet_admiral.py::TestErrorHandling::test_specialist_domain_tracked_in_results 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Recruiting fleet for task: Complex task...
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Task analysis: {'complexity': 'high', 'required_capabilities': ['analysis', 'integration'], 'estimated_duration': '2 hours', 'specialist_count': 2, 'reasoning': 'Complex task'}
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Initialized fleet chain: chain-er-002
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] RecruitmentIntelligenceService initialized (single-tenant mode)
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Recruited Data Analyst for data_analysis
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Recruited API Integrator for api_integration
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Fleet recruitment complete: 2 specialists, chain chain-er-002
+PASSED                                                                   [ 33%]
+tests/test_fleet_admiral.py::TestErrorHandling::test_optimization_metadata_passed_to_specialists 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Recruiting fleet for task: Optimized task...
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Task analysis: {'complexity': 'medium', 'required_capabilities': ['analysis'], 'estimated_duration': '1 hour', 'specialist_count': 1, 'reasoning': 'Medium task'}
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Initialized fleet chain: chain-er-003
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] RecruitmentIntelligenceService initialized (single-tenant mode)
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Recruited Optimized Analyst for analysis
+2026-11-05 19:21:56 [    INFO] [FleetAdmiral] Fleet recruitment complete: 1 specialists, chain chain-er-003
+PASSED                                                                   [ 34%]
+tests/test_agent_fleet_service.py::TestFleetInitialization::test_fleet_service_initialization PASSED [ 34%]
+tests/test_agent_fleet_service.py::TestFleetInitialization::test_initialize_fleet_creates_delegation_chain 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [    INFO] Initializing fleet for root agent root-agent-001, task: Analyze sales data...
+PASSED                                                                   [ 34%]
+tests/test_agent_fleet_service.py::TestFleetInitialization::test_initialize_fleet_sets_all_fields 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [    INFO] Initializing fleet for root agent root-agent-001, task: Complex task requiring fleet...
+PASSED                                                                   [ 35%]
+tests/test_agent_fleet_service.py::TestFleetInitialization::test_initialize_fleet_with_optional_params 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [    INFO] Initializing fleet for root agent root-agent, task: Task...
+PASSED                                                                   [ 35%]
+tests/test_agent_fleet_service.py::TestFleetInitialization::test_initialize_fleet_defaults_metadata_to_empty_dict 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [    INFO] Initializing fleet for root agent root-agent, task: Task...
+PASSED                                                                   [ 35%]
+tests/test_agent_fleet_service.py::TestFleetRecruitment::test_recruit_member_creates_chain_link 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [    INFO] Recruiting fleet member child-001 for chain chain-001
+PASSED                                                                   [ 36%]
+tests/test_agent_fleet_service.py::TestFleetRecruitment::test_recruit_member_increments_total_links 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [    INFO] Recruiting fleet member child-001 for chain chain-001
+PASSED                                                                   [ 36%]
+tests/test_agent_fleet_service.py::TestFleetRecruitment::test_recruit_member_merges_optimization_metadata 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [    INFO] Recruiting fleet member child-001 for chain chain-001
+PASSED                                                                   [ 36%]
+tests/test_agent_fleet_service.py::TestFleetRecruitment::test_recruit_member_sets_link_order 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [    INFO] Recruiting fleet member child-001 for chain chain-001
+PASSED                                                                   [ 37%]
+tests/test_agent_fleet_service.py::TestFleetRecruitment::test_recruit_member_defaults_to_pending_status 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [    INFO] Recruiting fleet member child-001 for chain chain-001
+PASSED                                                                   [ 37%]
+tests/test_agent_fleet_service.py::TestBlackboardManagement::test_update_blackboard_merges_updates 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [    INFO] Updated blackboard for chain chain-001
+PASSED                                                                   [ 37%]
+tests/test_agent_fleet_service.py::TestBlackboardManagement::test_update_blackboard_handles_missing_chain 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [   ERROR] Cannot update blackboard: Chain nonexistent-chain not found
+PASSED                                                                   [ 38%]
+tests/test_agent_fleet_service.py::TestBlackboardManagement::test_get_blackboard_returns_metadata PASSED [ 38%]
+tests/test_agent_fleet_service.py::TestBlackboardManagement::test_get_blackboard_returns_empty_dict_for_missing_chain PASSED [ 39%]
+tests/test_agent_fleet_service.py::TestLinkStatusUpdates::test_update_link_status_to_completed 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [    INFO] Link link-001 updated to completed
+2026-11-05 19:21:56 [   ERROR] ⚠️ Self-Heal Trigger Failed: no running event loop
+PASSED                                                                   [ 39%]
+tests/test_agent_fleet_service.py::TestLinkStatusUpdates::test_update_link_status_to_failed_with_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [    INFO] Link link-001 updated to failed
+2026-11-05 19:21:56 [   ERROR] ⚠️ Self-Heal Trigger Failed: no running event loop
+PASSED                                                                   [ 39%]
+tests/test_agent_fleet_service.py::TestLinkStatusUpdates::test_update_link_status_calculates_duration 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [    INFO] Link link-001 updated to completed
+2026-11-05 19:21:56 [   ERROR] ⚠️ Self-Heal Trigger Failed: no running event loop
+PASSED                                                                   [ 40%]
+tests/test_agent_fleet_service.py::TestLinkStatusUpdates::test_update_link_status_handles_missing_link 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [   ERROR] Link nonexistent-link not found
+PASSED                                                                   [ 40%]
+tests/test_covpush_fleet.py::TestFleetTaskTypes::test_default_policies PASSED [ 40%]
+tests/test_covpush_fleet.py::TestFleetTaskTypes::test_enum_values PASSED [ 41%]
+tests/test_covpush_fleet.py::TestFleetExecutionModels::test_fleet_config_valid PASSED [ 41%]
+tests/test_covpush_fleet.py::TestFleetExecutionModels::test_fleet_config_invalid_strategy PASSED [ 41%]
+tests/test_covpush_fleet.py::TestFleetExecutionModels::test_fleet_config_invalid_parallel_agents PASSED [ 42%]
+tests/test_covpush_fleet.py::TestFleetExecutionModels::test_blackboard_update_valid_and_invalid PASSED [ 42%]
+tests/test_covpush_fleet.py::TestFleetExecutionModels::test_snapshot_to_dict PASSED [ 42%]
+tests/test_covpush_fleet.py::TestFleetExecutionModels::test_parallel_execution_request PASSED [ 43%]
+tests/test_covpush_fleet.py::TestFleetExecutionModels::test_retry_attempt_to_dict PASSED [ 43%]
+tests/test_covpush_fleet.py::TestFleetExecutionModels::test_task_result_to_dict PASSED [ 43%]
+tests/test_covpush_fleet.py::TestFleetExecutionModels::test_execution_result_properties PASSED [ 44%]
+tests/test_covpush_fleet.py::TestFleetExecutionModels::test_execution_result_zero_tasks PASSED [ 44%]
+tests/test_covpush_fleet.py::TestFleetExecutionModels::test_batch_execution_request PASSED [ 45%]
+tests/test_covpush_fleet.py::TestTaskDecompositionService::test_decompose_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [    INFO] [TaskDecomposition] Decomposed 'Do something...' into 3 subtasks (complexity: 0.5, fleet size: 3)
+PASSED                                                                   [ 45%]
+tests/test_covpush_fleet.py::TestTaskDecompositionService::test_decompose_limits_subtasks 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [ WARNING] [TaskDecomposition] LLM returned 5 subtasks, limiting to 3
+2026-11-05 19:21:56 [    INFO] [TaskDecomposition] Decomposed 'task...' into 3 subtasks (complexity: 0.5, fleet size: 3)
+PASSED                                                                   [ 45%]
+tests/test_covpush_fleet.py::TestTaskDecompositionService::test_decompose_unknown_domain_defaults_to_analyst 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [ WARNING] [TaskDecomposition] Unknown domain 'bogus-domain', defaulting to 'analyst'
+2026-11-05 19:21:56 [    INFO] [TaskDecomposition] Decomposed 'task...' into 3 subtasks (complexity: 0.5, fleet size: 3)
+PASSED                                                                   [ 46%]
+tests/test_covpush_fleet.py::TestTaskDecompositionService::test_decompose_removes_invalid_dependencies 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [ WARNING] [TaskDecomposition] Invalid dependencies ['ghost-task'] in task-1, removing them
+2026-11-05 19:21:56 [    INFO] [TaskDecomposition] Decomposed 'task...' into 3 subtasks (complexity: 0.5, fleet size: 3)
+PASSED                                                                   [ 46%]
+tests/test_covpush_fleet.py::TestTaskDecompositionService::test_decompose_fallback_on_llm_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [   ERROR] [TaskDecomposition] LLM decomposition failed: llm down
+2026-11-05 19:21:56 [    INFO] [TaskDecomposition] Using fallback decomposition for: Analyze the sales data...
+PASSED                                                                   [ 46%]
+tests/test_covpush_fleet.py::TestTaskDecompositionService::test_fallback_research 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [   ERROR] [TaskDecomposition] LLM decomposition failed: down
+2026-11-05 19:21:56 [    INFO] [TaskDecomposition] Using fallback decomposition for: Search for competitor pricing...
+PASSED                                                                   [ 47%]
+tests/test_covpush_fleet.py::TestTaskDecompositionService::test_fallback_correlation 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [   ERROR] [TaskDecomposition] LLM decomposition failed: down
+2026-11-05 19:21:56 [    INFO] [TaskDecomposition] Using fallback decomposition for: correlate sales across multiple systems...
+PASSED                                                                   [ 47%]
+tests/test_covpush_fleet.py::TestTaskDecompositionService::test_fallback_generic 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [   ERROR] [TaskDecomposition] LLM decomposition failed: down
+2026-11-05 19:21:56 [    INFO] [TaskDecomposition] Using fallback decomposition for: Greet the customer politely...
+PASSED                                                                   [ 47%]
+tests/test_covpush_fleet.py::TestTaskDecompositionService::test_build_domain_catalog PASSED [ 48%]
+tests/test_covpush_fleet.py::TestDependencyGraphService::test_build_graph_empty 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [ WARNING] build_graph: Empty subtask list, returning empty graph
+PASSED                                                                   [ 48%]
+tests/test_covpush_fleet.py::TestDependencyGraphService::test_build_graph_duplicate_ids PASSED [ 48%]
+tests/test_covpush_fleet.py::TestDependencyGraphService::test_build_graph_with_dependencies 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [    INFO] build_graph: Built graph with 3 nodes, 3 edges
+PASSED                                                                   [ 49%]
+tests/test_covpush_fleet.py::TestDependencyGraphService::test_build_graph_skips_missing_dependency 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [ WARNING] build_graph: Dependency 'ghost' not found in subtasks, skipping edge to 'task-1'
+2026-11-05 19:21:56 [    INFO] build_graph: Built graph with 1 nodes, 0 edges
+PASSED                                                                   [ 49%]
+tests/test_covpush_fleet.py::TestDependencyGraphService::test_validate_cycles_ok 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [    INFO] build_graph: Built graph with 2 nodes, 1 edges
+PASSED                                                                   [ 50%]
+tests/test_covpush_fleet.py::TestDependencyGraphService::test_validate_cycles_empty PASSED [ 50%]
+tests/test_covpush_fleet.py::TestDependencyGraphService::test_validate_cycles_detects 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [    INFO] build_graph: Built graph with 2 nodes, 2 edges
+2026-11-05 19:21:56 [   ERROR] validate_cycles: Circular dependencies detected: [['task-1', 'task-2']]
+PASSED                                                                   [ 50%]
+tests/test_covpush_fleet.py::TestDependencyGraphService::test_get_execution_groups 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [    INFO] build_graph: Built graph with 4 nodes, 3 edges
+2026-11-05 19:21:56 [    INFO] get_execution_groups: Generated 3 execution groups (4 total tasks)
+PASSED                                                                   [ 51%]
+tests/test_covpush_fleet.py::TestDependencyGraphService::test_get_execution_groups_empty PASSED [ 51%]
+tests/test_covpush_fleet.py::TestDependencyGraphService::test_get_execution_groups_cyclic_raises 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [    INFO] build_graph: Built graph with 2 nodes, 2 edges
+PASSED                                                                   [ 51%]
+tests/test_covpush_fleet.py::TestDependencyGraphService::test_detect_critical_path 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [    INFO] build_graph: Built graph with 3 nodes, 1 edges
+2026-11-05 19:21:56 [    INFO] detect_critical_path: Critical path has 2 nodes, 500 total tokens
+PASSED                                                                   [ 52%]
+tests/test_covpush_fleet.py::TestDependencyGraphService::test_detect_critical_path_empty PASSED [ 52%]
+tests/test_covpush_fleet.py::TestDependencyGraphService::test_module_level_convenience_functions 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:56 [    INFO] build_graph: Built graph with 2 nodes, 1 edges
+2026-11-05 19:21:56 [    INFO] get_execution_groups: Generated 2 execution groups (2 total tasks)
+2026-11-05 19:21:56 [    INFO] detect_critical_path: Critical path has 2 nodes, 2000 total tokens
+PASSED                                                                   [ 52%]
+tests/test_covpush_fleet.py::TestComplexityEstimator::test_estimate_fleet_size_empty 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:57 [ WARNING] estimate_fleet_size: No subtasks, returning minimum fleet size 1
+PASSED                                                                   [ 53%]
+tests/test_covpush_fleet.py::TestComplexityEstimator::test_estimate_fleet_size_basic 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:58 [    INFO] estimate_fleet_size: Recommended 1 agents for solo plan (base=4, parallel_ratio=0.00, token_multiplier=1.00, domain_multiplier=1.10, historical_multiplier=1.00)
+PASSED                                                                   [ 53%]
+tests/test_covpush_fleet.py::TestComplexityEstimator::test_estimate_fleet_size_token_multiplier 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:21:59 [    INFO] estimate_fleet_size: Recommended 4 agents for solo plan (base=3, parallel_ratio=0.67, token_multiplier=2.00, domain_multiplier=1.10, historical_multiplier=1.00)
+2026-11-05 19:21:59 [    INFO] estimate_fleet_size: Recommended 4 agents for solo plan (base=3, parallel_ratio=0.67, token_multiplier=2.00, domain_multiplier=1.10, historical_multiplier=1.00)
+PASSED                                                                   [ 53%]
+tests/test_covpush_fleet.py::TestComplexityEstimator::test_estimate_fleet_size_caps_unknown_plan 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:00 [    INFO] estimate_fleet_size: Recommended 1 agents for unknown-plan plan (base=50, parallel_ratio=0.00, token_multiplier=1.00, domain_multiplier=1.10, historical_multiplier=1.00)
+PASSED                                                                   [ 54%]
+tests/test_covpush_fleet.py::TestComplexityEstimator::test_estimate_fleet_size_historical_multiplier 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:00 [    INFO] estimate_fleet_size: Low historical success rate (50%) for domain 'analyst', applying 1.2x multiplier
+2026-11-05 19:22:00 [    INFO] estimate_fleet_size: Recommended 1 agents for solo plan (base=3, parallel_ratio=0.00, token_multiplier=1.00, domain_multiplier=1.10, historical_multiplier=1.20)
+PASSED                                                                   [ 54%]
+tests/test_covpush_fleet.py::TestComplexityEstimator::test_estimate_fleet_size_historical_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:01 [ WARNING] estimate_fleet_size: Could not fetch historical data: analytics down
+2026-11-05 19:22:01 [    INFO] estimate_fleet_size: Recommended 1 agents for solo plan (base=3, parallel_ratio=0.00, token_multiplier=1.00, domain_multiplier=1.10, historical_multiplier=1.00)
+PASSED                                                                   [ 54%]
+tests/test_covpush_fleet.py::TestComplexityEstimator::test_estimate_duration_empty 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:02 [ WARNING] estimate_duration: No subtasks, returning default 60 seconds
+PASSED                                                                   [ 55%]
+tests/test_covpush_fleet.py::TestComplexityEstimator::test_estimate_duration 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:03 [    INFO] build_graph: Built graph with 3 nodes, 0 edges
+2026-11-05 19:22:03 [    INFO] detect_critical_path: Critical path has 1 nodes, 1000 total tokens
+2026-11-05 19:22:03 [    INFO] estimate_duration: 60s (critical_tokens=1000, base_duration=10s, parallel_speedup=0.00x)
+PASSED                                                                   [ 55%]
+tests/test_covpush_fleet.py::TestComplexityEstimator::test_estimate_duration_graph_error_falls_back 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:03 [   ERROR] estimate_duration: Could not build graph: nx down, using token sum
+2026-11-05 19:22:03 [    INFO] estimate_duration: 60s (critical_tokens=3000, base_duration=30s, parallel_speedup=0.00x)
+PASSED                                                                   [ 56%]
+tests/test_covpush_fleet.py::TestFaultToleranceService::test_should_retry_policies PASSED [ 56%]
+tests/test_covpush_fleet.py::TestFaultToleranceService::test_find_alternative_original_missing 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:04 [   ERROR] Original agent missing not found
+PASSED                                                                   [ 56%]
+tests/test_covpush_fleet.py::TestFaultToleranceService::test_find_alternative_no_candidates 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:05 [ WARNING] No alternative specialists for domain Finance (excluded: {'agent-1'})
+PASSED                                                                   [ 57%]
+tests/test_covpush_fleet.py::TestFaultToleranceService::test_find_alternative_excludes_original 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:06 [    INFO] Found alternative specialist: B (domain: Finance, original: A)
+PASSED                                                                   [ 57%]
+tests/test_covpush_fleet.py::TestFaultToleranceService::test_find_alternative_respects_exclusions 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:07 [ WARNING] No alternative specialists for domain Ops (excluded: {'agent-2', 'agent-1'})
+PASSED                                                                   [ 57%]
+tests/test_covpush_fleet.py::TestFaultToleranceService::test_select_best_alternative_with_breakers PASSED [ 58%]
+tests/test_covpush_fleet.py::TestFaultToleranceService::test_retry_with_alternative_policy_blocks 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:07 [    INFO] Retry not allowed for link 21d66d50-0d55-4658-87fa-decfd54bacf1 (task_type: FleetTaskType.TRANSACTIONAL, policy: None)
+PASSED                                                                   [ 58%]
+tests/test_covpush_fleet.py::TestFaultToleranceService::test_retry_with_alternative_no_candidate 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:08 [ WARNING] No alternative specialists for domain Finance (excluded: {'agent-1'})
+2026-11-05 19:22:08 [ WARNING] No alternative specialist available for retry of 84ccefbd-b8c0-4cfd-95ab-1c0804b6c433
+PASSED                                                                   [ 58%]
+tests/test_covpush_fleet.py::TestFaultToleranceService::test_retry_with_alternative_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:09 [    INFO] Found alternative specialist: B (domain: Finance, original: A)
+2026-11-05 19:22:09 [    INFO] Recruiting fleet member agent-2 for chain chain-1
+2026-11-05 19:22:09 [    INFO] Created retry link 66aac4bf-6dbc-42bc-bfb8-7e67006cc9cb for failed link 48396609-ec2a-4fd4-9007-73136b359529 using alternative agent B
+PASSED                                                                   [ 59%]
+tests/test_covpush_fleet.py::TestFaultToleranceService::test_get_tried_agent_ids_recursive PASSED [ 59%]
+tests/test_covpush_fleet.py::TestFaultToleranceService::test_get_tried_agent_ids_missing_original PASSED [ 59%]
+tests/test_covpush_fleet.py::TestFaultToleranceService::test_retry_with_alternative_circuit_breaker_open 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:11 [ WARNING] Circuit breaker OPEN for agent agent-1, will attempt alternative
+2026-11-05 19:22:11 [    INFO] Found alternative specialist: B (domain: Finance, original: A)
+2026-11-05 19:22:11 [    INFO] Recruiting fleet member agent-2 for chain chain-1
+2026-11-05 19:22:11 [    INFO] Created retry link 0b8b3f36-b912-4133-b923-0cf80bc104de for failed link 20a19fa3-a686-46f1-848b-1e080c26a703 using alternative agent B
+PASSED                                                                   [ 60%]
+tests/test_covpush_fleet.py::TestFaultToleranceService::test_get_or_create_circuit_breaker PASSED [ 60%]
+tests/test_covpush_fleet.py::TestFaultToleranceService::test_handle_failed_task_no_link 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:12 [ WARNING] Cannot handle failed task: no ChainLink found for chain=chain-1, agent=agent-1, task=task
+PASSED                                                                   [ 60%]
+tests/test_covpush_fleet.py::TestFaultToleranceService::test_handle_failed_task_policy_blocks 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:13 [    INFO] Retry not allowed for task_type=FleetTaskType.TRANSACTIONAL, policy=STOP/CONTINUE
+PASSED                                                                   [ 61%]
+tests/test_covpush_fleet.py::TestFaultToleranceService::test_handle_failed_task_retried 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:14 [    INFO] Found alternative specialist: B (domain: Finance, original: A)
+2026-11-05 19:22:14 [    INFO] Recruiting fleet member agent-2 for chain chain-1
+2026-11-05 19:22:14 [    INFO] Created retry link a22914d9-143b-414c-8fe7-f23b3577adca for failed link e5a2f3c7-ae08-4bc0-a40b-76ae150790cb using alternative agent B
+PASSED                                                                   [ 61%]
+tests/test_covpush_fleet.py::TestFaultToleranceService::test_handle_failed_task_no_alternative 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:15 [ WARNING] No alternative specialists for domain Finance (excluded: {'agent-1'})
+2026-11-05 19:22:15 [ WARNING] No alternative specialist available for retry of 9f1218fe-7f9d-4376-83b5-8fed798718b5
+PASSED                                                                   [ 62%]
+tests/test_covpush_fleet.py::TestFleetTracingService::test_trace_context_tenant_truncation PASSED [ 62%]
+tests/test_covpush_fleet.py::TestFleetTracingService::test_trace_context_to_dict PASSED [ 62%]
+tests/test_covpush_fleet.py::TestFleetTracingService::test_trace_context_child_span PASSED [ 63%]
+tests/test_covpush_fleet.py::TestFleetTracingService::test_start_fleet_trace 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:15 [    INFO] fleet_trace_start
+PASSED                                                                   [ 63%]
+tests/test_covpush_fleet.py::TestFleetTracingService::test_start_agent_span_with_parent 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:15 [    INFO] agent_span_start
+PASSED                                                                   [ 63%]
+tests/test_covpush_fleet.py::TestFleetTracingService::test_start_agent_span_without_parent 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:15 [    INFO] agent_span_start
+PASSED                                                                   [ 64%]
+tests/test_covpush_fleet.py::TestFleetTracingService::test_finish_span_completed 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:15 [    INFO] span_finish
+PASSED                                                                   [ 64%]
+tests/test_covpush_fleet.py::TestFleetTracingService::test_finish_span_failed_with_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:15 [   ERROR] span_finish
+PASSED                                                                   [ 64%]
+tests/test_covpush_fleet.py::TestFleetTracingService::test_finish_span_cancelled 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:15 [ WARNING] span_finish
+PASSED                                                                   [ 65%]
+tests/test_covpush_fleet.py::TestFleetTracingService::test_get_current_trace_context_none PASSED [ 65%]
+tests/test_covpush_fleet.py::TestFleetTracingService::test_get_current_trace_context_active PASSED [ 65%]
+tests/test_covpush_fleet.py::TestDistributedBlackboardService::test_publish_and_listener 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:15 [    INFO] Subscribed to fleet channel: fleet:blackboard:chain-1
+2026-11-05 19:22:15 [   ERROR] Error processing fleet update: 'NoneType' object can't be awaited
+PASSED                                                                   [ 66%]
+tests/test_covpush_fleet.py::TestDistributedBlackboardService::test_listener_timeout 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:15 [    INFO] Subscribed to fleet channel: fleet:blackboard:chain-1
+2026-11-05 19:22:15 [ WARNING] Listener timeout after 0.0s, closing subscription
+PASSED                                                                   [ 66%]
+tests/test_covpush_fleet.py::TestDistributedBlackboardService::test_publish_error_swallowed 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:15 [   ERROR] Failed to publish blackboard update: redis down
+PASSED                                                                   [ 67%]
+tests/test_covpush_fleet.py::TestDistributedBlackboardService::test_close PASSED [ 67%]
+tests/test_covpush_fleet.py::TestDistributedBlackboardService::test_get_fleet_state_notifier_no_redis 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:15 [ WARNING] No Redis URL configured, fleet state notifications disabled
+PASSED                                                                   [ 67%]
+tests/test_covpush_fleet.py::TestDistributedBlackboardService::test_get_fleet_state_notifier_with_redis PASSED [ 68%]
+tests/test_covpush_fleet.py::TestFleetProgressService::test_record_agent_start_no_redis 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:15 [ WARNING] No Redis URL configured, progress tracking disabled
+PASSED                                                                   [ 68%]
+tests/test_covpush_fleet.py::TestFleetProgressService::test_record_agent_start PASSED [ 68%]
+tests/test_covpush_fleet.py::TestFleetProgressService::test_record_agent_complete PASSED [ 69%]
+tests/test_covpush_fleet.py::TestFleetProgressService::test_record_agent_failed 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:15 [ WARNING] Recorded agent failed: agent-1 in fleet chain-1
+PASSED                                                                   [ 69%]
+tests/test_covpush_fleet.py::TestFleetProgressService::test_record_agent_failed_no_redis 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:15 [ WARNING] No Redis URL configured, progress tracking disabled
+PASSED                                                                   [ 69%]
+tests/test_covpush_fleet.py::TestFleetProgressService::test_get_fleet_progress_no_redis 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:15 [ WARNING] No Redis URL configured, progress tracking disabled
+2026-11-05 19:22:15 [ WARNING] Redis unavailable for fleet chain-1 progress
+PASSED                                                                   [ 70%]
+tests/test_covpush_fleet.py::TestFleetProgressService::test_get_fleet_progress_with_data PASSED [ 70%]
+tests/test_covpush_fleet.py::TestFleetProgressService::test_publish_progress_update PASSED [ 70%]
+tests/test_covpush_fleet.py::TestFleetProgressService::test_close PASSED [ 71%]
+tests/test_covpush_fleet.py::TestPerformanceMetricsService::test_record_execution_no_redis 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:15 [ WARNING] No Redis URL configured, metrics tracking disabled
+PASSED                                                                   [ 71%]
+tests/test_covpush_fleet.py::TestPerformanceMetricsService::test_record_execution_with_failures PASSED [ 71%]
+tests/test_covpush_fleet.py::TestPerformanceMetricsService::test_record_execution_success_path PASSED [ 72%]
+tests/test_covpush_fleet.py::TestPerformanceMetricsService::test_record_execution_redis_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:17 [   ERROR] Failed to record metrics for chain chain-1: pipe broken
+PASSED                                                                   [ 72%]
+tests/test_covpush_fleet.py::TestPerformanceMetricsService::test_get_metrics_invalid_window PASSED [ 73%]
+tests/test_covpush_fleet.py::TestPerformanceMetricsService::test_get_metrics_no_redis 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:17 [ WARNING] No Redis URL configured, metrics tracking disabled
+PASSED                                                                   [ 73%]
+tests/test_covpush_fleet.py::TestPerformanceMetricsService::test_get_metrics_with_data PASSED [ 73%]
+tests/test_covpush_fleet.py::TestPerformanceMetricsService::test_get_metrics_error_fallback 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:17 [   ERROR] Failed to get metrics for chain chain-1: boom
+PASSED                                                                   [ 74%]
+tests/test_covpush_fleet.py::TestPerformanceMetricsService::test_check_thresholds PASSED [ 74%]
+tests/test_covpush_fleet.py::TestPerformanceMetricsService::test_check_thresholds_warning_levels PASSED [ 74%]
+tests/test_covpush_fleet.py::TestPerformanceMetricsService::test_close PASSED [ 75%]
+tests/test_covpush_fleet.py::TestSelfHealService::test_process_link_update_missing_link PASSED [ 75%]
+tests/test_covpush_fleet.py::TestSelfHealService::test_process_link_update_failure_triggers_recovery 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:19 [    INFO] 🚨 Self-Heal: Detected failure in link f3663151-6116-4c72-a0ed-8fc936f51ae5. Triggering recovery...
+PASSED                                                                   [ 75%]
+tests/test_covpush_fleet.py::TestSelfHealService::test_process_link_update_retry_succeeded 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:20 [    INFO] 📈 Self-Heal: Updated healing event 251062c4-c32c-4265-9bd6-a58a09b41a53 status to succeeded
+PASSED                                                                   [ 76%]
+tests/test_covpush_fleet.py::TestSelfHealService::test_process_link_update_retry_failed 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:21 [    INFO] 📈 Self-Heal: Updated healing event fbd632e5-ceec-411d-a66b-ca73b10c619a status to failed
+2026-11-05 19:22:21 [    INFO] 🚨 Self-Heal: Detected failure in link 8b373a82-290d-494c-a4fd-7fe0cd422c17. Triggering recovery...
+2026-11-05 19:22:21 [    INFO] ⏭️ Self-Heal: Skipping recovery for 8b373a82-290d-494c-a4fd-7fe0cd422c17 (already a retry).
+PASSED                                                                   [ 76%]
+tests/test_covpush_fleet.py::TestSelfHealService::test_process_link_update_bottleneck 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:22 [ WARNING] ⚠️ Self-Heal: Critical bottleneck detected in link 3dbd4831-c224-458c-9afe-575bfc91e904 (latency).
+PASSED                                                                   [ 76%]
+tests/test_covpush_fleet.py::TestSelfHealService::test_process_link_update_no_bottleneck PASSED [ 77%]
+tests/test_covpush_fleet.py::TestSelfHealService::test_trigger_recovery_skips_existing_retry 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:23 [    INFO] ⏭️ Self-Heal: Skipping recovery for 9dcc42e5-4407-48ec-a173-fab390347f08 (already a retry).
+PASSED                                                                   [ 77%]
+tests/test_covpush_fleet.py::TestSelfHealService::test_trigger_recovery_recruits_and_records_event 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:24 [    INFO] 🛠️ Self-Heal: Re-recruiting agent agent-c for chain chain-1
+2026-11-05 19:22:24 [    INFO] Recruiting fleet member agent-c for chain chain-1
+2026-11-05 19:22:24 [    INFO] 📝 Self-Heal: Recorded healing event a40f2c21-bd28-4c57-9900-2dee460358cf
+2026-11-05 19:22:24 [    INFO] ✅ Self-Heal: New link a50ca6e2-71cc-4960-9440-eecdeeae6370 created for recovery.
+PASSED                                                                   [ 78%]
+tests/test_covpush_fleet.py::TestSelfHealService::test_trigger_recovery_bottleneck_trigger_type 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:25 [    INFO] 🛠️ Self-Heal: Re-recruiting agent agent-c for chain chain-1
+2026-11-05 19:22:25 [    INFO] Recruiting fleet member agent-c for chain chain-1
+2026-11-05 19:22:25 [    INFO] 📝 Self-Heal: Recorded healing event 5766a3d4-c42f-49b0-89a8-65ed370a65e2
+2026-11-05 19:22:25 [    INFO] ✅ Self-Heal: New link 622977f5-9a4b-4a26-b4e3-22cd67bb7184 created for recovery.
+PASSED                                                                   [ 78%]
+tests/test_covpush_fleet.py::TestFleetCoordinatorService::test_recruit_parallel_batch 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:26 [    INFO] Recruiting parallel batch of 2 members for chain chain-1 by parent parent-1
+2026-11-05 19:22:26 [    INFO] Successfully recruited 2 fleet members for chain chain-1
+PASSED                                                                   [ 78%]
+tests/test_covpush_fleet.py::TestFleetCoordinatorService::test_recruit_parallel_batch_with_tracing 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:27 [    INFO] Recruiting parallel batch of 1 members for chain chain-1 by parent parent-1
+2026-11-05 19:22:27 [    INFO] Successfully recruited 1 fleet members for chain chain-1
+PASSED                                                                   [ 79%]
+tests/test_covpush_fleet.py::TestFleetCoordinatorService::test_recruit_parallel_batch_tracing_error_swallowed 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:28 [    INFO] Recruiting parallel batch of 1 members for chain chain-1 by parent parent-1
+2026-11-05 19:22:28 [ WARNING] Failed to start recruitment span: trace down
+2026-11-05 19:22:28 [    INFO] Successfully recruited 1 fleet members for chain chain-1
+PASSED                                                                   [ 79%]
+tests/test_covpush_fleet.py::TestFleetCoordinatorService::test_execute_parallel_task_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:29 [    INFO] Executing parallel tasks for chain chain-1: 1 groups, 2 total tasks
+2026-11-05 19:22:29 [    INFO] Starting group 1/1 with 2 parallel tasks
+2026-11-05 19:22:29 [    INFO] Parallel execution complete for chain chain-1: 2 completed, 0 failed, 0 retried (100.0% success)
+PASSED                                                                   [ 79%]
+tests/test_covpush_fleet.py::TestFleetCoordinatorService::test_execute_parallel_task_failure_with_retry 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:30 [    INFO] Executing parallel tasks for chain chain-1: 1 groups, 1 total tasks
+2026-11-05 19:22:30 [    INFO] Starting group 1/1 with 1 parallel tasks
+2026-11-05 19:22:30 [   ERROR] Task failed in group 1: a1 - agent boom
+2026-11-05 19:22:30 [    INFO] Created retry retry-1 for failed task
+2026-11-05 19:22:30 [    INFO] Parallel execution complete for chain chain-1: 0 completed, 1 failed, 1 retried (0.0% success)
+PASSED                                                                   [ 80%]
+tests/test_covpush_fleet.py::TestFleetCoordinatorService::test_execute_parallel_task_timeout 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:30 [    INFO] Executing parallel tasks for chain chain-1: 1 groups, 1 total tasks
+2026-11-05 19:22:30 [    INFO] Starting group 1/1 with 1 parallel tasks
+2026-11-05 19:22:30 [   ERROR] Task group 1 exceeded timeout of 0.05s
+2026-11-05 19:22:30 [   ERROR] Task failed in group 1: a1 - Task group timeout after 0.05s
+2026-11-05 19:22:30 [ WARNING] Cannot retry task: no failed ChainLink found for agent a1
+2026-11-05 19:22:30 [    INFO] Parallel execution complete for chain chain-1: 0 completed, 1 failed, 0 retried (0.0% success)
+PASSED                                                                   [ 80%]
+tests/test_covpush_fleet.py::TestFleetCoordinatorService::test_execute_parallel_task_with_tracing 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:31 [    INFO] Executing parallel tasks for chain chain-1: 1 groups, 1 total tasks
+2026-11-05 19:22:31 [    INFO] Starting group 1/1 with 1 parallel tasks
+2026-11-05 19:22:31 [    INFO] Parallel execution complete for chain chain-1: 1 completed, 0 failed, 0 retried (100.0% success)
+PASSED                                                                   [ 80%]
+tests/test_covpush_fleet.py::TestFleetCoordinatorService::test_get_fleet_snapshot_chain_missing 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:32 [ WARNING] Chain missing not found for snapshot
+PASSED                                                                   [ 81%]
+tests/test_covpush_fleet.py::TestFleetCoordinatorService::test_get_fleet_snapshot_with_links PASSED [ 81%]
+tests/test_covpush_fleet.py::TestFleetCoordinatorService::test_notify_fleet_state_change_no_blackboard PASSED [ 81%]
+tests/test_covpush_fleet.py::TestFleetCoordinatorService::test_notify_fleet_state_change_invalid_event 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:35 [ WARNING] Unknown event type: bogus_event
+PASSED                                                                   [ 82%]
+tests/test_covpush_fleet.py::TestFleetCoordinatorService::test_notify_fleet_state_change_publish_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:37 [   ERROR] Failed to publish fleet state change: redis down
+PASSED                                                                   [ 82%]
+tests/test_covpush_fleet.py::TestFleetCoordinatorService::test_attempt_fault_tolerance_retry_missing_agent 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:40 [ WARNING] Cannot retry task: missing agent_id
+PASSED                                                                   [ 82%]
+tests/test_covpush_fleet.py::TestFleetCoordinatorService::test_attempt_fault_tolerance_retry_no_failed_link 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:41 [ WARNING] Cannot retry task: no failed ChainLink found for agent a
+PASSED                                                                   [ 83%]
+tests/test_covpush_fleet.py::TestFleetCoordinatorService::test_attempt_fault_tolerance_retry_success PASSED [ 83%]
+tests/test_covpush_fleet.py::TestFleetCoordinatorService::test_decompose_and_execute 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:43 [    INFO] Decomposing and executing task for chain chain-1: complex task...
+2026-11-05 19:22:43 [    INFO] Step 1: Decomposing task into subtasks (max 10)
+2026-11-05 19:22:43 [    INFO] Decomposed into 2 subtasks, complexity=0.50, suggested_fleet_size=2
+2026-11-05 19:22:43 [    INFO] Step 2: Building dependency graph and validating cycles
+2026-11-05 19:22:43 [    INFO] Dependency graph validated: no circular dependencies
+2026-11-05 19:22:43 [    INFO] Step 3: Detecting critical path
+2026-11-05 19:22:43 [    INFO] Critical path: ['task-1', 'task-2'] (2000 tokens)
+2026-11-05 19:22:43 [    INFO] Step 4: Generating execution groups
+2026-11-05 19:22:43 [    INFO] Generated 2 execution groups: [1, 1]
+2026-11-05 19:22:43 [    INFO] Step 5: Estimating optimal fleet size
+2026-11-05 19:22:43 [    INFO] Estimated fleet size: 2 (plan: solo)
+2026-11-05 19:22:43 [    INFO] Step 6: Storing decomposition metadata
+2026-11-05 19:22:43 [    INFO] Step 7: Converting to task_groups format for execution
+2026-11-05 19:22:43 [    INFO] Step 9: Executing decomposed tasks
+2026-11-05 19:22:43 [    INFO] Executing parallel tasks for chain chain-1: 2 groups, 2 total tasks
+2026-11-05 19:22:43 [    INFO] Starting group 1/2 with 1 parallel tasks
+2026-11-05 19:22:43 [    INFO] Starting group 2/2 with 1 parallel tasks
+2026-11-05 19:22:43 [    INFO] Parallel execution complete for chain chain-1: 2 completed, 0 failed, 0 retried (100.0% success)
+PASSED                                                                   [ 84%]
+tests/test_covpush_fleet.py::TestFleetCoordinatorService::test_decompose_and_execute_timeout 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:44 [    INFO] Decomposing and executing task for chain chain-1: task...
+2026-11-05 19:22:44 [    INFO] Step 1: Decomposing task into subtasks (max 10)
+2026-11-05 19:22:44 [   ERROR] LLM decomposition exceeded timeout of 0.05s
+PASSED                                                                   [ 84%]
+tests/test_covpush_fleet.py::TestFleetCoordinatorService::test_decompose_and_execute_circular_deps 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:45 [    INFO] Decomposing and executing task for chain chain-1: task...
+2026-11-05 19:22:45 [    INFO] Step 1: Decomposing task into subtasks (max 10)
+2026-11-05 19:22:45 [    INFO] Decomposed into 2 subtasks, complexity=0.50, suggested_fleet_size=3
+2026-11-05 19:22:45 [    INFO] Step 2: Building dependency graph and validating cycles
+2026-11-05 19:22:45 [   ERROR] Circular dependencies detected: cycle!
+PASSED                                                                   [ 84%]
+tests/test_covpush_fleet.py::TestFleetCoordinatorService::test_execute_decomposed_task 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:46 [    INFO] Executing pre-computed decomposition for chain chain-1: 2 subtasks
+2026-11-05 19:22:46 [    INFO] Execution groups: 2, Critical path: 2 subtasks (2000 tokens)
+2026-11-05 19:22:46 [    INFO] Executing parallel tasks for chain chain-1: 2 groups, 2 total tasks
+2026-11-05 19:22:46 [    INFO] Starting group 1/2 with 1 parallel tasks
+2026-11-05 19:22:46 [    INFO] Starting group 2/2 with 1 parallel tasks
+2026-11-05 19:22:46 [    INFO] Parallel execution complete for chain chain-1: 2 completed, 0 failed, 0 retried (100.0% success)
+PASSED                                                                   [ 85%]
+tests/test_covpush_fleet.py::TestFleetCoordinatorService::test_execute_decomposed_task_cycle 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:47 [    INFO] Executing pre-computed decomposition for chain chain-1: 2 subtasks
+2026-11-05 19:22:47 [   ERROR] Circular dependencies detected: cycle!
+PASSED                                                                   [ 85%]
+tests/test_covpush_fleet.py::TestFleetCoordinatorService::test_store_decomposition_metadata_chain_missing 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:48 [ WARNING] Chain missing not found, cannot store decomposition
+PASSED                                                                   [ 85%]
+tests/test_covpush_fleet.py::TestFleetCoordinatorService::test_convert_to_task_groups_skips_missing 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:49 [ WARNING] Subtask ghost not found in decomposition
+PASSED                                                                   [ 86%]
+tests/test_covpush_fleet.py::TestFleetCoordinatorService::test_get_fleet_coordinator_factory PASSED [ 86%]
+tests/test_covpush_fleet.py::TestFleetCoordinatorService::test_publish_group_progress PASSED [ 86%]
+tests/test_covpush_fleet.py::TestFleetCoordinatorService::test_publish_group_progress_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:52 [   ERROR] Failed to publish group progress: down
+PASSED                                                                   [ 87%]
+tests/test_fleet_orchestration_deadlock_fixes.py::TestFleetOrchestrationDeadlockFixes::test_timeout_constants_exist PASSED [ 87%]
+tests/test_fleet_orchestration_deadlock_fixes.py::TestFleetOrchestrationDeadlockFixes::test_asyncio_gather_timeout_protection PASSED [ 87%]
+tests/test_fleet_orchestration_deadlock_fixes.py::TestFleetOrchestrationDeadlockFixes::test_redis_listener_timeout_protection PASSED [ 88%]
+tests/test_fleet_orchestration_deadlock_fixes.py::TestFleetOrchestrationDeadlockFixes::test_llm_decomposition_timeout_protection PASSED [ 88%]
+tests/test_fleet_orchestration_deadlock_fixes.py::TestFleetOrchestrationDeadlockFixes::test_lazy_initialization_lock_protection PASSED [ 89%]
+tests/test_fleet_orchestration_deadlock_fixes.py::TestFleetOrchestrationDeadlockFixes::test_timeout_constant_values_are_reasonable PASSED [ 89%]
+tests/test_fleet_orchestration_deadlock_fixes.py::TestFleetOrchestrationDeadlockFixes::test_gather_timeout_error_handling PASSED [ 89%]
+tests/test_fleet_orchestration_deadlock_fixes.py::TestFleetOrchestrationDeadlockFixes::test_decomposition_timeout_error_handling PASSED [ 90%]
+tests/test_fleet_orchestration_deadlock_fixes.py::TestFleetOrchestrationDeadlockFixes::test_redis_listener_closes_on_timeout PASSED [ 90%]
+tests/test_fleet_orchestration_deadlocks.py::TestFleetOrchestrationDeadlockBugs::test_asyncio_gather_timeout_missing FAILED [ 90%]
+tests/test_fleet_orchestration_deadlocks.py::TestFleetOrchestrationDeadlockBugs::test_redis_pubsub_listener_timeout_missing FAILED [ 91%]
+tests/test_fleet_orchestration_deadlocks.py::TestFleetOrchestrationDeadlockBugs::test_llm_decomposition_timeout_missing FAILED [ 91%]
+tests/test_fleet_orchestration_deadlocks.py::TestFleetOrchestrationDeadlockBugs::test_lazy_initialization_race_condition PASSED [ 91%]
+tests/test_fleet_orchestration_deadlocks.py::TestFleetOrchestrationDeadlockBugs::test_simulated_gather_deadlock PASSED [ 92%]
+tests/test_fleet_orchestration_deadlocks.py::TestFleetOrchestrationDeadlockBugs::test_simulated_redis_listener_hang PASSED [ 92%]
+tests/test_fleet_orchestration_deadlocks.py::TestFleetOrchestrationDeadlockBugs::test_database_query_timeout_missing PASSED [ 92%]
+tests/test_fleet_orchestration_deadlocks.py::TestFleetOrchestrationDeadlockBugs::test_concurrent_fleet_execution_deadlock PASSED [ 93%]
+tests/test_round20_agent_fleet_security.py::TestMaturityRoutesNoUserIdFromQuery::test_approve_training_proposal_no_user_id_query FAILED [ 93%]
+tests/test_round20_agent_fleet_security.py::TestMaturityRoutesNoUserIdFromQuery::test_approve_proposal_no_user_id_query FAILED [ 93%]
+tests/test_round20_agent_fleet_security.py::TestFaultToleranceNoBrokenSql::test_no_double_agentregistry_token PASSED [ 94%]
+tests/test_round20_agent_fleet_security.py::TestBackgroundAgentRoutesRequireAuth::test_list_background_tasks_requires_auth PASSED [ 94%]
+tests/test_round20_agent_fleet_security.py::TestMaturitySupervisionWsRequiresAuth::test_supervision_websocket_has_auth_check PASSED [ 95%]
+tests/test_covpush_w92f_fleet_router_routes.py::TestStatus::test_status_public 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:52 [    INFO] HTTP Request: GET http://testserver/api/v1/fleet/automation/status "HTTP/1.1 200 OK"
+PASSED                                                                   [ 95%]
+tests/test_covpush_w92f_fleet_router_routes.py::TestStatus::test_status_degraded 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:52 [   ERROR] Fleet router status failed: boom
+2026-11-05 19:22:52 [    INFO] HTTP Request: GET http://testserver/api/v1/fleet/automation/status "HTTP/1.1 200 OK"
+PASSED                                                                   [ 95%]
+tests/test_covpush_w92f_fleet_router_routes.py::TestAutomation::test_get_automation_admin 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:52 [    INFO] HTTP Request: GET http://testserver/api/v1/fleet/automation "HTTP/1.1 200 OK"
+PASSED                                                                   [ 96%]
+tests/test_covpush_w92f_fleet_router_routes.py::TestAutomation::test_get_automation_anon_401 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:52 [    INFO] HTTP Request: GET http://testserver/api/v1/fleet/automation "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 96%]
+tests/test_covpush_w92f_fleet_router_routes.py::TestAutomation::test_get_automation_member_403 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:52 [    INFO] HTTP Request: GET http://testserver/api/v1/fleet/automation "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 96%]
+tests/test_covpush_w92f_fleet_router_routes.py::TestAutomation::test_config_admin 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:52 [    INFO] HTTP Request: POST http://testserver/api/v1/fleet/automation/config "HTTP/1.1 200 OK"
+PASSED                                                                   [ 97%]
+tests/test_covpush_w92f_fleet_router_routes.py::TestAutomation::test_config_non_admin_403 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:52 [    INFO] HTTP Request: POST http://testserver/api/v1/fleet/automation/config "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 97%]
+tests/test_covpush_w92f_fleet_router_routes.py::TestAutomation::test_run_now_admin 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:52 [    INFO] HTTP Request: POST http://testserver/api/v1/fleet/automation/run-now "HTTP/1.1 200 OK"
+PASSED                                                                   [ 97%]
+tests/test_covpush_w92f_fleet_router_routes.py::TestAutomation::test_run_now_member_403 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:52 [    INFO] HTTP Request: POST http://testserver/api/v1/fleet/automation/run-now "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 98%]
+tests/test_covpush_w92f_fleet_router_routes.py::TestAutomation::test_approve_admin 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:52 [    INFO] HTTP Request: POST http://testserver/api/v1/fleet/automation/approve "HTTP/1.1 200 OK"
+PASSED                                                                   [ 98%]
+tests/test_covpush_w92f_fleet_router_routes.py::TestAutomation::test_approve_nothing_pending_404 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:52 [    INFO] HTTP Request: POST http://testserver/api/v1/fleet/automation/approve "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 98%]
+tests/test_covpush_w92f_fleet_router_routes.py::TestAutomation::test_reject_admin 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:52 [    INFO] HTTP Request: POST http://testserver/api/v1/fleet/automation/reject "HTTP/1.1 200 OK"
+PASSED                                                                   [ 99%]
+tests/test_covpush_w92f_fleet_router_routes.py::TestAutomation::test_approve_anon_401 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:52 [    INFO] HTTP Request: POST http://testserver/api/v1/fleet/automation/approve "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 99%]
+tests/test_covpush_w92f_fleet_router_routes.py::TestAutomation::test_reject_member_403 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:52 [    INFO] HTTP Request: POST http://testserver/api/v1/fleet/automation/reject "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [100%]
+
+=================================== FAILURES ===================================
+____ TestFleetOrchestrationDeadlockBugs.test_asyncio_gather_timeout_missing ____
+tests/test_fleet_orchestration_deadlocks.py:45: in test_asyncio_gather_timeout_missing
+    assert 'timeout' not in source or 'asyncio.wait_for' not in source, \
+E   AssertionError: Bug confirmed: No timeout mechanism for asyncio.gather
+E   assert ('timeout' not in '    async d...ion_result\n'
+E     
+E     'timeout' is contained here:
+E           async def execute_parallel_task(
+E               self,
+E               chain_id: str,
+E               task_groups: List[List[Dict[str, Any]]],
+E               task_types: Optional[List[FleetTaskType]] = None,...
+E     
+E     ...Full output truncated (274 lines hidden), use '-vv' to show or 'asyncio.wait_for' not in '    async d...ion_result\n'
+E     
+E     'asyncio.wait_for' is contained here:
+E           async def execute_parallel_task(
+E               self,
+E               chain_id: str,
+E               task_groups: List[List[Dict[str, Any]]],
+E               task_types: Optional[List[FleetTaskType]] = None,...
+E     
+E     ...Full output truncated (274 lines hidden), use '-vv' to show)
+_ TestFleetOrchestrationDeadlockBugs.test_redis_pubsub_listener_timeout_missing _
+tests/test_fleet_orchestration_deadlocks.py:65: in test_redis_pubsub_listener_timeout_missing
+    assert 'timeout' not in source, \
+E   AssertionError: Bug confirmed: No timeout for pubsub listener
+E   assert 'timeout' not in '    async d...n listener\n'
+E     
+E     'timeout' is contained here:
+E           async def subscribe_to_fleet(self, chain_id: str, callback: Callable, timeout_seconds: float = None):
+E     ?                                                                           +++++++
+E               """
+E               Subscribe to blackboard updates for a specific fleet.
+E       ...
+E     
+E     ...Full output truncated (46 lines hidden), use '-vv' to show
+__ TestFleetOrchestrationDeadlockBugs.test_llm_decomposition_timeout_missing ___
+tests/test_fleet_orchestration_deadlocks.py:95: in test_llm_decomposition_timeout_missing
+    assert 'wait_for' not in surrounding and 'timeout' not in surrounding, \
+E   AssertionError: Bug confirmed: No timeout wrapper around LLM call
+E   assert ('wait_for' not in '        try...ntext or {},'
+E     
+E     'wait_for' is contained here:
+E               try:
+E                   decomposition = await asyncio.wait_for(
+E     ?                                           ++++++++
+E                       self.decomposition_service.decompose_task(
+E                           task_description=task_description,
+E                           context=context or {},)
+_ TestMaturityRoutesNoUserIdFromQuery.test_approve_training_proposal_no_user_id_query _
+tests/test_round20_agent_fleet_security.py:51: in test_approve_training_proposal_no_user_id_query
+    sig = inspect.signature(self._load().approve_training_proposal)
+                            ^^^^^^^^^^^^
+tests/test_round20_agent_fleet_security.py:46: in _load
+    from api import maturity_routes as mod
+E   ImportError: cannot import name 'maturity_routes' from 'api' (/private/tmp/atom-orch02-verify/backend/api/__init__.py)
+__ TestMaturityRoutesNoUserIdFromQuery.test_approve_proposal_no_user_id_query __
+tests/test_round20_agent_fleet_security.py:62: in test_approve_proposal_no_user_id_query
+    mod = self._load()
+          ^^^^^^^^^^^^
+tests/test_round20_agent_fleet_security.py:46: in _load
+    from api import maturity_routes as mod
+E   ImportError: cannot import name 'maturity_routes' from 'api' (/private/tmp/atom-orch02-verify/backend/api/__init__.py)
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+core/fleet_orchestration/scaling_proposal_service.py:48
+  /private/tmp/atom-orch02-verify/backend/core/fleet_orchestration/scaling_proposal_service.py:48: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class ScalingProposal(BaseModel):
+
+core/fleet_orchestration/fleet_scaler_service.py:43
+  /private/tmp/atom-orch02-verify/backend/core/fleet_orchestration/fleet_scaler_service.py:43: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class ScalingOperation(BaseModel):
+
+core/graphrag_engine.py:203
+  /private/tmp/atom-orch02-verify/backend/core/graphrag_engine.py:203: SyntaxWarning: "\%" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\%"? A raw string is also an option.
+    Escaped pattern where % and _ are escaped to \%
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 564 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_orch02_specialist_response.py: 11 warnings
+tests/test_orch07_fleet_audit_consumer.py: 2 warnings
+  /private/tmp/atom-orch02-verify/backend/core/lancedb_handler.py:407: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    names = set(self.db.table_names())
+
+tests/test_orch02_specialist_response.py: 22 warnings
+tests/test_orch07_fleet_audit_consumer.py: 4 warnings
+  /Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/asyncio/events.py:94: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    self._context.run(self._callback, *self._args)
+
+tests/test_orch02_specialist_response.py: 11 warnings
+tests/test_orch07_fleet_audit_consumer.py: 2 warnings
+  /private/tmp/atom-orch02-verify/backend/core/lancedb_handler.py:620: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    if table_name in self.db.table_names():
+
+tests/test_orch02_specialist_response.py::test_chat_handler_returns_specialist_work_as_user_message
+  /private/tmp/atom-orch02-verify/backend/core/token_storage.py:17: DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+tests/unit/test_fleet_routing_audit_wire.py::test_shadow_writes_audit_not_enforced
+tests/unit/test_fleet_routing_audit_wire.py::test_failed_recruitment_is_audited
+tests/unit/test_fleet_routing_audit_wire.py::test_failed_recruitment_still_joins_fallback_outcome
+tests/unit/test_fleet_routing_wire.py::test_flag_off_never_routes_through_governance
+tests/unit/test_fleet_routing_wire.py::test_flag_on_shadow_computes_but_does_not_return_summary
+  /private/tmp/atom-orch02-verify/backend/core/atom_meta_agent.py:2128: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    self._ledger_llm_decision(
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/unit/test_fleet_routing_audit_wire.py::test_shadow_writes_audit_not_enforced
+  /Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/asyncio/events.py:94: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    self._context.run(self._callback, *self._args)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/unit/test_fleet_routing_wire.py::test_flag_off_never_routes_through_governance
+  /private/tmp/atom-orch02-verify/backend/core/capability_graduation_service.py:38: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    def __init__(self, db: Session):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/unit/test_fleet_routing_wire.py::test_flag_off_never_routes_through_governance
+  /private/tmp/atom-orch02-verify/backend/tests/unit/test_fleet_routing_wire.py:97: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    await atom_agent.execute(
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_agent_fleet_service.py::TestLinkStatusUpdates::test_update_link_status_to_completed
+tests/test_agent_fleet_service.py::TestLinkStatusUpdates::test_update_link_status_to_failed_with_error
+tests/test_agent_fleet_service.py::TestLinkStatusUpdates::test_update_link_status_calculates_duration
+  /private/tmp/atom-orch02-verify/backend/core/agent_fleet_service.py:320: RuntimeWarning: coroutine 'SelfHealService.process_link_update' was never awaited
+    logger.error(f"⚠️ Self-Heal Trigger Failed: {e}")
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_fleet_orchestration_deadlocks.py::TestFleetOrchestrationDeadlockBugs::test_asyncio_gather_timeout_missing
+FAILED tests/test_fleet_orchestration_deadlocks.py::TestFleetOrchestrationDeadlockBugs::test_redis_pubsub_listener_timeout_missing
+FAILED tests/test_fleet_orchestration_deadlocks.py::TestFleetOrchestrationDeadlockBugs::test_llm_decomposition_timeout_missing
+FAILED tests/test_round20_agent_fleet_security.py::TestMaturityRoutesNoUserIdFromQuery::test_approve_training_proposal_no_user_id_query
+FAILED tests/test_round20_agent_fleet_security.py::TestMaturityRoutesNoUserIdFromQuery::test_approve_proposal_no_user_id_query
+=========================== warnings summary (final) ===========================
+../../../../Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/ast.py:46
+  /Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/ast.py:46: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    return compile(source, filename, mode, flags,
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+============ 5 failed, 277 passed, 639 warnings in 89.24s (0:01:29) ============

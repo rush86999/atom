@@ -6,6 +6,8 @@ Builds complex multi-step workflows with conditional logic, parallel processing,
 
 import ast
 import asyncio
+import hashlib
+import inspect
 from dataclasses import dataclass, field
 import datetime
 from enum import Enum
@@ -39,6 +41,9 @@ SERVICES_AVAILABLE = True
 
 class WorkflowStepType(Enum):
     """Types of workflow steps"""
+    # ORCH-01: a design-time start marker. It performs no external effect;
+    # recurring activation is deliberately separate from blueprint design.
+    TRIGGER = "trigger"
     NLU_ANALYSIS = "nlu_analysis"
     TASK_CREATION = "task_creation"
     EMAIL_SEND = "email_send"
@@ -98,6 +103,18 @@ class WorkflowStatus(Enum):
     FAILED = "failed"
     CANCELLED = "cancelled"
     WAITING_APPROVAL = "waiting_approval"
+
+#: The operations the built-in entity executor actually implements. This is
+#: the executable contract referenced by the blueprint compiler; a model may
+#: not certify a different operation (for example ``delete``) as runnable.
+ENTITY_EXECUTABLE_ACTIONS = frozenset({
+    "create", "update", "query", "lookup",
+})
+
+#: Version tag for the complete server-required checkpoint binding. Rows
+#: without this exact tag remain readable/listable but are not executable
+#: authority for a new checkpoint; they require a fresh review.
+CHECKPOINT_BINDING_VERSION = "server-required-v2"
 
 @dataclass
 class RetryPolicy:
@@ -167,6 +184,10 @@ class WorkflowDefinition:
     # legitimately send email on external events set this True; third-party
     # definitions stay False and are skipped by trigger_event.
     allow_event_critical: bool = False
+    # Immutable server-compiled definition identity (ORCH-01). Bound into the
+    # durable approval material so a matching step id in another workflow
+    # cannot release this execution.
+    definition_digest: str = ""
 
 class AdvancedWorkflowOrchestrator:
     """Advanced workflow orchestrator with complex multi-step processing"""
@@ -1298,6 +1319,11 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
 
         if execution_context:
             context.variables.update(execution_context)
+        # Server-owned definition identity. Set AFTER caller variables so a
+        # forged execution_context cannot substitute another definition.
+        context.variables["_workflow_definition_id"] = workflow.workflow_id
+        context.variables["_workflow_definition_digest"] = (
+            workflow.definition_digest or "")
 
         self.active_contexts[context.workflow_id] = context
 
@@ -1309,8 +1335,14 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
             # Execute workflow steps
             await self._execute_workflow_step(workflow, workflow.start_step, context)
 
-            if context.status != WorkflowStatus.WAITING_APPROVAL:
+            # Completion requires successful required work. A failed/blocked
+            # branch sets FAILED, and a checkpoint sets WAITING_APPROVAL; only
+            # a still-running context may be finalized as completed.
+            if context.status == WorkflowStatus.RUNNING:
                 context.status = WorkflowStatus.COMPLETED
+                context.completed_at = datetime.datetime.now()
+            elif context.status in (
+                    WorkflowStatus.FAILED, WorkflowStatus.CANCELLED):
                 context.completed_at = datetime.datetime.now()
 
         except Exception as e:
@@ -1341,16 +1373,23 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
                     WorkflowExecution.execution_id == context.workflow_id
                 ).first()
                 
+                definition_id = str(
+                    context.variables.get("_workflow_definition_id") or "")
                 if not execution:
                     execution = WorkflowExecution(
                         execution_id=context.workflow_id,
-                        workflow_id=context.workflow_id, # Simplified mapping
+                        # The definition identity is authoritative; the
+                        # execution id is only the run key.
+                        workflow_id=definition_id or context.workflow_id,
                         user_id=context.user_id if context.user_id != "default_user" else None
                     )
                     db.add(execution)
+                elif definition_id:
+                    execution.workflow_id = definition_id
                 
                 # Update status and data
                 execution.status = context.status.value
+                execution.completed_at = context.completed_at
                 execution.input_data = json.dumps(context.input_data)
                 execution.outputs = json.dumps(context.results)
                 
@@ -1370,50 +1409,182 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
         except Exception as e:
             logger.error(f"Failed to persist workflow state: {e}")
 
+    def _load_definition_from_blueprint(
+        self, definition_id: str, context: WorkflowContext,
+    ) -> Optional[WorkflowDefinition]:
+        """Load a persisted ORCH-01 definition for a fresh process/session."""
+        if not definition_id or not MODELS_AVAILABLE:
+            return None
+        workspace_id = str(
+            context.variables.get("workspace_id")
+            or context.input_data.get("workspace_id")
+            or "default")
+        tenant_id = str(
+            context.variables.get("tenant_id")
+            or context.input_data.get("tenant_id")
+            or "default")
+        try:
+            from core.database import get_db_session
+            from core.workflow_blueprint_service import load_blueprint
+
+            with get_db_session() as db:
+                view = load_blueprint(
+                    db,
+                    workflow_id=definition_id,
+                    tenant_id=tenant_id,
+                    workspace_id=workspace_id,
+                )
+        except Exception as exc:  # noqa: BLE001 — fail closed
+            logger.warning(
+                "Could not load durable workflow definition %s: %s",
+                definition_id, exc)
+            return None
+        if not view:
+            return None
+        steps: List[WorkflowStep] = []
+        for raw in view.get("steps") or []:
+            try:
+                step_type = WorkflowStepType(str(raw.get("step_type")))
+            except ValueError:
+                step_type = WorkflowStepType.BUSINESS_AGENT_EXECUTION
+            steps.append(WorkflowStep(
+                step_id=str(raw.get("step_id")),
+                step_type=step_type,
+                description=str(raw.get("description") or ""),
+                parameters=dict(raw.get("parameters") or {}),
+                next_steps=list(raw.get("next_steps") or []),
+            ))
+        definition = WorkflowDefinition(
+            workflow_id=str(view.get("workflow_id") or definition_id),
+            name=str(view.get("name") or "Persisted workflow"),
+            description=str(view.get("description") or ""),
+            steps=steps,
+            start_step=str(view.get("start_step") or ""),
+            triggers=[],
+            allow_event_critical=False,
+            definition_digest=str(view.get("definition_digest") or ""),
+        )
+        self.workflows[definition.workflow_id] = definition
+        context.variables.setdefault(
+            "_workflow_definition_digest", definition.definition_digest)
+        return definition
+
     async def resume_workflow(self, execution_id: str, step_id: str) -> WorkflowContext:
-        """Resume a workflow execution after approval (Phase 11 Enhanced)"""
+        """Resume a workflow execution after approval.
+
+        A server-required checkpoint goes back through the SAME authoritative
+        consumer as initial dispatch. The durable HITLAction is the authority:
+        pending/rejected/expired/missing/mismatched review never releases
+        successors. The definition is resolved from the execution identity,
+        never by scanning for the first workflow containing ``step_id``.
+        """
         if execution_id in self.active_contexts:
             context = self.active_contexts[execution_id]
         elif MODELS_AVAILABLE:
-            # Attempt to load from database
             context = self._load_execution_state(execution_id)
             if not context:
-                raise ValueError(f"Workflow execution {execution_id} not found in memory or database")
+                raise ValueError(
+                    f"Workflow execution {execution_id} not found in memory "
+                    "or database")
             self.active_contexts[execution_id] = context
         else:
             raise ValueError(f"Workflow execution {execution_id} not found")
-        
-        # Finding the workflow definition
-        workflow_def = None
-        for wf in self.workflows.values():
-            if any(s.step_id == step_id for s in wf.steps):
-                workflow_def = wf
-                break
-        
-        if not workflow_def:
-            raise ValueError(f"Could not find workflow definition containing step {step_id}")
 
-        step = next(s for s in workflow_def.steps if s.step_id == step_id)
+        definition_id = str(
+            context.variables.get("_workflow_definition_id") or "")
+        workflow_def = (
+            self.workflows.get(definition_id) if definition_id else None)
+        if workflow_def is None and context.workflow_id in self.workflows:
+            # Execution-identity fallback for controlled/legacy contexts where
+            # the execution id is also the definition id. Never scan by step.
+            workflow_def = self.workflows[context.workflow_id]
+            definition_id = workflow_def.workflow_id
+        if workflow_def is None and definition_id:
+            # A fresh process/session may have no in-memory registration. The
+            # persisted blueprint is the durable definition identity.
+            workflow_def = self._load_definition_from_blueprint(
+                definition_id, context)
+        if workflow_def is None:
+            raise ValueError(
+                "Could not resolve the workflow definition for execution "
+                f"{execution_id} (definition {definition_id or '<unknown>'})")
+
+        step = next(
+            (candidate for candidate in workflow_def.steps
+             if candidate.step_id == step_id), None)
+        if step is None:
+            raise ValueError(
+                f"Step {step_id} is not in workflow {workflow_def.workflow_id}")
+
         step_result = context.results.get(step_id)
-        
         if not step_result or step_result.get("status") != "waiting_approval":
             logger.warning(f"Step {step_id} is not waiting for approval")
             return context
 
-        logger.info(f"Resuming workflow {execution_id} from step {step_id} after approval")
-        
-        # Update status
+        hitl_action_id = str(step_result.get("hitl_action_id") or "")
+        server_required = bool(step.parameters.get("server_required"))
+        if server_required or hitl_action_id:
+            # Same checkpoint consumer as initial dispatch. Requiring the
+            # durable row here also covers a legacy non-server-required step
+            # that nevertheless carries a HITL id.
+            check = await self._execute_approval_required_step(
+                step, context, require_durable=True)
+            check = check if isinstance(check, dict) else {}
+            check_status = str(check.get("status") or "").lower()
+            if check_status != "completed":
+                context.status = (
+                    WorkflowStatus.FAILED
+                    if check_status in (
+                        "rejected", "expired", "blocked", "failed",
+                        "unavailable", "unresolved", "cancelled")
+                    else WorkflowStatus.WAITING_APPROVAL)
+                updated = {
+                    **step_result,
+                    "status": check_status or "waiting_approval",
+                }
+                updated.pop("approved_at", None)
+                if check.get("hitl_action_id"):
+                    updated["hitl_action_id"] = check["hitl_action_id"]
+                if check.get("approval_id"):
+                    updated["approval_id"] = check["approval_id"]
+                if check.get("error"):
+                    updated["error"] = check["error"]
+                if not check_status or check_status == "waiting_approval":
+                    updated["requires_confirmation"] = True
+                context.results[step_id] = updated
+                self._save_execution_state(context)
+                return context
+
+            # Actual matching approval: release exactly this branch.
+            step_result = {
+                **step_result,
+                "status": "completed",
+                "approved_at": datetime.datetime.now().isoformat(),
+            }
+            step_result.pop("requires_confirmation", None)
+            approval_id = check.get("approval_id") or hitl_action_id
+            if approval_id:
+                step_result["approval_id"] = approval_id
+            context.results[step_id] = step_result
+        else:
+            # Documented legacy compatibility: a non-server-required
+            # confidence wait with no durable HITL row keeps the pre-repair
+            # resume semantics. It never waives a server-required checkpoint.
+            step_result = {
+                **step_result,
+                "status": "completed",
+                "approved_at": datetime.datetime.now().isoformat(),
+            }
+            step_result.pop("requires_confirmation", None)
+            context.results[step_id] = step_result
+
+        logger.info(
+            f"Resuming workflow {execution_id} from step {step_id} after "
+            "authoritative approval")
         context.status = WorkflowStatus.RUNNING
-        step_result["status"] = "completed"
-        step_result["approved_at"] = datetime.datetime.now().isoformat()
-        
-        # Continue execution from next steps
         target_next_steps = step_result.get("next_steps", step.next_steps)
-        
-        # Run continue_workflow and ensure it persists after
         await self._continue_workflow(workflow_def, target_next_steps, context)
         self._save_execution_state(context)
-        
         return context
 
     def _load_execution_state(self, execution_id: str) -> Optional[WorkflowContext]:
@@ -1431,18 +1602,26 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
                     return None
                 
                 state = json.loads(execution.context) if execution.context else {}
-                
+                status_raw = str(execution.status or "").lower()
+                if status_raw in ("paused", "waiting_approval"):
+                    status = WorkflowStatus.WAITING_APPROVAL
+                else:
+                    status = WorkflowStatus(status_raw)
                 context = WorkflowContext(
                     workflow_id=execution.execution_id,
                     user_id=execution.user_id or "default_user",
                     input_data=json.loads(execution.input_data) if execution.input_data else {},
-                    status=WorkflowStatus(execution.status),
+                    status=status,
                     started_at=execution.created_at
                 )
                 context.variables = state.get("variables", {})
                 context.execution_history = state.get("execution_history", [])
                 context.results = state.get("results", {})
-                
+                # Legacy rows may predate the explicit definition identity;
+                # the persisted workflow_id is the only available execution
+                # binding. Resolution still fails closed if it is unknown.
+                context.variables.setdefault(
+                    "_workflow_definition_id", execution.workflow_id)
                 return context
         except Exception as e:
             logger.error(f"Failed to load workflow state: {e}")
@@ -1454,9 +1633,29 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
             for next_step_id in next_steps:
                 await self._execute_workflow_step(workflow, next_step_id, context)
             
-            # If all branches finish, mark as completed
-            # This is a bit simplified, a real orchestrator would track all active branches
-            if all(s.get("status") != "running" for s in context.execution_history):
+            # Completion requires successful required work. A blocked,
+            # rejected, failed or waiting branch must keep its outcome; only a
+            # still-running context may be finalized as completed.
+            blocking_statuses = {
+                "failed", "error", "blocked", "rejected", "expired",
+                "cancelled", "unavailable", "unresolved", "waiting_approval",
+                "paused",
+            }
+            observed = {
+                str(result.get("status") or "").lower()
+                for result in context.results.values()
+                if isinstance(result, dict)
+            }
+            if observed & blocking_statuses:
+                if context.status == WorkflowStatus.RUNNING:
+                    context.status = (
+                        WorkflowStatus.WAITING_APPROVAL
+                        if observed & {"waiting_approval", "paused"}
+                        else WorkflowStatus.FAILED)
+                return
+            if (context.status == WorkflowStatus.RUNNING
+                    and all(s.get("status") != "running"
+                            for s in context.execution_history)):
                 context.status = WorkflowStatus.COMPLETED
                 context.completed_at = datetime.datetime.now()
         except Exception as e:
@@ -1496,6 +1695,19 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
 
         step = next(s for s in workflow.steps if s.step_id == step_id)
         context.current_step = step_id
+
+        # A DAG step is executed once per context. This prevents a resumed
+        # approval branch or duplicate continuation from re-dispatching the
+        # downstream governed effect.
+        previous = context.results.get(step_id)
+        if (isinstance(previous, dict)
+                and str(previous.get("status") or "").lower() in (
+                    "completed", "success")
+                and not context.variables.get("_allow_step_repeat")):
+            logger.info(
+                "Step %s already completed in this context; skipping "
+                "duplicate dispatch", step_id)
+            return
 
         logger.info(f"Executing step: {step_id} - {step.description}")
 
@@ -1595,6 +1807,29 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
             logger.error(f"Step {step_id} failed after {retry_policy.max_retries} retries: {last_error}")
             raise last_error
         
+        if not isinstance(step_result, dict):
+            step_result = {
+                "status": "completed",
+                "output": step_result,
+            }
+        step_status = str(step_result.get("status") or "").lower()
+        # A failed/blocked/rejected/unavailable checkpoint or effect must not
+        # continue down its successor edges as if it succeeded.
+        if step_status in (
+                "failed", "error", "blocked", "rejected", "expired",
+                "unavailable", "unresolved", "cancelled"):
+            context.status = WorkflowStatus.FAILED
+            context.results[step_id] = step_result
+            context.execution_history.append({
+                "step_id": step_id,
+                "step_type": step.step_type.value,
+                "status": step_status,
+                "timestamp": datetime.datetime.now().isoformat(),
+                "result": step_result,
+                "execution_time_ms": step_result.get("execution_time_ms", 0),
+            })
+            return
+
         # Check confidence threshold for human-in-the-loop (Phase 11)
         confidence = step_result.get("confidence", 1.0) # Default to 1.0 if not provided
         if confidence < step.confidence_threshold:
@@ -1830,6 +2065,17 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
                 connector_id = self.STEP_TYPE_TO_CONNECTOR[step.step_type]
                 result = await self._execute_registry_step(connector_id, step, context)
             
+            elif step.step_type == WorkflowStepType.TRIGGER:
+                # A trigger node is a design-time start marker. Executing the
+                # workflow manually passes through it without activating a
+                # recurring schedule/event.
+                result = {
+                    "status": "completed",
+                    "trigger": step.parameters.get(
+                        "trigger_event") or step.parameters.get(
+                        "schedule") or step.parameters.get("condition") or (
+                        "manual"),
+                }
             elif step.step_type == WorkflowStepType.NLU_ANALYSIS:
                 result = await self._execute_nlu_analysis(step, context)
             elif step.step_type == WorkflowStepType.CONDITIONAL_LOGIC:
@@ -1919,49 +2165,420 @@ Return as JSON with 'tasks', 'renewal_date', 'owner', and 'summary'.""",
                 "execution_time_ms": execution_time
             }
 
-    async def _execute_approval_required_step(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
-        """Execute a mandatory HITL approval step, routing via governance service."""
+    @staticmethod
+    def _approval_material(
+        step: WorkflowStep, context: WorkflowContext,
+    ) -> Dict[str, Any]:
+        workspace_id = str(
+            step.parameters.get("workspace_id")
+            or context.variables.get("workspace_id")
+            or context.input_data.get("workspace_id")
+            or "")
+        tenant_id = str(
+            step.parameters.get("tenant_id")
+            or context.variables.get("tenant_id")
+            or context.input_data.get("tenant_id")
+            or "")
+        definition_id = str(
+            context.variables.get("_workflow_definition_id")
+            or context.workflow_id or "")
+        definition_digest = str(
+            context.variables.get("_workflow_definition_digest") or "")
+        guarded_step = str(step.parameters.get("guarded_step") or "")
+        guarded_digest = str(step.parameters.get("guarded_digest") or "")
+        return {
+            "binding_version": CHECKPOINT_BINDING_VERSION,
+            # Execution identity, not the definition id: two runs of the same
+            # definition must never share an approval receipt.
+            "execution_id": str(context.workflow_id or ""),
+            "workflow_id": str(context.workflow_id or ""),
+            "definition_id": definition_id,
+            "definition_digest": definition_digest,
+            "step_id": str(step.step_id or ""),
+            "guarded_step": guarded_step,
+            "guarded_digest": guarded_digest,
+            "input_digest": hashlib.sha256(json.dumps(
+                {
+                    "input": context.input_data,
+                    "guarded_step": guarded_step,
+                    "guarded_digest": guarded_digest,
+                },
+                sort_keys=True, default=str).encode()).hexdigest()[:24],
+            "workspace_id": workspace_id,
+            "tenant_id": tenant_id,
+        }
+
+    @staticmethod
+    def _approval_row_matches(
+        row: Any, material: Dict[str, Any],
+    ) -> bool:
+        """Strict executable authority for a server-required checkpoint.
+
+        This is deliberately one validator for initial dispatch, resume,
+        workflow approvals and the HITL queue. Legacy rows without the exact
+        version tag remain readable/listable but never authorize a new
+        server-required checkpoint.
+        """
+        params = getattr(row, "params", None)
+        if not isinstance(params, dict):
+            return False
+        if params.get("binding_version") != CHECKPOINT_BINDING_VERSION:
+            return False
+
+        # Every immutable identity/digest must be present, a non-empty string,
+        # and exactly equal to the authoritative execution material. No value
+        # is inferred from an alias, copied digest or nearby field.
+        required_nonempty = (
+            "execution_id", "workflow_id", "definition_id",
+            "definition_digest", "step_id", "guarded_step",
+            "guarded_digest", "input_digest",
+        )
+        for key in required_nonempty:
+            expected = material.get(key)
+            observed = params.get(key)
+            if not isinstance(expected, str) or not expected:
+                return False
+            if not isinstance(observed, str) or not observed:
+                return False
+            if observed != expected:
+                return False
+
+        # Scope is required when the authoritative execution has it. A NULL
+        # and an empty string are equivalent only for an unscoped execution;
+        # a contradictory non-empty scope is always refused.
+        expected_scope = {
+            "workspace_id": str(material.get("workspace_id") or ""),
+            "tenant_id": str(material.get("tenant_id") or ""),
+        }
+        for key, expected in expected_scope.items():
+            observed = params.get(key)
+            if expected:
+                if not isinstance(observed, str) or observed != expected:
+                    return False
+            elif observed not in (None, ""):
+                return False
+
+        # The reviewed params must also agree with the durable row columns.
+        if str(getattr(row, "workspace_id", "") or "") != (
+                expected_scope["workspace_id"]):
+            return False
+        if str(getattr(row, "tenant_id", "") or "") != (
+                expected_scope["tenant_id"]):
+            return False
+        return True
+
+    async def _find_durable_approval(
+        self, material: Dict[str, Any],
+    ) -> Optional[Any]:
+        """Find the exact existing workflow checkpoint, if any."""
         try:
-            action_type = step.parameters.get("action", "workflow_step")
-            
-            # Using a simplified agent ID logic or defaulting to standard system agent
-            agent_id = context.variables.get("current_agent_id") or context.input_data.get("agent_id") or "system_default_agent"
-            
+            from core.database import get_db_session
+            from core.models import HITLAction
+
+            with get_db_session() as db:
+                rows = (
+                    db.query(HITLAction)
+                    .filter(
+                        HITLAction.action_type == "workflow_checkpoint",
+                        HITLAction.workspace_id == (
+                            material.get("workspace_id") or None),
+                        HITLAction.tenant_id == (
+                            material.get("tenant_id") or None),
+                    )
+                    .order_by(HITLAction.created_at.desc())
+                    .limit(50)
+                    .all()
+                )
+                for row in rows:
+                    if self._approval_row_matches(row, material):
+                        return row
+        except Exception as exc:  # noqa: BLE001 — fail closed to waiting
+            logger.debug(
+                "workflow checkpoint lookup unavailable: %s", exc)
+        return None
+
+    async def _create_durable_approval(
+        self, material: Dict[str, Any], step: WorkflowStep,
+        context: WorkflowContext,
+    ) -> Optional[str]:
+        try:
+            from core.intervention_service import intervention_service
+
+            result = await intervention_service.request_intervention(
+                workspace_id=str(material.get("workspace_id") or "") or None,
+                tenant_id=str(material.get("tenant_id") or "") or None,
+                action_type="workflow_checkpoint",
+                platform="internal",
+                params=material,
+                reason=(
+                    "Workflow checkpoint requires human approval before "
+                    f"step {step.step_id}"),
+                agent_id=(
+                    context.variables.get("current_agent_id")
+                    or context.input_data.get("agent_id")
+                    or "system_default_agent"),
+                user_id=(
+                    context.variables.get("user_id")
+                    or context.input_data.get("user_id")),
+            )
+            if str(result.get("status") or "").upper() == "PAUSED":
+                return str(result.get("action_id") or "") or None
+        except Exception as exc:  # noqa: BLE001 — fail closed
+            logger.error(
+                "Failed to create durable workflow checkpoint: %s", exc)
+        return None
+
+    @staticmethod
+    def _checkpoint_decision(row: Any) -> str:
+        """Classify a durable checkpoint row without trusting the caller.
+
+        Returns one of ``approved``, ``pending``, ``rejected``, ``expired``,
+        ``cancelled``, ``unknown`` or ``missing``.
+        """
+        if row is None:
+            return "missing"
+        status = str(getattr(row, "status", "") or "").strip().lower()
+        if status == "approved":
+            return "approved"
+        if status in ("rejected", "expired", "cancelled"):
+            return status
+        if status in ("pending", "pending_2fa", "waiting_approval"):
+            return "pending"
+        return "unknown"
+
+    async def _execute_approval_required_step(
+        self, step: WorkflowStep, context: WorkflowContext, *,
+        require_durable: Optional[bool] = None,
+    ) -> Dict[str, Any]:
+        """Enforce a mandatory checkpoint through the real governance contract.
+
+        A server-required checkpoint is never waived by agent maturity: an
+        APPROVED governance result still creates/reuses a durable HITLAction
+        tied to this workflow, step and request material. PENDING, BLOCKED,
+        rejected, expired or unavailable states stop the branch.
+
+        ``require_durable`` is the resume contract: the durable row is the
+        only authority. A missing, mismatched, pending, rejected, expired or
+        unreadable row returns without dispatching or creating a new review.
+        """
+        action_type = str(
+            step.parameters.get("action") or "workflow_step")
+        server_required = bool(step.parameters.get("server_required"))
+        if require_durable is not None:
+            server_required = bool(require_durable)
+        agent_id = (
+            context.variables.get("current_agent_id")
+            or context.input_data.get("agent_id")
+            or "system_default_agent")
+        material = self._approval_material(step, context)
+
+        if require_durable:
+            existing = await self._find_durable_approval(material)
+            decision = self._checkpoint_decision(existing)
+            approval_id = getattr(existing, "id", None)
+            if decision == "approved":
+                return {
+                    "status": "completed",
+                    "approval_id": approval_id,
+                    "approved": True,
+                    "message": "Durable workflow checkpoint approved.",
+                }
+            if decision in ("rejected", "expired", "cancelled"):
+                context.status = WorkflowStatus.FAILED
+                return {
+                    "status": decision,
+                    "approval_id": approval_id,
+                    "error": f"workflow checkpoint {decision}",
+                }
+            if decision == "pending":
+                context.status = WorkflowStatus.WAITING_APPROVAL
+                return {
+                    "status": "waiting_approval",
+                    "requires_confirmation": True,
+                    "hitl_action_id": approval_id,
+                }
+            context.status = WorkflowStatus.FAILED
+            return {
+                "status": "unavailable",
+                "approval_id": approval_id,
+                "error": (
+                    "no matching durable workflow checkpoint is available; "
+                    "the branch cannot be released"),
+            }
+
+        try:
             from core.agent_governance_service import AgentGovernanceService
             from core.database import get_db_session
-            
+
             with get_db_session() as db:
                 gov_service = AgentGovernanceService(db)
-                # We artificially enforce human approval here by setting require_approval=True inside the service, 
-                # but enforce_action already does a check.
-                
-                # We can construct the context_data for the manual reviewer
                 review_context = {
                     "workflow_id": context.workflow_id,
                     "step_id": step.step_id,
+                    "guarded_step": material.get("guarded_step"),
                     "action_type": action_type,
-                    "variables": context.variables
+                    "workspace_id": material.get("workspace_id"),
+                    "tenant_id": material.get("tenant_id"),
+                    "variables": context.variables,
                 }
-                
-                result = await gov_service.enforce_action(agent_id, action_type, review_context)
-                
-                if result.get("status") == "waiting_approval":
-                    # Elevate the waiting_approval status so the orchestrator pauses
+                result = gov_service.enforce_action(
+                    agent_id, action_type, review_context)
+                if inspect.isawaitable(result):
+                    result = await result
+        except Exception as exc:  # noqa: BLE001 — fail closed
+            logger.error("Approval check error: %s", exc)
+            context.status = WorkflowStatus.FAILED
+            return {"status": "failed", "error": str(exc)}
+
+        if not isinstance(result, dict):
+            context.status = WorkflowStatus.FAILED
+            return {
+                "status": "failed",
+                "error": "governance returned an unsupported result",
+            }
+        raw_status = str(result.get("status") or "").strip().upper()
+        action_required = str(
+            result.get("action_required") or "").strip().upper()
+        proceed = result.get("proceed")
+        if proceed is False or raw_status.startswith("BLOCKED"):
+            context.status = WorkflowStatus.FAILED
+            return {
+                "status": "blocked",
+                "error": result.get("reason") or "governance blocked",
+                "governance": result,
+            }
+        if raw_status in ("REJECTED", "EXPIRED", "CANCELLED"):
+            context.status = WorkflowStatus.FAILED
+            return {
+                "status": raw_status.lower(),
+                "error": result.get("reason") or raw_status.lower(),
+                "governance": result,
+            }
+        if raw_status in (
+                "PENDING_APPROVAL", "WAITING_APPROVAL", "PENDING"
+        ) or action_required in ("WAIT_FOR_APPROVAL", "HUMAN_APPROVAL"):
+            if server_required:
+                existing = await self._find_durable_approval(material)
+                decision = self._checkpoint_decision(existing)
+                approval_id = getattr(existing, "id", None)
+                if decision == "approved":
+                    return {
+                        "status": "completed",
+                        "approval_id": approval_id,
+                        "approved": True,
+                        "message": "Durable workflow checkpoint approved.",
+                    }
+                if decision in ("rejected", "expired", "cancelled"):
+                    context.status = WorkflowStatus.FAILED
+                    return {
+                        "status": decision,
+                        "approval_id": approval_id,
+                        "error": f"workflow checkpoint {decision}",
+                    }
+                if decision == "pending":
+                    context.status = WorkflowStatus.WAITING_APPROVAL
+                    return {
+                        "status": "waiting_approval",
+                        "requires_confirmation": True,
+                        "hitl_action_id": approval_id,
+                    }
+                if decision == "unknown":
+                    context.status = WorkflowStatus.FAILED
+                    return {
+                        "status": "failed",
+                        "approval_id": approval_id,
+                        "error": "workflow checkpoint has an unsupported status",
+                    }
+                action_id = await self._create_durable_approval(
+                    material, step, context)
+                if not action_id:
+                    # Durable persistence is unavailable. The branch still
+                    # blocks descendants; it exposes a waiting state without
+                    # fabricating an approval id rather than claiming success.
                     context.status = WorkflowStatus.WAITING_APPROVAL
                     return {
                         "status": "waiting_approval",
                         "requires_confirmation": True,
                         "hitl_action_id": result.get("hitl_action_id"),
-                        "message": "Step requires human approval based on agent maturity."
+                        "message": (
+                            "Step requires human approval; the durable "
+                            "checkpoint could not be persisted."),
                     }
-                
+                context.status = WorkflowStatus.WAITING_APPROVAL
+                return {
+                    "status": "waiting_approval",
+                    "requires_confirmation": True,
+                    "hitl_action_id": action_id,
+                    "message": "Step requires human approval.",
+                }
+            context.status = WorkflowStatus.WAITING_APPROVAL
+            return {
+                "status": "waiting_approval",
+                "requires_confirmation": True,
+                "hitl_action_id": result.get("hitl_action_id"),
+                "message": "Step requires human approval.",
+            }
+        if raw_status in ("APPROVED", "COMPLETED"):
+            if not server_required:
                 return {
                     "status": "completed",
-                    "message": "Governance check passed. Agent is mature enough."
+                    "message": "Governance check passed.",
                 }
-        except Exception as e:
-            logger.error(f"Approval check error: {e}")
-            return {"status": "failed", "error": str(e)}
+            existing = await self._find_durable_approval(material)
+            decision = self._checkpoint_decision(existing)
+            approval_id = getattr(existing, "id", None)
+            if decision == "approved":
+                return {
+                    "status": "completed",
+                    "approval_id": approval_id,
+                    "approved": True,
+                    "message": "Durable workflow checkpoint approved.",
+                }
+            if decision in ("rejected", "expired", "cancelled"):
+                context.status = WorkflowStatus.FAILED
+                return {
+                    "status": decision,
+                    "approval_id": approval_id,
+                    "error": f"workflow checkpoint {decision}",
+                }
+            if decision == "pending":
+                context.status = WorkflowStatus.WAITING_APPROVAL
+                return {
+                    "status": "waiting_approval",
+                    "requires_confirmation": True,
+                    "hitl_action_id": approval_id,
+                }
+            if decision == "unknown":
+                context.status = WorkflowStatus.FAILED
+                return {
+                    "status": "failed",
+                    "approval_id": approval_id,
+                    "error": "workflow checkpoint has an unsupported status",
+                }
+            action_id = await self._create_durable_approval(
+                material, step, context)
+            if not action_id:
+                context.status = WorkflowStatus.WAITING_APPROVAL
+                return {
+                    "status": "waiting_approval",
+                    "requires_confirmation": True,
+                    "message": (
+                        "Step requires human approval; the durable "
+                        "checkpoint could not be persisted."),
+                }
+            context.status = WorkflowStatus.WAITING_APPROVAL
+            return {
+                "status": "waiting_approval",
+                "requires_confirmation": True,
+                "hitl_action_id": action_id,
+                "message": "Durable workflow checkpoint created.",
+            }
+        context.status = WorkflowStatus.FAILED
+        return {
+            "status": "failed",
+            "error": f"unknown governance status {raw_status or '<none>'}",
+            "governance": result,
+        }
 
     async def _execute_ecommerce_sync(self, step: WorkflowStep, context: WorkflowContext) -> Dict[str, Any]:
         """Execute automated ecommerce to ledger mapping"""
@@ -2851,6 +3468,11 @@ Return your response as a JSON object with this format:
         action = step.parameters.get("action", "lookup")
         entity_name = step.parameters.get("entity_name")
         entity_type = step.parameters.get("entity_type", "unknown")
+        if action not in ENTITY_EXECUTABLE_ACTIONS:
+            return {
+                "status": "failed",
+                "error": f"Unsupported entity action: {action}",
+            }
         
         try:
             engine = GraphRAGEngine(workspace_id=context.variables.get("workspace_id", "default"))

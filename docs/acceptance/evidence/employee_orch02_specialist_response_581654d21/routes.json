@@ -1,0 +1,32 @@
+{
+  "schema": "atom-orch02-specialist-response-1",
+  "branch": "codex/orch02-specialist-response-20261105",
+  "orch07_source": "b9ba56995",
+  "accepted_orch01_source": "943fb32d7",
+  "executed_source": "581654d21",
+  "consumer": {
+    "entry": "core.atom_meta_agent.AtomMetaAgent.execute (enforced TASK)",
+    "recruitment": "existing FleetAdmiral/RecruitmentIntelligenceService roster",
+    "specialist_execution": "core.fleet_admiral.FleetAdmiral.execute_recruited_specialists -> core.generic_agent.GenericAgent",
+    "response": "deterministic synthesis of specialist outputs in final_output/response",
+    "user_visible_mapping": "integrations.chat_orchestrator._handle_agent_request message=result.final_output",
+    "scope_guards": [
+      "specialist AgentRegistry tenant/workspace",
+      "disabled specialist",
+      "capability/specialty mismatch"
+    ],
+    "failure_states": [
+      "specialists_failed",
+      "no_suitable_specialists",
+      "cancelled"
+    ],
+    "duplicate_continuation": "DelegationChain metadata cache by task/chain/roster digest",
+    "audit_join": "exact ORCH-07 audit row success/error with failure_reason on non-success"
+  },
+  "out_of_scope": [
+    "live model/provider quality",
+    "live recruitment ranking changes",
+    "PostgreSQL runtime/soak and multi-worker qualification",
+    "whole-app ORACLE-01"
+  ]
+}

@@ -10,10 +10,14 @@ The blueprint includes:
 3. Guardrails & Metadata
 """
 
+import asyncio
 import logging
 import json
+import os
 import uuid
 from typing import Dict, Any, List, Optional
+
+from pydantic import BaseModel, ValidationError
 from sqlalchemy.orm import Session
 
 from core.llm_service import LLMService
@@ -110,6 +114,171 @@ Return ONLY the JSON object."""
         except Exception as e:
             logger.error(f"Queen: Failed to generate blueprint: {e}")
             return self._generate_fallback_blueprint(goal)
+
+    def _workflow_blueprint_prompt(
+        self, goal: str, execution_mode: str,
+    ) -> str:
+        mode_rules = (
+            "This is a recurring automation. It MUST start with exactly one "
+            "trigger node whose metadata declares trigger_event, schedule or "
+            "condition."
+            if execution_mode == "recurring_automation" else
+            "This is a one-off workflow. It must have exactly one start node; "
+            "a trigger is optional and, if present, must be the start."
+        )
+        return f"""You are the workflow architect. Design a reusable workflow
+blueprint for the user's plain-language request. You design only; you never
+execute the workflow, activate a trigger, grant authority or author executable
+plumbing.
+
+REQUEST:
+{goal}
+
+MODE RULES:
+{mode_rules}
+
+Return ONLY a JSON object with this shape:
+{{
+  "architecture_name": "short name",
+  "description": "what the workflow does",
+  "execution_mode": "{execution_mode}",
+  "nodes": [
+    {{
+      "id": "stable_snake_or_kebab_id",
+      "type": "trigger|skill|agent|entity",
+      "name": "human-readable step name",
+      "capability_required": "capability or null",
+      "dependencies": ["other_node_id"],
+      "metadata": {{"trigger_event": "...", "schedule": "...", "condition": "..."}},
+      "action": {{"kind": "read|compute|notify|write|approval", "service": "optional", "action": "optional"}}
+    }}
+  ],
+  "required_integrations": ["..."],
+  "missing_capabilities": [{{"name": "...", "description": "..."}}]
+}}
+
+Rules:
+- Node ids are unique and stable. Dependencies must reference existing nodes.
+- The graph must be acyclic and connected from one start node.
+- Mark every step that mutates governed state or sends an external effect with
+  action.kind "write" or "notify". The server inserts the required human
+  approval checkpoint before it; do not omit the action intent.
+- Use "read" or "compute" for analysis-only steps. Entity nodes represent
+  persistent state; use "read" for a lookup and "write" for a change.
+- Do not invent capabilities. If a capability is unavailable, list it in
+  missing_capabilities instead of mapping it to an integration.
+- Do not include expected outputs, credentials, executable code, SQL, tool
+  arguments or provider names.
+"""
+
+    async def generate_workflow_blueprint(
+        self,
+        goal: str,
+        *,
+        execution_mode: str = "one_off",
+        workspace_id: str = "default",
+        tenant_id: str = "default",
+        deadline_seconds: float = 120.0,
+    ) -> Dict[str, Any]:
+        """Generate a validated-shape blueprint, never a fallback workflow.
+
+        The model owns the business design. This method only asks for the
+        structured draft; validation, HITL insertion, persistence and route
+        scope are server-owned. Any model/protocol failure is a typed
+        ``BlueprintGenerationError`` and creates no workflow.
+        """
+        from core.agents.workflow_blueprint import (
+            BlueprintGenerationError,
+            WorkflowBlueprintDraft,
+        )
+
+        if not str(goal or "").strip():
+            raise BlueprintGenerationError(
+                "workflow_request_empty",
+                "a workflow request is required", 422)
+        prompt = self._workflow_blueprint_prompt(goal, execution_mode)
+        try:
+            result = await asyncio.wait_for(
+                self.llm.generate_structured_response(
+                    prompt=prompt,
+                    response_model=WorkflowBlueprintDraft,
+                    system_instruction=(
+                        "You are a workflow architect. Design only. "
+                        "Return JSON only."),
+                    task_type="planning",
+                    capability_profile="workflow_blueprint",
+                    workspace_id=workspace_id,
+                    tenant_id=tenant_id,
+                    temperature=0.0,
+                    max_tokens=4096,
+                    # The blueprint schema is a large nested object. The
+                    # existing structured transport supports an explicit JSON
+                    # mode; it is a protocol choice, not a provider branch.
+                    output_mode="json",
+                ),
+                timeout=max(1.0, float(deadline_seconds or 120.0)),
+            )
+        except asyncio.TimeoutError as exc:
+            raise BlueprintGenerationError(
+                "workflow_blueprint_timeout",
+                "the workflow designer timed out; no workflow was created",
+                504) from exc
+        except ValidationError as exc:
+            raise BlueprintGenerationError(
+                "workflow_blueprint_invalid",
+                "the workflow designer returned an invalid blueprint",
+                422, details=[str(exc)]) from exc
+        except Exception as exc:  # noqa: BLE001 — typed safe boundary
+            try:
+                from core.llm.byok_handler import (
+                    NoSuitableConfiguredModelError,
+                )
+            except Exception:  # noqa: BLE001
+                NoSuitableConfiguredModelError = ()  # type: ignore
+            if NoSuitableConfiguredModelError and isinstance(
+                    exc, NoSuitableConfiguredModelError):
+                raise BlueprintGenerationError(
+                    "workflow_blueprint_no_suitable_route",
+                    "no configured route can carry the workflow designer "
+                    "workload; no workflow was created",
+                    503) from exc
+            try:
+                from core.llm_service import LLMScopeUnresolvedError
+            except Exception:  # noqa: BLE001
+                LLMScopeUnresolvedError = ()  # type: ignore
+            if LLMScopeUnresolvedError and isinstance(
+                    exc, LLMScopeUnresolvedError):
+                raise BlueprintGenerationError(
+                    "workflow_blueprint_scope_unresolved",
+                    "the workflow designer could not resolve the authorized "
+                    "scope; no workflow was created",
+                    403) from exc
+            logger.warning(
+                "Queen: structured workflow blueprint generation failed: %s",
+                exc)
+            raise BlueprintGenerationError(
+                "workflow_blueprint_unavailable",
+                "the workflow designer is unavailable; no workflow was "
+                "created",
+                503) from exc
+        if result is None:
+            raise BlueprintGenerationError(
+                "workflow_blueprint_no_result",
+                "the workflow designer returned no blueprint; no workflow "
+                "was created",
+                503)
+        try:
+            if isinstance(result, BaseModel):
+                draft = WorkflowBlueprintDraft.model_validate(
+                    result.model_dump())
+            else:
+                draft = WorkflowBlueprintDraft.model_validate(result)
+        except ValidationError as exc:
+            raise BlueprintGenerationError(
+                "workflow_blueprint_invalid",
+                "the workflow designer returned an invalid blueprint",
+                422, details=[str(exc)]) from exc
+        return draft.model_dump()
 
     def generate_mermaid(self, blueprint: Dict[str, Any], statuses: Optional[Dict[str, str]] = None) -> str:
         """

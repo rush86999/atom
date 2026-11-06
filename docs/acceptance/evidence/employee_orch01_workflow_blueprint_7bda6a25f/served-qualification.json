@@ -1,0 +1,2657 @@
+{
+ "schema": "orch01-served-qualification-1",
+ "route": {
+  "provider": "ollama",
+  "model": "llama3.1:8b",
+  "base_url": "http://127.0.0.1:11436/v1",
+  "profile": "workflow_blueprint"
+ },
+ "scope": {
+  "tenant_id": "tenant-orch",
+  "workspace_id": "ws-orch",
+  "user_id": "user-orch"
+ },
+ "cases": [
+  {
+   "case": "service_intake_review",
+   "mode": "one_off",
+   "prompt": "Design a one-off service intake and review workflow: intake the request, triage it, notify the reviewer, and record the review decision. Read-only analysis must not need approval; any send or state change must be gated.",
+   "started_at": 1793878789.145525,
+   "structured_prompt": "You are the workflow architect. Design a reusable workflow\nblueprint for the user's plain-language request. You design only; you never\nexecute the workflow, activate a trigger, grant authority or author executable\nplumbing.\n\nREQUEST:\nDesign a one-off service intake and review workflow: intake the request, triage it, notify the reviewer, and record the review decision. Read-only analysis must not need approval; any send or state change must be gated.\n\nMODE RULES:\nThis is a one-off workflow. It must have exactly one start node; a trigger is optional and, if present, must be the start.\n\nReturn ONLY a JSON object with this shape:\n{\n  \"architecture_name\": \"short name\",\n  \"description\": \"what the workflow does\",\n  \"execution_mode\": \"one_off\",\n  \"nodes\": [\n    {\n      \"id\": \"stable_snake_or_kebab_id\",\n      \"type\": \"trigger|skill|agent|entity\",\n      \"name\": \"human-readable step name\",\n      \"capability_required\": \"capability or null\",\n      \"dependencies\": [\"other_node_id\"],\n      \"metadata\": {\"trigger_event\": \"...\", \"schedule\": \"...\", \"condition\": \"...\"},\n      \"action\": {\"kind\": \"read|compute|notify|write|approval\", \"service\": \"optional\", \"action\": \"optional\"}\n    }\n  ],\n  \"required_integrations\": [\"...\"],\n  \"missing_capabilities\": [{\"name\": \"...\", \"description\": \"...\"}]\n}\n\nRules:\n- Node ids are unique and stable. Dependencies must reference existing nodes.\n- The graph must be acyclic and connected from one start node.\n- Mark every step that mutates governed state or sends an external effect with\n  action.kind \"write\" or \"notify\". The server inserts the required human\n  approval checkpoint before it; do not omit the action intent.\n- Use \"read\" or \"compute\" for analysis-only steps. Entity nodes represent\n  persistent state; use \"read\" for a lookup and \"write\" for a change.\n- Do not invent capabilities. If a capability is unavailable, list it in\n  missing_capabilities instead of mapping it to an integration.\n- Do not include expected outputs, credentials, executable code, SQL, tool\n  arguments or provider names.\n",
+   "elapsed_seconds": 16.179999000392854,
+   "journal": [
+    {
+     "attempt_id": "9f53c4ddd02e4b41836c90650800493e",
+     "stage": "employee-adaptation",
+     "event": "dispatch",
+     "at": 1793878789.150248,
+     "label": "planning",
+     "attempt": 1,
+     "route": "unpinned",
+     "prompt": "You are the workflow architect. Design a reusable workflow\nblueprint for the user's plain-language request. You design only; you never\nexecute the workflow, activate a trigger, grant authority or author executable\nplumbing.\n\nREQUEST:\nDesign a one-off service intake and review workflow: intake the request, triage it, notify the reviewer, and record the review decision. Read-only analysis must not need approval; any send or state change must be gated.\n\nMODE RULES:\nThis is a one-off workflow. It must have exactly one start node; a trigger is optional and, if present, must be the start.\n\nReturn ONLY a JSON object with this shape:\n{\n  \"architecture_name\": \"short name\",\n  \"description\": \"what the workflow does\",\n  \"execution_mode\": \"one_off\",\n  \"nodes\": [\n    {\n      \"id\": \"stable_snake_or_kebab_id\",\n      \"type\": \"trigger|skill|agent|entity\",\n      \"name\": \"human-readable step name\",\n      \"capability_required\": \"capability or null\",\n      \"dependencies\": [\"other_node_id\"],\n      \"metadata\": {\"trigger_event\": \"...\", \"schedule\": \"...\", \"condition\": \"...\"},\n      \"action\": {\"kind\": \"read|compute|notify|write|approval\", \"service\": \"optional\", \"action\": \"optional\"}\n    }\n  ],\n  \"required_integrations\": [\"...\"],\n  \"missing_capabilities\": [{\"name\": \"...\", \"description\": \"...\"}]\n}\n\nRules:\n- Node ids are unique and stable. Dependencies must reference existing nodes.\n- The graph must be acyclic and connected from one start node.\n- Mark every step that mutates governed state or sends an external effect with\n  action.kind \"write\" or \"notify\". The server inserts the required human\n  approval checkpoint before it; do not omit the action intent.\n- Use \"read\" or \"compute\" for analysis-only steps. Entity nodes represent\n  persistent state; use \"read\" for a lookup and \"write\" for a change.\n- Do not invent capabilities. If a capability is unavailable, list it in\n  missing_capabilities instead of mapping it to an integration.\n- Do not include expected outputs, credentials, executable code, SQL, tool\n  arguments or provider names.\n",
+     "prompt_chars": 2042,
+     "system_instruction": "You are a workflow architect. Design only. Return JSON only.",
+     "response_model": "WorkflowBlueprintDraft",
+     "response_schema": {
+      "$defs": {
+       "MissingCapability": {
+        "additionalProperties": false,
+        "properties": {
+         "name": {
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+         },
+         "description": {
+          "default": "",
+          "maxLength": 500,
+          "title": "Description",
+          "type": "string"
+         }
+        },
+        "required": [
+         "name"
+        ],
+        "title": "MissingCapability",
+        "type": "object"
+       },
+       "WorkflowBlueprintNode": {
+        "additionalProperties": false,
+        "properties": {
+         "id": {
+          "maxLength": 80,
+          "minLength": 1,
+          "pattern": "^[A-Za-z][A-Za-z0-9_-]*$",
+          "title": "Id",
+          "type": "string"
+         },
+         "type": {
+          "enum": [
+           "trigger",
+           "skill",
+           "agent",
+           "entity"
+          ],
+          "title": "Type",
+          "type": "string"
+         },
+         "name": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+         },
+         "capability_required": {
+          "anyOf": [
+           {
+            "maxLength": 120,
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Capability Required"
+         },
+         "dependencies": {
+          "items": {
+           "type": "string"
+          },
+          "maxItems": 40,
+          "title": "Dependencies",
+          "type": "array"
+         },
+         "metadata": {
+          "additionalProperties": true,
+          "title": "Metadata",
+          "type": "object"
+         },
+         "action": {
+          "anyOf": [
+           {
+            "$ref": "#/$defs/WorkflowNodeAction"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null
+         }
+        },
+        "required": [
+         "id",
+         "type",
+         "name"
+        ],
+        "title": "WorkflowBlueprintNode",
+        "type": "object"
+       },
+       "WorkflowNodeAction": {
+        "additionalProperties": false,
+        "description": "The design intent of one node, never executable plumbing.",
+        "properties": {
+         "kind": {
+          "enum": [
+           "read",
+           "compute",
+           "notify",
+           "write",
+           "approval"
+          ],
+          "title": "Kind",
+          "type": "string"
+         },
+         "service": {
+          "anyOf": [
+           {
+            "maxLength": 80,
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Service"
+         },
+         "action": {
+          "anyOf": [
+           {
+            "maxLength": 80,
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Action"
+         }
+        },
+        "required": [
+         "kind"
+        ],
+        "title": "WorkflowNodeAction",
+        "type": "object"
+       }
+      },
+      "additionalProperties": false,
+      "description": "The model-owned shape. Server fields are added by the compiler.",
+      "properties": {
+       "architecture_name": {
+        "maxLength": 200,
+        "minLength": 1,
+        "title": "Architecture Name",
+        "type": "string"
+       },
+       "description": {
+        "default": "",
+        "maxLength": 2000,
+        "title": "Description",
+        "type": "string"
+       },
+       "execution_mode": {
+        "default": "one_off",
+        "enum": [
+         "one_off",
+         "recurring_automation"
+        ],
+        "title": "Execution Mode",
+        "type": "string"
+       },
+       "nodes": {
+        "items": {
+         "$ref": "#/$defs/WorkflowBlueprintNode"
+        },
+        "maxItems": 60,
+        "minItems": 1,
+        "title": "Nodes",
+        "type": "array"
+       },
+       "required_integrations": {
+        "items": {
+         "type": "string"
+        },
+        "maxItems": 20,
+        "title": "Required Integrations",
+        "type": "array"
+       },
+       "missing_capabilities": {
+        "items": {
+         "$ref": "#/$defs/MissingCapability"
+        },
+        "maxItems": 20,
+        "title": "Missing Capabilities",
+        "type": "array"
+       }
+      },
+      "required": [
+       "architecture_name",
+       "nodes"
+      ],
+      "title": "WorkflowBlueprintDraft",
+      "type": "object"
+     },
+     "temperature": 0.0,
+     "extra": {
+      "max_tokens": "[redacted]",
+      "output_mode": "json"
+     }
+    },
+    {
+     "attempt_id": "9f53c4ddd02e4b41836c90650800493e",
+     "stage": "employee-adaptation",
+     "event": "parsed",
+     "at": 1793878805.325234,
+     "label": "planning",
+     "attempt": 1,
+     "route": "unpinned",
+     "seconds": 16.173852208070457,
+     "usage": {
+      "prompt_tokens": 1608,
+      "completion_tokens": 371,
+      "total_tokens": 1979
+     },
+     "routing": {
+      "mode": "unpinned",
+      "requested_route": {
+       "provider": "ollama",
+       "model": "llama3.1:8b"
+      },
+      "served_route": {
+       "provider": "ollama",
+       "model": "llama3.1:8b"
+      },
+      "resolved_model": "llama3.1:8b",
+      "profile": {
+       "name": "workflow_blueprint",
+       "version": "2026-11-05.1"
+      },
+      "error": null,
+      "routing_result_id": "32bed339-9280-4360-9fc3-89c9d35df7b5"
+     },
+     "parsed": {
+      "architecture_name": "One-off Service Intake and Review",
+      "description": "Intake request, triage, notify reviewer, record review decision.",
+      "execution_mode": "one_off",
+      "nodes": [
+       {
+        "id": "intake_request",
+        "type": "skill",
+        "name": "Request Intake",
+        "capability_required": null,
+        "dependencies": [],
+        "metadata": {
+         "trigger_event": "user_request"
+        },
+        "action": {
+         "kind": "read",
+         "service": null,
+         "action": null
+        }
+       },
+       {
+        "id": "triage_request",
+        "type": "skill",
+        "name": "Request Triage",
+        "capability_required": null,
+        "dependencies": [
+         "intake_request"
+        ],
+        "metadata": {
+         "condition": "request_triaged"
+        },
+        "action": {
+         "kind": "read",
+         "service": null,
+         "action": null
+        }
+       },
+       {
+        "id": "notify_reviewer",
+        "type": "skill",
+        "name": "Notify Reviewer",
+        "capability_required": null,
+        "dependencies": [
+         "triage_request"
+        ],
+        "metadata": {
+         "condition": "reviewer_notified"
+        },
+        "action": {
+         "kind": "notify",
+         "service": null,
+         "action": null
+        }
+       },
+       {
+        "id": "record_review_decision",
+        "type": "skill",
+        "name": "Record Review Decision",
+        "capability_required": null,
+        "dependencies": [
+         "notify_reviewer"
+        ],
+        "metadata": {
+         "condition": "review_decided"
+        },
+        "action": {
+         "kind": "write",
+         "service": null,
+         "action": null
+        }
+       }
+      ],
+      "required_integrations": [],
+      "missing_capabilities": []
+     },
+     "raw": "ChatCompletion(id='chatcmpl-180', choices=[Choice(finish_reason='stop', index=0, logprobs=ChoiceLogprobs(content=[ChatCompletionTokenLogprob(token='{\\n', bytes=[123, 10], logprob=-1.9558247327804565, top_logprobs=None), ChatCompletionTokenLogprob(token=' ', bytes=[32], logprob=-0.013113504275679588, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-0.00010327022755518556, top_logprobs=None), ChatCompletionTokenLogprob(token='architecture', bytes=[97, 114, 99, 104, 105, 116, 101, 99, 116, 117, 114, 101], logprob=-0.00019398990843910724, top_logprobs=None), ChatCompletionTokenLogprob(token='_name', bytes=[95, 110, 97, 109, 101], logprob=-5.791805506305536e-07, top_logprobs=None), ChatCompletionTokenLogprob(token='\":', bytes=[34, 58], logprob=-1.5552864169876557e-06, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-4.938622078043409e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='One', bytes=[79, 110, 101], logprob=-0.7526840567588806, top_logprobs=None), ChatCompletionTokenLogprob(token='-off', bytes=[45, 111, 102, 102], logprob=-1.0359268188476562, top_logprobs=None), ChatCompletionTokenLogprob(token=' Service', bytes=[32, 83, 101, 114, 118, 105, 99, 101], logprob=-0.115990050137043, top_logprobs=None), ChatCompletionTokenLogprob(token=' Int', bytes=[32, 73, 110, 116], logprob=-0.014794260263442993, top_logprobs=None), ChatCompletionTokenLogprob(token='ake', bytes=[97, 107, 101], logprob=-5.394867457653163e-06, top_logprobs=None), ChatCompletionTokenLogprob(token=' and', bytes=[32, 97, 110, 100], logprob=-0.19267359375953674, top_logprobs=None), ChatCompletionTokenLogprob(token=' Review', bytes=[32, 82, 101, 118, 105, 101, 119], logprob=-8.94114145921776e-06, top_logprobs=None), ChatCompletionTokenLogprob(token='\",\\n', bytes=[34, 44, 10], logprob=-0.04314609616994858, top_logprobs=None), ChatCompletionTokenLogprob(token=' ', bytes=[32], logprob=-2.9934613849036396e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-3.4069985304086003e-06, top_logprobs=None), ChatCompletionTokenLogprob(token='description', bytes=[100, 101, 115, 99, 114, 105, 112, 116, 105, 111, 110], logprob=-0.0001401421322952956, top_logprobs=None), ChatCompletionTokenLogprob(token='\":', bytes=[34, 58], logprob=-2.7768455765908584e-06, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-0.00016063118528109044, top_logprobs=None), ChatCompletionTokenLogprob(token='Int', bytes=[73, 110, 116], logprob=-0.3760480284690857, top_logprobs=None), ChatCompletionTokenLogprob(token='ake', bytes=[97, 107, 101], logprob=-0.024888932704925537, top_logprobs=None), ChatCompletionTokenLogprob(token=' request', bytes=[32, 114, 101, 113, 117, 101, 115, 116], logprob=-1.9488425254821777, top_logprobs=None), ChatCompletionTokenLogprob(token=',', bytes=[44], logprob=-0.0031943863723427057, top_logprobs=None), ChatCompletionTokenLogprob(token=' tri', bytes=[32, 116, 114, 105], logprob=-0.01228861603885889, top_logprobs=None), ChatCompletionTokenLogprob(token='age', bytes=[97, 103, 101], logprob=-2.4422436126769753e-06, top_logprobs=None), ChatCompletionTokenLogprob(token=',', bytes=[44], logprob=-0.0717489942908287, top_logprobs=None), ChatCompletionTokenLogprob(token=' notify', bytes=[32, 110, 111, 116, 105, 102, 121], logprob=-0.03044927306473255, top_logprobs=None), ChatCompletionTokenLogprob(token=' reviewer', bytes=[32, 114, 101, 118, 105, 101, 119, 101, 114], logprob=-0.002895631827414036, top_logprobs=None), ChatCompletionTokenLogprob(token=',', bytes=[44], logprob=-0.025499487295746803, top_logprobs=None), ChatCompletionTokenLogprob(token=' record', bytes=[32, 114, 101, 99, 111, 114, 100], logprob=-1.769722819328308, top_logprobs=None), ChatCompletionTokenLogprob(token=' review', bytes=[32, 114, 101, 118, 105, 101, 119], logprob=-0.024800414219498634, top_logprobs=None), ChatCompletionTokenLogprob(token=' decision', bytes=[32, 100, 101, 99, 105, 115, 105, 111, 110], logprob=-0.0006211872678250074, top_logprobs=None), ChatCompletionTokenLogprob(token='.\",\\n', bytes=[46, 34, 44, 10], logprob=-1.9964466094970703, top_logprobs=None), ChatCompletionTokenLogprob(token=' ', bytes=[32], logprob=-9.670763392932713e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-4.741184966405854e-06, top_logprobs=None), ChatCompletionTokenLogprob(token='execution', bytes=[101, 120, 101, 99, 117, 116, 105, 111, 110], logprob=-0.00016919591871555895, top_logprobs=None), ChatCompletionTokenLogprob(token='_mode', bytes=[95, 109, 111, 100, 101], logprob=-3.2776815714896657e-06, top_logprobs=None), ChatCompletionTokenLogprob(token='\":', bytes=[34, 58], logprob=-6.680620003862714e-07, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-8.535806728104944e-07, top_logprobs=None), ChatCompletionTokenLogprob(token='one', bytes=[111, 110, 101], logprob=-0.000247975520323962, top_logprobs=None), ChatCompletionTokenLogprob(token='_off', bytes=[95, 111, 102, 102], logprob=-0.00011582401202758774, top_logprobs=None), ChatCompletionTokenLogprob(token='\",\\n', bytes=[34, 44, 10], logprob=-0.00016084907110780478, top_logprobs=None), ChatCompletionTokenLogprob(token=' ', bytes=[32], logprob=-0.00021074914548080415, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-4.126499334233813e-06, top_logprobs=None), ChatCompletionTokenLogprob(token='nodes', bytes=[110, 111, 100, 101, 115], logprob=-0.0015740853268653154, top_logprobs=None), ChatCompletionTokenLogprob(token='\":', bytes=[34, 58], logprob=-1.0135414413525723e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=' [\\n', bytes=[32, 91, 10], logprob=-0.00013819894229527563, top_logprobs=None), ChatCompletionTokenLogprob(token='   ', bytes=[32, 32, 32], logprob=-3.3005802833940834e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=' {\\n', bytes=[32, 123, 10], logprob=-1.63160111696925e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='     ', bytes=[32, 32, 32, 32, 32], logprob=-1.1503569112392142e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-1.8108712538378313e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='id', bytes=[105, 100], logprob=-1.1128708138130605e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='\":', bytes=[34, 58], logprob=-9.967230880647548e-07, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-0.0003711500612553209, top_logprobs=None), ChatCompletionTokenLogprob(token='int', bytes=[105, 110, 116], logprob=-1.1060340404510498, top_logprobs=None), ChatCompletionTokenLogprob(token='ake', bytes=[97, 107, 101], logprob=-0.00019567442359402776, top_logprobs=None), ChatCompletionTokenLogprob(token='_request', bytes=[95, 114, 101, 113, 117, 101, 115, 116], logprob=-0.46246805787086487, top_logprobs=None), ChatCompletionTokenLogprob(token='\",\\n', bytes=[34, 44, 10], logprob=-0.022228460758924484, top_logprobs=None), ChatCompletionTokenLogprob(token='     ', bytes=[32, 32, 32, 32, 32], logprob=-1.6167972489711246e-06, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-2.2119172626844374e-06, top_logprobs=None), ChatCompletionTokenLogprob(token='type', bytes=[116, 121, 112, 101], logprob=-7.649500912521034e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='\":', bytes=[34, 58], logprob=-2.6322143753532146e-07, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-3.0546918424079195e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='skill', bytes=[115, 107, 105, 108, 108], logprob=-0.7326157689094543, top_logprobs=None), ChatCompletionTokenLogprob(token='\",\\n', bytes=[34, 44, 10], logprob=-0.0003964747011195868, top_logprobs=None), ChatCompletionTokenLogprob(token='     ', bytes=[32, 32, 32, 32, 32], logprob=-6.91246782480448e-07, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-5.976821285003098e-06, top_logprobs=None), ChatCompletionTokenLogprob(token='name', bytes=[110, 97, 109, 101], logprob=-3.618567643570714e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='\":', bytes=[34, 58], logprob=-4.6168901235432713e-07, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-1.6838042938616127e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='Request', bytes=[82, 101, 113, 117, 101, 115, 116], logprob=-2.2872962951660156, top_logprobs=None), ChatCompletionTokenLogprob(token=' Int', bytes=[32, 73, 110, 116], logprob=-0.024097343906760216, top_logprobs=None), ChatCompletionTokenLogprob(token='ake', bytes=[97, 107, 101], logprob=-2.3727867301204242e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='\",\\n', bytes=[34, 44, 10], logprob=-0.00854768231511116, top_logprobs=None), ChatCompletionTokenLogprob(token='     ', bytes=[32, 32, 32, 32, 32], logprob=-1.4610312064178288e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-1.1768107469833922e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='capability', bytes=[99, 97, 112, 97, 98, 105, 108, 105, 116, 121], logprob=-0.35822153091430664, top_logprobs=None), ChatCompletionTokenLogprob(token='_required', bytes=[95, 114, 101, 113, 117, 105, 114, 101, 100], logprob=-8.620184235041961e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='\":', bytes=[34, 58], logprob=-5.514270924322773e-06, top_logprobs=None), ChatCompletionTokenLogprob(token=' null', bytes=[32, 110, 117, 108, 108], logprob=-0.42702558636665344, top_logprobs=None), ChatCompletionTokenLogprob(token=',\\n', bytes=[44, 10], logprob=-0.01335812360048294, top_logprobs=None), ChatCompletionTokenLogprob(token='     ', bytes=[32, 32, 32, 32, 32], logprob=-1.1316043128317688e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-8.535266715625767e-06, top_logprobs=None), ChatCompletionTokenLogprob(token='dependencies', bytes=[100, 101, 112, 101, 110, 100, 101, 110, 99, 105, 101, 115], logprob=-0.332243949174881, top_logprobs=None), ChatCompletionTokenLogprob(token='\":', bytes=[34, 58], logprob=-8.28562679089373e-06, top_logprobs=None), ChatCompletionTokenLogprob(token=' [],\\n', bytes=[32, 91, 93, 44, 10], logprob=-0.016902225092053413, top_logprobs=None), ChatCompletionTokenLogprob(token='     ', bytes=[32, 32, 32, 32, 32], logprob=-2.7587668228079565e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-2.428751258776174e-06, top_logprobs=None), ChatCompletionTokenLogprob(token='metadata', bytes=[109, 101, 116, 97, 100, 97, 116, 97], logprob=-0.00026732045807875693, top_logprobs=None), ChatCompletionTokenLogprob(token='\":', bytes=[34, 58], logprob=-4.068620910402387e-06, top_logprobs=None), ChatCompletionTokenLogprob(token=' {\"', bytes=[32, 123, 34], logprob=-0.7689973711967468, top_logprobs=None), ChatCompletionTokenLogprob(token='trigger', bytes=[116, 114, 105, 103, 103, 101, 114], logprob=-0.14220380783081055, top_logprobs=None), ChatCompletionTokenLogprob(token='_event', bytes=[95, 101, 118, 101, 110, 116], logprob=-0.00043101588380523026, top_logprobs=None), ChatCompletionTokenLogprob(token='\":', bytes=[34, 58], logprob=-1.6401174434577115e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-0.05765519291162491, top_logprobs=None), ChatCompletionTokenLogprob(token='user', bytes=[117, 115, 101, 114], logprob=-1.42134428024292, top_logprobs=None), ChatCompletionTokenLogprob(token='_request', bytes=[95, 114, 101, 113, 117, 101, 115, 116], logprob=-0.3893314003944397, top_logprobs=None), ChatCompletionTokenLogprob(token='\"},\\n', bytes=[34, 125, 44, 10], logprob=-0.4416092336177826, top_logprobs=None), ChatCompletionTokenLogprob(token='     ', bytes=[32, 32, 32, 32, 32], logprob=-2.0669313016696833e-05, top_logprobs=None), ChatCompletionT"
+    }
+   ],
+   "provenance": {
+    "mode": "unpinned",
+    "requested_route": {
+     "provider": "ollama",
+     "model": "llama3.1:8b"
+    },
+    "served_route": {
+     "provider": "ollama",
+     "model": "llama3.1:8b"
+    },
+    "resolved_model": "llama3.1:8b",
+    "profile": {
+     "name": "workflow_blueprint",
+     "version": "2026-11-05.1"
+    },
+    "error": null,
+    "routing_result_id": "32bed339-9280-4360-9fc3-89c9d35df7b5"
+   },
+   "draft": {
+    "architecture_name": "One-off Service Intake and Review",
+    "description": "Intake request, triage, notify reviewer, record review decision.",
+    "execution_mode": "one_off",
+    "nodes": [
+     {
+      "id": "intake_request",
+      "type": "skill",
+      "name": "Request Intake",
+      "capability_required": null,
+      "dependencies": [],
+      "metadata": {
+       "trigger_event": "user_request"
+      },
+      "action": {
+       "kind": "read",
+       "service": null,
+       "action": null
+      }
+     },
+     {
+      "id": "triage_request",
+      "type": "skill",
+      "name": "Request Triage",
+      "capability_required": null,
+      "dependencies": [
+       "intake_request"
+      ],
+      "metadata": {
+       "condition": "request_triaged"
+      },
+      "action": {
+       "kind": "read",
+       "service": null,
+       "action": null
+      }
+     },
+     {
+      "id": "notify_reviewer",
+      "type": "skill",
+      "name": "Notify Reviewer",
+      "capability_required": null,
+      "dependencies": [
+       "triage_request"
+      ],
+      "metadata": {
+       "condition": "reviewer_notified"
+      },
+      "action": {
+       "kind": "notify",
+       "service": null,
+       "action": null
+      }
+     },
+     {
+      "id": "record_review_decision",
+      "type": "skill",
+      "name": "Record Review Decision",
+      "capability_required": null,
+      "dependencies": [
+       "notify_reviewer"
+      ],
+      "metadata": {
+       "condition": "review_decided"
+      },
+      "action": {
+       "kind": "write",
+       "service": null,
+       "action": null
+      }
+     }
+    ],
+    "required_integrations": [],
+    "missing_capabilities": []
+   },
+   "compiled": {
+    "workflow_id": "ai_wf_e063d42320d5",
+    "blueprint_id": "7da3d3b9-493e-4070-b30e-426ae503cd0a",
+    "status": "designed",
+    "source": "model",
+    "schema": "orch-workflow-blueprint-1",
+    "architecture_name": "One-off Service Intake and Review",
+    "name": "One-off Service Intake and Review",
+    "description": "Intake request, triage, notify reviewer, record review decision.",
+    "execution_mode": "one_off",
+    "start_step": "intake_request",
+    "nodes": [
+     {
+      "id": "intake_request",
+      "type": "skill",
+      "name": "Request Intake",
+      "capability_required": null,
+      "dependencies": [],
+      "metadata": {
+       "trigger_event": "user_request"
+      },
+      "action": {
+       "kind": "read",
+       "service": null,
+       "action": null
+      }
+     },
+     {
+      "id": "triage_request",
+      "type": "skill",
+      "name": "Request Triage",
+      "capability_required": null,
+      "dependencies": [
+       "intake_request"
+      ],
+      "metadata": {
+       "condition": "request_triaged"
+      },
+      "action": {
+       "kind": "read",
+       "service": null,
+       "action": null
+      }
+     },
+     {
+      "id": "approval_notify_reviewer",
+      "type": "approval",
+      "name": "Approve Notify Reviewer",
+      "capability_required": null,
+      "dependencies": [
+       "triage_request"
+      ],
+      "metadata": {
+       "checkpoint": "approval_required",
+       "guarded_step": "notify_reviewer",
+       "reason": "Human approval is required before Notify Reviewer mutates governed state or sends an external effect."
+      },
+      "action": {
+       "kind": "approval"
+      }
+     },
+     {
+      "id": "notify_reviewer",
+      "type": "skill",
+      "name": "Notify Reviewer",
+      "capability_required": null,
+      "dependencies": [
+       "approval_notify_reviewer"
+      ],
+      "metadata": {
+       "condition": "reviewer_notified"
+      },
+      "action": {
+       "kind": "notify",
+       "service": null,
+       "action": null
+      }
+     },
+     {
+      "id": "approval_record_review_decision",
+      "type": "approval",
+      "name": "Approve Record Review Decision",
+      "capability_required": null,
+      "dependencies": [
+       "notify_reviewer"
+      ],
+      "metadata": {
+       "checkpoint": "approval_required",
+       "guarded_step": "record_review_decision",
+       "reason": "Human approval is required before Record Review Decision mutates governed state or sends an external effect."
+      },
+      "action": {
+       "kind": "approval"
+      }
+     },
+     {
+      "id": "record_review_decision",
+      "type": "skill",
+      "name": "Record Review Decision",
+      "capability_required": null,
+      "dependencies": [
+       "approval_record_review_decision"
+      ],
+      "metadata": {
+       "condition": "review_decided"
+      },
+      "action": {
+       "kind": "write",
+       "service": null,
+       "action": null
+      }
+     }
+    ],
+    "steps": [
+     {
+      "step_id": "intake_request",
+      "step_type": "business_agent_execution",
+      "description": "Request Intake",
+      "parameters": {
+       "trigger_event": "user_request",
+       "capability_required": null,
+       "design_action": {
+        "kind": "read",
+        "service": null,
+        "action": null
+       },
+       "hitl": false
+      },
+      "next_steps": [
+       "triage_request"
+      ]
+     },
+     {
+      "step_id": "triage_request",
+      "step_type": "business_agent_execution",
+      "description": "Request Triage",
+      "parameters": {
+       "condition": "request_triaged",
+       "capability_required": null,
+       "design_action": {
+        "kind": "read",
+        "service": null,
+        "action": null
+       },
+       "hitl": false
+      },
+      "next_steps": [
+       "approval_notify_reviewer"
+      ]
+     },
+     {
+      "step_id": "approval_notify_reviewer",
+      "step_type": "approval_required",
+      "description": "Approve Notify Reviewer",
+      "parameters": {
+       "checkpoint": "approval_required",
+       "guarded_step": "notify_reviewer",
+       "reason": "Human approval is required before Notify Reviewer mutates governed state or sends an external effect.",
+       "capability_required": null,
+       "design_action": {
+        "kind": "approval"
+       },
+       "hitl": true,
+       "action": "workflow_step"
+      },
+      "next_steps": [
+       "notify_reviewer"
+      ]
+     },
+     {
+      "step_id": "notify_reviewer",
+      "step_type": "business_agent_execution",
+      "description": "Notify Reviewer",
+      "parameters": {
+       "condition": "reviewer_notified",
+       "capability_required": null,
+       "design_action": {
+        "kind": "notify",
+        "service": null,
+        "action": null
+       },
+       "hitl": false
+      },
+      "next_steps": [
+       "approval_record_review_decision"
+      ]
+     },
+     {
+      "step_id": "approval_record_review_decision",
+      "step_type": "approval_required",
+      "description": "Approve Record Review Decision",
+      "parameters": {
+       "checkpoint": "approval_required",
+       "guarded_step": "record_review_decision",
+       "reason": "Human approval is required before Record Review Decision mutates governed state or sends an external effect.",
+       "capability_required": null,
+       "design_action": {
+        "kind": "approval"
+       },
+       "hitl": true,
+       "action": "workflow_step"
+      },
+      "next_steps": [
+       "record_review_decision"
+      ]
+     },
+     {
+      "step_id": "record_review_decision",
+      "step_type": "business_agent_execution",
+      "description": "Record Review Decision",
+      "parameters": {
+       "condition": "review_decided",
+       "capability_required": null,
+       "design_action": {
+        "kind": "write",
+        "service": null,
+        "action": null
+       },
+       "hitl": false
+      },
+      "next_steps": []
+     }
+    ],
+    "triggers": [],
+    "required_integrations": [],
+    "missing_capabilities": [],
+    "hitl_gates": [
+     "approval_notify_reviewer",
+     "approval_record_review_decision"
+    ],
+    "step_count": 6,
+    "definition_digest": "d9ba7d87c46e9630797b2a1a501c0b02fa7b3a0d448b61814d12a0aed957ea37",
+    "definition": {
+     "architecture_name": "One-off Service Intake and Review",
+     "description": "Intake request, triage, notify reviewer, record review decision.",
+     "execution_mode": "one_off",
+     "start_step": "intake_request",
+     "nodes": [
+      {
+       "id": "intake_request",
+       "type": "skill",
+       "name": "Request Intake",
+       "capability_required": null,
+       "dependencies": [],
+       "metadata": {
+        "trigger_event": "user_request"
+       },
+       "action": {
+        "kind": "read",
+        "service": null,
+        "action": null
+       }
+      },
+      {
+       "id": "triage_request",
+       "type": "skill",
+       "name": "Request Triage",
+       "capability_required": null,
+       "dependencies": [
+        "intake_request"
+       ],
+       "metadata": {
+        "condition": "request_triaged"
+       },
+       "action": {
+        "kind": "read",
+        "service": null,
+        "action": null
+       }
+      },
+      {
+       "id": "approval_notify_reviewer",
+       "type": "approval",
+       "name": "Approve Notify Reviewer",
+       "capability_required": null,
+       "dependencies": [
+        "triage_request"
+       ],
+       "metadata": {
+        "checkpoint": "approval_required",
+        "guarded_step": "notify_reviewer",
+        "reason": "Human approval is required before Notify Reviewer mutates governed state or sends an external effect."
+       },
+       "action": {
+        "kind": "approval"
+       }
+      },
+      {
+       "id": "notify_reviewer",
+       "type": "skill",
+       "name": "Notify Reviewer",
+       "capability_required": null,
+       "dependencies": [
+        "approval_notify_reviewer"
+       ],
+       "metadata": {
+        "condition": "reviewer_notified"
+       },
+       "action": {
+        "kind": "notify",
+        "service": null,
+        "action": null
+       }
+      },
+      {
+       "id": "approval_record_review_decision",
+       "type": "approval",
+       "name": "Approve Record Review Decision",
+       "capability_required": null,
+       "dependencies": [
+        "notify_reviewer"
+       ],
+       "metadata": {
+        "checkpoint": "approval_required",
+        "guarded_step": "record_review_decision",
+        "reason": "Human approval is required before Record Review Decision mutates governed state or sends an external effect."
+       },
+       "action": {
+        "kind": "approval"
+       }
+      },
+      {
+       "id": "record_review_decision",
+       "type": "skill",
+       "name": "Record Review Decision",
+       "capability_required": null,
+       "dependencies": [
+        "approval_record_review_decision"
+       ],
+       "metadata": {
+        "condition": "review_decided"
+       },
+       "action": {
+        "kind": "write",
+        "service": null,
+        "action": null
+       }
+      }
+     ],
+     "steps": [
+      {
+       "step_id": "intake_request",
+       "step_type": "business_agent_execution",
+       "description": "Request Intake",
+       "parameters": {
+        "trigger_event": "user_request",
+        "capability_required": null,
+        "design_action": {
+         "kind": "read",
+         "service": null,
+         "action": null
+        },
+        "hitl": false
+       },
+       "next_steps": [
+        "triage_request"
+       ]
+      },
+      {
+       "step_id": "triage_request",
+       "step_type": "business_agent_execution",
+       "description": "Request Triage",
+       "parameters": {
+        "condition": "request_triaged",
+        "capability_required": null,
+        "design_action": {
+         "kind": "read",
+         "service": null,
+         "action": null
+        },
+        "hitl": false
+       },
+       "next_steps": [
+        "approval_notify_reviewer"
+       ]
+      },
+      {
+       "step_id": "approval_notify_reviewer",
+       "step_type": "approval_required",
+       "description": "Approve Notify Reviewer",
+       "parameters": {
+        "checkpoint": "approval_required",
+        "guarded_step": "notify_reviewer",
+        "reason": "Human approval is required before Notify Reviewer mutates governed state or sends an external effect.",
+        "capability_required": null,
+        "design_action": {
+         "kind": "approval"
+        },
+        "hitl": true,
+        "action": "workflow_step"
+       },
+       "next_steps": [
+        "notify_reviewer"
+       ]
+      },
+      {
+       "step_id": "notify_reviewer",
+       "step_type": "business_agent_execution",
+       "description": "Notify Reviewer",
+       "parameters": {
+        "condition": "reviewer_notified",
+        "capability_required": null,
+        "design_action": {
+         "kind": "notify",
+         "service": null,
+         "action": null
+        },
+        "hitl": false
+       },
+       "next_steps": [
+        "approval_record_review_decision"
+       ]
+      },
+      {
+       "step_id": "approval_record_review_decision",
+       "step_type": "approval_required",
+       "description": "Approve Record Review Decision",
+       "parameters": {
+        "checkpoint": "approval_required",
+        "guarded_step": "record_review_decision",
+        "reason": "Human approval is required before Record Review Decision mutates governed state or sends an external effect.",
+        "capability_required": null,
+        "design_action": {
+         "kind": "approval"
+        },
+        "hitl": true,
+        "action": "workflow_step"
+       },
+       "next_steps": [
+        "record_review_decision"
+       ]
+      },
+      {
+       "step_id": "record_review_decision",
+       "step_type": "business_agent_execution",
+       "description": "Record Review Decision",
+       "parameters": {
+        "condition": "review_decided",
+        "capability_required": null,
+        "design_action": {
+         "kind": "write",
+         "service": null,
+         "action": null
+        },
+        "hitl": false
+       },
+       "next_steps": []
+      }
+     ],
+     "triggers": [],
+     "required_integrations": []
+    }
+   },
+   "persisted": {
+    "workflow_id": "ai_wf_e063d42320d5",
+    "blueprint_id": "7da3d3b9-493e-4070-b30e-426ae503cd0a",
+    "name": "One-off Service Intake and Review",
+    "architecture_name": "One-off Service Intake and Review",
+    "description": "Intake request, triage, notify reviewer, record review decision.",
+    "execution_mode": "one_off",
+    "status": "designed",
+    "start_step": "intake_request",
+    "nodes": [
+     {
+      "id": "intake_request",
+      "type": "skill",
+      "name": "Request Intake",
+      "capability_required": null,
+      "dependencies": [],
+      "metadata": {
+       "trigger_event": "user_request"
+      },
+      "action": {
+       "kind": "read",
+       "service": null,
+       "action": null
+      }
+     },
+     {
+      "id": "triage_request",
+      "type": "skill",
+      "name": "Request Triage",
+      "capability_required": null,
+      "dependencies": [
+       "intake_request"
+      ],
+      "metadata": {
+       "condition": "request_triaged"
+      },
+      "action": {
+       "kind": "read",
+       "service": null,
+       "action": null
+      }
+     },
+     {
+      "id": "approval_notify_reviewer",
+      "type": "approval",
+      "name": "Approve Notify Reviewer",
+      "capability_required": null,
+      "dependencies": [
+       "triage_request"
+      ],
+      "metadata": {
+       "checkpoint": "approval_required",
+       "guarded_step": "notify_reviewer",
+       "reason": "Human approval is required before Notify Reviewer mutates governed state or sends an external effect."
+      },
+      "action": {
+       "kind": "approval"
+      }
+     },
+     {
+      "id": "notify_reviewer",
+      "type": "skill",
+      "name": "Notify Reviewer",
+      "capability_required": null,
+      "dependencies": [
+       "approval_notify_reviewer"
+      ],
+      "metadata": {
+       "condition": "reviewer_notified"
+      },
+      "action": {
+       "kind": "notify",
+       "service": null,
+       "action": null
+      }
+     },
+     {
+      "id": "approval_record_review_decision",
+      "type": "approval",
+      "name": "Approve Record Review Decision",
+      "capability_required": null,
+      "dependencies": [
+       "notify_reviewer"
+      ],
+      "metadata": {
+       "checkpoint": "approval_required",
+       "guarded_step": "record_review_decision",
+       "reason": "Human approval is required before Record Review Decision mutates governed state or sends an external effect."
+      },
+      "action": {
+       "kind": "approval"
+      }
+     },
+     {
+      "id": "record_review_decision",
+      "type": "skill",
+      "name": "Record Review Decision",
+      "capability_required": null,
+      "dependencies": [
+       "approval_record_review_decision"
+      ],
+      "metadata": {
+       "condition": "review_decided"
+      },
+      "action": {
+       "kind": "write",
+       "service": null,
+       "action": null
+      }
+     }
+    ],
+    "steps": [
+     {
+      "step_id": "intake_request",
+      "step_type": "business_agent_execution",
+      "description": "Request Intake",
+      "parameters": {
+       "trigger_event": "user_request",
+       "capability_required": null,
+       "design_action": {
+        "kind": "read",
+        "service": null,
+        "action": null
+       },
+       "hitl": false
+      },
+      "next_steps": [
+       "triage_request"
+      ]
+     },
+     {
+      "step_id": "triage_request",
+      "step_type": "business_agent_execution",
+      "description": "Request Triage",
+      "parameters": {
+       "condition": "request_triaged",
+       "capability_required": null,
+       "design_action": {
+        "kind": "read",
+        "service": null,
+        "action": null
+       },
+       "hitl": false
+      },
+      "next_steps": [
+       "approval_notify_reviewer"
+      ]
+     },
+     {
+      "step_id": "approval_notify_reviewer",
+      "step_type": "approval_required",
+      "description": "Approve Notify Reviewer",
+      "parameters": {
+       "checkpoint": "approval_required",
+       "guarded_step": "notify_reviewer",
+       "reason": "Human approval is required before Notify Reviewer mutates governed state or sends an external effect.",
+       "capability_required": null,
+       "design_action": {
+        "kind": "approval"
+       },
+       "hitl": true,
+       "action": "workflow_step"
+      },
+      "next_steps": [
+       "notify_reviewer"
+      ]
+     },
+     {
+      "step_id": "notify_reviewer",
+      "step_type": "business_agent_execution",
+      "description": "Notify Reviewer",
+      "parameters": {
+       "condition": "reviewer_notified",
+       "capability_required": null,
+       "design_action": {
+        "kind": "notify",
+        "service": null,
+        "action": null
+       },
+       "hitl": false
+      },
+      "next_steps": [
+       "approval_record_review_decision"
+      ]
+     },
+     {
+      "step_id": "approval_record_review_decision",
+      "step_type": "approval_required",
+      "description": "Approve Record Review Decision",
+      "parameters": {
+       "checkpoint": "approval_required",
+       "guarded_step": "record_review_decision",
+       "reason": "Human approval is required before Record Review Decision mutates governed state or sends an external effect.",
+       "capability_required": null,
+       "design_action": {
+        "kind": "approval"
+       },
+       "hitl": true,
+       "action": "workflow_step"
+      },
+      "next_steps": [
+       "record_review_decision"
+      ]
+     },
+     {
+      "step_id": "record_review_decision",
+      "step_type": "business_agent_execution",
+      "description": "Record Review Decision",
+      "parameters": {
+       "condition": "review_decided",
+       "capability_required": null,
+       "design_action": {
+        "kind": "write",
+        "service": null,
+        "action": null
+       },
+       "hitl": false
+      },
+      "next_steps": []
+     }
+    ],
+    "triggers": [],
+    "required_integrations": [],
+    "missing_capabilities": [],
+    "hitl_gates": [
+     "approval_notify_reviewer",
+     "approval_record_review_decision"
+    ],
+    "step_count": 6,
+    "definition_digest": "d9ba7d87c46e9630797b2a1a501c0b02fa7b3a0d448b61814d12a0aed957ea37",
+    "created_at": "2026-11-05T11:40:05",
+    "updated_at": null,
+    "provenance": {
+     "profile": "workflow_blueprint",
+     "routing": {
+      "mode": "unpinned",
+      "requested_route": {
+       "provider": "ollama",
+       "model": "llama3.1:8b"
+      },
+      "served_route": {
+       "provider": "ollama",
+       "model": "llama3.1:8b"
+      },
+      "resolved_model": "llama3.1:8b",
+      "profile": {
+       "name": "workflow_blueprint",
+       "version": "2026-11-05.1"
+      },
+      "error": null,
+      "routing_result_id": "32bed339-9280-4360-9fc3-89c9d35df7b5"
+     },
+     "attempt_id": "9f53c4ddd02e4b41836c90650800493e",
+     "source": "model",
+     "generated_at": "2026-11-05T11:40:05.330803+00:00"
+    }
+   },
+   "readback": {
+    "workflow_id": "ai_wf_e063d42320d5",
+    "blueprint_id": "7da3d3b9-493e-4070-b30e-426ae503cd0a",
+    "name": "One-off Service Intake and Review",
+    "architecture_name": "One-off Service Intake and Review",
+    "description": "Intake request, triage, notify reviewer, record review decision.",
+    "execution_mode": "one_off",
+    "status": "designed",
+    "start_step": "intake_request",
+    "nodes": [
+     {
+      "id": "intake_request",
+      "type": "skill",
+      "name": "Request Intake",
+      "capability_required": null,
+      "dependencies": [],
+      "metadata": {
+       "trigger_event": "user_request"
+      },
+      "action": {
+       "kind": "read",
+       "service": null,
+       "action": null
+      }
+     },
+     {
+      "id": "triage_request",
+      "type": "skill",
+      "name": "Request Triage",
+      "capability_required": null,
+      "dependencies": [
+       "intake_request"
+      ],
+      "metadata": {
+       "condition": "request_triaged"
+      },
+      "action": {
+       "kind": "read",
+       "service": null,
+       "action": null
+      }
+     },
+     {
+      "id": "approval_notify_reviewer",
+      "type": "approval",
+      "name": "Approve Notify Reviewer",
+      "capability_required": null,
+      "dependencies": [
+       "triage_request"
+      ],
+      "metadata": {
+       "checkpoint": "approval_required",
+       "guarded_step": "notify_reviewer",
+       "reason": "Human approval is required before Notify Reviewer mutates governed state or sends an external effect."
+      },
+      "action": {
+       "kind": "approval"
+      }
+     },
+     {
+      "id": "notify_reviewer",
+      "type": "skill",
+      "name": "Notify Reviewer",
+      "capability_required": null,
+      "dependencies": [
+       "approval_notify_reviewer"
+      ],
+      "metadata": {
+       "condition": "reviewer_notified"
+      },
+      "action": {
+       "kind": "notify",
+       "service": null,
+       "action": null
+      }
+     },
+     {
+      "id": "approval_record_review_decision",
+      "type": "approval",
+      "name": "Approve Record Review Decision",
+      "capability_required": null,
+      "dependencies": [
+       "notify_reviewer"
+      ],
+      "metadata": {
+       "checkpoint": "approval_required",
+       "guarded_step": "record_review_decision",
+       "reason": "Human approval is required before Record Review Decision mutates governed state or sends an external effect."
+      },
+      "action": {
+       "kind": "approval"
+      }
+     },
+     {
+      "id": "record_review_decision",
+      "type": "skill",
+      "name": "Record Review Decision",
+      "capability_required": null,
+      "dependencies": [
+       "approval_record_review_decision"
+      ],
+      "metadata": {
+       "condition": "review_decided"
+      },
+      "action": {
+       "kind": "write",
+       "service": null,
+       "action": null
+      }
+     }
+    ],
+    "steps": [
+     {
+      "step_id": "intake_request",
+      "step_type": "business_agent_execution",
+      "description": "Request Intake",
+      "parameters": {
+       "trigger_event": "user_request",
+       "capability_required": null,
+       "design_action": {
+        "kind": "read",
+        "service": null,
+        "action": null
+       },
+       "hitl": false
+      },
+      "next_steps": [
+       "triage_request"
+      ]
+     },
+     {
+      "step_id": "triage_request",
+      "step_type": "business_agent_execution",
+      "description": "Request Triage",
+      "parameters": {
+       "condition": "request_triaged",
+       "capability_required": null,
+       "design_action": {
+        "kind": "read",
+        "service": null,
+        "action": null
+       },
+       "hitl": false
+      },
+      "next_steps": [
+       "approval_notify_reviewer"
+      ]
+     },
+     {
+      "step_id": "approval_notify_reviewer",
+      "step_type": "approval_required",
+      "description": "Approve Notify Reviewer",
+      "parameters": {
+       "checkpoint": "approval_required",
+       "guarded_step": "notify_reviewer",
+       "reason": "Human approval is required before Notify Reviewer mutates governed state or sends an external effect.",
+       "capability_required": null,
+       "design_action": {
+        "kind": "approval"
+       },
+       "hitl": true,
+       "action": "workflow_step"
+      },
+      "next_steps": [
+       "notify_reviewer"
+      ]
+     },
+     {
+      "step_id": "notify_reviewer",
+      "step_type": "business_agent_execution",
+      "description": "Notify Reviewer",
+      "parameters": {
+       "condition": "reviewer_notified",
+       "capability_required": null,
+       "design_action": {
+        "kind": "notify",
+        "service": null,
+        "action": null
+       },
+       "hitl": false
+      },
+      "next_steps": [
+       "approval_record_review_decision"
+      ]
+     },
+     {
+      "step_id": "approval_record_review_decision",
+      "step_type": "approval_required",
+      "description": "Approve Record Review Decision",
+      "parameters": {
+       "checkpoint": "approval_required",
+       "guarded_step": "record_review_decision",
+       "reason": "Human approval is required before Record Review Decision mutates governed state or sends an external effect.",
+       "capability_required": null,
+       "design_action": {
+        "kind": "approval"
+       },
+       "hitl": true,
+       "action": "workflow_step"
+      },
+      "next_steps": [
+       "record_review_decision"
+      ]
+     },
+     {
+      "step_id": "record_review_decision",
+      "step_type": "business_agent_execution",
+      "description": "Record Review Decision",
+      "parameters": {
+       "condition": "review_decided",
+       "capability_required": null,
+       "design_action": {
+        "kind": "write",
+        "service": null,
+        "action": null
+       },
+       "hitl": false
+      },
+      "next_steps": []
+     }
+    ],
+    "triggers": [],
+    "required_integrations": [],
+    "missing_capabilities": [],
+    "hitl_gates": [
+     "approval_notify_reviewer",
+     "approval_record_review_decision"
+    ],
+    "step_count": 6,
+    "definition_digest": "d9ba7d87c46e9630797b2a1a501c0b02fa7b3a0d448b61814d12a0aed957ea37",
+    "created_at": "2026-11-05T11:40:05",
+    "updated_at": null,
+    "provenance": {
+     "profile": "workflow_blueprint",
+     "routing": {
+      "mode": "unpinned",
+      "requested_route": {
+       "provider": "ollama",
+       "model": "llama3.1:8b"
+      },
+      "served_route": {
+       "provider": "ollama",
+       "model": "llama3.1:8b"
+      },
+      "resolved_model": "llama3.1:8b",
+      "profile": {
+       "name": "workflow_blueprint",
+       "version": "2026-11-05.1"
+      },
+      "error": null,
+      "routing_result_id": "32bed339-9280-4360-9fc3-89c9d35df7b5"
+     },
+     "attempt_id": "9f53c4ddd02e4b41836c90650800493e",
+     "source": "model",
+     "generated_at": "2026-11-05T11:40:05.330803+00:00"
+    }
+   },
+   "readback_exact": true,
+   "status": "accepted"
+  },
+  {
+   "case": "inventory_operations_review",
+   "mode": "recurring_automation",
+   "prompt": "Design a recurring inventory operations review workflow that runs every Monday at 8am: collect stock counts, compare them with thresholds, and update the stock review record. The trigger is a schedule, not a manual run.",
+   "started_at": 1793878805.449845,
+   "structured_prompt": "You are the workflow architect. Design a reusable workflow\nblueprint for the user's plain-language request. You design only; you never\nexecute the workflow, activate a trigger, grant authority or author executable\nplumbing.\n\nREQUEST:\nDesign a recurring inventory operations review workflow that runs every Monday at 8am: collect stock counts, compare them with thresholds, and update the stock review record. The trigger is a schedule, not a manual run.\n\nMODE RULES:\nThis is a recurring automation. It MUST start with exactly one trigger node whose metadata declares trigger_event, schedule or condition.\n\nReturn ONLY a JSON object with this shape:\n{\n  \"architecture_name\": \"short name\",\n  \"description\": \"what the workflow does\",\n  \"execution_mode\": \"recurring_automation\",\n  \"nodes\": [\n    {\n      \"id\": \"stable_snake_or_kebab_id\",\n      \"type\": \"trigger|skill|agent|entity\",\n      \"name\": \"human-readable step name\",\n      \"capability_required\": \"capability or null\",\n      \"dependencies\": [\"other_node_id\"],\n      \"metadata\": {\"trigger_event\": \"...\", \"schedule\": \"...\", \"condition\": \"...\"},\n      \"action\": {\"kind\": \"read|compute|notify|write|approval\", \"service\": \"optional\", \"action\": \"optional\"}\n    }\n  ],\n  \"required_integrations\": [\"...\"],\n  \"missing_capabilities\": [{\"name\": \"...\", \"description\": \"...\"}]\n}\n\nRules:\n- Node ids are unique and stable. Dependencies must reference existing nodes.\n- The graph must be acyclic and connected from one start node.\n- Mark every step that mutates governed state or sends an external effect with\n  action.kind \"write\" or \"notify\". The server inserts the required human\n  approval checkpoint before it; do not omit the action intent.\n- Use \"read\" or \"compute\" for analysis-only steps. Entity nodes represent\n  persistent state; use \"read\" for a lookup and \"write\" for a change.\n- Do not invent capabilities. If a capability is unavailable, list it in\n  missing_capabilities instead of mapping it to an integration.\n- Do not include expected outputs, credentials, executable code, SQL, tool\n  arguments or provider names.\n",
+   "elapsed_seconds": 12.781024916097522,
+   "journal": [
+    {
+     "attempt_id": "7e0f78644c5240e999b77ce3d5f16616",
+     "stage": "employee-adaptation",
+     "event": "dispatch",
+     "at": 1793878805.450888,
+     "label": "planning",
+     "attempt": 1,
+     "route": "unpinned",
+     "prompt": "You are the workflow architect. Design a reusable workflow\nblueprint for the user's plain-language request. You design only; you never\nexecute the workflow, activate a trigger, grant authority or author executable\nplumbing.\n\nREQUEST:\nDesign a recurring inventory operations review workflow that runs every Monday at 8am: collect stock counts, compare them with thresholds, and update the stock review record. The trigger is a schedule, not a manual run.\n\nMODE RULES:\nThis is a recurring automation. It MUST start with exactly one trigger node whose metadata declares trigger_event, schedule or condition.\n\nReturn ONLY a JSON object with this shape:\n{\n  \"architecture_name\": \"short name\",\n  \"description\": \"what the workflow does\",\n  \"execution_mode\": \"recurring_automation\",\n  \"nodes\": [\n    {\n      \"id\": \"stable_snake_or_kebab_id\",\n      \"type\": \"trigger|skill|agent|entity\",\n      \"name\": \"human-readable step name\",\n      \"capability_required\": \"capability or null\",\n      \"dependencies\": [\"other_node_id\"],\n      \"metadata\": {\"trigger_event\": \"...\", \"schedule\": \"...\", \"condition\": \"...\"},\n      \"action\": {\"kind\": \"read|compute|notify|write|approval\", \"service\": \"optional\", \"action\": \"optional\"}\n    }\n  ],\n  \"required_integrations\": [\"...\"],\n  \"missing_capabilities\": [{\"name\": \"...\", \"description\": \"...\"}]\n}\n\nRules:\n- Node ids are unique and stable. Dependencies must reference existing nodes.\n- The graph must be acyclic and connected from one start node.\n- Mark every step that mutates governed state or sends an external effect with\n  action.kind \"write\" or \"notify\". The server inserts the required human\n  approval checkpoint before it; do not omit the action intent.\n- Use \"read\" or \"compute\" for analysis-only steps. Entity nodes represent\n  persistent state; use \"read\" for a lookup and \"write\" for a change.\n- Do not invent capabilities. If a capability is unavailable, list it in\n  missing_capabilities instead of mapping it to an integration.\n- Do not include expected outputs, credentials, executable code, SQL, tool\n  arguments or provider names.\n",
+     "prompt_chars": 2070,
+     "system_instruction": "You are a workflow architect. Design only. Return JSON only.",
+     "response_model": "WorkflowBlueprintDraft",
+     "response_schema": {
+      "$defs": {
+       "MissingCapability": {
+        "additionalProperties": false,
+        "properties": {
+         "name": {
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+         },
+         "description": {
+          "default": "",
+          "maxLength": 500,
+          "title": "Description",
+          "type": "string"
+         }
+        },
+        "required": [
+         "name"
+        ],
+        "title": "MissingCapability",
+        "type": "object"
+       },
+       "WorkflowBlueprintNode": {
+        "additionalProperties": false,
+        "properties": {
+         "id": {
+          "maxLength": 80,
+          "minLength": 1,
+          "pattern": "^[A-Za-z][A-Za-z0-9_-]*$",
+          "title": "Id",
+          "type": "string"
+         },
+         "type": {
+          "enum": [
+           "trigger",
+           "skill",
+           "agent",
+           "entity"
+          ],
+          "title": "Type",
+          "type": "string"
+         },
+         "name": {
+          "maxLength": 200,
+          "minLength": 1,
+          "title": "Name",
+          "type": "string"
+         },
+         "capability_required": {
+          "anyOf": [
+           {
+            "maxLength": 120,
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Capability Required"
+         },
+         "dependencies": {
+          "items": {
+           "type": "string"
+          },
+          "maxItems": 40,
+          "title": "Dependencies",
+          "type": "array"
+         },
+         "metadata": {
+          "additionalProperties": true,
+          "title": "Metadata",
+          "type": "object"
+         },
+         "action": {
+          "anyOf": [
+           {
+            "$ref": "#/$defs/WorkflowNodeAction"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null
+         }
+        },
+        "required": [
+         "id",
+         "type",
+         "name"
+        ],
+        "title": "WorkflowBlueprintNode",
+        "type": "object"
+       },
+       "WorkflowNodeAction": {
+        "additionalProperties": false,
+        "description": "The design intent of one node, never executable plumbing.",
+        "properties": {
+         "kind": {
+          "enum": [
+           "read",
+           "compute",
+           "notify",
+           "write",
+           "approval"
+          ],
+          "title": "Kind",
+          "type": "string"
+         },
+         "service": {
+          "anyOf": [
+           {
+            "maxLength": 80,
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Service"
+         },
+         "action": {
+          "anyOf": [
+           {
+            "maxLength": 80,
+            "type": "string"
+           },
+           {
+            "type": "null"
+           }
+          ],
+          "default": null,
+          "title": "Action"
+         }
+        },
+        "required": [
+         "kind"
+        ],
+        "title": "WorkflowNodeAction",
+        "type": "object"
+       }
+      },
+      "additionalProperties": false,
+      "description": "The model-owned shape. Server fields are added by the compiler.",
+      "properties": {
+       "architecture_name": {
+        "maxLength": 200,
+        "minLength": 1,
+        "title": "Architecture Name",
+        "type": "string"
+       },
+       "description": {
+        "default": "",
+        "maxLength": 2000,
+        "title": "Description",
+        "type": "string"
+       },
+       "execution_mode": {
+        "default": "one_off",
+        "enum": [
+         "one_off",
+         "recurring_automation"
+        ],
+        "title": "Execution Mode",
+        "type": "string"
+       },
+       "nodes": {
+        "items": {
+         "$ref": "#/$defs/WorkflowBlueprintNode"
+        },
+        "maxItems": 60,
+        "minItems": 1,
+        "title": "Nodes",
+        "type": "array"
+       },
+       "required_integrations": {
+        "items": {
+         "type": "string"
+        },
+        "maxItems": 20,
+        "title": "Required Integrations",
+        "type": "array"
+       },
+       "missing_capabilities": {
+        "items": {
+         "$ref": "#/$defs/MissingCapability"
+        },
+        "maxItems": 20,
+        "title": "Missing Capabilities",
+        "type": "array"
+       }
+      },
+      "required": [
+       "architecture_name",
+       "nodes"
+      ],
+      "title": "WorkflowBlueprintDraft",
+      "type": "object"
+     },
+     "temperature": 0.0,
+     "extra": {
+      "max_tokens": "[redacted]",
+      "output_mode": "json"
+     }
+    },
+    {
+     "attempt_id": "7e0f78644c5240e999b77ce3d5f16616",
+     "stage": "employee-adaptation",
+     "event": "parsed",
+     "at": 1793878818.230873,
+     "label": "planning",
+     "attempt": 1,
+     "route": "unpinned",
+     "seconds": 12.778976249974221,
+     "usage": {
+      "prompt_tokens": 1603,
+      "completion_tokens": 332,
+      "total_tokens": 1935
+     },
+     "routing": {
+      "mode": "unpinned",
+      "requested_route": {
+       "provider": "ollama",
+       "model": "llama3.1:8b"
+      },
+      "served_route": {
+       "provider": "ollama",
+       "model": "llama3.1:8b"
+      },
+      "resolved_model": "llama3.1:8b",
+      "profile": {
+       "name": "workflow_blueprint",
+       "version": "2026-11-05.1"
+      },
+      "error": null,
+      "routing_result_id": "5aaf5ef2-1465-4e52-9c3b-1d89ea4f20cc"
+     },
+     "parsed": {
+      "architecture_name": "Inventory Review",
+      "description": "Recurring inventory operations review workflow",
+      "execution_mode": "recurring_automation",
+      "nodes": [
+       {
+        "id": "schedule_trigger",
+        "type": "trigger",
+        "name": "Schedule Trigger",
+        "capability_required": null,
+        "dependencies": [],
+        "metadata": {
+         "trigger_event": "schedule",
+         "schedule": "0 8 * * 1",
+         "condition": ""
+        },
+        "action": {
+         "kind": "read",
+         "service": null,
+         "action": null
+        }
+       },
+       {
+        "id": "collect_stock_counts",
+        "type": "skill",
+        "name": "Collect Stock Counts",
+        "capability_required": null,
+        "dependencies": [
+         "schedule_trigger"
+        ],
+        "metadata": {},
+        "action": {
+         "kind": "compute",
+         "service": null,
+         "action": null
+        }
+       },
+       {
+        "id": "compare_with_thresholds",
+        "type": "skill",
+        "name": "Compare with Thresholds",
+        "capability_required": null,
+        "dependencies": [
+         "collect_stock_counts"
+        ],
+        "metadata": {},
+        "action": {
+         "kind": "compute",
+         "service": null,
+         "action": null
+        }
+       },
+       {
+        "id": "update_stock_review_record",
+        "type": "skill",
+        "name": "Update Stock Review Record",
+        "capability_required": null,
+        "dependencies": [
+         "compare_with_thresholds"
+        ],
+        "metadata": {},
+        "action": {
+         "kind": "write",
+         "service": null,
+         "action": null
+        }
+       }
+      ],
+      "required_integrations": [],
+      "missing_capabilities": []
+     },
+     "raw": "ChatCompletion(id='chatcmpl-455', choices=[Choice(finish_reason='stop', index=0, logprobs=ChoiceLogprobs(content=[ChatCompletionTokenLogprob(token='{\\n', bytes=[123, 10], logprob=-2.04457950592041, top_logprobs=None), ChatCompletionTokenLogprob(token=' ', bytes=[32], logprob=-0.008595381863415241, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-5.8875742979580536e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='architecture', bytes=[97, 114, 99, 104, 105, 116, 101, 99, 116, 117, 114, 101], logprob=-0.000255000835750252, top_logprobs=None), ChatCompletionTokenLogprob(token='_name', bytes=[95, 110, 97, 109, 101], logprob=-5.65625384751911e-07, top_logprobs=None), ChatCompletionTokenLogprob(token='\":', bytes=[34, 58], logprob=-1.5125589243325521e-06, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-4.68390790047124e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='Inventory', bytes=[73, 110, 118, 101, 110, 116, 111, 114, 121], logprob=-0.556377649307251, top_logprobs=None), ChatCompletionTokenLogprob(token=' Review', bytes=[32, 82, 101, 118, 105, 101, 119], logprob=-0.4060276746749878, top_logprobs=None), ChatCompletionTokenLogprob(token='\",\\n', bytes=[34, 44, 10], logprob=-0.022477788850665092, top_logprobs=None), ChatCompletionTokenLogprob(token=' ', bytes=[32], logprob=-8.673797310621012e-06, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-5.222345293987019e-07, top_logprobs=None), ChatCompletionTokenLogprob(token='description', bytes=[100, 101, 115, 99, 114, 105, 112, 116, 105, 111, 110], logprob=-0.00012935542326886207, top_logprobs=None), ChatCompletionTokenLogprob(token='\":', bytes=[34, 58], logprob=-8.717953505765763e-07, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-4.566123607219197e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='Re', bytes=[82, 101], logprob=-0.6109141111373901, top_logprobs=None), ChatCompletionTokenLogprob(token='curring', bytes=[99, 117, 114, 114, 105, 110, 103], logprob=-0.0010764519684016705, top_logprobs=None), ChatCompletionTokenLogprob(token=' inventory', bytes=[32, 105, 110, 118, 101, 110, 116, 111, 114, 121], logprob=-0.3727589249610901, top_logprobs=None), ChatCompletionTokenLogprob(token=' operations', bytes=[32, 111, 112, 101, 114, 97, 116, 105, 111, 110, 115], logprob=-0.020561426877975464, top_logprobs=None), ChatCompletionTokenLogprob(token=' review', bytes=[32, 114, 101, 118, 105, 101, 119], logprob=-2.820829104166478e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=' workflow', bytes=[32, 119, 111, 114, 107, 102, 108, 111, 119], logprob=-0.17524097859859467, top_logprobs=None), ChatCompletionTokenLogprob(token='\",\\n', bytes=[34, 44, 10], logprob=-0.09718577563762665, top_logprobs=None), ChatCompletionTokenLogprob(token=' ', bytes=[32], logprob=-1.0467567335581407e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-4.835356435251015e-07, top_logprobs=None), ChatCompletionTokenLogprob(token='execution', bytes=[101, 120, 101, 99, 117, 116, 105, 111, 110], logprob=-7.734984683338553e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='_mode', bytes=[95, 109, 111, 100, 101], logprob=-3.016766186192399e-06, top_logprobs=None), ChatCompletionTokenLogprob(token='\":', bytes=[34, 58], logprob=-2.3233734225414082e-07, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-5.187966394260002e-07, top_logprobs=None), ChatCompletionTokenLogprob(token='re', bytes=[114, 101], logprob=-4.568976510199718e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='curring', bytes=[99, 117, 114, 114, 105, 110, 103], logprob=-2.4472981294820784e-06, top_logprobs=None), ChatCompletionTokenLogprob(token='_', bytes=[95], logprob=-0.00011967516911681741, top_logprobs=None), ChatCompletionTokenLogprob(token='automation', bytes=[97, 117, 116, 111, 109, 97, 116, 105, 111, 110], logprob=-8.565984899178147e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='\",\\n', bytes=[34, 44, 10], logprob=-0.00015283271204680204, top_logprobs=None), ChatCompletionTokenLogprob(token=' ', bytes=[32], logprob=-0.00015130368410609663, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-8.912176667763561e-07, top_logprobs=None), ChatCompletionTokenLogprob(token='nodes', bytes=[110, 111, 100, 101, 115], logprob=-0.0012972077820450068, top_logprobs=None), ChatCompletionTokenLogprob(token='\":', bytes=[34, 58], logprob=-7.160138466133503e-06, top_logprobs=None), ChatCompletionTokenLogprob(token=' [\\n', bytes=[32, 91, 10], logprob=-0.00011139776324853301, top_logprobs=None), ChatCompletionTokenLogprob(token='   ', bytes=[32, 32, 32], logprob=-1.2424736269167624e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=' {\\n', bytes=[32, 123, 10], logprob=-2.736356691457331e-06, top_logprobs=None), ChatCompletionTokenLogprob(token='     ', bytes=[32, 32, 32, 32, 32], logprob=-6.068314633012051e-06, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-1.794267154764384e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='id', bytes=[105, 100], logprob=-3.094545718340669e-06, top_logprobs=None), ChatCompletionTokenLogprob(token='\":', bytes=[34, 58], logprob=-6.469337563430599e-07, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-0.00016326770128216594, top_logprobs=None), ChatCompletionTokenLogprob(token='schedule', bytes=[115, 99, 104, 101, 100, 117, 108, 101], logprob=-1.0485053062438965, top_logprobs=None), ChatCompletionTokenLogprob(token='_trigger', bytes=[95, 116, 114, 105, 103, 103, 101, 114], logprob=-0.237228125333786, top_logprobs=None), ChatCompletionTokenLogprob(token='\",\\n', bytes=[34, 44, 10], logprob=-0.038167912513017654, top_logprobs=None), ChatCompletionTokenLogprob(token='     ', bytes=[32, 32, 32, 32, 32], logprob=-1.1263626902291435e-06, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-2.5192039174726233e-06, top_logprobs=None), ChatCompletionTokenLogprob(token='type', bytes=[116, 121, 112, 101], logprob=-1.564514241181314e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='\":', bytes=[34, 58], logprob=-1.9421588604018325e-07, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-3.896929229085799e-06, top_logprobs=None), ChatCompletionTokenLogprob(token='trigger', bytes=[116, 114, 105, 103, 103, 101, 114], logprob=-0.024512937292456627, top_logprobs=None), ChatCompletionTokenLogprob(token='\",\\n', bytes=[34, 44, 10], logprob=-4.5495209633372724e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='     ', bytes=[32, 32, 32, 32, 32], logprob=-4.5583522023662226e-07, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-6.248699264688184e-07, top_logprobs=None), ChatCompletionTokenLogprob(token='name', bytes=[110, 97, 109, 101], logprob=-3.283645128249191e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='\":', bytes=[34, 58], logprob=-4.342107899901748e-07, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-2.097492506436538e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='Schedule', bytes=[83, 99, 104, 101, 100, 117, 108, 101], logprob=-0.332655131816864, top_logprobs=None), ChatCompletionTokenLogprob(token=' Trigger', bytes=[32, 84, 114, 105, 103, 103, 101, 114], logprob=-0.027710070833563805, top_logprobs=None), ChatCompletionTokenLogprob(token='\",\\n', bytes=[34, 44, 10], logprob=-0.004249767400324345, top_logprobs=None), ChatCompletionTokenLogprob(token='     ', bytes=[32, 32, 32, 32, 32], logprob=-2.377667215114343e-06, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-2.9710457965848036e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='capability', bytes=[99, 97, 112, 97, 98, 105, 108, 105, 116, 121], logprob=-0.17558445036411285, top_logprobs=None), ChatCompletionTokenLogprob(token='_required', bytes=[95, 114, 101, 113, 117, 105, 114, 101, 100], logprob=-6.625446258112788e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='\":', bytes=[34, 58], logprob=-4.08512505600811e-06, top_logprobs=None), ChatCompletionTokenLogprob(token=' null', bytes=[32, 110, 117, 108, 108], logprob=-0.0641130656003952, top_logprobs=None), ChatCompletionTokenLogprob(token=',\\n', bytes=[44, 10], logprob=-1.8195840311818756e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='     ', bytes=[32, 32, 32, 32, 32], logprob=-1.0866466482184478e-06, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-9.175165018859843e-07, top_logprobs=None), ChatCompletionTokenLogprob(token='dependencies', bytes=[100, 101, 112, 101, 110, 100, 101, 110, 99, 105, 101, 115], logprob=-0.296387255191803, top_logprobs=None), ChatCompletionTokenLogprob(token='\":', bytes=[34, 58], logprob=-6.958435733395163e-06, top_logprobs=None), ChatCompletionTokenLogprob(token=' [],\\n', bytes=[32, 91, 93, 44, 10], logprob=-0.014535465277731419, top_logprobs=None), ChatCompletionTokenLogprob(token='     ', bytes=[32, 32, 32, 32, 32], logprob=-7.5420566645334475e-06, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-6.254022082430311e-07, top_logprobs=None), ChatCompletionTokenLogprob(token='metadata', bytes=[109, 101, 116, 97, 100, 97, 116, 97], logprob=-2.3703361875959672e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='\":', bytes=[34, 58], logprob=-1.3919046750743291e-06, top_logprobs=None), ChatCompletionTokenLogprob(token=' {\"', bytes=[32, 123, 34], logprob=-0.9747337102890015, top_logprobs=None), ChatCompletionTokenLogprob(token='trigger', bytes=[116, 114, 105, 103, 103, 101, 114], logprob=-0.003685268573462963, top_logprobs=None), ChatCompletionTokenLogprob(token='_event', bytes=[95, 101, 118, 101, 110, 116], logprob=-5.371366205508821e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='\":', bytes=[34, 58], logprob=-3.513338742777705e-05, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-0.0039049412589520216, top_logprobs=None), ChatCompletionTokenLogprob(token='schedule', bytes=[115, 99, 104, 101, 100, 117, 108, 101], logprob=-0.03587089851498604, top_logprobs=None), ChatCompletionTokenLogprob(token='\",', bytes=[34, 44], logprob=-0.03011428564786911, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-6.31311340839602e-05, top_logprobs=None), ChatCompletionTokenLogprob(token='schedule', bytes=[115, 99, 104, 101, 100, 117, 108, 101], logprob=-0.000998243922367692, top_logprobs=None), ChatCompletionTokenLogprob(token='\":', bytes=[34, 58], logprob=-0.00010465834202477708, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-0.3903518319129944, top_logprobs=None), ChatCompletionTokenLogprob(token='0', bytes=[48], logprob=-0.6108577847480774, top_logprobs=None), ChatCompletionTokenLogprob(token=' ', bytes=[32], logprob=-0.003415441606193781, top_logprobs=None), ChatCompletionTokenLogprob(token='8', bytes=[56], logprob=-0.05779965966939926, top_logprobs=None), ChatCompletionTokenLogprob(token=' *', bytes=[32, 42], logprob=-0.0013335994444787502, top_logprobs=None), ChatCompletionTokenLogprob(token=' *', bytes=[32, 42], logprob=-0.0003607826947700232, top_logprobs=None), ChatCompletionTokenLogprob(token=' ', bytes=[32], logprob=-0.009588438086211681, top_logprobs=None), ChatCompletionTokenLogprob(token='1', bytes=[49], logprob=-0.0009160625049844384, top_logprobs=None), ChatCompletionTokenLogprob(token='\",', bytes=[34, 44], logprob=-0.12670034170150757, top_logprobs=None), ChatCompletionTokenLogprob(token=' \"', bytes=[32, 34], logprob=-0.0005807621637359262, top_logprobs=None), ChatCompletionTokenLogprob(token='condition', bytes=[99, 111, 110, 100, 105, 116, 105, 111, 110], logprob=-"
+    }
+   ],
+   "provenance": {
+    "mode": "unpinned",
+    "requested_route": {
+     "provider": "ollama",
+     "model": "llama3.1:8b"
+    },
+    "served_route": {
+     "provider": "ollama",
+     "model": "llama3.1:8b"
+    },
+    "resolved_model": "llama3.1:8b",
+    "profile": {
+     "name": "workflow_blueprint",
+     "version": "2026-11-05.1"
+    },
+    "error": null,
+    "routing_result_id": "5aaf5ef2-1465-4e52-9c3b-1d89ea4f20cc"
+   },
+   "draft": {
+    "architecture_name": "Inventory Review",
+    "description": "Recurring inventory operations review workflow",
+    "execution_mode": "recurring_automation",
+    "nodes": [
+     {
+      "id": "schedule_trigger",
+      "type": "trigger",
+      "name": "Schedule Trigger",
+      "capability_required": null,
+      "dependencies": [],
+      "metadata": {
+       "trigger_event": "schedule",
+       "schedule": "0 8 * * 1",
+       "condition": ""
+      },
+      "action": {
+       "kind": "read",
+       "service": null,
+       "action": null
+      }
+     },
+     {
+      "id": "collect_stock_counts",
+      "type": "skill",
+      "name": "Collect Stock Counts",
+      "capability_required": null,
+      "dependencies": [
+       "schedule_trigger"
+      ],
+      "metadata": {},
+      "action": {
+       "kind": "compute",
+       "service": null,
+       "action": null
+      }
+     },
+     {
+      "id": "compare_with_thresholds",
+      "type": "skill",
+      "name": "Compare with Thresholds",
+      "capability_required": null,
+      "dependencies": [
+       "collect_stock_counts"
+      ],
+      "metadata": {},
+      "action": {
+       "kind": "compute",
+       "service": null,
+       "action": null
+      }
+     },
+     {
+      "id": "update_stock_review_record",
+      "type": "skill",
+      "name": "Update Stock Review Record",
+      "capability_required": null,
+      "dependencies": [
+       "compare_with_thresholds"
+      ],
+      "metadata": {},
+      "action": {
+       "kind": "write",
+       "service": null,
+       "action": null
+      }
+     }
+    ],
+    "required_integrations": [],
+    "missing_capabilities": []
+   },
+   "compiled": {
+    "workflow_id": "ai_wf_f24c8824d6f8",
+    "blueprint_id": "53cafb42-6dbf-41e7-ac68-572adc820b81",
+    "status": "designed",
+    "source": "model",
+    "schema": "orch-workflow-blueprint-1",
+    "architecture_name": "Inventory Review",
+    "name": "Inventory Review",
+    "description": "Recurring inventory operations review workflow",
+    "execution_mode": "recurring_automation",
+    "start_step": "schedule_trigger",
+    "nodes": [
+     {
+      "id": "schedule_trigger",
+      "type": "trigger",
+      "name": "Schedule Trigger",
+      "capability_required": null,
+      "dependencies": [],
+      "metadata": {
+       "trigger_event": "schedule",
+       "schedule": "0 8 * * 1",
+       "condition": ""
+      },
+      "action": {
+       "kind": "read"
+      }
+     },
+     {
+      "id": "collect_stock_counts",
+      "type": "skill",
+      "name": "Collect Stock Counts",
+      "capability_required": null,
+      "dependencies": [
+       "schedule_trigger"
+      ],
+      "metadata": {},
+      "action": {
+       "kind": "compute",
+       "service": null,
+       "action": null
+      }
+     },
+     {
+      "id": "compare_with_thresholds",
+      "type": "skill",
+      "name": "Compare with Thresholds",
+      "capability_required": null,
+      "dependencies": [
+       "collect_stock_counts"
+      ],
+      "metadata": {},
+      "action": {
+       "kind": "compute",
+       "service": null,
+       "action": null
+      }
+     },
+     {
+      "id": "approval_update_stock_review_record",
+      "type": "approval",
+      "name": "Approve Update Stock Review Record",
+      "capability_required": null,
+      "dependencies": [
+       "compare_with_thresholds"
+      ],
+      "metadata": {
+       "checkpoint": "approval_required",
+       "guarded_step": "update_stock_review_record",
+       "reason": "Human approval is required before Update Stock Review Record mutates governed state or sends an external effect."
+      },
+      "action": {
+       "kind": "approval"
+      }
+     },
+     {
+      "id": "update_stock_review_record",
+      "type": "skill",
+      "name": "Update Stock Review Record",
+      "capability_required": null,
+      "dependencies": [
+       "approval_update_stock_review_record"
+      ],
+      "metadata": {},
+      "action": {
+       "kind": "write",
+       "service": null,
+       "action": null
+      }
+     }
+    ],
+    "steps": [
+     {
+      "step_id": "schedule_trigger",
+      "step_type": "trigger",
+      "description": "Schedule Trigger",
+      "parameters": {
+       "trigger_event": "schedule",
+       "schedule": "0 8 * * 1",
+       "condition": "",
+       "capability_required": null,
+       "design_action": {
+        "kind": "read"
+       },
+       "hitl": false
+      },
+      "next_steps": [
+       "collect_stock_counts"
+      ]
+     },
+     {
+      "step_id": "collect_stock_counts",
+      "step_type": "business_agent_execution",
+      "description": "Collect Stock Counts",
+      "parameters": {
+       "capability_required": null,
+       "design_action": {
+        "kind": "compute",
+        "service": null,
+        "action": null
+       },
+       "hitl": false
+      },
+      "next_steps": [
+       "compare_with_thresholds"
+      ]
+     },
+     {
+      "step_id": "compare_with_thresholds",
+      "step_type": "business_agent_execution",
+      "description": "Compare with Thresholds",
+      "parameters": {
+       "capability_required": null,
+       "design_action": {
+        "kind": "compute",
+        "service": null,
+        "action": null
+       },
+       "hitl": false
+      },
+      "next_steps": [
+       "approval_update_stock_review_record"
+      ]
+     },
+     {
+      "step_id": "approval_update_stock_review_record",
+      "step_type": "approval_required",
+      "description": "Approve Update Stock Review Record",
+      "parameters": {
+       "checkpoint": "approval_required",
+       "guarded_step": "update_stock_review_record",
+       "reason": "Human approval is required before Update Stock Review Record mutates governed state or sends an external effect.",
+       "capability_required": null,
+       "design_action": {
+        "kind": "approval"
+       },
+       "hitl": true,
+       "action": "workflow_step"
+      },
+      "next_steps": [
+       "update_stock_review_record"
+      ]
+     },
+     {
+      "step_id": "update_stock_review_record",
+      "step_type": "business_agent_execution",
+      "description": "Update Stock Review Record",
+      "parameters": {
+       "capability_required": null,
+       "design_action": {
+        "kind": "write",
+        "service": null,
+        "action": null
+       },
+       "hitl": false
+      },
+      "next_steps": []
+     }
+    ],
+    "triggers": [
+     {
+      "node_id": "schedule_trigger",
+      "trigger_event": "schedule",
+      "schedule": "0 8 * * 1",
+      "condition": ""
+     }
+    ],
+    "required_integrations": [],
+    "missing_capabilities": [],
+    "hitl_gates": [
+     "approval_update_stock_review_record"
+    ],
+    "step_count": 5,
+    "definition_digest": "999259e57bb200b48ad04606e5e2ff9dbc852fe67b696362f53016a7015bad2f",
+    "definition": {
+     "architecture_name": "Inventory Review",
+     "description": "Recurring inventory operations review workflow",
+     "execution_mode": "recurring_automation",
+     "start_step": "schedule_trigger",
+     "nodes": [
+      {
+       "id": "schedule_trigger",
+       "type": "trigger",
+       "name": "Schedule Trigger",
+       "capability_required": null,
+       "dependencies": [],
+       "metadata": {
+        "trigger_event": "schedule",
+        "schedule": "0 8 * * 1",
+        "condition": ""
+       },
+       "action": {
+        "kind": "read"
+       }
+      },
+      {
+       "id": "collect_stock_counts",
+       "type": "skill",
+       "name": "Collect Stock Counts",
+       "capability_required": null,
+       "dependencies": [
+        "schedule_trigger"
+       ],
+       "metadata": {},
+       "action": {
+        "kind": "compute",
+        "service": null,
+        "action": null
+       }
+      },
+      {
+       "id": "compare_with_thresholds",
+       "type": "skill",
+       "name": "Compare with Thresholds",
+       "capability_required": null,
+       "dependencies": [
+        "collect_stock_counts"
+       ],
+       "metadata": {},
+       "action": {
+        "kind": "compute",
+        "service": null,
+        "action": null
+       }
+      },
+      {
+       "id": "approval_update_stock_review_record",
+       "type": "approval",
+       "name": "Approve Update Stock Review Record",
+       "capability_required": null,
+       "dependencies": [
+        "compare_with_thresholds"
+       ],
+       "metadata": {
+        "checkpoint": "approval_required",
+        "guarded_step": "update_stock_review_record",
+        "reason": "Human approval is required before Update Stock Review Record mutates governed state or sends an external effect."
+       },
+       "action": {
+        "kind": "approval"
+       }
+      },
+      {
+       "id": "update_stock_review_record",
+       "type": "skill",
+       "name": "Update Stock Review Record",
+       "capability_required": null,
+       "dependencies": [
+        "approval_update_stock_review_record"
+       ],
+       "metadata": {},
+       "action": {
+        "kind": "write",
+        "service": null,
+        "action": null
+       }
+      }
+     ],
+     "steps": [
+      {
+       "step_id": "schedule_trigger",
+       "step_type": "trigger",
+       "description": "Schedule Trigger",
+       "parameters": {
+        "trigger_event": "schedule",
+        "schedule": "0 8 * * 1",
+        "condition": "",
+        "capability_required": null,
+        "design_action": {
+         "kind": "read"
+        },
+        "hitl": false
+       },
+       "next_steps": [
+        "collect_stock_counts"
+       ]
+      },
+      {
+       "step_id": "collect_stock_counts",
+       "step_type": "business_agent_execution",
+       "description": "Collect Stock Counts",
+       "parameters": {
+        "capability_required": null,
+        "design_action": {
+         "kind": "compute",
+         "service": null,
+         "action": null
+        },
+        "hitl": false
+       },
+       "next_steps": [
+        "compare_with_thresholds"
+       ]
+      },
+      {
+       "step_id": "compare_with_thresholds",
+       "step_type": "business_agent_execution",
+       "description": "Compare with Thresholds",
+       "parameters": {
+        "capability_required": null,
+        "design_action": {
+         "kind": "compute",
+         "service": null,
+         "action": null
+        },
+        "hitl": false
+       },
+       "next_steps": [
+        "approval_update_stock_review_record"
+       ]
+      },
+      {
+       "step_id": "approval_update_stock_review_record",
+       "step_type": "approval_required",
+       "description": "Approve Update Stock Review Record",
+       "parameters": {
+        "checkpoint": "approval_required",
+        "guarded_step": "update_stock_review_record",
+        "reason": "Human approval is required before Update Stock Review Record mutates governed state or sends an external effect.",
+        "capability_required": null,
+        "design_action": {
+         "kind": "approval"
+        },
+        "hitl": true,
+        "action": "workflow_step"
+       },
+       "next_steps": [
+        "update_stock_review_record"
+       ]
+      },
+      {
+       "step_id": "update_stock_review_record",
+       "step_type": "business_agent_execution",
+       "description": "Update Stock Review Record",
+       "parameters": {
+        "capability_required": null,
+        "design_action": {
+         "kind": "write",
+         "service": null,
+         "action": null
+        },
+        "hitl": false
+       },
+       "next_steps": []
+      }
+     ],
+     "triggers": [
+      {
+       "node_id": "schedule_trigger",
+       "trigger_event": "schedule",
+       "schedule": "0 8 * * 1",
+       "condition": ""
+      }
+     ],
+     "required_integrations": []
+    }
+   },
+   "persisted": {
+    "workflow_id": "ai_wf_f24c8824d6f8",
+    "blueprint_id": "53cafb42-6dbf-41e7-ac68-572adc820b81",
+    "name": "Inventory Review",
+    "architecture_name": "Inventory Review",
+    "description": "Recurring inventory operations review workflow",
+    "execution_mode": "recurring_automation",
+    "status": "designed",
+    "start_step": "schedule_trigger",
+    "nodes": [
+     {
+      "id": "schedule_trigger",
+      "type": "trigger",
+      "name": "Schedule Trigger",
+      "capability_required": null,
+      "dependencies": [],
+      "metadata": {
+       "trigger_event": "schedule",
+       "schedule": "0 8 * * 1",
+       "condition": ""
+      },
+      "action": {
+       "kind": "read"
+      }
+     },
+     {
+      "id": "collect_stock_counts",
+      "type": "skill",
+      "name": "Collect Stock Counts",
+      "capability_required": null,
+      "dependencies": [
+       "schedule_trigger"
+      ],
+      "metadata": {},
+      "action": {
+       "kind": "compute",
+       "service": null,
+       "action": null
+      }
+     },
+     {
+      "id": "compare_with_thresholds",
+      "type": "skill",
+      "name": "Compare with Thresholds",
+      "capability_required": null,
+      "dependencies": [
+       "collect_stock_counts"
+      ],
+      "metadata": {},
+      "action": {
+       "kind": "compute",
+       "service": null,
+       "action": null
+      }
+     },
+     {
+      "id": "approval_update_stock_review_record",
+      "type": "approval",
+      "name": "Approve Update Stock Review Record",
+      "capability_required": null,
+      "dependencies": [
+       "compare_with_thresholds"
+      ],
+      "metadata": {
+       "checkpoint": "approval_required",
+       "guarded_step": "update_stock_review_record",
+       "reason": "Human approval is required before Update Stock Review Record mutates governed state or sends an external effect."
+      },
+      "action": {
+       "kind": "approval"
+      }
+     },
+     {
+      "id": "update_stock_review_record",
+      "type": "skill",
+      "name": "Update Stock Review Record",
+      "capability_required": null,
+      "dependencies": [
+       "approval_update_stock_review_record"
+      ],
+      "metadata": {},
+      "action": {
+       "kind": "write",
+       "service": null,
+       "action": null
+      }
+     }
+    ],
+    "steps": [
+     {
+      "step_id": "schedule_trigger",
+      "step_type": "trigger",
+      "description": "Schedule Trigger",
+      "parameters": {
+       "trigger_event": "schedule",
+       "schedule": "0 8 * * 1",
+       "condition": "",
+       "capability_required": null,
+       "design_action": {
+        "kind": "read"
+       },
+       "hitl": false
+      },
+      "next_steps": [
+       "collect_stock_counts"
+      ]
+     },
+     {
+      "step_id": "collect_stock_counts",
+      "step_type": "business_agent_execution",
+      "description": "Collect Stock Counts",
+      "parameters": {
+       "capability_required": null,
+       "design_action": {
+        "kind": "compute",
+        "service": null,
+        "action": null
+       },
+       "hitl": false
+      },
+      "next_steps": [
+       "compare_with_thresholds"
+      ]
+     },
+     {
+      "step_id": "compare_with_thresholds",
+      "step_type": "business_agent_execution",
+      "description": "Compare with Thresholds",
+      "parameters": {
+       "capability_required": null,
+       "design_action": {
+        "kind": "compute",
+        "service": null,
+        "action": null
+       },
+       "hitl": false
+      },
+      "next_steps": [
+       "approval_update_stock_review_record"
+      ]
+     },
+     {
+      "step_id": "approval_update_stock_review_record",
+      "step_type": "approval_required",
+      "description": "Approve Update Stock Review Record",
+      "parameters": {
+       "checkpoint": "approval_required",
+       "guarded_step": "update_stock_review_record",
+       "reason": "Human approval is required before Update Stock Review Record mutates governed state or sends an external effect.",
+       "capability_required": null,
+       "design_action": {
+        "kind": "approval"
+       },
+       "hitl": true,
+       "action": "workflow_step"
+      },
+      "next_steps": [
+       "update_stock_review_record"
+      ]
+     },
+     {
+      "step_id": "update_stock_review_record",
+      "step_type": "business_agent_execution",
+      "description": "Update Stock Review Record",
+      "parameters": {
+       "capability_required": null,
+       "design_action": {
+        "kind": "write",
+        "service": null,
+        "action": null
+       },
+       "hitl": false
+      },
+      "next_steps": []
+     }
+    ],
+    "triggers": [
+     {
+      "node_id": "schedule_trigger",
+      "trigger_event": "schedule",
+      "schedule": "0 8 * * 1",
+      "condition": ""
+     }
+    ],
+    "required_integrations": [],
+    "missing_capabilities": [],
+    "hitl_gates": [
+     "approval_update_stock_review_record"
+    ],
+    "step_count": 5,
+    "definition_digest": "999259e57bb200b48ad04606e5e2ff9dbc852fe67b696362f53016a7015bad2f",
+    "created_at": "2026-11-05T11:40:18",
+    "updated_at": null,
+    "provenance": {
+     "profile": "workflow_blueprint",
+     "routing": {
+      "mode": "unpinned",
+      "requested_route": {
+       "provider": "ollama",
+       "model": "llama3.1:8b"
+      },
+      "served_route": {
+       "provider": "ollama",
+       "model": "llama3.1:8b"
+      },
+      "resolved_model": "llama3.1:8b",
+      "profile": {
+       "name": "workflow_blueprint",
+       "version": "2026-11-05.1"
+      },
+      "error": null,
+      "routing_result_id": "5aaf5ef2-1465-4e52-9c3b-1d89ea4f20cc"
+     },
+     "attempt_id": "7e0f78644c5240e999b77ce3d5f16616",
+     "source": "model",
+     "generated_at": "2026-11-05T11:40:18.231390+00:00"
+    }
+   },
+   "readback": {
+    "workflow_id": "ai_wf_f24c8824d6f8",
+    "blueprint_id": "53cafb42-6dbf-41e7-ac68-572adc820b81",
+    "name": "Inventory Review",
+    "architecture_name": "Inventory Review",
+    "description": "Recurring inventory operations review workflow",
+    "execution_mode": "recurring_automation",
+    "status": "designed",
+    "start_step": "schedule_trigger",
+    "nodes": [
+     {
+      "id": "schedule_trigger",
+      "type": "trigger",
+      "name": "Schedule Trigger",
+      "capability_required": null,
+      "dependencies": [],
+      "metadata": {
+       "trigger_event": "schedule",
+       "schedule": "0 8 * * 1",
+       "condition": ""
+      },
+      "action": {
+       "kind": "read"
+      }
+     },
+     {
+      "id": "collect_stock_counts",
+      "type": "skill",
+      "name": "Collect Stock Counts",
+      "capability_required": null,
+      "dependencies": [
+       "schedule_trigger"
+      ],
+      "metadata": {},
+      "action": {
+       "kind": "compute",
+       "service": null,
+       "action": null
+      }
+     },
+     {
+      "id": "compare_with_thresholds",
+      "type": "skill",
+      "name": "Compare with Thresholds",
+      "capability_required": null,
+      "dependencies": [
+       "collect_stock_counts"
+      ],
+      "metadata": {},
+      "action": {
+       "kind": "compute",
+       "service": null,
+       "action": null
+      }
+     },
+     {
+      "id": "approval_update_stock_review_record",
+      "type": "approval",
+      "name": "Approve Update Stock Review Record",
+      "capability_required": null,
+      "dependencies": [
+       "compare_with_thresholds"
+      ],
+      "metadata": {
+       "checkpoint": "approval_required",
+       "guarded_step": "update_stock_review_record",
+       "reason": "Human approval is required before Update Stock Review Record mutates governed state or sends an external effect."
+      },
+      "action": {
+       "kind": "approval"
+      }
+     },
+     {
+      "id": "update_stock_review_record",
+      "type": "skill",
+      "name": "Update Stock Review Record",
+      "capability_required": null,
+      "dependencies": [
+       "approval_update_stock_review_record"
+      ],
+      "metadata": {},
+      "action": {
+       "kind": "write",
+       "service": null,
+       "action": null
+      }
+     }
+    ],
+    "steps": [
+     {
+      "step_id": "schedule_trigger",
+      "step_type": "trigger",
+      "description": "Schedule Trigger",
+      "parameters": {
+       "trigger_event": "schedule",
+       "schedule": "0 8 * * 1",
+       "condition": "",
+       "capability_required": null,
+       "design_action": {
+        "kind": "read"
+       },
+       "hitl": false
+      },
+      "next_steps": [
+       "collect_stock_counts"
+      ]
+     },
+     {
+      "step_id": "collect_stock_counts",
+      "step_type": "business_agent_execution",
+      "description": "Collect Stock Counts",
+      "parameters": {
+       "capability_required": null,
+       "design_action": {
+        "kind": "compute",
+        "service": null,
+        "action": null
+       },
+       "hitl": false
+      },
+      "next_steps": [
+       "compare_with_thresholds"
+      ]
+     },
+     {
+      "step_id": "compare_with_thresholds",
+      "step_type": "business_agent_execution",
+      "description": "Compare with Thresholds",
+      "parameters": {
+       "capability_required": null,
+       "design_action": {
+        "kind": "compute",
+        "service": null,
+        "action": null
+       },
+       "hitl": false
+      },
+      "next_steps": [
+       "approval_update_stock_review_record"
+      ]
+     },
+     {
+      "step_id": "approval_update_stock_review_record",
+      "step_type": "approval_required",
+      "description": "Approve Update Stock Review Record",
+      "parameters": {
+       "checkpoint": "approval_required",
+       "guarded_step": "update_stock_review_record",
+       "reason": "Human approval is required before Update Stock Review Record mutates governed state or sends an external effect.",
+       "capability_required": null,
+       "design_action": {
+        "kind": "approval"
+       },
+       "hitl": true,
+       "action": "workflow_step"
+      },
+      "next_steps": [
+       "update_stock_review_record"
+      ]
+     },
+     {
+      "step_id": "update_stock_review_record",
+      "step_type": "business_agent_execution",
+      "description": "Update Stock Review Record",
+      "parameters": {
+       "capability_required": null,
+       "design_action": {
+        "kind": "write",
+        "service": null,
+        "action": null
+       },
+       "hitl": false
+      },
+      "next_steps": []
+     }
+    ],
+    "triggers": [
+     {
+      "node_id": "schedule_trigger",
+      "trigger_event": "schedule",
+      "schedule": "0 8 * * 1",
+      "condition": ""
+     }
+    ],
+    "required_integrations": [],
+    "missing_capabilities": [],
+    "hitl_gates": [
+     "approval_update_stock_review_record"
+    ],
+    "step_count": 5,
+    "definition_digest": "999259e57bb200b48ad04606e5e2ff9dbc852fe67b696362f53016a7015bad2f",
+    "created_at": "2026-11-05T11:40:18",
+    "updated_at": null,
+    "provenance": {
+     "profile": "workflow_blueprint",
+     "routing": {
+      "mode": "unpinned",
+      "requested_route": {
+       "provider": "ollama",
+       "model": "llama3.1:8b"
+      },
+      "served_route": {
+       "provider": "ollama",
+       "model": "llama3.1:8b"
+      },
+      "resolved_model": "llama3.1:8b",
+      "profile": {
+       "name": "workflow_blueprint",
+       "version": "2026-11-05.1"
+      },
+      "error": null,
+      "routing_result_id": "5aaf5ef2-1465-4e52-9c3b-1d89ea4f20cc"
+     },
+     "attempt_id": "7e0f78644c5240e999b77ce3d5f16616",
+     "source": "model",
+     "generated_at": "2026-11-05T11:40:18.231390+00:00"
+    }
+   },
+   "readback_exact": true,
+   "status": "accepted"
+  }
+ ],
+ "model_calls": 2,
+ "completed_at": 1793878818.2468438
+}

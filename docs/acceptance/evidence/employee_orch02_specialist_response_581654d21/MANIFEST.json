@@ -1,0 +1,59 @@
+{
+  "accepted_orch01_source": "943fb32d7",
+  "artifacts": {
+    "README.md": "b2cd5a7a701c8cbe4f9fc1df75a713833643979f29de3f1c989a86ac9d5d3e6e",
+    "TEST_RESULTS.md": "9ee82c06954bcf40eef7b8a778aed14d0a02d6bbbb535261110e3a73b907048f",
+    "affected-311.log": "c48ddd281e6444948b2d8f042459a8748c71c47f3913889609b2707b9f18e0e6",
+    "affected-314.log": "8c48cc3f668a88e11d6d7ad768e8f34b895988bef701325fa2b46201d58f6fd4",
+    "baseline-5-943fb32d7-311.log": "d2ad3a0755a76a5aa85ba2c9cda65fa5883c5edcf979b0bcfa4cbea97a45a21b",
+    "baseline-5-943fb32d7-314.log": "c58708b08ea7be45e68b03d1fe77dbbda0afce1e783553616193b6ced5685b92",
+    "consumer-311.log": "aea578a00b8956e73c8855a5fba0fbd7d3c1056e185be2a4ecbc0cea6df39973",
+    "consumer-314.log": "b7265d7fec0ff9e550f9d20fe1cb3505ecd74a604799afc4a83fe712f1175efc",
+    "focused-311.log": "bb8069ce0a900da665fc9d8631ffa5e2fa4a1a34ea9e08565d501c6e06323fbd",
+    "focused-314.log": "0d1806c298f8911ec587355a519ea7d478ddc012019236b3823bbbd48403ef04",
+    "routes.json": "c2569ede987145a44ac3970b726d57686a44792dbf0056133a30b4937814e787",
+    "source-tree.txt": "c01a5936a2c979ac740ad89732b695f9afe175c3ca4c27538a7099c371c3d4ec",
+    "verification.json": "3b6c1bc93f73715fdb55a144c4d0cbb2ce9ea13647590377fc7880d3c98fb477"
+  },
+  "boundaries": [
+    "real AtomMetaAgent enforced consumer; doubled specialist transport",
+    "GenericAgent/AgentRegistry/BYOK execution path reused; no new router",
+    "response cites specialist names and actual outputs; chat message maps final_output",
+    "missing/foreign/disabled/wrong-capability specialists refused before dispatch",
+    "partial/failed/cancelled/no-suitable outcomes explicit and audit-truthful",
+    "completed duplicate continuation cached on DelegationChain",
+    "no live model/provider/browser/sandbox/credential/spend/send/download/deployment",
+    "live model quality, PostgreSQL/soak and whole-app ORACLE-01 remain open"
+  ],
+  "branch": "codex/orch02-specialist-response-20261105",
+  "checks": {
+    "affected_python311": "277 passed, 5 baseline failures",
+    "affected_python314": "277 passed, 5 baseline failures",
+    "baseline_python311": "5 failures at 943fb32d7",
+    "baseline_python314": "5 failures at 943fb32d7",
+    "consumer_python311": "10 passed",
+    "consumer_python314": "10 passed",
+    "focused_python311": "114 passed",
+    "focused_python314": "114 passed",
+    "live_model_calls": 0,
+    "new_schema": false,
+    "provider_calls": 0,
+    "sandbox_calls": 0
+  },
+  "executed_source": "581654d21",
+  "orch07_source": "b9ba56995",
+  "schema": "atom-employee-evidence-1",
+  "source_files": {
+    "backend/core/atom_meta_agent.py": "d3bd643c626e09b55465f9530670f81314e5a3340f8332f1af473582cd0e3221",
+    "backend/core/fleet_admiral.py": "e33a440b79bf0b61f15f3f85af67cde08bd17c65a8b6a0fe9b56ef0e4eb07b60",
+    "backend/core/generic_agent.py": "9ebf511c63286c9fa210bf3715a3de27a7ed3758c0c1985a678bf352c145085e",
+    "backend/core/models.py": "57f8ff454e45e95aa126b79b993e00d5f4181effb4ee46aaea418b06eb588692",
+    "backend/integrations/chat_orchestrator.py": "fd9808d5430bbb1a91171a4f1207992fa4e948b1a7bdcdcdec82a4e692b7b14d",
+    "backend/tests/test_orch02_specialist_response.py": "e3f5413c84de1f2cb8068633412349ef5652304b2570d3ab23252d0c94b5b260",
+    "backend/tests/test_orch07_fleet_audit_consumer.py": "69402a990e6da008ee898f6849476446a7c37e2f055c674a31d27489323d417a",
+    "backend/tests/unit/test_fleet_routing_audit_wire.py": "8116e32ef32ac533d61751bc84f27392efe1d33313b9ff06e0c8d07840d3b622",
+    "backend/tests/unit/test_fleet_routing_wire.py": "4b08d15b4ddf2724bf4d24996cc23d6040aced4490ace75088ed91a5685ddeee"
+  },
+  "status": "ORCH-02 recruited-specialist work reaching the user-visible response submitted for independent verification; live model quality remains open",
+  "tree_clean_at_execution": true
+}

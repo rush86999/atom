@@ -62,25 +62,49 @@ class TestGenerateFromAgentRealQueen:
     def test_generate_from_agent_200_with_real_queen(self):
         from ai.nlp_engine import RouteCategory
         from advanced_workflow_api import router
+        from core.agents.workflow_blueprint import WorkflowBlueprintDraft
         from core.llm_service import LLMService
 
         blueprint = {
             "architecture_name": "Blue",
             "description": "d",
             "execution_mode": "recurring_automation",
-            "nodes": [{"id": "n1", "type": "agent", "name": "A", "dependencies": []}],
+            "nodes": [
+                {"id": "trigger", "type": "trigger", "name": "Schedule",
+                 "metadata": {"schedule": "0 8 * * *"}},
+                {"id": "n1", "type": "agent", "name": "A",
+                 "dependencies": ["trigger"], "action": {"kind": "read"}},
+            ],
             "required_integrations": [],
             "missing_capabilities": [],
         }
+        draft = WorkflowBlueprintDraft.model_validate(blueprint)
         client = _make_client(router, role="member")
+
+        def _fake_persist(db, *, compiled, **kwargs):
+            return {
+                "workflow_id": compiled["workflow_id"],
+                "name": compiled["name"],
+                "definition_digest": compiled["definition_digest"],
+            }
+
         with patch("ai.nlp_engine.NaturalLanguageEngine") as m_nlu, patch.object(
-            LLMService, "generate", new_callable=AsyncMock, return_value=json.dumps(blueprint)
+            LLMService, "generate_structured_response",
+            new_callable=AsyncMock, return_value=draft,
+        ), patch(
+            "advanced_workflow_api.persist_blueprint",
+            side_effect=_fake_persist,
+        ), patch(
+            "advanced_workflow_api.register_compiled_workflow",
+            return_value=True,
         ):
             m_nlu.return_value.classify_route = AsyncMock(
-                return_value=MagicMock(category=RouteCategory.AUTOMATION, reasoning="r")
+                return_value=MagicMock(
+                    category=RouteCategory.AUTOMATION, reasoning="r")
             )
             resp = client.post(
-                "/api/v1/workflows/generate-from-agent", json={"prompt": "build a workflow"}
+                "/api/v1/workflows/generate-from-agent",
+                json={"prompt": "build a workflow"},
             )
         assert resp.status_code == 200, resp.text
         assert resp.json()["workflow_id"].startswith("ai_wf_")

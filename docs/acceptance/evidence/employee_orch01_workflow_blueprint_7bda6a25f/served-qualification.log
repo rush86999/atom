@@ -1,0 +1,25 @@
+⚠️ Generated temporary SECRET_KEY for development: zwqbX3xW...
+⚠️ Generated temporary SECRET_KEY for development: EDiNIrYU...
+{"level": "INFO", "message": "LocalOnlyGuard initialized", "timestamp": "2026-11-05T11:39:49.191800+00:00", "logger": "core.privsec.local_only_guard", "module": "structured_logger", "function": "_log", "line": 118, "extra": {"local_only_enabled": false, "blocked_services": 23, "local_allowed_services": 18}}
+{
+ "output": "/private/tmp/orch01-served-qualification.json",
+ "model_calls": 2,
+ "cases": [
+  {
+   "case": "service_intake_review",
+   "status": "accepted",
+   "elapsed": 16.179999000392854,
+   "workflow_id": "ai_wf_e063d42320d5",
+   "readback_exact": true,
+   "validation_error": null
+  },
+  {
+   "case": "inventory_operations_review",
+   "status": "accepted",
+   "elapsed": 12.781024916097522,
+   "workflow_id": "ai_wf_f24c8824d6f8",
+   "readback_exact": true,
+   "validation_error": null
+  }
+ ]
+}

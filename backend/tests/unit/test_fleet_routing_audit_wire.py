@@ -122,6 +122,17 @@ async def test_enforced_writes_audit_enforced_and_returns_summary(atom_agent, mo
     monkeypatch.setattr(
         atom_agent, "route_with_governance", AsyncMock(return_value=summary)
     )
+    monkeypatch.setattr(
+        atom_agent, "_execute_fleet_specialists",
+        AsyncMock(return_value={
+            "success": True,
+            "status": "specialists_executed",
+            "final_output": "Analyst contribution",
+            "specialist_results": [{"agent_id": "a1", "status": "success"}],
+            "specialists_count": 2,
+            "chain_id": "chain-1",
+        }),
+    )
 
     with patch("core.atom_meta_agent.SessionLocal"), \
          patch("core.atom_meta_agent.AgentGovernanceService"):
@@ -131,7 +142,8 @@ async def test_enforced_writes_audit_enforced_and_returns_summary(atom_agent, mo
         )
 
     assert calls["rows"] and calls["rows"][0]["enforced"] is True
-    assert result.get("status") == "fleet_recruited"
+    assert result.get("status") == "specialists_executed"
+    assert result.get("final_output") == "Analyst contribution"
 
 
 # 3. Recruitment failure: audit written with error + recruitment_succeeded=False.

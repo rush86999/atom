@@ -123,6 +123,14 @@ _PROFILES: Dict[str, CapabilityProfile] = {
         name="goal_replanning", version="2026-11-04.1",
         min_quality=82, policy="quality_critical", preference="economy",
         allow_escalation=True),
+    # ORCH-01: structured workflow design. A distinct workload contract
+    # (DAG/blueprint shape, HITL intent) so unrelated employee/goal evidence
+    # does not silently qualify or disqualify the designer route.
+    "workflow_blueprint": CapabilityProfile(
+        name="workflow_blueprint", version="2026-11-05.1",
+        min_quality=80, policy="quality_critical", preference="economy",
+        allow_escalation=True,
+        min_context_tokens=8000, min_output_tokens=1024),
     "alignment_judging": CapabilityProfile(
         name="alignment_judging", version="2026-11-04.1",
         min_quality=85, policy="quality_critical", preference="economy",
@@ -150,6 +158,7 @@ _LOG_LABEL_PROFILES = {
     "employee adaptation compact": "employee_adaptive_planning_compact",
     "employee adaptation": "employee_adaptive_planning",
     "employee wait": "employee_wait_choice",
+    "workflow blueprint": "workflow_blueprint",
     "goal replanning": "goal_replanning",
     "goal planning": "goal_replanning",
     "alignment judge": "alignment_judging",

@@ -1,0 +1,69 @@
+{
+  "artifacts": {
+    "README.md": "e6c822510ddccde4214dd165c4dfce1fad70462c0ff8d60a22f1c5f9af5a6947",
+    "TEST_RESULTS.md": "89428fedb0e6aaf83b5f8f92cc8d240aefef329d158f228d78c803d0b5c95d90",
+    "affected-311.log": "3a4fc5d711af95a0e51fd31740f3275a15ebad7d3bbc0728038956cef8002e25",
+    "affected-314.log": "40e80bea2bd681ed2cad58f549ca7ec975540e6b61094d840be1d6465131cf43",
+    "base-round67-round19-pre-existing.log": "cffb0f0f6f47156548ac0e12c808e569ef26f7407db55a4149e02716ab4a1d8c",
+    "base-scheduler-pre-existing.log": "7463342146e2374c5f2d82ab8a33de2ba38dddc8629dea9768d315dd5ee6da82",
+    "contracts.json": "7f82f3dc1f6ef62513b94d822e6e62986dab9ae9cee69f406fa1617958a4e9a3",
+    "focused-311.log": "593cabceac335a65bc91dee0efef599763ac71c6a0aed57bdf349f0257a0add4",
+    "focused-314.log": "b4c9ed410ef234ee777e67e30566e9f7697de879139b9d7b2ba019353ad00a51",
+    "verification.json": "0c9d868cf0fab51c03840df179cf9344230dadbf1364dc89e21b9e68c4f02e52",
+    "verifier-binding-resume-before.log": "da8ae7fc7913400d84a355b37209540a62cb2e86e21d51545dddf2b850f7667e",
+    "verifier-contract-before.log": "b812f98795a5e6b880d0d2ed1326d79d331031b4d7aeefff85bd6d2e70da66f8",
+    "verifier-probes-final-311.log": "6fd34d3fe6128a30f36b5246fc258626a00077a07458f95b726dd3c3b1842174",
+    "verifier-probes-final-314.log": "69d92d5c86a7b4f470a9e8da48a8bb3e365a261da69ae27aaaefce23db05894f"
+  },
+  "base_source": "81c5962bd17b3ffa90cd5107d5b3134821c0ffa1",
+  "boundaries": [
+    "controlled scratch SQLite and fresh sessions; no model/browser/provider",
+    "no new review store or engine",
+    "reviewable design and executable workflow remain separate",
+    "unsupported or unbound designs are non-executable and unregistered",
+    "PostgreSQL concurrency/soak and execution quality are not claimed",
+    "ORCH-02/07 remain read-only preparation",
+    "accepted feedback/wait and employee episode lanes remain closed",
+    "historical 111/123 and served-candidate scores/tags unchanged"
+  ],
+  "branch": "codex/orch01-blueprint-20261105",
+  "checks": {
+    "affected_python311": "633 passed, 2 pre-existing failures",
+    "affected_python314": "633 passed, 2 pre-existing failures",
+    "focused_python311": "68 passed",
+    "focused_python314": "68 passed",
+    "model_calls": 0,
+    "prior_contract_controls": "28 passed",
+    "provider_calls": 0,
+    "verifier_negative_before": "4 failed on withheld source",
+    "verifier_probes_final_python311": "7 passed (-p no:randomly)",
+    "verifier_probes_final_python314": "7 passed"
+  },
+  "code_source": "e7f551bc8449dfccf4120e9b7ba298fe49fca258",
+  "exclusions": {
+    "round67_round19": "2 pre-existing failures on withheld source 4d3fb66c5",
+    "scheduler_timing": "2 disclosed baseline timing failures; not in repair selection"
+  },
+  "executed_source": "e7f551bc8449dfccf4120e9b7ba298fe49fca258",
+  "parent_repair_source": "f6e50b58c4d5aacf5752c9a1ab39c629e23315e6",
+  "previous_evidence_commit": "0a850d14d8c85a62a72d95c93355f5b23766a0ab",
+  "previous_withheld_source": "4d3fb66c54a20cc8a864bfbea45967a8429ebdf8",
+  "repair_source": "e7f551bc8449dfccf4120e9b7ba298fe49fca258",
+  "schema": "atom-employee-evidence-1",
+  "source_files": {
+    "backend/advanced_workflow_orchestrator.py": "b3cf911884fd8cd594a5a8184c98aa96636471d002c6d28327efd8c35d93a921",
+    "backend/core/agents/workflow_blueprint.py": "4510d9cf96c8dca1f4b5e9644699f535b33a5b910f298bca400985cdb885f9f0",
+    "backend/core/hitl_resume.py": "243e03e050f93dbce3db70e2ba31fe2d6c580bdc6d33f3117da303bf77bb303c",
+    "backend/core/lazy_integration_registry.py": "98464346c6b1d00a8f511fff46e3d9ce305f1c720c0adcaaf118f5a335967698",
+    "backend/core/workflow_blueprint_service.py": "718c0ceb489823334e6cee0f59894ebc8db45dde3e67f2ab9128d3bcaee1454c",
+    "backend/integrations/workflow_approval_routes.py": "7edd4beb8c6a4657bd44ff4724787bf0699d00701ac965d4f6217ae979cd5de4",
+    "backend/tests/test_covpush_w105_workflow_approval_routes.py": "f1a6529c8787085fad2483e860e726a6c15b3b986062c02978190b5b4529770c",
+    "backend/tests/test_orch01_checkpoint_contract.py": "1c5bbb7468ce0fa7e55740d65d1aded464a4669dc794c4c1e8f631012356fea9",
+    "backend/tests/test_orch01_real_checkpoint_contract.py": "03694d6909adad6259c94e50c1396bcae452ba0223bb813ef3d4f567bd37a60d",
+    "backend/tests/test_orch01_resume_durable.py": "f65c95da59e0dc40ca197fc8c43bd93950dd423349ede3af75d0659c78c902df",
+    "backend/tests/test_orch01_workflow_blueprint.py": "1b0848eadf9aed1a60291ddbefbedd1e25238708205956aaa7af32b8553c5a79",
+    "backend/tests/test_verifier_orch01_binding_resume_4d3f.py": "5f6a7177009dc5332eea06c0b4f9883c4020a0fae127c5af4c823f5df0838a57"
+  },
+  "status": "repair submitted for independent verification; ORCH-02/07 remain read-only preparation",
+  "tree_clean_at_execution": true
+}
