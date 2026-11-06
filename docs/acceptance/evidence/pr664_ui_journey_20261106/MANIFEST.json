@@ -1,0 +1,55 @@
+{
+  "schema": "atom-employee-evidence-1",
+  "status": "12 non-gating UI failures plus 8 same-root role-UI failures repaired; all hosted checks green at 83dc39c45",
+  "branch": "codex/pr659-backend-ci-fix-20261105",
+  "accepted_pr664_head": "d17acd1d58ed0f743322314ef08e6888cb12c83a",
+  "first_ui_fix_source": "437302cff25594d640d3feedf5d8b4c698113ee3",
+  "executed_source": "83dc39c458a9fe4cb60d8e24cfd3f5fbe4ba25f8",
+  "source_files": {
+    "backend/tests/e2e_ui/fixtures/journey_fixtures.py": "8b645e7a4261c30b7597d18c6e6bd93bad576edc293dde3ece7c9bfcc6cb14f6",
+    "backend/tests/e2e_ui/pages/journey_pages.py": "82d605a158eccd4eae399e29358b61bceb820dd19a95329c074a59e0d1ed6195",
+    "backend/tests/e2e_ui/tests/test_journey_page_smoke.py": "648dc1565f5635ff5aff7ac12c351611a4aaf4e8ac49de7d2831771a0f8d72bc",
+    "backend/tests/e2e_ui/tests/test_journey_ui_features.py": "5329df241150b0f5e6fa548dab33a5205f5f10a5d3395347c1b877a087a4bc26",
+    "backend/tests/e2e_ui/tests/test_user_journey.py": "dd0595514ac6adfc3324fba2ae1345e9ee20a7616f371ecfae2831f9909bd389",
+    "backend/tests/e2e_ui/tests/test_journey_role_ui.py": "de633bc1d4beaa6ef072c66b5876df970e926ac4d1895d2b23da481a870014ce",
+    ".github/workflows/ci.yml": "14c6056e8367c1564bdbcc89da9cf2118e4a7c263f41f70742f7ab118ff117c0",
+    "frontend-nextjs/pages/dashboard.tsx": "4e3fb53565a80d78daef6265b725430b0abf6bbaaebcc3895acd0e824102ea0c",
+    "frontend-nextjs/components/chat/ChatInput.tsx": "6be8714598eebe3693164b40d3f9009945e1c22b03696a51f8db3f25852af418",
+    "frontend-nextjs/components/Onboarding/OnboardingWizardHost.tsx": "66a52f067fa59c9edf48c6308771a743945c8ea69dd5e66d9a8e4a6bfe36b6ec",
+    "frontend-nextjs/lib/product-profile.tsx": "46be8697586ef28b417f32fa5c06e7f1c6d33c178209b1232f88be43a5156bff",
+    "frontend-nextjs/pages/_app.tsx": "0e0acac4b8f4b84a69322696487633449f6a29dcb4de1e3bc3ffe5a1a02977fd",
+    "frontend-nextjs/components/ProductSurface/NotInRelease.tsx": "d72d1a12425bf476cd4c21c3bd580675ba87ee346ff78610cefeb82fd635886d",
+    "backend/core/product_profile.py": "97e55d80513c768663915997aca3014e10711086aeb72f8d993c6870184fd182",
+    "backend/api/product_profile_routes.py": "a6c542c1cdd246c4042e98f9bb349cda59c89c5eb258a237bb8772714dbd7ac8"
+  },
+  "artifacts": {
+    "README.md": "d3b230b9f8fb23d01c5376b392e90fb89d9bff4c3f67b98de3654a45da5e488d",
+    "TEST_RESULTS.md": "64688253b1d8360ef940d11246a7b075b7584970978224598c7e6516de0f1e53",
+    "after-pr664-ui-block.log": "58654b5883c6f63d47e7ba0ce9c1fb98bad4f14a8f8ac61815b7483f27a8ac57",
+    "before-pr664-ui-block.log": "d14a00f37fcdefadaa43da04c4a7df18dba25c335be26ec39d38fafbfed3dcbb",
+    "final-checks.log": "8d22e60c57e9329adf2e65ebfbd042c7b5b5c7ecb5310fe07095d7fef041d021",
+    "py-compile.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "source-tree.txt": "15ee6ea8225e4cfa9624b1c6bd91ba98e1b2cb50c8e342fccbebadd5f14ac9e5",
+    "verification.json": "2c403e3744c4898631a9ec6afa43eade321c0b7a5ab79b63c78831487fe2e086"
+  },
+  "checks": {
+    "before_ui_failures": 12,
+    "after_ui_passed": 28,
+    "after_ui_failed": 0,
+    "after_role_ui_passed": 40,
+    "after_role_ui_failed": 0,
+    "gating_api_journey": "211 passed, 1 skipped, 1 xfailed",
+    "backend_tests": "pass 5m29s",
+    "e2e_journey": "pass 13m5s",
+    "all_required_checks": "pass",
+    "local_py_compile": "exit 0",
+    "runtime_files_changed": 0
+  },
+  "boundaries": [
+    "test fixtures/page objects/assertions only",
+    "exact deferred-scope labels asserted; full-profile positives retained",
+    "no role/permission/capability/onboarding/product behavior change",
+    "no live model/provider/browser account/credential/spend/send/download/deployment",
+    "no merge or deploy; code-owner review remains required"
+  ]
+}
