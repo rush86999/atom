@@ -1,0 +1,224 @@
+
+tests/test_community_skill_write_contract.py::test_authority_and_promote_roundtrip 
+-------------------------------- live log setup --------------------------------
+2026-11-06 08:06:10 [    INFO] EscalationManager initialized
+2026-11-06 08:06:10 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 08:06:10 [    INFO] EscalationManager initialized
+2026-11-06 08:06:10 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 08:06:10 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 08:06:10 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-06 08:06:11 [    INFO] HTTP Request: POST http://testserver/api/skills/promote "HTTP/1.1 403 Forbidden"
+2026-11-06 08:06:11 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=promote-one "HTTP/1.1 200 OK"
+2026-11-06 08:06:11 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=promote-other "HTTP/1.1 200 OK"
+PASSED                                                                   [  2%]
+tests/test_community_skill_write_contract.py::test_promote_replay_changed_material_and_later_revision 
+-------------------------------- live log call ---------------------------------
+2026-11-06 08:06:12 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=replay-one "HTTP/1.1 200 OK"
+2026-11-06 08:06:12 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=replay-one "HTTP/1.1 200 OK"
+2026-11-06 08:06:12 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=replay-one "HTTP/1.1 409 Conflict"
+2026-11-06 08:06:12 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=replay-one "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [  5%]
+tests/test_community_skill_write_contract.py::test_promote_stale_writer_refuses_without_overwrite 
+-------------------------------- live log call ---------------------------------
+2026-11-06 08:06:13 [    INFO] HTTP Request: POST http://testserver/api/skills/promote "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  7%]
+tests/test_community_skill_write_contract.py::test_delete_requires_team_lead_and_authorized_owner_succeeds 
+-------------------------------- live log call ---------------------------------
+2026-11-06 08:06:14 [    INFO] HTTP Request: DELETE http://testserver/api/skills/d-auth "HTTP/1.1 403 Forbidden"
+2026-11-06 08:06:14 [    INFO] HTTP Request: DELETE http://testserver/api/skills/d-auth "HTTP/1.1 200 OK"
+PASSED                                                                   [ 10%]
+tests/test_community_skill_write_contract.py::test_delete_replay_missing_stale_and_cloud_scope 
+-------------------------------- live log call ---------------------------------
+2026-11-06 08:06:15 [    INFO] HTTP Request: DELETE http://testserver/api/skills/d1?operation_id=delete-one "HTTP/1.1 200 OK"
+2026-11-06 08:06:15 [    INFO] HTTP Request: DELETE http://testserver/api/skills/d1?operation_id=delete-one "HTTP/1.1 200 OK"
+2026-11-06 08:06:15 [    INFO] HTTP Request: DELETE http://testserver/api/skills/missing "HTTP/1.1 404 Not Found"
+2026-11-06 08:06:15 [    INFO] HTTP Request: DELETE http://testserver/api/skills/c1 "HTTP/1.1 404 Not Found"
+2026-11-06 08:06:15 [    INFO] HTTP Request: DELETE http://testserver/api/skills/d2 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 13%]
+tests/test_community_skill_write_contract.py::test_already_active_is_noop_without_audit 
+-------------------------------- live log call ---------------------------------
+2026-11-06 08:06:16 [    INFO] HTTP Request: POST http://testserver/api/skills/promote "HTTP/1.1 200 OK"
+PASSED                                                                   [ 15%]
+tests/test_community_skill_write_contract.py::test_authority_change_before_claim_refuses[deactivate-promote] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 08:06:17 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=authority-change "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 18%]
+tests/test_community_skill_write_contract.py::test_authority_change_before_claim_refuses[deactivate-delete] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 08:06:18 [    INFO] HTTP Request: DELETE http://testserver/api/skills/s-authority?operation_id=authority-change "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 21%]
+tests/test_community_skill_write_contract.py::test_authority_change_before_claim_refuses[demote-promote] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 08:06:19 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=authority-change "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 23%]
+tests/test_community_skill_write_contract.py::test_authority_change_before_claim_refuses[demote-delete] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 08:06:20 [    INFO] HTTP Request: DELETE http://testserver/api/skills/s-authority?operation_id=authority-change "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 26%]
+tests/test_community_skill_write_contract.py::test_authority_change_before_claim_refuses[tenant_move-promote] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 08:06:21 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=authority-change "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 28%]
+tests/test_community_skill_write_contract.py::test_authority_change_before_claim_refuses[tenant_move-delete] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 08:06:22 [    INFO] HTTP Request: DELETE http://testserver/api/skills/s-authority?operation_id=authority-change "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 31%]
+tests/test_community_skill_write_contract.py::test_invalid_authority_at_resolution_refuses[deactivate] PASSED [ 34%]
+tests/test_community_skill_write_contract.py::test_invalid_authority_at_resolution_refuses[demote] PASSED [ 36%]
+tests/test_community_skill_write_contract.py::test_audit_rollback_reports_effect_none[promote] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 08:06:25 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=rollback-promote "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 39%]
+tests/test_community_skill_write_contract.py::test_audit_rollback_reports_effect_none[delete] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 08:06:26 [    INFO] HTTP Request: DELETE http://testserver/api/skills/r1?operation_id=rollback-delete "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 42%]
+tests/test_community_skill_write_contract.py::test_post_commit_readback_is_committed_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-06 08:06:27 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=readback "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 44%]
+tests/test_community_skill_write_contract.py::test_lost_confirmation_is_effect_unknown 
+-------------------------------- live log call ---------------------------------
+2026-11-06 08:06:28 [   ERROR] community-skill write outcome unknown: operation_id=community-skill:promote:lost target=f25ad2e93a4c10ae48bda00526d67371c75ae5b46fcfaa51e99d292567210801 error_class=RuntimeError
+PASSED                                                                   [ 47%]
+tests/test_community_skill_write_contract.py::test_wrong_audit_receipt_is_never_verified[action] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 08:06:30 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=tamper-action "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 50%]
+tests/test_community_skill_write_contract.py::test_wrong_audit_receipt_is_never_verified[user_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 08:06:31 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=tamper-user_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 52%]
+tests/test_community_skill_write_contract.py::test_wrong_audit_receipt_is_never_verified[tenant_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 08:06:32 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=tamper-tenant_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 55%]
+tests/test_community_skill_write_contract.py::test_wrong_audit_receipt_is_never_verified[workspace_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 08:06:33 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=tamper-workspace_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 57%]
+tests/test_community_skill_write_contract.py::test_wrong_audit_receipt_is_never_verified[success] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 08:06:34 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=tamper-success "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 60%]
+tests/test_community_skill_write_contract.py::test_wrong_audit_receipt_is_never_verified[security_level] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 08:06:35 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=tamper-security_level "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 63%]
+tests/test_community_skill_write_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_scope_json] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 08:06:36 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=tamper-metadata_scope_json "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 65%]
+tests/test_community_skill_write_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_target_digest] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 08:06:37 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=tamper-metadata_target_digest "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 68%]
+tests/test_community_skill_write_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_material_digest] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 08:06:38 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=tamper-metadata_material_digest "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 71%]
+tests/test_community_skill_write_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_result_digest] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 08:06:39 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=tamper-metadata_result_digest "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 73%]
+tests/test_community_skill_write_contract.py::test_raw_skill_material_is_absent_from_audit_and_logs 
+-------------------------------- live log call ---------------------------------
+2026-11-06 08:06:40 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=secret-skill "HTTP/1.1 200 OK"
+PASSED                                                                   [ 76%]
+tests/test_community_skill_write_contract.py::test_anonymous_requests_are_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-06 08:06:40 [    INFO] HTTP Request: POST http://testserver/api/skills/promote "HTTP/1.1 401 Unauthorized"
+2026-11-06 08:06:40 [    INFO] HTTP Request: DELETE http://testserver/api/skills/s1 "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 78%]
+tests/test_covpush_w104_gaps_b.py::TestSkillRoutes::test_import_success_and_errors 
+-------------------------------- live log call ---------------------------------
+2026-11-06 08:06:40 [    INFO] HTTP Request: POST http://testserver/api/skills/import "HTTP/1.1 200 OK"
+2026-11-06 08:06:40 [   ERROR] Import validation error: v
+2026-11-06 08:06:40 [    INFO] HTTP Request: POST http://testserver/api/skills/import "HTTP/1.1 400 Bad Request"
+2026-11-06 08:06:40 [   ERROR] Import failed: e
+2026-11-06 08:06:40 [    INFO] HTTP Request: POST http://testserver/api/skills/import "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 81%]
+tests/test_covpush_w104_gaps_b.py::TestSkillRoutes::test_list_skills 
+-------------------------------- live log call ---------------------------------
+2026-11-06 08:06:40 [    INFO] HTTP Request: GET http://testserver/api/skills/list?status=Active&skill_type=prompt_only&limit=5 "HTTP/1.1 200 OK"
+2026-11-06 08:06:40 [    INFO] HTTP Request: GET http://testserver/api/skills/list?skill_status=Active "HTTP/1.1 200 OK"
+2026-11-06 08:06:40 [   ERROR] Failed to list skills: e
+2026-11-06 08:06:40 [    INFO] HTTP Request: GET http://testserver/api/skills/list "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 84%]
+tests/test_covpush_w104_gaps_b.py::TestSkillRoutes::test_get_skill 
+-------------------------------- live log call ---------------------------------
+2026-11-06 08:06:40 [    INFO] HTTP Request: GET http://testserver/api/skills/s1 "HTTP/1.1 200 OK"
+2026-11-06 08:06:40 [    INFO] HTTP Request: GET http://testserver/api/skills/missing "HTTP/1.1 404 Not Found"
+2026-11-06 08:06:40 [   ERROR] Failed to get skill: e
+2026-11-06 08:06:40 [    INFO] HTTP Request: GET http://testserver/api/skills/s1 "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 86%]
+tests/test_covpush_w104_gaps_b.py::TestSkillRoutes::test_execute_skill 
+-------------------------------- live log call ---------------------------------
+2026-11-06 08:06:40 [    INFO] HTTP Request: POST http://testserver/api/skills/execute "HTTP/1.1 200 OK"
+2026-11-06 08:06:40 [    INFO] HTTP Request: POST http://testserver/api/skills/execute "HTTP/1.1 200 OK"
+2026-11-06 08:06:40 [   ERROR] Execution validation error: v
+2026-11-06 08:06:40 [    INFO] HTTP Request: POST http://testserver/api/skills/execute "HTTP/1.1 400 Bad Request"
+2026-11-06 08:06:40 [   ERROR] Execution failed: e
+2026-11-06 08:06:40 [    INFO] HTTP Request: POST http://testserver/api/skills/execute "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 89%]
+tests/test_covpush_w104_gaps_b.py::TestSkillRoutes::test_promote_skill 
+-------------------------------- live log call ---------------------------------
+2026-11-06 08:06:40 [    INFO] HTTP Request: POST http://testserver/api/skills/promote "HTTP/1.1 200 OK"
+2026-11-06 08:06:40 [    INFO] HTTP Request: POST http://testserver/api/skills/promote "HTTP/1.1 404 Not Found"
+2026-11-06 08:06:40 [    INFO] HTTP Request: POST http://testserver/api/skills/promote "HTTP/1.1 503 Service Unavailable"
+2026-11-06 08:06:40 [    INFO] HTTP Request: POST http://testserver/api/skills/promote "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 92%]
+tests/test_covpush_w104_gaps_b.py::TestSkillRoutes::test_delete_skill 
+-------------------------------- live log call ---------------------------------
+2026-11-06 08:06:40 [    INFO] HTTP Request: DELETE http://testserver/api/skills/s1 "HTTP/1.1 200 OK"
+2026-11-06 08:06:40 [    INFO] HTTP Request: DELETE http://testserver/api/skills/s1 "HTTP/1.1 404 Not Found"
+2026-11-06 08:06:40 [    INFO] HTTP Request: DELETE http://testserver/api/skills/s1 "HTTP/1.1 503 Service Unavailable"
+2026-11-06 08:06:40 [    INFO] HTTP Request: DELETE http://testserver/api/skills/s1 "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 94%]
+tests/test_covpush_w104_gaps_b.py::TestSkillRoutes::test_episodes 
+-------------------------------- live log call ---------------------------------
+2026-11-06 08:06:40 [    INFO] HTTP Request: GET http://testserver/api/skills/s1/episodes?agent_id=a1&limit=5 "HTTP/1.1 200 OK"
+2026-11-06 08:06:40 [   ERROR] Failed to get skill episodes: e
+2026-11-06 08:06:40 [    INFO] HTTP Request: GET http://testserver/api/skills/s1/episodes?agent_id=a1 "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 97%]
+tests/test_covpush_w104_gaps_b.py::TestSkillRoutes::test_learning_progress 
+-------------------------------- live log call ---------------------------------
+2026-11-06 08:06:40 [    INFO] HTTP Request: GET http://testserver/api/skills/s1/learning-progress?agent_id=a1 "HTTP/1.1 200 OK"
+2026-11-06 08:06:40 [    INFO] HTTP Request: GET http://testserver/api/skills/s1/learning-progress?agent_id=a1 "HTTP/1.1 200 OK"
+2026-11-06 08:06:40 [    INFO] HTTP Request: GET http://testserver/api/skills/s1/learning-progress?agent_id=a1 "HTTP/1.1 200 OK"
+2026-11-06 08:06:40 [   ERROR] Failed to get learning progress: e
+2026-11-06 08:06:40 [    INFO] HTTP Request: GET http://testserver/api/skills/s1/learning-progress?agent_id=a1 "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+tests/test_community_skill_write_contract.py::test_authority_and_promote_roundtrip
+  /private/tmp/atom-skill-consolidation/backend/core/graphrag_engine.py:196: DeprecationWarning: invalid escape sequence '\%'
+    """
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 38 passed, 6 warnings in 46.82s ========================

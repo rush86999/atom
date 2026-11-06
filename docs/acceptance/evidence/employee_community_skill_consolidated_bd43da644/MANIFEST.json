@@ -1,0 +1,54 @@
+{
+  "schema": "atom-employee-evidence-1",
+  "status": "single-engine community-skill consolidation with current-authority transaction claim submitted for independent verification",
+  "branch": "codex/oracle01-skill-consolidation-20261106",
+  "executed_source": "bd43da6446f71fb0237c64c189f9e25f0b028d95",
+  "base_main": "d860072a787e6460d83260e9cb629cfa5d5ea14b",
+  "prepared_branch_tip": "4e25a2836820eb4ae17286876c1788a0ade5791f",
+  "source_files": {
+    "backend/core/community_skill_write_service.py": "0672094f8280d99a59e2a5639332daade19cd393d04e8843a368c688a071b9ab",
+    "backend/api/skill_routes.py": "527325f2be61dc000aacd5a584e048f4ce9764929b6ca32129d3b777e913a612",
+    "backend/tests/test_community_skill_write_contract.py": "7b6a0ab7327b6986388d6daaf72be2e4d67cafb5027b37b08fae4117a889ffbe",
+    "backend/tests/test_covpush_w104_gaps_b.py": "1b1c2c29a6f797cb63998e6902ea7a33343b0727e13149fe2ddc9fb730213749",
+    "backend/tests/unit/api/test_skill_routes.py": "b45bb44176ee447b4312616de9967760b105277606110617e38adce999beb914",
+    "backend/core/models.py": "4b238c35f6f235d94779f4598040f0c9fcd39599c26705e7016e8b045b51c3ef",
+    "backend/core/security/rbac.py": "48a7ecdb609f7e32267212e85b1993a0045eb84aca903f0152a8a498bcbd405e",
+    "backend/core/personal_scope.py": "f07dd35cf6eedb674ec9afbb06e10776cd4039e64ad7dd0a3427b7e0df31f78f",
+    ".github/workflows/ci.yml": "14c6056e8367c1564bdbcc89da9cf2118e4a7c263f41f70742f7ab118ff117c0"
+  },
+  "artifacts": {
+    "README.md": "1ea49d655f985cc289c5abb9f2285605422d56c199b908c81aaf844f3f802cad",
+    "TEST_RESULTS.md": "81143260f0336076ec432c6b7f1d60414b1c939af882c8e5313ec1ba7f19b389",
+    "affected-311.log": "5ed2b57074e2b17fa0bef698d7f3ddb2ea851ae73f79e0c0ba56b1864ad67837",
+    "affected-314.log": "778468eb1383ceacee26e9376555b7a98f769d544fd37e88e5e4cbc9e6a8d213",
+    "baseline-main-311.log": "34ccc1b2b98cb77f634bad8d9e0e75324a11bfc24d6ee7c2c2a793be6b8f7aa5",
+    "baseline-main-314.log": "086d7d4367c6a18a69e56bbbc9aac3a284a313b38bedcebfe5f7c194f2b72a54",
+    "baseline-main-route-unit.log": "ebe6d06232ab7a510fddc1ebe707eaf9ba1132a6a89f39e747974854ce6e027e",
+    "focused-311.log": "3beaabfb4263cec161c67c4c79e25273d176d611a141552a5e3b6e59f3cf4764",
+    "focused-314.log": "99d70b592bb1a3393eef16a620b4cd2941725aba8d41bbed701880cec563f2d1",
+    "routes.json": "a1e788bb0976edaa5fe54f04826e890d293b321a23db0e89bc6995034553735c",
+    "source-tree.txt": "74bc0f4455d9b415d85f19a83339e3166443ef92df022afffb65836bec65976d",
+    "verification.json": "a9ffc8dd11c9b0fe4382f3e0113a3be6b7fd66b2d51cb1b9c928509e7a7b59ce"
+  },
+  "checks": {
+    "focused_314": "38 passed",
+    "focused_311": "38 passed",
+    "affected_314": "264 passed, 4 baseline failures",
+    "affected_311": "264 passed, 4 baseline failures",
+    "baseline_main_314": "254 passed, 6 failed",
+    "baseline_main_311": "254 passed, 6 failed",
+    "candidate_new_passing_controls": 10,
+    "candidate_closed_baseline_failures": 2,
+    "candidate_added_failures": 0,
+    "duplicate_engine_removed": true,
+    "route_unchanged_from_main": true,
+    "no_test_deleted_skipped_or_xfailed_from_main": true,
+    "no_live_model_provider_sandbox_credential_spend_send_download_deployment": true
+  },
+  "boundaries": [
+    "real scratch SQLite only; no PostgreSQL/soak or multi-worker qualification",
+    "import/execute/package-install/sandbox remain out of scope",
+    "no merge or deployment; code-owner review remains required",
+    "historical branch evidence bundles describe the removed parallel engine"
+  ]
+}

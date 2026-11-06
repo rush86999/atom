@@ -1,0 +1,116 @@
+{
+  "schema": "atom-oracle-community-skill-consolidation-verification-1",
+  "status": "single-engine community-skill consolidation with current-authority transaction claim submitted for independent verification",
+  "candidate": {
+    "branch": "codex/oracle01-skill-consolidation-20261106",
+    "pr": 667,
+    "base_main": "d860072a787e6460d83260e9cb629cfa5d5ea14b",
+    "executed_source": "bd43da6446f71fb0237c64c189f9e25f0b028d95",
+    "prepared_branch_tip": "4e25a2836820eb4ae17286876c1788a0ade5791f",
+    "route_matches_base_main": true,
+    "branch_hygiene": "rebuilt as a single commit on current main after stale pre-squash ORCH01 evidence commits tripped GitGuardian; no force-push",
+    "removed_parallel_engine": {
+      "path": "backend/core/skill_review_write_service.py",
+      "blob_at_prepared_tip": "bc9d3f90593927cfc4820cd7e7bc7fc7e5b880cd"
+    },
+    "removed_parallel_test": {
+      "path": "backend/tests/test_skill_review_write_contract.py",
+      "blob_at_prepared_tip": "08b969c0d2d49309006389db14cc26743dec5751"
+    }
+  },
+  "authority_contract": {
+    "resolve": "fresh-session authoritative User row; active status and TEAM_LEAD+ role",
+    "frozen_fields": [
+      "id",
+      "email",
+      "role",
+      "status",
+      "is_active",
+      "tenant_id",
+      "raw_tenant_id"
+    ],
+    "claim": "guarded no-op UPDATE User matching id, is_active, status, role and raw tenant inside the decision transaction",
+    "authority_change_result": "AUTHORITY_CHANGED with verification.effect=none, peer row preserved, zero audit rows",
+    "route_guard": "main DB-backed _require_community_skill_reviewer unchanged"
+  },
+  "new_controls": {
+    "authority_change_twins": 6,
+    "stale_entry_resolution_twins": 2,
+    "repaired_route_unit_tests": 2,
+    "total_new_passing": 10
+  },
+  "results": {
+    "focused_314": {
+      "passed": 38,
+      "failed": 0,
+      "log": "focused-314.log"
+    },
+    "focused_311": {
+      "passed": 38,
+      "failed": 0,
+      "log": "focused-311.log"
+    },
+    "affected_314": {
+      "passed": 264,
+      "failed": 4,
+      "log": "affected-314.log"
+    },
+    "affected_311": {
+      "passed": 264,
+      "failed": 4,
+      "log": "affected-311.log"
+    },
+    "baseline_main_314": {
+      "passed": 254,
+      "failed": 6,
+      "log": "baseline-main-314.log"
+    },
+    "baseline_main_311": {
+      "passed": 254,
+      "failed": 6,
+      "log": "baseline-main-311.log"
+    },
+    "baseline_main_route_unit": {
+      "passed": 0,
+      "failed": 2,
+      "log": "baseline-main-route-unit.log"
+    }
+  },
+  "baseline_failure_identity": {
+    "candidate_failures": 4,
+    "baseline_failures": 6,
+    "shared_failures": 4,
+    "candidate_added_failures": 0,
+    "candidate_closed_baseline_failures": 2,
+    "shared": [
+      "tests/test_round22_marketplace_security.py::TestPackageRoutesRequireAuth::test_approve_package_requires_auth",
+      "tests/test_round22_marketplace_security.py::TestPackageRoutesRequireAuth::test_install_packages_requires_auth",
+      "tests/test_round22_marketplace_security.py::TestMarketplaceInstallRequiresAuth::test_install_marketplace_skill_requires_auth",
+      "tests/test_round22_marketplace_security.py::TestPackageRoutesNoStrELeak::test_no_str_e_in_http_exceptions"
+    ],
+    "closed": [
+      "tests/test_covpush_w104_gaps_b.py::TestSkillRoutes::test_promote_skill",
+      "tests/test_covpush_w104_gaps_b.py::TestSkillRoutes::test_delete_skill"
+    ],
+    "shared_cause": "pre-existing missing api.package_routes / api.marketplace_routes modules in round22 marketplace-security tests"
+  },
+  "checks": {
+    "single_engine_retained": true,
+    "duplicate_engine_removed": true,
+    "route_unchanged_from_main": true,
+    "current_user_resolved_before_decision": true,
+    "authority_claimed_in_effect_transaction": true,
+    "authority_change_effect_none": true,
+    "authority_change_zero_audit": true,
+    "peer_skill_preserved": true,
+    "no_test_deleted_skipped_or_xfailed": true,
+    "no_role_tenant_or_capability_gate_weakened": true,
+    "no_live_model_provider_sandbox_credential_spend_send_download_deployment": true
+  },
+  "limits": [
+    "real scratch SQLite only; no PostgreSQL/soak or multi-worker qualification",
+    "import, execute, package install and sandbox execution remain out of scope",
+    "no merge or deployment; code-owner review remains required",
+    "historical branch evidence bundles describe the removed parallel engine and are not merged-source proof"
+  ]
+}

@@ -18,6 +18,9 @@ sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
 
 from integrations.chat_orchestrator import ChatOrchestrator
 from core.auth import get_current_user
+from core.chat_fork_write_service import (
+    fork_chat_session as _fork_chat_session_decision,
+)
 from core import log_redaction
 from core.llm.routing_overrides import parse_routing_overrides
 from core.models import User, UserRole
@@ -990,10 +993,51 @@ class ForkSessionRequest(BaseModel):
     )
 
 
+def _raise_chat_fork_decision(result: Dict[str, Any]) -> None:
+    """Map the verified fork envelope to a safe HTTP error."""
+    status_value = str(result.get("status") or "")
+    if status_value in ("refused", "conflict", "not_applied"):
+        status_code = int(
+            result.get("http_status")
+            or (409 if status_value != "refused" else 403))
+        raise HTTPException(
+            status_code=status_code,
+            detail={
+                "error": {
+                    "code": result.get("error_code") or "CONFLICT",
+                    "message": result.get("error") or "Request refused",
+                },
+                "verification": result.get("verification"),
+                "operation_id": result.get("operation_id"),
+                "audit_id": result.get("audit_id"),
+            },
+        )
+    if status_value in ("committed_unverified", "effect_unknown"):
+        code = (
+            "CHAT_FORK_EFFECT_UNKNOWN"
+            if status_value == "effect_unknown"
+            else "CHAT_FORK_COMMITTED_UNVERIFIED")
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": {
+                    "code": code,
+                    "message": result.get("message")
+                    or "The chat fork outcome is uncertain.",
+                },
+                "verification": result.get("verification"),
+                "operation_id": result.get("operation_id"),
+                "audit_id": result.get("audit_id"),
+                "target_id": result.get("target_id"),
+            },
+        )
+
+
 @router.post("/sessions/{session_id}/fork")
 async def fork_chat_session(
     session_id: str,
     payload: Optional[ForkSessionRequest] = None,
+    operation_id: Optional[str] = None,
     db: _Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ) -> Dict[str, Any]:
@@ -1005,10 +1049,6 @@ async def fork_chat_session(
     channel/thread bindings are NOT inherited — a fork is a fresh local
     conversation.
     """
-    import uuid as _uuid
-    from core.models import ChatMessage as ChatMessageModel
-    from core.models import ChatSession as ChatSessionModel
-
     up_to_message_id = payload.up_to_message_id if payload else None
 
     # Same ownership gate as /history: unknown sessions lazy-initialize for
@@ -1021,82 +1061,27 @@ async def fork_chat_session(
         raise HTTPException(status_code=403, detail="Access denied")
 
     try:
-        # Chronological order matches history hydration exactly.
-        rows = (
-            db.query(ChatMessageModel)
-            .filter(ChatMessageModel.conversation_id == session_id)
-            .order_by(
-                ChatMessageModel.created_at.asc(),
-                ChatMessageModel.role.desc(),
-            )
-            .all()
+        result = _fork_chat_session_decision(
+            db,
+            actor=current_user,
+            session_id=session_id,
+            up_to_message_id=up_to_message_id,
+            source_title_hint=session.get("title"),
+            operation_id=operation_id,
         )
-        if not rows:
-            return {"success": False, "error": "Session not found"}
-
-        if up_to_message_id:
-            idx = next((i for i, r in enumerate(rows) if r.id == up_to_message_id), None)
-            if idx is None:
-                return {
-                    "success": False,
-                    "error": f"up_to_message_id {up_to_message_id} not found in session",
-                }
-            rows = rows[: idx + 1]
-
-        source_row = (
-            db.query(ChatSessionModel)
-            .filter(ChatSessionModel.id == session_id)
-            .first()
-        )
-        tenant_id = getattr(source_row, "tenant_id", None) or "default"
-        source_title = (source_row.title if source_row else None) or session.get("title") or "Chat"
-
-        fork_id = str(_uuid.uuid4())
-        forked_at = datetime.now(timezone.utc).isoformat()
-        fork_session_row = ChatSessionModel(
-            id=fork_id,
-            user_id=str(current_user.id),
-            title=f"Fork: {source_title}",
-            # Lineage on the row; channel/thread bindings deliberately
-            # not inherited (external replies keep routing to the original).
-            metadata_json={
-                "forked_from": session_id,
-                "forked_at": forked_at,
-            },
-            message_count=len(rows),
-        )
-        db.add(fork_session_row)
-
-        copied = 0
-        for row in rows:
-            try:
-                db.add(ChatMessageModel(
-                    id=str(_uuid.uuid4()),
-                    conversation_id=fork_id,
-                    tenant_id=row.tenant_id or tenant_id,
-                    role=row.role,
-                    content=row.content,
-                    agent_id=row.agent_id,
-                    metadata_json=row.metadata_json,
-                ))
-                copied += 1
-            except Exception as row_err:
-                logger.warning(
-                    f"Failed to copy message {row.id} into fork {fork_id}: {row_err}"
-                )
-        db.commit()
+        if result.get("status") == "no_effect":
+            return result.get("data") or {
+                "success": False, "error": "Session not found"}
+        _raise_chat_fork_decision(result)
+        data = result.get("data") or {}
+        fork_id = data.get("session_id")
 
         # Register the fork in the in-memory store so the sidebar lists it
         # immediately and history loads without a lazy-init round trip.
-        chat_orchestrator._get_or_create_session(str(current_user.id), fork_id)
-
-        return {
-            "success": True,
-            "session_id": fork_id,
-            "forked_from": session_id,
-            "messages_copied": copied,
-            "title": f"Fork: {source_title}",
-        }
+        if fork_id:
+            chat_orchestrator._get_or_create_session(
+                str(current_user.id), fork_id)
+        return data
 
     except HTTPException:
         raise

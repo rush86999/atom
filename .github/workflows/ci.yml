@@ -269,6 +269,7 @@ jobs:
         run: |
           python -m pytest tests/test_journey_ui_features.py \
             tests/test_journey_page_smoke.py tests/test_user_journey.py \
+            tests/test_journey_onboarding.py \
             -q --tb=short --ignore=tests/test_journey_role_ui.py
           # Role-UI tests are run separately (they each do a full browser login
           # per role — slower). Allow them to flake without failing the gate;
