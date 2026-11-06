@@ -23,6 +23,7 @@ from __future__ import annotations
 import asyncio
 import time
 import uuid
+from datetime import datetime, timedelta, timezone
 from unittest.mock import patch
 
 import httpx
@@ -165,6 +166,21 @@ def _dispatch_count(execution_id: str) -> int:
             WorkflowExecutionLog.execution_id == execution_id).scalar()
 
 
+async def _wait_execution_for_workflow(
+        workflow_id: str, timeout: float = 15.0) -> str:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        with get_db_session() as db:
+            row = db.query(WorkflowExecution).filter(
+                WorkflowExecution.workflow_id == workflow_id).order_by(
+                WorkflowExecution.created_at.desc()).first()
+            if row is not None:
+                return row.execution_id
+        await asyncio.sleep(0.1)
+    raise AssertionError(
+        f"no execution was created for scheduled workflow {workflow_id}")
+
+
 async def _start(client: httpx.AsyncClient, workflow_id: str) -> str:
     response = await client.post(f"/workflows/{workflow_id}/execute", json={})
     assert response.status_code == 200, response.text
@@ -264,6 +280,70 @@ async def test_public_workflow_approval_is_visible_decidable_and_resumes_once(
             again = await state_manager.get_execution_state(execution_id)
             assert again["steps"]["s1"]["status"] == "COMPLETED"
             assert set(again["outputs"]) == {"s1"}
+
+
+async def test_scheduled_real_workflow_approval_join(public_world, tmp_path):
+    """The real scheduler entry fires a real workflow that pauses for review.
+
+    PR676 proved scheduler persistence with a counter callback; the public
+    flow proved start/review/resume without the scheduler. This joins them:
+    the persisted job's args carry the scheduling user's scope, the real
+    ``WorkflowScheduler._execute_job`` starts the real durable engine, and
+    the approval/review/resume path produces exactly one local effect.
+    """
+    from ai.workflow_scheduler import WorkflowScheduler
+    from core.workflow_engine import freeze_execution_scope
+
+    state_manager = ExecutionStateManager()
+    scheduler = WorkflowScheduler(
+        db_url=f"sqlite:///{tmp_path / 'scheduled-approval.db'}")
+    scheduler.reschedule_system_pipelines = lambda: None
+    scheduler.start()
+    try:
+        frozen_inputs = freeze_execution_scope(
+            {},
+            workspace_id=public_world["workspace_id"],
+            tenant_id=public_world["tenant_id"],
+        )
+        scheduler.schedule_workflow(
+            public_world["workflow_id"], "date",
+            {"run_date": datetime.now(timezone.utc) + timedelta(seconds=0.2)},
+            frozen_inputs, authorized=False,
+        )
+
+        with patch.object(WorkflowEngine, "_notify_workflow_paused",
+                          new=lambda *a, **k: None):
+            execution_id = await _wait_execution_for_workflow(
+                public_world["workflow_id"])
+            paused = await _wait_status(
+                state_manager, execution_id, "PAUSED")
+            assert paused["steps"]["s1"]["status"] == "PAUSED"
+            assert _dispatch_count(execution_id) == 0
+
+            transport = httpx.ASGITransport(app=_app(public_world))
+            async with httpx.AsyncClient(
+                    transport=transport, base_url="http://test") as client:
+                pending = await _pending(client)
+                assert len(pending) == 1, pending
+                approval = pending[0]
+                assert approval["params"]["execution_id"] == execution_id
+                decision = await _decide(client, approval["id"], "approved")
+                assert decision.status_code == 200, decision.text
+
+            completed = await _wait_status(
+                state_manager, execution_id, "COMPLETED")
+            assert completed["steps"]["s1"]["status"] == "COMPLETED"
+            assert set(completed["outputs"]) == {"s1"}
+            assert _dispatch_count(execution_id) == 1
+            assert approval["id"] in (
+                completed["input_data"].get("consumed_hitl_action_ids") or [])
+            with get_db_session() as db:
+                row = db.query(HITLAction).filter(
+                    HITLAction.id == approval["id"]).first()
+                assert row.tenant_id == public_world["tenant_id"]
+                assert row.workspace_id == public_world["workspace_id"]
+    finally:
+        scheduler.shutdown()
 
 
 async def test_resume_inputs_cannot_rewrite_the_frozen_scope(public_world):
