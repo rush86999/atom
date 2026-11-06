@@ -1,0 +1,26 @@
+
+backend/tests/test_quickstart_python_guard.py::test_quickstart_accepts_supported_python[3.11] 
+-------------------------------- live log setup --------------------------------
+2026-11-06 08:13:41 [    INFO] EscalationManager initialized
+2026-11-06 08:13:41 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 08:13:41 [    INFO] EscalationManager initialized
+2026-11-06 08:13:41 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 08:13:41 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 08:13:41 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [ 20%]
+backend/tests/test_quickstart_python_guard.py::test_quickstart_accepts_supported_python[3.12] PASSED [ 40%]
+backend/tests/test_quickstart_python_guard.py::test_quickstart_accepts_supported_python[3.13] PASSED [ 60%]
+backend/tests/test_quickstart_python_guard.py::test_quickstart_rejects_unsupported_python_with_actionable_message[3.10] PASSED [ 80%]
+backend/tests/test_quickstart_python_guard.py::test_quickstart_rejects_unsupported_python_with_actionable_message[3.14] PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+tests/test_quickstart_python_guard.py::test_quickstart_accepts_supported_python[3.11]
+  /private/tmp/atom-compat-python/backend/core/graphrag_engine.py:196: DeprecationWarning: invalid escape sequence '\%'
+    """
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 5 passed, 2 warnings in 2.97s =========================
