@@ -1,0 +1,1154 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-05 19:36:20 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-05 19:36:20 [    INFO] EscalationManager initialized
+2026-11-05 19:36:20 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:36:20 [    INFO] EscalationManager initialized
+2026-11-05 19:36:20 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:36:20 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 19:36:20 [    INFO] MCP Service initialized
+2026-11-05 19:36:20 [    INFO] core product profile worker defaults: {'ENABLE_SCHEDULER': 'false', 'ENABLE_INGESTION_SYNC': 'false', 'ATOM_AGENT_EVOLUTION_ENABLED': 'false'}
+2026-11-05 19:36:20 [    INFO] ================================================================================
+2026-11-05 19:36:20 [    INFO] ATOM PLATFORM API STARTUP
+2026-11-05 19:36:20 [    INFO] ================================================================================
+2026-11-05 19:36:20 [    INFO] Python version: 3.14.7 (main, Sep  1 2026, 14:05:28) [Clang 22.1.3 ]
+2026-11-05 19:36:20 [    INFO] Working directory: /private/tmp/atom-evolution-review/backend
+2026-11-05 19:36:20 [    INFO] Python path: ['/private/tmp/atom-evolution-review', '/private/tmp/atom-evolution-review/backend', '/private/tmp/atom-evolution-review/backend']...
+2026-11-05 19:36:21 [    INFO] ✓ uvicorn imported
+2026-11-05 19:36:21 [    INFO] ✓ Standard library imports successful
+2026-11-05 19:36:21 [    INFO] ✓ dotenv imported
+2026-11-05 19:36:21 [    INFO] ✓ sqlalchemy.orm and exceptions imported
+2026-11-05 19:36:21 [    INFO] ✓ core.models imported
+2026-11-05 19:36:21 [    INFO] ✓ core.models_registration imported
+2026-11-05 19:36:21 [    INFO] ✓ core.cache.RedisCacheService imported
+2026-11-05 19:36:21 [    INFO] ✓ core.database imported
+2026-11-05 19:36:21 [ WARNING] Failed to import quota_manager: No module named 'core.quota_manager'
+2026-11-05 19:36:21 [    INFO] ✓ FastAPI imports successful
+2026-11-05 19:36:21 [    INFO] EscalationManager initialized
+2026-11-05 19:36:21 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:36:21 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-05 19:36:21 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-05 19:36:21 [    INFO] EscalationManager initialized
+2026-11-05 19:36:21 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:36:21 [    INFO] Webhook processor initialized and callback registered
+2026-11-05 19:36:21 [ WARNING] Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+2026-11-05 19:36:21 [    INFO] No token storage file found, starting empty
+2026-11-05 19:36:21 [ WARNING] WorkflowNotifier: Slack initialization deferred: 'list' object has no attribute 'get'
+2026-11-05 19:36:21 [ WARNING] Discord integration services not available: No module named 'atom_ingestion_pipeline'
+2026-11-05 19:36:21 [    INFO] ATOM Discord Integration initialized
+2026-11-05 19:36:21 [ WARNING] Enterprise services not available: No module named 'ai_enhanced_service'. Using stubs/None.
+2026-11-05 19:36:21 [    INFO] EscalationManager initialized
+2026-11-05 19:36:21 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:36:21 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 19:36:21 [    INFO] LanceDBHandler initialized. ID: 4928456016. LANCEDB_AVAILABLE: True
+2026-11-05 19:36:21 [    INFO] LanceDB handler initialized for Telegram integration
+2026-11-05 19:36:21 [    INFO] Telegram Integration initialized
+2026-11-05 19:36:21 [ WARNING] AI integration services not available: No module named 'atom_discord_integration'
+2026-11-05 19:36:21 [    INFO] ATOM AI Integration initialized
+2026-11-05 19:36:21 [ WARNING] Enterprise security services not available: No module named 'ai_enhanced_service'
+2026-11-05 19:36:21 [    INFO] Enterprise Security Service initialized
+2026-11-05 19:36:21 [ WARNING] Enterprise unified services not available: No module named 'ai_enhanced_service'
+2026-11-05 19:36:21 [    INFO] Enterprise Unified Service initialized
+2026-11-05 19:36:21 [ WARNING] Google Chat integration services not available: No module named 'atom_ingestion_pipeline'
+2026-11-05 19:36:21 [    INFO] Google Chat Enhanced Service initialized
+2026-11-05 19:36:21 [    INFO] ATOM Google Chat Integration initialized
+2026-11-05 19:36:21 [    INFO] Teams Enhanced Service initialized
+2026-11-05 19:36:21 [    INFO] ATOM Teams Integration initialized
+2026-11-05 19:36:21 [    INFO] Workflow Automation Service initialized
+2026-11-05 19:36:21 [    INFO] WhatsApp Integration initialized
+2026-11-05 19:36:21 [ WARNING] AI enhanced service not available for Document Logic Service
+2026-11-05 19:36:21 [ WARNING] Enterprise document_logic_service not available, using stub
+2026-11-05 19:36:21 [    INFO] Google Chat Enhanced Service initialized
+2026-11-05 19:36:21 [ WARNING] Marketing service not available
+2026-11-05 19:36:21 [ WARNING] Meta Business service not available
+2026-11-05 19:36:21 [ WARNING] OpenClaw service not available
+2026-11-05 19:36:21 [    INFO] Slack Enhanced Service initialized
+2026-11-05 19:36:21 [    INFO] Teams Enhanced Service initialized
+2026-11-05 19:36:21 [ WARNING] Redis unavailable - webhook ingestion will process synchronously
+2026-11-05 19:36:21 [    INFO] OutlookEnhancedService initialized
+2026-11-05 19:36:21 [ WARNING] No .env file found in any expected location. Realizing on system env vars.
+2026-11-05 19:36:21 [    INFO] Startup API key check
+2026-11-05 19:36:21 [    INFO] CORS Allowed Origins: ['https://atomagentos.com', 'https://app.atomagentos.com', 'https://admin.atomagentos.com', 'https://api.atomagentos.com', 'http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:3001', 'http://127.0.0.1:3001']
+2026-11-05 19:36:21 [    INFO] Creating FastAPI application...
+2026-11-05 19:36:21 [    INFO] ✓ FastAPI app instance created
+2026-11-05 19:36:21 [ WARNING] Connection leak detector not available: No module named 'core.connection_leak_detector'
+2026-11-05 19:36:21 [    INFO] ✓ Outlook integration routes registered at /api/integrations/outlook and /api/v1/integrations/outlook
+2026-11-05 19:36:21 [    INFO] ⊘ Test mode detected: Loading only critical integrations for security tests
+2026-11-05 19:36:21 [    INFO] DEBUG: Processing critical integration: auth
+2026-11-05 19:36:21 [    INFO] Loading integration: auth (core.auth_endpoints)
+2026-11-05 19:36:21 [    INFO] ✓ Loaded auth
+2026-11-05 19:36:21 [    INFO]   ✓ auth (critical for tests, prefix: root)
+2026-11-05 19:36:21 [    INFO] DEBUG: Processing critical integration: oauth
+2026-11-05 19:36:21 [    INFO] Loading integration: oauth (api.oauth_routes)
+2026-11-05 19:36:21 [    INFO] ✓ Loaded oauth
+2026-11-05 19:36:21 [    INFO]   ✓ oauth (critical for tests, prefix: root)
+2026-11-05 19:36:21 [    INFO] DEBUG: Processing critical integration: whatsapp
+2026-11-05 19:36:21 [    INFO] Loading integration: whatsapp (integrations.whatsapp_fastapi_routes)
+2026-11-05 19:36:21 [    INFO] ✓ Loaded whatsapp
+2026-11-05 19:36:21 [    INFO]   ✓ whatsapp (critical for tests, prefix: /api/v1/integrations/whatsapp)
+2026-11-05 19:36:21 [    INFO] DEBUG: Processing critical integration: microsoft365
+2026-11-05 19:36:21 [    INFO] Loading integration: microsoft365 (integrations.microsoft365_routes)
+2026-11-05 19:36:21 [    INFO] ✓ Loaded microsoft365
+2026-11-05 19:36:21 [    INFO]   ✓ microsoft365 (critical for tests, prefix: /api/v1/integrations/microsoft365)
+2026-11-05 19:36:21 [    INFO] DEBUG: Processing critical integration: outlook
+2026-11-05 19:36:21 [    INFO] Loading integration: outlook (integrations.outlook_routes)
+2026-11-05 19:36:21 [    INFO] ✓ Loaded outlook
+2026-11-05 19:36:21 [    INFO]   ✓ outlook (critical for tests, prefix: /api/integrations/outlook)
+2026-11-05 19:36:21 [    INFO] DEBUG: Processing critical integration: twilio
+2026-11-05 19:36:21 [    INFO] Loading integration: twilio (integrations.twilio_routes)
+2026-11-05 19:36:21 [    INFO] ✓ Loaded twilio
+2026-11-05 19:36:21 [    INFO]   ✓ twilio (critical for tests, prefix: /api/v1/integrations/twilio)
+2026-11-05 19:36:21 [    INFO] DEBUG: Processing critical integration: notion
+2026-11-05 19:36:21 [    INFO] Loading integration: notion (integrations.notion_routes)
+2026-11-05 19:36:21 [    INFO] ✓ Loaded notion
+2026-11-05 19:36:21 [    INFO]   ✓ notion (critical for tests, prefix: /api/v1/integrations/notion)
+2026-11-05 19:36:21 [    INFO] DEBUG: Processing critical integration: mailchimp
+2026-11-05 19:36:21 [    INFO] Loading integration: mailchimp (integrations.mailchimp_routes)
+2026-11-05 19:36:21 [    INFO] ✓ Loaded mailchimp
+2026-11-05 19:36:21 [    INFO]   ✓ mailchimp (critical for tests, prefix: /api/v1/integrations/mailchimp)
+2026-11-05 19:36:21 [    INFO] DEBUG: Processing critical integration: zoho_crm
+2026-11-05 19:36:21 [ WARNING] Unknown integration: zoho_crm
+2026-11-05 19:36:21 [ WARNING]   ✗ zoho_crm could not be loaded
+2026-11-05 19:36:21 [    INFO] DEBUG: Processing critical integration: zoho_projects
+2026-11-05 19:36:21 [ WARNING] Unknown integration: zoho_projects
+2026-11-05 19:36:21 [ WARNING]   ✗ zoho_projects could not be loaded
+2026-11-05 19:36:21 [    INFO] DEBUG: Processing critical integration: zoho_workdrive
+2026-11-05 19:36:21 [    INFO] Loading integration: zoho_workdrive (api.zoho_workdrive_routes)
+2026-11-05 19:36:21 [    INFO] ✓ Loaded zoho_workdrive
+2026-11-05 19:36:21 [    INFO]   ✓ zoho_workdrive (critical for tests, prefix: /api/v1/integrations/zoho-workdrive)
+2026-11-05 19:36:21 [    INFO] DEBUG: Processing critical integration: salesforce
+2026-11-05 19:36:21 [    INFO] Loading integration: salesforce (integrations.salesforce_routes)
+2026-11-05 19:36:21 [    INFO] ✓ Loaded salesforce
+2026-11-05 19:36:21 [    INFO]   ✓ salesforce (critical for tests, prefix: /api/v1/integrations/salesforce)
+2026-11-05 19:36:21 [    INFO] DEBUG: Processing critical integration: pipedrive
+2026-11-05 19:36:21 [ WARNING] Unknown integration: pipedrive
+2026-11-05 19:36:21 [ WARNING]   ✗ pipedrive could not be loaded
+2026-11-05 19:36:21 [    INFO] DEBUG: Processing critical integration: freshsales
+2026-11-05 19:36:21 [ WARNING] Unknown integration: freshsales
+2026-11-05 19:36:21 [ WARNING]   ✗ freshsales could not be loaded
+2026-11-05 19:36:21 [    INFO] DEBUG: Processing critical integration: asana
+2026-11-05 19:36:21 [    INFO] Loading integration: asana (integrations.asana_routes)
+2026-11-05 19:36:21 [    INFO] AsanaService initialized for tenant default... without access token
+2026-11-05 19:36:21 [    INFO] ✓ Loaded asana
+2026-11-05 19:36:21 [    INFO]   ✓ asana (critical for tests, prefix: /api/v1/integrations/asana)
+2026-11-05 19:36:21 [    INFO] DEBUG: Processing critical integration: monday
+2026-11-05 19:36:21 [    INFO] Loading integration: monday (integrations.monday_routes)
+2026-11-05 19:36:21 [    INFO] ✓ Loaded monday
+2026-11-05 19:36:21 [    INFO]   ✓ monday (critical for tests, prefix: /api/v1/integrations/monday)
+2026-11-05 19:36:21 [    INFO] DEBUG: Processing critical integration: bigcommerce
+2026-11-05 19:36:21 [ WARNING] Unknown integration: bigcommerce
+2026-11-05 19:36:21 [ WARNING]   ✗ bigcommerce could not be loaded
+2026-11-05 19:36:21 [    INFO]   Other integrations will load on-demand.
+2026-11-05 19:36:21 [    INFO] ✓ Agent audit trail mounted at /api/audit
+2026-11-05 19:36:21 [    INFO] ✓ Live Workflow Endpoints mounted at /api/v1/workflows (incl. /conductor/execute)
+2026-11-05 19:36:21 [    INFO] ✓ Unified RPC surface mounted at /api/rpc/{action_name} (P1)
+2026-11-05 19:36:21 [    INFO] ✓ Gatekeeper config surface mounted at /api/gatekeeper (P3)
+2026-11-05 19:36:21 [    INFO] ✓ External MCP client config mounted at /api/mcp/servers (P6)
+2026-11-05 19:36:21 [    INFO] ✓ Mini-apps router mounted at /api/mini-apps
+2026-11-05 19:36:21 [    INFO] ✓ Automation Settings mounted at /api/v1/settings/automations
+2026-11-05 19:36:22 [    INFO] ✓ Finance Live API mounted at /api/atom/finance/live
+2026-11-05 19:36:22 [    INFO] ✓ Projects Live API mounted at /api/atom/projects/live
+2026-11-05 19:36:22 [    INFO] ✓ Sales Live API mounted at /api/atom/sales/live
+2026-11-05 19:36:22 [    INFO] ✓ Arbor HTR endpoints mounted at /api/v1/hypothesis-tree
+2026-11-05 19:36:22 [    INFO] Loading Core API Routes...
+2026-11-05 19:36:22 [    INFO] ✓ OAuth Status and Authorization Routes Loaded
+2026-11-05 19:36:22 [    INFO] ✓ Telegram Chat Routes Loaded
+2026-11-05 19:36:22 [    INFO] Slack unified service initialized with base URL: https://slack.com/api
+2026-11-05 19:36:22 [    INFO] ✓ Slack Chat Routes Loaded
+2026-11-05 19:36:22 [    INFO] ✓ Mobile Workflows Routes Loaded at /api/mobile/workflows
+2026-11-05 19:36:22 [    INFO] ✓ Operations Routes Loaded at /api/operations
+2026-11-05 19:36:22 [    INFO] ✓ Tools Routes Loaded at /api/tools
+2026-11-05 19:36:22 [ WARNING] LINE adapter not configured or httpx not available
+2026-11-05 19:36:22 [    INFO] ✓ LINE Routes Loaded at /api/line (auth-gated)
+2026-11-05 19:36:22 [    INFO] ✅ Desktop authentication routes enabled (secure API keys)
+2026-11-05 19:36:22 [    INFO] ✅ Deep linking system enabled
+2026-11-05 19:36:22 [    INFO] ✅ Debug tenant check system enabled
+2026-11-05 19:36:22 [    INFO] ✓ Analytics Engine Routes Loaded
+2026-11-05 19:36:22 [    INFO] ✓ Workflow Import/Export Routes Loaded
+2026-11-05 19:36:22 [ WARNING] Failed to load Governance Verification routes: No module named 'api.routes.admin'
+2026-11-05 19:36:22 [    INFO] ✓ JIT Verification & Admin Governance Routes Loaded
+2026-11-05 19:36:22 [    INFO] ✓ Workspace Context Routes Loaded
+2026-11-05 19:36:22 [    INFO] ✓ Governance Manual Fact Entry Routes Loaded
+2026-11-05 19:36:22 [    INFO] ✓ Queue Monitoring Routes Loaded
+2026-11-05 19:36:22 [    INFO] ✓ Auto-Dev Review Routes Loaded
+2026-11-05 19:36:22 [    INFO] ✓ Canvas Skill Integration Routes Loaded
+2026-11-05 19:36:22 [    INFO] ✓ Business Facts Routes Loaded
+2026-11-05 19:36:22 [ WARNING] Failed to load Paused Tasks routes: No module named 'api.routes.admin'
+2026-11-05 19:36:22 [    INFO] ✓ Migration Routes Loaded
+2026-11-05 19:36:22 [    INFO] ✓ Embedding Routes Loaded
+2026-11-05 19:36:22 [    INFO] ✓ Tenant Management Routes Loaded
+2026-11-05 19:36:22 [    INFO] ✓ Federation Routes Loaded
+2026-11-05 19:36:22 [    INFO] ✓ Local Model Routes Loaded (/api/local-models)
+2026-11-05 19:36:22 [ WARNING] Failed to load business intelligence routes: No module named 'sales.deal_ingestion_routes'
+2026-11-05 19:36:22 [    INFO] ✓ Skill Management & Execution Routes Loaded
+2026-11-05 19:36:22 [    INFO] ✓ Learn Routes Loaded (workflow→skill distillation)
+2026-11-05 19:36:22 [    INFO] ✓ Admin Skill & Evolution Routes Loaded
+2026-11-05 19:36:22 [    INFO] ✓ Workflow UI Endpoints Loaded
+2026-11-05 19:36:22 [    INFO] ✓ Time-Travel Endpoints Loaded
+2026-11-05 19:36:22 [ WARNING] Test deployed routes not found: No module named 'api.routes.test_deployed_routes'
+2026-11-05 19:36:22 [    INFO] ✓ Messaging OAuth (BYOK) Routes Loaded
+2026-11-05 19:36:22 [    INFO] ✓ Explicit Outlook Integration Routes Loaded at /api/integrations/outlook
+2026-11-05 19:36:22 [    INFO] ✓ Shopify REST routes loaded
+2026-11-05 19:36:22 [    INFO] Configured ingestion for whatsapp
+2026-11-05 19:36:22 [    INFO] Configured ingestion for slack
+2026-11-05 19:36:22 [    INFO] Configured ingestion for email
+2026-11-05 19:36:22 [    INFO] Configured ingestion for telegram
+2026-11-05 19:36:22 [    INFO] Configured ingestion for discord
+2026-11-05 19:36:22 [    INFO] Configured ingestion for sms
+2026-11-05 19:36:22 [    INFO] Configured ingestion for calls
+2026-11-05 19:36:22 [    INFO] Configured ingestion for microsoft_teams
+2026-11-05 19:36:22 [    INFO] Configured ingestion for zoom
+2026-11-05 19:36:22 [    INFO] Configured ingestion for notion
+2026-11-05 19:36:22 [    INFO] Configured ingestion for linear
+2026-11-05 19:36:22 [    INFO] Configured ingestion for outlook
+2026-11-05 19:36:22 [    INFO] Configured ingestion for gmail
+2026-11-05 19:36:22 [    INFO] Configured ingestion for salesforce
+2026-11-05 19:36:22 [    INFO] Configured ingestion for asana
+2026-11-05 19:36:22 [    INFO] Configured ingestion for dropbox
+2026-11-05 19:36:22 [    INFO] Configured ingestion for box
+2026-11-05 19:36:22 [    INFO] Configured ingestion for tableau
+2026-11-05 19:36:22 [    INFO] Configured ingestion for zoho
+2026-11-05 19:36:22 [    INFO] Configured ingestion for xero
+2026-11-05 19:36:22 [    INFO] Configured ingestion for quickbooks
+2026-11-05 19:36:22 [ WARNING] Razorpay routes not found, skipping: No module named 'api.routes.integrations'
+2026-11-05 19:36:22 [ WARNING] TrelloService for tenant default...: credentials not found. Service will be disabled.
+2026-11-05 19:36:22 [ WARNING] Enterprise services not available: No module named 'ai_enhanced_service'
+2026-11-05 19:36:22 [    INFO] HubSpot Integration Service initialized
+2026-11-05 19:36:22 [ WARNING] SageHR routes not found, skipping: No module named 'api.routes.integrations'
+2026-11-05 19:36:22 [    INFO] Loading Slack webhooks...
+2026-11-05 19:36:22 [    INFO] ✓ Slack webhooks loaded
+2026-11-05 19:36:22 [    INFO] Loading Shopify webhooks...
+2026-11-05 19:36:22 [    INFO] ✓ Shopify webhooks loaded
+2026-11-05 19:36:22 [    INFO] Loading Twilio webhooks...
+2026-11-05 19:36:22 [    INFO] ✓ Twilio webhooks loaded
+2026-11-05 19:36:22 [    INFO] ✓ Standardized Webhook Endpoints Loaded
+2026-11-05 19:36:22 [    INFO] ✓ Admin Routes Loaded
+2026-11-05 19:36:22 [    INFO] ✓ 2FA Routes Loaded
+2026-11-05 19:36:22 [    INFO] ✓ Board WebSocket channel mounted at /ws/boards/{id}
+2026-11-05 19:36:22 [    INFO] ✓ ACP bridge mounted at /acp/ws
+2026-11-05 19:36:22 [    INFO] ✓ A2A endpoint mounted at /api/a2 (+ /.well-known/agent-card.json)
+2026-11-05 19:36:22 [    INFO] ✓ OIDC SSO mounted at /api/auth/sso/oidc
+2026-11-05 19:36:22 [    INFO] ✓ SCIM v2 mounted at /api/scim/v2
+2026-11-05 19:36:22 [    INFO] ✓ Observability mounted at /api/observability
+2026-11-05 19:36:22 [    INFO] ✓ BambooHR integration mounted at /api/bamboohr
+2026-11-05 19:36:22 [    INFO] ✓ Twitter/X integration mounted at /api/twitter
+2026-11-05 19:36:22 [    INFO] ✓ MCP Routes Loaded
+2026-11-05 19:36:22 [    INFO] ✓ Availability Routes Loaded
+2026-11-05 19:36:22 [    INFO] ✓ Proposal Routes Loaded
+2026-11-05 19:36:22 [    INFO] ✓ Supervision-Learning Routes Loaded
+2026-11-05 19:36:22 [    INFO] ✓ Integrations Catalog Routes Loaded
+2026-11-05 19:36:22 [    INFO] ✓ Dynamic Options Routes Loaded
+2026-11-05 19:36:22 [    INFO] ✓ Webhook Routes Loaded
+2026-11-05 19:36:22 [    INFO] ✓ Universal Auth Routes Loaded
+2026-11-05 19:36:22 [    INFO] ✓ Meta Compliance Routes Loaded
+2026-11-05 19:36:22 [    INFO] ✓ Consolidated Hardened WhatsApp Routes Loaded
+2026-11-05 19:36:22 [    INFO] ✓ External Integration Routes Loaded
+2026-11-05 19:36:22 [    INFO] ✓ Connection Management Routes Loaded
+2026-11-05 19:36:22 [    INFO] ✓ Integration Status Routes Loaded
+2026-11-05 19:36:22 [    INFO] ComputerUseAgent initialized for tenant default
+2026-11-05 19:36:22 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-05 19:36:22 [    INFO] EscalationManager initialized
+2026-11-05 19:36:22 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:36:22 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-05 19:36:22 [    INFO] EscalationManager initialized
+2026-11-05 19:36:22 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:36:22 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 19:36:22 [    INFO] Slack Enhanced Service initialized
+2026-11-05 19:36:22 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-05 19:36:22 [    INFO] EscalationManager initialized
+2026-11-05 19:36:22 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:36:22 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-05 19:36:22 [    INFO] EscalationManager initialized
+2026-11-05 19:36:22 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:36:22 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 19:36:22 [    INFO] Slack Enhanced Service initialized
+2026-11-05 19:36:22 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-05 19:36:22 [    INFO] ✓ Chat Routes Loaded (incl. /api/chat/feedback, /api/chat/routing-stats)
+2026-11-05 19:36:22 [    INFO] ✓ Agent Governance Routes Loaded
+2026-11-05 19:36:22 [    INFO] ✓ HITL Approvals Alias Routes Loaded (/api/agents/approvals)
+2026-11-05 19:36:23 [    INFO] ✓ Durable Assignment Routes Loaded (/api/assignments)
+2026-11-05 19:36:23 [    INFO] ✓ Conversation Learning Routes Loaded (/api/conversation-learning)
+2026-11-05 19:36:23 [    INFO] ✓ Enterprise User Management Routes Loaded (/api/enterprise/users|roles|teams|workspaces)
+2026-11-05 19:36:23 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-05 19:36:23 [    INFO] ✓ Workflow Marketplace Routes Loaded (/api/marketplace/*)
+2026-11-05 19:36:23 [    INFO] ✓ Agent Maturity Journey Routes Loaded (/api/maturity)
+2026-11-05 19:36:23 [    INFO] ✓ Protection API Routes Loaded (Skill Scanner)
+2026-11-05 19:36:23 [    INFO] ✓ User Preference Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Canvas Terminal Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Browser Automation Routes Loaded
+2026-11-05 19:36:23 [    INFO] Device WebSocket module loaded - real device communication enabled
+2026-11-05 19:36:23 [    INFO] ✓ Device Capabilities Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Canvas Recording Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Autonomy Routes Loaded (action HITL policy)
+2026-11-05 19:36:23 [    INFO] ✓ Meeting Routes Loaded (attendance tracking)
+2026-11-05 19:36:23 [    INFO] ✓ Custom Components Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Canvas Email Routes Loaded (/api/canvas/email)
+2026-11-05 19:36:23 [    INFO] ✓ Canvas Capability Routes Loaded (/api/canvas/{id}/capability)
+2026-11-05 19:36:23 [    INFO] ✓ Canvas PDF Routes Loaded (/api/canvas/pdf)
+2026-11-05 19:36:23 [    INFO] ✓ Installation Profile Routes Loaded (/api/installation)
+2026-11-05 19:36:23 [    INFO] ✓ Playbook Routes Loaded (/api/playbooks)
+2026-11-05 19:36:23 [    INFO] ✓ Goal Run Routes Loaded (/api/goal-runs)
+2026-11-05 19:36:23 [    INFO] ✓ Goal Routes Loaded (/api/goals)
+2026-11-05 19:36:23 [    INFO] ✓ Usage Analytics Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Health Monitoring Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ System Status aggregate mounted at /api/status
+2026-11-05 19:36:23 [    INFO] ✓ Product profile mounted at /api/product/profile
+2026-11-05 19:36:23 [    INFO] ✓ Service registry mounted at /api/services/registry
+2026-11-05 19:36:23 [    INFO] ✓ Ported Features (Canvas/Agent) Processing Complete
+2026-11-05 19:36:23 [    INFO] ✓ Governance Analytics & Remediation Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Memory Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Memory Management Routes Loaded (Consolidation, Archival, Recovery)
+2026-11-05 19:36:23 [    INFO] ✓ Memory Add-on Routes Loaded (Stripe Billing)
+2026-11-05 19:36:23 [    INFO] ✓ Document & Data Ingestion Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Document Hub Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Experience Marketplace Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Agent Marketplace Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Test Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ AI Workflows Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Background Agent Routes Loaded
+2026-11-05 19:36:23 [    INFO] Creating isolated LanceDBHandler for workspace: default_shared at ./data/atom_memory/default_shared
+2026-11-05 19:36:23 [    INFO] EscalationManager initialized
+2026-11-05 19:36:23 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:36:23 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 19:36:23 [    INFO] LanceDBHandler initialized. ID: 5254212848. LANCEDB_AVAILABLE: True
+2026-11-05 19:36:23 [ WARNING] LanceDB not initialized, chat history disabled
+2026-11-05 19:36:23 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-05 19:36:23 [ WARNING] Integration Data routes not found, skipping: No module named 'api.routes.integrations'
+2026-11-05 19:36:23 [    INFO] ✓ Integration Data Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Integration & Service Health Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Historical Sync Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Worker Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Component Marketplace Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Agent Coordination Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ OpenClaw Skill Integration Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ OpenClaw Scan Integration Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ OpenClaw Governance Integration Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Skill Composition Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Live Command Center APIs Loaded (Comm, Sales, Projects, Finance)
+2026-11-05 19:36:23 [    INFO] ✓ Scheduler Routes Loaded (QStash Ready)
+2026-11-05 19:36:23 [    INFO] ✓ Desktop Bridge Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Satellite Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Mobile Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Invitation Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Support Ticketing Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Bug Triage Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Communication Hub Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Universal Communication Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Document Hub Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Admin Retention Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Billing Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Public Pricing Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Social Media Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Audit Log Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Shell Security Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Consolidated Core Routes Loaded (Intelligence, Marketing, Skills, Memory)
+2026-11-05 19:36:23 [    INFO] ✓ BYOK API Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ LLM Gateway Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ MCP Server Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ SSO API Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Feature Flag Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Sandbox Execution Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ External API Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Entity Type Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Entity Query Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Entity Linking Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Ingestion CRUD Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Entity Skill Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Agent Integration Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Meta Agent Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Admin Integration Catalog Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Domain Marketplace Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Agent-Domain Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Agent Marketplace Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Domain-Aware Graduation Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Capability Matrix Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Learning & Adaptation Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Stage Router Management Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Learning Router Management Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Admin Runtime Settings Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ BPE Workspace Admin Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Fleet Router Management Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Decision Plane Management Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Decision Automation Loop Scheduled (mode=off)
+2026-11-05 19:36:23 [    INFO] ✓ Org-Politics Management Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Org-Politics Automation Loop Scheduled (mode=auto)
+2026-11-05 19:36:23 [    INFO] ✓ Trust Calibration Routes Loaded (shadow, flag-gated)
+2026-11-05 19:36:23 [    INFO] ✓ Ontology Draft Automation Routes Loaded
+2026-11-05 19:36:23 [    INFO] ✓ Core Routes Loaded Successfully
+2026-11-05 19:36:23 [    INFO] ✓ Microsoft 365 Routes Loaded (isolated)
+2026-11-05 19:36:23 [    INFO] ✅ Debug endpoints enabled
+
+tests/test_auto_dev/test_advisor_service.py::TestAdvisorServiceGuidanceGeneration::test_generate_guidance_calls_llm 
+-------------------------------- live log setup --------------------------------
+2026-11-05 19:36:23 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  0%]
+tests/test_auto_dev/test_advisor_service.py::TestAdvisorServiceGuidanceGeneration::test_includes_variant_metadata PASSED [  0%]
+tests/test_auto_dev/test_advisor_service.py::TestAdvisorServiceGuidanceGeneration::test_includes_fitness_signals PASSED [  0%]
+tests/test_auto_dev/test_advisor_service.py::TestAdvisorServiceGuidanceGeneration::test_returns_human_readable_text PASSED [  1%]
+tests/test_auto_dev/test_advisor_service.py::TestAdvisorServiceGuidanceGeneration::test_handles_llm_errors PASSED [  1%]
+tests/test_auto_dev/test_advisor_service.py::TestAdvisorServiceVariantAnalysis::test_compares_variants PASSED [  1%]
+tests/test_auto_dev/test_advisor_service.py::TestAdvisorServiceVariantAnalysis::test_identifies_strengths_weaknesses PASSED [  2%]
+tests/test_auto_dev/test_advisor_service.py::TestAdvisorServiceLLMIntegration::test_uses_llm_service PASSED [  2%]
+tests/test_auto_dev/test_advisor_service.py::TestAdvisorServiceLLMIntegration::test_passes_context_correctly PASSED [  2%]
+tests/test_auto_dev/test_advisor_service.py::TestAdvisorServiceErrorHandling::test_handles_missing_variant_data 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:24 [    INFO] EscalationManager initialized
+2026-11-05 19:36:24 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [  2%]
+tests/test_auto_dev/test_advisor_service.py::TestAdvisorServiceErrorHandling::test_returns_safe_default_guidance 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:25 [    INFO] EscalationManager initialized
+2026-11-05 19:36:25 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [  3%]
+tests/test_auto_dev/test_advisor_service.py::TestAdvisorServiceReadinessScore::test_calculates_readiness_score PASSED [  3%]
+tests/test_auto_dev/test_advisor_service.py::TestAdvisorServiceReadinessScore::test_readiness_increases_with_mutations PASSED [  3%]
+tests/test_auto_dev/test_alpha_evolver_engine.py::TestAlphaEvolverEngineEpisodeAnalysis::test_analyze_episode_extracts_performance_signals PASSED [  4%]
+tests/test_auto_dev/test_alpha_evolver_engine.py::TestAlphaEvolverEngineEpisodeAnalysis::test_identifies_slow_tool_calls PASSED [  4%]
+tests/test_auto_dev/test_alpha_evolver_engine.py::TestAlphaEvolverEngineMutationGeneration::test_generate_mutation_calls_llm PASSED [  4%]
+tests/test_auto_dev/test_alpha_evolver_engine.py::TestAlphaEvolverEngineMutationGeneration::test_preserves_tool_interface PASSED [  4%]
+tests/test_auto_dev/test_alpha_evolver_engine.py::TestAlphaEvolverEngineValidation::test_execute_mutation_in_sandbox PASSED [  5%]
+tests/test_auto_dev/test_alpha_evolver_engine.py::TestAlphaEvolverEngineValidation::test_compares_execution_metrics PASSED [  5%]
+tests/test_auto_dev/test_alpha_evolver_engine.py::TestAlphaEvolverEngineVariantSpawning::test_creates_workflow_variant PASSED [  5%]
+tests/test_auto_dev/test_alpha_evolver_engine.py::TestAlphaEvolverEngineVariantSpawning::test_sets_parent_variant_id PASSED [  6%]
+tests/test_auto_dev/test_alpha_evolver_engine.py::TestAlphaEvolverEngineLineageTracking::test_traces_mutation_chain PASSED [  6%]
+tests/test_auto_dev/test_alpha_evolver_engine.py::TestAlphaEvolverEngineResearchExperiment::test_iterative_mutate_sandbox_compare 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:26 [    INFO] Research experiment iteration 1/2 for tenant tenant-001
+2026-11-05 19:36:26 [    INFO] Research experiment iteration 2/2 for tenant tenant-001
+PASSED                                                                   [  6%]
+tests/test_auto_dev/test_auto_dev_integration.py::TestIntegrationEventFlow::test_full_event_chain PASSED [  7%]
+tests/test_auto_dev/test_auto_dev_integration.py::TestIntegrationMementoEngineLifecycle::test_analyzes_failed_episode PASSED [  7%]
+tests/test_auto_dev/test_auto_dev_integration.py::TestIntegrationMementoEngineLifecycle::test_proposes_skill_code PASSED [  7%]
+tests/test_auto_dev/test_auto_dev_integration.py::TestIntegrationMementoEngineLifecycle::test_validates_in_sandbox PASSED [  7%]
+tests/test_auto_dev/test_auto_dev_integration.py::TestIntegrationMementoEngineLifecycle::test_promotes_to_community_skill PASSED [  8%]
+tests/test_auto_dev/test_auto_dev_integration.py::TestIntegrationAlphaEvolverEngineLifecycle::test_analyzes_successful_episode PASSED [  8%]
+tests/test_auto_dev/test_auto_dev_integration.py::TestIntegrationAlphaEvolverEngineLifecycle::test_generates_mutations PASSED [  8%]
+tests/test_auto_dev/test_auto_dev_integration.py::TestIntegrationAlphaEvolverEngineLifecycle::test_validates_variants PASSED [  9%]
+tests/test_auto_dev/test_auto_dev_integration.py::TestIntegrationAlphaEvolverEngineLifecycle::test_spawns_workflow_variant PASSED [  9%]
+tests/test_auto_dev/test_auto_dev_integration.py::TestIntegrationEvolutionEngineMonitoring::test_monitors_variant_performance PASSED [  9%]
+tests/test_auto_dev/test_auto_dev_integration.py::TestIntegrationEvolutionEngineMonitoring::test_detects_trigger_conditions 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:28 [    INFO] EvolutionEngine: Triggering optimization for skill 'test_skill' (agent agent-001). Reason: high_latency (10.0s)
+2026-11-05 19:36:28 [    INFO] EvolutionEngine: Mutation mutation-001 passed sandbox. Queued for review.
+PASSED                                                                   [  9%]
+tests/test_auto_dev/test_auto_dev_integration.py::TestIntegrationServiceIntegration::test_fitness_evaluates_variants 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:28 [    INFO] Variant variant-001 proxy fitness: 0.5
+PASSED                                                                   [ 10%]
+tests/test_auto_dev/test_auto_dev_integration.py::TestIntegrationServiceIntegration::test_advisor_generates_guidance PASSED [ 10%]
+tests/test_auto_dev/test_auto_dev_integration.py::TestIntegrationServiceIntegration::test_end_to_end_optimization_flow 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:28 [    INFO] Variant a49c0ecf-2f4c-4098-a009-f245f00288f2 proxy fitness: 0.5
+PASSED                                                                   [ 10%]
+tests/test_auto_dev/test_base_learning_engine.py::TestBaseLearningEngineAbstractInterface::test_cannot_instantiate_base_learning_engine PASSED [ 11%]
+tests/test_auto_dev/test_base_learning_engine.py::TestBaseLearningEngineAbstractInterface::test_concrete_implementation_requires_all_abstract_methods PASSED [ 11%]
+tests/test_auto_dev/test_base_learning_engine.py::TestBaseLearningEngineAbstractInterface::test_complete_concrete_implementation_works PASSED [ 11%]
+tests/test_auto_dev/test_base_learning_engine.py::TestLLMServiceFallback::test_returns_injected_llm_service PASSED [ 12%]
+tests/test_auto_dev/test_base_learning_engine.py::TestLLMServiceFallback::test_fallback_to_get_llm_service PASSED [ 12%]
+tests/test_auto_dev/test_base_learning_engine.py::TestLLMServiceFallback::test_graceful_handling_when_llm_unavailable 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:28 [ WARNING] LLM service unavailable — Auto-Dev features requiring LLM will be skipped: LLM service not available
+PASSED                                                                   [ 12%]
+tests/test_auto_dev/test_base_learning_engine.py::TestSandboxFallback::test_returns_injected_sandbox PASSED [ 12%]
+tests/test_auto_dev/test_base_learning_engine.py::TestSandboxFallback::test_fallback_to_container_sandbox PASSED [ 13%]
+tests/test_auto_dev/test_base_learning_engine.py::TestSandboxFallback::test_graceful_handling_when_sandbox_unavailable 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:28 [ WARNING] Sandbox unavailable — validation will be skipped: ContainerSandbox not available
+PASSED                                                                   [ 13%]
+tests/test_auto_dev/test_base_learning_engine.py::TestMarkdownStripping::test_strip_python_fences PASSED [ 13%]
+tests/test_auto_dev/test_base_learning_engine.py::TestMarkdownStripping::test_strip_generic_fences PASSED [ 14%]
+tests/test_auto_dev/test_base_learning_engine.py::TestMarkdownStripping::test_preserves_code_content PASSED [ 14%]
+tests/test_auto_dev/test_base_learning_engine.py::TestMarkdownStripping::test_handles_no_fences PASSED [ 14%]
+tests/test_auto_dev/test_base_learning_engine.py::TestMarkdownStripping::test_handles_nested_fences PASSED [ 14%]
+tests/test_auto_dev/test_base_learning_engine.py::TestMarkdownStripping::test_handles_leading_trailing_whitespace PASSED [ 15%]
+tests/test_auto_dev/test_base_learning_engine.py::TestSandboxProtocol::test_sandbox_protocol_is_runtime_checkable PASSED [ 15%]
+tests/test_auto_dev/test_base_learning_engine.py::TestSandboxProtocol::test_isinstance_with_concrete_implementation PASSED [ 15%]
+tests/test_auto_dev/test_base_learning_engine.py::TestSandboxProtocol::test_mock_sandbox_as_protocol PASSED [ 16%]
+tests/test_auto_dev/test_base_learning_engine.py::TestSandboxProtocol::test_protocol_duck_typing PASSED [ 16%]
+tests/test_auto_dev/test_base_learning_engine.py::TestBaseLearningEngineIntegration::test_engine_with_database_session PASSED [ 16%]
+tests/test_auto_dev/test_base_learning_engine.py::TestBaseLearningEngineIntegration::test_engine_with_mock_services PASSED [ 17%]
+tests/test_auto_dev/test_capability_gate.py::TestCapabilityGateMaturityGates::test_student_maturity_blocked PASSED [ 17%]
+tests/test_auto_dev/test_capability_gate.py::TestCapabilityGateMaturityGates::test_intern_maturity_blocked_for_evolver PASSED [ 17%]
+tests/test_auto_dev/test_capability_gate.py::TestCapabilityGateMaturityGates::test_supervised_maturity_allowed PASSED [ 17%]
+tests/test_auto_dev/test_capability_gate.py::TestCapabilityGateMaturityGates::test_autonomous_maturity_allowed PASSED [ 18%]
+tests/test_auto_dev/test_capability_gate.py::TestCapabilityGateTenantOptIn::test_checks_auto_dev_enabled PASSED [ 18%]
+tests/test_auto_dev/test_capability_gate.py::TestCapabilityGateTenantOptIn::test_returns_false_if_opt_in_disabled PASSED [ 18%]
+tests/test_auto_dev/test_capability_gate.py::TestCapabilityGateTenantOptIn::test_handles_missing_tenant_settings PASSED [ 19%]
+tests/test_auto_dev/test_capability_gate.py::TestCapabilityGateCapabilityCheck::test_can_use_skill_generation PASSED [ 19%]
+tests/test_auto_dev/test_capability_gate.py::TestCapabilityGateCapabilityCheck::test_can_use_evolution PASSED [ 19%]
+tests/test_auto_dev/test_capability_gate.py::TestCapabilityGateCapabilityCheck::test_different_maturity_requirements PASSED [ 19%]
+tests/test_auto_dev/test_capability_gate.py::TestCapabilityGateErrorHandling::test_handles_missing_agent 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:30 [   ERROR] Failed to get maturity for nonexistent-agent: Agent not found
+PASSED                                                                   [ 20%]
+tests/test_auto_dev/test_capability_gate.py::TestCapabilityGateErrorHandling::test_returns_false_on_errors PASSED [ 20%]
+tests/test_auto_dev/test_capability_gate.py::TestCapabilityGateDailyLimits::test_max_mutations_per_day PASSED [ 20%]
+tests/test_auto_dev/test_capability_gate.py::TestCapabilityGateDailyLimits::test_max_skill_candidates_per_day PASSED [ 21%]
+tests/test_auto_dev/test_capability_gate.py::TestCapabilityGateMaturityHelpers::test_is_at_least_function PASSED [ 21%]
+tests/test_auto_dev/test_capability_gate.py::TestCapabilityGateMaturityHelpers::test_maturity_order PASSED [ 21%]
+tests/test_auto_dev/test_container_sandbox.py::TestContainerSandboxDockerExecution::test_docker_available_property SKIPPED [ 21%]
+tests/test_auto_dev/test_container_sandbox.py::TestContainerSandboxDockerExecution::test_execute_raw_python_runs_code PASSED [ 22%]
+tests/test_auto_dev/test_container_sandbox.py::TestContainerSandboxSubprocessFallback::test_falls_back_to_subprocess PASSED [ 22%]
+tests/test_auto_dev/test_container_sandbox.py::TestContainerSandboxSubprocessFallback::test_uses_same_interface PASSED [ 22%]
+tests/test_auto_dev/test_container_sandbox.py::TestContainerSandboxSecurityConstraints::test_enforces_timeout PASSED [ 23%]
+tests/test_auto_dev/test_container_sandbox.py::TestContainerSandboxResultFormat::test_returns_dict_with_status PASSED [ 23%]
+tests/test_auto_dev/test_container_sandbox.py::TestContainerSandboxResultFormat::test_includes_output_string PASSED [ 23%]
+tests/test_auto_dev/test_container_sandbox.py::TestContainerSandboxResultFormat::test_includes_execution_seconds PASSED [ 24%]
+tests/test_auto_dev/test_container_sandbox.py::TestContainerSandboxErrorHandling::test_handles_syntax_errors PASSED [ 24%]
+tests/test_auto_dev/test_container_sandbox.py::TestContainerSandboxErrorHandling::test_handles_runtime_errors PASSED [ 24%]
+tests/test_auto_dev/test_container_sandbox.py::TestContainerSandboxExecutionWrapper::test_wraps_code_with_input_params PASSED [ 24%]
+tests/test_auto_dev/test_container_sandbox.py::TestContainerSandboxExecutionWrapper::test_injects_params_as_json PASSED [ 25%]
+tests/test_auto_dev/test_event_bus.py::TestEventBusPublishSubscribe::test_emit_task_fail_calls_all_handlers PASSED [ 25%]
+tests/test_auto_dev/test_event_bus.py::TestEventBusPublishSubscribe::test_emit_task_success_calls_all_handlers PASSED [ 25%]
+tests/test_auto_dev/test_event_bus.py::TestEventBusPublishSubscribe::test_emit_skill_execution_calls_all_handlers PASSED [ 26%]
+tests/test_auto_dev/test_event_bus.py::TestEventBusPublishSubscribe::test_verify_event_payload_delivery PASSED [ 26%]
+tests/test_auto_dev/test_event_bus.py::TestEventBusMultipleSubscribers::test_multiple_handlers_receive_event PASSED [ 26%]
+tests/test_auto_dev/test_event_bus.py::TestEventBusMultipleSubscribers::test_handler_execution_order PASSED [ 26%]
+tests/test_auto_dev/test_event_bus.py::TestEventBusMultipleSubscribers::test_different_event_types_separate_handlers PASSED [ 27%]
+tests/test_auto_dev/test_event_bus.py::TestEventBusExceptionHandling::test_handler_exception_doesnt_crash_bus 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:31 [   ERROR] Auto-Dev event handler error in on_task_fail (handler=handler1): Simulated error in handler1
+Traceback (most recent call last):
+  File "/private/tmp/atom-evolution-review/backend/core/auto_dev/event_hooks.py", line 118, in _dispatch
+    await handler(event)
+  File "/private/tmp/atom-evolution-review/backend/tests/test_auto_dev/test_event_bus.py", line 264, in handler1
+    raise ValueError("Simulated error in handler1")
+ValueError: Simulated error in handler1
+PASSED                                                                   [ 27%]
+tests/test_auto_dev/test_event_bus.py::TestEventBusExceptionHandling::test_multiple_handler_exceptions 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:31 [   ERROR] Auto-Dev event handler error in on_task_fail (handler=handler1): Error 1
+Traceback (most recent call last):
+  File "/private/tmp/atom-evolution-review/backend/core/auto_dev/event_hooks.py", line 118, in _dispatch
+    await handler(event)
+  File "/private/tmp/atom-evolution-review/backend/tests/test_auto_dev/test_event_bus.py", line 295, in handler1
+    raise Exception("Error 1")
+Exception: Error 1
+2026-11-05 19:36:31 [   ERROR] Auto-Dev event handler error in on_task_fail (handler=handler2): Error 2
+Traceback (most recent call last):
+  File "/private/tmp/atom-evolution-review/backend/core/auto_dev/event_hooks.py", line 118, in _dispatch
+    await handler(event)
+  File "/private/tmp/atom-evolution-review/backend/tests/test_auto_dev/test_event_bus.py", line 299, in handler2
+    raise ValueError("Error 2")
+ValueError: Error 2
+PASSED                                                                   [ 27%]
+tests/test_auto_dev/test_event_bus.py::TestEventBusExceptionHandling::test_exception_logged_with_handler_name 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:31 [   ERROR] Auto-Dev event handler error in on_task_fail (handler=failing_handler): Test error
+Traceback (most recent call last):
+  File "/private/tmp/atom-evolution-review/backend/core/auto_dev/event_hooks.py", line 118, in _dispatch
+    await handler(event)
+  File "/private/tmp/atom-evolution-review/backend/tests/test_auto_dev/test_event_bus.py", line 328, in failing_handler
+    raise RuntimeError("Test error")
+RuntimeError: Test error
+PASSED                                                                   [ 28%]
+tests/test_auto_dev/test_event_bus.py::TestEventBusEventPayloads::test_task_event_fields PASSED [ 28%]
+tests/test_auto_dev/test_event_bus.py::TestEventBusEventPayloads::test_task_event_default_values PASSED [ 28%]
+tests/test_auto_dev/test_event_bus.py::TestEventBusEventPayloads::test_skill_execution_event_fields PASSED [ 29%]
+tests/test_auto_dev/test_event_bus.py::TestEventBusEventPayloads::test_skill_execution_event_default_values PASSED [ 29%]
+tests/test_auto_dev/test_event_bus.py::TestEventBusEventPayloads::test_metadata_dictionary_handling PASSED [ 29%]
+tests/test_auto_dev/test_event_bus.py::TestEventBusEventFiltering::test_filter_by_agent_id PASSED [ 29%]
+tests/test_auto_dev/test_event_bus.py::TestEventBusEventFiltering::test_filter_by_tenant_id PASSED [ 30%]
+tests/test_auto_dev/test_event_bus.py::TestEventBusEventFiltering::test_filter_by_event_type PASSED [ 30%]
+tests/test_auto_dev/test_event_bus.py::TestEventBusClear::test_clear_removes_all_handlers PASSED [ 30%]
+tests/test_auto_dev/test_event_bus.py::TestEventBusClear::test_clear_all_event_types PASSED [ 31%]
+tests/test_auto_dev/test_evolution_engine.py::TestEvolutionEngineMonitoring::test_monitors_workflow_variants PASSED [ 31%]
+tests/test_auto_dev/test_evolution_engine.py::TestEvolutionEngineTriggerDetection::test_triggers_on_high_latency 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:31 [    INFO] EvolutionEngine: Triggering optimization for skill 'test_skill' (agent agent-001). Reason: high_latency (10.0s)
+2026-11-05 19:36:31 [    INFO] EvolutionEngine: Mutation mutation-001 passed sandbox. Queued for review.
+PASSED                                                                   [ 31%]
+tests/test_auto_dev/test_evolution_engine.py::TestEvolutionEngineTriggerDetection::test_triggers_on_high_token_usage 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:31 [    INFO] EvolutionEngine: Triggering optimization for skill 'test_skill' (agent agent-001). Reason: high_token_usage (10000)
+2026-11-05 19:36:31 [    INFO] EvolutionEngine: Mutation mutation-001 passed sandbox. Queued for review.
+PASSED                                                                   [ 31%]
+tests/test_auto_dev/test_evolution_engine.py::TestEvolutionEngineBackgroundOptimization::test_spawns_alpha_evolver 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:31 [    INFO] EvolutionEngine: Triggering optimization for skill 'test_skill' (agent agent-001). Reason: high_latency (8.0s), high_token_usage (6000), execution_failure
+2026-11-05 19:36:31 [    INFO] EvolutionEngine: Mutation mutation-001 passed sandbox. Queued for review.
+PASSED                                                                   [ 32%]
+tests/test_auto_dev/test_evolution_engine.py::TestEvolutionEngineVariantPruning::test_prunes_low_fitness_variants PASSED [ 32%]
+tests/test_auto_dev/test_evolution_engine.py::TestEvolutionEngineEventPublishing::test_register_on_event_bus 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:32 [    INFO] EvolutionEngine registered on event bus
+PASSED                                                                   [ 32%]
+tests/test_auto_dev/test_fitness_service.py::TestFitnessServiceInitialProxy::test_syntax_validation 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:32 [    INFO] Variant variant-001 proxy fitness: 0.5
+PASSED                                                                   [ 33%]
+tests/test_auto_dev/test_fitness_service.py::TestFitnessServiceInitialProxy::test_compilation_check 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:32 [    INFO] Variant e96391d6-d46b-467f-b5cd-824987ce71ce proxy fitness: 0.0
+PASSED                                                                   [ 33%]
+tests/test_auto_dev/test_fitness_service.py::TestFitnessServiceInitialProxy::test_semantic_similarity 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:32 [    INFO] Variant variant-001 proxy fitness: 1.0
+PASSED                                                                   [ 33%]
+tests/test_auto_dev/test_fitness_service.py::TestFitnessServiceDelayedWebhook::test_success_rate_scoring 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:32 [    INFO] Variant variant-001 delayed fitness updated: 1.0
+PASSED                                                                   [ 34%]
+tests/test_auto_dev/test_fitness_service.py::TestFitnessServiceDelayedWebhook::test_speed_scoring 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:32 [    INFO] Variant 1b1686a1-b274-449a-881d-4adbb06932f2 delayed fitness updated: 0.9
+PASSED                                                                   [ 34%]
+tests/test_auto_dev/test_fitness_service.py::TestFitnessServiceDelayedWebhook::test_cost_efficiency_scoring 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:32 [    INFO] Variant variant-001 delayed fitness updated: 1.0
+PASSED                                                                   [ 34%]
+tests/test_auto_dev/test_fitness_service.py::TestFitnessServiceTopVariants::test_returns_top_n_variants PASSED [ 34%]
+tests/test_auto_dev/test_fitness_service.py::TestFitnessServiceTopVariants::test_stable_sorting PASSED [ 35%]
+tests/test_auto_dev/test_fitness_service.py::TestFitnessServiceTopVariants::test_handles_empty_list PASSED [ 35%]
+tests/test_auto_dev/test_fitness_service.py::TestFitnessServiceNormalization::test_clamps_to_range 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:33 [    INFO] Variant variant-001 proxy fitness: 0.0
+PASSED                                                                   [ 35%]
+tests/test_auto_dev/test_fitness_service.py::TestFitnessServiceScoringMath::test_initial_formula 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:33 [    INFO] Variant variant-001 proxy fitness: 1.0
+PASSED                                                                   [ 36%]
+tests/test_auto_dev/test_fitness_service.py::TestFitnessServiceScoringMath::test_delayed_formula 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:33 [    INFO] Variant variant-001 delayed fitness updated: 1.0
+PASSED                                                                   [ 36%]
+tests/test_auto_dev/test_memento_engine.py::TestMementoEngineEpisodeAnalysis::test_analyze_episode_extracts_task_description PASSED [ 36%]
+tests/test_auto_dev/test_memento_engine.py::TestMementoEngineEpisodeAnalysis::test_analyze_episode_extracts_error_trace PASSED [ 36%]
+tests/test_auto_dev/test_memento_engine.py::TestMementoEngineEpisodeAnalysis::test_analyze_episode_extracts_tool_calls PASSED [ 37%]
+tests/test_auto_dev/test_memento_engine.py::TestMementoEngineEpisodeAnalysis::test_analyze_episode_identifies_failure_patterns PASSED [ 37%]
+tests/test_auto_dev/test_memento_engine.py::TestMementoEngineEpisodeAnalysis::test_analyze_episode_handles_missing_data_gracefully PASSED [ 37%]
+tests/test_auto_dev/test_memento_engine.py::TestMementoEngineCodeProposal::test_propose_code_change_calls_llm PASSED [ 38%]
+tests/test_auto_dev/test_memento_engine.py::TestMementoEngineCodeProposal::test_propose_code_change_generates_python_code PASSED [ 38%]
+tests/test_auto_dev/test_memento_engine.py::TestMementoEngineCodeProposal::test_propose_code_change_includes_skill_description PASSED [ 38%]
+tests/test_auto_dev/test_memento_engine.py::TestMementoEngineCodeProposal::test_propose_code_change_strips_markdown_fences PASSED [ 39%]
+tests/test_auto_dev/test_memento_engine.py::TestMementoEngineCodeProposal::test_propose_code_change_handles_llm_errors 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:34 [   ERROR] Skill generation failed: LLM error
+PASSED                                                                   [ 39%]
+tests/test_auto_dev/test_memento_engine.py::TestMementoEngineValidation::test_validate_change_calls_sandbox PASSED [ 39%]
+tests/test_auto_dev/test_memento_engine.py::TestMementoEngineValidation::test_validate_change_passes_test_inputs_to_sandbox PASSED [ 39%]
+tests/test_auto_dev/test_memento_engine.py::TestMementoEngineValidation::test_validate_change_returns_proxy_signals PASSED [ 40%]
+tests/test_auto_dev/test_memento_engine.py::TestMementoEngineValidation::test_validate_change_handles_sandbox_errors PASSED [ 40%]
+tests/test_auto_dev/test_memento_engine.py::TestMementoEngineSkillPromotion::test_promote_skill_creates_community_skill PASSED [ 40%]
+tests/test_auto_dev/test_memento_engine.py::TestMementoEngineSkillPromotion::test_promote_skill_handles_not_validated_candidate PASSED [ 41%]
+tests/test_auto_dev/test_memento_engine.py::TestMementoEngineSkillPromotion::test_promote_skill_handles_database_errors PASSED [ 41%]
+tests/test_auto_dev/test_memento_engine.py::TestMementoEngineEventIntegration::test_memento_engine_has_base_methods PASSED [ 41%]
+tests/test_auto_dev/test_memento_engine.py::TestMementoEngineFullPipeline::test_generate_skill_candidate_full_pipeline 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:34 [    INFO] Generated skill candidate 'auto_process_complex_data' from episode ep-pipeline-001
+PASSED                                                                   [ 41%]
+tests/test_auto_dev/test_memento_engine.py::TestMementoEngineFullPipeline::test_validate_candidate_full_pipeline PASSED [ 42%]
+tests/test_auto_dev/test_reflection_engine.py::TestReflectionEngineEventListening::test_subscribes_to_task_fail_events 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:35 [    INFO] ReflectionEngine registered on event bus
+PASSED                                                                   [ 42%]
+tests/test_auto_dev/test_reflection_engine.py::TestReflectionEngineEventListening::test_tracks_event_metadata PASSED [ 42%]
+tests/test_auto_dev/test_reflection_engine.py::TestReflectionEnginePatternDetection::test_identifies_repeated_failure_patterns 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:35 [    INFO] ReflectionEngine: 2 similar failures detected for agent agent-001. Triggering Auto-Dev fix.
+2026-11-05 19:36:35 [   ERROR] ReflectionEngine failed to trigger Memento: Episode analysis failed: Episode episode-001 not found
+FAILED                                                                   [ 43%]
+tests/test_auto_dev/test_reflection_engine.py::TestReflectionEnginePatternDetection::test_groups_by_error_type PASSED [ 43%]
+tests/test_auto_dev/test_reflection_engine.py::TestReflectionEngineTriggerThreshold::test_triggers_after_n_failures 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:35 [    INFO] ReflectionEngine: 2 similar failures detected for agent agent-001. Triggering Auto-Dev fix.
+2026-11-05 19:36:35 [    INFO] ReflectionEngine triggered skill candidate: test_skill
+2026-11-05 19:36:35 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='autodev_guidance'
+PASSED                                                                   [ 43%]
+tests/test_auto_dev/test_reflection_engine.py::TestReflectionEngineTriggerThreshold::test_prevents_duplicate_triggers PASSED [ 43%]
+tests/test_auto_dev/test_reflection_engine.py::TestReflectionEnginePatternTracking::test_stores_pattern_metadata PASSED [ 44%]
+tests/test_auto_dev/test_reflection_engine.py::TestReflectionEngineIntegration::test_reflection_engine_initialization PASSED [ 44%]
+tests/test_evolution_sandbox_parallel_contract.py::test_pending_twin_executes_once_and_passes PASSED [ 44%]
+tests/test_evolution_sandbox_parallel_contract.py::test_failed_twin_executes_once_and_passes PASSED [ 45%]
+tests/test_evolution_sandbox_parallel_contract.py::test_changed_lineage_during_worker_is_skipped PASSED [ 45%]
+tests/test_evolution_sandbox_parallel_contract.py::test_unchanged_null_lineage_twin_passes PASSED [ 45%]
+tests/test_evolution_sandbox_parallel_contract.py::test_changed_code_during_worker_is_skipped PASSED [ 46%]
+tests/test_evolution_sandbox_parallel_contract.py::test_changed_prior_error_during_worker_is_skipped PASSED [ 46%]
+tests/test_evolution_sandbox_parallel_contract.py::test_stale_session_reloads_review_before_dispatch[approved] PASSED [ 46%]
+tests/test_evolution_sandbox_parallel_contract.py::test_stale_session_reloads_review_before_dispatch[rejected] PASSED [ 46%]
+tests/test_evolution_sandbox_parallel_contract.py::test_reviewer_during_worker_wins_result_cas[approved] PASSED [ 47%]
+tests/test_evolution_sandbox_parallel_contract.py::test_reviewer_during_worker_wins_result_cas[rejected] PASSED [ 47%]
+tests/test_evolution_sandbox_parallel_contract.py::test_missing_or_foreign_target_does_not_dispatch 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:42 [   ERROR] Mutation missing not found or unauthorized for tenant tenant-1
+2026-11-05 19:36:42 [   ERROR] Mutation m-foreign not found or unauthorized for tenant tenant-1
+PASSED                                                                   [ 47%]
+tests/test_evolution_caller_transaction_contract.py::test_dirty_caller_edit_survives_losing_result_cas PASSED [ 48%]
+tests/test_evolution_caller_transaction_contract.py::test_flushed_caller_edit_survives_pre_dispatch_skip PASSED [ 48%]
+tests/test_evolution_caller_transaction_contract.py::test_dirty_caller_edit_is_not_committed_before_caller_commit PASSED [ 48%]
+tests/test_evolution_caller_transaction_contract.py::test_new_caller_object_is_not_lost_on_skipped_result PASSED [ 48%]
+tests/test_evolution_caller_transaction_contract.py::test_deleted_caller_object_is_not_lost_on_skipped_result PASSED [ 49%]
+tests/test_evolution_caller_transaction_contract.py::test_clean_caller_with_read_transaction_still_executes PASSED [ 49%]
+tests/test_evolution_caller_transaction_contract.py::test_flushed_caller_with_pending_mutation_is_deferred PASSED [ 49%]
+tests/test_agent_evolution_loop.py::TestEvolutionLoopLifecycle::test_evolution_loop_initialization SKIPPED [ 50%]
+tests/test_agent_evolution_loop.py::TestEvolutionLoopLifecycle::test_evolution_loop_constants_defined SKIPPED [ 50%]
+tests/test_agent_evolution_loop.py::TestEvolutionLoopLifecycle::test_evolution_cycle_result_structure SKIPPED [ 50%]
+tests/test_agent_evolution_loop.py::TestEvolutionLoopLifecycle::test_evolution_cycle_result_to_dict SKIPPED [ 51%]
+tests/test_agent_evolution_loop.py::TestEvolutionLoopLifecycle::test_evolution_cycle_no_eligible_agents SKIPPED [ 51%]
+tests/test_agent_evolution_loop.py::TestParentGroupSelection::test_select_parent_group_returns_agents SKIPPED [ 51%]
+tests/test_agent_evolution_loop.py::TestParentGroupSelection::test_select_parent_group_respects_performance_threshold SKIPPED [ 51%]
+tests/test_agent_evolution_loop.py::TestParentGroupSelection::test_compute_combined_score_weights_performance SKIPPED [ 52%]
+tests/test_agent_evolution_loop.py::TestParentGroupSelection::test_get_single_agent_group SKIPPED [ 52%]
+tests/test_agent_evolution_loop.py::TestParentGroupSelection::test_get_single_agent_group_not_found SKIPPED [ 52%]
+tests/test_agent_evolution_loop.py::TestParentGroupSelection::test_select_parent_group_lookback_window SKIPPED [ 53%]
+tests/test_agent_evolution_loop.py::TestParentGroupSelection::test_select_parent_group_default_size SKIPPED [ 53%]
+tests/test_agent_evolution_loop.py::TestDirectiveApplication::test_apply_directives_to_clone_creates_copy SKIPPED [ 53%]
+tests/test_agent_evolution_loop.py::TestDirectiveApplication::test_guardrail_validation_blocks_unsafe_directives SKIPPED [ 53%]
+tests/test_agent_evolution_loop.py::TestDirectiveApplication::test_guardrail_validation_allows_safe_directives SKIPPED [ 54%]
+tests/test_agent_evolution_loop.py::TestDirectiveApplication::test_validate_via_guardrails_calls_autonomous_guardrails SKIPPED [ 54%]
+tests/test_agent_evolution_loop.py::TestDirectiveApplication::test_diff_configs_identifies_changes SKIPPED [ 54%]
+tests/test_agent_evolution_loop.py::TestDirectiveApplication::test_evolution_cycle_stops_on_guardrail_failure SKIPPED [ 55%]
+tests/test_agent_evolution_loop.py::TestBenchmarkEvaluation::test_evaluate_evolved_config_runs_benchmark SKIPPED [ 55%]
+tests/test_agent_evolution_loop.py::TestBenchmarkEvaluation::test_evaluate_evolved_config_threshold SKIPPED [ 55%]
+tests/test_agent_evolution_loop.py::TestBenchmarkEvaluation::test_promote_evolved_config_creates_new_agent SKIPPED [ 56%]
+tests/test_agent_evolution_loop.py::TestBenchmarkEvaluation::test_promote_evolved_config_inherits_metadata SKIPPED [ 56%]
+tests/test_agent_evolution_loop.py::TestBenchmarkEvaluation::test_evolution_cycle_full_flow_with_benchmark_pass SKIPPED [ 56%]
+tests/test_agent_evolution_loop.py::TestEvolutionTraceRecording::test_record_trace_creates_agent_evolution_trace SKIPPED [ 56%]
+tests/test_agent_evolution_loop.py::TestEvolutionTraceRecording::test_record_trace_captures_all_fields SKIPPED [ 57%]
+tests/test_agent_evolution_loop.py::TestEvolutionTraceRecording::test_record_trace_includes_benchmark_results SKIPPED [ 57%]
+tests/test_agent_evolution_loop.py::TestEvolutionTraceRecording::test_record_trace_includes_block_reason_when_guarded SKIPPED [ 57%]
+tests/test_agent_evolution_loop.py::TestEvolutionTraceRecording::test_get_ancestor_lineage_traces_evolution_history SKIPPED [ 58%]
+tests/test_evolution_governance.py::test_valid_config_passes PASSED      [ 58%]
+tests/test_evolution_governance.py::test_empty_config_passes PASSED      [ 58%]
+tests/test_evolution_governance.py::test_danger_pattern_rejected 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:47 [ WARNING] Evolution directive REJECTED for tenant t1: danger pattern in system_prompt: 'ignore all rules'
+2026-11-05 19:36:47 [ WARNING] Evolution directive REJECTED for tenant t1: danger pattern in system_prompt: 'bypass guardrails'
+2026-11-05 19:36:47 [ WARNING] Evolution directive REJECTED for tenant t1: danger pattern in system_prompt: 'disable safety'
+2026-11-05 19:36:47 [ WARNING] Evolution directive REJECTED for tenant t1: danger pattern in system_prompt: 'skip safety'
+2026-11-05 19:36:47 [ WARNING] Evolution directive REJECTED for tenant t1: danger pattern in system_prompt: 'do not follow rules'
+2026-11-05 19:36:47 [ WARNING] Evolution directive REJECTED for tenant t1: danger pattern in system_prompt: 'remove restrictions'; danger pattern in system_prompt: 'remove restrictions'
+2026-11-05 19:36:47 [ WARNING] Evolution directive REJECTED for tenant t1: danger pattern in system_prompt: 'ignore governance'
+2026-11-05 19:36:47 [ WARNING] Evolution directive REJECTED for tenant t1: danger pattern in system_prompt: 'act without approval'
+2026-11-05 19:36:47 [ WARNING] Evolution directive REJECTED for tenant t1: danger pattern in system_prompt: 'override safety'
+PASSED                                                                   [ 58%]
+tests/test_evolution_governance.py::test_case_insensitive_danger_patterns 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:47 [ WARNING] Evolution directive REJECTED for tenant t1: danger pattern in system_prompt: 'ignore all rules'
+PASSED                                                                   [ 59%]
+tests/test_evolution_governance.py::test_privilege_escalation_rejected 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:47 [ WARNING] Evolution directive REJECTED for tenant t1: self-referential mutation of protected config key: 'elevated_privileges'; privilege escalation: elevated_privileges=True set by evolution (must go through maturity graduation, not auto-tuning)
+PASSED                                                                   [ 59%]
+tests/test_evolution_governance.py::test_self_referential_mutation_rejected 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:47 [ WARNING] Evolution directive REJECTED for tenant t1: self-referential mutation of protected config key: 'ast_tripwire'
+2026-11-05 19:36:47 [ WARNING] Evolution directive REJECTED for tenant t1: self-referential mutation of protected config key: 'sandbox_config'
+2026-11-05 19:36:47 [ WARNING] Evolution directive REJECTED for tenant t1: self-referential mutation of protected config key: 'governance_config'
+2026-11-05 19:36:47 [ WARNING] Evolution directive REJECTED for tenant t1: self-referential mutation of protected config key: 'guardrails'
+PASSED                                                                   [ 59%]
+tests/test_evolution_governance.py::test_harness_patches_allowed PASSED  [ 60%]
+tests/test_evolution_governance.py::test_directive_injection_rejected 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:47 [ WARNING] Evolution directive REJECTED for tenant t1: danger pattern in directive: 'disable safety'
+PASSED                                                                   [ 60%]
+tests/test_evolution_governance.py::test_snapshot_and_rollback 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:47 [    INFO] [RollbackRegistry] snapshot for agent a1 key=system_prompt source=test → mut_b7e267745803
+2026-11-05 19:36:47 [    INFO] [RollbackRegistry] rolled back mut_b7e267745803 for agent a1: restored system_prompt
+PASSED                                                                   [ 60%]
+tests/test_evolution_governance.py::test_rollback_unknown_mutation 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:47 [ WARNING] [RollbackRegistry] unknown mutation_id: nonexistent
+PASSED                                                                   [ 60%]
+tests/test_evolution_governance.py::test_verify_excludes_from_agent_rollback 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:47 [    INFO] [RollbackRegistry] snapshot for agent a1 key=k1 source=unknown → mut_11aa77864d7e
+2026-11-05 19:36:47 [    INFO] [RollbackRegistry] snapshot for agent a1 key=k2 source=unknown → mut_dbfd92f70dac
+2026-11-05 19:36:47 [    INFO] [RollbackRegistry] verified mut_11aa77864d7e
+2026-11-05 19:36:47 [    INFO] [RollbackRegistry] agent-wide rollback: mut_dbfd92f70dac (k2)
+PASSED                                                                   [ 61%]
+tests/test_evolution_governance.py::test_lru_eviction 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:47 [    INFO] [RollbackRegistry] snapshot for agent a0 key=k source=unknown → mut_6fc7fa4266da
+2026-11-05 19:36:47 [    INFO] [RollbackRegistry] snapshot for agent a1 key=k source=unknown → mut_3f830bcad37a
+2026-11-05 19:36:47 [    INFO] [RollbackRegistry] snapshot for agent a2 key=k source=unknown → mut_ed96e34736e8
+2026-11-05 19:36:47 [    INFO] [RollbackRegistry] snapshot for agent a3 key=k source=unknown → mut_b0ea1332e652
+2026-11-05 19:36:47 [    INFO] [RollbackRegistry] snapshot for agent a4 key=k source=unknown → mut_b67cdbcbbd0c
+PASSED                                                                   [ 61%]
+tests/test_evolution_governance.py::test_clear 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:47 [    INFO] [RollbackRegistry] snapshot for agent a1 key=k source=unknown → mut_5a169ac33b3f
+PASSED                                                                   [ 61%]
+tests/test_evolution_governance.py::test_singleton PASSED                [ 62%]
+tests/test_evolution_pipeline.py::test_valid_mutation_passes 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:47 [    INFO] [RollbackRegistry] snapshot for agent a1 key=system_prompt source=alpha_evolver → mut_07f1473a5dd8
+PASSED                                                                   [ 62%]
+tests/test_evolution_pipeline.py::test_governance_rejection_blocks PASSED [ 62%]
+tests/test_evolution_pipeline.py::test_daily_limit_exceeded_blocks PASSED [ 63%]
+tests/test_evolution_pipeline.py::test_rollback_snapshot_created 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:47 [    INFO] [RollbackRegistry] snapshot for agent a1 key=system_prompt source=alpha_evolver → mut_848346356913
+PASSED                                                                   [ 63%]
+tests/test_evolution_pipeline.py::test_rollback_restores_config 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:47 [    INFO] [RollbackRegistry] snapshot for agent a1 key=system_prompt source=alpha_evolver → mut_c71a271ba982
+2026-11-05 19:36:47 [    INFO] [RollbackRegistry] rolled back mut_c71a271ba982 for agent a1: restored system_prompt
+PASSED                                                                   [ 63%]
+tests/test_evolution_pipeline.py::test_verify_marks_mutation 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:47 [    INFO] [RollbackRegistry] snapshot for agent a1 key=system_prompt source=alpha_evolver → mut_78bd45f7b341
+2026-11-05 19:36:47 [    INFO] [RollbackRegistry] verified mut_78bd45f7b341
+PASSED                                                                   [ 63%]
+tests/test_evolution_pipeline.py::test_mutation_request_fields PASSED    [ 64%]
+tests/test_evolution_pipeline.py::test_pipeline_result_dataclass PASSED  [ 64%]
+tests/test_covpush_w64b_evolution_loop.py::TestConstants::test_tuning_constants PASSED [ 64%]
+tests/test_covpush_w64b_evolution_loop.py::TestEvolutionCycleResult::test_init_and_to_dict PASSED [ 65%]
+tests/test_covpush_w64b_evolution_loop.py::TestEvolutionCycleResult::test_empty_failure_result PASSED [ 65%]
+tests/test_covpush_w64b_evolution_loop.py::TestInit::test_init_wires_db_and_reflection_service PASSED [ 65%]
+tests/test_covpush_w64b_evolution_loop.py::TestRunEvolutionCycle::test_returns_empty_result_when_no_parents 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:47 [    INFO] GEA cycle ce2c8a14-47f1-4937-a884-8f7085385295 starting for tenant t1
+2026-11-05 19:36:47 [ WARNING] GEA cycle ce2c8a14-47f1-4937-a884-8f7085385295: no eligible agents found
+PASSED                                                                   [ 65%]
+tests/test_covpush_w64b_evolution_loop.py::TestRunEvolutionCycle::test_target_agent_path_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:48 [    INFO] GEA cycle c294bdf9-202b-4103-8309-57476a46b67f starting for tenant t1
+2026-11-05 19:36:48 [    INFO] GEA cycle c294bdf9-202b-4103-8309-57476a46b67f complete: passed=True score=0.900 evolved_agent=target-1
+PASSED                                                                   [ 66%]
+tests/test_covpush_w64b_evolution_loop.py::TestRunEvolutionCycle::test_target_agent_not_found_returns_empty 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:48 [    INFO] GEA cycle 64341c17-6072-47eb-8071-1c729dc24cce starting for tenant t1
+2026-11-05 19:36:48 [ WARNING] GEA cycle 64341c17-6072-47eb-8071-1c729dc24cce: no eligible agents found
+PASSED                                                                   [ 66%]
+tests/test_covpush_w64b_evolution_loop.py::TestRunEvolutionCycle::test_full_flow_with_category_auto_detect 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:49 [    INFO] GEA cycle 85cda19f-dadf-4827-8403-255e54de6be4 starting for tenant t1
+2026-11-05 19:36:49 [    INFO] GEA cycle 85cda19f-dadf-4827-8403-255e54de6be4 complete: passed=True score=0.950 evolved_agent=seed-1
+PASSED                                                                   [ 66%]
+tests/test_covpush_w64b_evolution_loop.py::TestRunEvolutionCycle::test_guardrail_block_records_blocked_trace 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:50 [    INFO] GEA cycle 74f15721-8efb-491a-a476-5ab3e6175048 starting for tenant t1
+2026-11-05 19:36:50 [ WARNING] GEA cycle 74f15721-8efb-491a-a476-5ab3e6175048: directives blocked by guardrails
+PASSED                                                                   [ 67%]
+tests/test_covpush_w64b_evolution_loop.py::TestRunEvolutionCycle::test_benchmark_fail_discards_evolution 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:50 [    INFO] GEA cycle 46da8467-c86a-494c-9a5d-a23813b9a8f8 starting for tenant t1
+2026-11-05 19:36:50 [    INFO] GEA cycle 46da8467-c86a-494c-9a5d-a23813b9a8f8 complete: passed=False score=0.400 evolved_agent=None
+PASSED                                                                   [ 67%]
+tests/test_covpush_w64b_evolution_loop.py::TestRunEvolutionCycle::test_full_flow_real_internals 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:51 [    INFO] GEA cycle 394b9d0b-a792-4649-ac7d-95abd41814c9 starting for tenant t1
+2026-11-05 19:36:51 [ WARNING] GEA: GraduationExamService evaluation failed (import of core.graduation_exam halted; None in sys.modules); using proxy score
+2026-11-05 19:36:51 [    INFO] [RollbackRegistry] snapshot for agent real-1 key=configuration source=gea → mut_86681064d375
+2026-11-05 19:36:51 [    INFO] GEA: promoted evolved config to agent real-1
+2026-11-05 19:36:51 [    INFO] GEA cycle 394b9d0b-a792-4649-ac7d-95abd41814c9 complete: passed=True score=0.850 evolved_agent=real-1
+PASSED                                                                   [ 67%]
+tests/test_covpush_w64b_evolution_loop.py::TestSelectParentGroup::test_no_agents_returns_empty PASSED [ 68%]
+tests/test_covpush_w64b_evolution_loop.py::TestSelectParentGroup::test_all_below_threshold_returns_empty PASSED [ 68%]
+tests/test_covpush_w64b_evolution_loop.py::TestSelectParentGroup::test_stale_agents_excluded_by_lookback PASSED [ 68%]
+tests/test_covpush_w64b_evolution_loop.py::TestSelectParentGroup::test_disabled_agents_excluded PASSED [ 68%]
+tests/test_covpush_w64b_evolution_loop.py::TestSelectParentGroup::test_sorts_by_combined_score_and_limits PASSED [ 69%]
+tests/test_covpush_w64b_evolution_loop.py::TestSelectParentGroup::test_zero_variance_pool_falls_back_to_epsilon PASSED [ 69%]
+tests/test_covpush_w64b_evolution_loop.py::TestSelectParentGroup::test_other_tenants_ignored PASSED [ 69%]
+tests/test_covpush_w64b_evolution_loop.py::TestAncestorLineage::test_no_trace_returns_empty PASSED [ 70%]
+tests/test_covpush_w64b_evolution_loop.py::TestAncestorLineage::test_traces_lineage_with_parent_queueing PASSED [ 70%]
+tests/test_covpush_w64b_evolution_loop.py::TestAncestorLineage::test_visited_agents_are_not_revisited PASSED [ 70%]
+tests/test_covpush_w64b_evolution_loop.py::TestAncestorLineage::test_duplicate_parent_ids_skipped_when_re_queued PASSED [ 70%]
+tests/test_covpush_w64b_evolution_loop.py::TestAncestorLineage::test_max_depth_limits_traversal PASSED [ 71%]
+tests/test_covpush_w64b_evolution_loop.py::TestAncestorLineage::test_parent_ids_empty_terminates PASSED [ 71%]
+tests/test_covpush_w64b_evolution_loop.py::TestApplyDirectivesToClone::test_basic_history_and_prompt_append PASSED [ 71%]
+tests/test_covpush_w64b_evolution_loop.py::TestApplyDirectivesToClone::test_existing_evolution_history_appended PASSED [ 72%]
+tests/test_covpush_w64b_evolution_loop.py::TestApplyDirectivesToClone::test_create_skill_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:59 [    INFO] GEA: Detected skill creation directive: CREATE_SKILL: Build a connector for service X
+2026-11-05 19:36:59 [    INFO] GEA: Successfully evolved new skill: evolved_skill_abc12345
+PASSED                                                                   [ 72%]
+tests/test_covpush_w64b_evolution_loop.py::TestApplyDirectivesToClone::test_create_skill_returns_none_skips_append 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:59 [    INFO] GEA: Detected skill creation directive: CREATE_SKILL: something
+PASSED                                                                   [ 72%]
+tests/test_covpush_w64b_evolution_loop.py::TestApplyDirectivesToClone::test_create_skill_exception_swallowed 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:59 [    INFO] GEA: Detected skill creation directive: CREATE_SKILL: something
+2026-11-05 19:36:59 [   ERROR] GEA: Failed to create skill from directive: llm down
+PASSED                                                                   [ 73%]
+tests/test_covpush_w64b_evolution_loop.py::TestApplyDirectivesToClone::test_optimize_skill_success_with_default_goal 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:59 [    INFO] GEA: Detected skill optimization directive: OPTIMIZE_SKILL: my_skill
+2026-11-05 19:36:59 [    INFO] GEA: Skill optimization completed for 'my_skill': 1 iterations
+PASSED                                                                   [ 73%]
+tests/test_covpush_w64b_evolution_loop.py::TestApplyDirectivesToClone::test_optimize_skill_parses_pipe_payload 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:59 [    INFO] GEA: Detected skill optimization directive: OPTIMIZE_SKILL: payment_api | Reduce latency
+2026-11-05 19:36:59 [    INFO] GEA: Skill optimization completed for 'payment_api': 1 iterations
+PASSED                                                                   [ 73%]
+tests/test_covpush_w64b_evolution_loop.py::TestApplyDirectivesToClone::test_optimize_skill_gate_denied_skips 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:59 [    INFO] GEA: Detected skill optimization directive: OPTIMIZE_SKILL: my_skill
+2026-11-05 19:36:59 [    INFO] GEA: Agent opt-1 not yet SUPERVISED — OPTIMIZE_SKILL skipped
+PASSED                                                                   [ 73%]
+tests/test_covpush_w64b_evolution_loop.py::TestApplyDirectivesToClone::test_optimize_skill_missing_code_skips 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:59 [    INFO] GEA: Detected skill optimization directive: OPTIMIZE_SKILL: my_skill
+2026-11-05 19:36:59 [ WARNING] GEA: Skill 'my_skill' not found for optimization
+PASSED                                                                   [ 74%]
+tests/test_covpush_w64b_evolution_loop.py::TestApplyDirectivesToClone::test_optimize_skill_failed_result 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:59 [    INFO] GEA: Detected skill optimization directive: OPTIMIZE_SKILL: my_skill
+2026-11-05 19:36:59 [    INFO] GEA: Skill optimization skipped/failed for 'my_skill': budget exhausted
+PASSED                                                                   [ 74%]
+tests/test_covpush_w64b_evolution_loop.py::TestApplyDirectivesToClone::test_optimize_skill_import_error_skipped 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:59 [    INFO] GEA: Detected skill optimization directive: OPTIMIZE_SKILL: anything
+PASSED                                                                   [ 74%]
+tests/test_covpush_w64b_evolution_loop.py::TestApplyDirectivesToClone::test_optimize_skill_generic_exception_swallowed 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:59 [    INFO] GEA: Detected skill optimization directive: OPTIMIZE_SKILL: anything
+2026-11-05 19:36:59 [   ERROR] GEA: Failed to optimize skill from directive: gate exploded
+PASSED                                                                   [ 75%]
+tests/test_covpush_w64b_evolution_loop.py::TestApplyDirectivesToClone::test_mixed_directives_all_processed 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:59 [    INFO] GEA: Detected skill creation directive: CREATE_SKILL: make a thing
+2026-11-05 19:36:59 [    INFO] GEA: Successfully evolved new skill: evolved_skill_mix
+2026-11-05 19:36:59 [    INFO] GEA: Detected skill optimization directive: OPTIMIZE_SKILL: other | goal
+2026-11-05 19:36:59 [    INFO] GEA: Agent mix-1 not yet SUPERVISED — OPTIMIZE_SKILL skipped
+PASSED                                                                   [ 75%]
+tests/test_covpush_w64b_evolution_loop.py::TestValidateViaGuardrails::test_governance_service_allows PASSED [ 75%]
+tests/test_covpush_w64b_evolution_loop.py::TestValidateViaGuardrails::test_governance_service_blocks PASSED [ 75%]
+tests/test_covpush_w64b_evolution_loop.py::TestValidateViaGuardrails::test_fallback_blocks_danger_patterns 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:59 [ WARNING] GEA guardrail: blocked config containing 'ignore all rules'
+PASSED                                                                   [ 76%]
+tests/test_covpush_w64b_evolution_loop.py::TestValidateViaGuardrails::test_fallback_allows_clean_config PASSED [ 76%]
+tests/test_covpush_w64b_evolution_loop.py::TestEvaluateEvolvedConfig::test_exam_service_path PASSED [ 76%]
+tests/test_covpush_w64b_evolution_loop.py::TestEvaluateEvolvedConfig::test_exam_failure_falls_back_to_proxy_pass 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:59 [ WARNING] GEA: GraduationExamService evaluation failed (boom); using proxy score
+PASSED                                                                   [ 77%]
+tests/test_covpush_w64b_evolution_loop.py::TestEvaluateEvolvedConfig::test_exam_import_error_proxy_fail 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:59 [ WARNING] GEA: GraduationExamService evaluation failed (import of core.graduation_exam halted; None in sys.modules); using proxy score
+PASSED                                                                   [ 77%]
+tests/test_covpush_w64b_evolution_loop.py::TestPromoteEvolvedConfig::test_promote_snapshots_and_updates_agent 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:36:59 [    INFO] [RollbackRegistry] snapshot for agent promo-1 key=configuration source=gea → mut_155bcaf35a10
+2026-11-05 19:36:59 [    INFO] GEA: promoted evolved config to agent promo-1
+PASSED                                                                   [ 77%]
+tests/test_covpush_w64b_evolution_loop.py::TestPromoteEvolvedConfig::test_promote_survives_rollback_snapshot_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:37:00 [    INFO] GEA: promoted evolved config to agent promo-2
+PASSED                                                                   [ 78%]
+tests/test_covpush_w64b_evolution_loop.py::TestRecordTrace::test_records_full_trace_with_generation_1 PASSED [ 78%]
+tests/test_covpush_w64b_evolution_loop.py::TestRecordTrace::test_generation_inherits_last_trace_plus_one PASSED [ 78%]
+tests/test_covpush_w64b_evolution_loop.py::TestRecordTrace::test_blocked_trace_stores_reason PASSED [ 78%]
+tests/test_covpush_w64b_evolution_loop.py::TestRecordTrace::test_db_failure_returns_none_and_rolls_back 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:37:02 [   ERROR] GEA: failed to record trace: db down
+PASSED                                                                   [ 79%]
+tests/test_covpush_w64b_evolution_loop.py::TestScoring::test_combined_score_prefers_outlier PASSED [ 79%]
+tests/test_covpush_w64b_evolution_loop.py::TestScoring::test_combined_score_empty_group PASSED [ 79%]
+tests/test_covpush_w64b_evolution_loop.py::TestScoring::test_combined_score_with_explicit_novelty PASSED [ 80%]
+tests/test_covpush_w64b_evolution_loop.py::TestScoring::test_single_agent_group_found PASSED [ 80%]
+tests/test_covpush_w64b_evolution_loop.py::TestScoring::test_single_agent_group_not_found PASSED [ 80%]
+tests/test_covpush_w64b_evolution_loop.py::TestScoring::test_single_agent_group_wrong_tenant PASSED [ 80%]
+tests/test_covpush_w64b_evolution_loop.py::TestDiffConfigs::test_identical_configs PASSED [ 81%]
+tests/test_covpush_w64b_evolution_loop.py::TestDiffConfigs::test_changed_configs_produce_unified_diff PASSED [ 81%]
+tests/test_covpush_w64b_evolution_loop.py::TestDiffConfigs::test_none_configs_treated_as_empty PASSED [ 81%]
+tests/test_covpush_w64b_evolution_loop.py::TestWorkspaceSettings::test_returns_metadata_when_present PASSED [ 82%]
+tests/test_covpush_w64b_evolution_loop.py::TestWorkspaceSettings::test_returns_empty_when_no_metadata PASSED [ 82%]
+tests/test_covpush_w64b_evolution_loop.py::TestWorkspaceSettings::test_returns_empty_when_no_workspace PASSED [ 82%]
+tests/test_covpush_w64b_evolution_loop.py::TestWorkspaceSettings::test_returns_empty_on_query_error PASSED [ 82%]
+tests/test_covpush_w64b_evolution_loop.py::TestGetSkillCode::test_direct_skill_dir_hit PASSED [ 83%]
+tests/test_covpush_w64b_evolution_loop.py::TestGetSkillCode::test_fallback_directory_search_hit PASSED [ 83%]
+tests/test_covpush_w64b_evolution_loop.py::TestGetSkillCode::test_not_found_returns_none PASSED [ 83%]
+tests/test_covpush_w64b_evolution_loop.py::TestGetSkillCode::test_exception_returns_none PASSED [ 84%]
+tests/test_covpush_w83_evolution.py::test_submit_and_deploy_governance_rejects PASSED [ 84%]
+tests/test_covpush_w83_evolution.py::test_submit_and_deploy_dict_new_value_updates_check_config PASSED [ 84%]
+tests/test_covpush_w83_evolution.py::test_submit_and_deploy_governance_raises_is_fail_closed 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:37:06 [ WARNING] Pipeline: governance check failed (gov down); blocking mutation
+PASSED                                                                   [ 85%]
+tests/test_covpush_w83_evolution.py::test_submit_and_deploy_daily_limit_exceeded PASSED [ 85%]
+tests/test_covpush_w83_evolution.py::test_submit_and_deploy_daily_limit_unknown_source_defaults PASSED [ 85%]
+tests/test_covpush_w83_evolution.py::test_submit_and_deploy_daily_limit_raises_is_fail_closed 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:37:06 [ WARNING] Pipeline: daily limit check failed (gate broke); blocking (fail-closed)
+PASSED                                                                   [ 85%]
+tests/test_covpush_w83_evolution.py::test_submit_and_deploy_regression_skipped_for_config_only_mutation PASSED [ 86%]
+tests/test_covpush_w83_evolution.py::test_submit_and_deploy_regression_passes_with_injected_sandbox PASSED [ 86%]
+tests/test_covpush_w83_evolution.py::test_submit_and_deploy_regression_fails PASSED [ 86%]
+tests/test_covpush_w83_evolution.py::test_submit_and_deploy_regression_raises_is_fail_closed 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:37:06 [ WARNING] Pipeline: regression validation failed (sandbox dead); blocking (fail-closed)
+PASSED                                                                   [ 87%]
+tests/test_covpush_w83_evolution.py::test_submit_and_deploy_regression_creates_sandbox_when_none PASSED [ 87%]
+tests/test_covpush_w83_evolution.py::test_submit_and_deploy_snapshot_failure_is_best_effort PASSED [ 87%]
+tests/test_covpush_w83_evolution.py::test_rollback_success PASSED        [ 87%]
+tests/test_covpush_w83_evolution.py::test_rollback_exception_returns_false 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:37:06 [   ERROR] Pipeline rollback failed: nope
+PASSED                                                                   [ 88%]
+tests/test_covpush_w83_evolution.py::test_verify_success PASSED          [ 88%]
+tests/test_covpush_w83_evolution.py::test_verify_exception_returns_false PASSED [ 88%]
+tests/test_covpush_w83_evolution.py::test_workspace_settings_returned_when_metadata_present PASSED [ 89%]
+tests/test_covpush_w83_evolution.py::test_workspace_settings_empty_when_no_metadata PASSED [ 89%]
+tests/test_covpush_w83_evolution.py::test_workspace_settings_empty_when_missing PASSED [ 89%]
+tests/test_covpush_w83_evolution.py::test_workspace_settings_empty_on_db_error PASSED [ 90%]
+tests/test_covpush_w83_evolution.py::test_pipeline_result_constructor PASSED [ 90%]
+tests/test_covpush_w104_self_evolution.py::TestAnalyzeAgentPerformance::test_agent_not_found PASSED [ 90%]
+tests/test_covpush_w104_self_evolution.py::TestAnalyzeAgentPerformance::test_no_history_maintain_autonomy PASSED [ 90%]
+tests/test_covpush_w104_self_evolution.py::TestAnalyzeAgentPerformance::test_low_approval_rate_bottleneck PASSED [ 91%]
+tests/test_covpush_w104_self_evolution.py::TestAnalyzeAgentPerformance::test_low_approval_but_few_hitls_ignored PASSED [ 91%]
+tests/test_covpush_w104_self_evolution.py::TestAnalyzeAgentPerformance::test_frequent_correction_bottleneck PASSED [ 91%]
+tests/test_covpush_w104_self_evolution.py::TestApplyAutoTune::test_agent_missing_noop PASSED [ 92%]
+tests/test_covpush_w104_self_evolution.py::TestApplyAutoTune::test_agent_without_configuration 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:37:06 [    INFO] Auto-tuned agent agent-1 with insight: tune insight
+PASSED                                                                   [ 92%]
+tests/test_covpush_w104_self_evolution.py::TestApplyAutoTune::test_agent_with_existing_history 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:37:06 [    INFO] Auto-tuned agent agent-1 with insight: new insight
+PASSED                                                                   [ 92%]
+tests/test_covpush_w104_self_evolution.py::TestApplyAutoTune::test_logs_insight PASSED [ 92%]
+tests/test_covpush_w104_self_evolution.py::TestRunGroupEvolution::test_delegates_to_evolution_loop 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:37:06 [    INFO] GEA group evolution complete: tenant=t-1 passed=True score=0.920
+PASSED                                                                   [ 93%]
+tests/test_covpush_w104_self_evolution.py::TestAnalyzeGroupReadiness::test_empty_group PASSED [ 93%]
+tests/test_covpush_w104_self_evolution.py::TestAnalyzeGroupReadiness::test_group_with_agents PASSED [ 93%]
+tests/test_covpush_w104_self_evolution.py::TestAnalyzeGroupReadiness::test_group_high_perf_not_recommended PASSED [ 94%]
+tests/test_covpush_w104_self_evolution.py::TestRunMementoCycle::test_gate_denies PASSED [ 94%]
+tests/test_covpush_w104_self_evolution.py::TestRunMementoCycle::test_gate_allows PASSED [ 94%]
+tests/test_covpush_w104_self_evolution.py::TestRunMementoCycle::test_module_not_installed PASSED [ 95%]
+tests/test_covpush_w104_self_evolution.py::TestRunMementoCycle::test_generic_exception 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:37:06 [   ERROR] Memento cycle failed: boom
+PASSED                                                                   [ 95%]
+tests/test_covpush_w104_self_evolution.py::TestRunMementoCycle::test_workspace_settings_flow PASSED [ 95%]
+tests/test_covpush_w104_self_evolution.py::TestRunAlphaEvolveCycle::test_gate_denies PASSED [ 95%]
+tests/test_covpush_w104_self_evolution.py::TestRunAlphaEvolveCycle::test_gate_allows PASSED [ 96%]
+tests/test_covpush_w104_self_evolution.py::TestRunAlphaEvolveCycle::test_module_not_installed PASSED [ 96%]
+tests/test_covpush_w104_self_evolution.py::TestRunAlphaEvolveCycle::test_generic_exception 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:37:06 [   ERROR] AlphaEvolver cycle failed: nope
+PASSED                                                                   [ 96%]
+tests/test_covpush_w104_self_evolution.py::TestGetWorkspaceSettings::test_workspace_with_metadata PASSED [ 97%]
+tests/test_covpush_w104_self_evolution.py::TestGetWorkspaceSettings::test_workspace_without_metadata PASSED [ 97%]
+tests/test_covpush_w104_self_evolution.py::TestGetWorkspaceSettings::test_no_workspace PASSED [ 97%]
+tests/test_covpush_w104_self_evolution.py::TestGetWorkspaceSettings::test_query_exception PASSED [ 97%]
+tests/test_covpush_w104_self_evolution.py::TestSingleton::test_module_singleton PASSED [ 98%]
+tests/test_harness_evolution_api.py::test_harness_evolution_endpoint_requires_auth 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:37:06 [    INFO] 🔄 Auto-loading integration on-demand: chat
+2026-11-05 19:37:06 [    INFO] Loading integration: chat (integrations.chat_routes)
+2026-11-05 19:37:06 [    INFO] ✓ Loaded chat
+2026-11-05 19:37:06 [    INFO] ✓ Auto-loaded: chat
+2026-11-05 19:37:06 [    INFO] HTTP Request: GET http://testserver/api/chat/harness-evolution "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 98%]
+tests/test_harness_evolution_api.py::test_harness_evolution_endpoint_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:37:06 [    INFO] HTTP Request: GET http://testserver/api/chat/harness-evolution "HTTP/1.1 200 OK"
+PASSED                                                                   [ 98%]
+tests/test_harness_evolution_api.py::test_remine_endpoint_requires_auth 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:37:06 [    INFO] HTTP Request: POST http://testserver/api/chat/harness-evolution/mine "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 99%]
+tests/test_harness_evolution_api.py::test_remine_endpoint_runs_real_mining_pass 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:37:06 [    INFO] HTTP Request: POST http://testserver/api/chat/harness-evolution/mine "HTTP/1.1 200 OK"
+PASSED                                                                   [ 99%]
+tests/test_harness_evolution_api.py::test_remine_endpoint_clamps_lookback 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:37:06 [    INFO] HTTP Request: POST http://testserver/api/chat/harness-evolution/mine?lookback_hours=0 "HTTP/1.1 200 OK"
+2026-11-05 19:37:06 [    INFO] HTTP Request: POST http://testserver/api/chat/harness-evolution/mine?lookback_hours=10000 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 99%]
+tests/test_harness_evolution_api.py::test_remine_endpoint_survives_mining_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:37:06 [ WARNING] Failed to re-mine weaknesses in API: db down
+2026-11-05 19:37:06 [    INFO] HTTP Request: POST http://testserver/api/chat/harness-evolution/mine "HTTP/1.1 200 OK"
+PASSED                                                                   [100%]
+
+=================================== FAILURES ===================================
+_ TestReflectionEnginePatternDetection.test_identifies_repeated_failure_patterns _
+/Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/unittest/mock.py:965: in assert_called_once
+    raise AssertionError(msg)
+E   AssertionError: Expected 'mock' to have been called once. Called 0 times.
+
+During handling of the above exception, another exception occurred:
+tests/test_auto_dev/test_reflection_engine.py:65: in test_identifies_repeated_failure_patterns
+    engine._trigger_memento.assert_called_once()
+E   AssertionError: Expected 'mock' to have been called once. Called 0 times.
+------------------------------ Captured log call -------------------------------
+INFO     core.auto_dev.reflection_engine:reflection_engine.py:124 ReflectionEngine: 2 similar failures detected for agent agent-001. Triggering Auto-Dev fix.
+ERROR    core.auto_dev.reflection_engine:reflection_engine.py:183 ReflectionEngine failed to trigger Memento: Episode analysis failed: Episode episode-001 not found
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+core/token_storage.py:17
+  /private/tmp/atom-evolution-review/backend/core/token_storage.py:17: DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+api/routes/ingestion_crud_routes.py:26
+  /private/tmp/atom-evolution-review/backend/api/routes/ingestion_crud_routes.py:26: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class DiscoveredEntityResponse(BaseModel):
+
+api/routes/ingestion_crud_routes.py:102
+  /private/tmp/atom-evolution-review/backend/api/routes/ingestion_crud_routes.py:102: PydanticDeprecatedSince20: `min_items` is deprecated and will be removed, use `min_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    entity_ids: List[UUID] = Field(..., min_items=1, description="List of entity UUIDs to delete")
+
+integrations/whatsapp_fastapi_routes.py:49
+  /private/tmp/atom-evolution-review/backend/integrations/whatsapp_fastapi_routes.py:49: PydanticDeprecatedSince20: `max_items` is deprecated and will be removed, use `max_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    recipients: List[str] = Field(
+
+api/episode_routes.py:397
+  /private/tmp/atom-evolution-review/backend/api/episode_routes.py:397: FastAPIDeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    canvas_context_detail: str = Query("summary", regex="^(summary|standard|full)$"),
+
+api/admin_routes.py:119
+  /private/tmp/atom-evolution-review/backend/api/admin_routes.py:119: PydanticDeprecatedSince20: Using extra keyword arguments on `Field` is deprecated and will be removed. Use `json_schema_extra` instead. (Extra keys: 'unique'). Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    name: str = Field(..., min_length=1, max_length=100, unique=True, description="Role name (must be unique)")
+
+api/admin_routes.py:1089
+  /private/tmp/atom-evolution-review/backend/api/admin_routes.py:1089: PydanticDeprecatedSince20: `min_items` is deprecated and will be removed, use `min_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    conflict_ids: List[int] = Field(..., min_items=1, max_items=100, description="List of conflict IDs to resolve (max 100)")
+
+api/admin_routes.py:1089
+  /private/tmp/atom-evolution-review/backend/api/admin_routes.py:1089: PydanticDeprecatedSince20: `max_items` is deprecated and will be removed, use `max_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    conflict_ids: List[int] = Field(..., min_items=1, max_items=100, description="List of conflict IDs to resolve (max 100)")
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 682 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_auto_dev/test_container_sandbox.py::TestContainerSandboxErrorHandling::test_handles_syntax_errors
+  /Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/unittest/mock.py:2259: RuntimeWarning: coroutine 'TestContainerSandboxSecurityConstraints.test_enforces_timeout.<locals>.mock_timeout' was never awaited
+    def __init__(self, name, parent):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_auto_dev/test_reflection_engine.py::TestReflectionEnginePatternDetection::test_identifies_repeated_failure_patterns
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========== 1 failed, 311 passed, 29 skipped, 698 warnings in 59.23s ===========
