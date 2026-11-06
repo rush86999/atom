@@ -56,6 +56,11 @@ class JourneyBase:
         """
         return self.text_visible("is not part of this release", timeout=timeout)
 
+    def is_not_in_release(self, label: str, timeout: int = 10000) -> bool:
+        """The exact deferred capability label for this route."""
+        return self.text_visible(
+            f"{label} is not part of this release", timeout=timeout)
+
     def _settle(self, timeout_ms: int = 3000) -> None:
         """Best-effort wait for the network to settle.
 

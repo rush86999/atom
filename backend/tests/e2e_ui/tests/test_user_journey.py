@@ -38,6 +38,9 @@ from tests.e2e_ui.pages.journey_pages import (
 )
 from tests.e2e_ui.fixtures.journey_fixtures import (  # noqa: F401 (fixtures)
     journey_user_credentials,
+    product_profile,
+    route_enabled,
+    deferred_label,
     DEFAULT_PASSWORD,
 )
 
@@ -57,7 +60,8 @@ def _dismiss_first_run_onboarding(page: Page):
 class TestCanonicalUserJourney:
     """One realistic first-run journey touching every major surface."""
 
-    def test_full_journey_login_to_logout(self, page: Page, journey_user_credentials):
+    def test_full_journey_login_to_logout(
+            self, page: Page, journey_user_credentials, product_profile):
         """
         Login (UI) → Dashboard → Agents → Chat → Canvas list → Marketplace →
         Workflow Builder → Projects → Integrations Hub → Settings (theme
@@ -111,9 +115,12 @@ class TestCanonicalUserJourney:
         # ------------------------------------------------------------------
         market = MarketplaceJourneyPage(page)
         market.navigate()
-        assert market.is_loaded() or market.is_deferred(), (
-            "Marketplace should load or show the deferred-scope page")
-        if market.is_loaded():
+        if not route_enabled(product_profile, "/marketplace"):
+            label = deferred_label(product_profile, "/marketplace")
+            assert market.is_not_in_release(label), (
+                f"Marketplace should show its deferred scope for {label!r}")
+        else:
+            assert market.is_loaded(), "Marketplace should load"
             # Searching should not error even with no templates.
             market.search("customer onboarding" + uuid.uuid4().hex[:4])
 
@@ -122,9 +129,12 @@ class TestCanonicalUserJourney:
         # ------------------------------------------------------------------
         builder = WorkflowBuilderJourneyPage(page)
         builder.navigate()
-        assert builder.is_loaded() or builder.is_deferred(), (
-            "Workflow builder should load or show the deferred-scope page")
-        if builder.is_loaded():
+        if not route_enabled(product_profile, "/workflows/builder"):
+            label = deferred_label(product_profile, "/workflows/builder")
+            assert builder.is_not_in_release(label), (
+                f"Workflow builder should show its deferred scope for {label!r}")
+        else:
+            assert builder.is_loaded(), "Workflow builder should load"
             wf_name = f"Journey Workflow {uuid.uuid4().hex[:6]}"
             builder.set_name(wf_name)
             # Saving may fail if backend validation rejects an empty graph; we
@@ -141,16 +151,24 @@ class TestCanonicalUserJourney:
         # ------------------------------------------------------------------
         projects = ProjectsJourneyPage(page)
         projects.navigate()
-        assert projects.is_loaded() or projects.is_deferred(), (
-            "Project Command Center should load or show the deferred-scope page")
+        if not route_enabled(product_profile, "/dashboards/projects"):
+            label = deferred_label(product_profile, "/dashboards/projects")
+            assert projects.is_not_in_release(label), (
+                f"Project Command Center should show its deferred scope for {label!r}")
+        else:
+            assert projects.is_loaded(), "Project Command Center should load"
 
         # ------------------------------------------------------------------
         # 8. INTEGRATIONS HUB
         # ------------------------------------------------------------------
         integrations = IntegrationsHubJourneyPage(page)
         integrations.navigate()
-        assert integrations.is_loaded() or integrations.is_deferred(), (
-            "Integrations Hub should load or show the deferred-scope page")
+        if not route_enabled(product_profile, "/integrations"):
+            label = deferred_label(product_profile, "/integrations")
+            assert integrations.is_not_in_release(label), (
+                f"Integrations Hub should show its deferred scope for {label!r}")
+        else:
+            assert integrations.is_loaded(), "Integrations Hub should load"
 
         # ------------------------------------------------------------------
         # 9. SETTINGS — theme persistence

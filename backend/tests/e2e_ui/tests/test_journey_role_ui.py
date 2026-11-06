@@ -28,6 +28,7 @@ from playwright.sync_api import Page
 from tests.e2e_ui.fixtures.journey_fixtures import (  # noqa: F401
     ALL_ROLES,
     role_credentials,
+    FRONTEND_URL,
 )
 from tests.e2e_ui.pages.journey_pages import (
     AuthPage,
@@ -42,7 +43,7 @@ pytestmark = pytest.mark.e2e
 # the *data* on these pages is enforced by the API; the page shell should
 # always render rather than bounce to /login).
 ROLE_SHARED_PAGES = [
-    ("/dashboard", "ATOM Dashboard"),
+    ("/dashboard", "Your workspace"),
     ("/settings", "Settings"),
     ("/agents", "Agent Control Center"),
     ("/canvas", "Canvases"),
@@ -68,7 +69,7 @@ def test_every_role_can_log_in(role_credentials, page: Page):
 def test_every_role_can_load_shared_pages(role_credentials, role_authed_page: Page, path: str, expected_text: str):
     """Every role should be able to load the shared authenticated pages
     without being bounced to /login."""
-    role_authed_page.goto(f"http://localhost:3001{path}", wait_until="domcontentloaded")
+    role_authed_page.goto(f"{FRONTEND_URL}{path}", wait_until="domcontentloaded")
     role_authed_page.wait_for_timeout(2000)
     assert "/login" not in role_authed_page.url, (
         f"{role_credentials['role']}: {path} redirected to /login"
