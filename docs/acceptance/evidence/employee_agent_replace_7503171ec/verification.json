@@ -1,0 +1,68 @@
+{
+  "schema": "atom-oracle-agent-replace-verification-1",
+  "status": "scoped and verified agent PUT replacement submitted for independent verification; cross-tenant replacement gap reproduced and closed",
+  "candidate": {
+    "branch": "codex/oracle01-agent-replace-20261106-v2",
+    "pr": 681,
+    "base_main": "33b8d6472605b7fbb4c84a9e21286c3d168b7d5c",
+    "executed_source": "7503171eca9d27915d2911fb2fc0cc961bde9b8b",
+    "runtime": "real scratch SQLite; no live model/provider/credential/spend/send/download/deployment",
+    "confirmed_finding": "tenant-A workspace_admin replaced a tenant-B agent with 200 on base main"
+  },
+  "contract": {
+    "authority": "current User re-read; active status; WORKSPACE_ADMIN+; claim is_active/status/role/raw tenant/raw workspace in the replacement transaction",
+    "scope": "foreign tenant/workspace 404; workspace-bound below ADMIN only same/legacy; ADMIN+ cross-workspace in tenant; global-legacy policy preserved",
+    "material_claim": "guarded update on id, tenant, workspace, name, description, category, configuration, schedule_config, status and enabled",
+    "effect": "one AuditLog receipt in the same transaction; fresh-session state digest readback",
+    "no_change": "matching replacement returns 200 effect=none with no receipt",
+    "replay": "same operation/material already_applied; changed material OPERATION_CONFLICT",
+    "recovery": "confirmed rollback not_applied/effect=none; missing readback committed_unverified",
+    "scheduler": "post-commit only, once, never on replay/no-change; failure logged"
+  },
+  "new_controls": {
+    "contract_tests": 10,
+    "cross_tenant_reproduction": "cross-tenant-repro-base.log"
+  },
+  "results": {
+    "focused_314": {"passed": 72, "failed": 0, "log": "focused-314.log"},
+    "focused_311": {"passed": 72, "failed": 0, "log": "focused-311.log"},
+    "affected_314": {"passed": 368, "skipped": 3, "failed": 2, "log": "affected-314.log"},
+    "affected_311": {"passed": 350, "failed": 1, "log": "affected-311.log"},
+    "baseline_main_314": {"passed": 358, "skipped": 3, "failed": 2, "log": "baseline-main-314.log"},
+    "baseline_main_311": {"passed": 340, "failed": 1, "log": "baseline-main-311.log"}
+  },
+  "baseline_failure_identity": {
+    "shared": [
+      "tests/test_covpush_w29_governance.py::TestRegistry::test_register_new_agent",
+      "tests/contract/test_agent_api_contract.py::TestAgentListContract::test_get_agents_invalid_pagination"
+    ],
+    "shared_314_only": [
+      "tests/contract/test_agent_api_contract.py::TestAgentListContract::test_get_agents_invalid_pagination"
+    ],
+    "candidate_added_failures": 0,
+    "candidate_new_controls": 10,
+    "excluded_311_contract_file": "tests/contract/test_agent_api_contract.py requires schemathesis, unavailable on the 3.11 interpreter"
+  },
+  "checks": {
+    "cross_tenant_replace_refused": true,
+    "cross_workspace_replace_refused": true,
+    "authorized_replacement_succeeds": true,
+    "admin_cross_workspace_same_tenant_succeeds": true,
+    "exact_prior_material_cas": true,
+    "authority_change_before_claim_effect_none": true,
+    "no_change_without_receipt": true,
+    "replay_no_duplicate_scheduler": true,
+    "rollback_preserves_agent": true,
+    "readback_committed_unverified": true,
+    "scheduler_only_after_verified_commit": true,
+    "no_raw_configuration_or_schedule_in_receipt": true,
+    "no_new_table_or_migration": true,
+    "no_test_deleted_skipped_or_xfailed": true
+  },
+  "limits": [
+    "real scratch SQLite only; no PostgreSQL/soak or multi-worker qualification",
+    "scheduler execution is stubbed; no live scheduler fleet operation",
+    "no merge or deployment; code-owner review remains required",
+    "shared baseline failures are pre-existing and not claimed as repaired"
+  ]
+}

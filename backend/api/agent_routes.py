@@ -17,6 +17,7 @@ from core.agent_decision_write_service import (
     admit_agent_run as _admit_agent_run,
     delete_agent as _delete_agent_decision,
     promote_agent as _promote_agent_decision,
+    replace_agent as _replace_agent_decision,
     update_agent as _update_agent_decision,
 )
 from core.auth import get_current_user, User
@@ -1242,44 +1243,53 @@ async def create_custom_agent(
 async def replace_agent(
     agent_id: str,
     req: AgentReplaceRequest,
+    operation_id: Optional[str] = None,
     user: User = Depends(require_permission(Permission.AGENT_MANAGE)),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Replace an entire agent resource (RESTful PUT semantics per RFC 9110).
+    """Replace an entire agent resource (RESTful PUT semantics).
 
-    This endpoint performs a full replacement of the agent resource. All required
-    fields (name, category) must be provided. For partial updates, use PATCH instead.
-
-    Returns 422 if required fields are missing.
-
-    See: docs/testing/PUT_SEMANTICS_DECISION.md
+    The verified decision binds current authority/scope and exact prior agent
+    material, writes one AuditLog receipt, replays idempotently and refuses
+    stale or foreign material. The scheduler is updated only after a verified
+    commit and only once.
     """
-    agent = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
-    if not agent:
-        raise router.not_found_error("Agent", agent_id)
-
-    # Full replacement: update all fields
-    agent.name = req.name
-    agent.description = req.description
-    agent.category = req.category
+    changes = {
+        "name": req.name,
+        "description": req.description,
+        "category": req.category,
+    }
     if req.configuration is not None:
-        agent.configuration = req.configuration
+        changes["configuration"] = req.configuration
     if req.schedule_config is not None:
-        agent.schedule_config = req.schedule_config
-
-    db.commit()
-
-    # Update Scheduler if schedule_config changed
-    if req.schedule_config and req.schedule_config.get("active"):
-        from core.scheduler import AgentScheduler
-        scheduler = AgentScheduler.get_instance()
-        scheduler.schedule_agent(agent.id, req.schedule_config)
-
-    return router.success_response(
-        data={"agent_id": agent.id},
-        message=f"Agent {agent.name} replaced successfully"
+        changes["schedule_config"] = req.schedule_config
+    result = _replace_agent_decision(
+        db,
+        actor=current_user,
+        agent_id=agent_id,
+        changes=changes,
+        operation_id=operation_id,
     )
+    _raise_agent_decision(result)
+    data = dict(result.get("data") or {})
+    data.setdefault("agent_id", agent_id)
+    if result.get("status") == "verified" and data.get("schedule_active"):
+        try:
+            from core.scheduler import AgentScheduler
+            scheduler = AgentScheduler.get_instance()
+            scheduler.schedule_agent(agent_id, req.schedule_config)
+        except Exception as exc:  # noqa: BLE001 — DB replacement committed
+            logger.error(
+                "Agent replacement committed but scheduler update failed: "
+                "agent=%s error_class=%s", agent_id, type(exc).__name__)
+    return router.success_response(
+        data=data,
+        message=f"Agent {req.name} replaced successfully",
+    )
+
+
+
 
 @router.post("/{agent_id}/stop")
 async def stop_agent(
