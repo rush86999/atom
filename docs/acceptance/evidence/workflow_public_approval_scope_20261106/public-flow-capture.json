@@ -1,0 +1,104 @@
+{
+  "scope": {
+    "tenant_id": "tenant-local-17d0c62691",
+    "workspace_id": "workspace-local-17d0c62691",
+    "reviewer_id": "reviewer-local-17d0c62691",
+    "agent_id": "agent-local-17d0c62691",
+    "workflow_id": "wf-local-17d0c62691"
+  },
+  "start": {
+    "request": "POST /workflows/wf-local-17d0c62691/execute",
+    "status": 200,
+    "body": {
+      "execution_id": "ed8635d4-4e2a-4339-9cea-dcdf6b12c2dd",
+      "workflow_id": "wf-local-17d0c62691",
+      "status": "running",
+      "started_at": "2026-11-06T11:14:09.418902",
+      "completed_at": null,
+      "results": [],
+      "errors": []
+    }
+  },
+  "paused": {
+    "status": "PAUSED",
+    "step_status": "PAUSED",
+    "dispatch_count": 0
+  },
+  "pending": {
+    "request": "GET /api/agents/approvals/pending",
+    "status": 200,
+    "body": [
+      {
+        "id": "5f8b1105-338c-4244-a8ba-a73465f30093",
+        "agent_id": "agent-local-17d0c62691",
+        "agent_name": "Agent 17d0c62691",
+        "user_id": null,
+        "action_type": "create",
+        "platform": "internal",
+        "params": {
+          "execution_id": "ed8635d4-4e2a-4339-9cea-dcdf6b12c2dd",
+          "workflow_id": "wf-local-17d0c62691",
+          "step_id": "s1",
+          "parameters": {
+            "record": "harmless"
+          },
+          "tenant_id": "tenant-local-17d0c62691"
+        },
+        "reason": "Maturity check failed. Required: supervised",
+        "created_at": "2026-11-06T16:14:09",
+        "status": "pending"
+      }
+    ]
+  },
+  "decision": {
+    "request": "POST /api/agents/approvals/5f8b1105-338c-4244-a8ba-a73465f30093",
+    "body_sent": {
+      "decision": "approved"
+    },
+    "status": 200,
+    "body": {
+      "success": true,
+      "approval_id": "5f8b1105-338c-4244-a8ba-a73465f30093",
+      "status": "approved",
+      "decided_by": "reviewer-local-17d0c62691",
+      "message": "Action approved",
+      "resume": {
+        "handled": true,
+        "resumed": true,
+        "kind": "workflow",
+        "status": "RUNNING"
+      }
+    }
+  },
+  "durable": {
+    "execution_id": "ed8635d4-4e2a-4339-9cea-dcdf6b12c2dd",
+    "status": "COMPLETED",
+    "step_status": "COMPLETED",
+    "outputs": {
+      "s1": {
+        "status": "success",
+        "service": "database",
+        "action": "create",
+        "result": {
+          "action": "create",
+          "result": "Database create executed",
+          "status": "success"
+        },
+        "timestamp": "2026-11-06T11:14:09.707308",
+        "execution_method": "service_registry"
+      }
+    },
+    "consumed_hitl_action_ids": [
+      "5f8b1105-338c-4244-a8ba-a73465f30093"
+    ],
+    "dispatch_count": 1,
+    "hitl": {
+      "id": "5f8b1105-338c-4244-a8ba-a73465f30093",
+      "status": "approved",
+      "tenant_id": "tenant-local-17d0c62691",
+      "workspace_id": "workspace-local-17d0c62691",
+      "reviewed_by": "reviewer-local-17d0c62691",
+      "reason": "Maturity check failed. Required: supervised"
+    }
+  }
+}
