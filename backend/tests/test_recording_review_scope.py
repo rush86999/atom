@@ -6,7 +6,8 @@ public routes and real service against a scratch DB:
 
 * the owner can create the review for their own recording;
 * the persisted review carries the recording's tenant, not the caller default;
-* a same-tenant workspace admin can list/read/auto-review the exact recording;
+* a same-tenant workspace admin can list/read the exact recording and decide
+  it with a second review that keeps the recording's durable tenant;
 * a foreign tenant/workspace admin cannot create, list, read, auto-review or
   read metrics for it (404, no row/effect).
 
@@ -165,7 +166,8 @@ def test_same_tenant_review_is_visible_and_foreign_scope_is_refused(review_world
             CanvasAudit.tenant_id == world["tenant_a"]).first()
         assert audit is not None, "review audit must carry the real tenant"
 
-    # A same-tenant workspace admin can see the exact review and queue.
+    # A same-tenant workspace admin can see the exact review and queue, and
+    # can decide it: the new decision stays in the recording's durable scope.
     state["user"] = world["admin_same"]
     listing = client.get(
         f"/api/canvas/recording/review/recording/{recording_id}")
@@ -176,6 +178,26 @@ def test_same_tenant_review_is_visible_and_foreign_scope_is_refused(review_world
     metrics = client.get(
         f"/api/canvas/recording/review/agent/{world['agent_a']}/metrics")
     assert metrics.status_code == 200, metrics.text
+
+    with patch.object(
+            RecordingReviewService, "_update_world_model", new=AsyncMock()):
+        admin_decision = _create_review(client, recording_id)
+    assert admin_decision.status_code == 200, admin_decision.text
+    admin_review_id = admin_decision.json()["review_id"]
+    assert admin_review_id != review_id
+
+    with world["Session"]() as db:
+        admin_review = db.query(CanvasRecordingReview).filter(
+            CanvasRecordingReview.id == admin_review_id).first()
+        assert admin_review is not None
+        assert admin_review.tenant_id == world["tenant_a"]
+        assert admin_review.reviewed_by == world["admin_same"].id
+
+    listing = client.get(
+        f"/api/canvas/recording/review/recording/{recording_id}")
+    assert listing.status_code == 200, listing.text
+    assert {review_id, admin_review_id} <= {
+        row["review_id"] for row in listing.json()}
 
     # A foreign tenant/workspace admin cannot create, list, read, auto-review
     # or read metrics for the same recording.
@@ -197,4 +219,4 @@ def test_same_tenant_review_is_visible_and_foreign_scope_is_refused(review_world
 
     with world["Session"]() as db:
         assert db.query(CanvasRecordingReview).filter(
-            CanvasRecordingReview.recording_id == recording_id).count() == 1
+            CanvasRecordingReview.recording_id == recording_id).count() == 2
