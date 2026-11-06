@@ -1,0 +1,59 @@
+{
+  "accepted_orch01_source": "943fb32d7",
+  "artifacts": {
+    "README.md": "f34460c87085e643f605a18dc851dac456c342ea970af29d459773df045dc3ac",
+    "TEST_RESULTS.md": "52a79332c0802494664dfb995d94e595e35cbb98e7718b23704a46b785ca62c7",
+    "affected-311.log": "2c8b2361e5af6fa2ba6f8beff67bcce7c859d7638c41f95ee9328a47cb1d5211",
+    "affected-314.log": "5e5ba4af6ed0a20649b45e0fa568f330c6699e81d5902032d38b53685b79e213",
+    "baseline-5-943fb32d7-311.log": "d2ad3a0755a76a5aa85ba2c9cda65fa5883c5edcf979b0bcfa4cbea97a45a21b",
+    "baseline-5-943fb32d7-314.log": "c58708b08ea7be45e68b03d1fe77dbbda0afce1e783553616193b6ced5685b92",
+    "consumer-311.log": "1f3f79039eaf4120c505da4e5ec4a701daad68bc8a3751e2bb7aa9a2a6240707",
+    "consumer-314.log": "d13e03013f2bf4b5802a3e582afe1a508852a881bc179a2b5a490131c94951e4",
+    "focused-311.log": "f7b6d446c0a78d5bfdf523c17cda8e9c3e31e9fff449dce12de6533ae5fab3fc",
+    "focused-314.log": "77f8ee03f6e9d53e4c9ae3ec7995a7c906be62cbc0fe398c0663e9c7d92acca2",
+    "routes.json": "93c70bba6c860e9d3da3e8526842001fc011c4fc6595c80fe49d97e0810ddec9",
+    "source-tree.txt": "0051e92c9a63f7ef85bdf2fa78cad4eb020d488f4ded3b680856f9ff6ab472d7",
+    "verification.json": "0a6c071220ce4bdd752a0341b50322a67f9831878e48a3cec165d70a251c2a5b"
+  },
+  "boundaries": [
+    "real AtomMetaAgent.execute consumer; doubled FleetAdmiral transport",
+    "AgentExecution tenant/workspace/agent is the audit scope authority",
+    "exact audit_id/execution/scope outcome join; first-writer-wins",
+    "shadow recruitment is baseline, not an enforced fleet win",
+    "enforced recruitment-only return joins success=false with explicit error",
+    "calibration excludes pending/scope-unverified rows; approve mode queues consent",
+    "no live model/provider/browser/sandbox/credential/spend/send/download/deployment",
+    "ORCH-02 response consumption remains open; PostgreSQL/soak and whole-app ORACLE-01 open"
+  ],
+  "branch": "codex/orch07-fleet-audit-20261105",
+  "checks": {
+    "affected_python311": "264 passed, 5 baseline failures",
+    "affected_python314": "264 passed, 5 baseline failures",
+    "baseline_python311": "5 failures at 943fb32d7",
+    "baseline_python314": "5 failures at 943fb32d7",
+    "consumer_python311": "7 passed",
+    "consumer_python314": "7 passed",
+    "focused_python311": "65 passed",
+    "focused_python314": "65 passed",
+    "model_calls": 0,
+    "new_schema": false,
+    "provider_calls": 0,
+    "sandbox_calls": 0
+  },
+  "executed_source": "b9ba56995",
+  "schema": "atom-employee-evidence-1",
+  "source_files": {
+    "backend/core/atom_meta_agent.py": "07f2f7c2777727e86b9013aa80c5cf2bb59863e2c1ad0f6f50b655c5816919bd",
+    "backend/core/auth.py": "63b747a9e335f84128fc43b846eacb8beaef3874edeac00874ee803a5e287c61",
+    "backend/core/database.py": "fd3736e7f679b9b30e242597e25a27565d3ab93fc8c0efd3ea0b1cef76e9b16e",
+    "backend/core/fleet_orchestration/fleet_router_automation.py": "864e7058b2bfc4ae759c85ade5e2c1d2604177a25e3d888deb5903f34cb35066",
+    "backend/core/fleet_orchestration/fleet_routing_stats.py": "f0d531018485498b5f688e7bce247d953ebb23c1873b1cb16ad60054b45fc9cd",
+    "backend/core/fleet_routing_config.py": "ce38dffd778d5e9fcfef77ea3a0cf18026060ead25bb1890be616fc3a6036e48",
+    "backend/core/llm/model_provenance.py": "2a914cd61ede131e877f0b681765b9a462b9668e2ffe6203a3a4ca7afb806ccb",
+    "backend/core/models.py": "57f8ff454e45e95aa126b79b993e00d5f4181effb4ee46aaea418b06eb588692",
+    "backend/tests/test_orch07_fleet_audit_consumer.py": "41251d4f0cc2a1f534e15d0472a113920e4b3a457e4f5b6d9a214b7531894da5",
+    "backend/tests/unit/test_fleet_routing_stats.py": "905811f7dc679defbcb9566c547c59667fbc032076a84280a99692d2370a5b20"
+  },
+  "status": "ORCH-07 governed fleet-routing decision and exact outcome join submitted for independent verification; ORCH-02 response consumption remains open",
+  "tree_clean_at_execution": true
+}

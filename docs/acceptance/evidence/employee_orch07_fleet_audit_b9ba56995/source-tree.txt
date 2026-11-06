@@ -1,0 +1,11 @@
+executed_source: b9ba56995
+product_source: b9ba56995
+accepted_orch01_source: 943fb32d7
+branch: codex/orch07-fleet-audit-20261105
+git_status_short:
+git_log:
+b9ba56995 fix(orch07): bind fleet audit decisions to execution and exact outcomes
+943fb32d7 docs(orch01): note the final HITL queue reason
+3978bdd46 docs(orch01): submit the complete-binding source and HITL refusal reason
+0fae2d46c fix(hitl): report fresh review when an advanced binding does not match
+f02ecd322 docs(orch01): submit the complete approval-binding repair

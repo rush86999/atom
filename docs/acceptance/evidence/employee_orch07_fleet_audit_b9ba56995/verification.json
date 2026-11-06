@@ -1,0 +1,70 @@
+{
+  "schema": "atom-oracle-orch07-verification-1",
+  "status": "ORCH-07 governed fleet-routing decision and exact outcome join submitted for independent verification; ORCH-02 response consumption remains open",
+  "candidate": {
+    "branch": "codex/orch07-fleet-audit-20261105",
+    "accepted_orch01_source": "943fb32d7",
+    "executed_source": "b9ba56995",
+    "tree_clean_at_execution": true,
+    "runtime": "real scratch SQLite, doubled NLU/fleet transport, controlled ReAct answer; no live model/provider/sandbox"
+  },
+  "checks": {
+    "real_atom_meta_agent_execute_consumer": true,
+    "eligible_task_writes_fleet_decision": true,
+    "decision_binds_authenticated_execution_tenant_workspace": true,
+    "scope_conflict_does_not_default": true,
+    "missing_execution_scope_unverified": true,
+    "chain_roster_specialist_count_persisted": true,
+    "recruitment_succeeded_distinct_from_outcome": true,
+    "shadow_enforced_false_and_incumbent_outcome": true,
+    "enforced_recruitment_only_not_a_fleet_win": true,
+    "actual_served_model_provider_recorded": true,
+    "attempted_route_not_reported_as_served": true,
+    "exact_audit_id_execution_scope_outcome_join": true,
+    "fresh_session_outcome_readback": true,
+    "duplicate_outcome_idempotent": true,
+    "stale_or_cross_execution_outcome_refused": true,
+    "pending_and_scope_unverified_excluded_from_calibration": true,
+    "shadow_only_data_queues_consent_not_silent_enforce": true,
+    "automation_approval_rows_committed": true,
+    "flag_off_compatibility_preserved": true,
+    "no_live_model_provider_credential_spend_send_download_deployment": true
+  },
+  "results": {
+    "consumer_python314": {"passed": 7, "log": "consumer-314.log"},
+    "consumer_python311": {"passed": 7, "log": "consumer-311.log"},
+    "focused_python314": {"passed": 65, "log": "focused-314.log"},
+    "focused_python311": {"passed": 65, "log": "focused-311.log"},
+    "affected_python314": {
+      "passed": 264, "failed": 5, "baseline_failures": 5,
+      "log": "affected-314.log"
+    },
+    "affected_python311": {
+      "passed": 264, "failed": 5, "baseline_failures": 5,
+      "log": "affected-311.log"
+    },
+    "baseline_python314": {
+      "failed": 5, "log": "baseline-5-943fb32d7-314.log"
+    },
+    "baseline_python311": {
+      "failed": 5, "log": "baseline-5-943fb32d7-311.log"
+    }
+  },
+  "baseline_exclusions": {
+    "fleet_deadlock_source_checks_3": {
+      "file": "tests/test_fleet_orchestration_deadlocks.py",
+      "reason": "pre-existing source-pattern checks; identical at accepted ORCH-01 source"
+    },
+    "round20_route_security_2": {
+      "file": "tests/test_round20_agent_fleet_security.py",
+      "reason": "pre-existing route-security checks; identical at accepted ORCH-01 source"
+    }
+  },
+  "limits": [
+    "Doubled FleetAdmiral transport; recruitment quality is not qualified",
+    "ORCH-02 recruited-specialist work reaching the user-visible response remains open",
+    "No live model/provider/browser/sandbox/credential/spend/send/download/deployment",
+    "PostgreSQL runtime/soak, multi-worker qualification and whole-app ORACLE-01 remain open",
+    "Accepted admin/auth-2FA/canvas/feedback/wait/employee/ORCH-01 and submitted memory/evolution repairs remain independent"
+  ]
+}

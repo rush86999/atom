@@ -1,0 +1,93 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-05 19:03:36 [    INFO] MCP Service initialized
+2026-11-05 19:03:36 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-05 19:03:36 [    INFO] EscalationManager initialized
+2026-11-05 19:03:36 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:03:36 [    INFO] EscalationManager initialized
+2026-11-05 19:03:36 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:03:36 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+
+tests/test_orch07_fleet_audit_consumer.py::test_shadow_consumer_writes_scoped_decision_and_exact_outcome 
+-------------------------------- live log setup --------------------------------
+2026-11-05 19:03:36 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:03:37 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-05 19:03:37 [    INFO] EscalationManager initialized
+2026-11-05 19:03:37 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:03:37 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 19:03:37 [    INFO] LanceDBHandler initialized. ID: 5644074064. LANCEDB_AVAILABLE: True
+2026-11-05 19:03:37 [    INFO] Lazy loading LanceDB connection...
+2026-11-05 19:03:37 [    INFO] Connecting to LanceDB at /private/tmp/atom-orch07-verify/backend/data/atom_memory with storage_options=None
+2026-11-05 19:03:37 [    INFO] LanceDB connected successfully
+2026-11-05 19:03:37 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-1: Tenant tenant-1 not found
+2026-11-05 19:03:37 [    INFO] EscalationManager initialized
+2026-11-05 19:03:37 [    INFO] CognitiveTierService initialized for workspace: workspace-1
+PASSED                                                                   [ 14%]
+tests/test_orch07_fleet_audit_consumer.py::test_enforced_recruitment_summary_is_not_a_fleet_win 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:03:38 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-05 19:03:38 [    INFO] EscalationManager initialized
+2026-11-05 19:03:38 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:03:38 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 19:03:38 [    INFO] LanceDBHandler initialized. ID: 5647319312. LANCEDB_AVAILABLE: True
+2026-11-05 19:03:38 [    INFO] Lazy loading LanceDB connection...
+2026-11-05 19:03:38 [    INFO] Connecting to LanceDB at /private/tmp/atom-orch07-verify/backend/data/atom_memory with storage_options=None
+2026-11-05 19:03:38 [    INFO] LanceDB connected successfully
+PASSED                                                                   [ 28%]
+tests/test_orch07_fleet_audit_consumer.py::test_outcome_join_is_exact_idempotent_and_stale_refused PASSED [ 42%]
+tests/test_orch07_fleet_audit_consumer.py::test_scope_conflict_and_missing_execution_do_not_default PASSED [ 57%]
+tests/test_orch07_fleet_audit_consumer.py::test_calibration_excludes_pending_and_scope_unverified PASSED [ 71%]
+tests/test_orch07_fleet_audit_consumer.py::test_shadow_only_healthy_data_queues_consent_not_silent_enforce PASSED [ 85%]
+tests/test_orch07_fleet_audit_consumer.py::test_attempted_route_is_not_reported_as_served 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:03:41 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-05 19:03:41 [    INFO] EscalationManager initialized
+2026-11-05 19:03:41 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:03:41 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 19:03:41 [    INFO] LanceDBHandler initialized. ID: 5647320336. LANCEDB_AVAILABLE: True
+2026-11-05 19:03:41 [    INFO] Lazy loading LanceDB connection...
+2026-11-05 19:03:41 [    INFO] Connecting to LanceDB at /private/tmp/atom-orch07-verify/backend/data/atom_memory with storage_options=None
+2026-11-05 19:03:41 [    INFO] LanceDB connected successfully
+2026-11-05 19:03:41 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-1: Tenant tenant-1 not found
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+core/fleet_orchestration/scaling_proposal_service.py:48
+  /private/tmp/atom-orch07-verify/backend/core/fleet_orchestration/scaling_proposal_service.py:48: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class ScalingProposal(BaseModel):
+
+core/fleet_orchestration/fleet_scaler_service.py:43
+  /private/tmp/atom-orch07-verify/backend/core/fleet_orchestration/fleet_scaler_service.py:43: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class ScalingOperation(BaseModel):
+
+core/graphrag_engine.py:196
+  /private/tmp/atom-orch07-verify/backend/core/graphrag_engine.py:196: DeprecationWarning: invalid escape sequence '\%'
+    """
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 7 passed, 8 warnings in 20.37s ========================

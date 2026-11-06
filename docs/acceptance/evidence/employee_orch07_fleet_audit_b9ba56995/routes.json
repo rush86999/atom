@@ -1,0 +1,29 @@
+{
+  "schema": "atom-orch07-fleet-audit-1",
+  "branch": "codex/orch07-fleet-audit-20261105",
+  "accepted_orch01_source": "943fb32d7",
+  "executed_source": "b9ba56995",
+  "consumer": {
+    "entry": "core.atom_meta_agent.AtomMetaAgent.execute",
+    "fleet_branch": "execute_unaudited -> route_with_governance (doubled FleetAdmiral transport)",
+    "decision_writer": "core.fleet_orchestration.fleet_routing_stats.record_fleet_decision",
+    "outcome_join": "core.fleet_orchestration.fleet_routing_stats.record_fleet_execution_outcome",
+    "scope_authority": "AgentExecution.tenant_id / workspace_id / agent_id",
+    "scope_conflict": "caller scope conflict is explicit; execution scope retained",
+    "missing_scope": "scope_unverified; no default scope; no calibration-eligible outcome",
+    "outcome_binding": "exact audit_id + execution_id + tenant_id + workspace_id",
+    "outcome_semantics": "first-writer-wins; duplicate same success already_applied; stale/different conflict",
+    "provenance": "actually served BYOK route attribution; attempted/absent route is null",
+    "shadow": "enforced=false; incumbent Queen->ReAct outcome is baseline",
+    "enforced_recruitment_only": "success=false with explicit without-specialist-execution error",
+    "calibration": "only success-populated rows; enforced_n/shadow_n exposed; approve mode queues consent",
+    "automation_commit": "approval/revocation rows are committed by the background pass"
+  },
+  "out_of_scope": [
+    "ORCH-02 recruited-specialist work reaching the user-visible response",
+    "live FleetAdmiral recruitment quality",
+    "live model/provider/browser/sandbox",
+    "PostgreSQL runtime/soak and multi-worker qualification",
+    "whole-app ORACLE-01"
+  ]
+}
