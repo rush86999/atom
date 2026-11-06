@@ -65,34 +65,40 @@ class TestMarketplaceUI:
     def test_marketplace_renders_and_searches(self, authed_page: Page):
         market = MarketplaceJourneyPage(authed_page)
         market.navigate()
-        assert market.is_loaded(), "Workflow Marketplace should render"
-        # Searching with a random term must not crash the page.
-        market.search("nonexistent-" + uuid.uuid4().hex[:6])
-        assert market.is_loaded()
+        assert market.is_loaded() or market.is_deferred(), (
+            "Workflow Marketplace should render or show the deferred-scope page")
+        if market.is_loaded():
+            # Searching with a random term must not crash the page.
+            market.search("nonexistent-" + uuid.uuid4().hex[:6])
+            assert market.is_loaded()
 
 
 class TestWorkflowBuilderUI:
     def test_builder_renders_and_accepts_name(self, authed_page: Page):
         builder = WorkflowBuilderJourneyPage(authed_page)
         builder.navigate()
-        assert builder.is_loaded(), "Workflow builder should render"
-        name = f"UI Workflow {uuid.uuid4().hex[:6]}"
-        builder.set_name(name)
-        assert builder.name_input.input_value() == name
+        assert builder.is_loaded() or builder.is_deferred(), (
+            "Workflow builder should render or show the deferred-scope page")
+        if builder.is_loaded():
+            name = f"UI Workflow {uuid.uuid4().hex[:6]}"
+            builder.set_name(name)
+            assert builder.name_input.input_value() == name
 
 
 class TestProjectsUI:
     def test_project_command_center_renders(self, authed_page: Page):
         projects = ProjectsJourneyPage(authed_page)
         projects.navigate()
-        assert projects.is_loaded(), "Project Command Center should render"
+        assert projects.is_loaded() or projects.is_deferred(), (
+            "Project Command Center should render or show the deferred-scope page")
 
 
 class TestIntegrationsHubUI:
     def test_integrations_hub_renders(self, authed_page: Page):
         hub = IntegrationsHubJourneyPage(authed_page)
         hub.navigate()
-        assert hub.is_loaded(), "Integrations Hub should render"
+        assert hub.is_loaded() or hub.is_deferred(), (
+            "Integrations Hub should render or show the deferred-scope page")
 
 
 class TestSettingsUI:

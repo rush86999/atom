@@ -27,7 +27,7 @@ pytestmark = pytest.mark.e2e
 # stable across empty/populated states. None means "just assert no crash /
 # no redirect to login".
 SIDEBAR_ROUTES = [
-    ("/dashboard", "ATOM Dashboard"),
+    ("/dashboard", "Your workspace"),
     ("/chat", None),                  # session-gated; assert it doesn't redirect to /login
     ("/canvas", "Canvases"),
     ("/search", None),
@@ -35,15 +35,15 @@ SIDEBAR_ROUTES = [
     ("/boards", None),
     ("/automations", None),
     ("/agents", "Agent Control Center"),
-    ("/marketplace", "Workflow Marketplace"),
-    ("/dashboards/projects", "Project Command Center"),
+    ("/marketplace", ("Workflow Marketplace", "is not part of this release")),
+    ("/dashboards/projects", ("Project Command Center", "is not part of this release")),
     ("/communication", None),
     ("/sales", None),
     ("/marketing", None),
     ("/finance", None),
     ("/analytics", None),
     ("/calendar", None),
-    ("/integrations", "ATOM Integrations Hub"),
+    ("/integrations", ("ATOM Integrations Hub", "is not part of this release")),
     ("/settings", "Settings"),
 ]
 
@@ -58,9 +58,15 @@ def test_sidebar_route_renders(authed_page: Page, path: str, expected_text):
     assert "/login" not in authed_page.url, f"{path} redirected to /login"
 
     if expected_text:
-        try:
-            authed_page.wait_for_selector(f"text={expected_text}", timeout=10000)
-            found = True
-        except Exception:
-            found = False
-        assert found, f"{path}: expected text '{expected_text}' not rendered"
+        alternatives = (
+            (expected_text,) if isinstance(expected_text, str) else expected_text)
+        found = False
+        deadline = 10
+        for _ in range(deadline):
+            body = authed_page.locator("body").inner_text()
+            if any(text in body for text in alternatives):
+                found = True
+                break
+            authed_page.wait_for_timeout(1000)
+        assert found, (
+            f"{path}: none of {alternatives!r} rendered")

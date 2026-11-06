@@ -45,6 +45,15 @@ from tests.e2e_ui.fixtures.journey_fixtures import (  # noqa: F401 (fixtures)
 pytestmark = pytest.mark.e2e
 
 
+@pytest.fixture(autouse=True)
+def _dismiss_first_run_onboarding(page: Page):
+    """Keep the onboarding modal from intercepting feature interactions."""
+    page.add_init_script(
+        "try { sessionStorage.setItem('atom.onboarding.dismissed', '1'); } "
+        "catch (e) {}")
+    yield
+
+
 class TestCanonicalUserJourney:
     """One realistic first-run journey touching every major surface."""
 
@@ -66,7 +75,7 @@ class TestCanonicalUserJourney:
 
         dashboard = DashboardJourneyPage(page)
         assert dashboard.is_loaded(), "Should land on the dashboard after login"
-        assert "ATOM Dashboard" in dashboard.get_welcome_text()
+        assert "Your workspace" in dashboard.get_welcome_text()
 
         # The frontend stores the JWT in localStorage after login.
         token = page.evaluate("localStorage.getItem('auth_token')")
@@ -102,40 +111,46 @@ class TestCanonicalUserJourney:
         # ------------------------------------------------------------------
         market = MarketplaceJourneyPage(page)
         market.navigate()
-        assert market.is_loaded(), "Marketplace should load"
-        # Searching should not error even with no templates.
-        market.search("customer onboarding" + uuid.uuid4().hex[:4])
+        assert market.is_loaded() or market.is_deferred(), (
+            "Marketplace should load or show the deferred-scope page")
+        if market.is_loaded():
+            # Searching should not error even with no templates.
+            market.search("customer onboarding" + uuid.uuid4().hex[:4])
 
         # ------------------------------------------------------------------
         # 6. WORKFLOW BUILDER
         # ------------------------------------------------------------------
         builder = WorkflowBuilderJourneyPage(page)
         builder.navigate()
-        assert builder.is_loaded(), "Workflow builder should load"
-        wf_name = f"Journey Workflow {uuid.uuid4().hex[:6]}"
-        builder.set_name(wf_name)
-        # Saving may fail if backend validation rejects an empty graph; we only
-        # require that the builder UI accepts the name and the save click does
-        # not crash the page.
-        try:
-            builder.save()
-        except Exception:
-            pass  # assert below confirms the page is still usable
-        assert builder.is_loaded(), "Builder should remain usable after save attempt"
+        assert builder.is_loaded() or builder.is_deferred(), (
+            "Workflow builder should load or show the deferred-scope page")
+        if builder.is_loaded():
+            wf_name = f"Journey Workflow {uuid.uuid4().hex[:6]}"
+            builder.set_name(wf_name)
+            # Saving may fail if backend validation rejects an empty graph; we
+            # only require that the builder UI accepts the name and the save
+            # click does not crash the page.
+            try:
+                builder.save()
+            except Exception:
+                pass
+            assert builder.is_loaded(), "Builder should remain usable after save attempt"
 
         # ------------------------------------------------------------------
         # 7. PROJECTS / TASKS
         # ------------------------------------------------------------------
         projects = ProjectsJourneyPage(page)
         projects.navigate()
-        assert projects.is_loaded(), "Project Command Center should load"
+        assert projects.is_loaded() or projects.is_deferred(), (
+            "Project Command Center should load or show the deferred-scope page")
 
         # ------------------------------------------------------------------
         # 8. INTEGRATIONS HUB
         # ------------------------------------------------------------------
         integrations = IntegrationsHubJourneyPage(page)
         integrations.navigate()
-        assert integrations.is_loaded(), "Integrations Hub should load"
+        assert integrations.is_loaded() or integrations.is_deferred(), (
+            "Integrations Hub should load or show the deferred-scope page")
 
         # ------------------------------------------------------------------
         # 9. SETTINGS — theme persistence
