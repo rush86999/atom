@@ -105,6 +105,12 @@ _TERMINAL_FAILURE_STATUSES = frozenset({
     "budget_exceeded",
     "killed_sandbox",
     "error",
+    "cancelled",
+    "specialists_failed",
+    "no_suitable_specialists",
+    "fleet_specialists_failed",
+    "fleet_no_suitable_specialist",
+    "fleet_cancelled",
 })
 
 
@@ -113,7 +119,10 @@ def _execution_succeeded(result: Dict) -> bool:
     status = str(result.get("status") or "").strip().lower()
     if status in _TERMINAL_FAILURE_STATUSES:
         return False
-    if status == "success":
+    explicit = result.get("success")
+    if explicit is not None:
+        return bool(explicit)
+    if status in ("success", "specialists_executed"):
         return True
     final_output = result.get("final_output")
     return bool(final_output) and "error" not in str(final_output).lower()
@@ -526,7 +535,7 @@ class AtomMetaAgent:
         try:
             result = await self.execute_unaudited(
                 request, context=context, trigger_mode=trigger_mode,
-                step_callback=step_callback, execution_id=execution_id,
+                step_callback=step_callback, execution_id=exec_uuid,
                 canvas_context=canvas_context,
             )
         except Exception as run_err:
@@ -541,7 +550,7 @@ class AtomMetaAgent:
         status = result.get("status", "success")
         self._close_audit_bracket(
             exec_uuid, status=status, actions_executed=steps,
-            success=(status == "success"),
+            success=_execution_succeeded(result),
             error_message=None, token=_audit_token,
         )
         return result
@@ -620,14 +629,7 @@ class AtomMetaAgent:
                 return model, provider
         except Exception:
             pass
-        try:
-            handler = getattr(self.llm, "handler", None)
-            return (
-                getattr(handler, "_last_used_model", None),
-                getattr(handler, "_last_used_provider", None),
-            )
-        except Exception:
-            return None, None
+        return None, None
 
     async def _execute_fleet_specialists(
         self,
@@ -655,6 +657,89 @@ class AtomMetaAgent:
                 context=context or {},
                 cancel_check=(context or {}).get("fleet_cancel_check"),
             )
+
+    async def _finalize_agent_execution(
+        self,
+        *,
+        execution_id: str,
+        request: str,
+        result_payload: Dict[str, Any],
+        durable_status: str,
+        final_answer: Any,
+        start_time: datetime,
+        trigger_mode: AgentTriggerMode,
+        tenant_id: Optional[str],
+        context: Optional[Dict[str, Any]],
+        fleet_audit_id: Optional[str],
+        fleet_success: bool,
+        fleet_error: Optional[str] = None,
+        fleet_latency_ms: Optional[float] = None,
+        fleet_model: Optional[str] = None,
+        fleet_provider: Optional[str] = None,
+    ) -> None:
+        """One shared durable finalizer for normal and enforced fleet runs."""
+        await self._record_execution(request, result_payload, trigger_mode)
+
+        end_time = datetime.now(timezone.utc)
+        duration = (end_time - start_time).total_seconds()
+        db = SessionLocal()
+        try:
+            execution = (
+                db.query(AgentExecution)
+                .filter(AgentExecution.id == execution_id)
+                .with_for_update()
+                .first()
+            )
+            if execution:
+                if durable_status == "success":
+                    execution.status = "completed"
+                elif durable_status == "cancelled":
+                    execution.status = "cancelled"
+                elif durable_status == "budget_exceeded":
+                    execution.status = "failed"
+                    execution.error_message = (
+                        "Budget exceeded — execution halted by spend gate")
+                else:
+                    execution.status = durable_status
+                execution.result_summary = str(final_answer)[:500]
+                execution.duration_seconds = duration
+                execution.completed_at = end_time
+                if durable_status not in ("success", "completed", "cancelled"):
+                    execution.error_message = str(
+                        fleet_error or final_answer or durable_status)[:500]
+                db.commit()
+        except Exception as e:
+            logger.error(f"Failed to update AgentExecution: {e}")
+            db.rollback()
+        finally:
+            db.close()
+
+        try:
+            from core.fleet_orchestration.fleet_routing_stats import (
+                record_fleet_execution_outcome,
+            )
+
+            if fleet_model is None and fleet_provider is None:
+                fleet_model, fleet_provider = self._fleet_actual_route()
+            record_fleet_execution_outcome(
+                execution_id=execution_id,
+                success=bool(fleet_success),
+                error_message=fleet_error,
+                actual_latency_ms=(
+                    float(fleet_latency_ms)
+                    if fleet_latency_ms is not None
+                    else duration * 1000.0
+                ),
+                actual_model=fleet_model,
+                actual_provider=fleet_provider,
+                audit_id=fleet_audit_id,
+                tenant_id=tenant_id,
+                workspace_id=(
+                    getattr(self, "workspace_id", None)
+                    or (context or {}).get("workspace_id")),
+            )
+        except Exception:
+            pass
 
     async def execute_unaudited(self, request: str, context: Dict[str, Any] = None,
                                 trigger_mode: AgentTriggerMode = AgentTriggerMode.MANUAL,
@@ -1116,23 +1201,6 @@ class AtomMetaAgent:
                             _fleet_execution.get("success"))
                         _fleet_exec_error = _fleet_execution.get("error")
                         _fleet_model, _fleet_provider = self._fleet_actual_route()
-                        try:
-                            from core.fleet_orchestration.fleet_routing_stats import (
-                                record_fleet_execution_outcome,
-                            )
-
-                            record_fleet_execution_outcome(
-                                execution_id=execution_id,
-                                success=_fleet_success,
-                                error_message=_fleet_exec_error,
-                                actual_model=_fleet_model,
-                                actual_provider=_fleet_provider,
-                                audit_id=_fleet_audit_id,
-                                tenant_id=tenant_id,
-                                workspace_id=getattr(self, "workspace_id", None) or (context or {}).get("workspace_id"),
-                            )
-                        except Exception:
-                            pass
                         _fleet_status = _fleet_execution.get(
                             "status", "fleet_executed")
                         _fleet_failure_reason = None
@@ -1144,7 +1212,7 @@ class AtomMetaAgent:
                                 if _fleet_status == "no_suitable_specialists"
                                 else "fleet_specialists_failed"
                             )
-                        return {
+                        _fleet_result_payload = {
                             "execution_id": execution_id,
                             "route": "TASK",
                             "handler": "FleetAdmiral",
@@ -1153,6 +1221,7 @@ class AtomMetaAgent:
                                 "final_output"),
                             "response": _fleet_execution.get(
                                 "final_output"),
+                            "actions_executed": [],
                             "specialist_results": _fleet_execution.get(
                                 "specialist_results", []),
                             "specialists_count": _fleet_execution.get(
@@ -1171,6 +1240,30 @@ class AtomMetaAgent:
                             "enforced": True,
                             "result": _fleet_execution,
                         }
+                        await self._finalize_agent_execution(
+                            execution_id=execution_id,
+                            request=request,
+                            result_payload=_fleet_result_payload,
+                            durable_status=(
+                                "success" if _fleet_success
+                                else "cancelled"
+                                if _fleet_status == "cancelled"
+                                else "failed"),
+                            final_answer=_fleet_result_payload[
+                                "final_output"],
+                            start_time=start_time,
+                            trigger_mode=trigger_mode,
+                            tenant_id=tenant_id,
+                            context=context,
+                            fleet_audit_id=_fleet_audit_id,
+                            fleet_success=_fleet_success,
+                            fleet_error=(
+                                _fleet_exec_error
+                                or _fleet_failure_reason),
+                            fleet_model=_fleet_model,
+                            fleet_provider=_fleet_provider,
+                        )
+                        return _fleet_result_payload
                     # Shadow mode: fall through to Queen→ReAct (telemetry only).
             # --- end P1a -----------------------------------------------------
 
@@ -1719,59 +1812,22 @@ class AtomMetaAgent:
         except Exception as _bpe_err:
             logger.debug(f"bpe episode close-out skipped: {_bpe_err}")
 
-        await self._record_execution(request, result_payload, trigger_mode)
-        
-        # Update Execution Record with duration
-        end_time = datetime.now(timezone.utc)
-        duration = (end_time - start_time).total_seconds()
-
-        db = SessionLocal()
-        try:
-            # Use WITH FOR UPDATE to lock the row and prevent race conditions
-            execution = db.query(AgentExecution).filter(
-                AgentExecution.id == execution_id
-            ).with_for_update().first()
-
-            if execution:
-                execution.status = "completed" if status == "success" else status
-                execution.result_summary = str(final_answer)[:500]
-                execution.duration_seconds = duration
-                execution.completed_at = end_time
-                # Map budget_exceeded → a VALID ExecutionStatus for persistence.
-                # Like the max_steps→timeout mapping above, budget_exceeded is
-                # not in the enum; persisting it verbatim would create an
-                # invisible third state that failure dashboards miss. FAILED is
-                # the correct bucket, with a distinctive error_message.
-                if status == "budget_exceeded":
-                    execution.status = "failed"
-                    execution.error_message = "Budget exceeded — execution halted by spend gate"
-                db.commit()
-        except Exception as e:
-            logger.error(f"Failed to update AgentExecution: {e}")
-            db.rollback()
-        finally:
-            db.close()
-
-        # Fleet routing validation: join the execution outcome onto any fleet
-        # audit rows for this execution (single-arm calibration data). Never raises.
-        try:
-            from core.fleet_orchestration.fleet_routing_stats import (
-                record_fleet_execution_outcome,
-            )
-
-            _fleet_model, _fleet_provider = self._fleet_actual_route()
-            record_fleet_execution_outcome(
-                execution_id=execution_id,
-                success=(status == "success"),
-                actual_latency_ms=duration * 1000.0,
-                actual_model=_fleet_model,
-                actual_provider=_fleet_provider,
-                audit_id=_fleet_audit_id,
-                tenant_id=tenant_id,
-                workspace_id=getattr(self, "workspace_id", None) or (context or {}).get("workspace_id"),
-            )
-        except Exception:
-            pass
+        await self._finalize_agent_execution(
+            execution_id=execution_id,
+            request=request,
+            result_payload=result_payload,
+            durable_status=status,
+            final_answer=final_answer,
+            start_time=start_time,
+            trigger_mode=trigger_mode,
+            tenant_id=tenant_id,
+            context=context,
+            fleet_audit_id=_fleet_audit_id,
+            fleet_success=(status == "success"),
+            fleet_error=(
+                None if status == "success"
+                else str(final_answer or status)[:400]),
+        )
 
         return result_payload
 
@@ -3572,7 +3628,9 @@ Provide your Mentorship Guidance:"""
             result = await admiral.recruit_and_execute(
                 task=request,
                 user_id=user_id,  # Changed from tenant_id
-                root_agent_id=agent_id
+                root_agent_id=agent_id,
+                tenant_id=getattr(self, "tenant_id", None),
+                workspace_id=getattr(self, "workspace_id", None),
             )
 
             return {

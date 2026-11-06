@@ -263,6 +263,17 @@ def test_chat_handler_returns_specialist_work_as_user_message(env):
     assert len(FakeSpecialist.calls) == 2
 
 
+def test_generic_domain_with_empty_capabilities_remains_supported(env):
+    _seed_fleet(env, a1_caps=(), a2_caps=())
+    summary = _summary()
+    for item in summary["result"]["recruitment_roster"]:
+        item["domain"] = "general"
+    result = env.run(enforced=True, summary=summary)
+    assert result["success"] is True
+    assert len(FakeSpecialist.calls) == 2
+    assert result["status"] == "specialists_executed"
+
+
 def test_empty_roster_is_explicit_no_suitable(env):
     _seed_fleet(env)
     result = env.run(enforced=True, summary=_summary(count=0))
