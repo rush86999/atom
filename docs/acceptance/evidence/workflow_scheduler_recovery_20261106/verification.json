@@ -1,0 +1,39 @@
+{
+  "schema": "atom-workflow-scheduler-recovery-1",
+  "claim": "Public workflow/scheduling execution-and-recovery boundary",
+  "status": "verified at controlled local/scheduler scope",
+  "base_main": "671986755cd4c7f98d5845d0f31eb7bd3bb10f9f",
+  "source_checkpoint": "e205b6fb86864aea411a1d7ce06a6045863e8620",
+  "results": {
+    "scheduler_controls": "3 passed",
+    "approval_resume": "8 passed",
+    "ci_311": "630 passed, 1 skipped",
+    "ci_314": "630 passed, 1 skipped",
+    "hosted_backend": "630 passed, 1 skipped; memory 1.0",
+    "hosted_e2e": "211 API / 29 UI / 40 role-UI; zero failures"
+  },
+  "source_hashes": {
+    "backend/tests/test_workflow_scheduler_recovery.py": {
+      "git_blob": "bc6fab32a424fd09299d98bfa7a07c2df7af9a2e",
+      "sha256": "01a7c8aa60c17e311ca382e7f0c2fc33c2b85d371a8bb218e936afcc14e40879"
+    },
+    ".github/workflows/ci.yml": {
+      "git_blob": "63eda6ead2cbaa38c120a0f88a212e27ef1290e3",
+      "sha256": "0c3c2c6fb91c0419242a3dc22790d7d1b3a559cbe39178730922978d5dcd72ac"
+    }
+  },
+  "artifact_sha256": {
+    "README.md": "0950ad5fded3cba521a4f8051e4e5495f113d7fb0d713b0c712da0c4b733a13a",
+    "approval-resume-311.log": "8b39b21afc2479f79e00327cacdeba5b14e8bbae04ed4c41a629c7de39f87d38",
+    "ci-selection-311.log": "32189652175b0f98117ad29160ac7969d36ab8746dd86a21b94123b306e4b2b9",
+    "ci-selection-314.log": "e68e754624e64826a8445a4d199d445266d0bf1833a2bad681223acceb605137",
+    "hosted-backend.log": "3044903297700f47a0c8ff5b4e385867daf36204478b450d36611a16695cfb1e",
+    "hosted-e2e.log": "8281eaf173093574aca3f4ce99e4bf769e6a3b9365303efe3b0b92585e586e02",
+    "scheduler-controls-311.log": "de21b91e7885f6bdaf1dab0d48a358a43ad9fcde11d22e58ba11c6e8bba78ddc"
+  },
+  "boundaries": [
+    "SQLAlchemy jobstore in one local process/event loop; PostgreSQL/multi-worker/soak separate",
+    "harmless local counter callback, no workflow/network effect",
+    "no product/authority change or live operation"
+  ]
+}
