@@ -18,7 +18,20 @@ from core.llm.byok_handler import (
     AwaitableResult,
     BYOKHandler,
     GatewayBlockedError,
+    key_store_signature,
 )
+
+
+@pytest.fixture(autouse=True)
+def _route_catalog(monkeypatch, tmp_path):
+    """Explicit isolated discovery for the doubled cloud routes in this
+    file. Production route eligibility is unchanged: an unknown catalogue
+    still refuses dispatch."""
+    from tests._llm_route_catalog import install_route_catalog
+    install_route_catalog(monkeypatch, tmp_path, {
+        "openai": ["gpt-4o"],
+        "deepseek": ["deepseek-chat"],
+    })
 
 
 def _resp(content="ok", finish="stop", usage=None):
@@ -47,6 +60,8 @@ def make_handler(**attrs):
     h._last_used_model = None
     h._last_used_provider = None
     h._pending_routing_result_id = None
+    h._local_routes = {}
+    h.credential_signature = key_store_signature()
     h._embedding_initialized = False
     h._embedding_init_lock = None
     h._clients_initialized = True

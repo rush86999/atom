@@ -1,0 +1,71 @@
+{
+  "task": "PR659 backend CI diagnosis and repair",
+  "branch": "codex/pr659-backend-ci-fix-20261105",
+  "base_main": "71f9e22b41f7feea7ea55c7d32d6efeacc704081",
+  "code_commit": "a09279b39",
+  "accepted_fleet_merge": "baa695775c30686e21ca9d30fa0a1fb32c2175d3",
+  "observed_ci": {
+    "run_id": 42149250267,
+    "job_id": 127668163932,
+    "python": "3.11.18",
+    "result": "39 failed, 522 passed, 1 skipped",
+    "duration_seconds": 80.76,
+    "log": "baseline-hosted-pr659.log"
+  },
+  "local_baseline": {
+    "commit": "71f9e22b41f7feea7ea55c7d32d6efeacc704081",
+    "result": "39 failed, 522 passed, 1 skipped",
+    "log": "baseline-local-main.log"
+  },
+  "final_ci_selection": {
+    "python_3_11": "561 passed, 1 skipped, 0 failed",
+    "python_3_14": "561 passed, 1 skipped, 0 failed",
+    "log_3_11": "final-backend-311.log",
+    "log_3_14": "final-backend-314.log",
+    "env": {
+      "DATABASE_URL": "sqlite:///<unique scratch file under backend/data>",
+      "SECRET_KEY": "ci-test-secret-key",
+      "ENVIRONMENT": "development",
+      "PYTEST_CURRENT_TEST": "1"
+    },
+    "pytest_args": "-q --tb=line --timeout=300 --timeout-method=thread"
+  },
+  "memory_gate": {
+    "command": "python3.11 -B -m core.memory_eval",
+    "result": {
+      "recall": 1.0,
+      "recall_keyword": 1.0,
+      "recall_paraphrase": 1.0,
+      "total": 7,
+      "missed": []
+    },
+    "log": "memory-gate-311.log"
+  },
+  "streaming_neighborhood": {
+    "python": "3.11",
+    "before": "98 failed, 505 passed, 6 skipped",
+    "after": "98 failed, 505 passed, 6 skipped",
+    "failed_set_diff": "identical",
+    "note": "Pre-existing baseline debt outside the CI selection; no new failures and no repaired tests in this set.",
+    "log": "streaming-baseline-diff.txt"
+  },
+  "failure_classes": {
+    "routing_feedback": 4,
+    "oracle_task_id": 1,
+    "opencode_go": 7,
+    "w27_opencode_retry": 6,
+    "byok_handler_a_d": 5,
+    "deepseek_harness_gaps": 16
+  },
+  "runtime_fixes": [
+    "stream_completion keeps partial output after any mid-stream failure once visible tokens were yielded",
+    "catalogue sweeps exclude the exact failed (provider, model) pair",
+    "streaming catalogue sweep is one-shot via _allow_ladder_sweep=False"
+  ],
+  "controls_preserved": [
+    "production evaluate_route still refuses an undiscovered cloud catalogue",
+    "local-only negative routes still refuse",
+    "oracle proof, strict pins, tenant/workspace scope, capability floors and branch protection unchanged",
+    "no live model/provider/browser/sandbox/credential/spend/send/download/deployment operation"
+  ]
+}

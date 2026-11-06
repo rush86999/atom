@@ -24,7 +24,12 @@ from tests.e2e_ui.pages.journey_pages import (
     SettingsJourneyPage,
     WorkflowBuilderJourneyPage,
 )
-from tests.e2e_ui.fixtures.journey_fixtures import authed_page  # noqa: F401
+from tests.e2e_ui.fixtures.journey_fixtures import (  # noqa: F401
+    authed_page,
+    product_profile,
+    route_enabled,
+    deferred_label,
+)
 
 
 pytestmark = pytest.mark.e2e
@@ -62,9 +67,15 @@ class TestCanvasUI:
 
 
 class TestMarketplaceUI:
-    def test_marketplace_renders_and_searches(self, authed_page: Page):
+    def test_marketplace_renders_and_searches(
+            self, authed_page: Page, product_profile):
         market = MarketplaceJourneyPage(authed_page)
         market.navigate()
+        if not route_enabled(product_profile, "/marketplace"):
+            label = deferred_label(product_profile, "/marketplace")
+            assert market.is_not_in_release(label), (
+                f"Marketplace should show its deferred scope for {label!r}")
+            return
         assert market.is_loaded(), "Workflow Marketplace should render"
         # Searching with a random term must not crash the page.
         market.search("nonexistent-" + uuid.uuid4().hex[:6])
@@ -72,9 +83,15 @@ class TestMarketplaceUI:
 
 
 class TestWorkflowBuilderUI:
-    def test_builder_renders_and_accepts_name(self, authed_page: Page):
+    def test_builder_renders_and_accepts_name(
+            self, authed_page: Page, product_profile):
         builder = WorkflowBuilderJourneyPage(authed_page)
         builder.navigate()
+        if not route_enabled(product_profile, "/workflows/builder"):
+            label = deferred_label(product_profile, "/workflows/builder")
+            assert builder.is_not_in_release(label), (
+                f"Workflow builder should show its deferred scope for {label!r}")
+            return
         assert builder.is_loaded(), "Workflow builder should render"
         name = f"UI Workflow {uuid.uuid4().hex[:6]}"
         builder.set_name(name)
@@ -82,16 +99,28 @@ class TestWorkflowBuilderUI:
 
 
 class TestProjectsUI:
-    def test_project_command_center_renders(self, authed_page: Page):
+    def test_project_command_center_renders(
+            self, authed_page: Page, product_profile):
         projects = ProjectsJourneyPage(authed_page)
         projects.navigate()
+        if not route_enabled(product_profile, "/dashboards/projects"):
+            label = deferred_label(product_profile, "/dashboards/projects")
+            assert projects.is_not_in_release(label), (
+                f"Project Command Center should show its deferred scope for {label!r}")
+            return
         assert projects.is_loaded(), "Project Command Center should render"
 
 
 class TestIntegrationsHubUI:
-    def test_integrations_hub_renders(self, authed_page: Page):
+    def test_integrations_hub_renders(
+            self, authed_page: Page, product_profile):
         hub = IntegrationsHubJourneyPage(authed_page)
         hub.navigate()
+        if not route_enabled(product_profile, "/integrations"):
+            label = deferred_label(product_profile, "/integrations")
+            assert hub.is_not_in_release(label), (
+                f"Integrations Hub should show its deferred scope for {label!r}")
+            return
         assert hub.is_loaded(), "Integrations Hub should render"
 
 

@@ -1,0 +1,13 @@
+executed_source: 83dc39c458a9fe4cb60d8e24cfd3f5fbe4ba25f8
+prior_ui_fix_source: 437302cff25594d640d3feedf5d8b4c698113ee3
+accepted_pr664_head: d17acd1d58ed0f743322314ef08e6888cb12c83a
+branch: codex/pr659-backend-ci-fix-20261105
+observed_run_job: 42161362480/127707566246
+final_run_job: 42209447032/127864183212
+git_status_short:
+git_log:
+83dc39c45 test(e2e): assert the exact core-profile scope in UI journeys
+437302cff test(e2e): align UI journeys with core profile and current composers
+d17acd1d5 docs(skills): record the delete-authority investigation
+c7e1530a1 test(skills): assert the real delete authority in the journey
+bc19f8fbf docs(llm): refresh the frozen package for the final repair bound

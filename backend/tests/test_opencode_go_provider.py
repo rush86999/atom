@@ -54,6 +54,25 @@ def _clean_provider_cooldowns():
     BYOKHandler.invalidate_provider_failures()
 
 
+@pytest.fixture(autouse=True)
+def _route_catalog(monkeypatch, tmp_path):
+    """Explicit isolated discovery for this file's doubled cloud routes.
+
+    Production route eligibility is unchanged: an undiscovered catalogue
+    still refuses dispatch.
+    """
+    from tests._llm_route_catalog import install_route_catalog
+    install_route_catalog(monkeypatch, tmp_path, {
+        "opencode-go": [
+            "deepseek-v4-flash-free",
+            "deepseek-v4-flash",
+            "deepseek-v4-pro",
+            "mimo-v2.5-free",
+            "minimax-m2.7",
+        ],
+    })
+
+
 # ============================================================================
 # Provider registration
 # ============================================================================
@@ -726,7 +745,12 @@ class TestOpenCodeGoFreePaidRetryStreaming:
         assert client.chat.completions.create.call_count == 1
         assert "Error: All LLM providers failed" in "".join(chunks)
 
-    async def test_free_model_other_error_no_retry(self, byok_handler):
+    async def test_free_model_other_error_no_retry(
+            self, byok_handler, monkeypatch, tmp_path):
+        from tests._llm_route_catalog import install_route_catalog
+        install_route_catalog(monkeypatch, tmp_path, {
+            "opencode-go": ["deepseek-v4-flash-free"],
+        })
         client = Mock()
         client.chat.completions.create.side_effect = RuntimeError("401 invalid key")
         handler = self._handler_with_client(byok_handler, client)

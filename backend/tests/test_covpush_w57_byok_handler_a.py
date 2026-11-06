@@ -29,6 +29,7 @@ from core.llm.byok_handler import (
     _opencode_free_paid_fallback,
     _opencode_paid_fallback_model,
     _run_coroutine_sync,
+    key_store_signature,
 )
 
 
@@ -50,6 +51,8 @@ def make_handler(**attrs):
     h._last_used_model = None
     h._last_used_provider = None
     h._pending_routing_result_id = None
+    h._local_routes = {}
+    h.credential_signature = key_store_signature()
     h._embedding_initialized = False
     h._embedding_init_lock = None
     h._clients_initialized = True
@@ -438,7 +441,9 @@ class TestOptimalProvider:
         h = make_handler(clients={"deepseek": 1})
         with patch.object(h, "get_ranked_providers", return_value=[]):
             result = h.get_optimal_provider(QueryComplexity.SIMPLE)
-        assert result[1] == "gpt-4o-mini"
+        # The documented fallback walks CONFIGURED providers and returns
+        # their tier default; the old hardcoded gpt-4o-mini is gone.
+        assert result == ("deepseek", "deepseek-chat")
 
     def test_no_clients_raises(self):
         h = make_handler(clients={})
