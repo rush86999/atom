@@ -84,11 +84,22 @@ def app():
 def client(app, worker_database):
     from core.auth import get_current_user
     from core.database import get_db
+    from core.models import User
 
     user = MagicMock()
     user.id = USER
 
     SessionLocal = worker_database
+    seed = SessionLocal()
+    try:
+        if seed.query(User).filter(User.id == USER).first() is None:
+            seed.add(User(
+                id=USER, email="fork@example.com", first_name="Fork",
+                last_name="User", role="member", status="active",
+                is_active=True))
+            seed.commit()
+    finally:
+        seed.close()
 
     def _override_get_db():
         session = SessionLocal()

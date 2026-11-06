@@ -1,0 +1,55 @@
+{
+  "schema": "atom-employee-evidence-1",
+  "status": "verified chat-session fork with current authority, exact source snapshot and durable receipt submitted for independent verification",
+  "branch": "codex/oracle01-chat-fork-20261106",
+  "executed_source": "371cb197b9f5b69e6b1ef3b75580b501b1f7f575",
+  "base_main": "d860072a787e6460d83260e9cb629cfa5d5ea14b",
+  "prepared_branch": "codex/oracle01-chat-20261105",
+  "prepared_tip": "eede11a8f700ded74767a45a015d77e02951b452",
+  "source_files": {
+    "backend/core/chat_fork_write_service.py": "98fa21de7279036acb57e99df0df1b4b9261e75000c982fdb43402346dcc18a6",
+    "backend/integrations/chat_routes.py": "7271d62ab22731271f703afecaf77c300431f3e47161ef72f4c549c845dbf3c9",
+    "backend/tests/test_chat_fork_decision_contract.py": "2ff380faf1748366eb2ff3bf8009f2065640201c129326272105c7b9f8a73c09",
+    "backend/tests/test_chat_store_session_fork.py": "a136af79ecb27203596bfe0677a883dd9cc94061e743fdcb3c0b71bea77266c0",
+    "backend/tests/test_chat_session_fork.py": "efbe3f5e81020140b58d05d2f5b19b2e037e68f49d3ecd5cb5798d1833c26e08",
+    "backend/core/models.py": "4b238c35f6f235d94779f4598040f0c9fcd39599c26705e7016e8b045b51c3ef",
+    "backend/core/auth.py": "63b747a9e335f84128fc43b846eacb8beaef3874edeac00874ee803a5e287c61",
+    "backend/core/security_dependencies.py": "bb43051cc1f3455f1d8866ed6e576462765dcde92d492eed036cca317851f9f1",
+    "backend/core/database.py": "fd3736e7f679b9b30e242597e25a27565d3ab93fc8c0efd3ea0b1cef76e9b16e",
+    "backend/core/personal_scope.py": "f07dd35cf6eedb674ec9afbb06e10776cd4039e64ad7dd0a3427b7e0df31f78f",
+    ".github/workflows/ci.yml": "14c6056e8367c1564bdbcc89da9cf2118e4a7c263f41f70742f7ab118ff117c0"
+  },
+  "artifacts": {
+    "README.md": "ce963044b16e95a238ee1fecd733bc4b53ef6e11385ab1fe4a176aacfa0c2bea",
+    "TEST_RESULTS.md": "d10cf5706944261dbb3f76afa37a89e31a9747a6979e1f1c257f313dde355406",
+    "affected-311.log": "90e577e57d92d494bb3173feb3f29308d565b98d1db31a903996e210e008ceee",
+    "affected-314.log": "0cf28a7c1a31c5ec269fbe3bcc9f10e70f8e201af79195ee69de4857f1d6c236",
+    "baseline-main-311.log": "91d763069be8d354494c614d97bd900cd283d41488dd54848f67f0abb8b015b5",
+    "baseline-main-314.log": "a7335397a1ee53ae6f26d549ecb789c775add3cb499f9894a1ff1b3ac3efcfc1",
+    "focused-311.log": "247fac389a271a2822fbf0d05d0ec37c5f68bbb2128dcd7a780cb7a9c0648aa6",
+    "focused-314.log": "598725c4d580738275f896747d03d516eb6a1acec6f0cc0492dc6ac11c408d21",
+    "routes.json": "1ee0d36c3bf67bf7302b12530103e39b483d08dbfa375b86d6a062fc991969de",
+    "source-tree.txt": "1af7bd256c4ecd81bf37edd57a2769ab565aa678b3fa6932d4e3e45bf1ea26f8",
+    "verification.json": "873d65b682c486a6e289d03f4130c051395d87579a521d5488fdce9e4390ee5a"
+  },
+  "checks": {
+    "focused_314": "38 passed",
+    "focused_311": "38 passed",
+    "affected_314": "314 passed, 7 baseline failures",
+    "affected_311": "314 passed, 7 baseline failures",
+    "baseline_main_314": "290 passed, 7 failed",
+    "baseline_main_311": "289 passed, 8 failed",
+    "candidate_new_passing_controls": 24,
+    "candidate_added_failures": 0,
+    "authority_claimed_in_transaction": true,
+    "message_snapshot_rechecked": true,
+    "no_test_deleted_skipped_or_xfailed": true,
+    "no_live_model_provider_credential_spend_send_download_deployment": true
+  },
+  "boundaries": [
+    "real scratch SQLite only; no PostgreSQL/soak or multi-worker qualification",
+    "rename/delete/send/cancel/feedback/history and LanceDB storage remain out of scope",
+    "no new table or migration",
+    "no merge or deployment; code-owner review remains required"
+  ]
+}

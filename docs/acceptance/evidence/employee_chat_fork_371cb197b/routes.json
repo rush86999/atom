@@ -1,0 +1,56 @@
+{
+  "schema": "atom-oracle-chat-fork-routes-1",
+  "executed_source": "371cb197b9f5b69e6b1ef3b75580b501b1f7f575",
+  "base_main": "d860072a787e6460d83260e9cb629cfa5d5ea14b",
+  "prepared_branch": "codex/oracle01-chat-20261105",
+  "prepared_tip": "eede11a8f700ded74767a45a015d77e02951b452",
+  "prefix": "/api/chat/sessions",
+  "targets": {
+    "source": "ChatSession + ordered ChatMessage snapshot",
+    "created": "one ChatSession plus one ChatMessage per copied row",
+    "ledger": "one AuditLog receipt in the same transaction"
+  },
+  "authority": {
+    "route": "mandatory get_current_user plus existing in-memory session ownership gate",
+    "service": "re-read current User; require active status; claim is_active/status/role/raw tenant inside the fork transaction",
+    "source_owner": "source ChatSession.user_id must equal the caller; foreign owner is refused with zero effect",
+    "authority_change": "409 AUTHORITY_CHANGED with effect=none"
+  },
+  "routes": [
+    {
+      "method": "POST",
+      "path": "/api/chat/sessions/{session_id}/fork",
+      "handler": "integrations.chat_routes.fork_chat_session",
+      "service": "core.chat_fork_write_service.fork_chat_session",
+      "effect": "authority claim + exact source-session claim + post-claim message-snapshot recheck + one new session, copied messages and one AuditLog receipt",
+      "transitions": "full/prefix fork verified; empty/unknown source legacy success=false; stale source/message 409; authority change 409; same-operation replay already_applied; rollback not_applied; readback committed_unverified; lost confirmation effect_unknown"
+    }
+  ],
+  "material": {
+    "source_session": ["id", "user_id", "title", "metadata_json", "message_count"],
+    "messages": ["id", "conversation_id", "tenant_id", "role", "content", "agent_id", "metadata_json"],
+    "prefix": "optional up_to_message_id, inclusive",
+    "digests": ["prior/source snapshot", "request operation/prefix", "result fork/messages"]
+  },
+  "receipt": {
+    "table": "saas_audit_logs",
+    "operation_id": "chat-fork:<supplied-or-generated>",
+    "metadata": ["schema", "operation_id", "action", "event_type", "target_id", "source_session_id", "prior_digest", "result_digest", "request_digest", "actor_id", "actor_role", "tenant_id"],
+    "sensitive_material": "no raw message content, prompt, secret or SQL parameter",
+    "readback": "fresh session; audit fields and target result digest must match"
+  },
+  "result_states": {
+    "verified": "legacy success shape plus additive verification/operation_id/audit_id",
+    "already_applied": "same operation/material; one receipt; replay=do_not_repeat",
+    "no_effect": "empty/unknown source or missing boundary; legacy success=false; no audit",
+    "conflict": "409 STALE_SOURCE / AUTHORITY_CHANGED / OPERATION_CONFLICT; effect=none",
+    "not_applied": "409 confirmed rollback; effect=none",
+    "committed_unverified": "503 effect=committed; original identity",
+    "effect_unknown": "503 effect=unknown; original identity; no exception text"
+  },
+  "parallel_writers": {
+    "route": "sole verified fork writer",
+    "in_memory_orchestrator": "registers the verified fork id after commit; no SQL effect",
+    "history/list/rename/delete": "unchanged and out of scope"
+  }
+}
