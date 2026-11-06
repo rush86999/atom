@@ -281,10 +281,20 @@ class TestSetupLogging:
 
 class TestLibraryLoggers:
     def test_chatty_libraries_set_to_warning(self):
+        # Uvicorn request-target lines stay observable at the operator's
+        # chosen level; credential values are removed by the centralized
+        # redaction filter rather than by suppressing the whole access log.
+        uvicorn_loggers = [
+            logging.getLogger("uvicorn"),
+            logging.getLogger("uvicorn.access"),
+        ]
+        for logger in uvicorn_loggers:
+            logger.setLevel(logging.INFO)
         lc._configure_library_loggers()
-        for name in ("uvicorn", "uvicorn.access", "fastapi", "sqlalchemy",
-                     "sqlalchemy.engine", "httpx", "requests", "urllib3",
-                     "websockets", "aiohttp"):
+        for logger in uvicorn_loggers:
+            assert logger.level == logging.INFO
+        for name in ("fastapi", "sqlalchemy", "sqlalchemy.engine", "httpx",
+                     "requests", "urllib3", "websockets", "aiohttp"):
             assert logging.getLogger(name).level == logging.WARNING
 
 
