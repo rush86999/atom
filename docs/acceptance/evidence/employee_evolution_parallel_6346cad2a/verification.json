@@ -1,0 +1,71 @@
+{
+  "schema": "atom-oracle-evolution-parallel-verification-1",
+  "status": "tool-mutation sandbox lineage/freshness repair submitted for independent verification; decision-route controls and evidence preserved",
+  "candidate": {
+    "branch": "codex/oracle01-evolution-review-20261105",
+    "prior_product_source": "eaba0cb8f",
+    "prior_tests_source": "e4816e59c",
+    "prior_evidence": "5dc4f1b0f",
+    "executed_repair_source": "6346cad2a",
+    "accepted_base": "95f7bcac1a0375b4f0465a77e15130f68fc9665d",
+    "tree_clean_at_execution": true,
+    "runtime": "real scratch SQLite with fresh sessions and doubled sandbox; no live sandbox/model/provider"
+  },
+  "checks": {
+    "verifier_changed_lineage_probe_passes": true,
+    "verifier_stale_approved_probe_passes": true,
+    "verifier_stale_rejected_probe_passes": true,
+    "lineage_bound_exact_nullable_in_result_cas": true,
+    "changed_lineage_preserves_peer_and_skips": true,
+    "changed_code_preserves_peer_and_skips": true,
+    "changed_prior_error_preserves_peer_and_skips": true,
+    "stale_session_review_before_dispatch_zero_calls": true,
+    "review_during_worker_wins_result_cas": true,
+    "pending_twin_executes_once_and_passes": true,
+    "failed_twin_executes_once_and_passes": true,
+    "unchanged_null_lineage_twin_passes": true,
+    "missing_or_foreign_target_zero_calls": true,
+    "original_decision_route_controls_green": true,
+    "no_new_status_or_cancellation_engine": true,
+    "no_live_sandbox_model_provider_credential_spend_send_download_deployment": true
+  },
+  "results": {
+    "verifier_probes_python314": {"passed": 3, "log": "verifier-probes-314.log"},
+    "focused_python314": {"passed": 58, "log": "focused-314.log"},
+    "focused_python311": {"passed": 58, "log": "focused-311.log"},
+    "affected_review_audit_python314": {"passed": 104, "log": "affected-review-audit-314.log"},
+    "affected_review_audit_python311": {"passed": 104, "log": "affected-review-audit-311.log"},
+    "affected_evolution_python314": {
+      "passed": 304, "skipped": 29, "failed": 1,
+      "baseline_failures": 1, "log": "affected-evolution-314.log"
+    },
+    "affected_evolution_python311": {
+      "passed": 304, "skipped": 29, "failed": 1,
+      "baseline_failures": 1, "log": "affected-evolution-311.log"
+    },
+    "baseline_evolution_python314": {
+      "failed": 1, "log": "baseline-evolution-314.log"
+    },
+    "baseline_evolution_python311": {
+      "failed": 1, "log": "baseline-evolution-311.log"
+    }
+  },
+  "focused_breakdown": {
+    "original_controls": 47,
+    "new_parallel_writer_controls": 11,
+    "focused_total": 58
+  },
+  "baseline_exclusions": {
+    "reflection_pattern_detection": {
+      "test": "tests/test_auto_dev/test_reflection_engine.py::TestReflectionEnginePatternDetection::test_identifies_repeated_failure_patterns",
+      "reason": "pre-existing ReflectionEngine API drift; identical at the accepted base"
+    }
+  },
+  "limits": [
+    "No physical cancellation of an in-flight sandbox worker; review wins the result CAS",
+    "No new status/operation/cancellation engine",
+    "No live code sandbox, Docker, model, provider, credential, spend, send, download or deployment",
+    "PostgreSQL runtime/soak, multi-worker qualification and whole-app ORACLE-01 remain open",
+    "Accepted admin/auth-2FA/canvas/feedback/wait/employee/ORCH-01 and submitted scoped-memory remain independent"
+  ]
+}

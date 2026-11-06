@@ -19,7 +19,7 @@
 # Create: uv venv venv314 --python 3.14 && uv pip install --python venv314/bin/python -r requirements-py314.txt -r requirements-testing.txt
 
 APScheduler==3.11.3
-Authlib==1.8.0
+Authlib==1.9.1
 CacheControl==0.14.4
 ConfigArgParse==1.7.7
 Deprecated==1.3.1

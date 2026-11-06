@@ -1,0 +1,65 @@
+{
+  "schema": "atom-oracle-community-skill-verification-1",
+  "status": "two-route community-skill promote/delete verified-write family submitted for independent verification; import/execute and the remaining skill surfaces remain open",
+  "candidate": {
+    "branch": "codex/oracle01-community-skill-20261105",
+    "accepted_admin_base": "9d73552d249ae8ec5b05af77546faf9621bbcd47",
+    "accepted_admin_product": "5fbb377a4e1eef8fdd0013275cd8b1c9b278cd41",
+    "product_source": "acfee403b",
+    "executed_source": "371cf002e",
+    "tree_clean_at_execution": true,
+    "runtime": "real scratch SQLite with fresh sessions; no model/provider/sandbox/package"
+  },
+  "checks": {
+    "anonymous_refused": true,
+    "member_refused": true,
+    "team_lead_allowed": true,
+    "cross_tenant_platform_lead_allowed": true,
+    "exact_community_target_only": true,
+    "cloud_row_refused": true,
+    "promote_untrusted_to_active": true,
+    "promote_already_active_no_new_audit": true,
+    "same_operation_same_skill_already_applied": true,
+    "same_operation_different_skill_conflict": true,
+    "later_revision_committed_unverified": true,
+    "stale_promote_refused_peer_preserved": true,
+    "delete_conditional_and_tombstone_replay": true,
+    "delete_missing_404": true,
+    "delete_stale_refused_peer_preserved": true,
+    "confirmed_audit_rollback_effect_none": true,
+    "post_commit_readback_committed_unverified": true,
+    "lost_confirmation_effect_unknown_with_identity": true,
+    "audit_tampering_never_certified": true,
+    "raw_body_packages_name_absent_from_audit_and_logs": true,
+    "platform_scope_in_receipt": true,
+    "no_new_table_or_migration": true,
+    "no_live_model_provider_credential_spend_send_download_deployment": true,
+    "import_execute_and_reviewed_improvement_apply_unchanged": true
+  },
+  "results": {
+    "focused_python314": {"passed": 126, "log": "focused-314.log"},
+    "focused_python311": {"passed": 126, "log": "focused-311.log"},
+    "affected_python314": {"passed": 252, "log": "affected-314.log"},
+    "affected_python311": {"passed": 252, "log": "affected-311.log"},
+    "baseline_round22_python314": {
+      "passed": 4,
+      "failed": 4,
+      "log": "baseline-round22-9d73552d2.log",
+      "note": "unrelated package/marketplace auth controls; identical at the accepted admin base"
+    }
+  },
+  "focused_breakdown": {
+    "new_community_skill_controls": 21,
+    "existing_skill_route_registry_controls": 105,
+    "focused_total": 126
+  },
+  "limits": [
+    "Exactly two community-skill review mutations; import, execute, sandbox and package install are out of scope",
+    "Platform-global SkillExecution community rows; no tenant-scoped registry",
+    "Existing TEAM_LEAD+ role hierarchy; no new authority",
+    "AuditLog is the receipt; no new table or engine",
+    "No live model/provider/credential/spend/send/download/deployment or sandbox execution",
+    "PostgreSQL runtime/soak, multi-worker serialization and live-code execution are not qualified",
+    "The unaccepted memory source and submitted tool-mutation review branch are independent and not merged"
+  ]
+}

@@ -1,0 +1,34 @@
+{
+  "schema": "atom-evolution-sandbox-writer-1",
+  "branch": "codex/oracle01-evolution-review-20261105",
+  "executed_source": "6346cad2a",
+  "prior_product_source": "eaba0cb8f",
+  "prior_tests_source": "e4816e59c",
+  "prior_evidence": "5dc4f1b0f",
+  "writer": {
+    "class": "core.auto_dev.alpha_evolver_engine.AlphaEvolverEngine",
+    "method": "sandbox_execute_mutation",
+    "dispatch": "sandbox.execute_raw_python",
+    "authority": "tenant-scoped ToolMutation lookup; review route remains TEAM_LEAD+",
+    "dispatch_precondition": "fresh-session executable snapshot status pending/failed",
+    "result_cas": [
+      "id",
+      "tenant_id",
+      "prior sandbox_status",
+      "tool_name",
+      "mutated_code",
+      "parent_tool_id (exact nullable)",
+      "execution_error (exact nullable)"
+    ],
+    "result_states": ["passed", "failed"],
+    "skip_reasons": ["review_decision_present", "status_not_executable", "stale_mutation"],
+    "review_precedence": "a review committed before dispatch causes zero sandbox calls; a review committed while the worker runs wins the result CAS"
+  },
+  "out_of_scope": [
+    "physical cancellation of an in-flight sandbox worker",
+    "distributed cancellation engine",
+    "live code execution/deployment",
+    "PostgreSQL runtime/soak and multi-worker qualification",
+    "whole-app ORACLE-01"
+  ]
+}
