@@ -7,20 +7,30 @@ set -euo pipefail
 
 cd "$(dirname "$0")/.."
 
+# `--check-python` validates only the interpreter guard and exits before any
+# prerequisite, venv or dependency work. This is the side-effect-free way to
+# verify the supported CPython range on a host or in CI.
+CHECK_PYTHON_ONLY=0
+if [ "${1:-}" = "--check-python" ]; then
+    CHECK_PYTHON_ONLY=1
+fi
+
 echo "🚀 Atom Quick Start"
 echo "===================="
 
-# Check prerequisites
-for cmd in python3 node npm git make; do
-    command -v "$cmd" >/dev/null 2>&1 || { echo "❌ '$cmd' is required but not installed"; exit 1; }
-done
+if [ "$CHECK_PYTHON_ONLY" -eq 0 ]; then
+    # Check prerequisites
+    for cmd in python3 node npm git make; do
+        command -v "$cmd" >/dev/null 2>&1 || { echo "❌ '$cmd' is required but not installed"; exit 1; }
+    done
 
-# Node >= 20.9 is required by Next.js 16 (the frontend framework).
-if [ "$(node -e 'const [ma,mi]=process.versions.node.split(".").map(Number); console.log(ma>20||(ma===20&&mi>=9)?1:0)')" != "1" ]; then
-    echo "❌ Node.js 20.9+ required (found $(node --version))"
-    exit 1
+    # Node >= 20.9 is required by Next.js 16 (the frontend framework).
+    if [ "$(node -e 'const [ma,mi]=process.versions.node.split(".").map(Number); console.log(ma>20||(ma===20&&mi>=9)?1:0)')" != "1" ]; then
+        echo "❌ Node.js 20.9+ required (found $(node --version))"
+        exit 1
+    fi
+    echo "✅ Node $(node --version)"
 fi
-echo "✅ Node $(node --version)"
 
 # Supported interpreter range (F1, Phase D 2026-10-17): the dependency set
 # (torch>=2,<3 and the compiled wheels it pulls) publishes distributions for
@@ -35,7 +45,11 @@ echo "✅ Node $(node --version)"
 # Validating only the system python3 made the documented manual path unusable
 # (a correct 3.11 venv was refused because the host default was 3.14).
 PY_BIN=""
-if [ -x "backend/venv/bin/python" ]; then
+if [ "$CHECK_PYTHON_ONLY" -eq 1 ] && [ -n "${PYTHON:-}" ] && command -v "$PYTHON" >/dev/null 2>&1; then
+    # A check-only invocation validates the interpreter the caller named,
+    # not an unrelated existing backend/venv.
+    PY_BIN="$PYTHON"
+elif [ -x "backend/venv/bin/python" ]; then
     PY_BIN="backend/venv/bin/python"
 elif [ -n "${PYTHON:-}" ] && command -v "$PYTHON" >/dev/null 2>&1; then
     PY_BIN="$PYTHON"
@@ -45,6 +59,9 @@ fi
 PY_VERSION=$("$PY_BIN" -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
 if "$PY_BIN" -c 'import sys; assert (3,11) <= sys.version_info[:2] <= (3,13)' 2>/dev/null; then
     echo "✅ Python $PY_VERSION ($PY_BIN)"
+    if [ "$CHECK_PYTHON_ONLY" -eq 1 ]; then
+        exit 0
+    fi
 else
     echo "❌ Python 3.11–3.13 required (found $PY_VERSION via $PY_BIN)."
     echo "   torch<3 publishes no wheels for 3.14. Create the venv with a"
