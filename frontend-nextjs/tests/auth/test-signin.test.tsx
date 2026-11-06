@@ -156,6 +156,28 @@ describe('SignIn Component', () => {
       });
     });
 
+    it('should return to the captured relative deep link after sign in', async () => {
+      (useRouter as jest.Mock).mockReturnValue({
+        push: mockPush,
+        pathname: '/auth/signin',
+        query: { callbackUrl: '/settings?a4dl=return20261106' },
+      });
+      render(<SignIn />);
+      const emailInput = screen.getByLabelText(/email/i);
+      const passwordInput = screen.getByLabelText(/password/i);
+      const submitButton = screen.getByRole('button', { name: /^sign in$/i });
+
+      await userEvent.type(emailInput, 'test@example.com');
+      await userEvent.type(passwordInput, 'password123');
+      fireEvent.click(submitButton);
+
+      await waitFor(() => {
+        expect(mockPush).toHaveBeenCalledWith(
+          '/settings?a4dl=return20261106',
+        );
+      });
+    });
+
     it('should show error message on authentication failure', async () => {
       (loginWithBackend as jest.Mock).mockRejectedValue(new Error('Invalid email or password'));
       render(<SignIn />);

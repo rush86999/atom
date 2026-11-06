@@ -44,6 +44,18 @@ describe('auth middleware callbackUrl', () => {
     expect(callbackFrom(response)?.startsWith('//')).toBe(false);
   });
 
+  test('captured Settings deep link becomes a relative callback', async () => {
+    const response = await middleware(
+      makeRequest(
+        'http://localhost:3000/settings?a4dl=return20261106',
+      ),
+    );
+
+    expect(callbackFrom(response)).toBe(
+      '/settings?a4dl=return20261106',
+    );
+  });
+
   test('default protected landing still returns to /dashboard', async () => {
     const response = await middleware(
       makeRequest('http://localhost:3000/dashboard'),
