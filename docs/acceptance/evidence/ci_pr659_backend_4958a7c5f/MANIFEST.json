@@ -1,0 +1,63 @@
+{
+  "schema": "atom-employee-evidence-1",
+  "status": "PR659 backend CI repaired on follow-up PR663; backend-tests green; e2e-journey separate stale role fixture",
+  "branch": "codex/ci659-backend-repair-20261105",
+  "base_main": "71f9e22b41f7feea7ea55c7d32d6efeacc704081",
+  "fix_source": "4958a7c5fa80c276f53c13b5fb33ee295f4bc5f5",
+  "observed_pr": "659",
+  "followup_pr": "663",
+  "source_files": {
+    "backend/tests/test_routing_feedback_endpoint.py": "ab80b4a93aff1b964268e05be143190bf6f45988abbbbd9a962975f3478c311a",
+    "backend/tests/core/test_oracle_and_two_tier_confidence.py": "22bb648f5cfeccc46a9327de1a3b6a07ec525e99441deec9e67ea2663ee9c49e",
+    "backend/tests/test_opencode_go_provider.py": "0014c92c779e41fd81a947dec387e35c57d075104b39fd640c890a62a27714bb",
+    "backend/tests/test_covpush_w27_opencode_retry.py": "b03d873fa1e9bfaf8555f6362a15c227a87222f5e98fc841cdcce62636b6eb22",
+    "backend/tests/test_covpush_w57_byok_handler_a.py": "a574aed01b4b8d099d97a2f5ae824204d0f25fd824bd0b98442f620f658d910e",
+    "backend/tests/test_covpush_w57_byok_handler_d.py": "f047ebd53ea1bf9ceb7d9edecff1f547b7ad0661ad8028ab4d0b13d897d45502",
+    "backend/tests/test_deepseek_harness_gaps.py": "cfee6e203a0c78b21ed4c90dfd7147266c79bfd11e9d75bf533968f251211ea4",
+    ".github/workflows/ci.yml": "f63f6b075d6a021d6091e566a0456dd98eac3f7581cc4e2942121652ed765b24",
+    "backend/core/llm/byok_handler.py": "7158729b6961feaebf654e381db81c1ef6db9e360685e2e0c1da8fa472a9a42b",
+    "backend/core/llm/model_route_registry.py": "e5f33ed40396f45bba9b014a545f511351e84bc0fcce0acdc556bddec2d2eace",
+    "backend/core/llm/provider_policy.py": "8526c71435a8b041ac29300b2bb5d1562268ea43700317fd300c9f4280f22ef5",
+    "backend/core/llm/learning_router_registry.py": "b3b800f9837d7b8585d48568382053998ae5b221c546d688930ce6df4d92e16a",
+    "backend/core/llm_service.py": "aa32f000d75a7664096a223594e865d46d032e912ea7befd8311ce10dc61e46e",
+    "backend/core/generic_agent.py": "9ebf511c63286c9fa210bf3715a3de27a7ed3758c0c1985a678bf352c145085e",
+    "backend/core/oracle/postcondition_verifiers.py": "a62a3fb41d93d07d95a66eaccd9492c04a8f9f65ac0f355fee06de0afe13d723",
+    "backend/tests/e2e_ui/tests/test_journey_api_features.py": "f323c1ad90346fe41b0dd90c9e0bc8b30fe27703f383e55fddc5d48d23a8172b",
+    "backend/tests/e2e_ui/fixtures/journey_fixtures.py": "82a989dd8c2fd5f31a24a343c9c76e9b31f96d591af86a4d62d008d2520088ca",
+    "backend/api/skill_routes.py": "527325f2be61dc000aacd5a584e048f4ce9764929b6ca32129d3b777e913a612"
+  },
+  "artifacts": {
+    "README.md": "110a5ec034cd3a8c23bf8fc94c3f65acbbb7373ee224c34a9c9017f2aac2559c",
+    "TEST_RESULTS.md": "38331e08682643c8127a7ec2c91dc2708332c2dbffb9ad07ea97b4449174b6a6",
+    "base-seven-311.log": "36e29b8cb9a1571e5b618aea5d470cb02f2f7e74b2d199ec2e61899208d808c7",
+    "e2e-journey-fail.log": "926f38e4dbd0c5f35bb4c0766ceec723ac42a0b86174a9b505bb48f1a07ae75d",
+    "final-311.log": "681ecc96d633ffeb11c559a801cfbfdcf12fdb21e48aa2184de70d0f019614ef",
+    "final-314.log": "884c4c34c18bef87ee89f9617dfdee5b79215e9a6b1ba4d17748c71704673554",
+    "hosted-failed-job.log": "9e5c43499b01f11c894d3100524836f62977c96c8e3afe66e366d886dd09bd32",
+    "memory-eval-311.log": "a4d5e6919118c87c9449808af33d6762720925b4c50c3e45a6b840731f4c07b9",
+    "pr663-checks.log": "72109d0d0c057bf1152d907cd001bb23349d0c85b92ebfa1b34cf2f4109f34c6",
+    "repro-311.log": "6208cfe0e3fd3e910edfcbdb5cd280dd5fe75985399f8435b1fe8d023ded653b",
+    "seven-files-311.log": "dc7b1bb5268b4227fa83b5583b2089211742594d7f1eb3bbe7165d7615f66955",
+    "source-tree.txt": "c545c6a0038245796ad06cc32b2f9e26e087f9e7133ed954a5c83befd3324e56",
+    "verification.json": "84ef188f305ab52f55d2a2e8dc69eacb8bfd48e21b6ce8e49a53cef9fc2115a4"
+  },
+  "checks": {
+    "reproduced_39_current_main": true,
+    "same_39_on_base_60a1171b8": true,
+    "exact_ci_selection_311": "561 passed, 1 skipped",
+    "exact_ci_selection_314": "561 passed, 1 skipped",
+    "seven_files_after_fix": "212 passed",
+    "memory_eval_recall": 1.0,
+    "backend_job_pr663": "pass",
+    "e2e_journey_pr663": "fail - separate stale skill-delete role fixture",
+    "runtime_files_changed": 0,
+    "tests_removed_skipped_xfailed": 0
+  },
+  "boundaries": [
+    "test-only repair; no production eligibility/oracle/scope/capability relaxation",
+    "no live model/provider/browser/sandbox/credential/spend/send/download/deployment",
+    "no dependency download, merge, force-push or branch-protection change",
+    "e2e-journey stale role fixture documented separately",
+    "PostgreSQL runtime/soak, multi-worker and whole-app ORACLE not qualified"
+  ]
+}

@@ -1,0 +1,96 @@
+{
+  "schema": "atom-oracle-ci-repair-verification-1",
+  "status": "PR659 backend CI repaired on follow-up PR663; backend-tests green; e2e-journey remains a separate stale role-fixture failure",
+  "candidate": {
+    "branch": "codex/ci659-backend-repair-20261105",
+    "base_main": "71f9e22b41f7feea7ea55c7d32d6efeacc704081",
+    "fix_source": "4958a7c5fa80c276f53c13b5fb33ee295f4bc5f5",
+    "observed_pr": "659 at baa695775/5ede9bf67",
+    "observed_run_job": "42149250267/127668163932",
+    "followup_pr": "663",
+    "runtime": "hosted-equivalent Python 3.11.18 selection reproduced locally on 3.11 and 3.14; no live model/provider/sandbox"
+  },
+  "failure_classes": {
+    "feedback_observation": {
+      "count": 4,
+      "cause": "observe_only kwarg rejected by stub; missing workspace_id on handler Mock; scope lambda rejected tenant_id",
+      "fix": "current router-stub signature, workspace scope, explicit tenant/workspace propagation assertion"
+    },
+    "oracle_task_id": {
+      "count": 1,
+      "cause": "mock BoardTask omitted title checked by the current verifier",
+      "fix": "mock carries the result title; refuted negatives unchanged"
+    },
+    "opencode_streaming": {
+      "count": 7,
+      "cause": "injected explicit provider route hit the unknown-catalog gate",
+      "fix": "explicit_route=True for the deliberately selected doubled route"
+    },
+    "opencode_retry": {
+      "count": 6,
+      "cause": "injected routes lacked discovered eligible catalog entries",
+      "fix": "isolated ProviderModelCatalog records the test models"
+    },
+    "byok_provider_state": {
+      "count": 5,
+      "cause": "constructor-bypassed handlers lacked credential_signature/_local_routes; unknown catalog; stale absolute-fallback expectation",
+      "fix": "complete local handler state, isolated catalog, current configured-provider tier fallback expectation"
+    },
+    "deepseek_harness": {
+      "count": 16,
+      "cause": "MagicMock completion bodies treated as empty; unknown catalog; chat ladder sweep obscured isolated retry contract",
+      "fix": "real SimpleNamespace payloads, eligible catalog, sweep disabled only inside isolated retry tests"
+    }
+  },
+  "checks": {
+    "exact_failure_reproduced_on_current_main": true,
+    "same_39_failures_on_base_60a1171b8": true,
+    "production_runtime_files_unchanged": true,
+    "no_test_deleted_skipped_or_xfailed": true,
+    "no_provider_eligibility_weakened": true,
+    "no_oracle_proof_weakened": true,
+    "no_tenant_scope_or_capability_floor_weakened": true,
+    "exact_ci_selection_311_green": true,
+    "exact_ci_selection_314_green": true,
+    "memory_eval_gate_green": true,
+    "backend_job_green_on_pr663": true,
+    "e2e_journey_separate_stale_fixture_documented": true,
+    "no_live_model_provider_credential_spend_send_download_deployment": true
+  },
+  "results": {
+    "hosted_failed": {"failed": 39, "passed": 522, "skipped": 1, "log": "hosted-failed-job.log"},
+    "repro_before_fix_311": {"failed": 39, "passed": 522, "skipped": 1, "log": "repro-311.log"},
+    "base_60a1171b8_seven_files": {"failed": 39, "passed": 173, "log": "base-seven-311.log"},
+    "seven_files_after_fix_311": {"passed": 212, "log": "seven-files-311.log"},
+    "exact_ci_selection_after_fix_311": {"passed": 561, "skipped": 1, "failed": 0, "log": "final-311.log"},
+    "exact_ci_selection_after_fix_314": {"passed": 561, "skipped": 1, "failed": 0, "log": "final-314.log"},
+    "memory_eval_311": {"recall": 1.0, "missed": 0, "log": "memory-eval-311.log"},
+    "pr663_checks": {
+      "backend-tests": "pass 4m42s",
+      "syntax-gate": "pass",
+      "frontend-typecheck": "pass",
+      "full-app-boots": "pass",
+      "quickstart": "pass",
+      "docker-build": "pass",
+      "GitGuardian Security Checks": "pass",
+      "e2e-journey": "fail - stale member vs TEAM_LEAD+ skill-delete fixture",
+      "log": "pr663-checks.log"
+    }
+  },
+  "e2e_note": {
+    "test": "backend/tests/e2e_ui/tests/test_journey_api_features.py::TestSkillsJourney::test_skill_lifecycle",
+    "symptom": "DELETE /api/skills/{id} returns 403",
+    "cause": "journey fixture registers an ordinary member; accepted community-skill authority requires TEAM_LEAD+",
+    "scope": "separate required-check debt, not a backend CI failure and not caused by this test-only branch",
+    "log": "e2e-journey-fail.log"
+  },
+  "baseline_exclusions": {
+    "pr_base_fixture_drift": "The same seven files fail 39/39 on PR base 60a1171b8; no runtime regression from the merged fleet repair."
+  },
+  "limits": [
+    "No live model/provider/browser/sandbox campaign",
+    "No dependency download, merge, force-push or branch-protection change",
+    "PostgreSQL runtime/soak, multi-worker and whole-app ORACLE remain unqualified",
+    "Accepted fleet/ORCH-01/employee/feedback/admin/memory lanes unchanged"
+  ]
+}
