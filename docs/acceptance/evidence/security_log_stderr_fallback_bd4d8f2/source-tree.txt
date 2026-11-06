@@ -5,7 +5,9 @@ predecessor: merged #689 normal WebSocket/request redaction
 status_short:
 A  docs/acceptance/evidence/security_log_stderr_fallback_bd4d8f2/README.md
 A  docs/acceptance/evidence/security_log_stderr_fallback_bd4d8f2/TEST_RESULTS.md
+A  docs/acceptance/evidence/security_log_stderr_fallback_bd4d8f2/affected-311.log
 A  docs/acceptance/evidence/security_log_stderr_fallback_bd4d8f2/affected-314.log
+A  docs/acceptance/evidence/security_log_stderr_fallback_bd4d8f2/baseline-main-311.log
 A  docs/acceptance/evidence/security_log_stderr_fallback_bd4d8f2/focused-311.log
 A  docs/acceptance/evidence/security_log_stderr_fallback_bd4d8f2/focused-314.log
 A  docs/acceptance/evidence/security_log_stderr_fallback_bd4d8f2/formatter-probe-base-311.txt

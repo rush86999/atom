@@ -13,9 +13,11 @@
     ".github/workflows/ci.yml": "7ee9ce376740ad9c39a3a67d6af67f128e0d4dd03b2f7bbd5eade59bbe36dd8d"
   },
   "artifacts": {
-    "README.md": "f410d856fbc15122e5280913bad7e260731362eee55e3e101a24de044176e5c7",
-    "TEST_RESULTS.md": "1d25fd4d83f97e48ac71e8386a04b63e8e78543ca91499981705b26a31a0b601",
+    "README.md": "9b565eed4fa07bef98ec00805f3ca61530f89b81013287f30fbee93e72feb09e",
+    "TEST_RESULTS.md": "ba789c1603b0a288d3cac3d0a827a1f6e2814211aaebb574647f7d33f58d538a",
+    "affected-311.log": "0d8adabc6825419045fb5301b39802dff32c1043cf310e5bbeec2a299697e7c7",
     "affected-314.log": "4c98f70ee430eb6257a0d948158f23c48ec94971e692fd0141ca8031edb7c27f",
+    "baseline-main-311.log": "9dd9c5a2a03e7e284dd8fbd37dfa65f1f9d0b1abed9b6dfeb4ab1265f78578b1",
     "focused-311.log": "ab5e15777753a7709c34fc20f47e2c4e23f583a74ff2a0cefa4573a6f105f2a9",
     "focused-314.log": "62ffa704f717c02d69381ba1fb77e8939a670f60c55c5c75c196875d0e082f2e",
     "formatter-probe-base-311.txt": "17574b646a067f61e233d5f706bec8dcce932bfb2e849d692da70ac2461fc694",
@@ -27,12 +29,12 @@
     "server-base-sanitized.log": "1c31157ce27fc3cde530638dc48a033827be0fcb9c4905c73461b926cca0745c",
     "server-fixed-result.txt": "8234902bf33899e3894a5e747bfcf6d74e21205a6899bfd7513d0652bfacc1f9",
     "server-fixed.log": "3dc84a90da826df61f6284d7f16d715b1dc4e8a2728a7249b9b232142fa22251",
-    "source-tree.txt": "0b43d817b171df52bbdf02dc0f5255234a6e324ed8f6215640097020481067aa",
+    "source-tree.txt": "826f4b6bc5369ff84817dde5b21c1580a403d0a8e6f6b992a11df744dc10bf3b",
     "supplied-base-311.log": "433964544afecc1d8e4aded415e76d2924e819908886f813d30aa312f9f0e449",
     "supplied-base-314.log": "c5cb2c844172f033788c4fccb8889cab17e91741dbb66ebf9d507561d34fb7de",
     "supplied-fixed-311.log": "ed4e09caf2c123cc998a4a054db510aefa9991486486560067423d72e1530bca",
     "supplied-fixed-314.log": "f2e98c351455e4d04db812aedf60d807839e776b9ffba87a06de75459b7624f4",
-    "verification.json": "37f1b5795451b59b822ebe7d0d8faeaad1c4a1c8ce5c22b099a892805a87fcfe",
+    "verification.json": "1be2ff30973a2aa187cfaa0fbe0852744864b5390e1af20cf566df258481597d",
     "verifier_probe.py": "8ef938aea55794c3a6b5b59e7d87d4bc7f40536f9181ba573959f84212b6019c"
   },
   "checks": {
@@ -52,7 +54,9 @@
     "accepted_rejected_twins_preserved": true,
     "raise_exceptions_not_disabled": true,
     "access_log_not_disabled": true,
-    "no_raw_secret_in_evidence": true
+    "no_raw_secret_in_evidence": true,
+    "affected_311": "346 passed, 1 pre-existing failure",
+    "baseline_main_311": "343 passed, 1 pre-existing failure"
   },
   "boundaries": [
     "runtime-generated synthetic credentials only; no live token/revocation/rotation or production exposure claim",

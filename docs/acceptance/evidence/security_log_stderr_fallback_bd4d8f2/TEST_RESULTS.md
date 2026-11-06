@@ -95,7 +95,7 @@ runtime-generated synthetic token:
 Logs: `server-base-sanitized.log`, `server-base-result.txt`,
 `server-fixed.log`, `server-fixed-result.txt`. The base log is sanitized.
 
-## Broader logging/audit selection, 3.14
+## Broader logging/audit selection, 3.14 and 3.11
 
 ```sh
 $PY314 -B -m pytest -p no:randomly \
@@ -113,13 +113,20 @@ $PY314 -B -m pytest -p no:randomly \
   -q --tb=line
 ```
 
-Result: **346 passed, 1 failed** (`affected-314.log`).
+The same selection was run with `$PY311`; the command is identical.
+
+| Tree | Python | Passed | Failed | Log |
+|---|---|---|---|---|
+| Candidate `bd4d8f253` | 3.14 | **346** | 1 | `affected-314.log` |
+| Candidate `bd4d8f253` | 3.11 | **346** | 1 | `affected-311.log` |
+| Base `213e75c43` | 3.11 | 343 | 1 | `baseline-main-311.log` |
 
 Shared pre-existing failure:
 `tests/core/test_logging_config_coverage.py::TestLibraryLoggerConfiguration::test_configure_library_loggers`
-— `assert 0 >= 30` where `uvicorn` is INFO. The same test fails identically on
-the exact base tree; the merged design intentionally preserves the
-operator-selected uvicorn level instead of suppressing it.
+— `assert 0 >= 30` where `uvicorn` is INFO. The same test fails alone on exact
+base 3.14; the full 3.11 base selection is 343 passed with the same failure.
+The merged design intentionally preserves the operator-selected uvicorn level
+instead of suppressing it; this test is not claimed as repaired.
 
 ## Notes
 
