@@ -325,3 +325,8 @@ jobs:
       - name: Type check
         run: npx tsc --noEmit --skipLibCheck
         continue-on-error: true  # Pre-existing errors; don't block PRs yet
+      - name: Auth redirect regression tests
+        # The middleware must hand the login pages a relative path+query;
+        # absolute callbackUrls silently fall back to /dashboard. Keep the
+        # same-app/open-redirect twins gated.
+        run: npx jest tests/middleware.test.ts tests/pages/__tests__/login.test.tsx tests/auth/test-signin.test.tsx --runInBand --no-coverage

@@ -113,6 +113,16 @@ describe('LoginPage', () => {
     await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/workflows/123'));
   });
 
+  test('preserves a relative callbackUrl path and query', async () => {
+    mockQuery = { callbackUrl: '/workflows/123?tab=steps' };
+    mockFetch.mockResolvedValue(okResponse({ access_token: 'tok' }));
+    render(<LoginPage />);
+    fillLoginForm('user@example.com', 'secret123');
+    fireEvent.click(screen.getByTestId('login-submit-button'));
+
+    await waitFor(() => expect(mockPush).toHaveBeenCalledWith('/workflows/123?tab=steps'));
+  });
+
   test('blocks open redirect for external callbackUrl', async () => {
     mockQuery = { callbackUrl: 'https://evil.example.com/phish' };
     mockFetch.mockResolvedValue(okResponse({ access_token: 'tok' }));
