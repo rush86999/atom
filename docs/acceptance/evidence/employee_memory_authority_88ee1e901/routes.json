@@ -1,0 +1,49 @@
+{
+  "schema": "atom-memory-authority-routes-1",
+  "branch": "codex/oracle01-memory-write-20261105",
+  "executed_source": "88ee1e901",
+  "prior_memory_source": "aab2b620d",
+  "prior_memory_evidence": "fa651e165",
+  "routes": [
+    {
+      "method": "POST",
+      "path": "/api/memory",
+      "handler": "store_memory",
+      "service": "core.memory_write_service.store_memory",
+      "authority": "current active User row + frozen raw tenant/status/is_active claim",
+      "scope": "(tenant_id, user_id, agent_id); tenant-less user uses resolve_tenant_id personal fallback",
+      "effect": "TenantSetting upsert with exact prior-document CAS + AuditLog",
+      "states": ["verified", "already_applied", "conflict", "not_applied", "committed_unverified", "effect_unknown"]
+    },
+    {
+      "method": "POST",
+      "path": "/api/memory/context/{session_id}",
+      "handler": "update_context",
+      "service": "core.memory_write_service.update_context",
+      "authority": "current active User row + frozen raw tenant/status/is_active claim",
+      "scope": "(tenant_id, user_id, agent_id); tenant-less user uses resolve_tenant_id personal fallback",
+      "effect": "TenantSetting context merge with exact prior-document CAS + AuditLog",
+      "states": ["verified", "already_applied", "conflict", "not_applied", "committed_unverified", "effect_unknown"]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/memory/{key}",
+      "handler": "delete_memory",
+      "service": "core.memory_write_service.delete_memory",
+      "authority": "current active User row + frozen raw tenant/status/is_active claim",
+      "scope": "(tenant_id, user_id, agent_id); tenant-less user uses resolve_tenant_id personal fallback",
+      "effect": "TenantSetting conditional tombstone delete + AuditLog",
+      "states": ["verified", "already_applied", "conflict", "not_applied", "committed_unverified", "effect_unknown"]
+    }
+  ],
+  "scoped_reads": [
+    "GET /api/memory/{key}",
+    "GET /api/memory/search",
+    "GET /api/memory/context/{session_id}"
+  ],
+  "out_of_scope": [
+    "GET /api/memory/stats (LanceDB statistics)",
+    "LanceDB/AgentMemory ingestion, webhooks, consolidation surfaces",
+    "PostgreSQL runtime/soak and multi-worker serialization"
+  ]
+}

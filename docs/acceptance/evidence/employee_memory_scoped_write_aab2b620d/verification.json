@@ -1,0 +1,108 @@
+{
+  "schema": "atom-oracle-memory-verification-1",
+  "status": "scoped durable key/value and session-context memory family submitted for independent verification; remaining memory surfaces and whole-app ORACLE-01 remain open",
+  "candidate": {
+    "branch": "codex/oracle01-memory-write-20261105",
+    "accepted_admin_base": "9d73552d249ae8ec5b05af77546faf9621bbcd47",
+    "accepted_admin_product": "5fbb377a4e1eef8fdd0013275cd8b1c9b278cd41",
+    "product_source": "4a32ce30b03a47163fdd790297a96108d2c5c70f",
+    "executed_source": "aab2b620df3e740c6c255c6a869e72fcc7eb4af7",
+    "tree_clean_at_execution": true,
+    "runtime": "real scratch SQLite with fresh sessions; no model/provider/browser"
+  },
+  "checks": {
+    "authenticated_scope_tenant_user_agent": true,
+    "anonymous_refused": true,
+    "cross_user_read_search_delete_isolated": true,
+    "cross_tenant_read_search_delete_isolated": true,
+    "cross_agent_read_search_delete_isolated": true,
+    "same_key_different_scope_independent": true,
+    "durable_store_uses_tenant_setting": true,
+    "store_insert_and_update": true,
+    "stale_prior_value_refused_effect_none": true,
+    "same_operation_same_material_already_applied": true,
+    "same_operation_changed_material_conflict": true,
+    "later_revision_committed_unverified": true,
+    "context_merge_preserves_fields": true,
+    "context_competing_merge_refused_peer_preserved": true,
+    "delete_conditional_and_replay_tombstone": true,
+    "delete_missing_404": true,
+    "delete_stale_refused_peer_preserved": true,
+    "confirmed_audit_rollback_effect_none": true,
+    "post_commit_readback_committed_unverified": true,
+    "lost_confirmation_effect_unknown_with_identity": true,
+    "audit_tampering_never_certified": true,
+    "raw_value_metadata_key_absent_from_audit_and_logs": true,
+    "existing_governance_wrappers_retained": true,
+    "ordinary_status_shapes_preserved": true,
+    "tenant_setting_namespace_isolated_from_billing_governance_byok": true,
+    "no_new_table_or_migration": true,
+    "no_live_model_provider_credential_spend_send_download_deployment": true,
+    "accepted_admin_base_preserved": true
+  },
+  "results": {
+    "focused_python314": {
+      "passed": 74,
+      "log": "focused-314.log"
+    },
+    "focused_python311": {
+      "passed": 74,
+      "log": "focused-311.log"
+    },
+    "affected_python314": {
+      "passed": 690,
+      "skipped": 1,
+      "failed": 7,
+      "baseline_failures": 7,
+      "baseline_failure_list_identical": true,
+      "log": "affected-314.log",
+      "baseline_log": "baseline-affected-95f7-314.log"
+    },
+    "affected_python311": {
+      "passed": 690,
+      "skipped": 1,
+      "failed": 7,
+      "baseline_failures": 7,
+      "baseline_failure_list_identical": true,
+      "log": "affected-311.log",
+      "baseline_log": "baseline-affected-95f7-311.log"
+    },
+    "baseline_python314": {
+      "passed": 665,
+      "skipped": 1,
+      "failed": 7,
+      "log": "baseline-affected-95f7-314.log"
+    },
+    "baseline_python311": {
+      "passed": 665,
+      "skipped": 1,
+      "failed": 7,
+      "log": "baseline-affected-95f7-311.log"
+    }
+  },
+  "focused_breakdown": {
+    "new_memory_contract_controls": 25,
+    "existing_real_db_memory_route_controls": 48,
+    "auth_inspection_controls": 1,
+    "focused_total": 74
+  },
+  "baseline_exclusions": {
+    "unrelated_w79a_6": {
+      "file": "tests/test_covpush_w79a_api_routes.py",
+      "classes": ["TestMiniAppRoutes", "TestOfficeRoutes"],
+      "reason": "pre-existing MiniApp/Office controls; the memory class in the same file is green; identical on the accepted admin base"
+    },
+    "agent_memory_consolidation_1": {
+      "test": "tests/integration/services/test_memory_consolidation_multi_tenant.py::test_memory_consolidation_tenant_isolation",
+      "reason": "pre-existing AgentMemory consolidation control; identical on the accepted admin base"
+    }
+  },
+  "limits": [
+    "Three mutation routes plus three scoped read/search consumers; stats/ingestion/webhooks are out of scope",
+    "No live model/provider/credential/spend/send/download/deployment or administrator/account/budget authority",
+    "No new memory table, migration or second memory/approval/authorization engine",
+    "PostgreSQL runtime/soak, multi-worker serialization and live provider memory are not qualified",
+    "Whole-app ORACLE-01 and the remaining memory surfaces remain open",
+    "The submitted tool-mutation review branch is independent and not merged"
+  ]
+}

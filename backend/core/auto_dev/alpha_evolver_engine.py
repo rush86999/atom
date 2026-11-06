@@ -20,6 +20,7 @@ import logging
 import uuid
 from typing import Any
 
+from sqlalchemy import update
 from sqlalchemy.orm import Session
 
 from core.auto_dev.base_engine import BaseLearningEngine, SandboxProtocol
@@ -269,6 +270,58 @@ class AlphaEvolverEngine(BaseLearningEngine):
 
         return mutation
 
+    def _release_clean_transaction(self) -> None:
+        """End a caller read transaction only when it owns no pending work."""
+        if not self.db.new and not self.db.dirty and not self.db.deleted:
+            self.db.rollback()
+
+    def _read_mutation_snapshot(
+        self, mutation_id: str, tenant_id: str,
+    ) -> dict[str, Any] | None:
+        """Read authoritative executable material from a fresh session.
+
+        The caller's identity map may still hold a pending row from before a
+        peer committed approved/rejected. A fresh read is used for the
+        dispatch decision so a stale request cannot run code. The caller's
+        unrelated pending work is not rolled back or expired.
+        """
+        from sqlalchemy.engine import Connection, Engine
+        from sqlalchemy.orm import sessionmaker
+
+        bind = self.db.get_bind()
+        if isinstance(bind, (Engine, Connection)):
+            with sessionmaker(bind=bind)() as fresh:
+                row = (
+                    fresh.query(ToolMutation)
+                    .filter(
+                        ToolMutation.id == str(mutation_id),
+                        ToolMutation.tenant_id == str(tenant_id),
+                    )
+                    .populate_existing()
+                    .first()
+                )
+        else:
+            # Unit-test/mocked session: preserve the caller's query seam.
+            row = (
+                self.db.query(ToolMutation)
+                .filter(
+                    ToolMutation.id == str(mutation_id),
+                    ToolMutation.tenant_id == str(tenant_id),
+                )
+                .first()
+            )
+        if row is None:
+            return None
+        return {
+            "id": str(row.id),
+            "tenant_id": str(row.tenant_id),
+            "sandbox_status": str(row.sandbox_status or "pending"),
+            "tool_name": str(row.tool_name or ""),
+            "parent_tool_id": getattr(row, "parent_tool_id", None),
+            "mutated_code": str(row.mutated_code or ""),
+            "execution_error": row.execution_error,
+        }
+
     async def sandbox_execute_mutation(
         self, mutation_id: str, tenant_id: str, inputs: dict[str, Any]
     ) -> dict[str, Any]:
@@ -277,16 +330,12 @@ class AlphaEvolverEngine(BaseLearningEngine):
 
         Returns proxy fitness signals for downstream evaluation.
         """
-        mutation = (
-            self.db.query(ToolMutation)
-            .filter(
-                ToolMutation.id == mutation_id,
-                ToolMutation.tenant_id == tenant_id,
-            )
-            .first()
-        )
-
-        if not mutation:
+        # A caller may have loaded pending before a peer committed a review.
+        # Release only a clean read transaction, then read the authoritative
+        # material from a fresh session. A dirty caller session is preserved.
+        self._release_clean_transaction()
+        snapshot = self._read_mutation_snapshot(mutation_id, tenant_id)
+        if snapshot is None:
             msg = f"Mutation {mutation_id} not found or unauthorized for tenant {tenant_id}"
             logger.error(msg)
             return {"error": msg}
@@ -295,18 +344,120 @@ class AlphaEvolverEngine(BaseLearningEngine):
         if not sandbox:
             return {"error": "Sandbox unavailable"}
 
+        prior_status = snapshot["sandbox_status"]
+        if prior_status not in ("pending", "failed"):
+            reason = (
+                "review_decision_present"
+                if prior_status in ("approved", "rejected")
+                else "status_not_executable")
+            return {
+                "success": False,
+                "output": None,
+                "skipped": True,
+                "reason": reason,
+                "status": prior_status,
+                "proxy_signals": {
+                    "syntax_error": False,
+                    "execution_success": False,
+                    "execution_latency_ms": 0.0,
+                    "environment": "not_executed",
+                },
+            }
+
+        mutation_pk = snapshot["id"]
+        mutation_tenant = snapshot["tenant_id"]
+        tool_name = snapshot["tool_name"]
+        parent_tool_id = snapshot["parent_tool_id"]
+        mutated_code = snapshot["mutated_code"]
+        prior_error = snapshot["execution_error"]
+
         result = await sandbox.execute_raw_python(
-            tenant_id=mutation.tenant_id,
-            code=mutation.mutated_code,
+            tenant_id=mutation_tenant,
+            code=mutated_code,
             input_params=inputs,
         )
 
         execution_success = result.get("status") == "success"
+        new_status = "passed" if execution_success else "failed"
+        new_error = (
+            None if execution_success
+            else result.get("output", "Unknown error")
+        )
 
-        # Update mutation record
-        mutation.sandbox_status = "passed" if execution_success else "failed"
-        if not execution_success:
-            mutation.execution_error = result.get("output", "Unknown error")
+        # The sandbox is a parallel writer to the review decision. Only a
+        # pending/failed mutation may advance to passed/failed, and only if
+        # its exact material (including parent lineage and prior error) is
+        # still the material that was executed. An approved/rejected decision
+        # or any peer edit matches zero rows and must never be overwritten.
+        predicates = [
+            ToolMutation.id == mutation_pk,
+            ToolMutation.tenant_id == mutation_tenant,
+            ToolMutation.sandbox_status == prior_status,
+            ToolMutation.tool_name == tool_name,
+            ToolMutation.mutated_code == mutated_code,
+        ]
+        if parent_tool_id is None:
+            predicates.append(ToolMutation.parent_tool_id.is_(None))
+        else:
+            predicates.append(
+                ToolMutation.parent_tool_id == str(parent_tool_id))
+        if prior_error is None:
+            predicates.append(ToolMutation.execution_error.is_(None))
+        else:
+            predicates.append(ToolMutation.execution_error == prior_error)
+
+        try:
+            updated = self.db.execute(
+                update(ToolMutation)
+                .where(*predicates)
+                .values(sandbox_status=new_status, execution_error=new_error)
+            )
+        except Exception as exc:  # noqa: BLE001 — stale caller transaction
+            self._release_clean_transaction()
+            logger.warning(
+                "sandbox result update failed for mutation %s: %s",
+                mutation_pk, type(exc).__name__)
+            current = self._read_mutation_snapshot(
+                mutation_pk, mutation_tenant)
+            current_status = (
+                current["sandbox_status"] if current is not None else "missing")
+            return {
+                "success": False,
+                "output": None,
+                "skipped": True,
+                "reason": "stale_mutation",
+                "status": current_status,
+                "proxy_signals": {
+                    "syntax_error": False,
+                    "execution_success": False,
+                    "execution_latency_ms": 0.0,
+                    "environment": "not_recorded",
+                },
+            }
+
+        if updated.rowcount != 1:
+            self._release_clean_transaction()
+            current = self._read_mutation_snapshot(
+                mutation_pk, mutation_tenant)
+            current_status = (
+                current["sandbox_status"] if current is not None else "missing")
+            reason = (
+                "review_decision_present"
+                if current_status in ("approved", "rejected")
+                else "stale_mutation")
+            return {
+                "success": False,
+                "output": None,
+                "skipped": True,
+                "reason": reason,
+                "status": current_status,
+                "proxy_signals": {
+                    "syntax_error": False,
+                    "execution_success": False,
+                    "execution_latency_ms": 0.0,
+                    "environment": "not_recorded",
+                },
+            }
 
         self.db.commit()
 
@@ -314,7 +465,7 @@ class AlphaEvolverEngine(BaseLearningEngine):
         proxy_signals = {
             "syntax_error": (
                 not execution_success
-                and "SyntaxError" in (mutation.execution_error or "")
+                and "SyntaxError" in (new_error or "")
             ),
             "execution_success": execution_success,
             "execution_latency_ms": result.get("execution_seconds", 0) * 1000.0,
@@ -325,6 +476,8 @@ class AlphaEvolverEngine(BaseLearningEngine):
             "success": execution_success,
             "output": result.get("output"),
             "proxy_signals": proxy_signals,
+            "status": new_status,
+            "skipped": False,
         }
 
     def spawn_workflow_variant(
