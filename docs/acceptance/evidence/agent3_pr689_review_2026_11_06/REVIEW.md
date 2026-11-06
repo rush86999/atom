@@ -120,3 +120,45 @@ GitGuardian remediation is correct in the merged artifact. Remaining items
 for other lanes: Agent 2's provenance remediation of the still-reachable
 flagged commit on the closed #688 branch (branch deletion, no history
 rewrite needed on main — main is clean), and the CI worker's check status.
+
+---
+
+## 10. Correction (2026-11-06, lead review of my probes) — stderr
+diagnostic was unobserved
+
+**Truthful failure reported.** My §5 malformed-record probe checked only
+the normal StringIO handler output; the standard logging fallback
+diagnostic goes to **stderr** and was unobserved. The lead's reproduced
+path: `LogRedactionFilter.filter` catches the `getMessage()` failure and
+returns True with original `msg`/`args` unchanged; `Handler.format` then
+fails on the same record and `logging.Handler.handleError` writes the
+**original args to stderr** under the ordinary development setting
+`logging.raiseExceptions=True` — a session-bearing request target in args
+escapes the centralized redaction via that fallback diagnostic.
+
+Corrected probe (committed on this branch,
+`tests/test_agent3_pr689_redaction_probes.py`): captures **both** outputs
+(`contextlib.redirect_stderr` for the fallback diagnostic, plus the normal
+handler stream) with `raiseExceptions=True`, and asserts the credential
+reaches neither. **Independent reproduction on Python 3.11.16 against
+unpatched main `66e09c5ee`: 1 failed / 2 passed — the malformed-record
+node fails with "credential escaped through the handleError stderr
+diagnostic"**, matching the lead's Py3.14 run. This corrected test is the
+executable twin for Agent 2's bounded repair (sanitize/freeze a safe
+fallback record and clear secret-bearing args before downstream handlers
+emit diagnostics — not `raiseExceptions=False`, not swallowing every
+record, not disabling access logs).
+
+Scope corrections to my earlier report:
+- §5's "the token never reached the formatted output" was true only of the
+  normal handler output and **must not be read as a complete security
+  guarantee** — the malformed-formatter path leaked to stderr.
+- The §5 positive handshake/rejected-handshake server evidence and the
+  accepted redaction behavior are unaffected by this finding and remain
+  valid (the lead confirmed: prior accepted valid/rejected handshake
+  redaction is not relabeled failed).
+- The §5 double-encoded-key probe stands as a **declared matching
+  boundary** — not proof that a value can never contain a credential.
+- This corrected finding does not reopen or rewrite superseded #688 and
+  requires no credential rotation; implementation ownership is Agent 2's,
+  independent verification re-runs the corrected twin on the repair.
