@@ -1,0 +1,36 @@
+{
+  "schema": "atom-onboarding-first-run-1",
+  "claim": "Setup/ordinary account use \u2014 real first-run onboarding completion and persistence",
+  "status": "verified at hosted browser boundary",
+  "base_main": "6a7e85c6d8fc572c6a16855fdaae9847860f827d",
+  "source_checkpoint": "163f6b3364a605ca31afe8d949120d170f645d43",
+  "results": {
+    "backend_tests": "611 passed, 1 skipped",
+    "memory": "recall 1.0",
+    "api_journey": "211 passed, 1 skipped, 1 xfailed",
+    "ui_block": "29 passed (28 prior + onboarding)",
+    "role_ui": "40 passed",
+    "onboarding_node": "passed"
+  },
+  "source_hashes": {
+    "backend/tests/e2e_ui/tests/test_journey_onboarding.py": {
+      "git_blob": "1697d741f4b3ac2b4a30a7dd4df5783ab5772af9",
+      "sha256": "3b7dc7c0f3d14a802cbe51ce6b891726610ffb685095f94e1b6bd99dda725735"
+    },
+    ".github/workflows/ci.yml": {
+      "git_blob": "f658728dac230492e788ab4dc14ffa90993fa923",
+      "sha256": "76d21c0e12460583b5baa0cab6a0f67e53c5a59843147533f927499ed4225263"
+    }
+  },
+  "artifact_sha256": {
+    "README.md": "58a73cbc49ee0587e9b6058b8950fab933992f2a2fe73b25b72d9c3430cd0124",
+    "hosted-backend.log": "064476ab512d00496d9dd5b9257a3e61d1ac282a1c4fc5ac4613e2272df400a2",
+    "hosted-e2e.log": "39c9a31edf5a8d28fc5439c815d924047d257bb8b31f3af6b20ba6221feed02a",
+    "onboarding-test-excerpt.log": "fb5ffcac409e22246e20e0f9ef699d513b28a026492d7d5389dc360b1360a71b"
+  },
+  "boundaries": [
+    "provider connection/configuration remains separate and was not exercised",
+    "non-gating UI block; existing required checks unchanged",
+    "no live model/provider/account/credential/spend/send/download/deployment"
+  ]
+}
