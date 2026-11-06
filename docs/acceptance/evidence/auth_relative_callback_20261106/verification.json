@@ -1,0 +1,69 @@
+{
+  "schema": "atom-auth-relative-callback-1",
+  "claim": "Protected deep-link return survives login as a safe relative path+query; default and unsafe-target behavior preserved",
+  "status": "verified at unit/component and hosted frontend-job scope",
+  "base_main": "ace04c8b9322c073508ce255c85b05dc0014b496",
+  "source_checkpoint": "26561052402150eea9e345b5acedb03421cd6eba",
+  "pr": "https://github.com/rush86999/atom/pull/687",
+  "captured_baseline": {
+    "destination": "/settings?a4dl=return20261106",
+    "runtime": "f653c790e",
+    "evidence": "2557156a1",
+    "observed": "login with absolute callbackUrl -> /dashboard"
+  },
+  "results": {
+    "gated_auth": "56 passed",
+    "full_auth_suite": "176 passed",
+    "typecheck": "clean",
+    "hosted_frontend_job": "128084228917; 56 passed in the four gated suites",
+    "hosted_other": "backend, syntax, full-app-boots, quickstart, GitGuardian pass",
+    "hosted_e2e_docker": "still running at capture; CI worker owns terminal tracking"
+  },
+  "source_hashes": {
+    "frontend-nextjs/middleware.ts": {
+      "git_blob": "caddad96560023e7c49e2cbea94c92a83d2c34a4",
+      "sha256": "c493975745364ca2a9ca156d163dca77dcab43fdaf2e280647ddfa1af34c42ec"
+    },
+    "frontend-nextjs/lib/auth-headers.ts": {
+      "git_blob": "8e816b3a09179bbfc379d3e11e7603e9b1e598b4",
+      "sha256": "ec2b9f540b383f5004fae47e473f7cfe568adb5c8bdb14a615498df76cbe9e78"
+    },
+    "frontend-nextjs/lib/api.ts": {
+      "git_blob": "08aa4af2c94528991b2efb7a07c9fa6c7b17e0f0",
+      "sha256": "c4add7af70fadb435c3cc664ab33a5169fead0a935c5f4276330b5133cb25782"
+    },
+    "frontend-nextjs/tests/middleware.test.ts": {
+      "git_blob": "39863b87e3ef77ae22b57c261b9242677cf5f5ce",
+      "sha256": "337ebd24e61ff0d5eb517098c12dd38666ffd8e768a4883fc2e496e31914f711"
+    },
+    "frontend-nextjs/tests/lib/auth-headers.test.ts": {
+      "git_blob": "6d4902f05c48b110c0baf65afcc245ee3a806220",
+      "sha256": "291713059a1aa5df5712ba05b36e911bff2ffd4c76f44958780f7e3a88c46f54"
+    },
+    "frontend-nextjs/tests/pages/__tests__/login.test.tsx": {
+      "git_blob": "6189142c3368d3dba0e8a0edbb0c102f85243f14",
+      "sha256": "0726e6fe30b73c051fd564f0bc94fb98d7273c307cec5ed80d40fdf86d8f10b3"
+    },
+    "frontend-nextjs/tests/auth/test-signin.test.tsx": {
+      "git_blob": "32f06d7002f2863e64f1d413ef4161520c59e44e",
+      "sha256": "3791e434bc94b9d2cd89094f27d64aa7c2de62b32117bc9bfd4981d4546f7419"
+    },
+    ".github/workflows/ci.yml": {
+      "git_blob": "a2cbb33a30c30e2111b8506908000f40641ab2b8",
+      "sha256": "7ee9ce376740ad9c39a3a67d6af67f128e0d4dd03b2f7bbd5eade59bbe36dd8d"
+    }
+  },
+  "artifact_sha256": {
+    "README.md": "54c8c91b5c1cd4b60a3a7536ecaadb4ea9d5009746fd46a71f639e2c9b67aee1",
+    "hosted-frontend-typecheck.log": "85c8532e72559fb2999b5a28848107bfdb2acddfce67f4caf2d89305cd805327",
+    "local-auth-gated.log": "55826c833dbdecf06740b9321d12b03722fb2b78a00e429a060a8b2cd7070622",
+    "local-auth-suite.log": "06f9ff8367a6ba950a58b9fc9cba15a4cd9164ea5aab891b309fb3d44b4ff909",
+    "local-typecheck.log": "4a96ab3ab2852e2273ecfd28bac3d5e0dfe3baa7b4206432365d209aae6a479f"
+  },
+  "boundaries": [
+    "unit/component and hosted frontend-job scope; not a second browser acceptance",
+    "Agent4 owns the captured chain final user-boundary run and identity readback",
+    "open-redirect guard, profile/role gates and auth transport unchanged",
+    "no live provider/model/account/credential/SSO/production-world/deployment"
+  ]
+}

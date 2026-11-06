@@ -1,0 +1,322 @@
+﻿2026-11-06T18:45:52.9441646Z Current runner version: '2.338.2'
+2026-11-06T18:45:52.9466296Z ##[group]Runner Image Provisioner
+2026-11-06T18:45:52.9467089Z Hosted Compute Agent
+2026-11-06T18:45:52.9467662Z Version: 20261028.624
+2026-11-06T18:45:52.9468332Z Commit: 54898b74c23fde5556c9b3c3a2290865feef0dfe
+2026-11-06T18:45:52.9468931Z Build Date: 2026-10-28T21:51:42Z
+2026-11-06T18:45:52.9469613Z Worker ID: {5984b4db-d904-459d-bebf-538e03a72a1f}
+2026-11-06T18:45:52.9470441Z Region: eastus2
+2026-11-06T18:45:52.9470944Z Cloud: Azure
+2026-11-06T18:45:52.9471425Z ##[endgroup]
+2026-11-06T18:45:52.9472638Z ##[group]Operating System
+2026-11-06T18:45:52.9473249Z Ubuntu
+2026-11-06T18:45:52.9473741Z 24.04.5
+2026-11-06T18:45:52.9474204Z LTS
+2026-11-06T18:45:52.9474673Z ##[endgroup]
+2026-11-06T18:45:52.9475149Z ##[group]Runner Image
+2026-11-06T18:45:52.9475731Z Image: ubuntu-24.04
+2026-11-06T18:45:52.9476221Z Version: 20261101.360.1
+2026-11-06T18:45:52.9477352Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20261101.360/images/ubuntu/Ubuntu2404-Readme.md
+2026-11-06T18:45:52.9478628Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20261101.360
+2026-11-06T18:45:52.9479460Z ##[endgroup]
+2026-11-06T18:45:52.9480734Z ##[group]GITHUB_TOKEN Permissions
+2026-11-06T18:45:52.9482530Z Contents: read
+2026-11-06T18:45:52.9483042Z Metadata: read
+2026-11-06T18:45:52.9483547Z Packages: read
+2026-11-06T18:45:52.9484121Z ##[endgroup]
+2026-11-06T18:45:52.9485932Z Secret source: Actions
+2026-11-06T18:45:52.9486812Z Cache mode: write
+2026-11-06T18:45:52.9487449Z Prepare workflow directory
+2026-11-06T18:45:52.9823677Z Prepare all required actions
+2026-11-06T18:45:52.9865588Z Getting action download info
+2026-11-06T18:45:53.2017159Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-11-06T18:45:53.3959078Z Download action repository 'actions/setup-node@v4' (SHA:49933ea5288caeca8642d1e84afbd3f7d6820020)
+2026-11-06T18:45:53.5876265Z Complete job name: frontend-typecheck
+2026-11-06T18:45:53.6576586Z ##[group]Run actions/checkout@v4
+2026-11-06T18:45:53.6577266Z with:
+2026-11-06T18:45:53.6577629Z   repository: rush86999/atom
+2026-11-06T18:45:53.6580748Z   token: ***
+2026-11-06T18:45:53.6581110Z   ssh-strict: true
+2026-11-06T18:45:53.6581468Z   ssh-user: git
+2026-11-06T18:45:53.6581831Z   persist-credentials: true
+2026-11-06T18:45:53.6582224Z   clean: true
+2026-11-06T18:45:53.6582587Z   sparse-checkout-cone-mode: true
+2026-11-06T18:45:53.6583006Z   fetch-depth: 1
+2026-11-06T18:45:53.6583355Z   fetch-tags: false
+2026-11-06T18:45:53.6583711Z   show-progress: true
+2026-11-06T18:45:53.6584070Z   lfs: false
+2026-11-06T18:45:53.6584411Z   submodules: false
+2026-11-06T18:45:53.6584774Z   set-safe-directory: true
+2026-11-06T18:45:53.6585180Z   allow-unsafe-pr-checkout: false
+2026-11-06T18:45:53.6585747Z ##[endgroup]
+2026-11-06T18:45:53.8590466Z Syncing repository: rush86999/atom
+2026-11-06T18:45:53.8592751Z ##[group]Getting Git version info
+2026-11-06T18:45:53.8593698Z Working directory is '/home/runner/work/atom/atom'
+2026-11-06T18:45:53.8594705Z [command]/usr/bin/git version
+2026-11-06T18:45:53.8646443Z git version 2.56.0
+2026-11-06T18:45:53.8663264Z ##[endgroup]
+2026-11-06T18:45:53.8677133Z Temporarily overriding HOME='/home/runner/work/_temp/e8dc6afa-1f53-4e6b-b823-2ce68a5a571f' before making global git config changes
+2026-11-06T18:45:53.8679017Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-06T18:45:53.8681998Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/atom/atom
+2026-11-06T18:45:53.8729453Z Deleting the contents of '/home/runner/work/atom/atom'
+2026-11-06T18:45:53.8738423Z ##[group]Initializing the repository
+2026-11-06T18:45:53.8739183Z [command]/usr/bin/git init /home/runner/work/atom/atom
+2026-11-06T18:45:53.8825923Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-11-06T18:45:53.8827463Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-11-06T18:45:53.8829124Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-11-06T18:45:53.8830365Z hint: call:
+2026-11-06T18:45:53.8830989Z hint:
+2026-11-06T18:45:53.8831750Z hint: 	git config --global init.defaultBranch <name>
+2026-11-06T18:45:53.8832656Z hint:
+2026-11-06T18:45:53.8833523Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-11-06T18:45:53.8835785Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-11-06T18:45:53.8836894Z hint:
+2026-11-06T18:45:53.8837546Z hint: 	git branch -m <name>
+2026-11-06T18:45:53.8838263Z hint:
+2026-11-06T18:45:53.8839187Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-11-06T18:45:53.8840860Z Initialized empty Git repository in /home/runner/work/atom/atom/.git/
+2026-11-06T18:45:53.8843367Z [command]/usr/bin/git remote add origin https://github.com/rush86999/atom
+2026-11-06T18:45:53.8885616Z ##[endgroup]
+2026-11-06T18:45:53.8886635Z ##[group]Disabling automatic garbage collection
+2026-11-06T18:45:53.8889473Z [command]/usr/bin/git config --local gc.auto 0
+2026-11-06T18:45:53.8924557Z ##[endgroup]
+2026-11-06T18:45:53.8925466Z ##[group]Setting up auth
+2026-11-06T18:45:53.8931135Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-06T18:45:53.8970921Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-06T18:45:53.9308363Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-06T18:45:53.9350824Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-06T18:45:53.9571632Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-06T18:45:53.9612598Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-06T18:45:53.9841450Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-06T18:45:53.9887144Z ##[endgroup]
+2026-11-06T18:45:53.9888701Z ##[group]Fetching the repository
+2026-11-06T18:45:53.9898421Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +e6551974bfe5e8f79fd9813e04e0831f33940226:refs/remotes/pull/687/merge
+2026-11-06T18:46:04.4633074Z From https://github.com/rush86999/atom
+2026-11-06T18:46:04.4634288Z  * [new ref]         e6551974bfe5e8f79fd9813e04e0831f33940226 -> pull/687/merge
+2026-11-06T18:46:04.4640283Z ##[endgroup]
+2026-11-06T18:46:04.4641285Z ##[group]Determining the checkout info
+2026-11-06T18:46:04.4642336Z ##[endgroup]
+2026-11-06T18:46:04.4644284Z [command]/usr/bin/git sparse-checkout disable
+2026-11-06T18:46:04.4704463Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-11-06T18:46:04.4738175Z ##[group]Checking out the ref
+2026-11-06T18:46:04.4741177Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/687/merge
+2026-11-06T18:46:05.4935394Z Updating files:  69% (10533/15123)
+2026-11-06T18:46:05.5093677Z Updating files:  70% (10587/15123)
+2026-11-06T18:46:05.5281600Z Updating files:  71% (10738/15123)
+2026-11-06T18:46:05.5411038Z Updating files:  72% (10889/15123)
+2026-11-06T18:46:05.5515013Z Updating files:  73% (11040/15123)
+2026-11-06T18:46:05.5814469Z Updating files:  74% (11192/15123)
+2026-11-06T18:46:05.5947796Z Updating files:  75% (11343/15123)
+2026-11-06T18:46:05.6053330Z Updating files:  76% (11494/15123)
+2026-11-06T18:46:05.6629289Z Updating files:  77% (11645/15123)
+2026-11-06T18:46:05.6888863Z Updating files:  78% (11796/15123)
+2026-11-06T18:46:05.7371895Z Updating files:  79% (11948/15123)
+2026-11-06T18:46:05.7484252Z Updating files:  80% (12099/15123)
+2026-11-06T18:46:05.7594891Z Updating files:  81% (12250/15123)
+2026-11-06T18:46:05.7690389Z Updating files:  82% (12401/15123)
+2026-11-06T18:46:05.7845695Z Updating files:  83% (12553/15123)
+2026-11-06T18:46:05.7952732Z Updating files:  84% (12704/15123)
+2026-11-06T18:46:05.8047015Z Updating files:  85% (12855/15123)
+2026-11-06T18:46:05.8136407Z Updating files:  86% (13006/15123)
+2026-11-06T18:46:05.8227869Z Updating files:  87% (13158/15123)
+2026-11-06T18:46:05.8350371Z Updating files:  88% (13309/15123)
+2026-11-06T18:46:05.8434677Z Updating files:  89% (13460/15123)
+2026-11-06T18:46:05.8497628Z Updating files:  90% (13611/15123)
+2026-11-06T18:46:05.8557795Z Updating files:  91% (13762/15123)
+2026-11-06T18:46:05.8637900Z Updating files:  92% (13914/15123)
+2026-11-06T18:46:05.8899593Z Updating files:  93% (14065/15123)
+2026-11-06T18:46:05.9010499Z Updating files:  94% (14216/15123)
+2026-11-06T18:46:05.9070946Z Updating files:  95% (14367/15123)
+2026-11-06T18:46:05.9255631Z Updating files:  96% (14519/15123)
+2026-11-06T18:46:05.9366361Z Updating files:  97% (14670/15123)
+2026-11-06T18:46:05.9480534Z Updating files:  98% (14821/15123)
+2026-11-06T18:46:05.9568732Z Updating files:  99% (14972/15123)
+2026-11-06T18:46:05.9569341Z Updating files: 100% (15123/15123)
+2026-11-06T18:46:05.9569686Z Updating files: 100% (15123/15123), done.
+2026-11-06T18:46:05.9687585Z Note: switching to 'refs/remotes/pull/687/merge'.
+2026-11-06T18:46:05.9687943Z 
+2026-11-06T18:46:05.9688185Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-11-06T18:46:05.9688725Z changes and commit them, and you can discard any commits you make in this
+2026-11-06T18:46:05.9689104Z state without impacting any branches by switching back to a branch.
+2026-11-06T18:46:05.9689331Z 
+2026-11-06T18:46:05.9689555Z If you want to create a new branch to retain commits you create, you may
+2026-11-06T18:46:05.9690216Z do so (now or later) by using -c with the switch command. Example:
+2026-11-06T18:46:05.9690555Z 
+2026-11-06T18:46:05.9691022Z   git switch -c <new-branch-name>
+2026-11-06T18:46:05.9691187Z 
+2026-11-06T18:46:05.9691278Z Or undo this operation with:
+2026-11-06T18:46:05.9691419Z 
+2026-11-06T18:46:05.9691491Z   git switch -
+2026-11-06T18:46:05.9691600Z 
+2026-11-06T18:46:05.9691763Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-11-06T18:46:05.9692003Z 
+2026-11-06T18:46:05.9692406Z HEAD is now at e655197 Merge 26561052402150eea9e345b5acedb03421cd6eba into ace04c8b9322c073508ce255c85b05dc0014b496
+2026-11-06T18:46:05.9780615Z ##[endgroup]
+2026-11-06T18:46:05.9834385Z [command]/usr/bin/git log -1 --format=%H
+2026-11-06T18:46:05.9866795Z e6551974bfe5e8f79fd9813e04e0831f33940226
+2026-11-06T18:46:06.0184055Z ##[group]Run actions/setup-node@v4
+2026-11-06T18:46:06.0184308Z with:
+2026-11-06T18:46:06.0184477Z   node-version: 20
+2026-11-06T18:46:06.0184660Z   cache: npm
+2026-11-06T18:46:06.0184895Z   cache-dependency-path: frontend-nextjs/package-lock.json
+2026-11-06T18:46:06.0185164Z   always-auth: false
+2026-11-06T18:46:06.0185363Z   check-latest: false
+2026-11-06T18:46:06.0187171Z   token: ***
+2026-11-06T18:46:06.0187343Z ##[endgroup]
+2026-11-06T18:46:06.1350627Z Attempting to download 20...
+2026-11-06T18:46:06.1489901Z (node:2129) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-06T18:46:06.1490833Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-06T18:46:06.7424678Z Acquiring 20.20.2 - x64 from https://github.com/actions/node-versions/releases/download/20.20.2-23521894959/node-20.20.2-linux-x64.tar.gz
+2026-11-06T18:46:07.0592785Z Extracting ...
+2026-11-06T18:46:07.0703722Z [command]/usr/bin/tar xz --strip 1 --warning=no-unknown-keyword --overwrite -C /home/runner/work/_temp/778d4b04-d592-4123-bbc1-9ede55161d34 -f /home/runner/work/_temp/85b0b378-8365-41e5-b5f6-662e3d17403c
+2026-11-06T18:46:07.9263594Z Adding to the cache ...
+2026-11-06T18:46:09.5419544Z ##[group]Environment details
+2026-11-06T18:46:09.8614635Z node: v20.20.2
+2026-11-06T18:46:09.8615601Z npm: 10.8.2
+2026-11-06T18:46:09.8615836Z yarn: 1.22.22
+2026-11-06T18:46:09.8616394Z ##[endgroup]
+2026-11-06T18:46:09.8631110Z [command]/opt/hostedtoolcache/node/20.20.2/x64/bin/npm config get cache
+2026-11-06T18:46:09.9495570Z /home/runner/.npm
+2026-11-06T18:46:10.0283491Z Cache hit for: node-cache-Linux-x64-npm-91834163e96c37295236881d5c955a0d28c352151a9470ec983a048be1bb5705
+2026-11-06T18:46:10.0363675Z (node:2129) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-11-06T18:46:11.0641514Z Received 247463936 of 499220334 (49.6%), 235.8 MBs/sec
+2026-11-06T18:46:12.0595505Z Received 465567744 of 499220334 (93.3%), 221.9 MBs/sec
+2026-11-06T18:46:12.1636423Z Received 499220334 of 499220334 (100.0%), 226.2 MBs/sec
+2026-11-06T18:46:12.1636931Z Cache Size: ~476 MB (499220334 B)
+2026-11-06T18:46:12.1659662Z [command]/usr/bin/tar -xf /home/runner/work/_temp/da1b1503-80e0-40f9-a009-f9757a0b8d9c/cache.tzst -P -C /home/runner/work/atom/atom --use-compress-program unzstd
+2026-11-06T18:46:13.3064147Z Cache restored successfully
+2026-11-06T18:46:13.3267909Z Cache restored from key: node-cache-Linux-x64-npm-91834163e96c37295236881d5c955a0d28c352151a9470ec983a048be1bb5705
+2026-11-06T18:46:13.3740775Z ##[group]Run npm install --legacy-peer-deps
+2026-11-06T18:46:13.3741183Z [36;1mnpm install --legacy-peer-deps[0m
+2026-11-06T18:46:13.3764129Z shell: /usr/bin/bash -e {0}
+2026-11-06T18:46:13.3764356Z ##[endgroup]
+2026-11-06T18:46:27.0406399Z npm warn deprecated @types/commons-validator-js@1.0.1269: This is a stub types definition. commons-validator-js provides its own type definitions, so you do not need this installed.
+2026-11-06T18:46:27.3270135Z npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+2026-11-06T18:46:27.6061685Z npm warn deprecated @babel/plugin-proposal-optional-catch-binding@7.18.6: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-optional-catch-binding instead.
+2026-11-06T18:46:27.6064631Z npm warn deprecated @babel/plugin-proposal-numeric-separator@7.18.6: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-numeric-separator instead.
+2026-11-06T18:46:27.6067240Z npm warn deprecated @babel/plugin-proposal-nullish-coalescing-operator@7.18.6: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-nullish-coalescing-operator instead.
+2026-11-06T18:46:27.6069721Z npm warn deprecated @babel/plugin-proposal-class-properties@7.18.6: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-class-properties instead.
+2026-11-06T18:46:27.6072348Z npm warn deprecated @babel/plugin-proposal-export-namespace-from@7.18.9: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-export-namespace-from instead.
+2026-11-06T18:46:27.6856376Z npm warn deprecated rimraf@2.7.1: Rimraf versions prior to v4 are no longer supported
+2026-11-06T18:46:27.6878267Z npm warn deprecated rimraf@2.6.3: Rimraf versions prior to v4 are no longer supported
+2026-11-06T18:46:27.6995975Z npm warn deprecated whatwg-encoding@3.1.1: Use @exodus/bytes instead for a more spec-conformant and faster implementation
+2026-11-06T18:46:27.9259089Z npm warn deprecated rimraf@3.0.2: Rimraf versions prior to v4 are no longer supported
+2026-11-06T18:46:27.9812804Z npm warn deprecated @babel/plugin-proposal-optional-chaining@7.21.0: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-optional-chaining instead.
+2026-11-06T18:46:27.9815650Z npm warn deprecated @babel/plugin-proposal-async-generator-functions@7.20.7: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-async-generator-functions instead.
+2026-11-06T18:46:28.0254108Z npm warn deprecated acorn-import-assertions@1.9.0: package has been renamed to acorn-import-attributes
+2026-11-06T18:46:28.1446806Z npm warn deprecated glob@7.2.3: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+2026-11-06T18:46:28.1448448Z npm warn deprecated rimraf@2.2.8: Rimraf versions prior to v4 are no longer supported
+2026-11-06T18:46:28.1452258Z npm warn deprecated glob@7.2.3: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+2026-11-06T18:46:28.1462905Z npm warn deprecated glob@7.2.3: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+2026-11-06T18:46:28.1469192Z npm warn deprecated glob@8.1.0: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+2026-11-06T18:46:28.1495906Z npm warn deprecated glob@7.2.3: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+2026-11-06T18:46:28.1550942Z npm warn deprecated glob@7.2.3: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+2026-11-06T18:46:28.1553493Z npm warn deprecated glob@7.2.3: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+2026-11-06T18:46:28.1555954Z npm warn deprecated glob@7.2.3: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+2026-11-06T18:46:28.1741725Z npm warn deprecated sudo-prompt@9.2.1: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+2026-11-06T18:46:28.3672466Z npm warn deprecated @babel/plugin-proposal-object-rest-spread@7.20.7: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-object-rest-spread instead.
+2026-11-06T18:46:28.3850914Z npm warn deprecated metro-react-native-babel-preset@0.76.9: Use @react-native/babel-preset instead
+2026-11-06T18:46:28.4383871Z npm warn deprecated metro-react-native-babel-preset@0.73.10: Use @react-native/babel-preset instead
+2026-11-06T18:46:28.4390875Z npm warn deprecated metro-react-native-babel-preset@0.73.10: Use @react-native/babel-preset instead
+2026-11-06T18:46:28.7325827Z npm warn deprecated prebuild-install@7.1.3: No longer maintained. Please contact the author of the relevant native addon; alternatives are available.
+2026-11-06T18:46:28.7383850Z npm warn deprecated google-p12-pem@4.0.1: Package is no longer maintained
+2026-11-06T18:46:32.3179526Z npm warn deprecated uglify-es@3.3.10: support for ECMAScript is superseded by `uglify-js` as of v3.13.0
+2026-11-06T18:46:32.9112694Z npm warn deprecated glob@9.3.5: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+2026-11-06T18:46:33.0251402Z npm warn deprecated glob@10.5.0: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+2026-11-06T18:46:37.0943889Z npm warn deprecated react-beautiful-dnd@13.1.1: react-beautiful-dnd is now deprecated. Context and options: https://github.com/atlassian/react-beautiful-dnd/issues/2672
+2026-11-06T18:46:37.7765204Z npm warn deprecated react-native-vector-icons@9.2.0: react-native-vector-icons package has moved to a new model of per-icon-family packages. See the https://github.com/oblador/react-native-vector-icons/blob/master/MIGRATION.md on how to migrate
+2026-11-06T18:46:37.8866199Z npm warn deprecated @opentelemetry/otlp-proto-exporter-base@0.46.0: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+2026-11-06T18:46:37.8924326Z npm warn deprecated @opentelemetry/otlp-proto-exporter-base@0.48.0: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+2026-11-06T18:46:39.2483002Z npm warn deprecated eslint@9.39.1: This version is no longer supported. Please see https://eslint.org/version-support for other options.
+2026-11-06T18:46:39.7672946Z npm warn deprecated react-flow-renderer@10.3.17: react-flow-renderer has been renamed to reactflow, please use this package from now on https://reactflow.dev/docs/guides/migrate-to-v11/
+2026-11-06T18:47:40.5648231Z 
+2026-11-06T18:47:40.5648919Z > atomic-app@0.1.0-alpha.4 postinstall
+2026-11-06T18:47:40.5649471Z > patch-package
+2026-11-06T18:47:40.5649636Z 
+2026-11-06T18:47:40.7305300Z patch-package 6.5.1
+2026-11-06T18:47:40.7308315Z Applying patches...
+2026-11-06T18:47:40.7311096Z No patch files found
+2026-11-06T18:47:40.7617221Z 
+2026-11-06T18:47:40.7617979Z added 3288 packages, and audited 3289 packages in 1m
+2026-11-06T18:47:40.7618330Z 
+2026-11-06T18:47:40.7618531Z 490 packages are looking for funding
+2026-11-06T18:47:40.7618916Z   run `npm fund` for details
+2026-11-06T18:47:41.4138223Z 
+2026-11-06T18:47:41.4139046Z 172 vulnerabilities (15 low, 88 moderate, 63 high, 6 critical)
+2026-11-06T18:47:41.4139302Z 
+2026-11-06T18:47:41.4139487Z To address issues that do not require attention, run:
+2026-11-06T18:47:41.4139938Z   npm audit fix
+2026-11-06T18:47:41.4140055Z 
+2026-11-06T18:47:41.4140269Z To address all issues possible (including breaking changes), run:
+2026-11-06T18:47:41.4140606Z   npm audit fix --force
+2026-11-06T18:47:41.4140735Z 
+2026-11-06T18:47:41.4140881Z Some issues need review, and may require choosing
+2026-11-06T18:47:41.4141167Z a different dependency.
+2026-11-06T18:47:41.4141282Z 
+2026-11-06T18:47:41.4141386Z Run `npm audit` for details.
+2026-11-06T18:47:41.6398493Z ##[group]Run npx tsc --noEmit --skipLibCheck
+2026-11-06T18:47:41.6398813Z [36;1mnpx tsc --noEmit --skipLibCheck[0m
+2026-11-06T18:47:41.6420410Z shell: /usr/bin/bash -e {0}
+2026-11-06T18:47:41.6420636Z ##[endgroup]
+2026-11-06T18:48:11.9758481Z ##[group]Run npx jest tests/middleware.test.ts tests/lib/auth-headers.test.ts tests/pages/__tests__/login.test.tsx tests/auth/test-signin.test.tsx --runInBand --no-coverage
+2026-11-06T18:48:11.9759413Z [36;1mnpx jest tests/middleware.test.ts tests/lib/auth-headers.test.ts tests/pages/__tests__/login.test.tsx tests/auth/test-signin.test.tsx --runInBand --no-coverage[0m
+2026-11-06T18:48:11.9777584Z shell: /usr/bin/bash -e {0}
+2026-11-06T18:48:11.9777800Z ##[endgroup]
+2026-11-06T18:48:16.0482673Z PASS tests/auth/test-signin.test.tsx
+2026-11-06T18:48:16.0574825Z   ● Console
+2026-11-06T18:48:16.0575034Z 
+2026-11-06T18:48:16.0575183Z     console.log
+2026-11-06T18:48:16.0575642Z       MSW server detected - fetch will be intercepted by MSW
+2026-11-06T18:48:16.0575959Z 
+2026-11-06T18:48:16.0576197Z       at Object.<anonymous> (tests/setup.ts:92:13)
+2026-11-06T18:48:16.0576452Z 
+2026-11-06T18:48:16.7827343Z PASS tests/pages/__tests__/login.test.tsx
+2026-11-06T18:48:16.7838234Z   ● Console
+2026-11-06T18:48:16.7838413Z 
+2026-11-06T18:48:16.7838533Z     console.log
+2026-11-06T18:48:16.7838952Z       MSW server detected - fetch will be intercepted by MSW
+2026-11-06T18:48:16.7839267Z 
+2026-11-06T18:48:16.7839465Z       at Object.<anonymous> (tests/setup.ts:92:13)
+2026-11-06T18:48:16.7839833Z 
+2026-11-06T18:48:17.1029983Z PASS tests/middleware.test.ts
+2026-11-06T18:48:17.1033904Z   ● Console
+2026-11-06T18:48:17.1034063Z 
+2026-11-06T18:48:17.1034175Z     console.log
+2026-11-06T18:48:17.1034597Z       MSW server detected - fetch will be intercepted by MSW
+2026-11-06T18:48:17.1034874Z 
+2026-11-06T18:48:17.1035050Z       at Object.<anonymous> (tests/setup.ts:92:13)
+2026-11-06T18:48:17.1035315Z 
+2026-11-06T18:48:17.4013136Z PASS tests/lib/auth-headers.test.ts
+2026-11-06T18:48:17.4020673Z   ● Console
+2026-11-06T18:48:17.4021121Z 
+2026-11-06T18:48:17.4021493Z     console.log
+2026-11-06T18:48:17.4022100Z       MSW server detected - fetch will be intercepted by MSW
+2026-11-06T18:48:17.4022593Z 
+2026-11-06T18:48:17.4023040Z       at Object.<anonymous> (tests/setup.ts:92:13)
+2026-11-06T18:48:17.4023457Z 
+2026-11-06T18:48:17.4057831Z 
+2026-11-06T18:48:17.4058683Z Test Suites: 4 passed, 4 total
+2026-11-06T18:48:17.4059089Z Tests:       56 passed, 56 total
+2026-11-06T18:48:17.4059345Z Snapshots:   0 total
+2026-11-06T18:48:17.4059576Z Time:        4.735 s
+2026-11-06T18:48:17.4060433Z Ran all test suites matching tests/middleware.test.ts|tests/lib/auth-headers.test.ts|tests/pages/__tests__/login.test.tsx|tests/auth/test-signin.test.tsx.
+2026-11-06T18:48:17.5606475Z Post job cleanup.
+2026-11-06T18:48:17.6642835Z (node:2456) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-06T18:48:17.6643498Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-06T18:48:17.6646093Z Cache hit occurred on the primary key node-cache-Linux-x64-npm-91834163e96c37295236881d5c955a0d28c352151a9470ec983a048be1bb5705, not saving cache.
+2026-11-06T18:48:17.6794711Z Post job cleanup.
+2026-11-06T18:48:17.7573111Z [command]/usr/bin/git version
+2026-11-06T18:48:17.7615868Z git version 2.56.0
+2026-11-06T18:48:17.7650697Z Temporarily overriding HOME='/home/runner/work/_temp/c8d0f22d-73ea-47b6-852f-1ac478d49f5b' before making global git config changes
+2026-11-06T18:48:17.7651651Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-06T18:48:17.7656303Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/atom/atom
+2026-11-06T18:48:17.7701748Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-06T18:48:17.7762538Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-06T18:48:17.8041686Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-06T18:48:17.8084919Z http.https://github.com/.extraheader
+2026-11-06T18:48:17.8102901Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-11-06T18:48:17.8140419Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-06T18:48:17.8391141Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-06T18:48:17.8432972Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-06T18:48:17.8838314Z Cleaning up orphan processes
+2026-11-06T18:48:17.9137871Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/
