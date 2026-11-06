@@ -1,0 +1,12 @@
+executed_source: b9c94929fecd55eab4827bcdf201c6694ac228cf
+product_source: 0aa16ce762f45af9bf47dcb45bceb6910604b2ed
+accepted_admin_base: 9d73552d249ae8ec5b05af77546faf9621bbcd47
+accepted_admin_product: 5fbb377a4e1eef8fdd0013275cd8b1c9b278cd41
+branch: codex/oracle01-document-settings-20261105
+git_status_short:
+git_log:
+b9c94929f test(documents): cover the ingestion-settings decision matrix
+0aa16ce76 feat(documents): verify ingestion-settings updates
+c8800d694 docs: add the continuous delivery directive
+9d73552d2 test(admin): assert the real hashed credential in W79C create
+c4e43f4b9 docs(admin): submit the credential-proof and rollback evidence

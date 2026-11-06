@@ -1,0 +1,62 @@
+{
+  "schema": "atom-employee-evidence-1",
+  "status": "verified workspace-scoped document-ingestion settings update submitted for independent verification; read/sync/upload/parse/memory-removal and live operation remain open",
+  "branch": "codex/oracle01-document-settings-20261105",
+  "accepted_admin_base": "9d73552d249ae8ec5b05af77546faf9621bbcd47",
+  "accepted_admin_product": "5fbb377a4e1eef8fdd0013275cd8b1c9b278cd41",
+  "product_source": "0aa16ce762f45af9bf47dcb45bceb6910604b2ed",
+  "executed_source": "b9c94929fecd55eab4827bcdf201c6694ac228cf",
+  "tree_clean_at_execution": true,
+  "source_files": {
+    "backend/api/document_ingestion_routes.py": "9d0774cd90ae1e997d3b82e42fe6544a6a8586f9ff8f2e3a49d68cedd339255d",
+    "backend/core/document_settings_write_service.py": "43700a1ef3c36b45942da0b2bac8233741c159cae49c8d650d48982bfb1621f1",
+    "backend/core/auto_document_ingestion.py": "032e3af5a526821c70d23320b72b9d0eb0356d16a97575385fd7f051d46527d7",
+    "backend/core/models.py": "4b238c35f6f235d94779f4598040f0c9fcd39599c26705e7016e8b045b51c3ef",
+    "backend/core/auth.py": "63b747a9e335f84128fc43b846eacb8beaef3874edeac00874ee803a5e287c61",
+    "backend/core/security/rbac.py": "48a7ecdb609f7e32267212e85b1993a0045eb84aca903f0152a8a498bcbd405e",
+    "backend/core/personal_scope.py": "f07dd35cf6eedb674ec9afbb06e10776cd4039e64ad7dd0a3427b7e0df31f78f",
+    "backend/core/base_routes.py": "b3af3c52d14582a3674a30adca6d8fea10ae7f4bde8d46c7b9164eb2ef0597fb",
+    "backend/core/database.py": "fd3736e7f679b9b30e242597e25a27565d3ab93fc8c0efd3ea0b1cef76e9b16e",
+    "backend/core/security_dependencies.py": "bb43051cc1f3455f1d8866ed6e576462765dcde92d492eed036cca317851f9f1",
+    "backend/main_api_app.py": "83f6c051d58d39c70c94617cd6eedc9ce65e6414047c1297899dc6e771321af0",
+    "backend/tests/test_document_settings_decision_contract.py": "d8d413c2f162db42d6a59112f82928422c79eb9633981adfd654802717cf186d",
+    "backend/tests/test_covpush_w80b_api_routes.py": "d9a2a6712f367dd5415ab17ab0c4cdf957b385dadf29bff16a5fb3a5944aea05",
+    "backend/tests/test_document_ingestion_routes_coverage.py": "e47e648df59e90cd65333b0e25ee64195a108bc8979773642576f669ef2f9827"
+  },
+  "artifacts": {
+    "README.md": "dab30c51da53dd66ea6b8c7461e920fc0f2884160c64ec36b46d19e9dffd66a5",
+    "TEST_RESULTS.md": "2918523e4d8bcf5bc9cfc48d495f29a607ef5046baaa4ad5cd3adb13368b7f27",
+    "affected-311.log": "99d78847426148ab07bdb81a9d874d729d80c96c68bdef8ee38fdb05531718f9",
+    "affected-314.log": "62b92e32f12089357a964616a1a16e3fffbfcde23087f2d83e04f14d38ed6f44",
+    "baseline-311.log": "a9ec04cac4776fb23ff369b0e91537e5b30de686231db5c659d85366e3027c81",
+    "baseline-314.log": "f971fde448d286b24e14270697c07082180e27b5e248cd72b6d6853c6780c6d2",
+    "focused-311.log": "249a3c84f3c848476b0b433447f25937db008a0586104d31d021d24bfd3743f2",
+    "focused-314.log": "bc04ef7aa637fd3b9e89e4fa92c2eda0a297cda2d79eff5521a0494a7b211a01",
+    "routes.json": "4a0f7459e5c5e90c3524360fb117671deea36e784f7be9ac0dbf29d02acfd76d",
+    "source-tree.txt": "163bdbd0a4b72bd569609428d5ae7de1c025447ad4d79a869474b4b6f0ab7001",
+    "verification.json": "91f2b7d0c6f1d6ad348f6363d0f2f47c261ffef945200af667ed44ffbb2a5156"
+  },
+  "checks": {
+    "focused_python314": "111 passed",
+    "focused_python311": "111 passed",
+    "affected_python314": "278 passed",
+    "affected_python311": "278 passed",
+    "baseline_python314": "252 passed",
+    "baseline_python311": "252 passed",
+    "new_passing_controls": 26,
+    "baseline_failures": 0,
+    "model_calls": 0,
+    "provider_calls": 0,
+    "new_schema": false
+  },
+  "baseline_exclusions": {},
+  "boundaries": [
+    "one document-ingestion settings mutation route only",
+    "no read/sync/upload/parse/memory-removal/LanceDB changes",
+    "no live provider, credential, spend, send, download or deployment",
+    "no new table, migration or second settings/approval engine",
+    "PostgreSQL runtime/soak, multi-worker serialization and whole-app ORACLE-01 not qualified",
+    "submitted review/memory/skill/agent/goal branches independent and not merged",
+    "accepted admin/auth-2FA/canvas/feedback/wait/employee/ORCH-01 lanes unchanged"
+  ]
+}

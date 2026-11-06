@@ -1,0 +1,62 @@
+{
+  "schema": "atom-oracle-document-settings-verification-1",
+  "status": "verified workspace-scoped document-ingestion settings update submitted for independent verification; read/sync/upload/parse/memory-removal and live operation remain open",
+  "candidate": {
+    "branch": "codex/oracle01-document-settings-20261105",
+    "accepted_admin_base": "9d73552d249ae8ec5b05af77546faf9621bbcd47",
+    "accepted_admin_product": "5fbb377a4e1eef8fdd0013275cd8b1c9b278cd41",
+    "product_source": "0aa16ce762f45af9bf47dcb45bceb6910604b2ed",
+    "executed_source": "b9c94929fecd55eab4827bcdf201c6694ac228cf",
+    "tree_clean_at_execution": true,
+    "runtime": "real scratch SQLite with fresh sessions; no live provider/sync/upload"
+  },
+  "checks": {
+    "authenticated_active_user_can_update": true,
+    "anonymous_refused_401": true,
+    "workspace_from_existing_resolver_only": true,
+    "create_new_row_with_deterministic_id": true,
+    "merge_only_supplied_fields": true,
+    "unspecified_fields_preserved": true,
+    "hybrid_ingestion_columns_preserved": true,
+    "other_workspace_rows_untouched": true,
+    "only_integration_id_no_change_effect_none": true,
+    "matching_request_no_change_effect_none": true,
+    "stale_peer_edit_refused_peer_preserved": true,
+    "exact_seven_field_cas": true,
+    "same_operation_replay_already_applied": true,
+    "changed_material_conflict": true,
+    "later_revision_committed_unverified": true,
+    "authority_deactivation_or_tenant_move_refused_effect_none": true,
+    "audit_receipt_same_transaction": true,
+    "audit_rollback_effect_none": true,
+    "post_commit_readback_committed_unverified": true,
+    "lost_confirmation_effect_unknown_with_identity": true,
+    "audit_tampering_never_certified": true,
+    "raw_folders_absent_from_receipts_logs": true,
+    "cache_clear_and_reload_after_commit": true,
+    "no_new_table_or_migration": true,
+    "no_live_model_provider_credential_spend_send_download_deployment": true,
+    "submitted_review_memory_skill_agent_goal_branches_independent": true
+  },
+  "results": {
+    "focused_python314": {"passed": 111, "log": "focused-314.log"},
+    "focused_python311": {"passed": 111, "log": "focused-311.log"},
+    "affected_python314": {"passed": 278, "failed": 0, "log": "affected-314.log"},
+    "affected_python311": {"passed": 278, "failed": 0, "log": "affected-311.log"},
+    "baseline_python314": {"passed": 252, "failed": 0, "log": "baseline-314.log"},
+    "baseline_python311": {"passed": 252, "failed": 0, "log": "baseline-311.log"}
+  },
+  "focused_breakdown": {
+    "new_decision_controls": 26,
+    "route_coverage_controls": 85,
+    "focused_total": 111
+  },
+  "baseline_exclusions": {},
+  "limits": [
+    "Exactly one settings mutation route; read/sync/upload/parse/memory-removal/LanceDB remain out of scope",
+    "No live provider, credential, spend, send, download or deployment operation",
+    "No new table, migration or second settings/approval engine",
+    "PostgreSQL runtime/soak, multi-worker serialization and whole-app ORACLE-01 remain open",
+    "Submitted review/memory/skill/agent/goal branches independent and not merged"
+  ]
+}

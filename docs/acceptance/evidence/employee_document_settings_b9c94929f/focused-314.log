@@ -1,0 +1,631 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-05 20:10:10 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-05 20:10:11 [    INFO] EscalationManager initialized
+2026-11-05 20:10:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:10:11 [    INFO] EscalationManager initialized
+2026-11-05 20:10:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:10:11 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 20:10:11 [    INFO] MCP Service initialized
+
+tests/test_document_settings_decision_contract.py::test_create_new_settings_with_audit 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:10:12 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:12 [    INFO] Creating isolated LanceDBHandler for workspace: ws1 at ./data/atom_memory/ws1
+2026-11-05 20:10:12 [    INFO] EscalationManager initialized
+2026-11-05 20:10:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:10:12 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 20:10:12 [    INFO] LanceDBHandler initialized. ID: 4868155792. LANCEDB_AVAILABLE: True
+2026-11-05 20:10:12 [    INFO] HTTP Request: PUT http://testserver/api/document-ingestion/settings?operation_id=create-one "HTTP/1.1 200 OK"
+PASSED                                                                   [  0%]
+tests/test_document_settings_decision_contract.py::test_merge_preserves_unspecified_and_hybrid_fields 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:13 [    INFO] HTTP Request: PUT http://testserver/api/document-ingestion/settings?operation_id=merge-one "HTTP/1.1 200 OK"
+PASSED                                                                   [  1%]
+tests/test_document_settings_decision_contract.py::test_only_integration_id_is_no_change 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:14 [    INFO] HTTP Request: PUT http://testserver/api/document-ingestion/settings "HTTP/1.1 200 OK"
+PASSED                                                                   [  2%]
+tests/test_document_settings_decision_contract.py::test_matching_update_is_no_change 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:15 [    INFO] HTTP Request: PUT http://testserver/api/document-ingestion/settings "HTTP/1.1 200 OK"
+PASSED                                                                   [  3%]
+tests/test_document_settings_decision_contract.py::test_stale_settings_before_claim_refuses 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:15 [    INFO] HTTP Request: PUT http://testserver/api/document-ingestion/settings?operation_id=stale "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  4%]
+tests/test_document_settings_decision_contract.py::test_replay_changed_material_and_later_revision 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:16 [    INFO] HTTP Request: PUT http://testserver/api/document-ingestion/settings?operation_id=replay "HTTP/1.1 200 OK"
+2026-11-05 20:10:16 [    INFO] HTTP Request: PUT http://testserver/api/document-ingestion/settings?operation_id=replay "HTTP/1.1 200 OK"
+2026-11-05 20:10:16 [    INFO] HTTP Request: PUT http://testserver/api/document-ingestion/settings?operation_id=replay "HTTP/1.1 409 Conflict"
+2026-11-05 20:10:16 [    INFO] HTTP Request: PUT http://testserver/api/document-ingestion/settings?operation_id=replay "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [  5%]
+tests/test_document_settings_decision_contract.py::test_authority_change_before_claim_refuses[deactivate] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:17 [    INFO] HTTP Request: PUT http://testserver/api/document-ingestion/settings?operation_id=authority "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  6%]
+tests/test_document_settings_decision_contract.py::test_authority_change_before_claim_refuses[tenant_move] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:17 [    INFO] HTTP Request: PUT http://testserver/api/document-ingestion/settings?operation_id=authority "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  7%]
+tests/test_document_settings_decision_contract.py::test_confirmed_audit_rollback_reports_effect_none 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:18 [    INFO] HTTP Request: PUT http://testserver/api/document-ingestion/settings?operation_id=rollback "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  8%]
+tests/test_document_settings_decision_contract.py::test_post_commit_readback_is_committed_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:19 [    INFO] HTTP Request: PUT http://testserver/api/document-ingestion/settings?operation_id=readback "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [  9%]
+tests/test_document_settings_decision_contract.py::test_lost_confirmation_is_effect_unknown_with_identity 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:20 [   ERROR] document-settings update outcome unknown: operation_id=document-settings:lost-confirmation target=gdrive error_class=RuntimeError
+PASSED                                                                   [  9%]
+tests/test_document_settings_decision_contract.py::test_wrong_audit_receipt_is_never_verified[action] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:20 [    INFO] HTTP Request: PUT http://testserver/api/document-ingestion/settings?operation_id=audit-action "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 10%]
+tests/test_document_settings_decision_contract.py::test_wrong_audit_receipt_is_never_verified[user_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:21 [    INFO] HTTP Request: PUT http://testserver/api/document-ingestion/settings?operation_id=audit-user_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 11%]
+tests/test_document_settings_decision_contract.py::test_wrong_audit_receipt_is_never_verified[tenant_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:21 [    INFO] HTTP Request: PUT http://testserver/api/document-ingestion/settings?operation_id=audit-tenant_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 12%]
+tests/test_document_settings_decision_contract.py::test_wrong_audit_receipt_is_never_verified[workspace_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:22 [    INFO] HTTP Request: PUT http://testserver/api/document-ingestion/settings?operation_id=audit-workspace_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 13%]
+tests/test_document_settings_decision_contract.py::test_wrong_audit_receipt_is_never_verified[success] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:23 [    INFO] HTTP Request: PUT http://testserver/api/document-ingestion/settings?operation_id=audit-success "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 14%]
+tests/test_document_settings_decision_contract.py::test_wrong_audit_receipt_is_never_verified[security_level] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:24 [    INFO] HTTP Request: PUT http://testserver/api/document-ingestion/settings?operation_id=audit-security_level "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 15%]
+tests/test_document_settings_decision_contract.py::test_wrong_audit_receipt_is_never_verified[resource] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:25 [    INFO] HTTP Request: PUT http://testserver/api/document-ingestion/settings?operation_id=audit-resource "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 16%]
+tests/test_document_settings_decision_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_target_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:25 [    INFO] HTTP Request: PUT http://testserver/api/document-ingestion/settings?operation_id=audit-metadata_target_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 17%]
+tests/test_document_settings_decision_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_target_workspace_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:26 [    INFO] HTTP Request: PUT http://testserver/api/document-ingestion/settings?operation_id=audit-metadata_target_workspace_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 18%]
+tests/test_document_settings_decision_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_prior_digest] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:27 [    INFO] HTTP Request: PUT http://testserver/api/document-ingestion/settings?operation_id=audit-metadata_prior_digest "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 18%]
+tests/test_document_settings_decision_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_result_digest] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:27 [    INFO] HTTP Request: PUT http://testserver/api/document-ingestion/settings?operation_id=audit-metadata_result_digest "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 19%]
+tests/test_document_settings_decision_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_request_digest] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:28 [    INFO] HTTP Request: PUT http://testserver/api/document-ingestion/settings?operation_id=audit-metadata_request_digest "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 20%]
+tests/test_document_settings_decision_contract.py::test_cross_workspace_rows_are_isolated 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:29 [    INFO] HTTP Request: PUT http://testserver/api/document-ingestion/settings?operation_id=isolate "HTTP/1.1 200 OK"
+2026-11-05 20:10:29 [    INFO] Creating isolated LanceDBHandler for workspace: ws2 at ./data/atom_memory/ws2
+2026-11-05 20:10:29 [    INFO] EscalationManager initialized
+2026-11-05 20:10:29 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:10:29 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 20:10:29 [    INFO] LanceDBHandler initialized. ID: 4872605520. LANCEDB_AVAILABLE: True
+2026-11-05 20:10:29 [    INFO] HTTP Request: PUT http://testserver/api/document-ingestion/settings?operation_id=isolate-two "HTTP/1.1 200 OK"
+PASSED                                                                   [ 21%]
+tests/test_document_settings_decision_contract.py::test_raw_folders_are_absent_from_audit_and_logs 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:30 [    INFO] HTTP Request: PUT http://testserver/api/document-ingestion/settings?operation_id=folder-secret "HTTP/1.1 200 OK"
+PASSED                                                                   [ 22%]
+tests/test_document_settings_decision_contract.py::test_anonymous_requests_are_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:31 [    INFO] HTTP Request: PUT http://testserver/api/document-ingestion/settings "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 23%]
+tests/test_covpush_w80b_api_routes.py::TestDocIngestionSettings::test_get_all_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:31 [    INFO] HTTP Request: GET http://testserver/api/document-ingestion/settings "HTTP/1.1 200 OK"
+PASSED                                                                   [ 24%]
+tests/test_covpush_w80b_api_routes.py::TestDocIngestionSettings::test_get_all_service_failure_500 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:31 [   ERROR] Failed to get ingestion settings: boom
+2026-11-05 20:10:31 [ WARNING] API Error: INTERNAL_ERROR - Internal error
+2026-11-05 20:10:31 [    INFO] HTTP Request: GET http://testserver/api/document-ingestion/settings "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 25%]
+tests/test_covpush_w80b_api_routes.py::TestDocIngestionSettings::test_get_all_unauthenticated 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:31 [    INFO] HTTP Request: GET http://testserver/api/document-ingestion/settings "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 26%]
+tests/test_covpush_w80b_api_routes.py::TestDocIngestionSettings::test_get_one_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:31 [    INFO] HTTP Request: GET http://testserver/api/document-ingestion/settings/dropbox "HTTP/1.1 200 OK"
+PASSED                                                                   [ 27%]
+tests/test_covpush_w80b_api_routes.py::TestDocIngestionSettings::test_get_one_service_failure_500 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:31 [   ERROR] Failed to get settings for dropbox: boom
+2026-11-05 20:10:31 [ WARNING] API Error: INTERNAL_ERROR - Internal error
+2026-11-05 20:10:31 [    INFO] HTTP Request: GET http://testserver/api/document-ingestion/settings/dropbox "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 27%]
+tests/test_covpush_w80b_api_routes.py::TestDocIngestionSettings::test_get_one_unauthenticated 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:31 [    INFO] HTTP Request: GET http://testserver/api/document-ingestion/settings/x "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 28%]
+tests/test_covpush_w80b_api_routes.py::TestDocIngestionSettings::test_update_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:31 [    INFO] HTTP Request: PUT http://testserver/api/document-ingestion/settings?operation_id=update-test "HTTP/1.1 200 OK"
+PASSED                                                                   [ 29%]
+tests/test_covpush_w80b_api_routes.py::TestDocIngestionSettings::test_update_all_none_optional 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:31 [    INFO] HTTP Request: PUT http://testserver/api/document-ingestion/settings "HTTP/1.1 200 OK"
+PASSED                                                                   [ 30%]
+tests/test_covpush_w80b_api_routes.py::TestDocIngestionSettings::test_update_service_failure_500 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:31 [    INFO] HTTP Request: PUT http://testserver/api/document-ingestion/settings "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 31%]
+tests/test_covpush_w80b_api_routes.py::TestDocIngestionSettings::test_update_missing_integration_422 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:31 [    INFO] HTTP Request: PUT http://testserver/api/document-ingestion/settings "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 32%]
+tests/test_covpush_w80b_api_routes.py::TestDocIngestionSettings::test_update_unauthenticated 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:31 [    INFO] HTTP Request: PUT http://testserver/api/document-ingestion/settings "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 33%]
+tests/test_document_ingestion_routes_coverage.py::TestSupportedIntegrations::test_list_supported_integrations_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:31 [    INFO] HTTP Request: GET http://testserver/api/document-ingestion/supported-integrations "HTTP/1.1 200 OK"
+PASSED                                                                   [ 34%]
+tests/test_document_ingestion_routes_coverage.py::TestSupportedIntegrations::test_integration_data_structure 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:31 [    INFO] HTTP Request: GET http://testserver/api/document-ingestion/supported-integrations "HTTP/1.1 200 OK"
+PASSED                                                                   [ 35%]
+tests/test_document_ingestion_routes_coverage.py::TestSupportedFileTypes::test_list_supported_file_types_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:31 [    INFO] HTTP Request: GET http://testserver/api/document-ingestion/supported-file-types "HTTP/1.1 200 OK"
+PASSED                                                                   [ 36%]
+tests/test_document_ingestion_routes_coverage.py::TestSupportedFileTypes::test_file_type_metadata 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:31 [    INFO] HTTP Request: GET http://testserver/api/document-ingestion/supported-file-types "HTTP/1.1 200 OK"
+PASSED                                                                   [ 36%]
+tests/test_document_ingestion_routes_coverage.py::TestSupportedFileTypes::test_docling_metadata_present 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:31 [    INFO] HTTP Request: GET http://testserver/api/document-ingestion/supported-file-types "HTTP/1.1 200 OK"
+PASSED                                                                   [ 37%]
+tests/test_document_ingestion_routes_coverage.py::TestOCRStatus::test_get_ocr_status_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:31 [    INFO] Creating isolated LanceDBHandler for workspace: default_shared at ./data/atom_memory/default_shared
+2026-11-05 20:10:31 [    INFO] EscalationManager initialized
+2026-11-05 20:10:31 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:10:31 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 20:10:31 [    INFO] LanceDBHandler initialized. ID: 4883911008. LANCEDB_AVAILABLE: True
+2026-11-05 20:10:31 [ WARNING] LanceDB not initialized, chat history disabled
+2026-11-05 20:10:31 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-05 20:10:31 [    INFO] HTTP Request: GET http://testserver/api/document-ingestion/ocr-status "HTTP/1.1 200 OK"
+PASSED                                                                   [ 38%]
+tests/test_document_ingestion_routes_coverage.py::TestOCRStatus::test_ocr_status_structure 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:31 [    INFO] HTTP Request: GET http://testserver/api/document-ingestion/ocr-status "HTTP/1.1 200 OK"
+PASSED                                                                   [ 39%]
+tests/test_document_ingestion_routes_coverage.py::TestDocumentParsing::test_parse_text_file_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:31 [ WARNING] Docling not available for direct parse request, using basic fallback
+2026-11-05 20:10:31 [    INFO] HTTP Request: POST http://testserver/api/document-ingestion/parse "HTTP/1.1 200 OK"
+PASSED                                                                   [ 40%]
+tests/test_document_ingestion_routes_coverage.py::TestDocumentParsing::test_parse_with_export_format 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:31 [ WARNING] Docling not available for direct parse request, using basic fallback
+2026-11-05 20:10:31 [    INFO] HTTP Request: POST http://testserver/api/document-ingestion/parse?export_format=markdown "HTTP/1.1 200 OK"
+PASSED                                                                   [ 41%]
+tests/test_document_ingestion_routes_coverage.py::TestDocumentParsing::test_parse_returns_metadata 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:31 [ WARNING] Docling not available for direct parse request, using basic fallback
+2026-11-05 20:10:31 [    INFO] HTTP Request: POST http://testserver/api/document-ingestion/parse "HTTP/1.1 200 OK"
+PASSED                                                                   [ 42%]
+tests/test_document_ingestion_routes_coverage.py::TestDocumentParsing::test_parse_various_export_formats[markdown] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:31 [ WARNING] Docling not available for direct parse request, using basic fallback
+2026-11-05 20:10:31 [    INFO] HTTP Request: POST http://testserver/api/document-ingestion/parse?export_format=markdown "HTTP/1.1 200 OK"
+PASSED                                                                   [ 43%]
+tests/test_document_ingestion_routes_coverage.py::TestDocumentParsing::test_parse_various_export_formats[text] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:31 [ WARNING] Docling not available for direct parse request, using basic fallback
+2026-11-05 20:10:31 [    INFO] HTTP Request: POST http://testserver/api/document-ingestion/parse?export_format=text "HTTP/1.1 200 OK"
+PASSED                                                                   [ 44%]
+tests/test_document_ingestion_routes_coverage.py::TestDocumentParsing::test_parse_various_export_formats[json] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:31 [ WARNING] Docling not available for direct parse request, using basic fallback
+2026-11-05 20:10:31 [    INFO] HTTP Request: POST http://testserver/api/document-ingestion/parse?export_format=json "HTTP/1.1 200 OK"
+PASSED                                                                   [ 45%]
+tests/test_document_ingestion_routes_coverage.py::TestDocumentParsing::test_parse_various_export_formats[html] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:31 [ WARNING] Docling not available for direct parse request, using basic fallback
+2026-11-05 20:10:31 [    INFO] HTTP Request: POST http://testserver/api/document-ingestion/parse?export_format=html "HTTP/1.1 200 OK"
+PASSED                                                                   [ 45%]
+tests/test_document_ingestion_routes_coverage.py::TestDocumentParsing::test_parse_without_file 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:31 [    INFO] HTTP Request: POST http://testserver/api/document-ingestion/parse "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 46%]
+tests/test_document_ingestion_routes_coverage.py::TestIngestionSettings::test_get_all_settings_unauthenticated 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:31 [    INFO] HTTP Request: GET http://testserver/api/document-ingestion/settings "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 47%]
+tests/test_document_ingestion_routes_coverage.py::TestIngestionSettings::test_get_all_settings_authenticated 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:31 [    INFO] Creating isolated LanceDBHandler for workspace: default at ./data/atom_memory/default
+2026-11-05 20:10:31 [    INFO] EscalationManager initialized
+2026-11-05 20:10:31 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:10:31 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 20:10:31 [    INFO] LanceDBHandler initialized. ID: 4831035776. LANCEDB_AVAILABLE: True
+2026-11-05 20:10:31 [    INFO] HTTP Request: GET http://testserver/api/document-ingestion/settings "HTTP/1.1 200 OK"
+PASSED                                                                   [ 48%]
+tests/test_document_ingestion_routes_coverage.py::TestIngestionSettings::test_get_integration_settings_with_service 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:31 [    INFO] HTTP Request: GET http://testserver/api/document-ingestion/settings/google_drive "HTTP/1.1 200 OK"
+PASSED                                                                   [ 49%]
+tests/test_document_ingestion_routes_coverage.py::TestIngestionSettings::test_get_integration_settings_exception_handling 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:31 [    INFO] HTTP Request: GET http://testserver/api/document-ingestion/settings/nonexistent_integration "HTTP/1.1 200 OK"
+PASSED                                                                   [ 50%]
+tests/test_document_ingestion_routes_coverage.py::TestIngestionSettings::test_update_settings_with_service 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:31 [    INFO] HTTP Request: PUT http://testserver/api/document-ingestion/settings "HTTP/1.1 200 OK"
+PASSED                                                                   [ 51%]
+tests/test_document_ingestion_routes_coverage.py::TestIngestionSettings::test_update_settings_partial 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:31 [    INFO] HTTP Request: PUT http://testserver/api/document-ingestion/settings "HTTP/1.1 200 OK"
+PASSED                                                                   [ 52%]
+tests/test_document_ingestion_routes_coverage.py::TestDocumentSync::test_trigger_sync_integration_exists 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:31 [    INFO] HybridDataIngestionService initialized for default / default
+2026-11-05 20:10:31 [    INFO] EscalationManager initialized
+2026-11-05 20:10:31 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:10:31 [    INFO] EscalationManager initialized
+2026-11-05 20:10:31 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:10:31 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 20:10:31 [    INFO] EscalationManager initialized
+2026-11-05 20:10:31 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:10:31 [    INFO] HTTP Request: POST http://testserver/api/document-ingestion/sync/google_drive "HTTP/1.1 200 OK"
+PASSED                                                                   [ 53%]
+tests/test_document_ingestion_routes_coverage.py::TestDocumentSync::test_trigger_sync_with_force 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:31 [    INFO] Starting document sync for google_drive
+2026-11-05 20:10:31 [ WARNING] Google Drive access token not configured
+2026-11-05 20:10:31 [    INFO] HTTP Request: POST http://testserver/api/document-ingestion/sync/google_drive?force=true "HTTP/1.1 200 OK"
+PASSED                                                                   [ 54%]
+tests/test_document_ingestion_routes_coverage.py::TestDocumentSync::test_trigger_sync_not_enabled 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:31 [    INFO] HTTP Request: POST http://testserver/api/document-ingestion/sync/dropbox "HTTP/1.1 200 OK"
+PASSED                                                                   [ 54%]
+tests/test_document_ingestion_routes_coverage.py::TestMemoryRemoval::test_remove_integration_memory 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:31 [    INFO] Removed 0 documents from google_drive
+2026-11-05 20:10:31 [    INFO] HTTP Request: DELETE http://testserver/api/document-ingestion/memory/google_drive "HTTP/1.1 200 OK"
+PASSED                                                                   [ 55%]
+tests/test_document_ingestion_routes_coverage.py::TestMemoryRemoval::test_remove_memory_returns_count 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:31 [    INFO] Removed 0 documents from dropbox
+2026-11-05 20:10:31 [    INFO] HTTP Request: DELETE http://testserver/api/document-ingestion/memory/dropbox "HTTP/1.1 200 OK"
+PASSED                                                                   [ 56%]
+tests/test_document_ingestion_routes_coverage.py::TestDocumentListing::test_list_documents_empty 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:31 [    INFO] HTTP Request: GET http://testserver/api/document-ingestion/documents "HTTP/1.1 200 OK"
+PASSED                                                                   [ 57%]
+tests/test_document_ingestion_routes_coverage.py::TestDocumentListing::test_list_documents_with_integration_filter 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:31 [    INFO] HTTP Request: GET http://testserver/api/document-ingestion/documents?integration_id=google_drive "HTTP/1.1 200 OK"
+PASSED                                                                   [ 58%]
+tests/test_document_ingestion_routes_coverage.py::TestDocumentListing::test_list_documents_with_file_type_filter 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:31 [    INFO] HTTP Request: GET http://testserver/api/document-ingestion/documents?file_type=pdf "HTTP/1.1 200 OK"
+PASSED                                                                   [ 59%]
+tests/test_document_ingestion_routes_coverage.py::TestDocumentUpload::test_upload_document_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:31 [ WARNING] EOF marker not found
+2026-11-05 20:10:31 [   ERROR] PDF parse error: Stream has ended unexpectedly
+2026-11-05 20:10:31 [    INFO] HTTP Request: POST http://testserver/api/document-ingestion/upload "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 60%]
+tests/test_document_ingestion_routes_coverage.py::TestDocumentUpload::test_upload_document_txt 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:31 [    INFO] Lazy loading LanceDB connection...
+2026-11-05 20:10:31 [    INFO] Connecting to LanceDB at /private/tmp/atom-document-settings/backend/data/atom_memory/default_shared with storage_options=None
+2026-11-05 20:10:31 [    INFO] LanceDB connected successfully
+2026-11-05 20:10:32 [    INFO] Loading FastEmbed model: BAAI/bge-small-en-v1.5
+2026-11-05 20:10:32 [    INFO] Document added to 'documents': 16f8bc3b-37d1-4a03-81e4-f1bf9877cfec
+2026-11-05 20:10:32 [    INFO] HTTP Request: POST http://testserver/api/document-ingestion/upload "HTTP/1.1 200 OK"
+PASSED                                                                   [ 61%]
+tests/test_document_ingestion_routes_coverage.py::TestDocumentUpload::test_upload_document_json 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:32 [    INFO] Document added to 'documents': a9423738-0559-4773-9261-a40c3c683e37
+2026-11-05 20:10:32 [    INFO] HTTP Request: POST http://testserver/api/document-ingestion/upload "HTTP/1.1 200 OK"
+PASSED                                                                   [ 62%]
+tests/test_document_ingestion_routes_coverage.py::TestDocumentUpload::test_upload_unauthenticated 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:32 [    INFO] HTTP Request: POST http://testserver/api/document-ingestion/upload "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 63%]
+tests/test_document_ingestion_routes_coverage.py::TestDocumentUpload::test_upload_returns_file_info 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:32 [ WARNING] EOF marker not found
+2026-11-05 20:10:32 [   ERROR] PDF parse error: Stream has ended unexpectedly
+2026-11-05 20:10:32 [    INFO] HTTP Request: POST http://testserver/api/document-ingestion/upload "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 63%]
+tests/test_document_ingestion_routes_coverage.py::TestBoundaryConditions::test_parse_empty_file 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:32 [ WARNING] Docling not available for direct parse request, using basic fallback
+2026-11-05 20:10:32 [    INFO] HTTP Request: POST http://testserver/api/document-ingestion/parse "HTTP/1.1 200 OK"
+PASSED                                                                   [ 64%]
+tests/test_document_ingestion_routes_coverage.py::TestBoundaryConditions::test_upload_empty_file 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:32 [    INFO] HTTP Request: POST http://testserver/api/document-ingestion/upload "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 65%]
+tests/test_document_ingestion_routes_coverage.py::TestBoundaryConditions::test_upload_large_file 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:33 [    INFO] Document added to 'documents': 82759664-efb9-4b91-a19b-e825651e9962
+2026-11-05 20:10:34 [    INFO] HTTP Request: POST http://testserver/api/document-ingestion/upload "HTTP/1.1 200 OK"
+PASSED                                                                   [ 66%]
+tests/test_document_ingestion_routes_coverage.py::TestBoundaryConditions::test_invalid_file_extension 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:34 [ WARNING] API Error: VALIDATION_ERROR - File type 'xyz' is not supported
+2026-11-05 20:10:34 [    INFO] HTTP Request: POST http://testserver/api/document-ingestion/upload "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 67%]
+tests/test_document_ingestion_routes_coverage.py::TestBoundaryConditions::test_missing_file_parameter 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:34 [    INFO] HTTP Request: POST http://testserver/api/document-ingestion/upload "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 68%]
+tests/test_document_ingestion_routes_coverage.py::TestErrorHandling::test_settings_service_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:34 [   ERROR] Failed to get ingestion settings: Service unavailable
+2026-11-05 20:10:34 [ WARNING] API Error: INTERNAL_ERROR - Internal error
+2026-11-05 20:10:34 [    INFO] HTTP Request: GET http://testserver/api/document-ingestion/settings "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 69%]
+tests/test_document_ingestion_routes_coverage.py::TestErrorHandling::test_sync_service_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:34 [   ERROR] Document sync failed: Sync failed
+2026-11-05 20:10:34 [ WARNING] API Error: INTERNAL_ERROR - Internal error
+2026-11-05 20:10:34 [    INFO] HTTP Request: POST http://testserver/api/document-ingestion/sync/google_drive "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 70%]
+tests/test_document_ingestion_routes_coverage.py::TestErrorHandling::test_memory_removal_service_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:34 [   ERROR] Memory removal failed: Removal failed
+2026-11-05 20:10:34 [ WARNING] API Error: INTERNAL_ERROR - Internal error
+2026-11-05 20:10:34 [    INFO] HTTP Request: DELETE http://testserver/api/document-ingestion/memory/google_drive "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 71%]
+tests/test_document_ingestion_routes_coverage.py::TestErrorHandling::test_parse_with_corrupted_file 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:34 [ WARNING] Docling not available for direct parse request, using basic fallback
+2026-11-05 20:10:34 [ WARNING] invalid pdf header: b'\x00\x01\x02\x03\x04'
+2026-11-05 20:10:34 [ WARNING] EOF marker not found
+2026-11-05 20:10:34 [ WARNING] EOF marker not found
+2026-11-05 20:10:34 [   ERROR] PDF parse error: Stream has ended unexpectedly
+2026-11-05 20:10:34 [    INFO] HTTP Request: POST http://testserver/api/document-ingestion/parse "HTTP/1.1 200 OK"
+PASSED                                                                   [ 72%]
+tests/test_document_ingestion_routes_coverage.py::TestFileTypeSupport::test_parse_supported_file_types[test.pdf-application/pdf] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:34 [ WARNING] Docling not available for direct parse request, using basic fallback
+2026-11-05 20:10:34 [ WARNING] invalid pdf header: b'Test '
+2026-11-05 20:10:34 [ WARNING] EOF marker not found
+2026-11-05 20:10:34 [   ERROR] PDF parse error: Stream has ended unexpectedly
+2026-11-05 20:10:34 [    INFO] HTTP Request: POST http://testserver/api/document-ingestion/parse "HTTP/1.1 200 OK"
+PASSED                                                                   [ 72%]
+tests/test_document_ingestion_routes_coverage.py::TestFileTypeSupport::test_parse_supported_file_types[test.docx-application/vnd.openxmlformats-officedocument.wordprocessingml.document] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:34 [ WARNING] Docling not available for direct parse request, using basic fallback
+2026-11-05 20:10:34 [   ERROR] DOCX parse error: File is not a zip file
+2026-11-05 20:10:34 [    INFO] HTTP Request: POST http://testserver/api/document-ingestion/parse "HTTP/1.1 200 OK"
+PASSED                                                                   [ 73%]
+tests/test_document_ingestion_routes_coverage.py::TestFileTypeSupport::test_parse_supported_file_types[test.txt-text/plain] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:34 [ WARNING] Docling not available for direct parse request, using basic fallback
+2026-11-05 20:10:34 [    INFO] HTTP Request: POST http://testserver/api/document-ingestion/parse "HTTP/1.1 200 OK"
+PASSED                                                                   [ 74%]
+tests/test_document_ingestion_routes_coverage.py::TestFileTypeSupport::test_parse_supported_file_types[test.md-text/markdown] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:34 [ WARNING] Docling not available for direct parse request, using basic fallback
+2026-11-05 20:10:34 [    INFO] HTTP Request: POST http://testserver/api/document-ingestion/parse "HTTP/1.1 200 OK"
+PASSED                                                                   [ 75%]
+tests/test_document_ingestion_routes_coverage.py::TestFileTypeSupport::test_parse_supported_file_types[test.json-application/json] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:34 [ WARNING] Docling not available for direct parse request, using basic fallback
+2026-11-05 20:10:34 [    INFO] HTTP Request: POST http://testserver/api/document-ingestion/parse "HTTP/1.1 200 OK"
+PASSED                                                                   [ 76%]
+tests/test_document_ingestion_routes_coverage.py::TestFileTypeSupport::test_parse_supported_file_types[test.csv-text/csv] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:34 [ WARNING] Docling not available for direct parse request, using basic fallback
+2026-11-05 20:10:34 [    INFO] Extracted 0 formulas from CSV /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/tmp9wtf518p.csv
+2026-11-05 20:10:34 [    INFO] HTTP Request: POST http://testserver/api/document-ingestion/parse "HTTP/1.1 200 OK"
+PASSED                                                                   [ 77%]
+tests/test_document_ingestion_routes_coverage.py::TestFileTypeSupport::test_upload_supported_file_types[test.pdf-application/pdf] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:34 [ WARNING] invalid pdf header: b'Test '
+2026-11-05 20:10:34 [ WARNING] EOF marker not found
+2026-11-05 20:10:34 [   ERROR] PDF parse error: Stream has ended unexpectedly
+2026-11-05 20:10:34 [    INFO] HTTP Request: POST http://testserver/api/document-ingestion/upload "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 78%]
+tests/test_document_ingestion_routes_coverage.py::TestFileTypeSupport::test_upload_supported_file_types[test.docx-application/vnd.openxmlformats-officedocument.wordprocessingml.document] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:34 [   ERROR] DOCX parse error: File is not a zip file
+2026-11-05 20:10:34 [    INFO] HTTP Request: POST http://testserver/api/document-ingestion/upload "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 79%]
+tests/test_document_ingestion_routes_coverage.py::TestFileTypeSupport::test_upload_supported_file_types[test.txt-text/plain] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:34 [    INFO] Document added to 'documents': 162929d1-d651-4e1b-ae1b-76b7df3c8300
+2026-11-05 20:10:34 [    INFO] HTTP Request: POST http://testserver/api/document-ingestion/upload "HTTP/1.1 200 OK"
+PASSED                                                                   [ 80%]
+tests/test_document_ingestion_routes_coverage.py::TestResponseStructure::test_success_response_has_data 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:34 [    INFO] HTTP Request: GET http://testserver/api/document-ingestion/supported-integrations "HTTP/1.1 200 OK"
+PASSED                                                                   [ 81%]
+tests/test_document_ingestion_routes_coverage.py::TestResponseStructure::test_success_response_has_message 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:34 [    INFO] HTTP Request: PUT http://testserver/api/document-ingestion/settings "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 81%]
+tests/test_document_ingestion_routes_coverage.py::TestConcurrentOperations::test_concurrent_sync_requests 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:34 [    INFO] HTTP Request: POST http://testserver/api/document-ingestion/sync/google_drive "HTTP/1.1 200 OK"
+2026-11-05 20:10:34 [    INFO] HTTP Request: POST http://testserver/api/document-ingestion/sync/google_drive "HTTP/1.1 200 OK"
+2026-11-05 20:10:34 [    INFO] HTTP Request: POST http://testserver/api/document-ingestion/sync/google_drive "HTTP/1.1 200 OK"
+PASSED                                                                   [ 82%]
+tests/test_document_ingestion_routes_coverage.py::TestDoclingIntegration::test_parse_with_docling_unavailable 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:34 [ WARNING] Docling not available for direct parse request, using basic fallback
+2026-11-05 20:10:34 [    INFO] HTTP Request: POST http://testserver/api/document-ingestion/parse "HTTP/1.1 200 OK"
+PASSED                                                                   [ 83%]
+tests/test_document_ingestion_routes_coverage.py::TestDoclingIntegration::test_parse_with_docling_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:34 [   ERROR] Manual parse failed: Docling failed
+2026-11-05 20:10:34 [    INFO] HTTP Request: POST http://testserver/api/document-ingestion/parse "HTTP/1.1 200 OK"
+PASSED                                                                   [ 84%]
+tests/test_document_ingestion_routes_coverage.py::TestAdditionalFileFormats::test_parse_markdown_file 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:34 [ WARNING] Docling not available for direct parse request, using basic fallback
+2026-11-05 20:10:34 [    INFO] HTTP Request: POST http://testserver/api/document-ingestion/parse "HTTP/1.1 200 OK"
+PASSED                                                                   [ 85%]
+tests/test_document_ingestion_routes_coverage.py::TestAdditionalFileFormats::test_parse_html_file 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:34 [ WARNING] Docling not available for direct parse request, using basic fallback
+2026-11-05 20:10:34 [    INFO] HTTP Request: POST http://testserver/api/document-ingestion/parse "HTTP/1.1 200 OK"
+PASSED                                                                   [ 86%]
+tests/test_document_ingestion_routes_coverage.py::TestAdditionalFileFormats::test_upload_markdown_file 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:34 [    INFO] Document added to 'documents': c1501172-28c6-4b34-966c-c35d429836bd
+2026-11-05 20:10:34 [    INFO] HTTP Request: POST http://testserver/api/document-ingestion/upload "HTTP/1.1 200 OK"
+PASSED                                                                   [ 87%]
+tests/test_document_ingestion_routes_coverage.py::TestAdditionalFileFormats::test_upload_csv_file 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:34 [    INFO] Extracted 0 formulas from CSV /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/tmp43wuvp4f.csv
+2026-11-05 20:10:34 [    INFO] Document added to 'documents': 6133b8ab-ff93-4984-89d8-96fd0deb3ee4
+2026-11-05 20:10:34 [    INFO] HTTP Request: POST http://testserver/api/document-ingestion/upload "HTTP/1.1 200 OK"
+PASSED                                                                   [ 88%]
+tests/test_document_ingestion_routes_coverage.py::TestIntegrationSettingsEdgeCases::test_update_settings_with_all_fields 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:34 [    INFO] HTTP Request: PUT http://testserver/api/document-ingestion/settings "HTTP/1.1 200 OK"
+PASSED                                                                   [ 89%]
+tests/test_document_ingestion_routes_coverage.py::TestIntegrationSettingsEdgeCases::test_update_settings_with_empty_lists 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:34 [    INFO] HTTP Request: PUT http://testserver/api/document-ingestion/settings "HTTP/1.1 200 OK"
+PASSED                                                                   [ 90%]
+tests/test_document_ingestion_routes_coverage.py::TestIntegrationSettingsEdgeCases::test_get_settings_multiple_integrations 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:34 [    INFO] HTTP Request: GET http://testserver/api/document-ingestion/settings/google_drive "HTTP/1.1 200 OK"
+2026-11-05 20:10:34 [    INFO] HTTP Request: GET http://testserver/api/document-ingestion/settings/dropbox "HTTP/1.1 200 OK"
+2026-11-05 20:10:34 [    INFO] HTTP Request: GET http://testserver/api/document-ingestion/settings/onedrive "HTTP/1.1 200 OK"
+2026-11-05 20:10:34 [    INFO] HTTP Request: GET http://testserver/api/document-ingestion/settings/box "HTTP/1.1 200 OK"
+2026-11-05 20:10:34 [    INFO] HTTP Request: GET http://testserver/api/document-ingestion/settings/sharepoint "HTTP/1.1 200 OK"
+PASSED                                                                   [ 90%]
+tests/test_document_ingestion_routes_coverage.py::TestDocumentSyncVariations::test_sync_with_force_parameter 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:34 [    INFO] Starting document sync for box
+2026-11-05 20:10:34 [ WARNING] No file lister for box
+2026-11-05 20:10:34 [    INFO] HTTP Request: POST http://testserver/api/document-ingestion/sync/box?force=true "HTTP/1.1 200 OK"
+PASSED                                                                   [ 91%]
+tests/test_document_ingestion_routes_coverage.py::TestDocumentSyncVariations::test_sync_with_force_false 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:34 [    INFO] HTTP Request: POST http://testserver/api/document-ingestion/sync/onedrive?force=false "HTTP/1.1 200 OK"
+PASSED                                                                   [ 92%]
+tests/test_document_ingestion_routes_coverage.py::TestDocumentSyncVariations::test_sync_multiple_integrations 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:34 [    INFO] HTTP Request: POST http://testserver/api/document-ingestion/sync/google_drive "HTTP/1.1 200 OK"
+2026-11-05 20:10:34 [    INFO] HTTP Request: POST http://testserver/api/document-ingestion/sync/dropbox "HTTP/1.1 200 OK"
+2026-11-05 20:10:34 [    INFO] HTTP Request: POST http://testserver/api/document-ingestion/sync/box "HTTP/1.1 200 OK"
+PASSED                                                                   [ 93%]
+tests/test_document_ingestion_routes_coverage.py::TestMemoryRemovalVariations::test_remove_memory_multiple_integrations 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:34 [    INFO] Removed 0 documents from dropbox
+2026-11-05 20:10:34 [    INFO] HTTP Request: DELETE http://testserver/api/document-ingestion/memory/dropbox "HTTP/1.1 200 OK"
+2026-11-05 20:10:34 [    INFO] Removed 0 documents from box
+2026-11-05 20:10:34 [    INFO] HTTP Request: DELETE http://testserver/api/document-ingestion/memory/box "HTTP/1.1 200 OK"
+2026-11-05 20:10:34 [    INFO] Removed 0 documents from onedrive
+2026-11-05 20:10:34 [    INFO] HTTP Request: DELETE http://testserver/api/document-ingestion/memory/onedrive "HTTP/1.1 200 OK"
+PASSED                                                                   [ 94%]
+tests/test_document_ingestion_routes_coverage.py::TestDocumentListFiltering::test_list_documents_with_multiple_filters 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:34 [    INFO] HTTP Request: GET http://testserver/api/document-ingestion/documents?integration_id=google_drive&file_type=pdf "HTTP/1.1 200 OK"
+PASSED                                                                   [ 95%]
+tests/test_document_ingestion_routes_coverage.py::TestDocumentListFiltering::test_list_documents_with_invalid_filter 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:34 [    INFO] HTTP Request: GET http://testserver/api/document-ingestion/documents?file_type=invalid_type "HTTP/1.1 200 OK"
+PASSED                                                                   [ 96%]
+tests/test_document_ingestion_routes_coverage.py::TestResponseFormats::test_parse_response_format_methods[markdown-fallback] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:34 [ WARNING] Docling not available for direct parse request, using basic fallback
+2026-11-05 20:10:34 [    INFO] HTTP Request: POST http://testserver/api/document-ingestion/parse?export_format=markdown "HTTP/1.1 200 OK"
+PASSED                                                                   [ 97%]
+tests/test_document_ingestion_routes_coverage.py::TestResponseFormats::test_parse_response_format_methods[text-fallback] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:34 [ WARNING] Docling not available for direct parse request, using basic fallback
+2026-11-05 20:10:34 [    INFO] HTTP Request: POST http://testserver/api/document-ingestion/parse?export_format=text "HTTP/1.1 200 OK"
+PASSED                                                                   [ 98%]
+tests/test_document_ingestion_routes_coverage.py::TestResponseFormats::test_parse_response_format_methods[json-fallback] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:34 [ WARNING] Docling not available for direct parse request, using basic fallback
+2026-11-05 20:10:34 [    INFO] HTTP Request: POST http://testserver/api/document-ingestion/parse?export_format=json "HTTP/1.1 200 OK"
+PASSED                                                                   [ 99%]
+tests/test_document_ingestion_routes_coverage.py::TestResponseFormats::test_parse_response_format_methods[html-fallback] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:10:34 [ WARNING] Docling not available for direct parse request, using basic fallback
+2026-11-05 20:10:34 [    INFO] HTTP Request: POST http://testserver/api/document-ingestion/parse?export_format=html "HTTP/1.1 200 OK"
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+core/graphrag_engine.py:203
+  /private/tmp/atom-document-settings/backend/core/graphrag_engine.py:203: SyntaxWarning: "\%" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\%"? A raw string is also an option.
+    Escaped pattern where % and _ are escaped to \%
+
+api/episode_routes.py:397
+  /private/tmp/atom-document-settings/backend/api/episode_routes.py:397: FastAPIDeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    canvas_context_detail: str = Query("summary", regex="^(summary|standard|full)$"),
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 222 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_document_ingestion_routes_coverage.py::TestDocumentUpload::test_upload_document_txt
+  /private/tmp/atom-document-settings/backend/core/lancedb_handler.py:407: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    names = set(self.db.table_names())
+
+tests/test_document_ingestion_routes_coverage.py::TestDocumentUpload::test_upload_document_txt
+  /Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/asyncio/events.py:94: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    self._context.run(self._callback, *self._args)
+
+tests/test_document_ingestion_routes_coverage.py::TestBoundaryConditions::test_invalid_file_extension
+  /private/tmp/atom-document-settings/backend/api/document_ingestion_routes.py:620: DeprecationWarning: 'HTTP_422_UNPROCESSABLE_ENTITY' is deprecated. Use 'HTTP_422_UNPROCESSABLE_CONTENT' instead.
+    raise router.validation_error(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+====================== 111 passed, 234 warnings in 33.28s ======================

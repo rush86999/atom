@@ -1,0 +1,922 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-05 20:08:15 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-05 20:08:15 [    INFO] EscalationManager initialized
+2026-11-05 20:08:15 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:08:15 [    INFO] EscalationManager initialized
+2026-11-05 20:08:15 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:08:15 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 20:08:15 [    INFO] MCP Service initialized
+2026-11-05 20:08:21 [    INFO] EscalationManager initialized
+2026-11-05 20:08:21 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:08:21 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-05 20:08:21 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-05 20:08:21 [    INFO] EscalationManager initialized
+2026-11-05 20:08:21 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:08:21 [    INFO] Webhook processor initialized and callback registered
+2026-11-05 20:08:22 [    INFO] ComputerUseAgent initialized for tenant default
+2026-11-05 20:08:22 [ WARNING] Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+2026-11-05 20:08:22 [    INFO] No token storage file found, starting empty
+2026-11-05 20:08:22 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-05 20:08:22 [    INFO] EscalationManager initialized
+2026-11-05 20:08:22 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:08:22 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-05 20:08:22 [    INFO] EscalationManager initialized
+2026-11-05 20:08:22 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:08:22 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 20:08:22 [    INFO] Slack Enhanced Service initialized
+2026-11-05 20:08:22 [    INFO] Loaded 0 persisted sessions from file.
+
+tests/test_covpush_w80b_api_routes.py::TestDocIngestionSettings::test_get_all_success 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:08:22 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  0%]
+tests/test_covpush_w80b_api_routes.py::TestDocIngestionSettings::test_get_all_service_failure_500 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:22 [   ERROR] Failed to get ingestion settings: boom
+2026-11-05 20:08:22 [ WARNING] API Error: INTERNAL_ERROR - Internal error
+PASSED                                                                   [  0%]
+tests/test_covpush_w80b_api_routes.py::TestDocIngestionSettings::test_get_all_unauthenticated PASSED [  1%]
+tests/test_covpush_w80b_api_routes.py::TestDocIngestionSettings::test_get_one_success PASSED [  1%]
+tests/test_covpush_w80b_api_routes.py::TestDocIngestionSettings::test_get_one_service_failure_500 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:22 [   ERROR] Failed to get settings for dropbox: boom
+2026-11-05 20:08:22 [ WARNING] API Error: INTERNAL_ERROR - Internal error
+PASSED                                                                   [  1%]
+tests/test_covpush_w80b_api_routes.py::TestDocIngestionSettings::test_get_one_unauthenticated PASSED [  2%]
+tests/test_covpush_w80b_api_routes.py::TestDocIngestionSettings::test_update_success PASSED [  2%]
+tests/test_covpush_w80b_api_routes.py::TestDocIngestionSettings::test_update_all_none_optional PASSED [  3%]
+tests/test_covpush_w80b_api_routes.py::TestDocIngestionSettings::test_update_service_failure_500 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:22 [   ERROR] Failed to update settings: boom
+2026-11-05 20:08:22 [ WARNING] API Error: INTERNAL_ERROR - Internal error
+PASSED                                                                   [  3%]
+tests/test_covpush_w80b_api_routes.py::TestDocIngestionSettings::test_update_missing_integration_422 PASSED [  3%]
+tests/test_covpush_w80b_api_routes.py::TestDocIngestionSettings::test_update_unauthenticated PASSED [  4%]
+tests/test_document_ingestion_routes_coverage.py::TestSupportedIntegrations::test_list_supported_integrations_success PASSED [  4%]
+tests/test_document_ingestion_routes_coverage.py::TestSupportedIntegrations::test_integration_data_structure PASSED [  5%]
+tests/test_document_ingestion_routes_coverage.py::TestSupportedFileTypes::test_list_supported_file_types_success PASSED [  5%]
+tests/test_document_ingestion_routes_coverage.py::TestSupportedFileTypes::test_file_type_metadata PASSED [  5%]
+tests/test_document_ingestion_routes_coverage.py::TestSupportedFileTypes::test_docling_metadata_present PASSED [  6%]
+tests/test_document_ingestion_routes_coverage.py::TestOCRStatus::test_get_ocr_status_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:23 [    INFO] Creating isolated LanceDBHandler for workspace: default_shared at ./data/atom_memory/default_shared
+2026-11-05 20:08:23 [    INFO] EscalationManager initialized
+2026-11-05 20:08:23 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:08:23 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 20:08:23 [    INFO] LanceDBHandler initialized. ID: 6071244816. LANCEDB_AVAILABLE: True
+2026-11-05 20:08:23 [ WARNING] LanceDB not initialized, chat history disabled
+2026-11-05 20:08:23 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+PASSED                                                                   [  6%]
+tests/test_document_ingestion_routes_coverage.py::TestOCRStatus::test_ocr_status_structure PASSED [  7%]
+tests/test_document_ingestion_routes_coverage.py::TestDocumentParsing::test_parse_text_file_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:23 [ WARNING] Docling not available for direct parse request, using basic fallback
+PASSED                                                                   [  7%]
+tests/test_document_ingestion_routes_coverage.py::TestDocumentParsing::test_parse_with_export_format 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:23 [ WARNING] Docling not available for direct parse request, using basic fallback
+PASSED                                                                   [  7%]
+tests/test_document_ingestion_routes_coverage.py::TestDocumentParsing::test_parse_returns_metadata 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:23 [ WARNING] Docling not available for direct parse request, using basic fallback
+PASSED                                                                   [  8%]
+tests/test_document_ingestion_routes_coverage.py::TestDocumentParsing::test_parse_various_export_formats[markdown] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:23 [ WARNING] Docling not available for direct parse request, using basic fallback
+PASSED                                                                   [  8%]
+tests/test_document_ingestion_routes_coverage.py::TestDocumentParsing::test_parse_various_export_formats[text] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:23 [ WARNING] Docling not available for direct parse request, using basic fallback
+PASSED                                                                   [  9%]
+tests/test_document_ingestion_routes_coverage.py::TestDocumentParsing::test_parse_various_export_formats[json] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:23 [ WARNING] Docling not available for direct parse request, using basic fallback
+PASSED                                                                   [  9%]
+tests/test_document_ingestion_routes_coverage.py::TestDocumentParsing::test_parse_various_export_formats[html] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:23 [ WARNING] Docling not available for direct parse request, using basic fallback
+PASSED                                                                   [  9%]
+tests/test_document_ingestion_routes_coverage.py::TestDocumentParsing::test_parse_without_file PASSED [ 10%]
+tests/test_document_ingestion_routes_coverage.py::TestIngestionSettings::test_get_all_settings_unauthenticated PASSED [ 10%]
+tests/test_document_ingestion_routes_coverage.py::TestIngestionSettings::test_get_all_settings_authenticated 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:23 [    INFO] Creating isolated LanceDBHandler for workspace: default at ./data/atom_memory/default
+2026-11-05 20:08:23 [    INFO] EscalationManager initialized
+2026-11-05 20:08:23 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:08:23 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 20:08:23 [    INFO] LanceDBHandler initialized. ID: 6078058064. LANCEDB_AVAILABLE: True
+PASSED                                                                   [ 11%]
+tests/test_document_ingestion_routes_coverage.py::TestIngestionSettings::test_get_integration_settings_with_service PASSED [ 11%]
+tests/test_document_ingestion_routes_coverage.py::TestIngestionSettings::test_get_integration_settings_exception_handling PASSED [ 11%]
+tests/test_document_ingestion_routes_coverage.py::TestIngestionSettings::test_update_settings_with_service 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:23 [    INFO] Updated ingestion settings for test_integration: enabled=False
+PASSED                                                                   [ 12%]
+tests/test_document_ingestion_routes_coverage.py::TestIngestionSettings::test_update_settings_partial 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:23 [    INFO] Updated ingestion settings for test_integration: enabled=False
+PASSED                                                                   [ 12%]
+tests/test_document_ingestion_routes_coverage.py::TestDocumentSync::test_trigger_sync_integration_exists 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:23 [    INFO] HybridDataIngestionService initialized for default / default
+2026-11-05 20:08:23 [    INFO] EscalationManager initialized
+2026-11-05 20:08:23 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:08:23 [    INFO] EscalationManager initialized
+2026-11-05 20:08:23 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:08:23 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 20:08:23 [    INFO] EscalationManager initialized
+2026-11-05 20:08:23 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 13%]
+tests/test_document_ingestion_routes_coverage.py::TestDocumentSync::test_trigger_sync_with_force 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:23 [    INFO] Starting document sync for google_drive
+2026-11-05 20:08:23 [ WARNING] Google Drive access token not configured
+PASSED                                                                   [ 13%]
+tests/test_document_ingestion_routes_coverage.py::TestDocumentSync::test_trigger_sync_not_enabled PASSED [ 13%]
+tests/test_document_ingestion_routes_coverage.py::TestMemoryRemoval::test_remove_integration_memory 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:23 [    INFO] Removed 0 documents from google_drive
+PASSED                                                                   [ 14%]
+tests/test_document_ingestion_routes_coverage.py::TestMemoryRemoval::test_remove_memory_returns_count 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:23 [    INFO] Removed 0 documents from dropbox
+PASSED                                                                   [ 14%]
+tests/test_document_ingestion_routes_coverage.py::TestDocumentListing::test_list_documents_empty PASSED [ 15%]
+tests/test_document_ingestion_routes_coverage.py::TestDocumentListing::test_list_documents_with_integration_filter PASSED [ 15%]
+tests/test_document_ingestion_routes_coverage.py::TestDocumentListing::test_list_documents_with_file_type_filter PASSED [ 15%]
+tests/test_document_ingestion_routes_coverage.py::TestDocumentUpload::test_upload_document_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:23 [ WARNING] EOF marker not found
+2026-11-05 20:08:23 [   ERROR] PDF parse error: Stream has ended unexpectedly
+PASSED                                                                   [ 16%]
+tests/test_document_ingestion_routes_coverage.py::TestDocumentUpload::test_upload_document_txt 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:23 [    INFO] Lazy loading LanceDB connection...
+2026-11-05 20:08:23 [    INFO] Connecting to LanceDB at /private/tmp/atom-memory-base/backend/data/atom_memory/default_shared with storage_options=None
+2026-11-05 20:08:23 [    INFO] LanceDB connected successfully
+2026-11-05 20:08:23 [    INFO] Loading FastEmbed model: BAAI/bge-small-en-v1.5
+2026-11-05 20:08:23 [    INFO] Document added to 'documents': f69a12c4-2776-4e01-bac8-2c2e6a7f4515
+PASSED                                                                   [ 16%]
+tests/test_document_ingestion_routes_coverage.py::TestDocumentUpload::test_upload_document_json 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:23 [    INFO] Document added to 'documents': c87bdf54-70de-4366-a920-896db1f80ef0
+PASSED                                                                   [ 17%]
+tests/test_document_ingestion_routes_coverage.py::TestDocumentUpload::test_upload_unauthenticated PASSED [ 17%]
+tests/test_document_ingestion_routes_coverage.py::TestDocumentUpload::test_upload_returns_file_info 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:23 [ WARNING] EOF marker not found
+2026-11-05 20:08:23 [   ERROR] PDF parse error: Stream has ended unexpectedly
+PASSED                                                                   [ 17%]
+tests/test_document_ingestion_routes_coverage.py::TestBoundaryConditions::test_parse_empty_file 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:23 [ WARNING] Docling not available for direct parse request, using basic fallback
+PASSED                                                                   [ 18%]
+tests/test_document_ingestion_routes_coverage.py::TestBoundaryConditions::test_upload_empty_file PASSED [ 18%]
+tests/test_document_ingestion_routes_coverage.py::TestBoundaryConditions::test_upload_large_file 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:26 [    INFO] Document added to 'documents': ae401747-4eea-4847-8fdd-69bfdde83a7d
+PASSED                                                                   [ 19%]
+tests/test_document_ingestion_routes_coverage.py::TestBoundaryConditions::test_invalid_file_extension 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:26 [ WARNING] API Error: VALIDATION_ERROR - File type 'xyz' is not supported
+PASSED                                                                   [ 19%]
+tests/test_document_ingestion_routes_coverage.py::TestBoundaryConditions::test_missing_file_parameter PASSED [ 19%]
+tests/test_document_ingestion_routes_coverage.py::TestErrorHandling::test_settings_service_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:26 [   ERROR] Failed to get ingestion settings: Service unavailable
+2026-11-05 20:08:26 [ WARNING] API Error: INTERNAL_ERROR - Internal error
+PASSED                                                                   [ 20%]
+tests/test_document_ingestion_routes_coverage.py::TestErrorHandling::test_sync_service_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:26 [   ERROR] Document sync failed: Sync failed
+2026-11-05 20:08:26 [ WARNING] API Error: INTERNAL_ERROR - Internal error
+PASSED                                                                   [ 20%]
+tests/test_document_ingestion_routes_coverage.py::TestErrorHandling::test_memory_removal_service_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:26 [   ERROR] Memory removal failed: Removal failed
+2026-11-05 20:08:26 [ WARNING] API Error: INTERNAL_ERROR - Internal error
+PASSED                                                                   [ 21%]
+tests/test_document_ingestion_routes_coverage.py::TestErrorHandling::test_parse_with_corrupted_file 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:26 [ WARNING] Docling not available for direct parse request, using basic fallback
+2026-11-05 20:08:26 [ WARNING] invalid pdf header: b'\x00\x01\x02\x03\x04'
+2026-11-05 20:08:26 [ WARNING] EOF marker not found
+2026-11-05 20:08:26 [ WARNING] EOF marker not found
+2026-11-05 20:08:26 [   ERROR] PDF parse error: Stream has ended unexpectedly
+PASSED                                                                   [ 21%]
+tests/test_document_ingestion_routes_coverage.py::TestFileTypeSupport::test_parse_supported_file_types[test.pdf-application/pdf] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:26 [ WARNING] Docling not available for direct parse request, using basic fallback
+2026-11-05 20:08:26 [ WARNING] invalid pdf header: b'Test '
+2026-11-05 20:08:26 [ WARNING] EOF marker not found
+2026-11-05 20:08:26 [   ERROR] PDF parse error: Stream has ended unexpectedly
+PASSED                                                                   [ 21%]
+tests/test_document_ingestion_routes_coverage.py::TestFileTypeSupport::test_parse_supported_file_types[test.docx-application/vnd.openxmlformats-officedocument.wordprocessingml.document] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:26 [ WARNING] Docling not available for direct parse request, using basic fallback
+2026-11-05 20:08:27 [   ERROR] DOCX parse error: File is not a zip file
+PASSED                                                                   [ 22%]
+tests/test_document_ingestion_routes_coverage.py::TestFileTypeSupport::test_parse_supported_file_types[test.txt-text/plain] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:27 [ WARNING] Docling not available for direct parse request, using basic fallback
+PASSED                                                                   [ 22%]
+tests/test_document_ingestion_routes_coverage.py::TestFileTypeSupport::test_parse_supported_file_types[test.md-text/markdown] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:27 [ WARNING] Docling not available for direct parse request, using basic fallback
+PASSED                                                                   [ 23%]
+tests/test_document_ingestion_routes_coverage.py::TestFileTypeSupport::test_parse_supported_file_types[test.json-application/json] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:27 [ WARNING] Docling not available for direct parse request, using basic fallback
+PASSED                                                                   [ 23%]
+tests/test_document_ingestion_routes_coverage.py::TestFileTypeSupport::test_parse_supported_file_types[test.csv-text/csv] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:27 [ WARNING] Docling not available for direct parse request, using basic fallback
+2026-11-05 20:08:27 [    INFO] Extracted 0 formulas from CSV /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/tmp7haoqtmx.csv
+PASSED                                                                   [ 23%]
+tests/test_document_ingestion_routes_coverage.py::TestFileTypeSupport::test_upload_supported_file_types[test.pdf-application/pdf] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:27 [ WARNING] invalid pdf header: b'Test '
+2026-11-05 20:08:27 [ WARNING] EOF marker not found
+2026-11-05 20:08:27 [   ERROR] PDF parse error: Stream has ended unexpectedly
+PASSED                                                                   [ 24%]
+tests/test_document_ingestion_routes_coverage.py::TestFileTypeSupport::test_upload_supported_file_types[test.docx-application/vnd.openxmlformats-officedocument.wordprocessingml.document] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:27 [   ERROR] DOCX parse error: File is not a zip file
+PASSED                                                                   [ 24%]
+tests/test_document_ingestion_routes_coverage.py::TestFileTypeSupport::test_upload_supported_file_types[test.txt-text/plain] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:27 [    INFO] Document added to 'documents': 43237cb6-91b1-4234-a1ac-962adc5fb085
+PASSED                                                                   [ 25%]
+tests/test_document_ingestion_routes_coverage.py::TestResponseStructure::test_success_response_has_data PASSED [ 25%]
+tests/test_document_ingestion_routes_coverage.py::TestResponseStructure::test_success_response_has_message 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:27 [    INFO] Updated ingestion settings for google_drive: enabled=False
+PASSED                                                                   [ 25%]
+tests/test_document_ingestion_routes_coverage.py::TestConcurrentOperations::test_concurrent_sync_requests PASSED [ 26%]
+tests/test_document_ingestion_routes_coverage.py::TestDoclingIntegration::test_parse_with_docling_unavailable 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:27 [ WARNING] Docling not available for direct parse request, using basic fallback
+PASSED                                                                   [ 26%]
+tests/test_document_ingestion_routes_coverage.py::TestDoclingIntegration::test_parse_with_docling_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:27 [   ERROR] Manual parse failed: Docling failed
+PASSED                                                                   [ 26%]
+tests/test_document_ingestion_routes_coverage.py::TestAdditionalFileFormats::test_parse_markdown_file 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:27 [ WARNING] Docling not available for direct parse request, using basic fallback
+PASSED                                                                   [ 27%]
+tests/test_document_ingestion_routes_coverage.py::TestAdditionalFileFormats::test_parse_html_file 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:27 [ WARNING] Docling not available for direct parse request, using basic fallback
+PASSED                                                                   [ 27%]
+tests/test_document_ingestion_routes_coverage.py::TestAdditionalFileFormats::test_upload_markdown_file 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:27 [    INFO] Document added to 'documents': ae696158-f1f5-4cce-a1aa-b43e49fbd8ed
+PASSED                                                                   [ 28%]
+tests/test_document_ingestion_routes_coverage.py::TestAdditionalFileFormats::test_upload_csv_file 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:27 [    INFO] Extracted 0 formulas from CSV /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/tmpelrioeax.csv
+2026-11-05 20:08:27 [    INFO] Document added to 'documents': f83af090-95a9-4653-8f5e-3e0c0a9123b5
+PASSED                                                                   [ 28%]
+tests/test_document_ingestion_routes_coverage.py::TestIntegrationSettingsEdgeCases::test_update_settings_with_all_fields 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:27 [    INFO] Updated ingestion settings for test_full: enabled=True
+PASSED                                                                   [ 28%]
+tests/test_document_ingestion_routes_coverage.py::TestIntegrationSettingsEdgeCases::test_update_settings_with_empty_lists 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:27 [    INFO] Updated ingestion settings for test_empty: enabled=False
+PASSED                                                                   [ 29%]
+tests/test_document_ingestion_routes_coverage.py::TestIntegrationSettingsEdgeCases::test_get_settings_multiple_integrations PASSED [ 29%]
+tests/test_document_ingestion_routes_coverage.py::TestDocumentSyncVariations::test_sync_with_force_parameter 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:27 [    INFO] Starting document sync for box
+2026-11-05 20:08:27 [ WARNING] No file lister for box
+PASSED                                                                   [ 30%]
+tests/test_document_ingestion_routes_coverage.py::TestDocumentSyncVariations::test_sync_with_force_false PASSED [ 30%]
+tests/test_document_ingestion_routes_coverage.py::TestDocumentSyncVariations::test_sync_multiple_integrations PASSED [ 30%]
+tests/test_document_ingestion_routes_coverage.py::TestMemoryRemovalVariations::test_remove_memory_multiple_integrations 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:27 [    INFO] Removed 0 documents from dropbox
+2026-11-05 20:08:27 [    INFO] Removed 0 documents from box
+2026-11-05 20:08:27 [    INFO] Removed 0 documents from onedrive
+PASSED                                                                   [ 31%]
+tests/test_document_ingestion_routes_coverage.py::TestDocumentListFiltering::test_list_documents_with_multiple_filters PASSED [ 31%]
+tests/test_document_ingestion_routes_coverage.py::TestDocumentListFiltering::test_list_documents_with_invalid_filter PASSED [ 32%]
+tests/test_document_ingestion_routes_coverage.py::TestResponseFormats::test_parse_response_format_methods[markdown-fallback] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:27 [ WARNING] Docling not available for direct parse request, using basic fallback
+PASSED                                                                   [ 32%]
+tests/test_document_ingestion_routes_coverage.py::TestResponseFormats::test_parse_response_format_methods[text-fallback] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:27 [ WARNING] Docling not available for direct parse request, using basic fallback
+PASSED                                                                   [ 32%]
+tests/test_document_ingestion_routes_coverage.py::TestResponseFormats::test_parse_response_format_methods[json-fallback] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:27 [ WARNING] Docling not available for direct parse request, using basic fallback
+PASSED                                                                   [ 33%]
+tests/test_document_ingestion_routes_coverage.py::TestResponseFormats::test_parse_response_format_methods[html-fallback] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:27 [ WARNING] Docling not available for direct parse request, using basic fallback
+PASSED                                                                   [ 33%]
+tests/api/test_document_ingestion_routes.py::test_list_supported_integrations PASSED [ 34%]
+tests/api/test_document_ingestion_routes.py::test_list_supported_file_types PASSED [ 34%]
+tests/api/test_document_ingestion_routes.py::test_get_ocr_status PASSED  [ 34%]
+tests/api/test_document_ingestion_routes.py::test_parse_document 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:27 [ WARNING] Docling not available for direct parse request, using basic fallback
+PASSED                                                                   [ 35%]
+tests/api/test_document_ingestion_routes.py::test_unauthenticated_request PASSED [ 35%]
+tests/test_auto_document_ingestion.py::TestFileTypeEnum::test_pdf_file_type PASSED [ 36%]
+tests/test_auto_document_ingestion.py::TestFileTypeEnum::test_docx_file_type PASSED [ 36%]
+tests/test_auto_document_ingestion.py::TestFileTypeEnum::test_markdown_file_type PASSED [ 36%]
+tests/test_auto_document_ingestion.py::TestFileTypeEnum::test_all_file_types_defined PASSED [ 37%]
+tests/test_auto_document_ingestion.py::TestIntegrationSourceEnum::test_google_drive_source PASSED [ 37%]
+tests/test_auto_document_ingestion.py::TestIntegrationSourceEnum::test_dropbox_source PASSED [ 38%]
+tests/test_auto_document_ingestion.py::TestIntegrationSourceEnum::test_notion_source PASSED [ 38%]
+tests/test_auto_document_ingestion.py::TestIngestionSettings::test_ingestion_settings_creation PASSED [ 38%]
+tests/test_auto_document_ingestion.py::TestIngestionSettings::test_ingestion_settings_defaults PASSED [ 39%]
+tests/test_auto_document_ingestion.py::TestIngestedDocument::test_ingested_document_creation PASSED [ 39%]
+tests/test_auto_document_ingestion.py::TestIngestedDocument::test_ingested_document_optional_fields PASSED [ 40%]
+tests/test_auto_document_ingestion.py::TestDocumentParser::test_parse_text_file PASSED [ 40%]
+tests/test_auto_document_ingestion.py::TestDocumentParser::test_parse_markdown_file PASSED [ 40%]
+tests/test_auto_document_ingestion.py::TestDocumentParser::test_parse_json_file PASSED [ 41%]
+tests/test_auto_document_ingestion.py::TestDocumentParser::test_parse_csv_file 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:30 [    INFO] Extracted 0 formulas from CSV /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/tmp5uoegami.csv
+PASSED                                                                   [ 41%]
+tests/test_auto_document_ingestion.py::TestDocumentParser::test_parse_unsupported_file_type 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:30 [ WARNING] Unsupported file type: unsupported
+PASSED                                                                   [ 42%]
+tests/test_auto_document_ingestion.py::TestDocumentParser::test_parse_pdf_with_pypdf2_mock 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:31 [   ERROR] PDF parse error: maximum recursion depth exceeded
+PASSED                                                                   [ 42%]
+tests/test_auto_document_ingestion.py::TestAutoDocumentIngestionService::test_service_initialization PASSED [ 42%]
+tests/test_auto_document_ingestion.py::TestAutoDocumentIngestionService::test_get_settings_creates_new PASSED [ 43%]
+tests/test_auto_document_ingestion.py::TestAutoDocumentIngestionService::test_get_settings_returns_existing PASSED [ 43%]
+tests/test_auto_document_ingestion.py::TestAutoDocumentIngestionService::test_update_settings_enabled 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:31 [    INFO] Updated ingestion settings for test_integration: enabled=True
+PASSED                                                                   [ 44%]
+tests/test_auto_document_ingestion.py::TestAutoDocumentIngestionService::test_update_settings_file_types 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:32 [    INFO] Updated ingestion settings for test_integration: enabled=False
+PASSED                                                                   [ 44%]
+tests/test_auto_document_ingestion.py::TestAutoDocumentIngestionService::test_update_settings_max_file_size 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:32 [    INFO] Updated ingestion settings for test_integration: enabled=False
+PASSED                                                                   [ 44%]
+tests/test_auto_document_ingestion.py::TestAutoDocumentIngestionService::test_sync_integration_disabled PASSED [ 45%]
+tests/test_auto_document_ingestion.py::TestAutoDocumentIngestionService::test_get_ingested_documents_empty PASSED [ 45%]
+tests/test_auto_document_ingestion.py::TestAutoDocumentIngestionService::test_get_ingested_documents_by_integration PASSED [ 46%]
+tests/test_auto_document_ingestion.py::TestAutoDocumentIngestionService::test_get_all_settings PASSED [ 46%]
+tests/test_auto_document_ingestion.py::TestAutoDocumentIngestionService::test_remove_integration_documents 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:33 [    INFO] Removed 2 documents from google_drive
+PASSED                                                                   [ 46%]
+tests/test_auto_document_ingestion.py::TestGlobalServiceInstance::test_get_document_ingestion_service_singleton PASSED [ 47%]
+tests/test_auto_document_ingestion.py::TestGlobalServiceInstance::test_auto_document_ingestion_alias PASSED [ 47%]
+tests/test_auto_document_ingestion.py::TestIntegration::test_full_ingestion_workflow_with_mocks 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:33 [    INFO] Updated ingestion settings for test_integration: enabled=True
+2026-11-05 20:08:33 [    INFO] Starting document sync for test_integration
+2026-11-05 20:08:33 [ WARNING] invalid pdf header: b'PDF c'
+2026-11-05 20:08:33 [ WARNING] EOF marker not found
+2026-11-05 20:08:33 [   ERROR] PDF parse error: Stream has ended unexpectedly
+PASSED                                                                   [ 48%]
+tests/test_auto_document_ingestion.py::TestExcelMalformedWorkbookFallback::test_shared_strings_openpyxl_rejects_still_extracts 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:34 [ WARNING] openpyxl cannot read /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/tmpno_87kyd.xlsx (expected <class 'int'>) — trying raw-XML formula fallback
+2026-11-05 20:08:34 [   ERROR] Excel parse error: expected <class 'int'>
+2026-11-05 20:08:34 [    INFO] Raw-XML fallback extracted 240 chars after Excel parser failure
+PASSED                                                                   [ 48%]
+tests/test_auto_document_ingestion.py::TestExcelMalformedWorkbookFallback::test_truly_truncated_xml_is_clean_skip 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:34 [ WARNING] openpyxl cannot read /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/tmpf2kkkntt.xlsx (no element found: line 1, column 150) — trying raw-XML formula fallback
+2026-11-05 20:08:34 [   ERROR] Raw-XML formula fallback failed for /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/tmpf2kkkntt.xlsx: no element found: line 1, column 150
+2026-11-05 20:08:34 [   ERROR] Excel parse error: no element found: line 1, column 150
+2026-11-05 20:08:34 [   ERROR] Raw-XML Excel fallback failed: no element found: line 1, column 150
+PASSED                                                                   [ 48%]
+tests/test_auto_document_ingestion.py::TestExcelMalformedWorkbookFallback::test_inline_strings_without_shared_strings_part 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:34 [    INFO] Extracted 0 formulas from /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/tmp3ougvcxj.xlsx
+PASSED                                                                   [ 49%]
+tests/test_auto_document_ingestion.py::TestExcelMalformedWorkbookFallback::test_formula_cells_render_value_and_formula 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:34 [    INFO] Lazy loading LanceDB connection...
+2026-11-05 20:08:34 [    INFO] Connecting to LanceDB at /private/tmp/atom-memory-base/backend/data/atom_memory/default with storage_options=None
+2026-11-05 20:08:34 [    INFO] LanceDB connected successfully
+2026-11-05 20:08:34 [    INFO] Formula SQL saved: Column_3 (41e7cc45-b37a-40bb-b4cc-ab36d5e3e0c1)
+2026-11-05 20:08:34 [ WARNING] embed_text (sync) called from the event-loop thread; returning None. Use async_embed_text or wrap in asyncio.to_thread.
+2026-11-05 20:08:34 [    INFO] Formula Card embedded in LanceDB: Column_3
+2026-11-05 20:08:34 [    INFO] Stored 1/1 formulas from tmp2n4waj83.xlsx
+2026-11-05 20:08:34 [    INFO] Extracted 1 formulas from /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/tmp2n4waj83.xlsx (raw-XML)
+2026-11-05 20:08:34 [    INFO] Extracted 1 formulas from Excel
+2026-11-05 20:08:34 [   ERROR] Excel parse error: list index out of range
+2026-11-05 20:08:34 [    INFO] Raw-XML fallback extracted 125 chars after Excel parser failure
+PASSED                                                                   [ 49%]
+tests/test_auto_document_ingestion.py::TestExcelMalformedWorkbookFallback::test_shared_formula_without_text_keeps_value 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:34 [    INFO] Formula SQL saved: =B1*2 (7deb71a1-6c6e-47f4-a9bb-23ce163c93c3)
+2026-11-05 20:08:34 [ WARNING] embed_text (sync) called from the event-loop thread; returning None. Use async_embed_text or wrap in asyncio.to_thread.
+2026-11-05 20:08:34 [    INFO] Formula Card embedded in LanceDB: =B1*2
+2026-11-05 20:08:34 [    INFO] Formula SQL saved: =B1*2 (b9db0646-0bd1-4f32-ae74-5ff8e2f0c526)
+2026-11-05 20:08:34 [ WARNING] embed_text (sync) called from the event-loop thread; returning None. Use async_embed_text or wrap in asyncio.to_thread.
+2026-11-05 20:08:34 [    INFO] Formula Card embedded in LanceDB: =B1*2
+2026-11-05 20:08:34 [    INFO] Stored 2/2 formulas from tmp2hcsawvc.xlsx
+2026-11-05 20:08:34 [    INFO] Extracted 2 formulas from /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/tmp2hcsawvc.xlsx
+2026-11-05 20:08:34 [    INFO] Extracted 2 formulas from Excel
+PASSED                                                                   [ 50%]
+tests/test_auto_document_ingestion.py::TestExcelMalformedWorkbookFallback::test_bytes_ingest_runs_formula_extractor 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:35 [   ERROR] Excel parse error: expected <class 'int'>
+2026-11-05 20:08:35 [    INFO] Raw-XML fallback extracted 240 chars after Excel parser failure
+PASSED                                                                   [ 50%]
+tests/test_auto_document_ingestion.py::TestExcelMalformedWorkbookFallback::test_normal_workbook_still_uses_pandas_path 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:35 [    INFO] Extracted 0 formulas from /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/tmp7cycb30o.xlsx
+PASSED                                                                   [ 50%]
+tests/test_auto_document_ingestion.py::TestExcelMalformedWorkbookFallback::test_non_zip_bytes_labeled_xlsx_is_clean_skip 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:35 [   ERROR] XLS (xlrd) parse error: Expected "little-endian" marker, found b'\x00\x00'
+PASSED                                                                   [ 51%]
+tests/test_auto_document_ingestion.py::TestSourceUpdateReingest::test_updated_file_refreshes_under_hybrid_mode 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:35 [    INFO] Content refresh: quote.txt changed at source — re-ingesting stored copy (was outdated)
+2026-11-05 20:08:35 [    INFO] Ingested quote.txt (8 chars) from zoho_workdrive
+PASSED                                                                   [ 51%]
+tests/test_auto_document_ingestion.py::TestSourceUpdateReingest::test_unchanged_file_still_gated 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:36 [    INFO] Content-mode hybrid: skipping auto-ingest of quote.txt from zoho_workdrive (metadata indexed; content on demand)
+PASSED                                                                   [ 51%]
+tests/test_auto_document_ingestion.py::TestSourceUpdateReingest::test_new_file_still_gated_under_hybrid 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:36 [    INFO] Content-mode hybrid: skipping auto-ingest of quote.txt from zoho_workdrive (metadata indexed; content on demand)
+PASSED                                                                   [ 52%]
+tests/test_auto_document_ingestion.py::TestSourceUpdateReingest::test_unparsable_modified_time_still_gated 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:36 [    INFO] Content-mode hybrid: skipping auto-ingest of quote.txt from zoho_workdrive (metadata indexed; content on demand)
+PASSED                                                                   [ 52%]
+tests/test_auto_document_ingestion.py::TestParseSourceModified::test_workdrive_listing_format PASSED [ 53%]
+tests/test_auto_document_ingestion.py::TestParseSourceModified::test_iso_formats_and_datetime_passthrough PASSED [ 53%]
+tests/test_auto_document_ingestion.py::test_long_file_ingests_as_chunk_family_and_refresh_replaces_it 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:37 [    INFO] Creating isolated LanceDBHandler for workspace: ws-chunk-ingest-test at ./data/atom_memory/ws-chunk-ingest-test
+2026-11-05 20:08:37 [    INFO] EscalationManager initialized
+2026-11-05 20:08:37 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:08:37 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 20:08:37 [    INFO] LanceDBHandler initialized. ID: 6071235856. LANCEDB_AVAILABLE: True
+2026-11-05 20:08:37 [    INFO] Lazy loading LanceDB connection...
+2026-11-05 20:08:37 [    INFO] Connecting to LanceDB at /private/tmp/atom-memory-base/backend/data/atom_memory/ws-chunk-ingest-test with storage_options=None
+2026-11-05 20:08:37 [    INFO] LanceDB connected successfully
+2026-11-05 20:08:37 [    INFO] Table 'documents' created successfully
+2026-11-05 20:08:37 [    INFO] Created table 'documents' and added 12 documents
+2026-11-05 20:08:37 [    INFO] Ingested big.txt (7356 chars) from zoho_workdrive
+2026-11-05 20:08:37 [    INFO] HybridDataIngestionService initialized for ws-chunk-ingest-test / default
+2026-11-05 20:08:37 [    INFO] EscalationManager initialized
+2026-11-05 20:08:37 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:08:37 [    INFO] EscalationManager initialized
+2026-11-05 20:08:37 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:08:37 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 20:08:37 [    INFO] EscalationManager initialized
+2026-11-05 20:08:37 [    INFO] CognitiveTierService initialized for workspace: ws-chunk-ingest-test
+2026-11-05 20:08:37 [    INFO] Content refresh: big.txt changed at source — re-ingesting stored copy (was outdated)
+2026-11-05 20:08:37 [    INFO] Added 12 documents to 'documents'
+2026-11-05 20:08:37 [    INFO] Ingested big.txt (7836 chars) from zoho_workdrive
+PASSED                                                                   [ 53%]
+tests/test_auto_document_ingestion.py::TestInterpretIngestResult::test_ingested_is_success PASSED [ 54%]
+tests/test_auto_document_ingestion.py::TestInterpretIngestResult::test_unchanged_skip_is_success_noop PASSED [ 54%]
+tests/test_auto_document_ingestion.py::TestInterpretIngestResult::test_unsupported_and_write_failures_stay_failures PASSED [ 55%]
+tests/test_auto_document_ingestion.py::TestInterpretIngestResult::test_unknown_shape_fails_closed PASSED [ 55%]
+tests/test_auto_document_ingestion.py::TestDriveServicesShareTheInterpreter::test_every_service_calls_the_shared_interpreter PASSED [ 55%]
+tests/test_ingestion_tables.py::test_data_table_becomes_markdown_and_metadata PASSED [ 56%]
+tests/test_ingestion_tables.py::test_plain_html_without_tables_unchanged PASSED [ 56%]
+tests/test_ingestion_tables.py::test_legacy_html_to_text_still_strips_tags PASSED [ 57%]
+tests/test_ingestion_tables.py::test_no_table_marker_is_a_fast_noop PASSED [ 57%]
+tests/test_ingestion_profile_service.py::TestBuild::test_build_contains_integrations_sanitized PASSED [ 57%]
+tests/test_ingestion_profile_service.py::TestBuild::test_export_envelope_signed PASSED [ 58%]
+tests/test_ingestion_profile_service.py::TestBuild::test_credentials_stripped_from_export PASSED [ 58%]
+tests/test_ingestion_profile_service.py::TestBuild::test_fail_closed_if_sanitizer_bypassed PASSED [ 59%]
+tests/test_ingestion_profile_service.py::TestApply::test_round_trip_export_import 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:38 [    INFO] HybridDataIngestionService initialized for member-b / t
+2026-11-05 20:08:38 [    INFO] Creating isolated LanceDBHandler for workspace: member-b at ./data/atom_memory/member-b
+2026-11-05 20:08:38 [    INFO] EscalationManager initialized
+2026-11-05 20:08:38 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:08:38 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 20:08:38 [    INFO] LanceDBHandler initialized. ID: 5616123152. LANCEDB_AVAILABLE: True
+2026-11-05 20:08:38 [    INFO] EscalationManager initialized
+2026-11-05 20:08:38 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:08:38 [    INFO] EscalationManager initialized
+2026-11-05 20:08:38 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:08:38 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 20:08:38 [    INFO] EscalationManager initialized
+2026-11-05 20:08:38 [    INFO] CognitiveTierService initialized for workspace: member-b
+2026-11-05 20:08:38 [    INFO] enable_auto_sync called for salesforce
+2026-11-05 20:08:38 [    INFO] Auto-sync enabled for salesforce in workspace member-b
+PASSED                                                                   [ 59%]
+tests/test_ingestion_profile_service.py::TestApply::test_reimport_is_idempotent_upsert 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:38 [    INFO] enable_auto_sync called for salesforce
+2026-11-05 20:08:38 [    INFO] Auto-sync enabled for salesforce in workspace default
+2026-11-05 20:08:38 [    INFO] enable_auto_sync called for salesforce
+2026-11-05 20:08:38 [    INFO] Auto-sync enabled for salesforce in workspace default
+PASSED                                                                   [ 59%]
+tests/test_ingestion_profile_service.py::TestApply::test_import_does_not_touch_unlisted_integrations PASSED [ 60%]
+tests/test_ingestion_profile_service.py::TestApply::test_rejects_wrong_kind PASSED [ 60%]
+tests/test_ingestion_profile_service.py::TestApply::test_rejects_unsigned PASSED [ 61%]
+tests/test_ingestion_profile_service.py::TestApply::test_rejects_tampered_payload PASSED [ 61%]
+tests/test_ingestion_profile_service.py::TestApply::test_rejects_unknown_signer PASSED [ 61%]
+tests/test_ingestion_profile_service.py::TestApply::test_rejects_future_version PASSED [ 62%]
+tests/test_ingestion_profile_service.py::TestApply::test_live_reload_into_hybrid_service PASSED [ 62%]
+tests/test_ingestion_status_routes.py::test_batch_ingestion_status_keys_by_catalog_id PASSED [ 63%]
+tests/test_ingestion_status_routes.py::test_batch_ingestion_status_includes_uncatalogued_app_types PASSED [ 63%]
+tests/test_ingestion_status_routes.py::test_per_integration_status_merges_connection_and_ingestion PASSED [ 63%]
+tests/test_ingestion_status_routes.py::test_per_integration_status_not_connected PASSED [ 64%]
+tests/test_ingestion_status_routes.py::test_per_integration_status_known_app_type_without_data PASSED [ 64%]
+tests/test_ingestion_status_routes.py::test_microsoft_alias_marks_outlook_connected PASSED [ 65%]
+tests/test_ingestion_status_routes.py::test_pipeline_unavailable_degrades_gracefully 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:39 [ WARNING] get_ingestion_stats failed: lancedb down
+PASSED                                                                   [ 65%]
+tests/test_ingestion_status_routes.py::test_pipeline_error_shape_degrades_gracefully 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:39 [ WARNING] get_ingestion_stats error: {'error': 'boom'}
+PASSED                                                                   [ 65%]
+tests/test_ingestion_status_routes.py::test_app_type_map_covers_core_communications PASSED [ 66%]
+tests/test_ingestion_status_routes.py::test_batch_ingestion_status_zero_fills_all_mapped_integrations PASSED [ 66%]
+tests/test_ingestion_status_routes.py::test_per_integration_non_memory_integration_has_hybrid_fields PASSED [ 67%]
+tests/test_ingestion_status_routes.py::test_hybrid_sync_state_merged_into_status PASSED [ 67%]
+tests/test_ingestion_status_routes.py::test_iso_or_none_handles_pandas_shapes PASSED [ 67%]
+tests/test_ingestion_status_routes.py::test_start_unsupported_integration_returns_404 PASSED [ 68%]
+tests/test_ingestion_status_routes.py::test_start_pollable_integration_without_connection_returns_409 PASSED [ 68%]
+tests/test_ingestion_status_routes.py::test_start_outlook_starts_poller PASSED [ 69%]
+tests/test_ingestion_status_routes.py::test_start_gmail_starts_generic_poller PASSED [ 69%]
+tests/test_ingestion_status_routes.py::test_start_zoho_workdrive_without_connection_returns_409 PASSED [ 69%]
+tests/test_ingestion_status_routes.py::test_start_zoho_workdrive_runs_full_sync_in_background 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:39 [    INFO] [StartSync] zoho-workdrive full_sync finished: {'success': True, 'files_ingested': 3}
+PASSED                                                                   [ 70%]
+tests/test_ingestion_status_routes.py::test_start_zoho_books_runs_suite_hybrid_sync 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:39 [    INFO] [StartSync] zoho suite hybrid sync finished: {'success': True, 'records_synced': 10}
+PASSED                                                                   [ 70%]
+tests/test_ingestion_status_routes.py::test_status_uses_hybrid_records_when_pipeline_has_none PASSED [ 71%]
+tests/test_ingestion_status_routes.py::test_health_without_token_is_unhealthy_for_user PASSED [ 71%]
+tests/test_ingestion_status_routes.py::test_health_with_integration_token_is_healthy_for_user PASSED [ 71%]
+tests/test_ingestion_status_routes.py::test_health_accepts_microsoft_row_for_outlook PASSED [ 72%]
+tests/test_ingestion_status_routes.py::test_health_anonymous_falls_back_to_registry PASSED [ 72%]
+tests/test_ingestion_status_routes.py::test_microsoft_refresher_registers_from_microsoft_client_id 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:39 [    INFO] Registered microsoft for automatic token refresh
+PASSED                                                                   [ 73%]
+tests/test_ingestion_status_routes.py::test_refresh_updates_outlook_and_microsoft_rows 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:39 [    INFO] Refreshed access token for user u1
+PASSED                                                                   [ 73%]
+tests/test_ingestion_status_routes.py::test_callback_logic_fails_when_no_token_and_no_access_token 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:39 [   ERROR] microsoft token exchange returned no access_token and no token is stored for this user — failing the connect
+PASSED                                                                   [ 73%]
+tests/test_ingestion_status_routes.py::test_callback_logic_treats_code_reuse_as_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:39 [ WARNING] No access_token in microsoft token response — existing active IntegrationToken found (code reuse); treating as success
+PASSED                                                                   [ 74%]
+tests/test_ingestion_status_routes.py::test_first_ingestion_pending_uses_static_catalog_range PASSED [ 74%]
+tests/test_ingestion_status_routes.py::test_first_ingestion_complete_when_records_exist PASSED [ 75%]
+tests/test_ingestion_status_routes.py::test_first_ingestion_in_progress_while_sync_runs PASSED [ 75%]
+tests/test_ingestion_status_routes.py::test_first_ingestion_measured_average_beats_catalog PASSED [ 75%]
+tests/test_ingestion_status_routes.py::test_batch_first_ingestion_present_for_every_app PASSED [ 76%]
+tests/test_ingestion_status_routes.py::test_drive_integrations_have_app_type_and_starter PASSED [ 76%]
+tests/test_ingestion_status_routes.py::test_start_google_drive_without_connection_returns_409 PASSED [ 76%]
+tests/test_ingestion_status_routes.py::test_start_google_drive_runs_full_sync_in_background 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:39 [    INFO] [StartSync] google_drive full_sync finished: {'success': True, 'files_ingested': 4}
+PASSED                                                                   [ 77%]
+tests/test_ingestion_status_routes.py::test_start_onedrive_runs_full_sync_in_background 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:39 [    INFO] [StartSync] onedrive full_sync finished: {'success': True, 'files_ingested': 2}
+PASSED                                                                   [ 77%]
+tests/test_ingestion_status_routes.py::test_drive_ingestion_status_payload_shows_app_grid PASSED [ 78%]
+tests/test_ingestion_status_routes.py::test_snapshot_returns_unavailable_without_inline_scan PASSED [ 78%]
+tests/test_ingestion_status_routes.py::test_snapshot_serves_cached_value_without_touching_pipeline PASSED [ 78%]
+tests/test_hybrid_ingestion_persistence.py::TestWriteThrough::test_enable_auto_sync_persists_row 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:39 [    INFO] HybridDataIngestionService initialized for default / default
+2026-11-05 20:08:39 [    INFO] enable_auto_sync called for slack
+2026-11-05 20:08:39 [    INFO] Loaded default sync config for slack
+2026-11-05 20:08:39 [    INFO] Auto-sync enabled for slack in workspace default
+PASSED                                                                   [ 79%]
+tests/test_hybrid_ingestion_persistence.py::TestWriteThrough::test_usage_counters_persisted 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:39 [    INFO] HybridDataIngestionService initialized for default / default
+PASSED                                                                   [ 79%]
+tests/test_hybrid_ingestion_persistence.py::TestWriteThrough::test_disable_persists 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:39 [    INFO] HybridDataIngestionService initialized for default / default
+2026-11-05 20:08:39 [    INFO] enable_auto_sync called for slack
+2026-11-05 20:08:39 [    INFO] Loaded default sync config for slack
+2026-11-05 20:08:39 [    INFO] Auto-sync enabled for slack in workspace default
+2026-11-05 20:08:39 [    INFO] Auto-sync disabled for slack
+PASSED                                                                   [ 80%]
+tests/test_hybrid_ingestion_persistence.py::TestWriteThrough::test_sync_completion_persists_last_synced 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:39 [    INFO] HybridDataIngestionService initialized for default / default
+2026-11-05 20:08:39 [    INFO] enable_auto_sync called for slack
+2026-11-05 20:08:39 [    INFO] Loaded default sync config for slack
+2026-11-05 20:08:39 [    INFO] Auto-sync enabled for slack in workspace default
+2026-11-05 20:08:39 [    INFO] Starting sync for slack in workspace default
+2026-11-05 20:08:39 [ WARNING] LLM schema refinement failed: object MagicMock can't be used in 'await' expression
+2026-11-05 20:08:39 [    INFO] Sync completed for slack: 1/1 records, 1 entities
+PASSED                                                                   [ 80%]
+tests/test_hybrid_ingestion_persistence.py::TestRestartRoundTrip::test_state_restored_on_new_instance 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:39 [    INFO] HybridDataIngestionService initialized for default / default
+2026-11-05 20:08:39 [    INFO] enable_auto_sync called for slack
+2026-11-05 20:08:39 [    INFO] Loaded default sync config for slack
+2026-11-05 20:08:39 [    INFO] Auto-sync enabled for slack in workspace default
+2026-11-05 20:08:39 [    INFO] HybridDataIngestionService initialized for default / default
+2026-11-05 20:08:39 [    INFO] Restored hybrid ingestion state for 2 integration(s) in workspace default
+PASSED                                                                   [ 80%]
+tests/test_hybrid_ingestion_persistence.py::TestRestartRoundTrip::test_document_only_rows_ignored_on_load 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:39 [    INFO] HybridDataIngestionService initialized for default / default
+PASSED                                                                   [ 81%]
+tests/test_hybrid_ingestion_persistence.py::TestDegradesGracefully::test_persistence_disabled_keeps_in_memory_only 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:39 [    INFO] HybridDataIngestionService initialized for default / default
+2026-11-05 20:08:39 [    INFO] enable_auto_sync called for slack
+2026-11-05 20:08:39 [    INFO] Loaded default sync config for slack
+2026-11-05 20:08:39 [    INFO] Auto-sync enabled for slack in workspace default
+PASSED                                                                   [ 81%]
+tests/test_hybrid_ingestion_persistence.py::TestDegradesGracefully::test_load_survives_db_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:39 [    INFO] HybridDataIngestionService initialized for default / default
+2026-11-05 20:08:39 [ WARNING] Could not load persisted ingestion state: 'Boom' object has no attribute 'close'
+PASSED                                                                   [ 82%]
+tests/test_hybrid_ingestion_persistence.py::TestDegradesGracefully::test_persist_failure_non_fatal 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:39 [    INFO] HybridDataIngestionService initialized for default / default
+2026-11-05 20:08:39 [ WARNING] Could not load persisted ingestion state: write failed
+PASSED                                                                   [ 82%]
+tests/test_hybrid_ingestion_persistence.py::TestSyncDurationMeasurement::test_incremental_mean_over_samples PASSED [ 82%]
+tests/test_hybrid_ingestion_persistence.py::TestSyncDurationMeasurement::test_sync_duration_measured_and_persisted 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:39 [    INFO] HybridDataIngestionService initialized for default / default
+2026-11-05 20:08:39 [    INFO] enable_auto_sync called for slack
+2026-11-05 20:08:39 [    INFO] Loaded default sync config for slack
+2026-11-05 20:08:39 [    INFO] Auto-sync enabled for slack in workspace default
+2026-11-05 20:08:39 [    INFO] Starting sync for slack in workspace default
+2026-11-05 20:08:39 [ WARNING] LLM schema refinement failed: object MagicMock can't be used in 'await' expression
+2026-11-05 20:08:39 [    INFO] Sync completed for slack: 1/1 records, 1 entities
+PASSED                                                                   [ 83%]
+tests/test_hybrid_ingestion_persistence.py::TestSyncDurationMeasurement::test_duration_survives_restart 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:39 [    INFO] HybridDataIngestionService initialized for default / default
+2026-11-05 20:08:39 [    INFO] HybridDataIngestionService initialized for default / default
+2026-11-05 20:08:39 [    INFO] Restored hybrid ingestion state for 1 integration(s) in workspace default
+PASSED                                                                   [ 83%]
+tests/test_document_scope_authority.py::test_catalog_resolves_uploaded_record_without_extension PASSED [ 84%]
+tests/test_document_scope_authority.py::test_catalog_rejects_unrelated_or_ambiguous_matches PASSED [ 84%]
+tests/test_document_scope_authority.py::test_requirement_adopts_a_resolved_catalog_mention PASSED [ 84%]
+tests/test_document_scope_authority.py::test_required_document_read_gets_the_documents_lane 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:39 [    INFO] tool planner: required-read enforcement -> documents.search query='release_smoke_record.txt What is the release smoke code in my uploaded record?' (optional proposal: none)
+PASSED                                                                   [ 85%]
+tests/test_document_scope_authority.py::test_document_only_required_read_skips_legacy_fanout 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:39 [    INFO] [feature-routing] document-only required read owns the turn; skipped ['search', 'ai_analytics']
+PASSED                                                                   [ 85%]
+tests/test_document_scope_authority.py::test_cross_source_request_keeps_its_mapped_features 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:39 [    INFO] Routing to features: [<FeatureType.SEARCH: 'search'>, <FeatureType.AI_ANALYTICS: 'ai_analytics'>]
+2026-11-05 20:08:39 [    INFO] Executing handler for FeatureType.SEARCH
+2026-11-05 20:08:39 [    INFO] Handler FeatureType.SEARCH succeeded
+2026-11-05 20:08:39 [    INFO] Executing handler for FeatureType.AI_ANALYTICS
+2026-11-05 20:08:39 [    INFO] Handler FeatureType.AI_ANALYTICS succeeded
+2026-11-05 20:08:39 [    INFO] Feature handling complete. Handled: True, Intent: ChatIntent.SEARCH_REQUEST
+PASSED                                                                   [ 86%]
+tests/test_document_scope_authority.py::test_slow_sync_entity_search_is_bounded 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:39 [ WARNING] [feature-search] synchronous entity search exceeded 0.1s; returning search_timeout
+PASSED                                                                   [ 86%]
+tests/test_document_scope_authority.py::test_required_query_drops_unsupported_fields PASSED [ 86%]
+tests/test_document_scope_authority.py::test_delivery_scope_prefers_row_scope 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:39 [    INFO] EscalationManager initialized
+2026-11-05 20:08:39 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:08:39 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-05 20:08:39 [    INFO] EscalationManager initialized
+2026-11-05 20:08:39 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:08:39 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 20:08:39 [    INFO] Slack Enhanced Service initialized
+2026-11-05 20:08:39 [    INFO] Loaded 0 persisted sessions from file.
+PASSED                                                                   [ 87%]
+tests/test_document_scope_authority.py::test_resolved_document_overrides_a_dataset_proposal 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:39 [    INFO] tool planner: resolved document identity overrides datasets.search with the documents lane
+2026-11-05 20:08:39 [    INFO] tool planner: required-read enforcement -> documents.search query='release_smoke_record.txt What is the release smoke code in my uploaded release smoke record?' (optional proposal: datasets.search)
+PASSED                                                                   [ 87%]
+tests/test_document_scope_authority.py::test_delivery_scope_falls_back_to_goal_run PASSED [ 88%]
+tests/test_document_scope_authority.py::test_answer_scope_uses_accepted_subjects_not_fixture_literals PASSED [ 88%]
+tests/test_document_scope_authority.py::test_requirement_scope_is_taken_from_the_accepted_request PASSED [ 88%]
+tests/test_document_scope_authority.py::test_generation_prompt_carries_the_accepted_scope 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:39 [    INFO] EscalationManager initialized
+2026-11-05 20:08:39 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:08:39 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-05 20:08:39 [    INFO] EscalationManager initialized
+2026-11-05 20:08:39 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:08:39 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 20:08:39 [    INFO] Slack Enhanced Service initialized
+2026-11-05 20:08:39 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-05 20:08:39 [    INFO] EscalationManager initialized
+2026-11-05 20:08:39 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:08:39 [    INFO] [MEMCTX] agent_id=None
+2026-11-05 20:08:39 [    INFO] EscalationManager initialized
+2026-11-05 20:08:39 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:08:39 [    INFO] EscalationManager initialized
+2026-11-05 20:08:39 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:08:39 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 20:08:39 [    INFO] integration records leg: ws=default role=None tables=[] (0 total)
+2026-11-05 20:08:39 [    INFO] Hybrid search: vector leg found 0 nodes
+2026-11-05 20:08:39 [    INFO] Hybrid search: keyword leg found 0 nodes
+2026-11-05 20:08:39 [    INFO] EscalationManager initialized
+2026-11-05 20:08:39 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:08:39 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 20:08:39 [    INFO] EscalationManager initialized
+2026-11-05 20:08:39 [    INFO] LanceDBHandler initialized. ID: 6214264464. LANCEDB_AVAILABLE: True
+2026-11-05 20:08:39 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:08:39 [    INFO] Lazy loading LanceDB connection...
+2026-11-05 20:08:39 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 20:08:39 [    INFO] LanceDBHandler initialized. ID: 6214256336. LANCEDB_AVAILABLE: True
+2026-11-05 20:08:39 [    INFO] Lazy loading LanceDB connection...
+2026-11-05 20:08:39 [    INFO] Connecting to LanceDB at /private/tmp/atom-memory-base/backend/data/atom_memory with storage_options=None
+2026-11-05 20:08:39 [    INFO] Connecting to LanceDB at /private/tmp/atom-memory-base/backend/data/atom_memory with storage_options=None
+2026-11-05 20:08:39 [    INFO] LanceDB connected successfully
+2026-11-05 20:08:39 [    INFO] LanceDB connected successfully
+2026-11-05 20:08:39 [    INFO] EscalationManager initialized
+2026-11-05 20:08:39 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:08:39 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 20:08:39 [    INFO] LanceDBHandler initialized. ID: 6229658064. LANCEDB_AVAILABLE: True
+2026-11-05 20:08:39 [    INFO] Lazy loading LanceDB connection...
+2026-11-05 20:08:39 [    INFO] Connecting to LanceDB at /private/tmp/atom-memory-base/backend/data/atom_memory with storage_options=None
+2026-11-05 20:08:39 [    INFO] LanceDB connected successfully
+2026-11-05 20:08:40 [ WARNING] sentence_transformers not available (error: huggingface-hub>=0.34.0,<1.0 is required for a normal functioning of this module, but found huggingface-hub==1.4.1.
+Try: `pip install transformers -U` or `pip install -e '.[dev]'` if you're working with git main), embeddings will be disabled
+2026-11-05 20:08:40 [ WARNING] sentence-transformers unavailable — trying FastEmbed
+2026-11-05 20:08:40 [    INFO] Using FastEmbed (bge-small, 384-dim) for communication embeddings
+2026-11-05 20:08:40 [    INFO] Opened existing atom_communications table
+2026-11-05 20:08:40 [    INFO] Dropped stale FTS index 'content_idx'
+2026-11-05 20:08:40 [    INFO] FTS index 'content_idx' (re)built on 'content' for lancedb 0.24.3
+2026-11-05 20:08:40 [    INFO] FTS index enabled on 'content' column
+2026-11-05 20:08:40 [    INFO] Opened existing ingestion_metadata table
+2026-11-05 20:08:40 [    INFO] LanceDB memory manager initialized successfully
+2026-11-05 20:08:40 [ WARNING] No LLM clients available
+2026-11-05 20:08:40 [    INFO] [stage-timing] tool plan (overlapped=False): 0.1s
+2026-11-05 20:08:40 [    INFO] [derivation] workbook lane: no dataset block for this ask
+2026-11-05 20:08:40 [    INFO] [planner-boundary] research turn recovery state: research=False required=[] consulted=[] planned=False block=False turn_left=infs
+2026-11-05 20:08:40 [    INFO] [derivation] ask=False matched-row-evidence=False tool_block=0 chars named_file=False
+2026-11-05 20:08:40 [    INFO] [prompt-budget] routing-default model=auto: input=829 tokens (window=32000, output reservation=6000, fits=True, window estimated)
+2026-11-05 20:08:40 [    INFO] [stage-timing] reply generation: 0.2s (incl. tool plan + exec above)
+2026-11-05 20:08:40 [    INFO] [verify-panel] state: mode=shadow tool_block=False content=True mission=False
+2026-11-05 20:08:40 [    INFO] [review-diag] generation_completed content_len=2 review_ask=False
+PASSED                                                                   [ 89%]
+tests/test_document_scope_authority.py::test_interpretation_wait_preserves_reply_reserve PASSED [ 89%]
+tests/test_document_scope_authority.py::test_stage_budget_unresolved_preserves_floor_and_telemetry PASSED [ 90%]
+tests/test_document_scope_authority.py::test_verify_panel_respects_finalization_reserve PASSED [ 90%]
+tests/test_document_scope_authority.py::test_stage_timeout_produces_explicit_record_and_late_worker_is_inert PASSED [ 90%]
+tests/test_audit_logger.py::TestIntegrationAuditLog::test_audit_log_creates_with_required_fields PASSED [ 91%]
+tests/test_audit_logger.py::TestIntegrationAuditLog::test_audit_log_to_dict_is_structured PASSED [ 91%]
+tests/test_audit_logger.py::TestIntegrationAuditLog::test_audit_log_includes_timestamp PASSED [ 92%]
+tests/test_audit_logger.py::TestIntegrationAuditLog::test_audit_log_sanitizes_sensitive_params PASSED [ 92%]
+tests/test_audit_logger.py::TestIntegrationAuditLog::test_audit_log_sanitizes_nested_sensitive_params PASSED [ 92%]
+tests/test_audit_logger.py::TestLogIntegrationCall::test_log_integration_call_creates_audit_log 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:41 [    INFO] Integration call: gmail.send_email
+PASSED                                                                   [ 93%]
+tests/test_audit_logger.py::TestLogIntegrationCall::test_log_integration_call_captures_metadata 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:41 [    INFO] Integration call: jira.get_issue
+PASSED                                                                   [ 93%]
+tests/test_audit_logger.py::TestLogIntegrationError::test_log_integration_error_creates_audit_log 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:41 [   ERROR] Integration error: slack.send_message: API rate limit exceeded
+NoneType: None
+PASSED                                                                   [ 94%]
+tests/test_audit_logger.py::TestLogIntegrationError::test_log_integration_error_captures_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:41 [   ERROR] Integration error: jira.create_issue: Invalid credentials
+NoneType: None
+PASSED                                                                   [ 94%]
+tests/test_audit_logger.py::TestLogIntegrationTiming::test_log_integration_attempt_creates_context PASSED [ 94%]
+tests/test_audit_logger.py::TestLogIntegrationTiming::test_log_integration_complete_calculates_duration 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:41 [    INFO] Integration call: slack.send_message
+PASSED                                                                   [ 95%]
+tests/test_audit_logger.py::TestLogIntegrationTiming::test_log_integration_complete_handles_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:41 [   ERROR] Integration error: jira.get_issue: Issue not found
+NoneType: None
+PASSED                                                                   [ 95%]
+tests/test_audit_logger.py::TestAuditLogFormatting::test_audit_log_format_is_structured PASSED [ 96%]
+tests/test_audit_logger.py::TestAuditLogFormatting::test_multiple_audit_logs_have_unique_timestamps PASSED [ 96%]
+tests/test_covpush_w103_audit_logger.py::TestRotateAuditLogsDeterministic::test_same_day_utc_mtime_no_rotation 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:41 [    INFO] AuditLogger initialized
+PASSED                                                                   [ 96%]
+tests/test_covpush_w103_audit_logger.py::TestRotateAuditLogsDeterministic::test_yesterday_utc_mtime_rotates 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:41 [    INFO] AuditLogger initialized
+2026-11-05 20:08:41 [    INFO] Audit log rotated and compressed
+PASSED                                                                   [ 97%]
+tests/test_covpush_w103_audit_logger.py::TestRotateAuditLogsDeterministic::test_two_day_old_mtime_rotates 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:41 [    INFO] AuditLogger initialized
+2026-11-05 20:08:41 [    INFO] Audit log rotated and compressed
+PASSED                                                                   [ 97%]
+tests/test_covpush_w103_audit_logger.py::TestRotateAuditLogsDeterministic::test_missing_log_file_noop 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:41 [    INFO] AuditLogger initialized
+PASSED                                                                   [ 98%]
+tests/test_covpush_w103_audit_logger.py::TestRotateAuditLogsDeterministic::test_rotated_filename_uses_utc_date 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:41 [    INFO] AuditLogger initialized
+2026-11-05 20:08:41 [    INFO] Audit log rotated and compressed
+PASSED                                                                   [ 98%]
+tests/test_covpush_w103_audit_logger.py::TestRotateAuditLogsDeterministic::test_writes_after_rotation_land_in_fresh_log 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:41 [    INFO] AuditLogger initialized
+2026-11-05 20:08:41 [    INFO] Audit log rotated and compressed
+PASSED                                                                   [ 98%]
+tests/test_covpush_w103_audit_logger.py::TestCleanupOldAuditLogsDeterministic::test_removes_old_rotated_logs_keeps_fresh 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:41 [    INFO] AuditLogger initialized
+2026-11-05 20:08:41 [    INFO] Old audit log removed
+2026-11-05 20:08:41 [    INFO] Old audit log removed
+2026-11-05 20:08:41 [    INFO] Audit log cleanup complete
+PASSED                                                                   [ 99%]
+tests/test_covpush_w103_audit_logger.py::TestCleanupOldAuditLogsDeterministic::test_keeps_logs_within_retention 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:41 [    INFO] AuditLogger initialized
+PASSED                                                                   [ 99%]
+tests/test_covpush_w103_audit_logger.py::TestCleanupOldAuditLogsDeterministic::test_cleanup_unreadable_file_logs_error_not_raise 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:08:41 [    INFO] AuditLogger initialized
+2026-11-05 20:08:41 [   ERROR] Failed to remove old audit log
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+core/graphrag_engine.py:196
+  /private/tmp/atom-memory-base/backend/core/graphrag_engine.py:196: DeprecationWarning: invalid escape sequence '\%'
+    """
+
+api/episode_routes.py:397
+  /private/tmp/atom-memory-base/backend/api/episode_routes.py:397: FastAPIDeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    canvas_context_detail: str = Query("summary", regex="^(summary|standard|full)$"),
+
+core/token_storage.py:17
+  /private/tmp/atom-memory-base/backend/core/token_storage.py:17: DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+tests/test_document_ingestion_routes_coverage.py::TestBoundaryConditions::test_invalid_file_extension
+  /private/tmp/atom-memory-base/backend/api/document_ingestion_routes.py:537: DeprecationWarning: 'HTTP_422_UNPROCESSABLE_ENTITY' is deprecated. Use 'HTTP_422_UNPROCESSABLE_CONTENT' instead.
+    raise router.validation_error(
+
+tests/test_ingestion_status_routes.py::test_health_without_token_is_unhealthy_for_user
+tests/test_ingestion_status_routes.py::test_health_with_integration_token_is_healthy_for_user
+tests/test_ingestion_status_routes.py::test_health_accepts_microsoft_row_for_outlook
+tests/test_ingestion_status_routes.py::test_health_anonymous_falls_back_to_registry
+  /private/tmp/atom-memory-base/backend/integration_health_endpoints.py:310: RuntimeWarning: coroutine 'ConnectionManager.broadcast_event' was never awaited
+    logger.debug(f"Failed to broadcast platform status change: {e}")
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+====================== 252 passed, 13 warnings in 41.90s =======================

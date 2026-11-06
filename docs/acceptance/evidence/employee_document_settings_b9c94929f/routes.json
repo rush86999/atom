@@ -1,0 +1,63 @@
+{
+  "schema": "atom-oracle-document-settings-routes-1",
+  "executed_source": "b9c94929fecd55eab4827bcdf201c6694ac228cf",
+  "product_source": "0aa16ce762f45af9bf47dcb45bceb6910604b2ed",
+  "accepted_admin_base": "9d73552d249ae8ec5b05af77546faf9621bbcd47",
+  "accepted_admin_product": "5fbb377a4e1eef8fdd0013275cd8b1c9b278cd41",
+  "prefix": "/api/document-ingestion",
+  "target": {
+    "model": "IngestionSettings",
+    "scope": "(workspace_id, integration_id)",
+    "workspace_source": "existing get_workspace_id(current_user); no body workspace field",
+    "hybrid_columns": "entity_types, sync_last_n_days, max_records_per_sync, sync_mode, usage_stats_json are untouched"
+  },
+  "authority": {
+    "route": "mandatory get_current_user; no role expansion",
+    "service": "re-reads the current User row, requires active status, freezes status/is_active/raw tenant/effective tenant and claims that exact material in a guarded no-op UPDATE in the decision transaction",
+    "zero_match": "effect=none refusal; settings/audit rollback; peer state preserved",
+    "cross_workspace": "the request cannot select another workspace; rows in other workspaces are never read or written"
+  },
+  "routes": [
+    {
+      "method": "PUT",
+      "path": "/api/document-ingestion/settings",
+      "handler": "api.document_ingestion_routes.update_ingestion_settings",
+      "service": "core.document_settings_write_service.update_ingestion_settings",
+      "effect": "insert a deterministic ingestion_settings row or guarded UPDATE of the supplied seven fields, plus one AuditLog receipt",
+      "create": "deterministic id ingestion:<HMAC(workspace,integration)> with model defaults and supplied fields; primary-key arbiter handles a concurrent insert",
+      "merge": "only supplied fields change; unspecified fields and hybrid columns are preserved",
+      "no_change": "only integration_id or an already-matching request -> 200 effect=none, no audit",
+      "material": ["id", "workspace_id", "integration_id", "enabled", "auto_sync_new_files", "file_types", "sync_folders", "exclude_folders", "max_file_size_mb", "sync_frequency_minutes"],
+      "cache": "existing service cache cleared and reloaded after a committed change; DB row is authority and reload failure does not change the result"
+    }
+  ],
+  "durable_ledger": {
+    "table": "saas_audit_logs",
+    "operation_identity": "AuditLog.id is the server-owned operation id document-settings:<supplied-or-generated>",
+    "metadata": ["schema", "operation_id", "action", "event_type", "target_id", "target_workspace_id", "prior_digest", "result_digest", "request_digest", "actor_id", "actor_role", "tenant_id"],
+    "sensitive_material": "no raw folder paths, file-type lists, secrets, SQL parameters or exception text in the receipt or logs",
+    "readback": "fresh session; audit fields and the target settings digest must match"
+  },
+  "result_states": {
+    "verified": "success plus additive verification/operation_id/audit_id; effect=committed",
+    "already_applied": "same operation/material; one receipt; replay=do_not_repeat",
+    "no_change": "only integration_id or already-matching request; 200 effect=none; no audit",
+    "conflict": "409 STALE_TARGET/OPERATION_CONFLICT/AUTHORITY_CHANGED; effect=none",
+    "not_applied": "409 confirmed rollback; effect=none; DOCUMENT_SETTINGS_TRANSACTION_ROLLED_BACK",
+    "committed_unverified": "503 effect=committed; original identity; replay=do_not_repeat",
+    "effect_unknown": "503 effect=unknown; original identity; replay=do_not_repeat; no exception text"
+  },
+  "parallel_writers": {
+    "route": "sole verified settings writer",
+    "AutoDocumentIngestionService.update_settings": "retained for internal/test callers; the route no longer calls it",
+    "AutoDocumentIngestionService._persist_settings": "retained for other callers; the route no longer relies on best-effort persistence",
+    "get_settings/sync/upload": "read through the service cache, which is cleared/reloaded after commit",
+    "other workspaces": "untouched"
+  },
+  "not_covered": [
+    "document read/sync/upload/parse/memory-removal/LanceDB deletion",
+    "live provider, credential, spend, send, download or deployment",
+    "PostgreSQL runtime/soak and multi-worker serialization",
+    "whole-app ORACLE-01"
+  ]
+}
