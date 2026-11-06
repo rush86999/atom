@@ -1,0 +1,75 @@
+{
+  "schema": "atom-public-workflow-approval-scope-1",
+  "claim": "Public workflow approval scope: visible queue, exact decision, one durable result, zero-effect rejection/mismatch, no duplicate continuation",
+  "status": "verified at controlled public API/scheduler scope",
+  "base_main": "33b8d6472605b7fbb4c84a9e21286c3d168b7d5c",
+  "source_checkpoint": "068abd57a34c81948d01fd12aa941ca2f4fa55b5",
+  "pr": "https://github.com/rush86999/atom/pull/682",
+  "results": {
+    "governance_scope_probe": "4 passed",
+    "public_flow_controls": "7 passed",
+    "combined_new_controls_311": "11 passed",
+    "ci_selection_311": "641 passed, 1 skipped",
+    "ci_selection_314": "641 passed, 1 skipped",
+    "affected_baseline": "57 failed, 777 passed, 1 skipped, 2 errors",
+    "affected_repair": "57 failed, 788 passed, 1 skipped, 2 errors",
+    "failure_identity": "identical 59 failure/error IDs",
+    "hosted_backend": "641 passed, 1 skipped; memory recall 1.0",
+    "hosted_e2e": "211 API / 29 UI / 40 role-UI; zero failures",
+    "hosted_checks": "syntax, frontend-typecheck, full-app-boots, quickstart, docker-build, GitGuardian all pass"
+  },
+  "public_capture": {
+    "file": "public-flow-capture.json",
+    "start": "200; execution running",
+    "paused": "PAUSED; step PAUSED; dispatch_count 0",
+    "pending": "200; one row with real reason and exact execution/step parameters",
+    "decision": "200; resume handled=true resumed=true kind=workflow status=RUNNING",
+    "durable": "COMPLETED; step COMPLETED; one output; dispatch_count 1; approval consumed"
+  },
+  "source_hashes": {
+    "backend/core/agent_governance_service.py": {
+      "git_blob": "c063f55efb3f7370796954b11250dd7029348b0e",
+      "sha256": "9d369a381122c311869dfe888ee0f4a1ddb585f90611f0981f67e4fb4323db45"
+    },
+    "backend/core/workflow_engine.py": {
+      "git_blob": "bce106f208c78adfad387b8b7aa5e23b08222aa7",
+      "sha256": "510242d909525c38bf0e6a8710898c28cf7c98ad26928f8ea1b43774886f7d11"
+    },
+    "backend/core/workflow_endpoints.py": {
+      "git_blob": "0e4953c144fd19e34fab794baf9d7e21bcd0b066",
+      "sha256": "f570ead8b9163a9a86ae1109113ecf45e6d06be4849f837159eedbaa44079d17"
+    },
+    "backend/tests/test_workflow_approval_scope.py": {
+      "git_blob": "5656db4597843b95dcd4f70e8d7be2e7ac1b0f93",
+      "sha256": "29d64005d638fa1b4998f444ff44235f27f9ba6b0c0b9348cc514565c3a4057b"
+    },
+    "backend/tests/test_workflow_public_approval_flow.py": {
+      "git_blob": "5b76dbe7a2a84d0f278f77f0b591e76090c77fab",
+      "sha256": "eff474388a7be7b51b90f6045e4daeb83eb9cba769bbf1370eadb5bc98a6c7da"
+    },
+    ".github/workflows/ci.yml": {
+      "git_blob": "a9faaee2fdd1955daed7066780d8ea66d3e47a00",
+      "sha256": "dfdf7bd26a5aba4c3eafcfa54120e3e6f859d57b2ce0f6d84ca2c8ef5007e9d2"
+    }
+  },
+  "artifact_sha256": {
+    "README.md": "d3596fa473f8964cba0f4db023520befee73dda82fa62b2060ac5213d405b23a",
+    "affected-callers-baseline-311.log": "de1861df7449543c703116fa6515100c327565634e6756e37c814087fac60c38",
+    "affected-callers-branch-311.log": "dbdc4e215abac0209363aa3fed8b5b5e63ec149937936889280f9aa76bd4adf8",
+    "baseline-failures.txt": "a929d25274dee6293e67a56ddb8f98f2b5226e1f6eed46366adb994c3672a9f1",
+    "branch-failures.txt": "a929d25274dee6293e67a56ddb8f98f2b5226e1f6eed46366adb994c3672a9f1",
+    "capture-run.log": "2e62b73eed431313e138317291177dbfe22b2fae43a812d9dddc682a520c0f9d",
+    "ci-selection-311.log": "81ec2ba3127be0c35c277b757bbf4c8ab8110afefba1346c1a17478be9973d2c",
+    "ci-selection-314.log": "9499db08619d71544251fd19e81bb77b390dd00f8f8b7ddc38471b81ded7de50",
+    "hosted-backend.log": "c01a7699f852301b008e7961d259768946b997013e0c1b2b7a8a5ebdac9684af",
+    "hosted-e2e.log": "1a92a1dce66e49a014d7ede991db6ae3df76e6a3e3651df5ca770fcf63232ce1",
+    "public-flow-capture.json": "e2836ceeda5b4d239ae8ce22988abe29b50b4f31ba7877ca4937be4f34aba7e9",
+    "public-flow-controls-311.log": "f02034d99edbae5238aec91515ba3f0b67396e4d90a9a1f53a0d33e605f14417"
+  },
+  "boundaries": [
+    "SQLite scratch database in one process/event loop; PostgreSQL, multi-worker and soak remain separate",
+    "authenticated principal and workflow definition source supplied by the test fixture; public handlers, approval service, state manager and _execute_step are real",
+    "scheduler entry remains the PR676 accepted mechanism; this repair only freezes the scheduling scope into persisted job args",
+    "no live model/provider/account/credential/spend/send/download/deployment/merge/approval"
+  ]
+}
