@@ -34,6 +34,8 @@ Use a separate worktree and a codex branch for owned probes/tests/evidence. Reso
 
 Agent 3 owns its independent probes, review artifacts and /private/tmp/brennan-brief/AGENT3.md. It may contribute a small review delta to the common handoff. One named document publisher carries shared-guide changes to the current open documentation branch; do not create a duplicate guide PR.
 
+Agent 4 owns ordinary-user browser journey/usability verification under [its separate guidance](AGENT4_PRODUCT_JOURNEY_GUIDANCE_2026_11_06.md). Agent 3 retains code-contract, receipt, interleaving and integration review. Coordinate before running the same user scenario and reuse attributable evidence rather than launching duplicate campaigns. Both submit recommendations to the same engineering/product lead, who retains final acceptance.
+
 Do not edit Agent 1 or 2's runtime files, repair their submitted branch, change production policy or resolve their merge conflicts by silently taking ownership. Capture a minimal counterexample and pass it to the implementation owner through the shared handoff. Continue an independent review while that owner fixes the issue.
 
 If the lead explicitly assigns a runtime repair to Agent 3 later, record the ownership transfer first. A different agent must then independently verify that repair; Agent 3 cannot qualify its own implementation as independent evidence.
