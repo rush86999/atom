@@ -1,0 +1,5 @@
+$ PYTHON=$(command -v python3.11) bash scripts/quickstart.sh --check-python
+🚀 Atom Quick Start
+====================
+✅ Python 3.11 (/usr/local/bin/python3.11)
+exit=0

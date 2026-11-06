@@ -1,0 +1,9 @@
+$ PYTHON=/Users/rushiparikh/projects/atom/backend/venv314/bin/python bash scripts/quickstart.sh --check-python
+🚀 Atom Quick Start
+====================
+❌ Python 3.11–3.13 required (found 3.14 via /Users/rushiparikh/projects/atom/backend/venv314/bin/python).
+   torch<3 publishes no wheels for 3.14. Create the venv with a
+   supported interpreter and re-run:
+     python3.11 -m venv backend/venv && bash scripts/quickstart.sh
+   (or select one explicitly: PYTHON=python3.11 bash scripts/quickstart.sh)
+exit=1

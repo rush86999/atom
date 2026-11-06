@@ -1,0 +1,54 @@
+{
+  "schema": "atom-compat01-quickstart-python-1",
+  "claim": "COMPAT-01 Python 3.11+ quickstart interpreter guard",
+  "status": "verified at controlled shell/test scope",
+  "base_main": "d860072a787e6460d83260e9cb629cfa5d5ea14b",
+  "source_checkpoint": "bad2f95967e0eccc73e659940c7c69947aa707cd",
+  "acceptance": {
+    "supported": [
+      "3.11",
+      "3.12",
+      "3.13"
+    ],
+    "rejected": [
+      "3.10",
+      "3.14"
+    ],
+    "documented_message": "Python 3.11\u20133.13 required; torch<3 publishes no wheels for 3.14"
+  },
+  "results": {
+    "new_controls_311": "5 passed",
+    "ci_selection_311": "611 passed, 1 skipped, 0 failed",
+    "ci_selection_314": "611 passed, 1 skipped, 0 failed",
+    "real_311": "accepted, exit 0",
+    "real_314": "rejected, exit 1, documented message"
+  },
+  "source_hashes": {
+    "scripts/quickstart.sh": {
+      "git_blob": "7a2530bbc17e62d6ec16f0c27134cb0747bf2d06",
+      "sha256": "740381e79b0bf9fa2387c74082ac081c72197e0a678e1e95045125567a9e7781"
+    },
+    "backend/tests/test_quickstart_python_guard.py": {
+      "git_blob": "5db181c765504d2d0781437b764685d2ec1c5fb8",
+      "sha256": "e54a38b72fbb2996579c085ee41c7daf728c5bb34f616d9820a1dd59f480a791"
+    },
+    ".github/workflows/ci.yml": {
+      "git_blob": "44d072c082505e025e80d298d944f800b068bdf1",
+      "sha256": "816843c05a72f4a7b2f0fc1071b12ee0016b6b03b4593b9b98463076e45ee9af"
+    }
+  },
+  "artifact_sha256": {
+    "README.md": "f62a72b1348d3cb60e0d55cf5e6952c034895d15ca6c4fff4edb458fe0034c6e",
+    "ci-selection-311.log": "4c8aa6ea339f42fd7539d15af8ac9a26a641dbb2bb1e3ac7c411da52a8763542",
+    "ci-selection-314.log": "6c5fbc6834a6d02c4241d4b4718cc0c8c0a019ac98bbf955755856e36e705866",
+    "guard-tests-311.log": "f35efb4b6e6dd9e55ff9d2ac5099217d47ac19182393e549a4fbe88974f1e8a6",
+    "real-python-311.log": "432a16b3c085cef4cea8118d7978a0ae9dac2f9c5831c3d9c47ac7bafee86dc4",
+    "real-python-314.log": "c2a55cb3d8c83ee217198bb17449fa2cdfa567eed0bbd3e9f81e66624e9520b4"
+  },
+  "boundaries": [
+    "3.12/3.13 exercised through fake-interpreter controls; real interpreters available are 3.11 and 3.14",
+    "no dependency installation or venv creation",
+    "default quickstart behavior and supported range unchanged",
+    "no live model/provider/credential/spend/send/download/deployment"
+  ]
+}
