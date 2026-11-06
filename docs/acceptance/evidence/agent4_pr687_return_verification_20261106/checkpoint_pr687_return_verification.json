@@ -1,0 +1,86 @@
+{
+  "checkpoint": "Agent 4 one-pass verification of Agent 1's login-return repair (PR687) at the user boundary — the exact Settings return path from baseline 2557156a1",
+  "verdict": "REPAIR VERIFIED at the browser/public-API boundary on the repaired source: the deep-link return now reaches the intended non-default protected destination with its query marker intact; default-login twin unchanged; no new user/workspace rows.",
+  "attribution": {
+    "verified_source": "4620c76a1 (PR687 head codex/auth-relative-callback-20261106; diff over base 3925cf359 touches only frontend-nextjs middleware.ts, lib/api.ts, lib/auth-headers.ts + tests + ci.yml)",
+    "served_identity": "backend health reported git_commit 4620c76a1c5d, pid 32489, cwd /private/tmp/atom-agent4-pr687-verify/backend",
+    "world": "NEW isolated scratch world 3: /private/tmp/atom-agent4-pr687-scratch3 (own sqlite DB, ATOM_DATA_DIR, LanceDB, BYOK paths; own SECRET_KEY, value private; credential envs pinned empty; BYPASS_RATE_LIMIT=1)",
+    "ports": { "backend": 18121, "frontend": 18122 },
+    "servers_stopped_after_capture": true,
+    "python": "3.11.16",
+    "frontend": "Next.js dev server, node v20.19.6",
+    "role": "member"
+  },
+  "test_user": {
+    "email": "a4fix-d35eac28-1106@example.com (opaque local test identity)",
+    "user_id": "4bd61912-b1f9-4323-a386-99b820b1d50c",
+    "workspace_id": "14cf5f95-66b7-4638-883a-f6bb84e75e63",
+    "role": "member",
+    "onboarding_prerequisite": "wizard completed through the real UI (Connect skipped via product's own affordance); prereq only, not re-claimed"
+  },
+  "destination": {
+    "chosen": "/settings?a4dl=return20261106",
+    "enablement_proof_while_signed_in": "Settings page renders at the exact deep URL (screenshot 20); same destination and marker as baseline 2557156a1"
+  },
+  "chain_results": [
+    { "step": "UI sign-out from deep page", "observed": "/auth/signin; auth_token/token removed from localStorage" },
+    {
+      "step": "fresh browser context (cleared cookies + localStorage + sessionStorage, tab closed, NEW tab, emptiness readback)",
+      "observed": { "cookieNames": [], "localStorageKeys": [], "sessionStorageKeys": [] },
+      "note": "cleared storage + new tab; NOT a separate browser profile"
+    },
+    {
+      "step": "unauthenticated deep visit — PRODUCER (repaired)",
+      "observed_url": "http://localhost:18122/login?callbackUrl=%2Fsettings%3Fa4dl%3Dreturn20261106",
+      "comparison_to_baseline": "baseline (pre-repair) emitted the ABSOLUTE http://localhost:18120/settings?a4dl=return20261106; the repair now emits a RELATIVE path+query carrying the same destination and marker"
+    },
+    {
+      "step": "same-account UI sign-in on that login page — CONSUMER (decisive)",
+      "observed_url_samples": [
+        { "t_ms": 0, "url": "http://localhost:18122/login?callbackUrl=%2Fsettings%3Fa4dl%3Dreturn20261106", "settingsHeading": false },
+        { "t_ms": 1000, "url": "http://localhost:18122/settings?a4dl=return20261106", "settingsHeading": true },
+        { "t_ms": 2000, "url": "http://localhost:18122/settings?a4dl=return20261106", "settingsHeading": true },
+        { "t_ms": 3000, "url": "http://localhost:18122/settings?a4dl=return20261106", "settingsHeading": true },
+        { "t_ms": 4000, "url": "http://localhost:18122/settings?a4dl=return20261106", "settingsHeading": true },
+        { "t_ms": 5000, "url": "http://localhost:18122/settings?a4dl=return20261106", "settingsHeading": true },
+        { "t_ms": 6000, "url": "http://localhost:18122/settings?a4dl=return20261106", "settingsHeading": true },
+        { "t_ms": 7000, "url": "http://localhost:18122/settings?a4dl=return20261106", "settingsHeading": true }
+      ],
+      "verdict": "intended deep destination reached and stable; wizard absent; screenshot 21 shows the returned Settings page with the same account in the sidebar"
+    },
+    {
+      "step": "post-return readback",
+      "me": { "id": "4bd61912-b1f9-4323-a386-99b820b1d50c", "email": "a4fix-d35eac28-1106@example.com", "role": "member", "workspace_id": "14cf5f95-66b7-4638-883a-f6bb84e75e63" },
+      "onboarding": { "onboarding_completed": true, "onboarding_step": "completed" }
+    },
+    {
+      "step": "default-login twin (guard sanity, no callbackUrl)",
+      "steps": "sign out -> wipe -> bare /login -> same-account UI sign-in",
+      "observed": "landed /dashboard with 'Your workspace' heading; no redirect escape",
+      "note": "the twin's wipe-state emptiness was recorded as localStorage-empty with a non-auth cookie present after load (page-loaded cookie); the rigorous emptiness record is the main chain's step above"
+    }
+  ],
+  "durable_readback_world3_db": {
+    "users": 2,
+    "test_user_rows": 1,
+    "workspaces": 2,
+    "tenants": 2,
+    "user_workspaces": 1,
+    "onboarding": [{ "email": "a4fix-d35eac28-1106@example.com", "completed": 1, "step": "completed" }]
+  },
+  "artifacts": [
+    { "file": "20_signedin_settings_deep_marker.png", "note": "signed-in direct visit: Settings renders at the exact deep URL (enablement proof)" },
+    { "file": "21_repaired_return_landed_settings.png", "note": "post-repair login lands ON /settings?a4dl=return20261106 with Settings heading and same account" }
+  ],
+  "environment_note_recorded": {
+    "observation": "Next 16 dev mode injects <style data-next-hide-fouc>body{display:none}</style> and removes it via a requestAnimationFrame callback (next/dist/client/dev/fouc.js). In a backgrounded ZCode in-app-browser tab rAF does not fire, so the page can stay blank (body hidden) even though React hydrated; locator clicks then hit <html> and do nothing. A screenshot (forced compositor frame) runs the pending rAF callback and reveals the page.",
+    "classification": "environment/automation quirk of the harness, NOT a product defect: visible tabs fire rAF continuously; worlds 1-2 were unaffected while foregrounded. Recorded per the work-order rule to capture environment limits rather than mislabel them.",
+    "impact_on_this_run": "one forced-frame screenshot needed per new backgrounded tab before interacting; no product assertion was weakened"
+  },
+  "scope_and_exclusions": [
+    "One bounded repaired-path validation per the lead's order; no repeat of the accepted account-return campaign",
+    "External/protocol-relative negative twins remain Agent 1's own committed Jest tests (https://evil and //evil fallback) — not re-tested through the UI here",
+    "No claim about session-expiry bounce preservation beyond what was exercised; no provider/SSO/process-restart claims",
+    "Final merge/acceptance decisions remain with the lead/owner"
+  ]
+}
