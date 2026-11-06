@@ -1,0 +1,77 @@
+{
+  "schema": "atom-oracle-agent-delete-verification-1",
+  "status": "scoped and verified agent deletion submitted for independent verification; cross-tenant delete gap reproduced and closed",
+  "candidate": {
+    "branch": "codex/oracle01-agent-delete-20261106",
+    "pr": 673,
+    "base_main": "f8706fb48569e77df21801df1cc23a8d7b61ba17",
+    "executed_source": "e34de29d53636a5232e126bcba8e5f5aa7af9734",
+    "work_order": "/private/tmp/brennan-brief/AGENT2_AGENT_DELETE_WORK_ORDER_20261106.md",
+    "runtime": "real scratch SQLite with fresh sessions and committed two-session interleaving; no live model/provider/agent execution",
+    "confirmed_finding": "tenant-A workspace_admin deleted a tenant-B agent with 200 on base main"
+  },
+  "contract": {
+    "authority": "current User re-read; active status; WORKSPACE_ADMIN+; claim is_active/status/role/raw tenant/raw workspace in the delete transaction",
+    "scope": "foreign tenant 404; workspace-bound below ADMIN only same/legacy workspace; ADMIN+ may cross workspaces in tenant; unscoped global-legacy policy preserved",
+    "material_claim": "guarded no-op AgentRegistry update on id, tenant, workspace, name, description, capabilities, promotion floor, status, configuration and enabled",
+    "effect": "dynamic dependent-row cleanup + registry delete + optional demo tombstone + one AuditLog receipt in one transaction",
+    "readback": "agent absent; zero dependent rows; verified receipt; tombstone when expected",
+    "replay": "same operation/material already_applied; changed target/material OPERATION_CONFLICT",
+    "recovery": "confirmed rollback not_applied/effect=none; missing readback committed_unverified; lost confirmation effect_unknown with identity",
+    "guards": "atom_main 400; running tasks 400"
+  },
+  "new_controls": {
+    "contract_tests": 12,
+    "repaired_route_fixtures": 2,
+    "cross_tenant_reproduction": "cross-tenant-repro-base.log"
+  },
+  "results": {
+    "focused_314": {"passed": 53, "failed": 0, "log": "focused-314.log"},
+    "focused_311": {"passed": 53, "failed": 0, "log": "focused-311.log"},
+    "affected_314": {"passed": 346, "skipped": 3, "failed": 2, "log": "affected-314.log"},
+    "affected_311": {"passed": 328, "failed": 1, "log": "affected-311.log"},
+    "baseline_main_314": {"passed": 332, "skipped": 3, "failed": 4, "log": "baseline-main-314.log"},
+    "baseline_main_311": {"passed": 314, "failed": 3, "log": "baseline-main-311.log"}
+  },
+  "baseline_failure_identity": {
+    "shared": [
+      "tests/test_covpush_w29_governance.py::TestRegistry::test_register_new_agent",
+      "tests/contract/test_agent_api_contract.py::TestAgentListContract::test_get_agents_invalid_pagination"
+    ],
+    "shared_314_only": [
+      "tests/contract/test_agent_api_contract.py::TestAgentListContract::test_get_agents_invalid_pagination"
+    ],
+    "candidate_added_failures": 0,
+    "candidate_new_controls": 12,
+    "candidate_closed_baseline_fixtures": [
+      "tests/api/test_agent_routes.py::test_delete_agent_success",
+      "tests/unit/api/test_agent_routes.py::TestDeleteAgent::test_delete_agent_success"
+    ],
+    "excluded_311_contract_file": "tests/contract/test_agent_api_contract.py requires schemathesis, unavailable on the 3.11 interpreter",
+    "broad_run_unrelated_baseline": "53 pre-existing test_agent_control_routes.py daemon-control failures in both trees; not claimed repaired"
+  },
+  "checks": {
+    "cross_tenant_delete_refused": true,
+    "cross_workspace_delete_refused": true,
+    "authorized_same_scope_delete": true,
+    "admin_cross_workspace_same_tenant_delete": true,
+    "exact_prior_material_cas": true,
+    "authority_change_before_claim_effect_none": true,
+    "dependent_rows_cleaned": true,
+    "unrelated_agent_rows_preserved": true,
+    "audit_receipt_atomic": true,
+    "demo_tombstone_durable": true,
+    "replay_idempotent": true,
+    "rollback_preserves_agent_and_dependents": true,
+    "fresh_readback_verified": true,
+    "main_and_running_task_guards": true,
+    "no_raw_configuration_in_receipt": true,
+    "no_live_model_provider_credential_spend_send_download_deployment": true
+  },
+  "limits": [
+    "real scratch SQLite only; no PostgreSQL/soak or multi-worker qualification",
+    "agent run/stop/teach/feedback/replace remain out of scope; actual execution needs separate live-model authority",
+    "no new table or migration",
+    "no merge or deployment; code-owner review remains required"
+  ]
+}

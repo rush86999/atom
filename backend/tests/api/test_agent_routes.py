@@ -710,14 +710,18 @@ def test_delete_agent_success(
     global _current_test_user
     _current_test_user = mock_admin_user
 
-    response = client.delete(f"/api/agents/{mock_agent.id}")
+    agent_id = mock_agent.id
+    response = client.delete(f"/api/agents/{agent_id}")
 
     assert response.status_code == 200
     data = response.json()
     assert "agent_id" in data["data"]
 
-    # Verify agent is deleted
-    deleted_agent = db_session.query(AgentRegistry).filter(AgentRegistry.id == mock_agent.id).first()
+    # Verify agent is deleted. The service removes the row through its own
+    # session, so refresh this test session before querying.
+    db_session.expire_all()
+    deleted_agent = db_session.query(AgentRegistry).filter(
+        AgentRegistry.id == agent_id).first()
     assert deleted_agent is None
 
 
@@ -746,7 +750,7 @@ def test_delete_agent_with_running_tasks(
     _current_test_user = mock_admin_user
 
     with patch('core.agent_task_registry.agent_task_registry') as mock_registry:
-        mock_registry.get_active_tasks.return_value = [Mock()]
+        mock_registry.get_agent_tasks.return_value = [Mock()]
 
         response = client.delete(f"/api/agents/{mock_agent.id}")
 
@@ -1756,14 +1760,18 @@ def test_delete_agent_success(
     global _current_test_user
     _current_test_user = mock_admin_user
 
-    response = client.delete(f"/api/agents/{mock_agent.id}")
+    agent_id = mock_agent.id
+    response = client.delete(f"/api/agents/{agent_id}")
 
     assert response.status_code == 200
     data = response.json()
     assert "agent_id" in data["data"]
 
-    # Verify agent is deleted
-    deleted_agent = db_session.query(AgentRegistry).filter(AgentRegistry.id == mock_agent.id).first()
+    # Verify agent is deleted. The service removes the row through its own
+    # session, so refresh this test session before querying.
+    db_session.expire_all()
+    deleted_agent = db_session.query(AgentRegistry).filter(
+        AgentRegistry.id == agent_id).first()
     assert deleted_agent is None
 
 
@@ -1792,7 +1800,7 @@ def test_delete_agent_with_running_tasks(
     _current_test_user = mock_admin_user
 
     with patch('core.agent_task_registry.agent_task_registry') as mock_registry:
-        mock_registry.get_active_tasks.return_value = [Mock()]
+        mock_registry.get_agent_tasks.return_value = [Mock()]
 
         response = client.delete(f"/api/agents/{mock_agent.id}")
 

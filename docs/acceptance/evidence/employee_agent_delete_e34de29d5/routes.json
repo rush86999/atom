@@ -1,0 +1,49 @@
+{
+  "schema": "atom-oracle-agent-delete-routes-1",
+  "executed_source": "e34de29d53636a5232e126bcba8e5f5aa7af9734",
+  "base_main": "f8706fb48569e77df21801df1cc23a8d7b61ba17",
+  "prefix": "/api/agents",
+  "target": {
+    "model": "AgentRegistry",
+    "scope": "tenant/workspace visibility policy inherited from the merged agent-decision service",
+    "protected": ["atom_main"],
+    "running_task_guard": "AGENT_HAS_RUNNING_TASKS"
+  },
+  "authority": {
+    "route": "require_permission(Permission.AGENT_MANAGE) plus get_current_user",
+    "service": "current User re-read; active status; WORKSPACE_ADMIN+; claim is_active/status/role/raw tenant/raw workspace in the delete transaction",
+    "scope_policy": "foreign tenant 404; workspace-bound below ADMIN only same/legacy workspace; ADMIN+ may cross workspaces in the tenant; unscoped platform actor keeps global-legacy policy",
+    "authority_change": "409 AUTHORITY_CHANGED with effect=none"
+  },
+  "routes": [
+    {
+      "method": "DELETE",
+      "path": "/api/agents/{agent_id}",
+      "handler": "api.agent_routes.delete_agent",
+      "service": "core.agent_decision_write_service.delete_agent",
+      "effect": "guarded exact-material registry claim + dynamic dependent-row cleanup + registry delete + optional demo tombstone + one AuditLog receipt in one transaction",
+      "readback": "fresh session: agent absent, zero dependent rows, verified receipt, tombstone present when expected",
+      "states": "verified; already_applied; refused (404/400/403); conflict (409 STALE_TARGET/AUTHORITY_CHANGED/OPERATION_CONFLICT); not_applied (409); committed_unverified (503); effect_unknown (503)"
+    }
+  ],
+  "material": {
+    "registry": ["id", "tenant_id", "workspace_id", "name", "description", "capabilities", "promotion_episode_floor", "status", "configuration", "enabled"],
+    "dependent_cleanup": "every table with an agent_id column except agent_registry",
+    "prefix": "operation_id optional; server-prefixed agent:delete:<id>",
+    "digests": ["prior agent state", "request agent id", "deleted result + dependent counts + tombstone"]
+  },
+  "receipt": {
+    "table": "saas_audit_logs",
+    "action": "agent_deleted",
+    "event_type": "delete",
+    "metadata": ["schema", "operation_id", "action", "event_type", "target_id", "target_tenant_id", "target_workspace_id", "agent_name", "prior_status", "result_status", "request_digest", "prior_digest", "result_digest", "actor_id", "actor_role", "tenant_id", "extra.rows_cleaned", "extra.demo_tombstone"],
+    "sensitive_material": "no raw configuration, prompt, secret or SQL parameter",
+    "readback": "fresh session; audit fields, target absence, dependent counts and tombstone must match"
+  },
+  "parallel_writers": {
+    "route": "sole verified delete writer",
+    "registration/update/promote": "same-service exact-material claim detects concurrent changes",
+    "demo bootstrap": "existing RuntimeSetting tombstone preserved",
+    "run/stop/teach/feedback": "unchanged and out of scope"
+  }
+}
