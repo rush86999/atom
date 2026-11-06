@@ -16,8 +16,22 @@ from sqlalchemy.orm import Session
 
 
 @pytest.fixture
-def db(db_session: Session):
-    yield db_session
+def db(tmp_path):
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+    from core.database import Base
+
+    engine = create_engine(
+        f"sqlite:///{tmp_path}/agent-delete.db",
+        connect_args={"check_same_thread": False, "timeout": 30})
+    Base.metadata.create_all(engine)
+    SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
+    session = SessionLocal()
+    try:
+        yield session
+    finally:
+        session.close()
+        engine.dispose()
 
 
 @pytest.fixture
@@ -51,9 +65,16 @@ def client(db: Session, admin_user):
 
     app = FastAPI()
     app.include_router(router)
+    from sqlalchemy.orm import sessionmaker
+
+    SessionLocal = sessionmaker(bind=db.get_bind(), expire_on_commit=False)
 
     def override_get_db():
-        yield db
+        session = SessionLocal()
+        try:
+            yield session
+        finally:
+            session.close()
 
     def override_get_current_user():
         return admin_user

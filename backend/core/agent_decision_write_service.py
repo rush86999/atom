@@ -1,4 +1,4 @@
-"""Verified agent update/promote decisions.
+"""Verified agent update/promote/delete decisions.
 
 The two routes previously loaded an ``AgentRegistry`` row by id and committed
 the requested fields/status directly. Any caller with the permission could
@@ -27,9 +27,10 @@ import json
 import logging
 import re
 import uuid
+from datetime import datetime, timezone
 from typing import Any, Callable, Dict, Optional
 
-from sqlalchemy import update
+from sqlalchemy import text, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -53,6 +54,7 @@ _OPERATION_PREFIX = "agent"
 _SAFE_OPERATION_RE = re.compile(r"^[A-Za-z0-9:_-]{1,180}$")
 _ACTION_UPDATE = "agent_updated"
 _ACTION_PROMOTE = "agent_promoted"
+_ACTION_DELETE = "agent_deleted"
 
 
 # ---------------------------------------------------------------------------
@@ -424,9 +426,9 @@ def _audit_expected(
     *, operation_id: str, action: str, event_type: str,
     agent: AgentRegistry, prior_status: str, result_status: str,
     request_digest: str, prior_digest: str, result_digest: str,
-    actor: Dict[str, Any],
+    actor: Dict[str, Any], extra: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
-    return {
+    expected = {
         "operation_id": str(operation_id),
         "schema": REVIEW_SCHEMA,
         "action": str(action),
@@ -448,6 +450,9 @@ def _audit_expected(
         "tenant_id": actor["tenant_id"],
         "resource": f"agent:{agent.id}",
     }
+    if extra:
+        expected["extra"] = dict(extra)
+    return expected
 
 
 def _audit_row(
@@ -471,6 +476,8 @@ def _audit_row(
         "actor_role": expected["actor_role"],
         "tenant_id": expected["tenant_id"],
     }
+    if expected.get("extra"):
+        metadata["extra"] = expected["extra"]
     return AuditLog(
         id=expected["operation_id"],
         event_type=expected["event_type"],
@@ -539,6 +546,9 @@ def _verify_audit(db: Session, expected: Dict[str, Any]) -> Dict[str, Any]:
                     return {"status": "refuted", "audit_id": audit_id}
                 if value != expected[key]:
                     return {"status": "refuted", "audit_id": audit_id}
+            if expected.get("extra"):
+                if metadata.get("extra") != expected["extra"]:
+                    return {"status": "refuted", "audit_id": audit_id}
             return {"status": "verified", "audit_id": audit_id}
     except Exception as exc:  # noqa: BLE001 — unreadable is not verified
         logger.warning(
@@ -568,12 +578,15 @@ def _expected_from_metadata(
         "actor_role": metadata.get("actor_role"),
         "tenant_id": metadata.get("tenant_id"),
         "resource": f"agent:{metadata.get('target_id')}",
+        "extra": metadata.get("extra") or {},
     }
 
 
 def _replay(
     db: Session, operation_id: str, expected: Dict[str, Any],
     *, authority: Dict[str, Any],
+    target_check: Optional[Callable[[Dict[str, Any]], bool]] = None,
+    success_data: Optional[Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
 ) -> Optional[Dict[str, Any]]:
     try:
         with _fresh_session(db) as fresh:
@@ -607,20 +620,30 @@ def _replay(
             audit_expected = _expected_from_metadata(
                 metadata, operation_id=operation_id)
             audit_state = _verify_audit(db, audit_expected)
-            current = _load_agent(
-                db, str(metadata.get("target_id") or ""))
-            target_ok = (
-                current is not None
-                and _state_digest(_state_material(current))
-                == audit_expected["result_digest"]
-            )
-            data = (
-                _public_agent(current) if current is not None
-                else {
-                    "agent_id": audit_expected["target_id"],
-                    "agent_status": audit_expected["result_status"],
-                }
-            )
+            if target_check is not None:
+                target_ok = bool(target_check(audit_expected))
+                data = (
+                    success_data(audit_expected)
+                    if success_data is not None
+                    else {
+                        "agent_id": audit_expected["target_id"],
+                        "agent_status": audit_expected["result_status"],
+                    })
+            else:
+                current = _load_agent(
+                    db, str(metadata.get("target_id") or ""))
+                target_ok = (
+                    current is not None
+                    and _state_digest(_state_material(current))
+                    == audit_expected["result_digest"]
+                )
+                data = (
+                    _public_agent(current) if current is not None
+                    else {
+                        "agent_id": audit_expected["target_id"],
+                        "agent_status": audit_expected["result_status"],
+                    }
+                )
             if audit_state["status"] == "verified" and not target_ok:
                 audit_state = {
                     "status": "refuted",
@@ -897,4 +920,260 @@ def promote_agent(
             "agent_status": result_status,
             "agent_id": str(agent.id),
         },
+        authority=actor_snapshot)
+
+
+# ---------------------------------------------------------------------------
+# Delete decision
+# ---------------------------------------------------------------------------
+
+def _delete_agent_predicates(agent: AgentRegistry, prior_status: str):
+    """Exact prior material for a delete claim.
+
+    The shared update/promote predicates bind identity and review material.
+    Delete additionally binds configuration and enabled because they decide
+    the demo tombstone and the cleanup target.
+    """
+    return list(_agent_predicates(agent, prior_status)) + [
+        _exact(AgentRegistry.configuration, agent.configuration),
+        AgentRegistry.enabled == bool(agent.enabled),
+    ]
+
+
+def _dependent_counts(db: Session, agent_id: str) -> Dict[str, int]:
+    from sqlalchemy import inspect as sa_inspect
+
+    counts: Dict[str, int] = {}
+    with _fresh_session(db) as fresh:
+        inspector = sa_inspect(fresh.bind)
+        for table in inspector.get_table_names():
+            cols = {c["name"] for c in inspector.get_columns(table)}
+            if "agent_id" not in cols or table == AgentRegistry.__tablename__:
+                continue
+            value = fresh.execute(
+                text(f"SELECT COUNT(*) FROM {table} WHERE agent_id = :aid"),
+                {"aid": str(agent_id)},
+            ).scalar()
+            counts[table] = int(value or 0)
+    return counts
+
+
+def _cleanup_dependents(db: Session, agent_id: str) -> Dict[str, int]:
+    from sqlalchemy import inspect as sa_inspect
+
+    cleaned: Dict[str, int] = {}
+    inspector = sa_inspect(db.bind)
+    for table in inspector.get_table_names():
+        cols = {c["name"] for c in inspector.get_columns(table)}
+        if "agent_id" not in cols or table == AgentRegistry.__tablename__:
+            continue
+        result = db.execute(
+            text(f"DELETE FROM {table} WHERE agent_id = :aid"),
+            {"aid": str(agent_id)},
+        )
+        if result.rowcount:
+            cleaned[table] = int(result.rowcount)
+    return cleaned
+
+
+def _running_task_count(agent_id: str) -> int:
+    try:
+        from core.agent_task_registry import agent_task_registry
+        return len(agent_task_registry.get_agent_tasks(str(agent_id)))
+    except Exception:  # noqa: BLE001 — unavailable task state is not a block
+        return 0
+
+
+def _write_demo_tombstone(db: Session, agent: AgentRegistry) -> bool:
+    configuration = (
+        agent.configuration if isinstance(agent.configuration, dict) else {})
+    if not bool(configuration.get("demo_agent")):
+        return False
+    from core.admin_bootstrap import DEMO_AGENT_TOMBSTONE_KEY
+    from core.models import RuntimeSetting
+
+    payload = {
+        "deleted_at": datetime.now(timezone.utc).isoformat(),
+        "agent_id": str(agent.id),
+    }
+    tombstone = db.get(RuntimeSetting, DEMO_AGENT_TOMBSTONE_KEY)
+    if tombstone is not None:
+        tombstone.value_json = payload
+        tombstone.updated_by = "system"
+    else:
+        db.add(RuntimeSetting(
+            key=DEMO_AGENT_TOMBSTONE_KEY,
+            value_json=payload,
+            updated_by="system",
+        ))
+    return True
+
+
+def _delete_result_digest(
+    agent_id: str, prior_digest: str, rows_cleaned: Dict[str, int],
+    demo_tombstone: bool,
+) -> str:
+    return _fingerprint(
+        "agent-deleted", str(agent_id), str(prior_digest),
+        _canonical(rows_cleaned), bool(demo_tombstone))
+
+
+def _delete_target_check(db: Session):
+    def check(expected: Dict[str, Any]) -> bool:
+        target_id = str(expected.get("target_id") or "")
+        if _load_agent(db, target_id) is not None:
+            return False
+        if any(_dependent_counts(db, target_id).values()):
+            return False
+        extra = expected.get("extra") or {}
+        if extra.get("demo_tombstone"):
+            from core.admin_bootstrap import DEMO_AGENT_TOMBSTONE_KEY
+            from core.models import RuntimeSetting
+
+            with _fresh_session(db) as fresh:
+                row = fresh.get(RuntimeSetting, DEMO_AGENT_TOMBSTONE_KEY)
+                if row is None:
+                    return False
+                value = (
+                    row.value_json if isinstance(row.value_json, dict) else {})
+                if str(value.get("agent_id") or "") != target_id:
+                    return False
+        return True
+    return check
+
+
+def _delete_success_data(expected: Dict[str, Any]) -> Dict[str, Any]:
+    extra = expected.get("extra") or {}
+    return {
+        "agent_id": str(expected.get("target_id") or ""),
+        "agent_name": str(expected.get("agent_name") or ""),
+        "rows_cleaned": dict(extra.get("rows_cleaned") or {}),
+        "demo_tombstone": bool(extra.get("demo_tombstone")),
+    }
+
+
+def delete_agent(
+    db: Session, *, actor: Any, agent_id: str,
+    operation_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    actor_snapshot = _resolve_actor(db, actor)
+    if not actor_snapshot.get("ok"):
+        return _actor_refusal(actor_snapshot)
+
+    agent_id = str(agent_id or "").strip()
+    if not agent_id:
+        return _refused(
+            "agent_id must be non-empty", http_status=422,
+            error_code="VALIDATION_ERROR", field="agent_id")
+    try:
+        operation_id = _operation_id("delete", operation_id)
+    except ValueError as exc:
+        return _refused(
+            str(exc), http_status=422, error_code="VALIDATION_ERROR",
+            field="operation_id")
+
+    if agent_id == "atom_main":
+        return _refused(
+            "The main agent (atom_main) cannot be deleted.",
+            http_status=400, error_code="CANNOT_DELETE_MAIN_AGENT")
+
+    request_digest = _request_digest(_ACTION_DELETE, agent_id)
+    expected_base = {
+        "operation_id": operation_id,
+        "schema": REVIEW_SCHEMA,
+        "action": _ACTION_DELETE,
+        "event_type": AuditEventType.DELETE.value,
+        "target_id": agent_id,
+        "request_digest": request_digest,
+        "actor_id": actor_snapshot["id"],
+    }
+    replay = _replay(
+        db, operation_id, expected_base, authority=actor_snapshot,
+        target_check=_delete_target_check(db),
+        success_data=_delete_success_data)
+    if replay is not None:
+        return replay
+
+    agent = _load_agent(db, agent_id)
+    if agent is None or not _agent_visible(actor_snapshot, agent):
+        return _refused(
+            f"Agent not found: {agent_id}", http_status=404,
+            error_code="NOT_FOUND")
+    if _running_task_count(agent_id):
+        return _refused(
+            "Cannot delete agent with running task(s)",
+            http_status=400, error_code="AGENT_HAS_RUNNING_TASKS")
+
+    prior_status = str(agent.status or "")
+    prior_digest = _state_digest(_state_material(agent))
+
+    if not _claim_actor(db, actor_snapshot):
+        db.rollback()
+        return _conflict(
+            "reviewer authority changed; refresh and retry",
+            code="AUTHORITY_CHANGED")
+    if _running_task_count(agent_id):
+        db.rollback()
+        return _refused(
+            "Cannot delete agent with running task(s)",
+            http_status=400, error_code="AGENT_HAS_RUNNING_TASKS")
+
+    try:
+        claimed = db.execute(
+            update(AgentRegistry)
+            .where(*_delete_agent_predicates(agent, prior_status))
+            .values(updated_at=AgentRegistry.updated_at))
+        if claimed.rowcount != 1:
+            db.rollback()
+            return _conflict(
+                "agent material changed; refresh and retry",
+                code="STALE_TARGET")
+    except IntegrityError:
+        db.rollback()
+        return _conflict(
+            "agent decision conflicts with current state",
+            code="STALE_TARGET")
+    except Exception as exc:  # noqa: BLE001 — mutation did not commit
+        db.rollback()
+        logger.error(
+            "agent delete claim failed before commit: operation_id=%s "
+            "target=%s error_class=%s", operation_id, agent_id,
+            type(exc).__name__)
+        return _not_applied(
+            "The agent deletion could not be applied; no effect was "
+            "committed")
+
+    try:
+        rows_cleaned = _cleanup_dependents(db, agent_id)
+        db.execute(
+            text("DELETE FROM agent_registry WHERE id = :aid"),
+            {"aid": agent_id})
+        demo_tombstone = _write_demo_tombstone(db, agent)
+    except Exception as exc:  # noqa: BLE001 — mutation did not commit
+        db.rollback()
+        logger.error(
+            "agent delete cleanup failed before commit: operation_id=%s "
+            "target=%s error_class=%s", operation_id, agent_id,
+            type(exc).__name__)
+        return _not_applied(
+            "The agent deletion could not be applied; no effect was "
+            "committed")
+
+    expected = _audit_expected(
+        operation_id=operation_id, action=_ACTION_DELETE,
+        event_type=AuditEventType.DELETE.value, agent=agent,
+        prior_status=prior_status, result_status="deleted",
+        request_digest=request_digest, prior_digest=prior_digest,
+        result_digest=_delete_result_digest(
+            agent_id, prior_digest, rows_cleaned, demo_tombstone),
+        actor=actor_snapshot,
+        extra={
+            "rows_cleaned": rows_cleaned,
+            "demo_tombstone": bool(demo_tombstone),
+        })
+    audit_row = _audit_row(expected=expected, actor=actor_snapshot)
+    return _commit_and_verify(
+        db, expected=expected, audit_row=audit_row,
+        target_check=lambda: _delete_target_check(db)(expected),
+        success_data=_delete_success_data(expected),
         authority=actor_snapshot)

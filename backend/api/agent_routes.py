@@ -12,6 +12,7 @@ from sqlalchemy.orm import Session
 
 from core.agent_governance_service import AgentGovernanceService
 from core.agent_decision_write_service import (
+    delete_agent as _delete_agent_decision,
     promote_agent as _promote_agent_decision,
     update_agent as _update_agent_decision,
 )
@@ -95,6 +96,7 @@ def _raise_agent_decision(result: Dict[str, Any]) -> None:
         raise HTTPException(
             status_code=int(result.get("http_status") or 403),
             detail={
+                "success": False,
                 "error": {
                     "code": result.get("error_code") or "AUTHORITY_REQUIRED",
                     "message": result.get("error") or "Request refused",
@@ -107,6 +109,7 @@ def _raise_agent_decision(result: Dict[str, Any]) -> None:
         raise HTTPException(
             status_code=409,
             detail={
+                "success": False,
                 "error": {
                     "code": result.get("error_code") or "STALE_TARGET",
                     "message": result.get("error") or "Conflict",
@@ -118,6 +121,7 @@ def _raise_agent_decision(result: Dict[str, Any]) -> None:
         raise HTTPException(
             status_code=int(result.get("http_status") or 409),
             detail={
+                "success": False,
                 "error": {
                     "code": result.get("error_code")
                     or "AGENT_TRANSACTION_ROLLED_BACK",
@@ -137,6 +141,7 @@ def _raise_agent_decision(result: Dict[str, Any]) -> None:
         raise HTTPException(
             status_code=503,
             detail={
+                "success": False,
                 "error": {
                     "code": code,
                     "message": result.get("message")
@@ -401,114 +406,34 @@ async def get_agent_graduation_progress(
 @router.delete("/{agent_id}")
 async def delete_agent(
     agent_id: str,
+    operation_id: Optional[str] = None,
     user: User = Depends(require_permission(Permission.AGENT_MANAGE)),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Delete an agent and every dependent row.
+    """Delete an agent and every dependent row in the caller's scope.
 
-    FK enforcement is OFF on the SQLite connection, so a bare registry-row
-    delete silently orphans episodes, audits, jobs and learning rows across
-    the 25+ tables that carry an agent_id — those ghosts then resurface in
-    journeys, governance metrics and listings. The cleanup discovers every
-    table with an agent_id column dynamically (new tables are covered
-    automatically) and removes the agent's rows in the same transaction.
+    The verified decision binds current authority and exact prior material,
+    performs the existing dynamic dependent-row cleanup and demo tombstone in
+    one transaction, and writes one AuditLog receipt. A foreign tenant or
+    workspace target resolves as not found; stale material refuses without
+    deleting anything.
     """
-    # The main agent is load-bearing (mentor bootstrap, governance anchors)
-    # — deleting it cripples the fleet rather than removing a test artifact.
-    if agent_id == "atom_main":
-        raise router.error_response(
-            error_code="CANNOT_DELETE_MAIN_AGENT",
-            message="The main agent (atom_main) cannot be deleted.",
-            status_code=400,
-        )
-
-    agent = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
-    if not agent:
-        raise router.not_found_error("Agent", agent_id)
-
-    # Check if agent has running tasks (BUG-050: was calling non-existent
-    # get_active_tasks; now uses the real sync get_agent_tasks.)
-    from core.agent_task_registry import agent_task_registry
-    try:
-        running_tasks = agent_task_registry.get_agent_tasks(agent_id)
-    except Exception:
-        running_tasks = []
-
-    if running_tasks:
-        raise router.error_response(
-            error_code="AGENT_HAS_RUNNING_TASKS",
-            message=f"Cannot delete agent with {len(running_tasks)} running task(s)",
-            status_code=400
-        )
-
-    # Dependent cleanup: every table with an agent_id column. Raw SQL per
-    # table — most of these tables have no ORM model, and the goal is
-    # breadth (no orphan ghosts), not per-table semantics.
-    from sqlalchemy import inspect as sa_inspect, text
-
-    cleaned: dict[str, int] = {}
-    try:
-        inspector = sa_inspect(db.bind)
-        for table in inspector.get_table_names():
-            cols = {c["name"] for c in inspector.get_columns(table)}
-            if "agent_id" not in cols or table == AgentRegistry.__tablename__:
-                continue
-            result = db.execute(
-                text(f"DELETE FROM {table} WHERE agent_id = :aid"), {"aid": agent_id}
-            )
-            if result.rowcount:
-                cleaned[table] = result.rowcount
-    except Exception as e:
-        db.rollback()
-        raise router.error_response(
-            error_code="AGENT_DELETE_CLEANUP_FAILED",
-            message=f"Dependent-row cleanup failed, agent not deleted: {e}",
-            status_code=500,
-        )
-
-    agent_name = agent.name
-    # Honoring deletions: the onboarding demo agent is re-created by
-    # ensure_demo_agent() at every bootstrap — a bare delete would make it
-    # reappear on the next restart ("agents I delete keep coming back"). When
-    # the deleted agent carries the demo_agent flag, write a tombstone in the
-    # SAME transaction so the bootstrap skips re-creation from now on.
-    from core.admin_bootstrap import DEMO_AGENT_TOMBSTONE_KEY
-    from core.models import RuntimeSetting
-
-    deleted_demo_agent = bool((agent.configuration or {}).get("demo_agent"))
-    # Registry row also via raw SQL: db.delete(agent) makes the ORM null out
-    # loaded child FKs (agent_episodes.agent_id is NOT NULL → IntegrityError)
-    # for rows the cleanup above already removed from under its identity map.
-    db.execute(
-        text(f"DELETE FROM {AgentRegistry.__tablename__} WHERE id = :aid"),
-        {"aid": agent_id},
+    result = _delete_agent_decision(
+        db,
+        actor=current_user,
+        agent_id=agent_id,
+        operation_id=operation_id,
     )
-    if deleted_demo_agent:
-        tombstone = db.get(RuntimeSetting, DEMO_AGENT_TOMBSTONE_KEY)
-        if tombstone is not None:
-            tombstone.value_json = {
-                "deleted_at": datetime.datetime.now(timezone.utc).isoformat(),
-                "agent_id": agent_id,
-            }
-            tombstone.updated_by = "system"
-        else:
-            db.add(
-                RuntimeSetting(
-                    key=DEMO_AGENT_TOMBSTONE_KEY,
-                    value_json={
-                        "deleted_at": datetime.datetime.now(timezone.utc).isoformat(),
-                        "agent_id": agent_id,
-                    },
-                    updated_by="system",
-                )
-            )
-    db.commit()
-
-    return router.success_response(
-        data={"agent_id": agent_id, "rows_cleaned": cleaned},
-        message=f"Agent {agent_name} deleted successfully"
-    )
+    _raise_agent_decision(result)
+    data = result.get("data") or {}
+    if result.get("status") in ("verified", "already_applied"):
+        message = (
+            f"Agent {data.get('agent_name') or agent_id} "
+            "deleted successfully")
+    else:
+        message = result.get("message") or "Agent deleted successfully"
+    return router.success_response(data=data, message=message)
 
 
 
