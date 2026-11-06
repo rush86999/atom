@@ -1369,6 +1369,7 @@ def test_stop_agent_multiple_tasks(
     _current_test_user = mock_member_user
 
     with patch('core.agent_task_registry.agent_task_registry') as mock_registry:
+        mock_registry.get_agent_tasks = Mock(return_value=[Mock()])
         mock_registry.cancel_agent_tasks = AsyncMock(return_value=5)
 
         response = client.post(f"/api/agents/{mock_agent.id}/stop")
@@ -2419,6 +2420,7 @@ def test_stop_agent_multiple_tasks(
     _current_test_user = mock_member_user
 
     with patch('core.agent_task_registry.agent_task_registry') as mock_registry:
+        mock_registry.get_agent_tasks = Mock(return_value=[Mock()])
         mock_registry.cancel_agent_tasks = AsyncMock(return_value=5)
 
         response = client.post(f"/api/agents/{mock_agent.id}/stop")
