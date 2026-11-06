@@ -1,0 +1,66 @@
+{
+  "schema": "atom-employee-evidence-1",
+  "status": "verified workflow-template create/update submitted for independent verification; read/instantiate/execute/import/delete and live operation remain open",
+  "branch": "codex/oracle01-workflow-template-20261105",
+  "accepted_admin_base": "9d73552d249ae8ec5b05af77546faf9621bbcd47",
+  "accepted_admin_product": "5fbb377a4e1eef8fdd0013275cd8b1c9b278cd41",
+  "product_source": "5fbd5c8f51449ed3fa6323a304713c04161d3491",
+  "executed_source": "51b48004cdacace1a077865c3ee8fd6edbff8b50",
+  "tree_clean_at_execution": true,
+  "source_files": {
+    "backend/api/workflow_template_routes.py": "49278fbffe046c5487a80876bb0ceacba76e8cad555a3e2b1a95b3e6acc76ec2",
+    "backend/core/workflow_template_write_service.py": "5c7a08d86f7b8f84e7b3a1066a9f54db376e24fb1aa813616be322d9a9f16e03",
+    "backend/core/workflow_template_system.py": "bd3341437cb5cbadc393fa0fbc67013109f1d914209426cd3aa858604f648863",
+    "backend/core/models.py": "4b238c35f6f235d94779f4598040f0c9fcd39599c26705e7016e8b045b51c3ef",
+    "backend/core/auth.py": "63b747a9e335f84128fc43b846eacb8beaef3874edeac00874ee803a5e287c61",
+    "backend/core/security/rbac.py": "48a7ecdb609f7e32267212e85b1993a0045eb84aca903f0152a8a498bcbd405e",
+    "backend/core/rbac_service.py": "e9720e01d41d77cb3c1516052c8f24cad754b53be2a2aac2b559cb56d6651d29",
+    "backend/core/personal_scope.py": "f07dd35cf6eedb674ec9afbb06e10776cd4039e64ad7dd0a3427b7e0df31f78f",
+    "backend/core/base_routes.py": "b3af3c52d14582a3674a30adca6d8fea10ae7f4bde8d46c7b9164eb2ef0597fb",
+    "backend/core/database.py": "fd3736e7f679b9b30e242597e25a27565d3ab93fc8c0efd3ea0b1cef76e9b16e",
+    "backend/core/security_dependencies.py": "bb43051cc1f3455f1d8866ed6e576462765dcde92d492eed036cca317851f9f1",
+    "backend/main_api_app.py": "83f6c051d58d39c70c94617cd6eedc9ce65e6414047c1297899dc6e771321af0",
+    "backend/tests/test_workflow_template_decision_contract.py": "38d550b4ceec16926dda85566f03ac878c6d8b16a2845c30080eab6a1c4d3482",
+    "backend/tests/test_workflow_template_routes_coverage.py": "4afeb4c749466f147d7413959a4e10fa1c02b045193b08705db1783307919d8f"
+  },
+  "artifacts": {
+    "README.md": "af343a007658b322e1966374084951adc682ddf92f137545a8603e640fabe16d",
+    "TEST_RESULTS.md": "86a1047e0592c8f3ad7149c6b32f2bfe28e24d9508a9f14cb161a069357b26d1",
+    "affected-311.log": "e7297bffc95aab2e026ebc10cca32b0a300bbaebe3df6c32af1fe2590dc823f9",
+    "affected-314.log": "115172641b107194b97edd598f1f71981966aa2697ea0878d2bcd07fe38e57f7",
+    "baseline-311.log": "d3b0e5054623104735ea61259a6d4b7df0a211f902655fa2b98665719ce9480b",
+    "baseline-314.log": "f02a41fbc14c946895e05a097676e4e89e8900a8bbe95b9554cdb5a37f5bc58b",
+    "focused-311.log": "ff4141dd15c1e67618859003cff3721537b9d2033fa0873a89bf49e3c307730a",
+    "focused-314.log": "d151289d84c1c51c91f3549676f1d12df55400c7e7dd0f56c3912e9e6bc2a96d",
+    "routes.json": "0a97f17cea3506d57b80d649976931934a371c9d552aa24dc398ff2aafc5f9a1",
+    "source-tree.txt": "d9b0d71b8aba29e2bbb1f4f53ce89d67943160cbc6d6a126d10f40a2bfd33959",
+    "verification.json": "256da11a3c9f0e51eda3f9ba072666403e8c1ff6e7c0bab5297efcfec647befe"
+  },
+  "checks": {
+    "focused_python314": "27 passed",
+    "focused_python311": "27 passed",
+    "affected_python314": "646 passed, 14 skipped, 40 baseline failures",
+    "affected_python311": "646 passed, 14 skipped, 40 baseline failures",
+    "baseline_python314": "619 passed, 14 skipped, 40 failures",
+    "baseline_python311": "619 passed, 14 skipped, 40 failures",
+    "baseline_failure_lists_identical": true,
+    "new_passing_controls": 27,
+    "model_calls": 0,
+    "provider_calls": 0,
+    "new_schema": false
+  },
+  "baseline_exclusions": {
+    "w79c_template_fixture": "38 pre-existing MagicMock user/role permission refusals; identical on base",
+    "import_author_mock": "pre-existing MagicMock author email in WorkflowTemplate; identical on base",
+    "step_alias_legacy_expectation": "pre-existing id vs step_id expectation; identical on base"
+  },
+  "boundaries": [
+    "two workflow-template mutation routes only",
+    "no read/list/search/instantiate/execute/import/delete/rate/export changes",
+    "no live workflow/agent/model/provider/credential/spend/send/download/deployment",
+    "no new table, migration or second template/approval engine",
+    "PostgreSQL runtime/soak, multi-worker serialization and whole-app ORACLE-01 not qualified",
+    "submitted review/memory/skill/agent/goal/document branches independent and not merged",
+    "accepted admin/auth-2FA/canvas/feedback/wait/employee/ORCH-01 lanes unchanged"
+  ]
+}
