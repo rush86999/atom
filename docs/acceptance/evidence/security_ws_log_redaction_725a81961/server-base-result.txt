@@ -1,0 +1,6 @@
+log_bytes 742
+raw_synthetic_present True
+redacted_marker_count 0
+ws_path_lines 2
+WS_LINE INFO:     127.0.0.1:63041 - "WebSocket /ws?token=eyJhbGciOiJIUzI1NiJ9.c2Vzc2lvbi1wcm9iZQ.c2lnbmF0dXJlLXByb2Jl&api_key=eyJhbGciOiJIUzI1NiJ9.c2Vzc2lvbi1wcm9iZQ.c2lnbmF0dXJlLXByb2Jl&x=1" [accepted]
+WS_LINE INFO:     127.0.0.1:63042 - "WebSocket /ws/reject?token=eyJhbGciOiJIUzI1NiJ9.c2Vzc2lvbi1wcm9iZQ.c2lnbmF0dXJlLXByb2Jl&x=1" 403

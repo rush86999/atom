@@ -1,0 +1,6 @@
+log_bytes 686
+raw_synthetic_present False
+redacted_marker_count 3
+ws_path_lines 2
+WS_LINE INFO:     127.0.0.1:63044 - "WebSocket /ws?token=<redacted>&api_key=<redacted>&x=1" [accepted]
+WS_LINE INFO:     127.0.0.1:63045 - "WebSocket /ws/reject?token=<redacted>&x=1" 403

@@ -1,0 +1,12 @@
+INFO:     Started server process [24080]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://127.0.0.1:8098 (Press CTRL+C to quit)
+INFO:     127.0.0.1:63041 - "WebSocket /ws?token=<synthetic-jwt>&api_key=<synthetic-jwt>&x=1" [accepted]
+INFO:     connection open
+INFO:     127.0.0.1:63042 - "WebSocket /ws/reject?token=<synthetic-jwt>&x=1" 403
+INFO:     connection rejected (403 Forbidden)
+INFO:     Shutting down
+INFO:     Waiting for application shutdown.
+INFO:     Application shutdown complete.
+INFO:     Finished server process [24080]

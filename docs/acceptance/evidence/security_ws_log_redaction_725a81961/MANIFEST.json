@@ -1,0 +1,44 @@
+{
+  "schema": "atom-employee-evidence-1",
+  "status": "credential redaction for WebSocket/request logs submitted for independent verification; no merge or deployment",
+  "branch": "codex/oracle01-jwt-log-redaction-20261106",
+  "executed_source": "725a819618c424e2b8c56dabe5619233fa7e66b3",
+  "base_main": "3925cf3592e955bebb8282ec7168e3fdce20ec42",
+  "synthetic_token_sha256": "53959228c59942a9d18d1717d2c70f82cd223ac859395e8d39616910456acc5a",
+  "source_files": {
+    "backend/core/log_redaction.py": "11ca8aefb8deec07bae19e201c9a149e63022da4d098ae3b6f5eaeffd581bb9c",
+    "backend/core/logging_config.py": "a718331a6a492fd973bd628516085eaccbbed56678256fdc93ec4421b8f2a2e3",
+    "backend/tests/test_log_redaction_jwt.py": "75f44523f6abcaaaa86d656c60719816d3c42026c01061263e5aa967d79b0944",
+    "backend/tests/test_covpush_w79_logging.py": "8121ee81d8bf1ff53f18695e6ce0098de45938231f75d00b6c1e2b8e064e0826",
+    "backend/main_api_app.py": "83f6c051d58d39c70c94617cd6eedc9ce65e6414047c1297899dc6e771321af0",
+    ".github/workflows/ci.yml": "dfdf7bd26a5aba4c3eafcfa54120e3e6f859d57b2ce0f6d84ca2c8ef5007e9d2"
+  },
+  "artifacts": {
+    "README.md": "0417dcba83d7d77a2ff0bbe55882cdc35b5ed9e9da0529e90b7af228390dccd8",
+    "TEST_RESULTS.md": "fa905b2a7451061a61bcb8693e90126e20845642c30ab66e6a8b580fead27cd7",
+    "focused-311.log": "aea62c90495c04ed8a49bfcedbee8954c327f0c59baa8f5138121d1ff63d6d43",
+    "focused-314.log": "70873c8f034e1324e3ae4cc0ffd01c0b58a93ddc595e6c4383beaf1beab021fe",
+    "probe_app.py": "c8f7c8cd71d55cb921d40de5e9c795f0ca19ae7f1fd4ab8b216d51040c0a1577",
+    "probe_runner.py": "be005d78c39e9199064aaf363e2d2835cf61b984da7bd2cb2c51c1c10bbd6b97",
+    "server-base-result.txt": "1cb98a3ec5119e336f2a0a443ea8b0a6950996a99cb7e3cd3e3203624f2da796",
+    "server-base-sanitized.log": "92ab1c3f85aa0b43503c85e0e66f7e28f6c5b8f03aa430c3eba106c6dd2388ac",
+    "server-fixed-result.txt": "85d92ecd8281e1b3603887ecfd85a10a055ce98d415a109dfb9c072b8b59dea8",
+    "server-fixed.log": "7fc17f45bb4bac2e56bcbe14072de5f85789ca44734db2d780c0f31329fb7acb",
+    "source-tree.txt": "03af694e406f2c17e25c13632d38cc56eebc96d2f572ac34ad3b45f6990f8e0d",
+    "verification.json": "76d79e7a8a31ff35db9b845d544229e3591de9551f52f1abbad1c67587bd642b"
+  },
+  "checks": {
+    "focused_314": "145 passed",
+    "focused_311": "145 passed",
+    "server_fixed_raw_synthetic": 0,
+    "server_base_raw_synthetic": 3,
+    "websocket_path_and_status_preserved": true,
+    "uvicorn_observability_preserved": true,
+    "no_raw_token_in_committed_evidence": true
+  },
+  "boundaries": [
+    "synthetic credentials only; no live token/revocation/rotation",
+    "local uvicorn scratch, not production log-pipeline qualification",
+    "no merge or deployment; code-owner review remains required"
+  ]
+}

@@ -1,0 +1,64 @@
+{
+  "schema": "atom-oracle-log-redaction-verification-1",
+  "status": "credential redaction for WebSocket/request logs submitted for independent verification; no merge or deployment",
+  "candidate": {
+    "branch": "codex/oracle01-jwt-log-redaction-20261106",
+    "pr": 688,
+    "base_main": "3925cf3592e955bebb8282ec7168e3fdce20ec42",
+    "executed_source": "725a819618c424e2b8c56dabe5619233fa7e66b3",
+    "runtime": "local uvicorn scratch with synthetic credentials; no live token/provider",
+    "synthetic_token_sha256": "53959228c59942a9d18d1717d2c70f82cd223ac859395e8d39616910456acc5a"
+  },
+  "defect": {
+    "producer": "uvicorn WebSocket request-target logging",
+    "symptom": "session JWT in ?token= reached routine logs",
+    "contributing_factor": "main_api_app passed format_type to a setup_logging signature that rejected it, skipping centralized logging",
+    "base_raw_occurrences": 3,
+    "base_websocket_lines": 2
+  },
+  "repair": {
+    "redaction": "redact_log_text + LogRedactionFilter for query, assignment, Authorization/Bearer and structured text",
+    "installation": "root, uvicorn, uvicorn.error, uvicorn.access, websocket loggers and handlers",
+    "observability": "uvicorn request-target level preserved; path, [accepted], 403 and non-sensitive params retained",
+    "setup_logging": "accepts format_type so centralized setup runs"
+  },
+  "results": {
+    "focused_314": {
+      "passed": 145,
+      "failed": 0,
+      "log": "focused-314.log"
+    },
+    "focused_311": {
+      "passed": 145,
+      "failed": 0,
+      "log": "focused-311.log"
+    },
+    "server_fixed": {
+      "raw_synthetic": 0,
+      "redacted_ws_lines": 2,
+      "log": "server-fixed.log"
+    },
+    "server_base": {
+      "raw_synthetic": 3,
+      "ws_lines": 2,
+      "log": "server-base-sanitized.log"
+    }
+  },
+  "checks": {
+    "websocket_query_redacted": true,
+    "repeated_and_encoded_queries_redacted": true,
+    "bearer_and_authorization_redacted": true,
+    "structured_json_redacted": true,
+    "uvicorn_error_logger_filtered": true,
+    "path_status_observability_preserved": true,
+    "uvicorn_log_level_not_suppressed": true,
+    "setup_logging_format_type_accepted": true,
+    "no_raw_synthetic_token_in_committed_evidence": true,
+    "no_live_credential_or_provider_operation": true
+  },
+  "limits": [
+    "synthetic credential only; no live token, revocation or rotation",
+    "local uvicorn scratch, not production log-pipeline qualification",
+    "no merge or deployment; code-owner review remains required"
+  ]
+}
