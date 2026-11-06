@@ -2,6 +2,8 @@
 
 Issued 2026-11-06 by the engineering and product lead under the owner's instruction to complete the authorized goals, provide detailed guidance, and push progress between phases.
 
+Progress refreshed 2026-11-06 against the current PR heads and merge records through PR675. Sections 3 and 17 contain the current disposition and next actions; historical source-bound evidence remains unchanged. Merged work is not automatically independently accepted or deployed.
+
 ## 1. Mandate and finish line
 
 Continue each authorized goal through diagnosis, implementation, meaningful regression, the required user boundary, evidence, remote push and review handoff. A phase checkpoint is an intermediate result. Do not stop after a plan, a small green test set, a packaging correction or a statement that you are ready for the next phase.
@@ -36,19 +38,26 @@ Use distinct states: queued, active, submitted, accepted at stated scope, integr
 
 ## 3. Current closures and immediate reconciliation
 
-The following are the latest independently reviewed states in this handoff. Preserve their source attribution when building a successor.
+The following combines independently reviewed scopes with current GitHub integration status. Where runtime has not received a new independent review, the row says so. Preserve original source attribution when building a successor.
 
 | Area | Preserved decision | Immediate action |
 |---|---|---|
 | PR664 streaming and skill journey | Controlled repairs accepted; final UI source 83dc39c45 and evidence 3c7a6607f accepted at release-profile scope | PR664 merged as d860072a7. Start from current origin and preserve it; do not try to merge it again |
-| PR663 alternative CI fixture repair | Overlaps PR664 and lacks its streaming runtime fix; last readback open/non-mergeable | Compare unique behavior against current main. Port only a genuinely missing improvement if needed. Recommend supersession when redundant; closing the PR requires authorization |
-| UI journey successor | Hosted 211 API passes, 28 UI passes and 40 role-UI passes; 15 source and 8 artifact hashes verified | Keep these controls. Deferred-page positives establish honest release scope, not disabled feature functionality |
+| PR663 and its unique test improvement | PR663 closed as superseded; its one unique explicit handler-scope assertion merged in PR665 as e1901a539 | Reconciliation is complete. Do not port the old branch or repeat this task |
+| UI journey successor | Accepted release-profile controls preserved; later onboarding source 163f6b336 is merged through PR672 as 27923f324 | Retain exact deferred-page and role assertions. They do not prove disabled full-profile features |
+| First-run onboarding and evidence | Real unique-user wizard completion, authenticated completion-status readback and reload accepted at hosted scope; six source/artifact checks match. Evidence PR674 is now merged as 671986755 | Closed for the tested wizard/reload boundary. Provider configuration, fresh-browser/sign-out behavior and process restart remain separate promises |
+| Quickstart Python guard | PR668 source bad2f9596 and evidence a1bca5d0e merged as 6a7e85c6d; five guard controls and nine evidence entries independently verified | Preserve check-only behavior. Link real install/run evidence before promoting the entire COMPAT-01 claim; do not rerun the guard campaign |
+| Guidance durability | PR669 and PR671 merged; issued document bytes matched at original sources 281b0850a and 87b84fb16 | No duplicate guidance PR. Keep this progress refresh and the handoffs synchronized through normal owned commits |
 | Evolution caller transaction repair | Product d4cce1625, executed a39dbd12a, reviewed rebased tip ee19946d3; independent 67 passes including all five supplied probes; 28 hashes match | Closed at controlled SQLite scope. Do not resubmit unchanged runtime or replay the sandbox campaign |
 | Fleet ORCH07/02 and ORCH01 checkpoints | Accepted at their recorded controlled consumer/binding scopes | Preserve as regression; served quality and broader operational reliability retain separate statuses |
 | Feedback, BYOK boundaries, wait policy, Canvas, admin, memory and 2FA | Accepted within their respective exact recorded scopes | Reuse their mechanisms. Reopen only for a new concrete finding affecting the current work |
-| Additional Agent2 families | Community skills, agent decisions, goal mode/cancel, document settings, workflow templates, marketplace and chat work have separate preparation/submission records | Reconcile each current ref and verdict before starting another implementation. No acceptance by association |
+| Community-skill consolidation | PR667 merged as 916fb5d1e. Corrected evidence 7d8586831 now has all nine source and twelve artifact hashes independently matching Git; original eight-file packaging finding is closed | Preserve the existing single engine and current-reviewer claim. Runtime focused controls were independently green; do not repeat the packaging repair or infer PostgreSQL/soak qualification |
+| Chat-session fork | PR670 source 371cb197b/evidence 630951c39 merged as 05a9d69d7 | Preserve current-user/source/message-snapshot claims and atomic fork receipt. Merged status is confirmed; this progress refresh does not grant a new independent runtime acceptance |
+| Scoped agent delete | PR673 source e34de29d5/evidence 46dc253a1 merged as 184639a28 after the reported foreign-tenant delete reproduction | Preserve scope/CAS/receipt recovery controls. Source claims remain subject to their exact review status; do not describe a merged repair as live qualification |
+| Agent run admission | PR675 head 684f1a2c6 is open/mergeable against main after merging main 671986755; the duplicate #673 delete hunks were resolved to the carried content. CI run 42240823980 is in progress. The diff against main is the run-admission family only | Agent2 finishes CI, exact evidence and review handoff. Do not retarget again or replay #673 |
+| Other merged or submitted families | Agent decisions, goal mode/cancel, document settings, workflow templates and marketplace retain their separate evidence/review records | Consult each recorded verdict before changing a shared consumer. Do not rebuild a family just because an old handoff says it is next |
 
-The detailed verifier records remain in /private/tmp/brennan-brief/, including VERIFIER_PR664_STREAM_SKILL_ACCEPTANCE_20261106.md, VERIFIER_PR664_UI_ACCEPTANCE_20261106.md and VERIFIER_EVOLUTION_CALLER_ACCEPTANCE_20261106.md. Green historical evidence is not transferred to changed code without checking the affected dependency.
+The detailed verifier records remain in /private/tmp/brennan-brief/, including VERIFIER_PR664_STREAM_SKILL_ACCEPTANCE_20261106.md, VERIFIER_PR664_UI_ACCEPTANCE_20261106.md, VERIFIER_EVOLUTION_CALLER_ACCEPTANCE_20261106.md and VERIFIER_AGENT1_ONBOARDING_20261106.md. The latter's PR674-open snapshot is superseded by the merge record above; its accepted test scope is unchanged. Evidence-head logs confirm 619 backend passes/1 skipped and 211 API/29 UI/40 role-UI passes on that head; these are configuration-bound results, not a new whole-app score. Green historical evidence is not transferred to changed code without checking the affected dependency.
 
 ## 4. Ownership and parallel work
 
@@ -64,7 +73,7 @@ Keep separate codex branches and worktrees. A clean worktree does not establish 
 
 Do not silently edit the other agent's dirty files or stage their changes. When a shared interface is needed, write the contract and one testable example to the handoff. Continue independent work while waiting for that interface. If a shared-file conflict is the only blocker, use a separate worktree for reproduction and tests rather than racing edits.
 
-Agent 1 starts by reconciling the merged PR664 and overlapping PR663, then selecting the earliest unclosed user-visible dependency from the existing goal map. Agent 2 starts by reconciling its already-submitted families and selects the first genuinely unclosed bounded family or reviewer finding. Neither starts the community-skill, evolution or UI work again simply because an old directive calls it next.
+Agent 1's PR663/665 reconciliation and onboarding evidence delivery are complete. Its next prepared local priority is the missing public workflow/scheduling execution-and-recovery boundary, after checking the current evidence map and ownership. Agent 2 is finishing PR675's run-admission contract at head 684f1a2c6 after resolving the #673 merge; it continues the CI/review loop and prepares only independent authorized work while review is pending. Neither restarts community-skill, evolution, UI or agent-delete work based on an old next-task note.
 
 Each agent keeps one active implementation family and at most one prepared independent successor. Independent verification or CI may run asynchronously. Do not accumulate many unintegrated fixes on incompatible bases to create the appearance of throughput.
 
@@ -238,7 +247,7 @@ Inspect branch, status and staged diff. Stage explicit owned paths, never all ch
 
 A push rejection is a concrete remote problem: preserve the local commit, inspect the changed remote and coordinate. Do not force-push, overwrite another agent, rewrite evidence history or merge protected main to make the problem disappear. New external authorization, if required by the environment, stays pending while safe local work continues.
 
-Integration owner checks actual current PR state first. PR664 is already merged. PR663 needs behavioral reconciliation against current main, not a second wholesale application. If there is a unique improvement, port only it on a fresh codex branch, keep the stronger accepted streaming/UI/authority contracts and run the affected gate. If redundant, record that result and recommend closure through the authorized PR owner. Do not close, review or merge on assumption.
+Integration owner checks actual current PR state first. PR664 is merged; PR663 is closed and its unique improvement is already merged through PR665. That reconciliation is finished. PR667, PR668, PR670, PR672, PR673 and the onboarding evidence PR674 are also merged. Do not replay these merges or port their old prepared branches. PR675 now targets main directly and its diff is the run family after the #673 merge; do not replay the old stack. Do not close, review or merge on assumption.
 
 For other accepted branches build a dependency order from shared files and source bases. Integrate one coherent dependency family at a time under the existing merge authorization. Run combined relevant regressions and CI on the actual proposed head; individual old branch passes do not prove conflict resolution. Preserve accepted original bundles and add an integration index rather than reattributing them to main. No blanket force/ours/theirs resolution.
 
@@ -263,6 +272,8 @@ During active work provide concise updates at meaningful changes and at least ab
 
 Use a compact report: goal/branch and latest pushed commit; first failed transition or closed contract; decisive test result; current boundary and next action. End a phase report with the next action you are taking, not an offer to continue. Report source-bound acceptance separately from CI, integration, deployment and broad model quality.
 
+Keep this guide current as part of delivery: the agent completing an item updates its row in section 3 and the applicable next action in section 17, plus the shared handoffs, before the final push. Use observed PR/head/check identities and preserve the distinction between an author report, independent acceptance and merge. Coordinate one owner for the document; a small progress edit does not require another full guidance document. Once the correction is pushed, record its remote commit so a local refreshed copy is never described as the merged version. A separate reviewer supplies acceptance decisions; agents may record their own submissions and observed merge/CI states without self-accepting.
+
 When a hypothesis stalls, produce the smallest counterexample and the captured observation, then change method. Escalate a policy/authority decision with options and impact. Escalate a technical finding with the exact frozen source, decisive test and expected contract. A count of passing unrelated tests is not an answer to a concrete failure.
 
 ## 16. Definition of done
@@ -275,8 +286,8 @@ Whole-app readiness requires one declared integrated candidate/configuration wit
 
 ## 17. Start immediately
 
-Agent1: preserve merged PR664 and accepted fleet/employee/workflow evidence. Reconcile PR663's actual remaining behavior without merging duplicates. Then claim the earliest unclosed user-facing dependency in the current goal map, implement through the missing boundary, push checkpoints and continue until that finite scope is delivered. Do not repeat closed model/browser episodes to fill a phase.
+Agent1: preserve merged streaming/skill/UI, Python-guard and real onboarding evidence. Do not repeat PR663 reconciliation or create another duplicate directive PR. Continue the missing public workflow/scheduling recovery boundary after checking current ownership and accepted ORCH evidence: use an existing harmless registered local action in a scratch world; prove pending approval releases no effect, exact approval produces one durable result, rejection releases no effect, and schedule pause/cancel/restart does not duplicate effects. Use the legitimate public API if the UI is deferred, label that scope, and keep generation/model quality separate. If the same boundary is already owned or qualified, select the next genuinely unclosed user-facing dependency from the existing map. Push coherent implementation, regression and evidence checkpoints without another phase permission request.
 
-Agent2: preserve accepted evolution caller ownership, admin, memory, Canvas, 2FA and feedback contracts. Reconcile the already-submitted local families and their review status first. Prioritize a supplied failing contract; otherwise claim the next genuinely uncovered bounded family, finish its real consumer/replay/authority/rollback matrix, push and submit. Do not restart a submitted family based on an old next-task note.
+Agent2: preserve accepted evolution caller ownership, admin, memory, Canvas, 2FA and feedback contracts and the integrated community-skill/chat-fork/agent-delete changes. Finish PR675's actual CI, exact evidence packaging and independent-review handoff at its current source (merge 44fa71568); the PR673 dependency is merged and the diff is the run family only. Run admission with doubled execution is not real agent/model completion. Keep any new live-model execution under separate authority. While review is pending, prepare the next independent bounded family from the existing map; address a supplied concrete finding first. Do not redo the closed eight-file packaging correction or resubmit unchanged accepted runtime. Push coherent checkpoints and continue within the authorized scope.
 
 Both agents: own the complete delivery loop, keep one implementation family active, help resolve the earliest shared blocker, push between coherent phases and keep independent work moving while review is pending. Stop only at the specific authority or information boundary that actually prevents further progress. The owner should not have to repeatedly authorize the next test, correction, evidence file or push in the same assignment.
