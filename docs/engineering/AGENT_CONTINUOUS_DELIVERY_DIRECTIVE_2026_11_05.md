@@ -17,6 +17,8 @@ Success means a user can accomplish the stated task, the durable result is corre
 | Lane | Current decision | Owner action |
 |---|---|---|
 | ORCH-01 blueprint and durable checkpoint binding | Accepted at source 0fae2d46c, evidence 943fb32d7 | Agent 1 preserves it and continues the fleet queue below |
+| ORCH-07 governed fleet audit | Submitted b9ba56995; seven independent binding and concurrency cases fail | Agent 1 repairs the integrated fleet contract from successor581654d21 |
+| ORCH-02 specialist response | Submitted581654d21; twelve independent scope/cache/finalization cases fail | Agent 1 completes the same integrated source and finite matrix |
 | Five-route auth and 2FA | Accepted at source 95f7bcac1, evidence 304e03149; later evidence heads preserve that product source | Agent 2 preserves it; no repeat campaign |
 | Seven-route admin privilege and tenant budget | Accepted at product 5fbb377a4, evidence c4e43f4b9; test successor 9d73552d2 is runtime-identical | Agent 2 preserves the regression contract and proceeds to the next bounded local family |
 | Tool mutation review and sandbox writer | Source6346cad2a closes the original three probes; two caller-transaction data-loss probes still fail | Agent 2 fixes only transaction ownership and preserves the accepted material/freshness improvements |
@@ -28,6 +30,12 @@ Agent 1 owns the fleet routing and orchestration consumers. Agent 2 owns the bou
 Maintain separate codex branches and isolated worktrees. Before editing shared files, record ownership in notes/AGENT_COORDINATION.md and the briefing files. A shared file conflict is a coordination task: continue independent tests, callers or analysis while resolving it. Do not silently overwrite another agent's work or use their uncommitted bytes as your clean executed source.
 
 ## Agent 1 active delivery queue
+
+### Current integrated fleet repair
+
+The initial ORCH07/02 implementations are submitted, not accepted. Independent65/114 focused gates pass and45 Git entries match, but the exact external7+12 matrices fail. Follow VERIFIER_FLEET_B9_581_INTEGRATED_REPAIR_20261105.md in the briefing directory. Create one successor from581654d21 containing both slices; repair atomic full-scope/outcome binding and current served provenance, authorize chain/cache material, require positive capability qualification, and use one canonical execution identity/shared finalizer with failure precedence. Keep accepted ORCH01 closed.
+
+Pass the19 supplied cases plus complete twins before another broad selection. Push coherent runtime phases and final frozen evidence without a phase permission pause. The following ORCH07/02 outcome descriptions remain the product acceptance goals; they are not instructions to start separate overlapping implementations or new inference campaigns. Agent2 ownership remains independent.
 
 ### First finish the governed fleet audit row
 
@@ -215,7 +223,7 @@ The program is finished only when every authorized finite queue item is closed o
 
 ## Start now
 
-Agent 1: preserve accepted ORCH-01, take the bounded ORCH-07 controlled consumer contract, then the ORCH-02 response-consumption queue. Start with caller tracing and a decisive scratch test, not another planning-only handoff.
+Agent 1: preserve accepted ORCH01. Complete the current combined ORCH07/02 repair from581654d21 under VERIFIER_FLEET_B9_581_INTEGRATED_REPAIR_20261105.md. Pass the exact19 boundary cases and twins, run one affected selection, push coherent runtime/evidence phases and submit one frozen integrated candidate. No new model campaign or planning-only pause.
 
 Agent 2: preserve accepted admin5fbb377a4 and memory88ee1e901. Finish the remaining evolution caller-transaction ownership repair and its exact probes, push runtime/evidence checkpoints, then continue the bounded local queue. Original lineage/freshness findings are closed; do not replay accepted lanes or pause between phases.
 
