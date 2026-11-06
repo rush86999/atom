@@ -6,11 +6,15 @@ import logging
 from typing import Any, Dict, List, Optional
 import uuid
 from advanced_workflow_orchestrator import AdvancedWorkflowOrchestrator
-from fastapi import BackgroundTasks, Depends, Query
+from fastapi import BackgroundTasks, Depends, HTTPException, Query
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy.orm import Session
 
 from core.agent_governance_service import AgentGovernanceService
+from core.agent_decision_write_service import (
+    promote_agent as _promote_agent_decision,
+    update_agent as _update_agent_decision,
+)
 from core.auth import get_current_user, User
 from core.agent_world_model import AgentExperience, WorldModelService
 from core.base_routes import BaseAPIRouter
@@ -83,6 +87,68 @@ class HITLApprovalRequest(BaseModel):
     modified_params: Optional[Dict[str, Any]] = None
 
 # --- Endpoints ---
+
+def _raise_agent_decision(result: Dict[str, Any]) -> None:
+    """Map the verified agent-decision envelope to a safe HTTP error."""
+    status_value = str(result.get("status") or "")
+    if status_value == "refused":
+        raise HTTPException(
+            status_code=int(result.get("http_status") or 403),
+            detail={
+                "error": {
+                    "code": result.get("error_code") or "AUTHORITY_REQUIRED",
+                    "message": result.get("error") or "Request refused",
+                },
+                "field": result.get("field"),
+                "verification": result.get("verification"),
+            },
+        )
+    if status_value == "conflict":
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": {
+                    "code": result.get("error_code") or "STALE_TARGET",
+                    "message": result.get("error") or "Conflict",
+                },
+                "verification": result.get("verification"),
+            },
+        )
+    if status_value == "not_applied":
+        raise HTTPException(
+            status_code=int(result.get("http_status") or 409),
+            detail={
+                "error": {
+                    "code": result.get("error_code")
+                    or "AGENT_TRANSACTION_ROLLED_BACK",
+                    "message": result.get("error")
+                    or "The agent decision did not apply.",
+                },
+                "verification": result.get("verification"),
+                "operation_id": result.get("operation_id"),
+                "audit_id": result.get("audit_id"),
+            },
+        )
+    if status_value in ("committed_unverified", "effect_unknown"):
+        code = (
+            "AGENT_EFFECT_UNKNOWN"
+            if status_value == "effect_unknown"
+            else "AGENT_COMMITTED_UNVERIFIED")
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": {
+                    "code": code,
+                    "message": result.get("message")
+                    or "The agent decision outcome is uncertain.",
+                },
+                "verification": result.get("verification"),
+                "operation_id": result.get("operation_id"),
+                "audit_id": result.get("audit_id"),
+                "target_id": result.get("target_id"),
+            },
+        )
+
 
 @router.get("/history")
 async def get_agent_execution_history(
@@ -518,37 +584,26 @@ async def run_agent(
 async def update_agent(
     agent_id: str,
     update_data: AgentUpdateRequest,
+    operation_id: Optional[str] = None,
     user: User = Depends(require_permission(Permission.AGENT_MANAGE)),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Update agent details"""
-    agent = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
-    if not agent:
-        raise router.not_found_error("Agent", agent_id)
-
-    if update_data.name:
-        agent.name = update_data.name
-    if update_data.description is not None:
-        agent.description = update_data.description
-    # P2: per-agent capability binding (zero-trust tool scoping).
-    if update_data.capabilities is not None:
-        agent.capabilities = update_data.capabilities
-    if update_data.promotion_episode_floor is not None:
-        agent.promotion_episode_floor = max(1, update_data.promotion_episode_floor)
-
-    db.commit()
-    db.refresh(agent)
-
+    """Update agent details in the caller's tenant/workspace scope."""
+    result = _update_agent_decision(
+        db,
+        actor=current_user,
+        agent_id=agent_id,
+        changes=update_data.model_dump(exclude_none=True),
+        operation_id=operation_id,
+    )
+    _raise_agent_decision(result)
     return router.success_response(
-        data={
-            "id": agent.id,
-            "name": agent.name,
-            "description": agent.description,
-            "capabilities": agent.capabilities or [],
-            "promotion_episode_floor": agent.promotion_episode_floor,
-        },
-        message="Agent updated successfully"
+        data=result.get("data"),
+        message=(
+            result.get("message")
+            if result.get("status") == "no_change"
+            else "Agent updated successfully"),
     )
 
 @router.post("/{agent_id}/feedback")
@@ -580,25 +635,30 @@ async def submit_agent_feedback(
 @router.post("/{agent_id}/promote")
 async def promote_agent(
     agent_id: str,
+    operation_id: Optional[str] = None,
     user: User = Depends(require_permission(Permission.AGENT_MANAGE)),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Promote agent to Autonomous mode.
+    """Promote agent to Autonomous mode in the caller's tenant/workspace scope.
 
     Manual promotion bypasses the graduation framework — use for agents
     that have demonstrated readiness outside the episodic memory system.
     """
-    agent = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
-    if not agent:
-        raise router.not_found_error("Agent", agent_id)
-
-    agent.status = AgentStatus.AUTONOMOUS.value
-    db.commit()
-
+    result = _promote_agent_decision(
+        db,
+        actor=current_user,
+        agent_id=agent_id,
+        operation_id=operation_id,
+    )
+    _raise_agent_decision(result)
+    data = result.get("data") or {}
     return router.success_response(
-        data={"agent_status": agent.status, "agent_id": agent_id},
-        message=f"Agent {agent_id} promoted to autonomous successfully"
+        data=data,
+        message=(
+            result.get("message")
+            if result.get("status") == "no_change"
+            else f"Agent {agent_id} promoted to autonomous successfully"),
     )
 
 @router.get("/approvals/pending", response_model=List[Dict[str, Any]])
