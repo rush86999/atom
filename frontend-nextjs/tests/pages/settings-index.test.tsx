@@ -50,10 +50,13 @@ describe("SettingsPage", () => {
     expect(accountTab).not.toBeDisabled();
   });
 
-  test("core profile hides the deferred governance link", () => {
+  test("core profile hides the deferred governance links", () => {
     render(<SettingsPage />);
     expect(
       screen.queryByRole("link", { name: /Learning & Verification/ })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /BPE Workspace/ })
     ).not.toBeInTheDocument();
   });
 
@@ -84,5 +87,8 @@ describe("SettingsPage", () => {
         screen.getByRole("link", { name: /Learning & Verification/ })
       ).toBeInTheDocument()
     );
+    expect(
+      screen.getByRole("link", { name: /BPE Workspace/ })
+    ).toBeInTheDocument();
   });
 });

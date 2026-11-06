@@ -62,7 +62,9 @@ export default function SettingsPage() {
                             )}
                             <Link className="px-3 py-1.5 rounded-md bg-muted hover:bg-accent" href="/settings/local-models">Local Models (Ollama)</Link>
                             <Link className="px-3 py-1.5 rounded-md bg-muted hover:bg-accent" href="/settings/sessions">Sessions</Link>
-                            <Link className="px-3 py-1.5 rounded-md bg-muted hover:bg-accent" href="/settings/bpe">BPE Workspace</Link>
+                            {governanceEnabled && (
+                                <Link className="px-3 py-1.5 rounded-md bg-muted hover:bg-accent" href="/settings/bpe">BPE Workspace</Link>
+                            )}
                             {showAdminLinks && governanceEnabled && (
                                 <Link className="px-3 py-1.5 rounded-md bg-muted hover:bg-accent" href="/admin/learning-verification">Learning &amp; Verification</Link>
                             )}
