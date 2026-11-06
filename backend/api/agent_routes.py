@@ -1,6 +1,7 @@
 
 import asyncio
 import datetime
+import json
 from datetime import timezone
 import logging
 from typing import Any, Dict, List, Optional
@@ -8,10 +9,12 @@ import uuid
 from advanced_workflow_orchestrator import AdvancedWorkflowOrchestrator
 from fastapi import BackgroundTasks, Depends, HTTPException, Query
 from pydantic import BaseModel, Field, field_validator
+from sqlalchemy import update
 from sqlalchemy.orm import Session
 
 from core.agent_governance_service import AgentGovernanceService
 from core.agent_decision_write_service import (
+    admit_agent_run as _admit_agent_run,
     delete_agent as _delete_agent_decision,
     promote_agent as _promote_agent_decision,
     update_agent as _update_agent_decision,
@@ -24,6 +27,7 @@ from core.enterprise_security import AuditEvent, EventType, SecurityLevel, enter
 from core.models import (
     AgentFeedback,
     AgentJob,
+    AgentJobStatus,
     AgentRegistry,
     AgentStatus,
     HITLAction,
@@ -440,68 +444,71 @@ async def delete_agent(
 
 @router.post("/{agent_id}/run")
 async def run_agent(
-    agent_id: str, 
-    run_req: AgentRunRequest, 
+    agent_id: str,
+    run_req: AgentRunRequest,
     background_tasks: BackgroundTasks,
+    operation_id: Optional[str] = None,
     user: User = Depends(require_permission(Permission.AGENT_RUN)),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Trigger an agent execution in the background.
+    """Admit and dispatch one agent execution in the caller's scope.
 
-    SECURITY: uses SELECT FOR UPDATE on the agent row to atomically
-    transition to 'running' state. Prevents two concurrent run
-    requests from both passing the status check.
+    The verified admission binds current authority, exact agent material and a
+    durable AgentJob/receipt before dispatch. The existing execution task is
+    dispatched only after that transaction commits; tests stub the execution.
     """
-    agent = (
-        db.query(AgentRegistry)
-        .filter(AgentRegistry.id == agent_id)
-        .with_for_update()
-        .first()
+    result = _admit_agent_run(
+        db,
+        actor=current_user,
+        agent_id=agent_id,
+        parameters=run_req.parameters,
+        operation_id=operation_id,
     )
-    if not agent:
-        raise router.not_found_error("Agent", agent_id)
-
-    # Check if agent is deprecated or paused
-    if agent.status in [AgentStatus.DEPRECATED.value, AgentStatus.PAUSED.value]:
-        raise router.error_response(
-            error_code="AGENT_INVALID_STATE",
-            message=f"Agent is {agent.status}",
-            status_code=400
-        )
-
-    if agent.status == "running":
-        raise router.conflict_error(
-            message="Agent is already running",
-            details={"agent_id": agent_id, "current_status": agent.status}
-        )
-
-    # Check if we should run synchronously (for testing)
-    is_sync = run_req.parameters.get("sync", False)
-
-    if is_sync:
-        # Commit to RELEASE the SELECT ... FOR UPDATE row lock BEFORE running
-        # the agent. Previously the lock (and the request's DB connection) was
-        # held across the full `await execute_agent_task(...)` — serializing
-        # concurrent runs of the same agent and pinning a pool slot for the
-        # whole execution. execute_agent_task opens its own session, so the
-        # lock serves no purpose during the run.
-        db.commit()
-
-        result = await execute_agent_task(agent_id, run_req.parameters)
+    _raise_agent_decision(result)
+    data = result.get("data") or {}
+    if result.get("status") == "already_applied":
         return router.success_response(
-            data={"agent_id": agent_id, "result": result},
-            message="Agent execution completed"
+            data=data, message="Agent run already admitted")
+    job_id = data.get("job_id")
+    if not job_id:
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "success": False,
+                "error": {
+                    "code": "AGENT_RUN_JOB_MISSING",
+                    "message": "The run was admitted without a job identity.",
+                },
+                "verification": data.get("verification"),
+            },
         )
-
-    # Run in background
-    # We pass agent_id only, task will re-fetch to ensure fresh state/object access
-    background_tasks.add_task(execute_agent_task, agent_id, run_req.parameters)
-
+    prior_status = data.get("prior_status")
+    if run_req.parameters.get("sync", False):
+        execution = await _dispatch_admitted_run(
+            agent_id, run_req.parameters, job_id, prior_status,
+            db.get_bind())
+        return router.success_response(
+            data={
+                "agent_id": agent_id,
+                "job_id": job_id,
+                "result": execution,
+                "verification": data.get("verification"),
+            },
+            message="Agent execution completed",
+        )
+    background_tasks.add_task(
+        _dispatch_admitted_run, agent_id, run_req.parameters, job_id,
+        prior_status, db.get_bind())
     return router.success_response(
-        data={"agent_id": agent_id},
-        message="Agent execution started"
+        data={
+            "agent_id": agent_id,
+            "job_id": job_id,
+            "verification": data.get("verification"),
+        },
+        message="Agent execution started",
     )
+
 
 
 
@@ -939,6 +946,85 @@ async def execute_agent_task(agent_id: str, params: Dict[str, Any]):
             })
 
         return result
+
+
+def _begin_job(job_id: str, bind) -> None:
+    session = Session(bind=bind)
+    try:
+        job = session.get(AgentJob, job_id)
+        if job is not None:
+            job.status = AgentJobStatus.RUNNING.value
+            session.commit()
+    finally:
+        session.close()
+
+
+def _finish_job(job_id: str, status: str, bind) -> None:
+    session = Session(bind=bind)
+    try:
+        job = session.get(AgentJob, job_id)
+        if job is None:
+            return
+        job.status = status
+        job.end_time = datetime.datetime.now(timezone.utc)
+        try:
+            payload = json.loads(job.result_summary or "{}")
+        except (TypeError, ValueError):
+            payload = {}
+        if not isinstance(payload, dict):
+            payload = {}
+        payload["finished"] = True
+        payload["status"] = status
+        job.result_summary = json.dumps(payload, sort_keys=True)
+        session.commit()
+    finally:
+        session.close()
+
+
+def _restore_agent_status(
+    agent_id: str, prior_status: Optional[str], bind,
+) -> None:
+    if not prior_status:
+        return
+    session = Session(bind=bind)
+    try:
+        session.execute(
+            update(AgentRegistry)
+            .where(
+                AgentRegistry.id == agent_id,
+                AgentRegistry.status == "running",
+            )
+            .values(status=prior_status))
+        session.commit()
+    finally:
+        session.close()
+
+
+async def _dispatch_admitted_run(
+    agent_id: str, parameters: Dict[str, Any], job_id: str,
+    prior_status: Optional[str], bind,
+):
+    """Run an admitted job and keep its durable status truthful.
+
+    The execution itself is the existing ``execute_agent_task``. Admission,
+    the job row and the receipt already committed before this function runs.
+    """
+    _begin_job(job_id, bind)
+    try:
+        result = await execute_agent_task(agent_id, parameters)
+        _finish_job(
+            job_id,
+            AgentJobStatus.SUCCESS.value if result is not None
+            else AgentJobStatus.FAILED.value, bind)
+        return result
+    except Exception as exc:  # noqa: BLE001 — job status records the failure
+        _finish_job(job_id, AgentJobStatus.FAILED.value, bind)
+        logger.error(
+            "Admitted agent run failed: agent=%s job=%s error_class=%s",
+            agent_id, job_id, type(exc).__name__)
+        raise
+    finally:
+        _restore_agent_status(agent_id, prior_status, bind)
 
 
 # ==================== ATOM META-AGENT ENDPOINTS ====================
