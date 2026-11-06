@@ -1,0 +1,12 @@
+executed_source: 7530ce554af4dc8ae3695ab016650e0bcf6479f4
+product_source: fb5091069f7ce55882bfb85c23dac2d26a6730eb
+accepted_admin_base: 9d73552d249ae8ec5b05af77546faf9621bbcd47
+accepted_admin_product: 5fbb377a4e1eef8fdd0013275cd8b1c9b278cd41
+branch: codex/oracle01-marketplace-20261105
+git_status_short:
+git_log:
+7530ce554 test(marketplace): cover the publication decision matrix
+fb5091069 feat(marketplace): verify agent listing publication
+8a772e7ea docs: add the continuous delivery directive
+9d73552d2 test(admin): assert the real hashed credential in W79C create
+c4e43f4b9 docs(admin): submit the credential-proof and rollback evidence

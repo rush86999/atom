@@ -1,0 +1,179 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-05 20:56:40 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+
+tests/test_agent_marketplace_publish_contract.py::test_owner_publishes_listing_with_audit_and_no_raw_prompt 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:56:40 [    INFO] EscalationManager initialized
+2026-11-05 20:56:40 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:56:40 [    INFO] EscalationManager initialized
+2026-11-05 20:56:40 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:56:40 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 20:56:40 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:56:41 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-05 20:56:41 [    INFO] packaged agent agent-quota as template 40beec89-c477-47a9-9164-a6a23b965c2f (achieved=1, steps=1)
+2026-11-05 20:56:41 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish?operation_id=publish-one "HTTP/1.1 200 OK"
+PASSED                                                                   [  4%]
+tests/test_agent_marketplace_publish_contract.py::test_admin_can_publish_and_member_cannot 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:56:42 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-05 20:56:42 [    INFO] packaged agent agent-quota as template 5dbf5bc9-40c9-47b0-bfe0-a58f2ff43b0f (achieved=1, steps=1)
+2026-11-05 20:56:42 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish?operation_id=admin-publish "HTTP/1.1 200 OK"
+2026-11-05 20:56:42 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish?operation_id=denied "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [  8%]
+tests/test_agent_marketplace_publish_contract.py::test_missing_managed_and_paid_gate 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:56:43 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/missing/publish?operation_id=missing "HTTP/1.1 404 Not Found"
+2026-11-05 20:56:43 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-05 20:56:43 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-managed/publish?operation_id=managed "HTTP/1.1 409 Conflict"
+2026-11-05 20:56:43 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-05 20:56:43 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-fresh/publish?operation_id=paid-gate "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 13%]
+tests/test_agent_marketplace_publish_contract.py::test_paid_publish_with_achieved_run_succeeds 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:56:44 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-05 20:56:44 [    INFO] packaged agent agent-quota as template f5831f05-8cac-4ee9-9546-38081ce1262b (achieved=1, steps=1)
+2026-11-05 20:56:44 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish?operation_id=paid "HTTP/1.1 200 OK"
+PASSED                                                                   [ 17%]
+tests/test_agent_marketplace_publish_contract.py::test_replay_changed_material_and_missing_listing 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:56:45 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-05 20:56:45 [    INFO] packaged agent agent-quota as template 35ca1c3a-8277-4c22-b957-d6f97f02e1a1 (achieved=1, steps=1)
+2026-11-05 20:56:45 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish?operation_id=replay "HTTP/1.1 200 OK"
+2026-11-05 20:56:45 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish?operation_id=replay "HTTP/1.1 200 OK"
+2026-11-05 20:56:45 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish?operation_id=replay "HTTP/1.1 409 Conflict"
+2026-11-05 20:56:45 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish?operation_id=replay "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 21%]
+tests/test_agent_marketplace_publish_contract.py::test_stale_source_before_claim_refuses 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:56:45 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish?operation_id=stale "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 26%]
+tests/test_agent_marketplace_publish_contract.py::test_authority_change_before_claim_refuses[deactivate] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:56:46 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish?operation_id=authority "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 30%]
+tests/test_agent_marketplace_publish_contract.py::test_authority_change_before_claim_refuses[demote] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:56:47 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish?operation_id=authority "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 34%]
+tests/test_agent_marketplace_publish_contract.py::test_audit_rollback_reports_effect_none 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:56:48 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-05 20:56:48 [    INFO] packaged agent agent-quota as template b8285db9-f530-4f60-a511-8a21ad6d6cdd (achieved=1, steps=1)
+2026-11-05 20:56:48 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish?operation_id=rollback "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 39%]
+tests/test_agent_marketplace_publish_contract.py::test_post_commit_readback_is_committed_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:56:49 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-05 20:56:49 [    INFO] packaged agent agent-quota as template b3136845-cf5b-4b23-9177-0e19a619709c (achieved=1, steps=1)
+2026-11-05 20:56:49 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish?operation_id=readback "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 43%]
+tests/test_agent_marketplace_publish_contract.py::test_lost_confirmation_is_effect_unknown_with_identity 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:56:50 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-05 20:56:50 [    INFO] packaged agent agent-quota as template 59eb3747-7892-4c95-b2e9-2d92c3d0266b (achieved=1, steps=1)
+2026-11-05 20:56:50 [   ERROR] agent-marketplace decision outcome unknown: operation_id=agent-marketplace:publish:lost-confirmation target=59eb3747-7892-4c95-b2e9-2d92c3d0266b error_class=RuntimeError
+PASSED                                                                   [ 47%]
+tests/test_agent_marketplace_publish_contract.py::test_wrong_audit_receipt_is_never_verified[action] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:56:51 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-05 20:56:51 [    INFO] packaged agent agent-quota as template 027b2797-3a1a-47d6-8dd3-65d3da4eb741 (achieved=1, steps=1)
+2026-11-05 20:56:51 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish?operation_id=audit-action "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 52%]
+tests/test_agent_marketplace_publish_contract.py::test_wrong_audit_receipt_is_never_verified[user_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:56:51 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-05 20:56:51 [    INFO] packaged agent agent-quota as template 06659d03-caf1-4fc9-a0af-a5e62f58244f (achieved=1, steps=1)
+2026-11-05 20:56:51 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish?operation_id=audit-user_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 56%]
+tests/test_agent_marketplace_publish_contract.py::test_wrong_audit_receipt_is_never_verified[tenant_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:56:52 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-05 20:56:52 [    INFO] packaged agent agent-quota as template 38f58ea7-52d9-4105-8840-2534d2b219a0 (achieved=1, steps=1)
+2026-11-05 20:56:52 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish?operation_id=audit-tenant_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 60%]
+tests/test_agent_marketplace_publish_contract.py::test_wrong_audit_receipt_is_never_verified[resource] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:56:53 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-05 20:56:53 [    INFO] packaged agent agent-quota as template 670b9d8f-6dc9-4f39-90d9-38a2d3387026 (achieved=1, steps=1)
+2026-11-05 20:56:53 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish?operation_id=audit-resource "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 65%]
+tests/test_agent_marketplace_publish_contract.py::test_wrong_audit_receipt_is_never_verified[success] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:56:54 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-05 20:56:54 [    INFO] packaged agent agent-quota as template 3a95edb5-355e-4667-b1e9-5fc202c54275 (achieved=1, steps=1)
+2026-11-05 20:56:54 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish?operation_id=audit-success "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 69%]
+tests/test_agent_marketplace_publish_contract.py::test_wrong_audit_receipt_is_never_verified[security_level] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:56:55 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-05 20:56:55 [    INFO] packaged agent agent-quota as template e6637404-0d7a-4e3c-8cd4-550156f39b80 (achieved=1, steps=1)
+2026-11-05 20:56:55 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish?operation_id=audit-security_level "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 73%]
+tests/test_agent_marketplace_publish_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_target_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:56:56 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-05 20:56:56 [    INFO] packaged agent agent-quota as template ce9e2aa5-77cc-48e0-a476-952df77aba1e (achieved=1, steps=1)
+2026-11-05 20:56:56 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish?operation_id=audit-metadata_target_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 78%]
+tests/test_agent_marketplace_publish_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_source_agent_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:56:57 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-05 20:56:57 [    INFO] packaged agent agent-quota as template e997d736-7749-4ff4-8f0f-384395debfe9 (achieved=1, steps=1)
+2026-11-05 20:56:57 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish?operation_id=audit-metadata_source_agent_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 82%]
+tests/test_agent_marketplace_publish_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_prior_digest] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:56:58 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-05 20:56:58 [    INFO] packaged agent agent-quota as template 33e6c801-1f5a-42ac-9e6e-da1831c68a61 (achieved=1, steps=1)
+2026-11-05 20:56:58 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish?operation_id=audit-metadata_prior_digest "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 86%]
+tests/test_agent_marketplace_publish_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_result_digest] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:56:59 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-05 20:56:59 [    INFO] packaged agent agent-quota as template 25f76c61-4fd2-457f-b7e4-64a14b9469b6 (achieved=1, steps=1)
+2026-11-05 20:56:59 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish?operation_id=audit-metadata_result_digest "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 91%]
+tests/test_agent_marketplace_publish_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_request_digest] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:57:00 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-05 20:57:00 [    INFO] packaged agent agent-quota as template 697dc87a-afc1-4d72-b961-cc2f0cca11e2 (achieved=1, steps=1)
+2026-11-05 20:57:00 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish?operation_id=audit-metadata_request_digest "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 95%]
+tests/test_agent_marketplace_publish_contract.py::test_anonymous_requests_are_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:57:00 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+tests/test_agent_marketplace_publish_contract.py::test_owner_publishes_listing_with_audit_and_no_raw_prompt
+  /private/tmp/atom-marketplace/backend/core/graphrag_engine.py:196: DeprecationWarning: invalid escape sequence '\%'
+    """
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 23 passed, 6 warnings in 35.81s ========================
