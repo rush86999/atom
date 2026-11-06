@@ -119,11 +119,15 @@ class TestOutcomeObservationHook:
 
         handler = Mock(spec=BYOKHandler)
         handler.tenant_id = "t1"
+        handler.workspace_id = "ws1"
         # Use the real static adapter so task_type maps correctly.
         handler._adapt_task_type = BYOKHandler._adapt_task_type
 
         # Patch the helper that builds the router + the imports inside the hook.
-        with patch("core.llm.learning_router_registry.get_learning_router_instance", return_value=FakeRouter()):
+        with patch(
+            "core.llm.learning_router_registry.get_learning_router_instance",
+            side_effect=lambda **_: FakeRouter(),
+        ):
             await BYOKHandler._record_outcome_feedback(
                 handler, model="gpt-4o", provider_id="openai",
                 task_type="chat", content="Here is a thorough answer. " * 30,
@@ -156,9 +160,13 @@ class TestOutcomeObservationHook:
 
         handler = Mock(spec=BYOKHandler)
         handler.tenant_id = "t1"
+        handler.workspace_id = "ws1"
         handler._adapt_task_type = BYOKHandler._adapt_task_type
 
-        with patch("core.llm.learning_router_registry.get_learning_router_instance", return_value=FakeRouter()):
+        with patch(
+            "core.llm.learning_router_registry.get_learning_router_instance",
+            side_effect=lambda **_: FakeRouter(),
+        ):
             await BYOKHandler._record_outcome_feedback(
                 handler, model="mini", provider_id="openai",
                 task_type="chat", content="partial...",
@@ -186,9 +194,13 @@ class TestOutcomeObservationHook:
 
         handler = Mock(spec=BYOKHandler)
         handler.tenant_id = "t1"
+        handler.workspace_id = "ws1"
         handler._adapt_task_type = BYOKHandler._adapt_task_type
 
-        with patch("core.llm.learning_router_registry.get_learning_router_instance", return_value=FakeRouter()):
+        with patch(
+            "core.llm.learning_router_registry.get_learning_router_instance",
+            side_effect=lambda **_: FakeRouter(),
+        ):
             await BYOKHandler._record_outcome_feedback(
                 handler, model="mini", provider_id="openai",
                 task_type="chat", content=None,
@@ -329,7 +341,13 @@ class TestConcreteModelVisibility:
             async def generate_response(self, **kwargs):
                 return "Hello world"
 
-        service._get_handler = lambda workspace_id=None: FakeHandler()
+        captured_scope = {}
+
+        def _get_handler(**kwargs):
+            captured_scope.update(kwargs)
+            return FakeHandler()
+
+        service._get_handler = _get_handler
         service._resolve_governance_model = lambda ws, model, **kw: model
 
         # asyncio.run() instead of get_event_loop().run_until_complete(): the
@@ -345,6 +363,7 @@ class TestConcreteModelVisibility:
             f"Expected concrete model, got '{result['model']}' — badge would lie"
         )
         assert result["provider"] == "openai"
+        assert captured_scope == {"workspace_id": None, "tenant_id": None}
 
 
 class TestRerankRoutingResultId:

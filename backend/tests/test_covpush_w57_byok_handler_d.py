@@ -18,7 +18,21 @@ from core.llm.byok_handler import (
     AwaitableResult,
     BYOKHandler,
     GatewayBlockedError,
+    key_store_signature,
 )
+
+
+@pytest.fixture(autouse=True)
+def _provider_catalog(tmp_path, monkeypatch):
+    """Explicit isolated eligible catalog for the injected routes."""
+    import core.llm.model_route_registry as mrr
+
+    catalog = mrr.ProviderModelCatalog(path=str(tmp_path / "catalog.json"))
+    catalog.record_discovery("openai", ["gpt-4o", "gpt-4o-mini", "m"])
+    catalog.record_discovery("anthropic", ["claude-3-5-sonnet"])
+    catalog.record_discovery("deepseek", ["deepseek-chat"])
+    monkeypatch.setattr(mrr, "get_provider_model_catalog", lambda: catalog)
+    yield catalog
 
 
 def _resp(content="ok", finish="stop", usage=None):
@@ -50,6 +64,8 @@ def make_handler(**attrs):
     h._embedding_initialized = False
     h._embedding_init_lock = None
     h._clients_initialized = True
+    h.credential_signature = key_store_signature()
+    h._local_routes = {}
     h.workspace_id = "ws1"
     h.tenant_id = "tenant"
     h.default_provider_id = None

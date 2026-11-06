@@ -686,6 +686,7 @@ class TestOpenCodeGoFreePaidRetryStreaming:
         async for chunk in handler.stream_completion(
             [{"role": "user", "content": "hello"}],
             provider_id="opencode-go",
+            explicit_route=True,
             **kwargs,
         ):
             chunks.append(chunk)

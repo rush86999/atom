@@ -18,6 +18,7 @@ import pytest
 
 import core.llm.byok_handler as bh
 from core.llm.byok_handler import (
+    key_store_signature,
     AllProvidersFailedError,
     AwaitableResult,
     BYOKHandler,
@@ -53,6 +54,8 @@ def make_handler(**attrs):
     h._embedding_initialized = False
     h._embedding_init_lock = None
     h._clients_initialized = True
+    h.credential_signature = key_store_signature()
+    h._local_routes = {}
     h.workspace_id = "ws1"
     h.tenant_id = "tenant"
     h.default_provider_id = None
@@ -438,7 +441,9 @@ class TestOptimalProvider:
         h = make_handler(clients={"deepseek": 1})
         with patch.object(h, "get_ranked_providers", return_value=[]):
             result = h.get_optimal_provider(QueryComplexity.SIMPLE)
-        assert result[1] == "gpt-4o-mini"
+        # The absolute fallback walks the CONFIGURED providers and returns
+        # their documented tier default — not a hardcoded foreign model.
+        assert result == ("deepseek", "deepseek-chat")
 
     def test_no_clients_raises(self):
         h = make_handler(clients={})

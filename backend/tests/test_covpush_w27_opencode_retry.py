@@ -55,6 +55,21 @@ CREDITS_ERROR = (
 )
 
 
+@pytest.fixture(autouse=True)
+def _provider_catalog(tmp_path, monkeypatch):
+    """Explicit isolated eligible catalog for the injected opencode routes."""
+    import core.llm.model_route_registry as mrr
+
+    catalog = mrr.ProviderModelCatalog(path=str(tmp_path / "catalog.json"))
+    catalog.record_discovery("opencode-go", [
+        "deepseek-v4-flash-free", "deepseek-v4-flash",
+        "deepseek-v4.1-flash", "deepseek-v4-pro", "kimi-k2.7-code",
+        "mimo-v2.5-free", "mimo-v2.6-flash-free", "minimax-m2.7",
+    ])
+    monkeypatch.setattr(mrr, "get_provider_model_catalog", lambda: catalog)
+    yield catalog
+
+
 @pytest.fixture
 def handler(mock_byok_manager):
     with patch("core.llm.byok_handler.get_byok_manager", return_value=mock_byok_manager):

@@ -59,6 +59,22 @@ def _clean_provider_cooldowns():
     BYOKHandler.invalidate_provider_failures()
 
 
+@pytest.fixture(autouse=True)
+def _provider_catalog(tmp_path, monkeypatch):
+    """Explicit isolated eligible catalog for the injected opencode routes."""
+    import core.llm.model_route_registry as mrr
+
+    catalog = mrr.ProviderModelCatalog(path=str(tmp_path / "catalog.json"))
+    catalog.record_discovery("opencode-go", [
+        "deepseek-v4-flash", "deepseek-v4-flash-free",
+        "deepseek-v4.1-flash", "deepseek-v4-pro", "kimi-k2.7-code",
+        "mimo-v2.5-free", "mimo-v2.6-flash-free", "minimax-m2.7",
+    ])
+    catalog.record_discovery("openai", ["gpt-4o", "gpt-4o-mini"])
+    monkeypatch.setattr(mrr, "get_provider_model_catalog", lambda: catalog)
+    yield catalog
+
+
 @pytest.fixture
 def handler(mock_byok_manager):
     """Sync-path handler: both client dicts cleared of any real env-key
@@ -83,14 +99,17 @@ def async_handler(handler):
 
 
 def _response(content, finish_reason="stop"):
-    r = MagicMock()
-    r.choices = [MagicMock()]
-    r.choices[0].message.content = content
-    r.choices[0].finish_reason = finish_reason
-    r.usage = MagicMock()
-    r.usage.prompt_tokens = 10
-    r.usage.completion_tokens = 5
-    return r
+    # SimpleNamespace, not MagicMock: _response_field treats dynamic
+    # MagicMock attributes as absent, so a MagicMock "completion" has no
+    # payload and would exercise the empty-output branch instead.
+    from types import SimpleNamespace
+    return SimpleNamespace(
+        choices=[SimpleNamespace(
+            message=SimpleNamespace(content=content),
+            finish_reason=finish_reason,
+        )],
+        usage=SimpleNamespace(prompt_tokens=10, completion_tokens=5),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -397,6 +416,7 @@ class TestOpencodeCanaryProbe:
 
 class TestChatCompletionFreeToPaidRetry:
     def _run(self, handler, model="deepseek-v4-flash-free", **kw):
+        kw.setdefault("_allow_ladder_sweep", False)
         return asyncio.run(handler.chat_completion(
             [{"role": "user", "content": "hi"}],
             model=model,
