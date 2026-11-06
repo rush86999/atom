@@ -1,0 +1,321 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-06 13:51:03 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-06 13:51:03 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-06 13:51:03 [ WARNING] Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+2026-11-06 13:51:03 [    INFO] No token storage file found, starting empty
+2026-11-06 13:51:03 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-06 13:51:03 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-06 13:51:03 [    INFO] EscalationManager initialized
+2026-11-06 13:51:03 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 13:51:03 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-06 13:51:03 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-06 13:51:03 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-06 13:51:03 [    INFO] EscalationManager initialized
+2026-11-06 13:51:03 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 13:51:03 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-06 13:51:03 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 13:51:03 [    INFO] MCP Service initialized
+2026-11-06 13:51:03 [ WARNING] WorkflowNotifier: Slack initialization deferred: 'list' object has no attribute 'get'
+
+tests/test_workflow_scheduler_recovery.py::test_paused_schedule_survives_restart_without_firing 
+-------------------------------- live log setup --------------------------------
+2026-11-06 13:51:04 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:51:04 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-06 13:51:04 [    INFO] Scheduler started
+2026-11-06 13:51:04 [    INFO] WorkflowScheduler started
+2026-11-06 13:51:04 [    INFO] Added job "_counted_fire" to job store "default"
+2026-11-06 13:51:04 [    INFO] WorkflowScheduler shutdown
+2026-11-06 13:51:04 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-06 13:51:04 [    INFO] Scheduler started
+2026-11-06 13:51:04 [    INFO] WorkflowScheduler started
+2026-11-06 13:51:04 [    INFO] Scheduler has been shut down
+2026-11-06 13:51:04 [    INFO] WorkflowScheduler shutdown
+2026-11-06 13:51:04 [    INFO] Scheduler has been shut down
+PASSED                                                                   [  6%]
+tests/test_workflow_scheduler_recovery.py::test_cancelled_schedule_survives_restart_without_firing 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:51:04 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-06 13:51:04 [    INFO] Scheduler started
+2026-11-06 13:51:04 [    INFO] WorkflowScheduler started
+2026-11-06 13:51:04 [    INFO] Added job "_counted_fire" to job store "default"
+2026-11-06 13:51:04 [    INFO] Removed job job_wf-cancelled_1793991064.904702
+2026-11-06 13:51:04 [    INFO] Removed job job_wf-cancelled_1793991064.904702
+2026-11-06 13:51:04 [    INFO] WorkflowScheduler shutdown
+2026-11-06 13:51:04 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-06 13:51:04 [    INFO] Scheduler started
+2026-11-06 13:51:04 [    INFO] WorkflowScheduler started
+2026-11-06 13:51:04 [    INFO] Scheduler has been shut down
+2026-11-06 13:51:05 [    INFO] WorkflowScheduler shutdown
+2026-11-06 13:51:05 [    INFO] Scheduler has been shut down
+PASSED                                                                   [ 13%]
+tests/test_workflow_scheduler_recovery.py::test_fired_once_schedule_does_not_duplicate_after_restart 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:51:05 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-06 13:51:05 [    INFO] Scheduler started
+2026-11-06 13:51:05 [    INFO] WorkflowScheduler started
+2026-11-06 13:51:05 [    INFO] Added job "_counted_fire" to job store "default"
+2026-11-06 13:51:05 [    INFO] Removed job job_wf-once_1793991065.622073
+2026-11-06 13:51:05 [    INFO] Running job "_counted_fire (trigger: date[2026-11-06 18:51:05 UTC], next run at: 2026-11-06 18:51:05 UTC)" (scheduled at 2026-11-06 18:51:05.722058+00:00)
+2026-11-06 13:51:05 [    INFO] Job "_counted_fire (trigger: date[2026-11-06 18:51:05 UTC], next run at: 2026-11-06 18:51:05 UTC)" executed successfully
+2026-11-06 13:51:06 [    INFO] WorkflowScheduler shutdown
+2026-11-06 13:51:06 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-06 13:51:06 [    INFO] Scheduler started
+2026-11-06 13:51:06 [    INFO] WorkflowScheduler started
+2026-11-06 13:51:06 [    INFO] Scheduler has been shut down
+2026-11-06 13:51:06 [    INFO] WorkflowScheduler shutdown
+2026-11-06 13:51:06 [    INFO] Scheduler has been shut down
+PASSED                                                                   [ 20%]
+tests/test_workflow_public_approval_flow.py::test_public_workflow_approval_is_visible_decidable_and_resumes_once 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:51:06 [    INFO] Event bus started
+2026-11-06 13:51:06 [    INFO] Loaded analytics data: 10 workflows, 0 integrations
+2026-11-06 13:51:06 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:51:06 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:51:06 [ WARNING] 🚫 Governance pause for execution 8beb2ab7-61bd-4780-b11d-e748f59d9b68 at step s1: Maturity check failed. Required: supervised
+2026-11-06 13:51:06 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:51:06 [    INFO] HTTP Request: POST http://test/workflows/wf-local-bdda4e9c27/execute "HTTP/1.1 200 OK"
+2026-11-06 13:51:06 [    INFO] HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+2026-11-06 13:51:07 [    INFO] HTTP Request: POST http://test/api/agents/approvals/7e9ccbe5-ecdb-47e6-9ac3-647b8f090e9a "HTTP/1.1 200 OK"
+2026-11-06 13:51:07 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:51:07 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:51:07 [    INFO] Workflow 8beb2ab7-61bd-4780-b11d-e748f59d9b68 step s1 authorized by durable HITL 7e9ccbe5-ecdb-47e6-9ac3-647b8f090e9a
+2026-11-06 13:51:07 [    INFO] Executing database.create with params: {'record': 'harmless'}
+2026-11-06 13:51:07 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:51:07 [   ERROR] Failed to update step execution record: can't subtract offset-naive and offset-aware datetimes
+2026-11-06 13:51:07 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:51:07 [ WARNING] Slack token not configured, skipping notification
+2026-11-06 13:51:07 [    INFO] Initialized global governance cache
+2026-11-06 13:51:07 [    INFO] Observation event 'workflow_execution' learned by 1 student(s) in workspace-local-bdda4e9c27
+2026-11-06 13:51:07 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:51:07 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:51:07 [ WARNING] Slack token not configured, skipping notification
+2026-11-06 13:51:07 [    INFO] Observation event 'workflow_execution' learned by 1 student(s) in workspace-local-bdda4e9c27
+PASSED                                                                   [ 26%]
+tests/test_workflow_public_approval_flow.py::test_scheduled_real_workflow_approval_join 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:51:07 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-06 13:51:07 [    INFO] Scheduler started
+2026-11-06 13:51:07 [    INFO] WorkflowScheduler started
+2026-11-06 13:51:07 [    INFO] Added job "WorkflowScheduler._execute_job" to job store "default"
+2026-11-06 13:51:07 [    INFO] Removed job job_wf-local-ce6be18000_1793991067.343931
+2026-11-06 13:51:07 [    INFO] Running job "WorkflowScheduler._execute_job (trigger: date[2026-11-06 18:51:07 UTC], next run at: 2026-11-06 18:51:07 UTC)" (scheduled at 2026-11-06 18:51:07.543925+00:00)
+2026-11-06 13:51:07 [    INFO] Executing scheduled workflow: wf-local-ce6be18000
+2026-11-06 13:51:07 [    INFO] Scheduled execution aaff5276-fbd9-4e53-a09d-9f3f22c62117 started
+2026-11-06 13:51:07 [    INFO] Job "WorkflowScheduler._execute_job (trigger: date[2026-11-06 18:51:07 UTC], next run at: 2026-11-06 18:51:07 UTC)" executed successfully
+2026-11-06 13:51:07 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:51:07 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:51:07 [ WARNING] 🚫 Governance pause for execution aaff5276-fbd9-4e53-a09d-9f3f22c62117 at step s1: Maturity check failed. Required: supervised
+2026-11-06 13:51:07 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:51:07 [    INFO] HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+2026-11-06 13:51:07 [    INFO] HTTP Request: POST http://test/api/agents/approvals/9784c607-0919-46a3-9e2c-283334c11c7b "HTTP/1.1 200 OK"
+2026-11-06 13:51:07 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:51:07 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:51:07 [    INFO] Workflow aaff5276-fbd9-4e53-a09d-9f3f22c62117 step s1 authorized by durable HITL 9784c607-0919-46a3-9e2c-283334c11c7b
+2026-11-06 13:51:07 [    INFO] Executing database.create with params: {'record': 'harmless'}
+2026-11-06 13:51:07 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:51:07 [   ERROR] Failed to update step execution record: can't subtract offset-naive and offset-aware datetimes
+2026-11-06 13:51:07 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:51:07 [ WARNING] Slack token not configured, skipping notification
+2026-11-06 13:51:07 [    INFO] Observation event 'workflow_execution' learned by 1 student(s) in workspace-local-ce6be18000
+2026-11-06 13:51:07 [    INFO] WorkflowScheduler shutdown
+2026-11-06 13:51:07 [    INFO] Scheduler has been shut down
+PASSED                                                                   [ 33%]
+tests/test_workflow_public_approval_flow.py::test_resume_inputs_cannot_rewrite_the_frozen_scope 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:51:08 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:51:08 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:51:08 [ WARNING] 🚫 Governance pause for execution 95182d40-9e33-4722-b933-ef36a0968a1f at step s1: Maturity check failed. Required: supervised
+2026-11-06 13:51:08 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:51:08 [    INFO] HTTP Request: POST http://test/workflows/wf-local-72e072e627/execute "HTTP/1.1 200 OK"
+2026-11-06 13:51:08 [    INFO] HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+2026-11-06 13:51:08 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:51:08 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:51:08 [    INFO] Workflow 95182d40-9e33-4722-b933-ef36a0968a1f step s1 authorized by durable HITL b1670a2b-9c21-4509-93dc-cbe1ac7cc0fe
+2026-11-06 13:51:08 [    INFO] Executing database.create with params: {'record': 'harmless'}
+2026-11-06 13:51:08 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:51:08 [   ERROR] Failed to update step execution record: can't subtract offset-naive and offset-aware datetimes
+2026-11-06 13:51:08 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:51:08 [ WARNING] Slack token not configured, skipping notification
+2026-11-06 13:51:08 [    INFO] Observation event 'workflow_execution' learned by 1 student(s) in workspace-local-72e072e627
+PASSED                                                                   [ 40%]
+tests/test_workflow_public_approval_flow.py::test_schedule_freezes_caller_scope_and_discards_client_scope 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:51:08 [    INFO] HTTP Request: POST http://test/workflows/wf-local-38f8421b11/schedule "HTTP/1.1 200 OK"
+PASSED                                                                   [ 46%]
+tests/test_workflow_public_approval_flow.py::test_public_workflow_rejection_leaves_zero_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:51:08 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:51:08 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:51:08 [ WARNING] 🚫 Governance pause for execution b3e76a79-1373-4949-98a5-238874584205 at step s1: Maturity check failed. Required: supervised
+2026-11-06 13:51:08 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:51:08 [    INFO] HTTP Request: POST http://test/workflows/wf-local-27d5770989/execute "HTTP/1.1 200 OK"
+2026-11-06 13:51:08 [    INFO] HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+2026-11-06 13:51:08 [ WARNING] HITL 53b68313-8985-4ad4-a0ed-41224f6e250b decided (rejected) but work did not resume: {'handled': True, 'resumed': False, 'kind': 'workflow', 'status': 'FAILED'}
+2026-11-06 13:51:08 [    INFO] HTTP Request: POST http://test/api/agents/approvals/53b68313-8985-4ad4-a0ed-41224f6e250b "HTTP/1.1 200 OK"
+PASSED                                                                   [ 53%]
+tests/test_workflow_public_approval_flow.py::test_changed_material_after_review_does_not_execute 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:51:08 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:51:08 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:51:08 [ WARNING] 🚫 Governance pause for execution 7a97ef2b-9091-4475-a909-c35ef8dea596 at step s1: Maturity check failed. Required: supervised
+2026-11-06 13:51:08 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:51:08 [    INFO] HTTP Request: POST http://test/workflows/wf-local-91d1609cb0/execute "HTTP/1.1 200 OK"
+2026-11-06 13:51:08 [    INFO] HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+2026-11-06 13:51:08 [    INFO] HTTP Request: POST http://test/api/agents/approvals/357390cb-26e2-4140-a17d-655cc76e0ad8 "HTTP/1.1 200 OK"
+2026-11-06 13:51:08 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:51:08 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:51:08 [ WARNING] workflow 7a97ef2b-9091-4475-a909-c35ef8dea596: durable approval 357390cb-26e2-4140-a17d-655cc76e0ad8 does not bind the current step payload
+2026-11-06 13:51:08 [ WARNING] 🚫 Governance pause for execution 7a97ef2b-9091-4475-a909-c35ef8dea596 at step s1: Maturity check failed. Required: supervised
+2026-11-06 13:51:08 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+PASSED                                                                   [ 60%]
+tests/test_workflow_public_approval_flow.py::test_foreign_scope_cannot_see_or_decide_public_workflow_approval[workspace] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:51:08 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:51:08 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:51:08 [ WARNING] 🚫 Governance pause for execution bbc51ecc-c41f-440f-8be9-ebc288c845fc at step s1: Maturity check failed. Required: supervised
+2026-11-06 13:51:08 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:51:08 [    INFO] HTTP Request: POST http://test/workflows/wf-local-a441e14bc4/execute "HTTP/1.1 200 OK"
+2026-11-06 13:51:08 [    INFO] HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+2026-11-06 13:51:08 [    INFO] HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+2026-11-06 13:51:08 [    INFO] HTTP Request: POST http://test/api/agents/approvals/e21d5c98-b718-4245-8ab8-599260a4309d "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 66%]
+tests/test_workflow_public_approval_flow.py::test_foreign_scope_cannot_see_or_decide_public_workflow_approval[tenant] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:51:08 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:51:08 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:51:08 [ WARNING] 🚫 Governance pause for execution dace6426-eeb2-48e8-8a5d-d8a208597671 at step s1: Maturity check failed. Required: supervised
+2026-11-06 13:51:08 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:51:08 [    INFO] HTTP Request: POST http://test/workflows/wf-local-71aa30db4c/execute "HTTP/1.1 200 OK"
+2026-11-06 13:51:08 [    INFO] HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+2026-11-06 13:51:08 [    INFO] HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+2026-11-06 13:51:08 [    INFO] HTTP Request: POST http://test/api/agents/approvals/9a6ac36c-2bde-4e9b-83c6-402b6adc96ed "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 73%]
+tests/test_agent3_pr682_scope_freeze_probes.py::test_execute_route_discards_client_supplied_scope 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:51:08 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:51:08 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:51:08 [ WARNING] 🚫 Governance pause for execution a35cb4f4-e272-4f1c-86e3-117f41e594b6 at step s1: Maturity check failed. Required: supervised
+2026-11-06 13:51:08 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:51:08 [    INFO] HTTP Request: POST http://test/workflows/wf-local-65cf9a6397/execute "HTTP/1.1 200 OK"
+2026-11-06 13:51:08 [    INFO] HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+PASSED                                                                   [ 80%]
+tests/test_agent3_pr682_scope_freeze_probes.py::test_freeze_and_strip_helpers_discard_client_key_and_invent_nothing PASSED [ 86%]
+tests/test_agent3_pr682_scope_freeze_probes.py::test_scheduled_approval_fires_after_restart_with_caller_scope 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:51:08 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-06 13:51:08 [    INFO] Scheduler started
+2026-11-06 13:51:08 [    INFO] WorkflowScheduler started
+2026-11-06 13:51:08 [    INFO] Added job "WorkflowScheduler._execute_job" to job store "default"
+2026-11-06 13:51:08 [    INFO] WorkflowScheduler shutdown
+2026-11-06 13:51:08 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-06 13:51:08 [    INFO] Scheduler started
+2026-11-06 13:51:08 [    INFO] WorkflowScheduler started
+2026-11-06 13:51:08 [    INFO] Scheduler has been shut down
+2026-11-06 13:51:10 [    INFO] Removed job job_wf-local-74ed9e481f_1793991068.981235
+2026-11-06 13:51:10 [    INFO] Running job "WorkflowScheduler._execute_job (trigger: date[2026-11-06 18:51:10 UTC], next run at: 2026-11-06 18:51:10 UTC)" (scheduled at 2026-11-06 18:51:10.981228+00:00)
+2026-11-06 13:51:10 [    INFO] Executing scheduled workflow: wf-local-74ed9e481f
+2026-11-06 13:51:10 [    INFO] Scheduled execution 3fc7286d-01eb-4e7d-b199-da08b9da2327 started
+2026-11-06 13:51:11 [    INFO] Job "WorkflowScheduler._execute_job (trigger: date[2026-11-06 18:51:10 UTC], next run at: 2026-11-06 18:51:10 UTC)" executed successfully
+2026-11-06 13:51:11 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:51:11 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:51:11 [ WARNING] 🚫 Governance pause for execution 3fc7286d-01eb-4e7d-b199-da08b9da2327 at step s1: Maturity check failed. Required: supervised
+2026-11-06 13:51:11 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:51:11 [    INFO] HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+2026-11-06 13:51:11 [    INFO] HTTP Request: POST http://test/api/agents/approvals/4a3c0b2e-3101-4082-9624-0a32795138dd "HTTP/1.1 200 OK"
+2026-11-06 13:51:11 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:51:11 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:51:11 [    INFO] Workflow 3fc7286d-01eb-4e7d-b199-da08b9da2327 step s1 authorized by durable HITL 4a3c0b2e-3101-4082-9624-0a32795138dd
+2026-11-06 13:51:11 [    INFO] Executing database.create with params: {'record': 'harmless'}
+2026-11-06 13:51:11 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:51:11 [   ERROR] Failed to update step execution record: can't subtract offset-naive and offset-aware datetimes
+2026-11-06 13:51:11 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:51:11 [ WARNING] Slack token not configured, skipping notification
+2026-11-06 13:51:11 [    INFO] Observation event 'workflow_execution' learned by 1 student(s) in workspace-local-74ed9e481f
+2026-11-06 13:51:11 [    INFO] WorkflowScheduler shutdown
+2026-11-06 13:51:11 [    INFO] Scheduler has been shut down
+PASSED                                                                   [ 93%]
+tests/test_agent3_pr682_scope_freeze_probes.py::test_spent_scheduled_approval_never_refires_after_restart 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:51:11 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-06 13:51:11 [    INFO] Scheduler started
+2026-11-06 13:51:11 [    INFO] WorkflowScheduler started
+2026-11-06 13:51:11 [    INFO] Added job "WorkflowScheduler._execute_job" to job store "default"
+2026-11-06 13:51:11 [    INFO] Removed job job_wf-local-658a028395_1793991071.464213
+2026-11-06 13:51:11 [    INFO] Running job "WorkflowScheduler._execute_job (trigger: date[2026-11-06 18:51:11 UTC], next run at: 2026-11-06 18:51:11 UTC)" (scheduled at 2026-11-06 18:51:11.864207+00:00)
+2026-11-06 13:51:11 [    INFO] Executing scheduled workflow: wf-local-658a028395
+2026-11-06 13:51:11 [    INFO] Scheduled execution 632a99d3-00c2-4b23-9fdd-6444d015d5f3 started
+2026-11-06 13:51:11 [    INFO] Job "WorkflowScheduler._execute_job (trigger: date[2026-11-06 18:51:11 UTC], next run at: 2026-11-06 18:51:11 UTC)" executed successfully
+2026-11-06 13:51:11 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:51:11 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:51:11 [ WARNING] 🚫 Governance pause for execution 632a99d3-00c2-4b23-9fdd-6444d015d5f3 at step s1: Maturity check failed. Required: supervised
+2026-11-06 13:51:11 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:51:12 [    INFO] WorkflowScheduler shutdown
+2026-11-06 13:51:12 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-06 13:51:12 [    INFO] Scheduler started
+2026-11-06 13:51:12 [    INFO] WorkflowScheduler started
+2026-11-06 13:51:12 [    INFO] Scheduler has been shut down
+2026-11-06 13:51:13 [    INFO] WorkflowScheduler shutdown
+2026-11-06 13:51:13 [    INFO] Scheduler has been shut down
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+core/token_storage.py:17
+  /private/tmp/agent3-pr682-review/backend/core/token_storage.py:17: DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 15 passed, 6 warnings in 26.27s ========================

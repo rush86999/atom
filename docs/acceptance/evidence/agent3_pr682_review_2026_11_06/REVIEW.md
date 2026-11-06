@@ -138,3 +138,44 @@ the evidence bundle is complete and hash-verified in Git, and the declared
 exclusions are intact. Non-blocking items: the shared-caller observation
 (§6) for separate finite ranking, and the scheduler-restart-plus-approval
 join as an untested boundary if the lead wants it qualified.
+
+---
+
+## 9. Continuation (2026-11-06, lead directive: "Agent3 remains on merged
+682–684 joined workflow review") — scheduler-restart + approval join
+
+This qualifies the §7-recorded untested boundary: a scheduler **restart**
+joined with the approval path. Mechanism is PR676's accepted one — real
+`WorkflowScheduler` on a persisted SQLAlchemy jobstore, restart via a second
+instance on the same store — with the callback **not** doubled: the real
+`_execute_job` starts the real engine (only `_notify_workflow_paused`
+suppressed, as in the merged suite).
+
+Added probes (in `tests/test_agent3_pr682_scope_freeze_probes.py`):
+
+1. **Restart before the fire**: a persisted one-shot job with frozen scope
+   survives instance #1's shutdown, fires on instance #2 through the real
+   engine, pauses for governance, waits **in the scheduling user's own
+   queue** (the frozen scope survived the restart), and after decision
+   resumes to exactly one durable effect with the scoped HITL row.
+2. **Spent job never refires**: after a job fired and its execution paused,
+   a further restart creates no new execution and dispatches nothing.
+
+Decisive combined gate, once (Python 3.11.16, fresh `TESTING=1` scratch):
+`test_workflow_scheduler_recovery.py` (PR676's 3 controls) +
+`test_workflow_public_approval_flow.py` (8) + the probe file (4) —
+**15 passed / 0 failed** in 26.27s (log:
+`scheduler-restart-join-gate-311.log`).
+
+Honest iteration record: the first probe draft scheduled a new job on the
+restarted instance too — two jobs, two fires, two approvals (`assert 2 == 1`);
+fixed by splitting instantiate-from-schedule so a restarted instance only
+loads the store. Two missing-scratch-directory setup errors and one
+superseded timing draft were harness errors, corrected. No product defect
+was found in the restarted-fire path.
+
+Boundary note: restart here is a second scheduler instance in the same
+process/loop on the same persisted store — the same shape PR676 qualified.
+A separate-OS-process worker is not claimed. With this, the §7
+scheduler-restart exclusion is qualified at this scope; the shared-caller
+observation (§6) remains open for separate ranking.
