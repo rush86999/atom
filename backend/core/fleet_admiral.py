@@ -17,18 +17,19 @@ Ported from atom-saas
 Changes: Removed SaaS-specific features (billing, quota, multi-tenancy)
 """
 
+import hashlib
 import logging
 import uuid
 import json
 from datetime import datetime, timezone
-from typing import Dict, Any, Optional, List
+from typing import Callable, Dict, Any, Optional, List
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, Field
 
 from core.agent_fleet_service import AgentFleetService
 from core.recruitment_intelligence_service import RecruitmentIntelligenceService
 from core.llm_service import LLMService
-from core.models import DelegationChain, ChainLink
+from core.models import AgentRegistry, DelegationChain, ChainLink
 
 logger = logging.getLogger(__name__)
 
@@ -173,7 +174,9 @@ Return JSON matching the TaskAnalysis schema."""
         self,
         task: str,
         user_id: str,  # Changed from tenant_id
-        root_agent_id: str = "atom_main"
+        root_agent_id: str = "atom_main",
+        tenant_id: Optional[str] = None,
+        workspace_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Analyze task, recruit specialist agents, and initialize fleet execution.
@@ -206,12 +209,13 @@ Return JSON matching the TaskAnalysis schema."""
 
         # Step 2: Initialize delegation chain (fleet)
         chain = self.fleet_service.initialize_fleet(
-            user_id=user_id,  # Changed from tenant_id
+            tenant_id=tenant_id or user_id,
             root_agent_id=root_agent_id,
             root_task=task,
             initial_metadata={
                 "task_analysis": task_analysis,
-                "recruitment_phase": "in_progress"
+                "recruitment_phase": "in_progress",
+                **({"workspace_id": workspace_id} if workspace_id else {}),
             }
         )
 
@@ -297,3 +301,443 @@ Return JSON matching the TaskAnalysis schema."""
                 for s in recruitment_roster
             ]
         }
+
+
+    @staticmethod
+    def _specialist_task_digest(
+        task: str, chain_id: str, roster: List[Dict[str, Any]],
+        tenant_id: Optional[str] = None,
+        workspace_id: Optional[str] = None,
+        context: Optional[Dict[str, Any]] = None,
+    ) -> str:
+        roster_material = []
+        for item in roster:
+            roster_material.append({
+                "agent_id": str(item.get("agent_id") or ""),
+                "agent_name": str(item.get("agent_name") or ""),
+                "domain": str(item.get("domain") or ""),
+                "capability_score": item.get("capability_score"),
+            })
+        roster_material.sort(key=lambda item: (
+            item["agent_id"], item["domain"], item["agent_name"]))
+        basis = {}
+        for key in (
+            "source_basis", "teaching_basis", "authority_basis",
+            "objective", "required_outcome",
+        ):
+            if context and context.get(key) is not None:
+                basis[key] = context[key]
+        payload = {
+            "task": str(task or ""),
+            "chain_id": str(chain_id or ""),
+            "tenant_id": str(tenant_id or ""),
+            "workspace_id": str(workspace_id or ""),
+            "roster": roster_material,
+            "basis": basis,
+        }
+        return hashlib.sha1(json.dumps(
+            payload, sort_keys=True, separators=(",", ":"), default=str,
+        ).encode("utf-8")).hexdigest()[:16]
+
+    @staticmethod
+    def _specialist_result_succeeded(raw: Dict[str, Any]) -> bool:
+        status = str(raw.get("status") or "").strip().lower()
+        failure_statuses = {
+            "failed", "timeout", "budget_exceeded", "cancelled", "error",
+            "killed_sandbox",
+        }
+        success_statuses = {
+            "success", "objective_satisfied", "completed",
+        }
+        explicit = raw.get("success")
+        if explicit is False:
+            return False
+        if status in failure_statuses:
+            return False
+        if explicit is True:
+            return True
+        return status in success_statuses
+
+    async def execute_recruited_specialists(
+        self,
+        *,
+        task: str,
+        user_id: str,
+        chain_id: str,
+        roster: List[Dict[str, Any]],
+        tenant_id: Optional[str] = None,
+        workspace_id: Optional[str] = None,
+        context: Optional[Dict[str, Any]] = None,
+        cancel_check: Optional[Callable[[], bool]] = None,
+    ) -> Dict[str, Any]:
+        """Execute the recruited specialists and return their cited work.
+
+        Reuses the existing GenericAgent/AgentRegistry/BYOK path. The response
+        is deterministic synthesis of the specialists' actual outputs; it is
+        not a second recruitment list. Missing/foreign specialists are refused
+        before dispatch, failed specialists are preserved, cancellation stops
+        before the next specialist, and a completed execution is cached on the
+        delegation chain so duplicate continuation does not re-run work.
+        """
+        from core.generic_agent import GenericAgent
+
+        context = context or {}
+        roster = list(roster or [])
+        chain = (
+            self.db.query(DelegationChain)
+            .filter(DelegationChain.id == str(chain_id))
+            .first()
+        )
+        if chain is None:
+            return {
+                "success": False,
+                "status": "no_suitable_specialists",
+                "error": "delegation_chain_not_found",
+                "final_output": (
+                    "No recruited fleet was available to execute this task."),
+                "specialist_results": [],
+                "specialists_count": len(roster),
+                "executed_count": 0,
+                "cancelled": False,
+                "chain_id": str(chain_id or ""),
+            }
+
+        def _cancelled() -> bool:
+            if cancel_check is not None:
+                try:
+                    if cancel_check():
+                        return True
+                except Exception:
+                    return True
+            return bool(
+                context.get("cancelled") or context.get("cancel_requested"))
+
+        metadata = dict(chain.metadata_json or {})
+        chain_tenant = str(chain.tenant_id or "")
+        if tenant_id and chain_tenant and chain_tenant != str(tenant_id):
+            return {
+                "success": False,
+                "status": "no_suitable_specialists",
+                "error": "delegation_chain_scope_mismatch",
+                "final_output": (
+                    "The recruited fleet is outside the caller's scope."),
+                "specialist_results": [],
+                "specialists_count": len(roster),
+                "executed_count": 0,
+                "cancelled": False,
+                "chain_id": str(chain_id or ""),
+            }
+        chain_workspace = metadata.get("workspace_id")
+        if (
+            workspace_id and chain_workspace
+            and str(chain_workspace) != str(workspace_id)
+        ):
+            return {
+                "success": False,
+                "status": "no_suitable_specialists",
+                "error": "delegation_chain_scope_mismatch",
+                "final_output": (
+                    "The recruited fleet is outside the caller's scope."),
+                "specialist_results": [],
+                "specialists_count": len(roster),
+                "executed_count": 0,
+                "cancelled": False,
+                "chain_id": str(chain_id or ""),
+            }
+        chain_status = str(chain.status or "").strip().lower()
+        if chain_status in ("cancelled", "failed"):
+            return {
+                "success": False,
+                "status": "cancelled" if chain_status == "cancelled" else "failed",
+                "error": "delegation_chain_terminal",
+                "final_output": (
+                    "The recruited fleet is already cancelled."
+                    if chain_status == "cancelled"
+                    else "The recruited fleet has already failed."),
+                "specialist_results": [],
+                "specialists_count": len(roster),
+                "executed_count": 0,
+                "cancelled": chain_status == "cancelled",
+                "chain_id": str(chain_id or ""),
+            }
+        if _cancelled():
+            return {
+                "success": False,
+                "status": "cancelled",
+                "error": "fleet_specialist_execution_cancelled",
+                "final_output": (
+                    "Specialist work was cancelled before completion."),
+                "specialist_results": [],
+                "specialists_count": len(roster),
+                "executed_count": 0,
+                "cancelled": True,
+                "chain_id": str(chain_id or ""),
+            }
+
+        digest = self._specialist_task_digest(
+            task, chain_id, roster, tenant_id, workspace_id, context)
+        cached = metadata.get("specialist_execution")
+        if (
+            isinstance(cached, dict)
+            and cached.get("task_digest") == digest
+            and cached.get("status") == "completed"
+            and isinstance(cached.get("result"), dict)
+        ):
+            cached_result = dict(cached["result"])
+            cached_result["cached"] = True
+            return cached_result
+
+        results: List[Dict[str, Any]] = []
+        successful: List[Dict[str, Any]] = []
+        cancelled = False
+        for item in roster:
+            if _cancelled():
+                cancelled = True
+                break
+            agent_id = str(item.get("agent_id") or "")
+            agent_name = str(item.get("agent_name") or agent_id or "Specialist")
+            domain = str(item.get("domain") or "general")
+            agent = (
+                self.db.query(AgentRegistry)
+                .filter(AgentRegistry.id == agent_id)
+                .first()
+                if agent_id else None
+            )
+            if agent is None:
+                results.append({
+                    "agent_id": agent_id,
+                    "agent_name": agent_name,
+                    "domain": domain,
+                    "status": "missing",
+                    "output": "",
+                    "error": "specialist_not_found",
+                })
+                continue
+            agent_name = str(
+                getattr(agent, "name", None)
+                or getattr(agent, "display_name", None)
+                or agent_id
+                or "Specialist"
+            )
+            if getattr(agent, "enabled", True) is False:
+                results.append({
+                    "agent_id": agent_id,
+                    "agent_name": agent_name,
+                    "domain": domain,
+                    "status": "unavailable",
+                    "output": "",
+                    "error": "specialist_disabled",
+                })
+                continue
+            if tenant_id and agent.tenant_id and str(
+                    agent.tenant_id) != str(tenant_id):
+                results.append({
+                    "agent_id": agent_id,
+                    "agent_name": agent_name,
+                    "domain": domain,
+                    "status": "scope_mismatch",
+                    "output": "",
+                    "error": "specialist_tenant_mismatch",
+                })
+                continue
+            if workspace_id and agent.workspace_id and str(
+                    agent.workspace_id) != str(workspace_id):
+                results.append({
+                    "agent_id": agent_id,
+                    "agent_name": agent_name,
+                    "domain": domain,
+                    "status": "scope_mismatch",
+                    "output": "",
+                    "error": "specialist_workspace_mismatch",
+                })
+                continue
+            capabilities = [
+                str(c).lower() for c in (agent.capabilities or [])
+                if str(c).strip()
+            ]
+            if agent.specialty:
+                capabilities.append(str(agent.specialty).lower())
+            domain_specific = domain.lower() not in ("", "general")
+            if domain_specific and not capabilities:
+                results.append({
+                    "agent_id": agent_id,
+                    "agent_name": agent_name,
+                    "domain": domain,
+                    "status": "capability_mismatch",
+                    "output": "",
+                    "error": "specialist_capability_missing",
+                })
+                continue
+            if domain_specific and not any(
+                domain.lower() in cap or cap in domain.lower()
+                for cap in capabilities
+            ):
+                results.append({
+                    "agent_id": agent_id,
+                    "agent_name": agent_name,
+                    "domain": domain,
+                    "status": "capability_mismatch",
+                    "output": "",
+                    "error": "specialist_capability_mismatch",
+                })
+                continue
+
+            prompt = (
+                f"You are the {domain} specialist in a recruited fleet.\n"
+                f"Original task: {task}\n"
+                "Return a concise, concrete contribution for your domain. "
+                "State assumptions and do not claim work you did not do."
+            )
+            try:
+                runner = GenericAgent(
+                    agent_model=agent,
+                    workspace_id=agent.workspace_id or workspace_id or "default",
+                )
+                raw = await runner.execute(
+                    task_input=prompt,
+                    context={
+                        "chain_id": str(chain_id),
+                        "user_id": user_id,
+                        "tenant_id": tenant_id,
+                        "workspace_id": agent.workspace_id or workspace_id,
+                        "agent_id": agent_id,
+                        "orchestrated_by": "fleet_admiral",
+                    },
+                )
+            except Exception as exc:  # noqa: BLE001 — preserve failure class
+                results.append({
+                    "agent_id": agent_id,
+                    "agent_name": agent_name,
+                    "domain": domain,
+                    "status": "failed",
+                    "output": "",
+                    "error": type(exc).__name__,
+                })
+                continue
+
+            success = self._specialist_result_succeeded(raw)
+            output = str(
+                raw.get("final_output")
+                or raw.get("output")
+                or raw.get("response")
+                or ""
+            ).strip()
+            if success and output:
+                item_result = {
+                    "agent_id": agent_id,
+                    "agent_name": agent_name,
+                    "domain": domain,
+                    "status": "success",
+                    "output": output,
+                    "error": None,
+                }
+                successful.append(item_result)
+            else:
+                item_result = {
+                    "agent_id": agent_id,
+                    "agent_name": agent_name,
+                    "domain": domain,
+                    "status": "failed",
+                    "output": output,
+                    "error": str(
+                        raw.get("error")
+                        or raw.get("failure_reason")
+                        or "specialist returned no usable output"
+                    )[:200],
+                }
+            results.append(item_result)
+
+        attempted = [
+            item for item in results
+            if item["status"] in ("success", "failed")]
+        if cancelled:
+            status = "cancelled"
+            success = False
+            error = "fleet_specialist_execution_cancelled"
+        elif successful:
+            status = "specialists_executed"
+            success = True
+            error = None
+        elif attempted:
+            status = "specialists_failed"
+            success = False
+            error = "all_recruited_specialists_failed"
+        else:
+            status = "no_suitable_specialists"
+            success = False
+            error = "no_suitable_specialist_available"
+
+        if success:
+            lines = [
+                f"- {item['agent_name']} ({item['domain']}): {item['output']}"
+                for item in successful
+            ]
+            final_output = (
+                "Specialist contributions:\n"
+                + "\n".join(lines)
+                + "\n\nCombined result:\n"
+                + "\n".join(item["output"] for item in successful)
+            )
+            failed = [
+                item for item in results
+                if item["status"] in ("failed", "missing", "scope_mismatch",
+                                      "capability_mismatch", "unavailable")
+            ]
+            if failed:
+                final_output += "\n\nNot completed:\n" + "\n".join(
+                    f"- {item['agent_name']} ({item['domain']}): "
+                    f"{item['error'] or item['status']}"
+                    for item in failed
+                )
+        elif cancelled:
+            partial = [
+                f"- {item['agent_name']} ({item['domain']}): {item['output']}"
+                for item in successful
+            ]
+            final_output = (
+                "Specialist work was cancelled before completion."
+                + ("\nPartial contributions:\n" + "\n".join(partial)
+                   if partial else "")
+            )
+        elif status == "specialists_failed":
+            failures = [
+                f"- {item['agent_name']} ({item['domain']}): "
+                f"{item['error'] or 'failed'}"
+                for item in results if item["status"] == "failed"
+            ]
+            final_output = (
+                "The recruited specialists could not complete this task.\n"
+                + "\n".join(failures)
+            )
+        else:
+            final_output = (
+                "No suitable specialist was available to execute this task.")
+
+        result_payload = {
+            "success": success,
+            "status": status,
+            "error": error,
+            "final_output": final_output,
+            "specialist_results": results,
+            "specialists_count": len(roster),
+            "executed_count": len(attempted),
+            "cancelled": cancelled,
+            "chain_id": str(chain_id),
+            "cached": False,
+        }
+
+        metadata["specialist_execution"] = {
+            "task_digest": digest,
+            "status": (
+                "completed" if success
+                else "cancelled" if cancelled else "failed"),
+            "result": result_payload,
+            "completed_at": datetime.now(timezone.utc).isoformat(),
+        }
+        chain.metadata_json = metadata
+        chain.status = (
+            "completed" if success
+            else "cancelled" if cancelled else "failed")
+        chain.completed_at = datetime.now(timezone.utc)
+        self.db.commit()
+        return result_payload

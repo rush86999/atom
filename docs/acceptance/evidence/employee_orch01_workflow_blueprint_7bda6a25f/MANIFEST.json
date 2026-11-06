@@ -1,0 +1,68 @@
+{
+ "artifacts": {
+  "ORCH02_07_CALLER_MAP.md": "9813489e735bcdf8b1b2ca4c44eca2b3c685806f6adb823e4fd37eb124ccc4d2",
+  "README.md": "4e967ea0be82268592b1b32aa26a0b1387ddb64ab16d997fb21125a0c1e6ae37",
+  "TEST_RESULTS.md": "3d4021781a1f9d295e8444bc5c3733a32237f2d5ce271999c88ded855a691627",
+  "focused-311.log": "f1d03356639c1853504877ec834c55f9f29c816ed6f935c41a2cd827e7cea643",
+  "focused-314.log": "b63e0ff176990b5224cc29794324d57e6a61fbc7b25e608f2d06082b3a9c45bc",
+  "served-candidates-recompiled.json": "eaf64ba4215d350f27d47b7e60758afe23f971defec859a37dc0f47c0e5e7d7d",
+  "served-protocol-negative.log": "d3aee11efa7bbf8815d565d49c2c38b18853d90c4524fff5723a5545b5fe2004",
+  "served-qualification.json": "d1d4363cfdd37e5074621c9ae868680a00efabc04d43f5be74210759e1216218",
+  "served-qualification.log": "317864be66fe64f3ec77bf9f4f2d0dc562f0a94678d7eec2a3e55b55a06e0a4e",
+  "served-qualification.py": "568c37eebefc0805177932fbf8b65b3a6e452edb8d15df4f5b548c99cd5451f7",
+  "verification.json": "89b88e05abb1c5476b65e920a5488f851d1311999f033d9b14dcfd7fdca9fbd6",
+  "verifier-contract.log": "084ac87e7c39cb73491f203a7f32aa079dfb4bd2f7261555b0c1bd08baa1b759",
+  "workflow-neighborhood.log": "7fc56aa6b186024d02ac6bb0e3756c0b2aea1f7598afc52c565fab694fff464f"
+ },
+ "base_source": "81c5962bd",
+ "boundaries": [
+  "controlled SQLite and one already-configured local route",
+  "workflow design/readback only; execution quality is not claimed",
+  "generation does not execute a workflow or activate a trigger",
+  "invalid/missing/unavailable cases create no runnable workflow",
+  "no cloud provider, credential, spend, download or deployment",
+  "PostgreSQL runtime qualification remains separate",
+  "design metadata cannot inject execution authority",
+  "server-required checkpoints are durable and block descendants until approved",
+  "unbound capabilities are reviewable but non-executable and unregistered"
+ ],
+ "branch": "codex/orch01-blueprint-20261105",
+ "checks": {
+  "focused_affected_python311": "647 passed",
+  "focused_affected_python314": "647 passed",
+  "independent_contract_probe": "3/3 passed",
+  "orch01_checkpoint_controls": "25 passed",
+  "served_candidates": "2/2 compiled/persisted; exact readback; execution_ready=false after repair",
+  "workflow_neighborhood": "443 passed"
+ },
+ "compiler_checkpoint_source": "b7e67f49ab0f6923bbbc6d0124b80d9523e9446a",
+ "executed_source": "4d3fb66c54a20cc8a864bfbea45967a8429ebdf8",
+ "original_source": "7bda6a25f",
+ "repair_source": "4d3fb66c54a20cc8a864bfbea45967a8429ebdf8",
+ "schema": "atom-employee-evidence-1",
+ "served_qualification": {
+  "cases": [
+   "service_intake_review",
+   "inventory_operations_review"
+  ],
+  "model": "llama3.1:8b",
+  "model_calls": 2,
+  "profile": "workflow_blueprint",
+  "provider": "ollama",
+  "readback_exact": true,
+  "version": "2026-11-05.1"
+ },
+ "source_files": {
+  "backend/advanced_workflow_api.py": "cefb11b2a01d5e4cb2d79d76a02d163748e0eaf1386dac89e6b4cbf052a969ea",
+  "backend/advanced_workflow_orchestrator.py": "b830b48092769b264007574e59411e99be8a0d701e921500bfd024128d33745a",
+  "backend/core/agents/queen_agent.py": "3fc12233ce597563b51d6dff2a0716157ce2582694708ecefde8edc75362ecb9",
+  "backend/core/agents/workflow_blueprint.py": "1483d0eee7693ca87857ab44fc8cc5981d1110bae809219bcdd792b682a15377",
+  "backend/core/llm/capability_profiles.py": "1aff00d9366ae053d071a76bc5cbce512b1fcf1d906b4590404b4e117a91de56",
+  "backend/core/workflow_blueprint_service.py": "51ba9bbe36c7705250bb3ea61c3735e8a7a5cfd149b55874b0cd6497a3ebf603",
+  "backend/tests/test_bughunt_agents_wave10c.py": "d539c14ab043cc108c864361579fbc57db0d5d026a473433274ac6c1cfe2c67d",
+  "backend/tests/test_orch01_checkpoint_contract.py": "d5a016b381c451eb078394faf599cb6d24f4039d75125cf82a0f128986a6b628",
+  "backend/tests/test_orch01_workflow_blueprint.py": "fe1a243f2f047a2bf404b8173e87ad019d5878da78b91c386d1d5121832c948a",
+  "backend/tests/test_round69_async_unguarded_surfaces.py": "c27c498c9e57336b858709eed6c601d2ff291a3dd92d2ca2647426b689ff8a2f"
+ },
+ "status": "plain-language workflow request produces a validated, HITL-gated, durably scoped workflow blueprint with exact fresh-session readback"
+}

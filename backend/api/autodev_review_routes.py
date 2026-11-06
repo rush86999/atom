@@ -28,6 +28,7 @@ from core.auto_dev.models import SkillCandidate, ToolMutation
 from core.auth import get_current_tenant, get_current_user
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
+from core.evolution_review_write_service import review_tool_mutation
 from core.models import (
     AgentExecution,
     AgentFeedEvent,
@@ -53,6 +54,68 @@ def _iso(dt: Any) -> Optional[str]:
     return dt.isoformat() if dt else None
 
 
+
+
+def _raise_tool_mutation_error(result: Dict[str, Any]) -> None:
+    """Map the verified-write result to the existing HTTP error surface."""
+    status = str(result.get("status") or "")
+    if status == "refused":
+        raise HTTPException(
+            status_code=int(result.get("http_status") or 409),
+            detail={
+                "error": {
+                    "code": result.get("error_code") or "CONFLICT",
+                    "message": result.get("error") or "Request refused",
+                },
+                "field": result.get("field"),
+                "verification": result.get("verification"),
+            },
+        )
+    if status == "conflict":
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": {
+                    "code": result.get("error_code") or "STALE_TARGET",
+                    "message": result.get("error") or "Conflict",
+                },
+                "verification": result.get("verification"),
+            },
+        )
+    if status == "not_applied":
+        raise HTTPException(
+            status_code=int(result.get("http_status") or 409),
+            detail={
+                "error": {
+                    "code": result.get("error_code")
+                    or "TOOL_MUTATION_TRANSACTION_ROLLED_BACK",
+                    "message": result.get("error")
+                    or "The decision did not apply.",
+                },
+                "verification": result.get("verification"),
+                "operation_id": result.get("operation_id"),
+                "audit_id": result.get("audit_id"),
+            },
+        )
+    if status in ("committed_unverified", "effect_unknown"):
+        code = (
+            "TOOL_MUTATION_EFFECT_UNKNOWN"
+            if status == "effect_unknown"
+            else "TOOL_MUTATION_COMMITTED_UNVERIFIED")
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": {
+                    "code": code,
+                    "message": result.get("message")
+                    or "The decision outcome is uncertain.",
+                },
+                "verification": result.get("verification"),
+                "operation_id": result.get("operation_id"),
+                "audit_id": result.get("audit_id"),
+                "target_id": result.get("target_id"),
+            },
+        )
 
 
 def _candidate_agent(
@@ -306,42 +369,46 @@ async def reject_skill_candidate(
 @router.post("/mutations/{mutation_id}/approve")
 async def approve_tool_mutation(
     mutation_id: str,
+    operation_id: Optional[str] = None,
     tenant: Tenant = Depends(get_current_tenant),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_role(UserRole.TEAM_LEAD)),
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
-    mutation = db.query(ToolMutation).filter(
-        ToolMutation.id == mutation_id,
-        ToolMutation.tenant_id == str(tenant.id),
-    ).first()
-    if mutation is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Mutation not found")
-    mutation.sandbox_status = "approved"
-    db.commit()
+    result = review_tool_mutation(
+        db,
+        actor=current_user,
+        tenant_id=str(tenant.id),
+        mutation_id=mutation_id,
+        decision="approved",
+        operation_id=operation_id,
+    )
+    _raise_tool_mutation_error(result)
     return router.success_response(
-        data={"id": mutation_id, "status": "approved"},
-        message="Tool mutation approved",
+        data=result.get("data"),
+        message=result.get("message") or "Tool mutation approved",
     )
 
 
 @router.post("/mutations/{mutation_id}/reject")
 async def reject_tool_mutation(
     mutation_id: str,
+    operation_id: Optional[str] = None,
     tenant: Tenant = Depends(get_current_tenant),
-    current_user: User = Depends(get_current_user),
+    current_user: User = Depends(require_role(UserRole.TEAM_LEAD)),
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
-    mutation = db.query(ToolMutation).filter(
-        ToolMutation.id == mutation_id,
-        ToolMutation.tenant_id == str(tenant.id),
-    ).first()
-    if mutation is None:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Mutation not found")
-    mutation.sandbox_status = "rejected"
-    db.commit()
+    result = review_tool_mutation(
+        db,
+        actor=current_user,
+        tenant_id=str(tenant.id),
+        mutation_id=mutation_id,
+        decision="rejected",
+        operation_id=operation_id,
+    )
+    _raise_tool_mutation_error(result)
     return router.success_response(
-        data={"id": mutation_id, "status": "rejected"},
-        message="Tool mutation rejected",
+        data=result.get("data"),
+        message=result.get("message") or "Tool mutation rejected",
     )
 
 

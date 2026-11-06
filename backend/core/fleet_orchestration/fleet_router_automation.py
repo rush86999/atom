@@ -318,6 +318,10 @@ def _certify_verdict(db) -> Dict[str, Any]:
         "success_rate": success_rate,
         "recruit_attempts": recruit_attempts,
         "recruit_success_rate": recruit_rate,
+        "enforced_n": sum(
+            int(w.get("enforced_n") or 0) for w in workloads.values()),
+        "shadow_n": sum(
+            int(w.get("shadow_n") or 0) for w in workloads.values()),
     }
 
     if recruit_attempts >= MIN_RECRUIT_ATTEMPTS and recruit_rate is not None and recruit_rate < MIN_RECRUIT_SUCCESS_RATE:
@@ -545,6 +549,9 @@ def run_auto_certification() -> Dict[str, Any]:
 
         with get_db_session() as db:
             result = certify_fleet(db)
+            # Approval/revocation actions are durable queue/audit rows; the
+            # background pass must commit them, not just flush them.
+            db.commit()
         _last_run.update(
             {
                 "enabled": True,

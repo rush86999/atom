@@ -21,6 +21,7 @@ P1-8  ``org_politics_automation._default_chat_fn`` bypassed BYOK with a raw
       httpx call hardcoding ``deepseek-v4-flash``.
 """
 import asyncio
+from types import SimpleNamespace
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
@@ -59,6 +60,26 @@ def _clean_provider_cooldowns():
     BYOKHandler.invalidate_provider_failures()
 
 
+@pytest.fixture(autouse=True)
+def _route_catalog(monkeypatch, tmp_path):
+    """Explicit isolated discovery for this file's doubled cloud routes.
+
+    Production route eligibility is unchanged: an undiscovered catalogue
+    still refuses dispatch.
+    """
+    from tests._llm_route_catalog import install_route_catalog
+    install_route_catalog(monkeypatch, tmp_path, {
+        "opencode-go": [
+            "deepseek-v4-flash-free",
+            "deepseek-v4-flash",
+            "deepseek-v4-pro",
+            "kimi-k2.7-code",
+            "deepseek-v4.1-flash",
+        ],
+        "openai": ["gpt-4o"],
+    })
+
+
 @pytest.fixture
 def handler(mock_byok_manager):
     """Sync-path handler: both client dicts cleared of any real env-key
@@ -83,14 +104,16 @@ def async_handler(handler):
 
 
 def _response(content, finish_reason="stop"):
-    r = MagicMock()
-    r.choices = [MagicMock()]
-    r.choices[0].message.content = content
-    r.choices[0].finish_reason = finish_reason
-    r.usage = MagicMock()
-    r.usage.prompt_tokens = 10
-    r.usage.completion_tokens = 5
-    return r
+    # Real-shaped response: _response_field reads __dict__/class attributes,
+    # not MagicMock's dynamic children, so a Mock here looks like an empty
+    # completion to the dispatch guard.
+    return SimpleNamespace(
+        choices=[SimpleNamespace(
+            message=SimpleNamespace(content=content),
+            finish_reason=finish_reason,
+        )],
+        usage=SimpleNamespace(prompt_tokens=10, completion_tokens=5),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -470,7 +493,12 @@ class TestChatCompletionFreeToPaidRetry:
                 self._run(handler, model="deepseek-v4-flash")
         assert client.chat.completions.create.call_count == 1
 
-    def test_free_model_other_error_no_retry(self, async_handler):
+    def test_free_model_other_error_no_retry(
+            self, async_handler, monkeypatch, tmp_path):
+        from tests._llm_route_catalog import install_route_catalog
+        install_route_catalog(monkeypatch, tmp_path, {
+            "opencode-go": ["deepseek-v4-flash-free"],
+        })
         handler = async_handler
         client = handler.async_clients["opencode-go"]
         client.chat.completions.create.side_effect = RuntimeError("401 invalid key")

@@ -309,7 +309,7 @@ async def test_oracle_check_uses_result_fields_for_task_id(monkeypatch):
     import core.generic_agent as ga
 
     monkeypatch.setenv("ATOM_ORACLE_VERIFIER_ENABLED", "true")
-    db = _mock_db(SimpleNamespace(id="t-9"))
+    db = _mock_db(SimpleNamespace(id="t-9", title="do it", board_id=None))
     monkeypatch.setattr(ga, "get_db_session", lambda: db)
 
     agent = _bare_agent()

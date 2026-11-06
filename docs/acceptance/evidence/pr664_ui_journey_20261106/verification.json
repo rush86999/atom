@@ -1,0 +1,69 @@
+{
+  "schema": "atom-oracle-pr664-ui-journey-verification-1",
+  "status": "12 non-gating UI failures plus 8 same-root role-UI failures repaired; all hosted checks green at 83dc39c45",
+  "candidate": {
+    "branch": "codex/pr659-backend-ci-fix-20261105",
+    "accepted_pr664_head": "d17acd1d58ed0f743322314ef08e6888cb12c83a",
+    "first_ui_fix_source": "437302cff25594d640d3feedf5d8b4c698113ee3",
+    "executed_source": "83dc39c458a9fe4cb60d8e24cfd3f5fbe4ba25f8",
+    "observed_run_job": "42161362480/127707566246",
+    "final_run_job": "42209447032/127864183212",
+    "runtime": "real backend + Next.js dev server in hosted e2e; no live model/provider/account operation"
+  },
+  "failure_families": {
+    "dashboard_copy": {
+      "count": 10,
+      "cause": "dashboard visible copy is now 'Your workspace'; stable testid remains",
+      "fix": "use the stable welcome testid and current copy in smoke, canonical and role-UI assertions"
+    },
+    "chat_composer": {
+      "count": 2,
+      "cause": "ChatInput is a textarea, page object queried input",
+      "fix": "query textarea with input fallback"
+    },
+    "core_profile_deferred": {
+      "count": 7,
+      "cause": "core release intentionally renders NotInRelease for deferred capabilities",
+      "fix": "read /api/product/profile, assert exact '<label> is not part of this release' when deferred, retain feature assertions when enabled"
+    },
+    "onboarding_overlay": {
+      "count": 1,
+      "cause": "global first-run onboarding modal intercepted Settings theme click",
+      "fix": "suppress modal only in feature-journey fixtures via sessionStorage; no product/onboarding change"
+    }
+  },
+  "checks": {
+    "original_12_ui_failures_closed": true,
+    "role_ui_dashboard_copies_closed": true,
+    "gating_api_journey_unchanged": true,
+    "exact_deferred_labels_asserted": true,
+    "full_profile_positive_assertions_retained": true,
+    "no_role_permission_or_capability_broadened": true,
+    "no_assertions_deleted": true,
+    "no_live_model_provider_browser_account_operation": true
+  },
+  "results": {
+    "before_ui_block": {"failed": 12, "passed": 16, "log": "before-pr664-ui-block.log"},
+    "after_ui_block": {"failed": 0, "passed": 28, "log": "after-pr664-ui-block.log"},
+    "after_role_ui": {"failed": 0, "passed": 40},
+    "gating_api_journey": {"passed": 211, "skipped": 1, "xfailed": 1},
+    "required_checks": {
+      "backend-tests": "pass 5m29s",
+      "e2e-journey": "pass 13m5s",
+      "syntax-gate": "pass",
+      "frontend-typecheck": "pass",
+      "full-app-boots": "pass",
+      "quickstart": "pass",
+      "docker-build": "pass",
+      "GitGuardian": "pass",
+      "log": "final-checks.log"
+    },
+    "local_py_compile": {"exit": 0, "log": "py-compile.log"}
+  },
+  "limits": [
+    "Test/page-object only; no runtime product behavior changed",
+    "No live model/provider/account campaign",
+    "No merge or deployment; code-owner review remains required",
+    "PostgreSQL runtime/soak, multi-worker and whole-app ORACLE remain open"
+  ]
+}

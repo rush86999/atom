@@ -47,6 +47,20 @@ class JourneyBase:
         except Exception:
             return False
 
+    def is_deferred(self, timeout: int = 10000) -> bool:
+        """True when the core release profile renders its explicit scope page.
+
+        Deferred capabilities are a product contract, not a missing page: the
+        shell must show "… is not part of this release" rather than the
+        feature surface. Full-profile runs still exercise the feature itself.
+        """
+        return self.text_visible("is not part of this release", timeout=timeout)
+
+    def is_not_in_release(self, label: str, timeout: int = 10000) -> bool:
+        """The exact deferred capability label for this route."""
+        return self.text_visible(
+            f"{label} is not part of this release", timeout=timeout)
+
     def _settle(self, timeout_ms: int = 3000) -> None:
         """Best-effort wait for the network to settle.
 
@@ -146,7 +160,7 @@ class DashboardJourneyPage(JourneyBase):
     def welcome(self) -> Locator:
         # Prefer the unique data-testid; fall back to exact text match.
         return self.page.locator("[data-testid='dashboard-welcome-message']").or_(
-            self.page.get_by_role("heading", name="ATOM Dashboard")
+            self.page.get_by_role("heading", name="Your workspace")
         )
 
     def is_loaded(self) -> bool:
@@ -258,8 +272,10 @@ class ChatJourneyPage(JourneyBase):
 
     @property
     def input_box(self) -> Locator:
-        # ChatInput.tsx: placeholder="Type a message..."
-        return self.page.locator("input[placeholder='Type a message...']").first
+        # ChatInput.tsx: the composer is a Textarea (multi-line), not an input.
+        return self.page.locator(
+            "textarea[placeholder='Type a message...'], "
+            "input[placeholder='Type a message...']").first
 
     @property
     def send_button(self) -> Locator:

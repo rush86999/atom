@@ -262,6 +262,9 @@ class AgentMarketplaceService:
         price: float = 0.0,
         description: Optional[str] = None,
         author_id: Optional[str] = None,
+        *,
+        commit: bool = True,
+        agent: Optional[AgentRegistry] = None,
     ) -> Dict[str, Any]:
         """Package a TRAINED agent into a sellable AgentTemplate.
 
@@ -270,11 +273,17 @@ class AgentMarketplaceService:
         runs, correction heuristics) and the platform-computed
         verified_record — the goal-run track record buyers judge it by.
         Credentials are stripped and entity identities tokenized.
+
+        ``commit=False`` flushes the inserted listing into the caller's
+        transaction instead of committing it, so a verified caller can add an
+        audit receipt atomically. ``agent`` lets that caller pass the exact
+        source snapshot it already bound rather than re-reading a peer edit.
         """
         from core.blueprint_sanitizer import strip_credentials
 
-        agent = self.db.query(AgentRegistry).filter(
-            AgentRegistry.id == agent_id).first()
+        if agent is None:
+            agent = self.db.query(AgentRegistry).filter(
+                AgentRegistry.id == agent_id).first()
         if not agent:
             return {"success": False, "error": "agent not found"}
         if (agent.configuration or {}).get("marketplace_managed"):
@@ -339,12 +348,15 @@ class AgentMarketplaceService:
         )
         self.db.add(template)
         try:
-            self.db.commit()
+            if commit:
+                self.db.commit()
+                self.db.refresh(template)
+            else:
+                self.db.flush()
         except Exception as exc:
             self.db.rollback()
             logger.error(f"packaging agent {agent_id} for sale failed: {exc}")
             return {"success": False, "error": str(exc)}
-        self.db.refresh(template)
         logger.info(f"packaged agent {agent_id} as template {template.id} "
                     f"(achieved={record['runs']['achieved']}, "
                     f"steps={record['steps_executed']})")

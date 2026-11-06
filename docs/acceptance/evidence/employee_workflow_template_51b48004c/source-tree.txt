@@ -1,0 +1,12 @@
+executed_source: 51b48004cdacace1a077865c3ee8fd6edbff8b50
+product_source: 5fbd5c8f51449ed3fa6323a304713c04161d3491
+accepted_admin_base: 9d73552d249ae8ec5b05af77546faf9621bbcd47
+accepted_admin_product: 5fbb377a4e1eef8fdd0013275cd8b1c9b278cd41
+branch: codex/oracle01-workflow-template-20261105
+git_status_short:
+git_log:
+51b48004c test(templates): cover the workflow-template decision matrix
+5fbd5c8f5 feat(templates): verify workflow-template create and update
+ddf45ef47 docs: add the continuous delivery directive
+9d73552d2 test(admin): assert the real hashed credential in W79C create
+c4e43f4b9 docs(admin): submit the credential-proof and rollback evidence

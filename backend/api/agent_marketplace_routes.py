@@ -23,6 +23,9 @@ from fastapi import Depends, HTTPException
 from pydantic import BaseModel
 from sqlalchemy.orm import Session
 
+from core.agent_marketplace_write_service import (
+    publish_agent_listing as _publish_agent_listing,
+)
 from core.auth import get_current_user, User
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
@@ -50,6 +53,47 @@ class InstallRemoteBody(BaseModel):
 def _service(db: Session):
     from core.agent_marketplace_service import AgentMarketplaceService
     return AgentMarketplaceService(db)
+
+
+def _raise_marketplace_decision(result: dict) -> None:
+    """Map the verified publication envelope to a safe HTTP error."""
+    status_value = str(result.get("status") or "")
+    if status_value in ("refused", "conflict", "not_applied"):
+        status_code = int(
+            result.get("http_status")
+            or (409 if status_value != "refused" else 403))
+        raise HTTPException(
+            status_code=status_code,
+            detail={
+                "error": {
+                    "code": result.get("error_code") or "CONFLICT",
+                    "message": result.get("error") or "Request refused",
+                },
+                "field": result.get("field"),
+                "verification": result.get("verification"),
+                "operation_id": result.get("operation_id"),
+                "audit_id": result.get("audit_id"),
+            },
+        )
+    if status_value in ("committed_unverified", "effect_unknown"):
+        code = (
+            "AGENT_MARKETPLACE_EFFECT_UNKNOWN"
+            if status_value == "effect_unknown"
+            else "AGENT_MARKETPLACE_COMMITTED_UNVERIFIED")
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": {
+                    "code": code,
+                    "message": result.get("message")
+                    or "The agent listing outcome is uncertain.",
+                },
+                "verification": result.get("verification"),
+                "operation_id": result.get("operation_id"),
+                "audit_id": result.get("audit_id"),
+                "target_id": result.get("target_id"),
+            },
+        )
 
 
 def _require_agent_owner_or_admin(db: Session, current_user: User,
@@ -98,25 +142,24 @@ async def agent_sale_readiness(
 async def publish_agent_for_sale(
     agent_id: str,
     payload: PublishBody,
+    operation_id: str | None = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     """Package a trained agent into a marketplace listing. Owner or admin:
     publishing sells this workspace's agent persona + verified process —
     not every member's call to make."""
-    from core.models import AgentRegistry as Model
-
-    agent = db.query(Model).filter(Model.id == agent_id).first()
-    if not agent:
-        raise router.not_found_error("Agent", agent_id)
-    _require_agent_owner_or_admin(db, current_user, agent)
-    result = _service(db).package_agent_for_sale(
-        agent_id, price=payload.price,
+    decision = _publish_agent_listing(
+        db,
+        actor=current_user,
+        agent_id=agent_id,
+        price=payload.price,
         description=payload.description or None,
-        author_id=str(current_user.id))
-    if not result.get("success"):
-        raise HTTPException(status_code=409, detail=result.get("error"))
-    return result
+        operation_id=operation_id,
+    )
+    _raise_marketplace_decision(decision)
+    data = decision.get("data") or {}
+    return data
 
 
 @router.post("/templates/{template_id}/push")

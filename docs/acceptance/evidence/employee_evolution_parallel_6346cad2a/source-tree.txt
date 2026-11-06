@@ -1,0 +1,14 @@
+executed_source: 6346cad2a
+product_source: 6346cad2a
+prior_product_source: eaba0cb8f
+prior_tests_source: e4816e59c
+prior_evidence: 5dc4f1b0f
+accepted_base: 95f7bcac1a0375b4f0465a77e15130f68fc9665d
+branch: codex/oracle01-evolution-review-20261105
+git_status_short:
+git_log:
+6346cad2a fix(autodev): guard sandbox results with lineage and freshness
+5dc4f1b0f docs(evolution-review): submit the tool-mutation decision evidence
+e4816e59c test(autodev): cover the tool-mutation decision matrix
+eaba0cb8f feat(autodev): verify tool-mutation review decisions
+31a67163c docs: add the continuous delivery directive

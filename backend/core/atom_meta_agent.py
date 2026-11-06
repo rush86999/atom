@@ -105,6 +105,12 @@ _TERMINAL_FAILURE_STATUSES = frozenset({
     "budget_exceeded",
     "killed_sandbox",
     "error",
+    "cancelled",
+    "specialists_failed",
+    "no_suitable_specialists",
+    "fleet_specialists_failed",
+    "fleet_no_suitable_specialist",
+    "fleet_cancelled",
 })
 
 
@@ -113,7 +119,10 @@ def _execution_succeeded(result: Dict) -> bool:
     status = str(result.get("status") or "").strip().lower()
     if status in _TERMINAL_FAILURE_STATUSES:
         return False
-    if status == "success":
+    explicit = result.get("success")
+    if explicit is not None:
+        return bool(explicit)
+    if status in ("success", "specialists_executed"):
         return True
     final_output = result.get("final_output")
     return bool(final_output) and "error" not in str(final_output).lower()
@@ -526,7 +535,7 @@ class AtomMetaAgent:
         try:
             result = await self.execute_unaudited(
                 request, context=context, trigger_mode=trigger_mode,
-                step_callback=step_callback, execution_id=execution_id,
+                step_callback=step_callback, execution_id=exec_uuid,
                 canvas_context=canvas_context,
             )
         except Exception as run_err:
@@ -541,7 +550,7 @@ class AtomMetaAgent:
         status = result.get("status", "success")
         self._close_audit_bracket(
             exec_uuid, status=status, actions_executed=steps,
-            success=(status == "success"),
+            success=_execution_succeeded(result),
             error_message=None, token=_audit_token,
         )
         return result
@@ -601,6 +610,135 @@ class AtomMetaAgent:
                 provider=provider,
             )
         except Exception:  # noqa: BLE001
+            pass
+
+    def _fleet_actual_route(self) -> tuple[Optional[str], Optional[str]]:
+        """Return the actually served model/provider for this run, if known.
+
+        Prefer the context-local BYOK route attribution (the accepted response
+        route). Fall back to the handler's last-used stash for compatibility.
+        An attempted/requested route is not reported as served.
+        """
+        try:
+            from core.llm.model_provenance import get_route_attribution
+
+            served = (get_route_attribution() or {}).get("served_route") or {}
+            model = served.get("model")
+            provider = served.get("provider")
+            if model or provider:
+                return model, provider
+        except Exception:
+            pass
+        return None, None
+
+    async def _execute_fleet_specialists(
+        self,
+        *,
+        chain_id: Optional[str],
+        roster: list,
+        request: str,
+        user_id: str,
+        tenant_id: Optional[str],
+        workspace_id: Optional[str],
+        context: Optional[Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        """Run the recruited roster through the shared GenericAgent path."""
+        from core.fleet_admiral import FleetAdmiral
+
+        with SessionLocal() as db:
+            admiral = FleetAdmiral(db, self.llm)
+            return await admiral.execute_recruited_specialists(
+                task=request,
+                user_id=user_id,
+                chain_id=str(chain_id or ""),
+                roster=roster or [],
+                tenant_id=tenant_id,
+                workspace_id=workspace_id,
+                context=context or {},
+                cancel_check=(context or {}).get("fleet_cancel_check"),
+            )
+
+    async def _finalize_agent_execution(
+        self,
+        *,
+        execution_id: str,
+        request: str,
+        result_payload: Dict[str, Any],
+        durable_status: str,
+        final_answer: Any,
+        start_time: datetime,
+        trigger_mode: AgentTriggerMode,
+        tenant_id: Optional[str],
+        context: Optional[Dict[str, Any]],
+        fleet_audit_id: Optional[str],
+        fleet_success: bool,
+        fleet_error: Optional[str] = None,
+        fleet_latency_ms: Optional[float] = None,
+        fleet_model: Optional[str] = None,
+        fleet_provider: Optional[str] = None,
+    ) -> None:
+        """One shared durable finalizer for normal and enforced fleet runs."""
+        await self._record_execution(request, result_payload, trigger_mode)
+
+        end_time = datetime.now(timezone.utc)
+        duration = (end_time - start_time).total_seconds()
+        db = SessionLocal()
+        try:
+            execution = (
+                db.query(AgentExecution)
+                .filter(AgentExecution.id == execution_id)
+                .with_for_update()
+                .first()
+            )
+            if execution:
+                if durable_status == "success":
+                    execution.status = "completed"
+                elif durable_status == "cancelled":
+                    execution.status = "cancelled"
+                elif durable_status == "budget_exceeded":
+                    execution.status = "failed"
+                    execution.error_message = (
+                        "Budget exceeded — execution halted by spend gate")
+                else:
+                    execution.status = durable_status
+                execution.result_summary = str(final_answer)[:500]
+                execution.duration_seconds = duration
+                execution.completed_at = end_time
+                if durable_status not in ("success", "completed", "cancelled"):
+                    execution.error_message = str(
+                        fleet_error or final_answer or durable_status)[:500]
+                db.commit()
+        except Exception as e:
+            logger.error(f"Failed to update AgentExecution: {e}")
+            db.rollback()
+        finally:
+            db.close()
+
+        try:
+            from core.fleet_orchestration.fleet_routing_stats import (
+                record_fleet_execution_outcome,
+            )
+
+            if fleet_model is None and fleet_provider is None:
+                fleet_model, fleet_provider = self._fleet_actual_route()
+            record_fleet_execution_outcome(
+                execution_id=execution_id,
+                success=bool(fleet_success),
+                error_message=fleet_error,
+                actual_latency_ms=(
+                    float(fleet_latency_ms)
+                    if fleet_latency_ms is not None
+                    else duration * 1000.0
+                ),
+                actual_model=fleet_model,
+                actual_provider=fleet_provider,
+                audit_id=fleet_audit_id,
+                tenant_id=tenant_id,
+                workspace_id=(
+                    getattr(self, "workspace_id", None)
+                    or (context or {}).get("workspace_id")),
+            )
+        except Exception:
             pass
 
     async def execute_unaudited(self, request: str, context: Dict[str, Any] = None,
@@ -692,6 +830,7 @@ class AtomMetaAgent:
                     id=execution_id,
                     agent_id="atom_main",
                     tenant_id=tenant_id,
+                    workspace_id=self.workspace_id,
                     status=ExecutionStatus.RUNNING.value,
                     input_summary=request[:200],
                     triggered_by=trigger_mode.value,
@@ -715,6 +854,10 @@ class AtomMetaAgent:
         # entirely, orphaning the AgentExecution row in "running" forever (Bug 4).
         status = "failed"
         final_answer = ""
+        # Exact fleet decision row for the outcome join. Set only after the
+        # fleet branch writes its audit row; a missing/denied fleet decision
+        # leaves it None so finalization cannot update an unrelated row.
+        _fleet_audit_id: Optional[str] = None
         # `steps` is normally initialized inside the ReAct section (~line 770),
         # but a KillRunAborted raised BEFORE that point (e.g. at memory recall)
         # still flows into the kill handler, which builds result_payload with
@@ -922,6 +1065,7 @@ class AtomMetaAgent:
                     requires_agent_recruitment=True,
                     blueprint_applicable=False,
                 )
+                _fleet_exc = None
                 try:
                     _fleet_user_id = (
                         (context.get("user_id") if context else None)
@@ -934,46 +1078,67 @@ class AtomMetaAgent:
                 except Exception as fleet_err:
                     logger.warning(f"Fleet routing failed, falling back to Queen→ReAct: {fleet_err}")
                     _fleet_result = None
+                    _fleet_exc = fleet_err
 
                 # Fleet routing validation (2026-08-21): audit EVERY fleet-eligible
                 # decision (shadow or enforced, success or failure) so the
                 # calibration pass has data. Never raises. The outcome join
                 # happens at the finalize points via record_fleet_execution_outcome.
+                _fleet_payload = (
+                    (_fleet_result or {}).get("result") or {}
+                    if isinstance(_fleet_result, dict) else {}
+                )
+                _fleet_count = 0
+                if isinstance(_fleet_result, dict):
+                    _fleet_count = int(
+                        _fleet_result.get("specialists_count")
+                        or _fleet_payload.get("specialists_count")
+                        or 0
+                    )
+                _fleet_status = (
+                    _fleet_payload.get("fleet_status")
+                    or (_fleet_result or {}).get("fleet_status")
+                    if isinstance(_fleet_result, dict) else None
+                )
+                _fleet_error = None
+                if isinstance(_fleet_result, dict):
+                    _fleet_error = (
+                        _fleet_result.get("error")
+                        or _fleet_payload.get("error")
+                    )
+                if _fleet_error is None and _fleet_result is None:
+                    _fleet_error = (
+                        str(_fleet_exc) if _fleet_exc is not None
+                        else "recruitment returned empty"
+                    )
+                _fleet_roster = []
+                if isinstance(_fleet_result, dict):
+                    _fleet_roster = (
+                        _fleet_result.get("specialists")
+                        or _fleet_payload.get("specialists")
+                        or _fleet_payload.get("recruitment_roster")
+                        or []
+                    )
+                _fleet_recruit_ok = bool(
+                    _fleet_count > 0 and _fleet_status != "failed"
+                )
+                _fleet_enforced = bool(resolved_fleet_enforce())
                 try:
                     from core.fleet_orchestration.fleet_routing_stats import (
                         record_fleet_decision,
                     )
 
-                    _fleet_roster = []
-                    if _fleet_result:
-                        _fleet_roster = (
-                            _fleet_result.get("specialists")
-                            or (_fleet_result.get("result") or {}).get("recruitment_roster")
-                            or []
-                        )
-                    _fleet_recruit_ok = bool(
-                        _fleet_result
-                        and (_fleet_result.get("specialists_count") or 0) > 0
-                        and _fleet_result.get("fleet_status") != "failed"
-                    )
-                    _fleet_error = None
-                    if _fleet_result is None:
-                        _fleet_error = (
-                            str(fleet_err) if "fleet_err" in dir() else "recruitment returned empty"
-                        )
-                    record_fleet_decision(
+                    _fleet_audit_id = record_fleet_decision(
                         execution_id=execution_id,
                         workspace_id=getattr(self, "workspace_id", None) or (context or {}).get("workspace_id"),
                         tenant_id=tenant_id,
                         agent_id="atom_main",
                         request=request,
-                        chain_id=_fleet_result.get("chain_id") if _fleet_result else None,
-                        specialists_count=(
-                            _fleet_result.get("specialists_count") or 0
-                        ) if _fleet_result else 0,
+                        chain_id=_fleet_result.get("chain_id") if isinstance(_fleet_result, dict) else None,
+                        specialists_count=_fleet_count,
                         roster=_fleet_roster,
                         recruitment_succeeded=_fleet_recruit_ok,
-                        enforced=resolved_fleet_enforce(),
+                        enforced=_fleet_enforced,
                         error=_fleet_error,
                     )
                 except Exception as _fleet_audit_err:
@@ -991,21 +1156,114 @@ class AtomMetaAgent:
                             "step": 0,
                             "step_type": "fleet_recruitment",
                             "thought": (
-                                f"Fleet recruited: {_fleet_result.get('specialists_count', 0)} "
+                                f"Fleet recruited: {_fleet_count} "
                                 f"specialist(s) (chain {_fleet_result.get('chain_id')})."
                             ),
                             "action": {"tool": "route_with_governance", "params": {"intent": "task"}},
                             "timestamp": datetime.now(timezone.utc).isoformat(),
                         })
 
-                    if resolved_fleet_enforce():
-                        # Return the recruitment summary directly (no auto-execute;
-                        # execution stays a separate explicit step — see plan P1a).
-                        return {
+                    if _fleet_enforced:
+                        # ORCH-02: the enforced response must consume the
+                        # recruited specialists' work, not just return the
+                        # recruitment list. Execute the roster through the
+                        # existing GenericAgent/BYOK path, then join the exact
+                        # outcome to this decision row.
+                        try:
+                            _fleet_execution = await self._execute_fleet_specialists(
+                                chain_id=(
+                                    _fleet_result.get("chain_id")
+                                    if isinstance(_fleet_result, dict) else None),
+                                roster=_fleet_roster,
+                                request=request,
+                                user_id=_fleet_user_id,
+                                tenant_id=tenant_id,
+                                workspace_id=getattr(self, "workspace_id", None) or (context or {}).get("workspace_id"),
+                                context=context,
+                            )
+                        except Exception as _fleet_exec_err:
+                            _fleet_execution = {
+                                "success": False,
+                                "status": "specialists_failed",
+                                "error": type(_fleet_exec_err).__name__,
+                                "final_output": (
+                                    "The recruited specialists could not be "
+                                    "executed for this task."),
+                                "specialist_results": [],
+                                "specialists_count": _fleet_count,
+                                "executed_count": 0,
+                                "cancelled": False,
+                                "chain_id": (
+                                    _fleet_result.get("chain_id")
+                                    if isinstance(_fleet_result, dict) else None),
+                            }
+                        _fleet_success = bool(
+                            _fleet_execution.get("success"))
+                        _fleet_exec_error = _fleet_execution.get("error")
+                        _fleet_model, _fleet_provider = self._fleet_actual_route()
+                        _fleet_status = _fleet_execution.get(
+                            "status", "fleet_executed")
+                        _fleet_failure_reason = None
+                        if not _fleet_success:
+                            _fleet_failure_reason = (
+                                "fleet_cancelled"
+                                if _fleet_status == "cancelled"
+                                else "fleet_no_suitable_specialist"
+                                if _fleet_status == "no_suitable_specialists"
+                                else "fleet_specialists_failed"
+                            )
+                        _fleet_result_payload = {
                             "execution_id": execution_id,
-                            **_fleet_result,
-                            "status": _fleet_result.get("status", "fleet_recruited"),
+                            "route": "TASK",
+                            "handler": "FleetAdmiral",
+                            "status": _fleet_status,
+                            "final_output": _fleet_execution.get(
+                                "final_output"),
+                            "response": _fleet_execution.get(
+                                "final_output"),
+                            "actions_executed": [],
+                            "specialist_results": _fleet_execution.get(
+                                "specialist_results", []),
+                            "specialists_count": _fleet_execution.get(
+                                "specialists_count", _fleet_count),
+                            "chain_id": (
+                                _fleet_execution.get("chain_id")
+                                or (_fleet_result.get("chain_id")
+                                    if isinstance(_fleet_result, dict)
+                                    else None)),
+                            "success": _fleet_success,
+                            "error": _fleet_exec_error,
+                            "failure_reason": _fleet_failure_reason,
+                            "failure_mode": (
+                                None if _fleet_success
+                                else "fleet_specialist_execution"),
+                            "enforced": True,
+                            "result": _fleet_execution,
                         }
+                        await self._finalize_agent_execution(
+                            execution_id=execution_id,
+                            request=request,
+                            result_payload=_fleet_result_payload,
+                            durable_status=(
+                                "success" if _fleet_success
+                                else "cancelled"
+                                if _fleet_status == "cancelled"
+                                else "failed"),
+                            final_answer=_fleet_result_payload[
+                                "final_output"],
+                            start_time=start_time,
+                            trigger_mode=trigger_mode,
+                            tenant_id=tenant_id,
+                            context=context,
+                            fleet_audit_id=_fleet_audit_id,
+                            fleet_success=_fleet_success,
+                            fleet_error=(
+                                _fleet_exec_error
+                                or _fleet_failure_reason),
+                            fleet_model=_fleet_model,
+                            fleet_provider=_fleet_provider,
+                        )
+                        return _fleet_result_payload
                     # Shadow mode: fall through to Queen→ReAct (telemetry only).
             # --- end P1a -----------------------------------------------------
 
@@ -1480,10 +1738,16 @@ class AtomMetaAgent:
                     record_fleet_execution_outcome,
                 )
 
+                _fleet_model, _fleet_provider = self._fleet_actual_route()
                 record_fleet_execution_outcome(
                     execution_id=execution_id,
                     success=False,
                     error_message=str(_body_err)[:400],
+                    actual_model=_fleet_model,
+                    actual_provider=_fleet_provider,
+                    audit_id=_fleet_audit_id,
+                    tenant_id=tenant_id,
+                    workspace_id=getattr(self, "workspace_id", None) or (context or {}).get("workspace_id"),
                 )
             except Exception:
                 pass
@@ -1548,55 +1812,22 @@ class AtomMetaAgent:
         except Exception as _bpe_err:
             logger.debug(f"bpe episode close-out skipped: {_bpe_err}")
 
-        await self._record_execution(request, result_payload, trigger_mode)
-        
-        # Update Execution Record with duration
-        end_time = datetime.now(timezone.utc)
-        duration = (end_time - start_time).total_seconds()
-
-        db = SessionLocal()
-        try:
-            # Use WITH FOR UPDATE to lock the row and prevent race conditions
-            execution = db.query(AgentExecution).filter(
-                AgentExecution.id == execution_id
-            ).with_for_update().first()
-
-            if execution:
-                execution.status = "completed" if status == "success" else status
-                execution.result_summary = str(final_answer)[:500]
-                execution.duration_seconds = duration
-                execution.completed_at = end_time
-                # Map budget_exceeded → a VALID ExecutionStatus for persistence.
-                # Like the max_steps→timeout mapping above, budget_exceeded is
-                # not in the enum; persisting it verbatim would create an
-                # invisible third state that failure dashboards miss. FAILED is
-                # the correct bucket, with a distinctive error_message.
-                if status == "budget_exceeded":
-                    execution.status = "failed"
-                    execution.error_message = "Budget exceeded — execution halted by spend gate"
-                db.commit()
-        except Exception as e:
-            logger.error(f"Failed to update AgentExecution: {e}")
-            db.rollback()
-        finally:
-            db.close()
-
-        # Fleet routing validation: join the execution outcome onto any fleet
-        # audit rows for this execution (single-arm calibration data). Never raises.
-        try:
-            from core.fleet_orchestration.fleet_routing_stats import (
-                record_fleet_execution_outcome,
-            )
-
-            record_fleet_execution_outcome(
-                execution_id=execution_id,
-                success=(status == "success"),
-                actual_latency_ms=duration * 1000.0,
-                actual_model="meta_agent",
-                actual_provider="internal",
-            )
-        except Exception:
-            pass
+        await self._finalize_agent_execution(
+            execution_id=execution_id,
+            request=request,
+            result_payload=result_payload,
+            durable_status=status,
+            final_answer=final_answer,
+            start_time=start_time,
+            trigger_mode=trigger_mode,
+            tenant_id=tenant_id,
+            context=context,
+            fleet_audit_id=_fleet_audit_id,
+            fleet_success=(status == "success"),
+            fleet_error=(
+                None if status == "success"
+                else str(final_answer or status)[:400]),
+        )
 
         return result_payload
 
@@ -3397,7 +3628,9 @@ Provide your Mentorship Guidance:"""
             result = await admiral.recruit_and_execute(
                 task=request,
                 user_id=user_id,  # Changed from tenant_id
-                root_agent_id=agent_id
+                root_agent_id=agent_id,
+                tenant_id=getattr(self, "tenant_id", None),
+                workspace_id=getattr(self, "workspace_id", None),
             )
 
             return {

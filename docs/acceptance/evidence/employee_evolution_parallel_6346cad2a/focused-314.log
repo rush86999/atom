@@ -1,0 +1,258 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-05 18:37:38 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+
+tests/test_evolution_review_tool_mutations.py::test_team_lead_approve_pending_verifies_and_audits 
+-------------------------------- live log setup --------------------------------
+2026-11-05 18:37:39 [    INFO] EscalationManager initialized
+2026-11-05 18:37:39 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:37:39 [    INFO] EscalationManager initialized
+2026-11-05 18:37:39 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:37:39 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 18:37:39 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:37:39 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-pending/approve?operation_id=approve-one "HTTP/1.1 200 OK"
+PASSED                                                                   [  1%]
+tests/test_evolution_review_tool_mutations.py::test_reject_allowed_prior_states[m-pending-pending] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:37:40 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-pending/reject?operation_id=reject-m-pending "HTTP/1.1 200 OK"
+PASSED                                                                   [  3%]
+tests/test_evolution_review_tool_mutations.py::test_reject_allowed_prior_states[m-passed-passed] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:37:40 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-passed/reject?operation_id=reject-m-passed "HTTP/1.1 200 OK"
+PASSED                                                                   [  5%]
+tests/test_evolution_review_tool_mutations.py::test_reject_allowed_prior_states[m-failed-failed] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:37:41 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-failed/reject?operation_id=reject-m-failed "HTTP/1.1 200 OK"
+PASSED                                                                   [  6%]
+tests/test_evolution_review_tool_mutations.py::test_approve_passed_allowed_but_failed_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:37:42 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-passed/approve?operation_id=approve-passed "HTTP/1.1 200 OK"
+2026-11-05 18:37:42 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-failed/approve?operation_id=approve-failed "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  8%]
+tests/test_evolution_review_tool_mutations.py::test_non_review_roles_cannot_decide[member-1] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:37:42 [ WARNING] Access denied: user member-1 has role member (level 3), required team_lead (level 4)
+2026-11-05 18:37:42 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-pending/approve?operation_id=role-denied "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 10%]
+tests/test_evolution_review_tool_mutations.py::test_non_review_roles_cannot_decide[viewer-1] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:37:43 [ WARNING] Access denied: user viewer-1 has role viewer (level 2), required team_lead (level 4)
+2026-11-05 18:37:43 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-pending/approve?operation_id=role-denied "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 12%]
+tests/test_evolution_review_tool_mutations.py::test_non_review_roles_cannot_decide[guest-1] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:37:44 [ WARNING] Access denied: user guest-1 has role guest (level 1), required team_lead (level 4)
+2026-11-05 18:37:44 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-pending/approve?operation_id=role-denied "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 13%]
+tests/test_evolution_review_tool_mutations.py::test_admin_can_decide 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:37:44 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-pending/approve?operation_id=admin-approve "HTTP/1.1 200 OK"
+PASSED                                                                   [ 15%]
+tests/test_evolution_review_tool_mutations.py::test_anonymous_cannot_decide 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:37:45 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-pending/approve?operation_id=anonymous "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 17%]
+tests/test_evolution_review_tool_mutations.py::test_missing_and_foreign_target_are_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:37:46 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/does-not-exist/approve?operation_id=missing-target "HTTP/1.1 404 Not Found"
+2026-11-05 18:37:46 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-foreign/approve?operation_id=foreign-target "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 18%]
+tests/test_evolution_review_tool_mutations.py::test_foreign_tenant_actor_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:37:46 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-pending/approve?operation_id=foreign-actor "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 20%]
+tests/test_evolution_review_tool_mutations.py::test_competing_decision_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:37:47 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-pending/approve?operation_id=winner "HTTP/1.1 200 OK"
+2026-11-05 18:37:47 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-pending/reject?operation_id=loser "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 22%]
+tests/test_evolution_review_tool_mutations.py::test_same_operation_replay_is_idempotent 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:37:47 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-pending/approve?operation_id=replay-one "HTTP/1.1 200 OK"
+2026-11-05 18:37:47 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-pending/approve?operation_id=replay-one "HTTP/1.1 200 OK"
+2026-11-05 18:37:47 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-pending/reject?operation_id=replay-one "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 24%]
+tests/test_evolution_review_tool_mutations.py::test_replay_after_material_reset_is_committed_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:37:48 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-pending/approve?operation_id=reset-replay "HTTP/1.1 200 OK"
+2026-11-05 18:37:48 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-pending/approve?operation_id=reset-replay "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 25%]
+tests/test_evolution_review_tool_mutations.py::test_stale_material_before_claim_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:37:49 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-pending/approve?operation_id=stale-material "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 27%]
+tests/test_evolution_review_tool_mutations.py::test_authority_changed_before_claim_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:37:49 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-pending/approve?operation_id=demoted "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 29%]
+tests/test_evolution_review_tool_mutations.py::test_sandbox_never_overwrites_a_review_decision[approved] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:37:50 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-pending/approve?operation_id=sandbox-approved "HTTP/1.1 200 OK"
+PASSED                                                                   [ 31%]
+tests/test_evolution_review_tool_mutations.py::test_sandbox_never_overwrites_a_review_decision[rejected] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:37:51 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-failed/reject?operation_id=sandbox-rejected "HTTP/1.1 200 OK"
+PASSED                                                                   [ 32%]
+tests/test_evolution_review_tool_mutations.py::test_sandbox_guard_does_not_record_a_racing_review 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:37:51 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-race/approve?operation_id=race-review "HTTP/1.1 200 OK"
+PASSED                                                                   [ 34%]
+tests/test_evolution_review_tool_mutations.py::test_sandbox_pending_and_failed_writes_are_guarded PASSED [ 36%]
+tests/test_evolution_review_tool_mutations.py::test_confirmed_audit_rollback_reports_effect_none 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:37:53 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-pending/approve?operation_id=rollback "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 37%]
+tests/test_evolution_review_tool_mutations.py::test_post_commit_readback_failure_is_committed_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:37:53 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-pending/approve?operation_id=readback "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 39%]
+tests/test_evolution_review_tool_mutations.py::test_lost_confirmation_is_effect_unknown_with_identity 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:37:54 [   ERROR] tool-mutation decision outcome unknown: operation_id=autodev:tool-mutation:lost-confirmation target=m-pending error_class=RuntimeError
+PASSED                                                                   [ 41%]
+tests/test_evolution_review_tool_mutations.py::test_wrong_audit_receipt_is_never_verified[action] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:37:55 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-audit-action/approve?operation_id=audit-action "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 43%]
+tests/test_evolution_review_tool_mutations.py::test_wrong_audit_receipt_is_never_verified[user_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:37:55 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-audit-user_id/approve?operation_id=audit-user_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 44%]
+tests/test_evolution_review_tool_mutations.py::test_wrong_audit_receipt_is_never_verified[tenant_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:37:56 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-audit-tenant_id/approve?operation_id=audit-tenant_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 46%]
+tests/test_evolution_review_tool_mutations.py::test_wrong_audit_receipt_is_never_verified[workspace_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:37:56 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-audit-workspace_id/approve?operation_id=audit-workspace_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 48%]
+tests/test_evolution_review_tool_mutations.py::test_wrong_audit_receipt_is_never_verified[success] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:37:57 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-audit-success/approve?operation_id=audit-success "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 50%]
+tests/test_evolution_review_tool_mutations.py::test_wrong_audit_receipt_is_never_verified[security_level] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:37:58 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-audit-security_level/approve?operation_id=audit-security_level "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 51%]
+tests/test_evolution_review_tool_mutations.py::test_wrong_audit_receipt_is_never_verified[resource] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:37:58 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-audit-resource/approve?operation_id=audit-resource "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 53%]
+tests/test_evolution_review_tool_mutations.py::test_wrong_audit_receipt_is_never_verified[metadata_decision] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:37:59 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-audit-metadata_decision/approve?operation_id=audit-metadata_decision "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 55%]
+tests/test_evolution_review_tool_mutations.py::test_wrong_audit_receipt_is_never_verified[metadata_prior_status] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:38:00 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-audit-metadata_prior_status/approve?operation_id=audit-metadata_prior_status "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 56%]
+tests/test_evolution_review_tool_mutations.py::test_wrong_audit_receipt_is_never_verified[metadata_target_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:38:00 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-audit-metadata_target_id/approve?operation_id=audit-metadata_target_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 58%]
+tests/test_evolution_review_tool_mutations.py::test_wrong_audit_receipt_is_never_verified[metadata_actor_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:38:01 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-audit-metadata_actor_id/approve?operation_id=audit-metadata_actor_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 60%]
+tests/test_evolution_review_tool_mutations.py::test_wrong_audit_receipt_is_never_verified[metadata_code_digest] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:38:02 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-audit-metadata_code_digest/approve?operation_id=audit-metadata_code_digest "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 62%]
+tests/test_evolution_review_tool_mutations.py::test_wrong_audit_receipt_is_never_verified[metadata_material_digest] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:38:02 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-audit-metadata_material_digest/approve?operation_id=audit-metadata_material_digest "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 63%]
+tests/test_evolution_review_tool_mutations.py::test_wrong_audit_receipt_is_never_verified[metadata_result_digest] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:38:03 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-audit-metadata_result_digest/approve?operation_id=audit-metadata_result_digest "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 65%]
+tests/test_evolution_review_tool_mutations.py::test_decision_receipt_omits_code_and_execution_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:38:04 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-secret/reject?operation_id=secret-reject "HTTP/1.1 200 OK"
+PASSED                                                                   [ 67%]
+tests/test_evolution_sandbox_parallel_contract.py::test_pending_twin_executes_once_and_passes PASSED [ 68%]
+tests/test_evolution_sandbox_parallel_contract.py::test_failed_twin_executes_once_and_passes PASSED [ 70%]
+tests/test_evolution_sandbox_parallel_contract.py::test_changed_lineage_during_worker_is_skipped PASSED [ 72%]
+tests/test_evolution_sandbox_parallel_contract.py::test_unchanged_null_lineage_twin_passes PASSED [ 74%]
+tests/test_evolution_sandbox_parallel_contract.py::test_changed_code_during_worker_is_skipped PASSED [ 75%]
+tests/test_evolution_sandbox_parallel_contract.py::test_changed_prior_error_during_worker_is_skipped PASSED [ 77%]
+tests/test_evolution_sandbox_parallel_contract.py::test_stale_session_reloads_review_before_dispatch[approved] PASSED [ 79%]
+tests/test_evolution_sandbox_parallel_contract.py::test_stale_session_reloads_review_before_dispatch[rejected] PASSED [ 81%]
+tests/test_evolution_sandbox_parallel_contract.py::test_reviewer_during_worker_wins_result_cas[approved] PASSED [ 82%]
+tests/test_evolution_sandbox_parallel_contract.py::test_reviewer_during_worker_wins_result_cas[rejected] PASSED [ 84%]
+tests/test_evolution_sandbox_parallel_contract.py::test_missing_or_foreign_target_does_not_dispatch 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:38:11 [   ERROR] Mutation missing not found or unauthorized for tenant tenant-1
+2026-11-05 18:38:11 [   ERROR] Mutation m-foreign not found or unauthorized for tenant tenant-1
+PASSED                                                                   [ 86%]
+tests/test_autodev_review_routes.py::test_list_candidates_unifies_skills_and_mutations 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:38:12 [    INFO] HTTP Request: GET http://testserver/api/autodev/candidates "HTTP/1.1 200 OK"
+PASSED                                                                   [ 87%]
+tests/test_autodev_review_routes.py::test_approve_skill_marks_validated_and_commits 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:38:12 [    INFO] HTTP Request: POST http://testserver/api/autodev/skills/cand-1/approve "HTTP/1.1 200 OK"
+PASSED                                                                   [ 89%]
+tests/test_autodev_review_routes.py::test_reject_mutation_marks_rejected 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:38:13 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/mut-1/reject?operation_id=route-reject "HTTP/1.1 200 OK"
+PASSED                                                                   [ 91%]
+tests/test_autodev_review_routes.py::test_approve_missing_candidate_404 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:38:14 [    INFO] HTTP Request: POST http://testserver/api/autodev/skills/nope/approve "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 93%]
+tests/test_autodev_review_routes.py::test_tool_errors_aggregate_by_signature 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:38:14 [    INFO] HTTP Request: GET http://testserver/api/autodev/tool-errors?agent_id=agent-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 94%]
+tests/test_covpush_w100_gaps_f.py::TestSandboxExecuteMutationGap::test_mutation_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:38:14 [   ERROR] Mutation m1 not found or unauthorized for tenant t1
+PASSED                                                                   [ 96%]
+tests/test_covpush_w100_gaps_f.py::TestSandboxExecuteMutationGap::test_sandbox_unavailable PASSED [ 98%]
+tests/test_covpush_w100_gaps_f.py::TestSandboxExecuteMutationGap::test_failed_execution_records_syntax_error_signal PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 116 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_evolution_review_tool_mutations.py::test_team_lead_approve_pending_verifies_and_audits
+  /private/tmp/atom-evolution-parallel-verify/backend/core/graphrag_engine.py:203: SyntaxWarning: "\%" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\%"? A raw string is also an option.
+    Escaped pattern where % and _ are escaped to \%
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+====================== 58 passed, 124 warnings in 46.50s =======================

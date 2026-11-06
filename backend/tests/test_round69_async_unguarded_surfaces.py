@@ -401,27 +401,47 @@ class TestGenerateFromAgentAuth:
     def test_member_200_token_identity(self):
         from ai.nlp_engine import RouteCategory
         from advanced_workflow_api import router
+        from core.agents.workflow_blueprint import WorkflowBlueprintDraft
 
+        valid = WorkflowBlueprintDraft.model_validate({
+            "architecture_name": "n",
+            "description": "d",
+            "execution_mode": "one_off",
+            "nodes": [{
+                "id": "n1", "type": "agent", "name": "A",
+                "action": {"kind": "read"},
+            }],
+        })
         client = make_client(router, role="member")
         with patch("core.llm_service.LLMService") as m_llm, patch(
             "ai.nlp_engine.NaturalLanguageEngine"
-        ) as m_nlu, patch("core.agents.queen_agent.QueenAgent") as m_queen:
+        ) as m_nlu, patch("core.agents.queen_agent.QueenAgent") as m_queen, patch(
+            "advanced_workflow_api.persist_blueprint"
+        ) as m_persist, patch(
+            "advanced_workflow_api.register_compiled_workflow",
+            return_value=True):
             m_nlu.return_value.classify_route = AsyncMock(
-                return_value=MagicMock(category=RouteCategory.AUTOMATION, reasoning="r")
+                return_value=MagicMock(
+                    category=RouteCategory.ONE_OFF, reasoning="r")
             )
-            m_queen.return_value.generate_blueprint = AsyncMock(
-                return_value={"architecture_name": "n", "description": "d", "nodes": []}
-            )
-            m_queen.return_value.realize_blueprint = AsyncMock(return_value="wf-69")
+            m_queen.return_value.generate_workflow_blueprint = AsyncMock(
+                return_value=valid.model_dump())
+            m_persist.return_value = {
+                "workflow_id": "ai_wf_test_token_scope",
+                "name": "n",
+                "definition_digest": "digest",
+            }
             resp = client.post(
                 "/api/v1/workflows/generate-from-agent",
-                json={"prompt": "p", "tenant_id": "evil-tenant", "user_id": "evil-user"},
+                json={"prompt": "p", "tenant_id": "evil-tenant",
+                      "user_id": "evil-user"},
             )
-        assert resp.status_code == 200
+        assert resp.status_code == 200, resp.text
         # token-derived tenant/user, not the spoofed body fields
         assert m_llm.call_args.kwargs["tenant_id"] == "tenant-69"
         assert m_queen.call_args.kwargs["tenant_id"] == "tenant-69"
-        assert m_queen.return_value.realize_blueprint.call_args.kwargs["tenant_id"] == "tenant-69"
+        assert m_queen.return_value.generate_workflow_blueprint.call_args.kwargs[
+            "tenant_id"] == "tenant-69"
 
     def test_member_without_workflow_run_403(self):
         from advanced_workflow_api import router

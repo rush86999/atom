@@ -1,0 +1,62 @@
+{
+  "schema": "atom-oracle-agent-marketplace-publish-routes-1",
+  "executed_source": "7530ce554af4dc8ae3695ab016650e0bcf6479f4",
+  "product_source": "fb5091069f7ce55882bfb85c23dac2d26a6730eb",
+  "accepted_admin_base": "9d73552d249ae8ec5b05af77546faf9621bbcd47",
+  "accepted_admin_product": "5fbb377a4e1eef8fdd0013275cd8b1c9b278cd41",
+  "prefix": "/api/agent-marketplace",
+  "target": {
+    "model": "AgentTemplate",
+    "database_table": "agent_templates",
+    "tenant": "inherited from the source AgentRegistry row",
+    "no_new_table_or_migration": true
+  },
+  "authority": {
+    "route": "mandatory get_current_user; owner-or-admin policy",
+    "service": "re-reads the current User row, requires active status, permits the agent owner or ADMIN+, and claims status/is_active/role/raw tenant in the publication transaction",
+    "source_binding": "exact source AgentRegistry id/tenant/owner/workspace/name/description/category/specialty/status/configuration guarded no-op UPDATE",
+    "zero_match": "effect=none; no listing/audit; peer state preserved"
+  },
+  "routes": [
+    {
+      "method": "POST",
+      "path": "/api/agent-marketplace/agents/{agent_id}/publish",
+      "handler": "api.agent_marketplace_routes.publish_agent_for_sale",
+      "service": "core.agent_marketplace_write_service.publish_agent_listing",
+      "effect": "insert one AgentTemplate listing plus one AuditLog receipt in the same transaction",
+      "packaging": "existing AgentMarketplaceService.package_agent_for_sale rules: credentials stripped, PII redacted, entities tokenized, approved playbooks and verified_record included",
+      "gates": "marketplace-managed agents refused; paid listings require at least one achieved goal run",
+      "replay": "same operation/material -> already_applied; changed -> 409; missing/different listing -> committed_unverified"
+    }
+  ],
+  "durable_ledger": {
+    "table": "saas_audit_logs",
+    "operation_identity": "AuditLog.id is the server-owned operation id agent-marketplace:publish:<supplied-or-generated>",
+    "metadata": ["schema", "operation_id", "action", "event_type", "target_id", "source_agent_id", "prior_digest", "result_digest", "request_digest", "actor_id", "actor_role", "tenant_id"],
+    "sensitive_material": "no raw system prompt, configuration, playbook, memory bundle, credential, secret, SQL parameter or exception text in the receipt or logs",
+    "readback": "fresh session; audit fields and target listing digest must match"
+  },
+  "result_states": {
+    "verified": "success/template_id/verified_record plus additive verification/operation_id/audit_id",
+    "already_applied": "same operation/material; one receipt; replay=do_not_repeat",
+    "conflict": "409 PACKAGE_REFUSED/STALE_SOURCE/OPERATION_CONFLICT/AUTHORITY_CHANGED; effect=none",
+    "not_applied": "409 confirmed rollback; effect=none; AGENT_MARKETPLACE_TRANSACTION_ROLLED_BACK",
+    "committed_unverified": "503 effect=committed; original identity; replay=do_not_repeat",
+    "effect_unknown": "503 effect=unknown; original identity; replay=do_not_repeat; no exception text"
+  },
+  "parallel_writers": {
+    "route": "sole verified publisher for the local listing",
+    "AgentMarketplaceService.package_agent_for_sale": "retained; internal commit=false path and exact source snapshot for the verified route",
+    "AgentRegistry": "source row is guarded by exact material CAS",
+    "AgentTemplate": "listing row inserted once per operation",
+    "sale-readiness/listing reads": "unchanged",
+    "remote push/install": "out of scope; external SaaS effect routes"
+  },
+  "not_covered": [
+    "push-to-SaaS and remote install",
+    "browse/sale-readiness/listing reads",
+    "live agent/model/provider/credential/spend/send/download/deployment",
+    "PostgreSQL runtime/soak and multi-worker serialization",
+    "whole-app ORACLE-01"
+  ]
+}

@@ -1,0 +1,69 @@
+{
+  "schema": "atom-employee-evidence-1",
+  "status": "sandbox caller-transaction ownership repair submitted for independent verification; prior decision/material/audit and lineage/freshness controls preserved",
+  "branch": "codex/oracle01-evolution-review-20261105",
+  "accepted_base": "95f7bcac1a0375b4f0465a77e15130f68fc9665d",
+  "prior_decision_source": "e4816e59c",
+  "prior_lineage_repair": "6346cad2a",
+  "prior_lineage_evidence": "6fbeb4ebd",
+  "product_source": "d4cce1625205f79412be9387f7c3fed1023d376f",
+  "executed_source": "a39dbd12a01bbcaccaf51598f7fc586ed93926f4",
+  "tree_clean_at_execution": true,
+  "source_files": {
+    "backend/core/auto_dev/alpha_evolver_engine.py": "5ca9ee2984370138eb7904f623c5ce9e33ff831e915d03f551835ccc424ca204",
+    "backend/core/auto_dev/base_engine.py": "dc26fcbcb89abd949dc96f921754113d00ce0c2b8f8ef1034b24a5f254bc0dbe",
+    "backend/core/auto_dev/models.py": "94e533f3c3d221ae2b5136160393f3e081efb8edf8e47250223fe068b01071bb",
+    "backend/core/models.py": "4b238c35f6f235d94779f4598040f0c9fcd39599c26705e7016e8b045b51c3ef",
+    "backend/core/auth.py": "63b747a9e335f84128fc43b846eacb8beaef3874edeac00874ee803a5e287c61",
+    "backend/core/security/rbac.py": "48a7ecdb609f7e32267212e85b1993a0045eb84aca903f0152a8a498bcbd405e",
+    "backend/core/database.py": "fd3736e7f679b9b30e242597e25a27565d3ab93fc8c0efd3ea0b1cef76e9b16e",
+    "backend/api/autodev_review_routes.py": "27ed7cd1fe621437c72aef716b724e3899495156cfc89505252217459eea32f1",
+    "backend/core/evolution_review_write_service.py": "60fa8a742ca19a233d8ef5e197fae8179d3b075559e0b44099d4a2dcebf83f00",
+    "backend/tests/test_evolution_caller_transaction_contract.py": "9d9738b899ecc93f6f486fb5ea6247c1fe4f20d65c873ed66b507f2061994791",
+    "backend/tests/test_evolution_sandbox_parallel_contract.py": "50d345aeeedf00943a2b2246390a3f5259c1603c15c0bf05da97b5b4076f97f2",
+    "backend/tests/test_evolution_review_tool_mutations.py": "68bdd9a113b22738082195473cebee74e4eb7a287681354e6bc4a2148aa2d2e4",
+    "backend/tests/test_autodev_review_routes.py": "ce07fe5b9fa2f9a3d44280fda134b798a16f5e61881d2869ea955ff035d3cc44",
+    "backend/tests/test_covpush_w100_gaps_f.py": "00fb805089e17a465e17e7148eaa53824351f300c68760f88efbdd1c2e651ba6"
+  },
+  "artifacts": {
+    "README.md": "4fc325d6553ec354e0bf21b1a4e7ad45c46664adde3d229b55b5eb079d417cae",
+    "TEST_RESULTS.md": "83f25cd2748be8145670c70f51d0df2c4881c03481a464b68b2912a81216d029",
+    "affected-evolution-311.log": "709269f98e68c617fe31ef13fa0c81eb463f8983360a5f0eb8c308cd918435f5",
+    "affected-evolution-314.log": "47f5273b0fba3946a05cb1ecc0cce81b75cba656ba5d878fa860a86962363fdf",
+    "affected-review-audit-311.log": "66fa18f58053238156005f02d9f2c5540c7b20f3f1aa444335f16982c52ab94a",
+    "affected-review-audit-314.log": "ec4313785f708dd2668b65cdfee5541adce5542ae4a56c06d864f3e46ad7baaf",
+    "baseline-evolution-311.log": "fcff2e7381c1c9b86ce35a8f416ac53c89b6995dc8a386c21ea22652c94e9a58",
+    "baseline-evolution-314.log": "8847403e824bbbaf1535d6a74829365313b4decedfa8613041f9038a2354d4fc",
+    "focused-311.log": "0e546f98e423cf5a9591c1ac7fcaaa68fef3b2ad493be961a9b7d701143c8527",
+    "focused-314.log": "42f3dd4b6cad3dbf21c15254ec3a61d429a679e1fb7f6d126ddcff949cce6f9a",
+    "probes-314.log": "eef98cb7e30f1ecb4baf5cdaad8b7a9ccae9f82a0027826b4ebc9972a8ed2cde",
+    "routes.json": "abafb7066d9455c3fb23d6189e45cf6a4ba64aad973de85106fd8289566d36cc",
+    "source-tree.txt": "fb17f1c9bdb6eaf3f8b0d102a47575614965bbe9047db4a2762f723fa2b41525",
+    "verification.json": "bac510863ef20be3f55ba7436178c8c32cef0f547c0c5079f75b6ddc28c93094"
+  },
+  "checks": {
+    "verifier_probes_python314": "5 passed",
+    "focused_python314": "65 passed",
+    "focused_python311": "65 passed",
+    "affected_evolution_python314": "311 passed, 29 skipped, 1 baseline failure",
+    "affected_evolution_python311": "311 passed, 29 skipped, 1 baseline failure",
+    "affected_review_audit_python314": "111 passed",
+    "affected_review_audit_python311": "111 passed",
+    "baseline_failure_list_identical": true,
+    "new_caller_transaction_twins": 7,
+    "model_calls": 0,
+    "provider_calls": 0,
+    "new_schema": false
+  },
+  "baseline_exclusions": {
+    "reflection_pattern_detection": "pre-existing ReflectionEngine pattern control; identical at accepted base"
+  },
+  "boundaries": [
+    "no physical cancellation of an in-flight worker; review wins the result CAS",
+    "no live sandbox/Docker/model/provider/credential/spend/send/download/deployment",
+    "no new status/worker/review/operation/transaction engine",
+    "PostgreSQL runtime/soak, multi-worker serialization and whole-app ORACLE-01 not qualified",
+    "repaired memory/skill/agent branches independent and not merged",
+    "accepted admin/auth-2FA/canvas/feedback/wait/employee/ORCH-01 lanes unchanged"
+  ]
+}

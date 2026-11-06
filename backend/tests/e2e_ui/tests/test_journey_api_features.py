@@ -23,6 +23,7 @@ from tests.e2e_ui.fixtures.journey_fixtures import (  # noqa: F401
     journey_api_headers,
     journey_user_credentials,
     BACKEND_URL,
+    _set_user_role,
 )
 
 
@@ -42,7 +43,8 @@ def _post(path, headers, **kw):
 class TestSkillsJourney:
     """Skill registry lifecycle: import → list → fetch → delete."""
 
-    def test_skill_lifecycle(self, journey_api_headers):
+    def test_skill_lifecycle(
+            self, journey_api_headers, journey_user_credentials):
         h = journey_api_headers
         name = f"Lifecycle Skill {uuid.uuid4().hex[:6]}"
 
@@ -64,9 +66,29 @@ class TestSkillsJourney:
         r = _get(f"/api/skills/{skill_id}", h)
         assert r.status_code == 200
 
-        # Delete
-        r = requests.delete(f"{BACKEND_URL}/api/skills/{skill_id}", headers=h, timeout=15)
-        assert r.status_code in (200, 204), f"delete failed: {r.status_code}"
+        # Delete is a TEAM_LEAD+ community-skill review decision. The
+        # journey user is a plain member: the unauthorized twin must be 403
+        # and must not remove the skill.
+        r = requests.delete(
+            f"{BACKEND_URL}/api/skills/{skill_id}", headers=h, timeout=15)
+        assert r.status_code == 403, (
+            f"member delete should be denied: {r.status_code} {r.text[:200]}")
+
+        # Authorized positive: elevate the SAME owner to the review role.
+        # The JWT carries only the user id, and the backend reads the role
+        # from the DB per request, so the existing token now carries the
+        # team_lead authority without a new login or a broad role grant.
+        _set_user_role(journey_user_credentials["email"], "team_lead")
+        r = requests.delete(
+            f"{BACKEND_URL}/api/skills/{skill_id}", headers=h, timeout=15)
+        assert r.status_code in (200, 204), (
+            f"team_lead delete failed: {r.status_code} {r.text[:200]}")
+
+        # The tombstone removes the skill from the owner's list.
+        r = _get("/api/skills/list", h)
+        assert r.status_code == 200
+        ids = [s["skill_id"] for s in r.json().get("data", {}).get("skills", [])]
+        assert skill_id not in ids, "deleted skill should not remain listed"
 
 
 class TestWorkflowsJourney:

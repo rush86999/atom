@@ -1,0 +1,66 @@
+{
+  "schema": "atom-employee-evidence-1",
+  "status": "verified local agent-listing publication submitted for independent verification; remote push/install and live operation remain open",
+  "branch": "codex/oracle01-marketplace-20261105",
+  "accepted_admin_base": "9d73552d249ae8ec5b05af77546faf9621bbcd47",
+  "accepted_admin_product": "5fbb377a4e1eef8fdd0013275cd8b1c9b278cd41",
+  "product_source": "fb5091069f7ce55882bfb85c23dac2d26a6730eb",
+  "executed_source": "7530ce554af4dc8ae3695ab016650e0bcf6479f4",
+  "tree_clean_at_execution": true,
+  "source_files": {
+    "backend/api/agent_marketplace_routes.py": "cd0d18b329e395ccb5d0ba427722d6bd3b779b2a261dac7e82e51262044b5f27",
+    "backend/core/agent_marketplace_write_service.py": "2e7ec426d12ae0d37e6b468859f88ad0a7bd62c67491669bd9d1c2e68bc78933",
+    "backend/core/agent_marketplace_service.py": "ac1366bc7fc83ee2f9dbdf190000d12f076541bdf4ca51718ae73a4a01cbe7f9",
+    "backend/core/models.py": "4b238c35f6f235d94779f4598040f0c9fcd39599c26705e7016e8b045b51c3ef",
+    "backend/core/auth.py": "63b747a9e335f84128fc43b846eacb8beaef3874edeac00874ee803a5e287c61",
+    "backend/core/security/rbac.py": "48a7ecdb609f7e32267212e85b1993a0045eb84aca903f0152a8a498bcbd405e",
+    "backend/core/personal_scope.py": "f07dd35cf6eedb674ec9afbb06e10776cd4039e64ad7dd0a3427b7e0df31f78f",
+    "backend/core/base_routes.py": "b3af3c52d14582a3674a30adca6d8fea10ae7f4bde8d46c7b9164eb2ef0597fb",
+    "backend/core/database.py": "fd3736e7f679b9b30e242597e25a27565d3ab93fc8c0efd3ea0b1cef76e9b16e",
+    "backend/core/blueprint_sanitizer.py": "6d77f4f19af84e50292a4c802af3753f8f0a96b347b256726e242729e47ed0ec",
+    "backend/core/experience_marketplace/sanitizer.py": "f78f55d8bebddba0e8f872bd3967fb1c3e748194aabf90a221102d901709f040",
+    "backend/main_api_app.py": "83f6c051d58d39c70c94617cd6eedc9ce65e6414047c1297899dc6e771321af0",
+    "backend/tests/test_agent_marketplace_publish_contract.py": "86b3c0cee8c0d48f3db69675a013d6884db867496c818e1aacfb7ea470b4181c",
+    "backend/tests/test_agent_marketplace_goal_runs.py": "1297258fbff303c5d2925f56e1f2cb67b3f318170df1aa577c4d5705faadeb56"
+  },
+  "artifacts": {
+    "README.md": "e7a48998a4efa15b9d34c1bfc99ce08b90504949dd80a94024dd652e047f5b7c",
+    "TEST_RESULTS.md": "f65459bcbf990b1daeeca801691c53e1e358fb0304354e55f227e69f867df02d",
+    "affected-311.log": "53545e3be6c583ca15951da2f0ea80fc98dd147f5af7122ca530e566cf073050",
+    "affected-314.log": "dbc17d5632c978c6cd45954005557d4542640f7ff6771d908d29fc7b49039e6a",
+    "baseline-311.log": "b743d0526429746fefd7625c92e5a59bb0ad501c9db52dbda24a6d8e9d19ed38",
+    "baseline-314.log": "f2204cc3612c11e3139641ff7f09d8d7f5b91b2d1276652cad9d8b24225de895",
+    "focused-311.log": "34bc90544ca34f0cf55fb392f4d3f342b619a6efa406f9f580b5a6cf89bb4fc6",
+    "focused-314.log": "d970a64bf13ab54570d67f2b1f640038df7c0ac5fa3ab26463dd161f06fcd345",
+    "routes.json": "b1016da1a2d8ebd23cc819ef6413dd5e3473acccf24fe10ea812c58d32fddea4",
+    "source-tree.txt": "2181e35e08e3e731e636eca20f2d172820b1fac7d86253e4684d29bddf365ca2",
+    "verification.json": "d62bbb6fa191145ad4908bba9530b21d4dc73eaaafbed5b344059326f7e331aa"
+  },
+  "checks": {
+    "focused_python314": "23 passed",
+    "focused_python311": "23 passed",
+    "affected_python314": "211 passed, 7 skipped, 24 baseline failures",
+    "affected_python311": "211 passed, 7 skipped, 24 baseline failures",
+    "baseline_python314": "188 passed, 7 skipped, 24 failures",
+    "baseline_python311": "188 passed, 7 skipped, 24 failures",
+    "baseline_failure_lists_identical": true,
+    "new_passing_controls": 23,
+    "external_saas_calls": 0,
+    "model_calls": 0,
+    "provider_calls": 0,
+    "new_schema": false
+  },
+  "baseline_exclusions": {
+    "w69_workflow_marketplace_routes": "23 pre-existing workflow-marketplace fixture/API failures; identical on base",
+    "install_template_not_found": "pre-existing int(Mock) install path; identical on base"
+  },
+  "boundaries": [
+    "one local agent-marketplace publication route only",
+    "no remote push/install, browse, sale-readiness or listing-read changes",
+    "no external SaaS/network/model/provider/credential/spend/send/download/deployment",
+    "no new table, migration or second marketplace/approval engine",
+    "PostgreSQL runtime/soak, multi-worker serialization and whole-app ORACLE-01 not qualified",
+    "submitted review/memory/skill/agent/goal/document/workflow-template branches independent and not merged",
+    "accepted admin/auth-2FA/canvas/feedback/wait/employee/ORCH-01 lanes unchanged"
+  ]
+}

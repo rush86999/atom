@@ -1,0 +1,6 @@
+baseline streaming/fallback neighborhood:
+=========== 98 failed, 505 passed, 6 skipped, 37 warnings in 53.46s ============
+repaired streaming/fallback neighborhood:
+=========== 98 failed, 505 passed, 6 skipped, 37 warnings in 54.86s ============
+FAILED-set diff (empty means identical):
+IDENTICAL baseline failure sets

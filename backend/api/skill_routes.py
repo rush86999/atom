@@ -17,13 +17,13 @@ from sqlalchemy.orm import Session
 from core.auth import get_current_user, User
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
-from core.models import EpisodeSegment, SkillExecution, UserRole
-from core.security.rbac import require_role
-from core.skill_registry_service import SkillRegistryService
-from core.skill_review_write_service import (
-    delete_community_skill as _delete_community_skill,
-    promote_community_skill as _promote_community_skill,
+from core.community_skill_write_service import (
+    delete_skill as _delete_community_skill,
+    promote_skill as _promote_community_skill,
 )
+from core.models import EpisodeSegment, SkillExecution, User as UserModel, UserRole
+from core.security.rbac import user_meets_role
+from core.skill_registry_service import SkillRegistryService
 
 logger = logging.getLogger(__name__)
 
@@ -100,27 +100,36 @@ def get_skill_service(db: Session = Depends(get_db)) -> SkillRegistryService:
     return SkillRegistryService(db)
 
 
-def _raise_skill_decision(result: Dict[str, Any]) -> None:
-    """Map the verified community-skill decision to a safe HTTP error."""
+# ============================================================================
+# Verified community-skill review authority
+# ============================================================================
+
+def _require_community_skill_reviewer(db: Session, current_user: User) -> None:
+    """Community-skill promote/delete is a TEAM_LEAD+ platform decision."""
+    user = db.query(UserModel).filter(
+        UserModel.id == current_user.id).first()
+    if user is None:
+        raise HTTPException(status_code=404, detail="User not found")
+    if not user_meets_role(user, UserRole.TEAM_LEAD):
+        raise HTTPException(
+            status_code=403,
+            detail="Community skill review requires team_lead or higher",
+        )
+
+
+def _raise_community_skill_write(result: Dict[str, Any]) -> None:
     status_value = str(result.get("status") or "")
     if status_value == "refused":
         raise HTTPException(
             status_code=int(result.get("http_status") or 409),
-            detail={
-                "error": {
-                    "code": result.get("error_code") or "CONFLICT",
-                    "message": result.get("error") or "Request refused",
-                },
-                "field": result.get("field"),
-                "verification": result.get("verification"),
-            },
+            detail=result.get("error") or "Community skill request refused",
         )
     if status_value == "conflict":
         raise HTTPException(
             status_code=409,
             detail={
                 "error": {
-                    "code": result.get("error_code") or "STALE_TARGET",
+                    "code": result.get("error_code") or "STALE_COMMUNITY_SKILL",
                     "message": result.get("error") or "Conflict",
                 },
                 "verification": result.get("verification"),
@@ -132,9 +141,9 @@ def _raise_skill_decision(result: Dict[str, Any]) -> None:
             detail={
                 "error": {
                     "code": result.get("error_code")
-                    or "SKILL_TRANSACTION_ROLLED_BACK",
+                    or "COMMUNITY_SKILL_TRANSACTION_ROLLED_BACK",
                     "message": result.get("error")
-                    or "The community-skill decision did not apply.",
+                    or "The community-skill operation did not apply.",
                 },
                 "verification": result.get("verification"),
                 "operation_id": result.get("operation_id"),
@@ -143,16 +152,16 @@ def _raise_skill_decision(result: Dict[str, Any]) -> None:
         )
     if status_value in ("committed_unverified", "effect_unknown"):
         code = (
-            "SKILL_EFFECT_UNKNOWN"
+            "COMMUNITY_SKILL_EFFECT_UNKNOWN"
             if status_value == "effect_unknown"
-            else "SKILL_COMMITTED_UNVERIFIED")
+            else "COMMUNITY_SKILL_COMMITTED_UNVERIFIED")
         raise HTTPException(
             status_code=503,
             detail={
                 "error": {
                     "code": code,
                     "message": result.get("message")
-                    or "The community-skill decision outcome is uncertain.",
+                    or "The community-skill operation outcome is uncertain.",
                 },
                 "verification": result.get("verification"),
                 "operation_id": result.get("operation_id"),
@@ -403,70 +412,38 @@ async def execute_skill(
 @router.post("/promote")
 async def promote_skill(
     request: PromoteSkillRequest,
-    current_user: User = Depends(get_current_user),
-    _authorized: User = Depends(require_role(UserRole.TEAM_LEAD)),
-    db: Session = Depends(get_db),
     operation_id: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
-    """
-    Promote a community skill from Untrusted to Active status.
-
-    TEAM_LEAD+ review authority. The exact community `SkillExecution` material
-    is bound, the decision is audited, and replay/stale/competing outcomes are
-    explicit. An already-Active skill with a new operation id is a no-change
-    success (`effect=none`), preserving the old API.
-
-    Example:
-        POST /api/skills/promote?operation_id=promote-1
-        {
-            "skill_id": "abc-123-def"
-        }
-    """
+    """Promote an Untrusted community skill with exact material CAS."""
+    _require_community_skill_reviewer(db, current_user)
     result = _promote_community_skill(
-        db,
-        actor=current_user,
-        skill_id=request.skill_id,
-        operation_id=operation_id,
+        db, actor=current_user, skill_id=request.skill_id,
+        operation_id=operation_id)
+    _raise_community_skill_write(result)
+    return router.success_response(
+        data=result.get("data"),
+        message=result.get("message") or "Skill promoted",
     )
-    _raise_skill_decision(result)
-    data = result.get("data") or {}
-    if result.get("status") == "no_change":
-        message = result.get("message") or "Skill is already Active"
-    else:
-        message = f"Skill promoted to {data.get('status', 'Active')}"
-    return router.success_response(data=data, message=message)
 
 
 @router.delete("/{skill_id}")
 async def delete_skill(
     skill_id: str,
-    current_user: User = Depends(get_current_user),
-    _authorized: User = Depends(require_role(UserRole.TEAM_LEAD)),
-    db: Session = Depends(get_db),
     operation_id: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
-    """
-    Delete a community skill from the registry.
-
-    TEAM_LEAD+ review authority. The exact community `SkillExecution` material
-    is bound, the deletion is audited, and tombstone replay/stale outcomes are
-    explicit.
-
-    Example:
-        DELETE /api/skills/abc-123-def?operation_id=delete-1
-    """
+    """Delete a community skill with an exact-material tombstone receipt."""
+    _require_community_skill_reviewer(db, current_user)
     result = _delete_community_skill(
-        db,
-        actor=current_user,
-        skill_id=skill_id,
-        operation_id=operation_id,
-    )
-    _raise_skill_decision(result)
-    data = result.get("data") or {}
-    skill_name = data.get("skill_name") or "community skill"
+        db, actor=current_user, skill_id=skill_id,
+        operation_id=operation_id)
+    _raise_community_skill_write(result)
     return router.success_response(
-        data=data,
-        message=f"Skill '{skill_name}' deleted successfully",
+        data=result.get("data"),
+        message=result.get("message") or "Skill deleted",
     )
 
 

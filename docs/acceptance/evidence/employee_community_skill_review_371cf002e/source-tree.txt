@@ -1,0 +1,12 @@
+executed_source: 371cf002e
+product_source: acfee403b
+accepted_admin_base: 9d73552d249ae8ec5b05af77546faf9621bbcd47
+accepted_admin_product: 5fbb377a4e1eef8fdd0013275cd8b1c9b278cd41
+branch: codex/oracle01-community-skill-20261105
+git_status_short:
+git_log:
+371cf002e test(skills): cover the community-skill review decision matrix
+acfee403b feat(skills): verify community-skill promote and delete
+30757ee3c docs: add the continuous delivery directive
+9d73552d2 test(admin): assert the real hashed credential in W79C create
+c4e43f4b9 docs(admin): submit the credential-proof and rollback evidence

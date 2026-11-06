@@ -1,24 +1,14 @@
-"""Verified TEAM_LEAD+ decisions for community skills.
+"""Verified writes for the global community-skill registry.
 
-The two community-skill routes previously called ``SkillRegistryService``
-directly: any authenticated caller could promote or delete any
-``SkillExecution`` row with ``skill_source="community"``, with no role check,
-material binding or audit receipt.
+Imported community skills are ``SkillExecution`` rows with
+``skill_source="community"``. The legacy promote/delete service methods write
+the ORM row unconditionally and have no receipt or replay binding. This module
+keeps the global registry but makes the two review decisions exact-material
+CAS operations with one same-transaction ``AuditLog`` receipt.
 
-This module makes the decision explicit and durable:
-
-- TEAM_LEAD+ actor authority is frozen and conditionally claimed;
-- the exact community `SkillExecution` material is bound by a guarded UPDATE
-  or DELETE (id, status, source, target skill id, row scope and the JSON
-  input/scan payload, plus sandbox flag);
-- one safe ``AuditLog`` receipt commits in the same transaction;
-- same-operation replay is idempotent, changed material conflicts, a later
-  revision is unverified, a confirmed rollback is ``effect=none`` and a lost
-  confirmation is ``effect_unknown``.
-
-No raw skill body, generated code, package list or scan payload is stored in
-the receipt or returned in logs. Cloud execution rows are never visible to
-these decisions.
+The review material includes the parsed skill body/packages held in
+``input_params``. Only keyed digests of that material enter the receipt; raw
+skill content never does.
 """
 from __future__ import annotations
 
@@ -28,7 +18,8 @@ import json
 import logging
 import re
 import uuid
-from typing import Any, Callable, Dict, Optional
+from datetime import datetime, timezone
+from typing import Any, Dict, Optional
 
 from sqlalchemy import delete, update
 from sqlalchemy.exc import IntegrityError
@@ -48,19 +39,17 @@ from core.security.rbac import role_level
 
 logger = logging.getLogger(__name__)
 
-REVIEW_SCHEMA = "atom-community-skill-review-1"
-_OPERATION_PREFIX = "skill"
+COMMUNITY_SOURCE = "community"
+_PLATFORM_SCOPE = {
+    "registry": "community",
+    "tenant_id": "system",
+    "workspace_id": "default",
+}
+_OPERATION_PREFIX = "community-skill"
 _SAFE_OPERATION_RE = re.compile(r"^[A-Za-z0-9:_-]{1,180}$")
 _ACTION_PROMOTE = "community_skill_promoted"
 _ACTION_DELETE = "community_skill_deleted"
-_SOURCE = "community"
-_ACTIVE = "Active"
-_UNTRUSTED = "Untrusted"
 
-
-# ---------------------------------------------------------------------------
-# Safe envelopes
-# ---------------------------------------------------------------------------
 
 def _fingerprint(*parts: Any) -> str:
     message = "|".join(
@@ -77,10 +66,18 @@ def _canonical(value: Any) -> str:
         value, sort_keys=True, separators=(",", ":"), default=str)
 
 
+def _digest(value: Any) -> str:
+    return _fingerprint("community-skill-digest", value)
+
+
+def _now() -> str:
+    return datetime.now(timezone.utc).isoformat()
+
+
 def _operation_id(action: str, supplied: Optional[str]) -> str:
     supplied = str(supplied or "").strip()
-    candidate = supplied or f"{_OPERATION_PREFIX}:{action}:{uuid.uuid4().hex}"
     prefix = f"{_OPERATION_PREFIX}:{action}:"
+    candidate = supplied or f"{prefix}{uuid.uuid4().hex}"
     if not candidate.startswith(prefix):
         candidate = f"{prefix}{candidate}"
     if not _SAFE_OPERATION_RE.fullmatch(candidate):
@@ -89,8 +86,8 @@ def _operation_id(action: str, supplied: Optional[str]) -> str:
 
 
 def _refused(
-    message: str, *, http_status: int = 409,
-    error_code: str = "CONFLICT", field: Optional[str] = None,
+    message: str, *, http_status: int = 422,
+    error_code: str = "VALIDATION_ERROR", field: Optional[str] = None,
 ) -> Dict[str, Any]:
     return {
         "status": "refused",
@@ -102,7 +99,7 @@ def _refused(
     }
 
 
-def _conflict(message: str, *, code: str = "STALE_TARGET") -> Dict[str, Any]:
+def _conflict(message: str, *, code: str = "STALE_COMMUNITY_SKILL") -> Dict[str, Any]:
     return {
         "status": "conflict",
         "error": message,
@@ -116,7 +113,7 @@ def _not_applied(message: str) -> Dict[str, Any]:
     return {
         "status": "not_applied",
         "error": message,
-        "error_code": "SKILL_TRANSACTION_ROLLED_BACK",
+        "error_code": "COMMUNITY_SKILL_TRANSACTION_ROLLED_BACK",
         "http_status": 409,
         "verification": {
             "status": "refused",
@@ -133,7 +130,7 @@ def _committed_unverified(
         "status": "committed_unverified",
         "data": None,
         "message": (
-            "The community-skill decision committed but its audit/target "
+            "The community-skill mutation committed but its audit/target "
             "readback did not verify. Reconcile the original operation."),
         "operation_id": operation_id,
         "audit_id": audit_state.get("audit_id"),
@@ -152,9 +149,9 @@ def _effect_unknown(operation_id: str, target_id: str) -> Dict[str, Any]:
         "status": "effect_unknown",
         "data": None,
         "message": (
-            "The community-skill decision may have committed, but "
-            "confirmation was lost. Reconcile the original operation; do not "
-            "repeat it blindly."),
+            "The community-skill mutation may have committed, but "
+            "confirmation was lost. Reconcile the original operation; do "
+            "not repeat it blindly."),
         "operation_id": operation_id,
         "audit_id": None,
         "target_id": target_id,
@@ -187,19 +184,31 @@ def _with_receipt(
     return result
 
 
-# ---------------------------------------------------------------------------
-# Sessions / actor / material
-# ---------------------------------------------------------------------------
-
 def _fresh_session(db: Session) -> Session:
     from sqlalchemy.orm import sessionmaker
 
     return sessionmaker(bind=db.get_bind())()
 
 
+def _actor_snapshot(actor: Any) -> Dict[str, Any]:
+    return {
+        "id": str(getattr(actor, "id", "") or ""),
+        "email": str(getattr(actor, "email", "") or ""),
+        "role": str(getattr(actor, "role", "") or ""),
+        "tenant_id": str(resolve_tenant_id(actor)),
+    }
+
+
+def _exact(column, value: Any):
+    if value is None:
+        return column.is_(None)
+    return column == value
+
+
 def _actor_refusal(actor: Dict[str, Any]) -> Dict[str, Any]:
     return _refused(
-        str(actor.get("message") or "TEAM_LEAD+ reviewer authority is required"),
+        str(actor.get("message")
+            or "TEAM_LEAD+ reviewer authority is required"),
         http_status=int(actor.get("http_status") or 403),
         error_code=str(actor.get("error_code") or "AUTHORITY_REQUIRED"),
     )
@@ -284,146 +293,134 @@ def _claim_actor(db: Session, actor: Dict[str, Any]) -> bool:
     return result.rowcount == 1
 
 
-def _load_skill(
-    db: Session, skill_id: str,
-) -> Optional[SkillExecution]:
+def _target_digest(skill_id: str) -> str:
+    return _fingerprint("community-skill-target", str(skill_id))
+
+
+def _read_skill(db: Session, skill_id: str) -> Optional[Dict[str, Any]]:
     with _fresh_session(db) as fresh:
-        return fresh.query(SkillExecution).filter(
+        row = fresh.query(SkillExecution).filter(
             SkillExecution.id == str(skill_id),
-            SkillExecution.skill_source == _SOURCE,
-        ).populate_existing().first()
+            SkillExecution.skill_source == COMMUNITY_SOURCE,
+        ).first()
+        if row is None:
+            return None
+        return {
+            "id": str(row.id),
+            "agent_id": str(row.agent_id or ""),
+            "tenant_id": str(row.tenant_id or ""),
+            "workspace_id": str(row.workspace_id or ""),
+            "skill_id": str(row.skill_id or ""),
+            "status": str(row.status or ""),
+            "input_params": row.input_params if isinstance(
+                row.input_params, dict) else {},
+            "security_scan_result": row.security_scan_result if isinstance(
+                row.security_scan_result, dict) else {},
+            "sandbox_enabled": bool(row.sandbox_enabled),
+            "skill_source": str(row.skill_source or ""),
+        }
 
 
-def _skill_name(row: SkillExecution) -> str:
-    params = row.input_params if isinstance(row.input_params, dict) else {}
-    return str(params.get("skill_name") or "Unknown")
-
-
-def _request_material(row: SkillExecution) -> Dict[str, Any]:
+def _material(row: Dict[str, Any]) -> Dict[str, Any]:
     return {
-        "id": str(row.id),
-        "skill_source": str(row.skill_source or ""),
-        "target_skill_id": str(row.skill_id or ""),
-        "row_tenant_id": str(row.tenant_id or ""),
-        "row_agent_id": str(row.agent_id or ""),
-        "row_workspace_id": (
-            None if row.workspace_id is None else str(row.workspace_id)),
-        "input_digest": _fingerprint(
-            "skill-input", _canonical(row.input_params or {})),
-        "scan_digest": _fingerprint(
-            "skill-scan", _canonical(row.security_scan_result or {})),
-        "sandbox_enabled": bool(row.sandbox_enabled),
+        "agent_id": row.get("agent_id"),
+        "tenant_id": row.get("tenant_id"),
+        "workspace_id": row.get("workspace_id"),
+        "skill_id": row.get("skill_id"),
+        "status": row.get("status"),
+        "input_params": row.get("input_params") or {},
+        "security_scan_result": row.get("security_scan_result") or {},
+        "sandbox_enabled": bool(row.get("sandbox_enabled")),
+        "skill_source": row.get("skill_source"),
     }
 
 
-def _request_digest(action: str, material: Dict[str, Any]) -> str:
-    return _fingerprint(
-        "skill-request", str(action), _canonical(material))
+def _material_digest(row: Dict[str, Any]) -> str:
+    return _digest(_canonical(_material(row)))
 
 
-def _state_digest(material: Dict[str, Any], status: str) -> str:
-    return _fingerprint(
-        "skill-state", str(status), _canonical(material))
+def _skill_name(row: Dict[str, Any]) -> str:
+    params = row.get("input_params") or {}
+    name = params.get("skill_name") if isinstance(params, dict) else None
+    return str(name or "Unknown")
 
 
-def _exact(column, value: Any):
-    if value is None:
-        return column.is_(None)
-    return column == value
+def _promote_data(row: Dict[str, Any], previous_status: str) -> Dict[str, Any]:
+    return {
+        "skill_id": row["id"],
+        "skill_name": _skill_name(row),
+        "status": "Active",
+        "previous_status": previous_status,
+        "message": f"Skill promoted from {previous_status} to Active",
+    }
 
 
-def _row_predicates(row: SkillExecution, prior_status: str):
-    return [
-        SkillExecution.id == str(row.id),
-        SkillExecution.skill_source == _SOURCE,
-        SkillExecution.status == str(prior_status),
-        SkillExecution.skill_id == str(row.skill_id),
-        SkillExecution.tenant_id == str(row.tenant_id),
-        SkillExecution.agent_id == str(row.agent_id),
-        _exact(SkillExecution.workspace_id, row.workspace_id),
-        SkillExecution.input_params == row.input_params,
-        SkillExecution.security_scan_result == row.security_scan_result,
-        _exact(SkillExecution.sandbox_enabled, row.sandbox_enabled),
-    ]
+def _delete_data(row: Dict[str, Any]) -> Dict[str, Any]:
+    return {
+        "skill_id": row["id"],
+        "skill_name": _skill_name(row),
+        "deleted": True,
+        "message": f"Skill '{_skill_name(row)}' deleted successfully",
+    }
 
-
-# ---------------------------------------------------------------------------
-# Audit ledger
-# ---------------------------------------------------------------------------
 
 def _audit_expected(
     *, operation_id: str, action: str, event_type: str,
-    row: SkillExecution, prior_status: str, result_status: str,
-    request_digest: str, prior_digest: str, result_digest: str,
-    actor: Dict[str, Any],
+    target_digest: str, material_digest: str, request_digest: str,
+    prior_digest: str, result_digest: str, actor: Dict[str, Any],
 ) -> Dict[str, Any]:
     return {
         "operation_id": str(operation_id),
-        "schema": REVIEW_SCHEMA,
+        "schema": "atom-community-skill-operation-1",
         "action": str(action),
         "event_type": str(event_type),
-        "target_id": str(row.id),
-        "target_skill_id": str(row.skill_id or ""),
-        "target_tenant_id": str(row.tenant_id or ""),
-        "row_agent_id": str(row.agent_id or ""),
-        "row_workspace_id": (
-            None if row.workspace_id is None else str(row.workspace_id)),
-        "skill_name": _skill_name(row),
-        "prior_status": str(prior_status),
-        "result_status": str(result_status),
+        "target_digest": str(target_digest),
+        "material_digest": str(material_digest),
         "request_digest": str(request_digest),
         "prior_digest": str(prior_digest),
         "result_digest": str(result_digest),
         "actor_id": actor["id"],
         "actor_role": actor["role"],
-        "tenant_id": actor["tenant_id"],
-        "resource": f"community_skill:{row.id}",
+        "tenant_id": None,
+        "workspace_id": None,
+        "scope_json": _canonical(_PLATFORM_SCOPE),
+        "resource": f"community-skill:{target_digest}",
     }
 
 
-def _audit_row(
-    *, expected: Dict[str, Any], actor: Dict[str, Any],
-) -> AuditLog:
+def _audit_row(*, expected: Dict[str, Any], actor: Dict[str, Any]) -> AuditLog:
     metadata = {
         "schema": expected["schema"],
         "operation_id": expected["operation_id"],
         "action": expected["action"],
         "event_type": expected["event_type"],
-        "target_id": expected["target_id"],
-        "target_skill_id": expected["target_skill_id"],
-        "target_tenant_id": expected["target_tenant_id"],
-        "row_agent_id": expected["row_agent_id"],
-        "row_workspace_id": expected["row_workspace_id"],
-        "skill_name": expected["skill_name"],
-        "prior_status": expected["prior_status"],
-        "result_status": expected["result_status"],
+        "target_digest": expected["target_digest"],
+        "material_digest": expected["material_digest"],
         "request_digest": expected["request_digest"],
         "prior_digest": expected["prior_digest"],
         "result_digest": expected["result_digest"],
         "actor_id": expected["actor_id"],
         "actor_role": expected["actor_role"],
-        "tenant_id": expected["tenant_id"],
+        "scope_json": expected["scope_json"],
     }
     return AuditLog(
         id=expected["operation_id"],
         event_type=expected["event_type"],
         security_level=SecurityLevel.HIGH.value,
         threat_level="none",
-        user_id=actor["id"],
+        user_id=expected["actor_id"],
         user_email=actor["email"],
-        tenant_id=expected["tenant_id"],
+        tenant_id=None,
         workspace_id=None,
         resource=expected["resource"],
         action=expected["action"],
-        description="Community skill review recorded",
+        description="Community skill review decision recorded",
         metadata_json=json.dumps(metadata, sort_keys=True),
         success=True,
     )
 
 
-def _verify_audit(
-    db: Session, expected: Dict[str, Any],
-) -> Dict[str, Any]:
+def _verify_audit(db: Session, expected: Dict[str, Any]) -> Dict[str, Any]:
     audit_id = expected["operation_id"]
     try:
         with _fresh_session(db) as fresh:
@@ -437,9 +434,7 @@ def _verify_audit(
                 return {"status": "refuted", "audit_id": audit_id}
             if str(row.user_id or "") != expected["actor_id"]:
                 return {"status": "refuted", "audit_id": audit_id}
-            if str(row.tenant_id or "") != expected["tenant_id"]:
-                return {"status": "refuted", "audit_id": audit_id}
-            if row.workspace_id is not None:
+            if row.tenant_id is not None or row.workspace_id is not None:
                 return {"status": "refuted", "audit_id": audit_id}
             if str(row.resource or "") != expected["resource"]:
                 return {"status": "refuted", "audit_id": audit_id}
@@ -453,26 +448,19 @@ def _verify_audit(
                 return {"status": "unavailable", "audit_id": audit_id}
             if not isinstance(metadata, dict):
                 return {"status": "unavailable", "audit_id": audit_id}
-            string_fields = (
+            for key in (
                 "schema", "operation_id", "action", "event_type",
-                "target_id", "target_skill_id", "target_tenant_id",
-                "row_agent_id", "skill_name", "prior_status",
-                "result_status", "request_digest", "prior_digest",
-                "result_digest", "actor_id", "actor_role", "tenant_id",
-            )
-            for key in string_fields:
+                "target_digest", "material_digest", "request_digest",
+                "prior_digest", "result_digest", "actor_id", "actor_role",
+                "scope_json",
+            ):
                 if key not in metadata:
                     return {"status": "unavailable", "audit_id": audit_id}
                 if not isinstance(metadata[key], str):
                     return {"status": "refuted", "audit_id": audit_id}
                 if metadata[key] != expected[key]:
                     return {"status": "refuted", "audit_id": audit_id}
-            if "row_workspace_id" not in metadata:
-                return {"status": "unavailable", "audit_id": audit_id}
-            workspace = metadata["row_workspace_id"]
-            if workspace is not None and not isinstance(workspace, str):
-                return {"status": "refuted", "audit_id": audit_id}
-            if workspace != expected["row_workspace_id"]:
+            if metadata.get("scope_json") != _canonical(_PLATFORM_SCOPE):
                 return {"status": "refuted", "audit_id": audit_id}
             return {"status": "verified", "audit_id": audit_id}
     except Exception as exc:  # noqa: BLE001 — unreadable is not verified
@@ -490,27 +478,21 @@ def _expected_from_metadata(
         "schema": metadata.get("schema"),
         "action": metadata.get("action"),
         "event_type": metadata.get("event_type"),
-        "target_id": metadata.get("target_id"),
-        "target_skill_id": metadata.get("target_skill_id"),
-        "target_tenant_id": metadata.get("target_tenant_id"),
-        "row_agent_id": metadata.get("row_agent_id"),
-        "row_workspace_id": metadata.get("row_workspace_id"),
-        "skill_name": metadata.get("skill_name"),
-        "prior_status": metadata.get("prior_status"),
-        "result_status": metadata.get("result_status"),
+        "target_digest": metadata.get("target_digest"),
+        "material_digest": metadata.get("material_digest"),
         "request_digest": metadata.get("request_digest"),
         "prior_digest": metadata.get("prior_digest"),
         "result_digest": metadata.get("result_digest"),
         "actor_id": metadata.get("actor_id"),
         "actor_role": metadata.get("actor_role"),
-        "tenant_id": metadata.get("tenant_id"),
-        "resource": f"community_skill:{metadata.get('target_id')}",
+        "scope_json": metadata.get("scope_json"),
+        "resource": f"community-skill:{metadata.get('target_digest')}",
     }
 
 
 def _replay(
     db: Session, operation_id: str, expected: Dict[str, Any],
-    *, action: str, compare_request: bool = True,
+    *, target_check,
 ) -> Optional[Dict[str, Any]]:
     try:
         with _fresh_session(db) as fresh:
@@ -525,49 +507,25 @@ def _replay(
             if not isinstance(metadata, dict):
                 return _committed_unverified(
                     operation_id, {"status": "unavailable"},
-                    target_id=str(expected.get("target_id") or ""))
+                    target_id=str(expected.get("target_digest") or ""))
             if (
                 metadata.get("schema") != expected["schema"]
                 or metadata.get("action") != expected["action"]
                 or metadata.get("event_type") != expected["event_type"]
-                or metadata.get("target_id") != expected["target_id"]
+                or metadata.get("target_digest") != expected["target_digest"]
+                or metadata.get("request_digest") != expected["request_digest"]
                 or metadata.get("actor_id") != expected["actor_id"]
             ):
                 return _conflict(
-                    "operation_id is bound to a different skill decision",
-                    code="OPERATION_CONFLICT")
-            if compare_request and (
-                metadata.get("target_skill_id")
-                != expected["target_skill_id"]
-                or metadata.get("request_digest")
-                != expected["request_digest"]
-            ):
-                return _conflict(
-                    "operation_id is bound to a different skill decision",
+                    "operation_id is bound to a different community-skill request",
                     code="OPERATION_CONFLICT")
             audit_expected = _expected_from_metadata(
                 metadata, operation_id=operation_id)
             audit_state = _verify_audit(db, audit_expected)
-            current = _load_skill(db, str(metadata.get("target_id") or ""))
-            if action == _ACTION_DELETE:
-                target_ok = current is None
-                data = {"skill_id": audit_expected["target_id"],
-                        "deleted": True,
-                        "skill_name": audit_expected["skill_name"]}
-            else:
-                target_ok = (
-                    current is not None
-                    and str(current.status or "") == _ACTIVE
-                    and _state_digest(
-                        _request_material(current), _ACTIVE)
-                    == audit_expected["result_digest"]
-                )
-                data = {
-                    "status": _ACTIVE,
-                    "previous_status": audit_expected["prior_status"],
-                    "skill_id": audit_expected["target_id"],
-                    "skill_name": audit_expected["skill_name"],
-                }
+            try:
+                target_ok = bool(target_check(audit_expected))
+            except Exception:  # noqa: BLE001
+                target_ok = False
             if audit_state["status"] == "verified" and not target_ok:
                 audit_state = {
                     "status": "refuted",
@@ -576,58 +534,52 @@ def _replay(
             if audit_state["status"] == "verified" and target_ok:
                 return {
                     "status": "already_applied",
-                    "data": _with_receipt(
-                        data, operation_id=operation_id,
-                        audit_id=audit_expected["operation_id"],
-                        verification_status="already_applied",
-                        replay="do_not_repeat"),
-                    "message": "This community-skill decision was already applied.",
+                    "data": None,
+                    "message": "This community-skill operation was already applied.",
                     "operation_id": operation_id,
                     "audit_id": audit_expected["operation_id"],
-                    "target_id": audit_expected["target_id"],
+                    "target_id": audit_expected["target_digest"],
                 }
             return _committed_unverified(
                 operation_id, audit_state,
-                target_id=audit_expected["target_id"])
-    except Exception as exc:  # noqa: BLE001 — unreadable is not verified
+                target_id=audit_expected["target_digest"])
+    except Exception as exc:  # noqa: BLE001
         logger.warning(
             "community-skill replay read failed: operation_id=%s "
             "error_class=%s", operation_id, type(exc).__name__)
         return _committed_unverified(
             operation_id, {"status": "unavailable"},
-            target_id=str(expected.get("target_id") or ""))
+            target_id=str(expected.get("target_digest") or ""))
 
 
 def _commit_and_verify(
     db: Session, *, expected: Dict[str, Any], audit_row: AuditLog,
-    target_check: Callable[[], bool],
-    success_data: Dict[str, Any],
+    target_check, success_data: Dict[str, Any],
 ) -> Dict[str, Any]:
     operation_id = expected["operation_id"]
-    target_id = expected["target_id"]
+    target_id = expected["target_digest"]
     try:
         db.add(audit_row)
         db.commit()
     except IntegrityError:
         db.rollback()
         replay = _replay(
-            db, operation_id, expected, action=expected["action"])
+            db, operation_id, expected, target_check=target_check)
         if replay is not None:
             return replay
         return _not_applied(
-            "The community-skill decision was rolled back; no effect was "
-            "applied")
+            "The community-skill write was rolled back; no effect was applied")
     except Exception as exc:  # noqa: BLE001 — commit outcome unknown
         db.rollback()
         logger.error(
-            "community-skill decision outcome unknown: operation_id=%s "
+            "community-skill write outcome unknown: operation_id=%s "
             "target=%s error_class=%s", operation_id, target_id,
             type(exc).__name__)
         return _effect_unknown(operation_id, target_id)
 
     audit_state = _verify_audit(db, expected)
     try:
-        target_ok = bool(target_check())
+        target_ok = bool(target_check(expected))
     except Exception:  # noqa: BLE001 — unreadable is not verified
         target_ok = False
     if audit_state["status"] == "verified" and not target_ok:
@@ -638,7 +590,7 @@ def _commit_and_verify(
             "data": _with_receipt(
                 success_data, operation_id=operation_id,
                 audit_id=operation_id),
-            "message": "Community-skill decision committed and verified.",
+            "message": "Community-skill operation committed and verified.",
             "operation_id": operation_id,
             "audit_id": operation_id,
             "target_id": target_id,
@@ -647,11 +599,7 @@ def _commit_and_verify(
         operation_id, audit_state, target_id=target_id)
 
 
-# ---------------------------------------------------------------------------
-# Public decisions
-# ---------------------------------------------------------------------------
-
-def promote_community_skill(
+def promote_skill(
     db: Session, *, actor: Any, skill_id: str,
     operation_id: Optional[str] = None,
 ) -> Dict[str, Any]:
@@ -666,66 +614,66 @@ def promote_community_skill(
     except ValueError as exc:
         return _refused(str(exc), field="operation_id")
 
-    row = _load_skill(db, skill_id)
-    if row is None:
-        replay = _replay(
-            db, operation_id,
-            {
-                "schema": REVIEW_SCHEMA,
-                "action": _ACTION_PROMOTE,
-                "event_type": AuditEventType.UPDATE.value,
-                "target_id": skill_id,
-                "actor_id": actor_snapshot["id"],
-                "target_skill_id": "",
-                "request_digest": "",
-            },
-            action=_ACTION_PROMOTE, compare_request=False)
-        if replay is not None:
-            return replay
+    target = _target_digest(skill_id)
+    request_digest = _fingerprint(
+        "community-skill-request", "promote", skill_id)
+    expected_base = _audit_expected(
+        operation_id=operation_id, action=_ACTION_PROMOTE,
+        event_type=AuditEventType.UPDATE.value, target_digest=target,
+        material_digest="", request_digest=request_digest,
+        prior_digest="", result_digest="", actor=actor_snapshot)
+
+    def target_check(expected: Dict[str, Any]) -> bool:
+        row = _read_skill(db, skill_id)
+        if row is None or row["status"] != "Active":
+            return False
+        return _digest(_canonical(_material(row))) == expected["result_digest"]
+
+    replay = _replay(
+        db, operation_id, expected_base, target_check=target_check)
+    if replay is not None:
+        if replay["status"] == "already_applied":
+            row = _read_skill(db, skill_id)
+            if row is not None:
+                replay["data"] = _with_receipt(
+                    _promote_data(row, "Active"),
+                    operation_id=operation_id,
+                    audit_id=replay.get("audit_id"),
+                    verification_status="already_applied",
+                    replay="do_not_repeat")
+        return replay
+
+    current = _read_skill(db, skill_id)
+    if current is None:
         return _refused(
             f"Community skill not found: {skill_id}", http_status=404,
             error_code="NOT_FOUND")
+    prior_material = _material(current)
+    prior_digest = _digest(_canonical(prior_material))
+    expected_base["material_digest"] = prior_digest
+    expected_base["prior_digest"] = prior_digest
 
-    prior_status = str(row.status or "")
-    request_material = _request_material(row)
-    request_digest = _request_digest(_ACTION_PROMOTE, request_material)
-    expected_base = _audit_expected(
-        operation_id=operation_id, action=_ACTION_PROMOTE,
-        event_type=AuditEventType.UPDATE.value, row=row,
-        prior_status=prior_status, result_status=_ACTIVE,
-        request_digest=request_digest, prior_digest="", result_digest="",
-        actor=actor_snapshot)
-
-    replay = _replay(
-        db, operation_id, expected_base, action=_ACTION_PROMOTE)
-    if replay is not None:
-        return replay
-
-    if prior_status == _ACTIVE:
+    if current["status"] == "Active":
         return {
-            "status": "no_change",
-            "data": {
-                "status": _ACTIVE,
-                "previous_status": _ACTIVE,
-                "skill_id": str(row.id),
-                "skill_name": _skill_name(row),
-                "verification": {
-                    "status": "no_change",
-                    "effect": "none",
-                },
-            },
+            "status": "already_applied",
+            "data": _with_receipt(
+                _promote_data(current, "Active"),
+                operation_id=operation_id, audit_id=None,
+                verification_status="already_applied", effect="none",
+                replay="none"),
             "message": "Skill is already Active",
+            "operation_id": operation_id,
+            "audit_id": None,
+            "target_id": target,
         }
-    if prior_status != _UNTRUSTED:
-        return _refused(
-            f"community skill status {prior_status!r} cannot be promoted",
-            http_status=409, error_code="UNSUPPORTED_STATUS",
-            field="status")
+    if current["status"] != "Untrusted":
+        return _conflict(
+            "community skill is not in a promotable state; refresh and retry")
 
-    prior_digest = _state_digest(request_material, prior_status)
-    result_digest = _state_digest(request_material, _ACTIVE)
+    result_material = dict(current)
+    result_material["status"] = "Active"
+    result_digest = _digest(_canonical(_material(result_material)))
     expected = dict(expected_base)
-    expected["prior_digest"] = prior_digest
     expected["result_digest"] = result_digest
 
     if not _claim_actor(db, actor_snapshot):
@@ -737,52 +685,43 @@ def promote_community_skill(
     try:
         updated = db.execute(
             update(SkillExecution)
-            .where(*_row_predicates(row, prior_status))
-            .values(status=_ACTIVE))
+            .where(
+                SkillExecution.id == skill_id,
+                SkillExecution.skill_source == COMMUNITY_SOURCE,
+                SkillExecution.status == current["status"],
+                SkillExecution.input_params == current["input_params"],
+                SkillExecution.security_scan_result == current[
+                    "security_scan_result"],
+                SkillExecution.sandbox_enabled == current["sandbox_enabled"],
+            )
+            .values(status="Active"))
         if updated.rowcount != 1:
             db.rollback()
-            now = _load_skill(db, skill_id)
-            if now is not None and str(now.status or "") == _ACTIVE:
-                return _conflict(
-                    "community skill is already Active",
-                    code="ALREADY_PROMOTED")
             return _conflict(
-                "community skill material changed; refresh and retry",
-                code="STALE_TARGET")
+                "community skill changed; refresh and retry")
     except IntegrityError:
         db.rollback()
         replay = _replay(
-            db, operation_id, expected_base, action=_ACTION_PROMOTE)
+            db, operation_id, expected_base, target_check=target_check)
         return replay or _conflict(
-            "community skill decision conflicts with current state",
-            code="STALE_TARGET")
+            "community skill changed; refresh and retry")
     except Exception as exc:  # noqa: BLE001 — mutation did not commit
         db.rollback()
         logger.error(
             "community-skill promote failed before commit: operation_id=%s "
-            "target=%s error_class=%s",
-            operation_id, row.id, type(exc).__name__)
+            "target=%s error_class=%s", operation_id, target,
+            type(exc).__name__)
         return _not_applied(
-            "The community skill could not be promoted; no effect was "
-            "committed")
+            "The community skill could not be promoted; no effect was committed")
 
     audit_row = _audit_row(expected=expected, actor=actor_snapshot)
     return _commit_and_verify(
         db, expected=expected, audit_row=audit_row,
-        target_check=lambda: (
-            (now := _load_skill(db, skill_id)) is not None
-            and str(now.status or "") == _ACTIVE
-            and _state_digest(_request_material(now), _ACTIVE)
-            == result_digest),
-        success_data={
-            "status": _ACTIVE,
-            "previous_status": prior_status,
-            "skill_id": str(row.id),
-            "skill_name": _skill_name(row),
-        })
+        target_check=target_check,
+        success_data=_promote_data(result_material, current["status"]))
 
 
-def delete_community_skill(
+def delete_skill(
     db: Session, *, actor: Any, skill_id: str,
     operation_id: Optional[str] = None,
 ) -> Dict[str, Any]:
@@ -797,43 +736,45 @@ def delete_community_skill(
     except ValueError as exc:
         return _refused(str(exc), field="operation_id")
 
-    row = _load_skill(db, skill_id)
-    if row is None:
-        replay = _replay(
-            db, operation_id,
-            {
-                "schema": REVIEW_SCHEMA,
-                "action": _ACTION_DELETE,
-                "event_type": AuditEventType.DELETE.value,
-                "target_id": skill_id,
-                "actor_id": actor_snapshot["id"],
-                "target_skill_id": "",
-                "request_digest": "",
-            },
-            action=_ACTION_DELETE, compare_request=False)
-        if replay is not None:
-            return replay
+    target = _target_digest(skill_id)
+    request_digest = _fingerprint(
+        "community-skill-request", "delete", skill_id)
+    expected_base = _audit_expected(
+        operation_id=operation_id, action=_ACTION_DELETE,
+        event_type=AuditEventType.DELETE.value, target_digest=target,
+        material_digest="", request_digest=request_digest,
+        prior_digest="", result_digest="", actor=actor_snapshot)
+
+    def target_check(_expected: Dict[str, Any]) -> bool:
+        return _read_skill(db, skill_id) is None
+
+    replay = _replay(
+        db, operation_id, expected_base, target_check=target_check)
+    if replay is not None:
+        if replay["status"] == "already_applied":
+            row = _read_skill(db, skill_id)
+            data = _delete_data(row) if row is not None else {
+                "skill_id": skill_id, "deleted": True,
+                "message": "Skill already deleted",
+            }
+            replay["data"] = _with_receipt(
+                data, operation_id=operation_id,
+                audit_id=replay.get("audit_id"),
+                verification_status="already_applied",
+                replay="do_not_repeat")
+        return replay
+
+    current = _read_skill(db, skill_id)
+    if current is None:
         return _refused(
             f"Community skill not found: {skill_id}", http_status=404,
             error_code="NOT_FOUND")
-
-    prior_status = str(row.status or "")
-    request_material = _request_material(row)
-    request_digest = _request_digest(_ACTION_DELETE, request_material)
-    prior_digest = _state_digest(request_material, prior_status)
+    prior_digest = _digest(_canonical(_material(current)))
     deleted_digest = _fingerprint(
-        "skill-deleted", request_digest, prior_digest)
-    expected_base = _audit_expected(
-        operation_id=operation_id, action=_ACTION_DELETE,
-        event_type=AuditEventType.DELETE.value, row=row,
-        prior_status=prior_status, result_status="deleted",
-        request_digest=request_digest, prior_digest=prior_digest,
-        result_digest=deleted_digest, actor=actor_snapshot)
-
-    replay = _replay(
-        db, operation_id, expected_base, action=_ACTION_DELETE)
-    if replay is not None:
-        return replay
+        "community-skill-deleted", target, prior_digest)
+    expected_base["material_digest"] = prior_digest
+    expected_base["prior_digest"] = prior_digest
+    expected_base["result_digest"] = deleted_digest
 
     if not _claim_actor(db, actor_snapshot):
         db.rollback()
@@ -844,33 +785,36 @@ def delete_community_skill(
     try:
         deleted = db.execute(
             delete(SkillExecution)
-            .where(*_row_predicates(row, prior_status)))
+            .where(
+                SkillExecution.id == skill_id,
+                SkillExecution.skill_source == COMMUNITY_SOURCE,
+                SkillExecution.status == current["status"],
+                SkillExecution.input_params == current["input_params"],
+                SkillExecution.security_scan_result == current[
+                    "security_scan_result"],
+                SkillExecution.sandbox_enabled == current["sandbox_enabled"],
+            ))
         if deleted.rowcount != 1:
             db.rollback()
             return _conflict(
-                "community skill material changed; refresh and retry",
-                code="STALE_TARGET")
+                "community skill changed; refresh and retry")
     except IntegrityError:
         db.rollback()
-        return _conflict(
-            "community skill could not be deleted; refresh and retry",
-            code="STALE_TARGET")
+        replay = _replay(
+            db, operation_id, expected_base, target_check=target_check)
+        return replay or _conflict(
+            "community skill changed; refresh and retry")
     except Exception as exc:  # noqa: BLE001 — mutation did not commit
         db.rollback()
         logger.error(
             "community-skill delete failed before commit: operation_id=%s "
-            "target=%s error_class=%s",
-            operation_id, row.id, type(exc).__name__)
+            "target=%s error_class=%s", operation_id, target,
+            type(exc).__name__)
         return _not_applied(
-            "The community skill could not be deleted; no effect was "
-            "committed")
+            "The community skill could not be deleted; no effect was committed")
 
     audit_row = _audit_row(expected=expected_base, actor=actor_snapshot)
     return _commit_and_verify(
         db, expected=expected_base, audit_row=audit_row,
-        target_check=lambda: _load_skill(db, skill_id) is None,
-        success_data={
-            "skill_id": str(row.id),
-            "deleted": True,
-            "skill_name": _skill_name(row),
-        })
+        target_check=target_check,
+        success_data=_delete_data(current))

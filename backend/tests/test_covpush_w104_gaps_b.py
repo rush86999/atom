@@ -2463,7 +2463,14 @@ class TestSkillRoutes:
         app.dependency_overrides[get_current_user] = lambda: NS(
             id="u1", role="team_lead", tenant_id="t1", status="active",
             is_active=True)
-        app.dependency_overrides[get_db] = lambda: MagicMock()
+        # The community-skill reviewer guard reads the current User row from
+        # the DB rather than trusting the request snapshot. This route-unit
+        # test keeps the guard active and supplies its authorized row.
+        reviewer_db = MagicMock()
+        reviewer_db.query.return_value.filter.return_value.first.return_value = NS(
+            id="u1", role="team_lead", tenant_id="t1", status="active",
+            is_active=True)
+        app.dependency_overrides[get_db] = lambda: reviewer_db
         app.dependency_overrides[skill_routes.get_skill_service] = lambda: self._service
         self._sr = skill_routes
         yield TestClient(app, raise_server_exceptions=False)

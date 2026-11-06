@@ -20,6 +20,12 @@ from datetime import datetime
 
 from fastapi.testclient import TestClient
 from fastapi import FastAPI
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
+
+from core.database import Base, get_db
+from core.models import User
 
 # Import route modules
 from api.workflow_template_routes import router, CreateTemplateRequest, UpdateTemplateRequest, InstantiateRequest
@@ -121,8 +127,31 @@ def sample_template_data() -> Dict[str, Any]:
 @pytest.fixture
 def app_with_overrides(template_manager, monkeypatch):
     """Create FastAPI app with dependency overrides."""
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine, expire_on_commit=False)
+    seed = Session()
+    seed.add(User(
+        id="test-user", email="test@example.com", first_name="Test",
+        last_name="User", role="workspace_admin", status="active",
+        is_active=True))
+    seed.commit()
+    seed.close()
+
+    def _db_override():
+        db = Session()
+        try:
+            yield db
+        finally:
+            db.close()
+
     app = FastAPI()
     app.include_router(router)
+    app.dependency_overrides[get_db] = _db_override
 
     # Patch the get_template_manager function at module level
     import api.workflow_template_routes as routes_module

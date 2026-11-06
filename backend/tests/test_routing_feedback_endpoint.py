@@ -119,6 +119,7 @@ class TestOutcomeObservationHook:
 
         handler = Mock(spec=BYOKHandler)
         handler.tenant_id = "t1"
+        handler.workspace_id = "ws1"
         # Use the real static adapter so task_type maps correctly.
         handler._adapt_task_type = BYOKHandler._adapt_task_type
 
@@ -156,6 +157,7 @@ class TestOutcomeObservationHook:
 
         handler = Mock(spec=BYOKHandler)
         handler.tenant_id = "t1"
+        handler.workspace_id = "ws1"
         handler._adapt_task_type = BYOKHandler._adapt_task_type
 
         with patch("core.llm.learning_router_registry.get_learning_router_instance", return_value=FakeRouter()):
@@ -186,6 +188,7 @@ class TestOutcomeObservationHook:
 
         handler = Mock(spec=BYOKHandler)
         handler.tenant_id = "t1"
+        handler.workspace_id = "ws1"
         handler._adapt_task_type = BYOKHandler._adapt_task_type
 
         with patch("core.llm.learning_router_registry.get_learning_router_instance", return_value=FakeRouter()):
@@ -329,7 +332,7 @@ class TestConcreteModelVisibility:
             async def generate_response(self, **kwargs):
                 return "Hello world"
 
-        service._get_handler = lambda workspace_id=None: FakeHandler()
+        service._get_handler = lambda workspace_id=None, tenant_id=None: FakeHandler()
         service._resolve_governance_model = lambda ws, model, **kw: model
 
         # asyncio.run() instead of get_event_loop().run_until_complete(): the

@@ -1,0 +1,18 @@
+
+CI environment: Enabled 2 retries on failure
+============================= test session starts ==============================
+platform darwin -- Python 3.11.16, pytest-8.4.2, pluggy-1.6.0
+benchmark: 5.2.3 (defaults: timer=time.perf_counter disable_gc=False min_rounds=5 min_time=0.000005 max_time=1.0 calibration_precision=10 warmup=False warmup_iterations=100000)
+Test order randomisation NOT enabled. Enable with --random-order or --random-order-bucket=<bucket_type>
+rootdir: /private/tmp/atom-ci-fix/backend/tests/e2e_ui
+configfile: pyproject.toml
+plugins: anyio-4.12.1, benchmark-5.2.3, respx-0.22.0, mock-3.15.1, repeat-0.9.4, html-3.2.0, random-order-1.2.0, timeout-2.4.0, langsmith-0.4.46, metadata-3.1.1, cov-4.1.0, asyncio-0.21.1, hypothesis-6.151.5, base-url-2.1.0, subtests-0.15.0, playwright-0.5.2, Faker-22.7.0, xdist-3.6.1, rerunfailures-16.1, allure-pytest-2.15.3
+timeout: 180.0s
+timeout method: thread
+timeout func_only: False
+asyncio: mode=Mode.AUTO
+collected 6 items
+
+tests/test_journey_api_features.py ......                                [100%]
+
+============================== 6 passed in 3.74s ===============================

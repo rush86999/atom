@@ -1,0 +1,30 @@
+{
+  "schema": "atom-fleet-integrated-repair-1",
+  "branch": "codex/fleet-b9-581-integrated-repair-20261105",
+  "executed_source": "68c5bf960",
+  "orch07_predecessor": "b9ba56995",
+  "orch02_predecessor": "581654d21",
+  "accepted_orch01_source": "943fb32d7",
+  "orch07": {
+    "outcome_join": "guarded DML over exact audit id/execution/tenant/workspace/agent, pending success, correlated execution EXISTS",
+    "winner_comparison": "exact success/error/model/provider material; boolean-only duplicate is not exact",
+    "scope": "complete execution tenant/workspace/agent; no caller-agent substitution; scope_unverified excluded",
+    "calibration": "workload stats and recruitment health exclude incomplete/scope_unverified rows",
+    "provenance": "request-owned BYOK served route only; no handler last-used fallback"
+  },
+  "orch02": {
+    "chain_authorization": "tenant/workspace/terminal state checked before cache, dispatch or metadata write",
+    "cache_material": "exact opaque task + full roster + authorized scope + source/teaching/authority basis",
+    "capability": "positive registry capability/specialty for domain-specific work; explicit generic route supported",
+    "specialist_outcome": "explicit/terminal failure precedence; registry-derived cited identity",
+    "execution_identity": "one canonical execution id through audit bracket, AgentExecution, fleet decision, specialist context, outcome join and response",
+    "finalizer": "shared durable finalizer for normal and enforced runs; terminal status/completed_at and one outcome join",
+    "audit_bracket": "truthful _execution_succeeded result, not status==success only"
+  },
+  "out_of_scope": [
+    "live model/provider quality",
+    "real sandbox/Docker",
+    "PostgreSQL runtime/soak and multi-worker qualification",
+    "whole-app ORACLE-01"
+  ]
+}

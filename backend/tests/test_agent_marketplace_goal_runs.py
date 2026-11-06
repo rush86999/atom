@@ -373,7 +373,9 @@ class TestRoutes:
         resp = client.post("/api/agent-marketplace/agents/agent-fresh/publish",
                            json={"price": 5})
         assert resp.status_code == 409
-        assert "achieved" in resp.json()["detail"]
+        detail = resp.json()["detail"]
+        assert "achieved" in (
+            detail if isinstance(detail, str) else __import__("json").dumps(detail))
 
 
 # ------------------------------------------------------- push to SaaS

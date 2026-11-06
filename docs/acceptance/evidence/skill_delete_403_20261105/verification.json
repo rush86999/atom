@@ -1,0 +1,69 @@
+{
+  "task": "skill-delete 403 journey investigation",
+  "base_main": "71f9e22b41f7feea7ea55c7d32d6efeacc704081",
+  "code_checkpoint": "c7e1530a174f9fcebad16cc22c051dfc260bcb5b",
+  "observed": {
+    "test": "tests/test_journey_api_features.py::TestSkillsJourney::test_skill_lifecycle",
+    "status": 403,
+    "hosted_counts": "1 failed, 210 passed, 1 skipped, 1 xfailed",
+    "baseline": "identical on current main 71f9e22b4"
+  },
+  "policy": {
+    "route": "backend/api/skill_routes.py::_require_community_skill_reviewer",
+    "requirement": "team_lead or higher",
+    "self_registration_default": "member",
+    "role_read": "backend reads User.role from the DB per request; JWT carries only user id",
+    "conclusion": "journey fixture was missing the now-required review authority; not a product regression"
+  },
+  "repair": {
+    "journey": "same owner: member delete -> 403; elevate same owner to team_lead; delete -> 200/204; list no longer contains skill",
+    "unit_contract": "same unauthorized member / authorized team-lead twin",
+    "production_authority_changed": false
+  },
+  "local_verification": {
+    "journey_skill_lifecycle_311": "1 passed",
+    "journey_api_features_311": "6 passed",
+    "skill_contract_311": "22 passed",
+    "ci_selection_311": "606 passed, 1 skipped, 0 failed",
+    "ci_selection_314": "606 passed, 1 skipped, 0 failed"
+  },
+  "git_hashes": {
+    "backend/tests/e2e_ui/tests/test_journey_api_features.py": {
+      "git_blob": "c344f14657b26cd32533ee102587cda7a1d7042d",
+      "sha256": "7de77ff836d3bdbf590ee84a2b112b016d9cdedcf5cd8fecc5d05dd2f55a582b"
+    },
+    "backend/tests/test_community_skill_write_contract.py": {
+      "git_blob": "c9b04a20dc6d037b38da5ba927f5c1eb9cee24d5",
+      "sha256": "8680d4a322357a20d96fd546923d2b852637967b4bb135d17222d3628a8c4eb1"
+    },
+    ".github/workflows/ci.yml": {
+      "git_blob": "c67282f3705b6b6c8d426d615cc66b5f3ac12347",
+      "sha256": "14c6056e8367c1564bdbcc89da9cf2118e4a7c263f41f70742f7ab118ff117c0"
+    },
+    "backend/api/skill_routes.py": {
+      "git_blob": "88c669a20ad7f64df46e133fff6ad70f79a6500c",
+      "sha256": "527325f2be61dc000aacd5a584e048f4ce9764929b6ca32129d3b777e913a612"
+    },
+    "backend/core/security/rbac.py": {
+      "git_blob": "671ee154e4f62827a506007e8010c4648cdc5dcb",
+      "sha256": "48a7ecdb609f7e32267212e85b1993a0045eb84aca903f0152a8a498bcbd405e"
+    },
+    "backend/core/auth_endpoints.py": {
+      "git_blob": "79463ad11e17892eff4c5a12aded1cbbd2ebc618",
+      "sha256": "bf7c344519f519a39d68656c7fe687dd8d8befbabb5c2b39959a416231e66105"
+    }
+  },
+  "artifact_sha256": {
+    "README.md": "158cb19769b25ecfe76b3b30676d205dd5b35f57434bd08926865e5178d973ac",
+    "ci-selection-311.log": "b07cc5d6c9eaac97a23cda760675ab27376a55d29790cd5608d28aa656c9e4da",
+    "ci-selection-314.log": "b3016808477621059e733cc6ac302b8c6ebd906f98ccb0c4fac6ed7648aacf5d",
+    "journey-api-features-311.log": "7a5411d024c97627d9a0419b1d20f5a16d938798f807212fcf6f176e9eee18bc",
+    "journey-skill-lifecycle-311.log": "9e896c61270433c96bcb8643cf2060957b72e1b21db20d0bc6f5134700eeffe1",
+    "skill-contract-311.log": "5563b8cf6f4dbb5d9b74da9b73ad8d02c429d515b3415aa4cd363af6091d34bf"
+  },
+  "boundaries": [
+    "no broad role grant or skill-authority relaxation",
+    "no production route change",
+    "no live model/provider/browser/sandbox/credential/spend/send/download/deployment"
+  ]
+}

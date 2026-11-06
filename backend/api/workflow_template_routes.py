@@ -9,6 +9,10 @@ from core.auth import get_current_user, User
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
 from core.workflow_security import require_workflow_executor_definition
+from core.workflow_template_write_service import (
+    create_template as _create_workflow_template_decision,
+    update_template as _update_workflow_template_decision,
+)
 from core.security_dependencies import require_permission
 from core.rbac_service import Permission
 
@@ -41,6 +45,69 @@ class UpdateTemplateRequest(BaseModel):
     inputs: Optional[List[Dict[str, Any]]] = None
     tags: Optional[List[str]] = None
 
+
+def _raise_workflow_template_decision(result: Dict[str, Any]) -> None:
+    """Map the verified template-decision envelope to a safe HTTP error."""
+    status_value = str(result.get("status") or "")
+    if status_value == "refused":
+        raise HTTPException(
+            status_code=int(result.get("http_status") or 422),
+            detail={
+                "error": {
+                    "code": result.get("error_code") or "VALIDATION_ERROR",
+                    "message": result.get("error") or "Request refused",
+                },
+                "field": result.get("field"),
+                "verification": result.get("verification"),
+            },
+        )
+    if status_value == "conflict":
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": {
+                    "code": result.get("error_code") or "STALE_TARGET",
+                    "message": result.get("error") or "Conflict",
+                },
+                "verification": result.get("verification"),
+            },
+        )
+    if status_value == "not_applied":
+        raise HTTPException(
+            status_code=int(result.get("http_status") or 409),
+            detail={
+                "error": {
+                    "code": result.get("error_code")
+                    or "WORKFLOW_TEMPLATE_TRANSACTION_ROLLED_BACK",
+                    "message": result.get("error")
+                    or "The workflow-template decision did not apply.",
+                },
+                "verification": result.get("verification"),
+                "operation_id": result.get("operation_id"),
+                "audit_id": result.get("audit_id"),
+            },
+        )
+    if status_value in ("committed_unverified", "effect_unknown"):
+        code = (
+            "WORKFLOW_TEMPLATE_EFFECT_UNKNOWN"
+            if status_value == "effect_unknown"
+            else "WORKFLOW_TEMPLATE_COMMITTED_UNVERIFIED")
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": {
+                    "code": code,
+                    "message": result.get("message")
+                    or "The workflow-template outcome is uncertain.",
+                },
+                "verification": result.get("verification"),
+                "operation_id": result.get("operation_id"),
+                "audit_id": result.get("audit_id"),
+                "target_id": result.get("target_id"),
+            },
+        )
+
+
 @router.post(
     "/",
     dependencies=[Depends(require_permission(Permission.WORKFLOW_MANAGE))],
@@ -52,6 +119,7 @@ class UpdateTemplateRequest(BaseModel):
 )
 async def create_template(
     request: CreateTemplateRequest,
+    operation_id: Optional[str] = None,
     current_user: User = Depends(get_current_user),
     http_request: Request = None,
     db: Session = Depends(get_db),
@@ -109,13 +177,25 @@ async def create_template(
             ]
         }
 
-        template = manager.create_template(template_data)
+        result = _create_workflow_template_decision(
+            db,
+            actor=current_user,
+            payload=template_data,
+            operation_id=operation_id,
+            manager=manager,
+        )
+        _raise_workflow_template_decision(result)
+        data = result.get("data") or {}
+        template_id = data.get("template_id")
 
-        logger.info(f"Template created: {template.template_id}")
+        logger.info(f"Template created: {template_id}")
         return {
             "status": "success",
-            "template_id": template.template_id,
-            "message": f"Template '{template.name}' created successfully"
+            "template_id": template_id,
+            "message": f"Template '{request.name}' created successfully",
+            "verification": data.get("verification"),
+            "operation_id": result.get("operation_id"),
+            "audit_id": result.get("audit_id"),
         }
 
     except HTTPException:
@@ -265,7 +345,13 @@ async def get_template_readiness(
     "/{template_id}",
     dependencies=[Depends(require_permission(Permission.WORKFLOW_MANAGE))],
 )
-async def update_template_endpoint(template_id: str, request: UpdateTemplateRequest, current_user: User = Depends(get_current_user)):
+async def update_template_endpoint(
+    template_id: str,
+    request: UpdateTemplateRequest,
+    operation_id: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
     """Update an existing workflow template"""
     try:
         manager = get_template_manager()
@@ -280,7 +366,7 @@ async def update_template_endpoint(template_id: str, request: UpdateTemplateRequ
         }
 
         # Convert request model to dict, excluding None and blocked fields
-        updates = {k: v for k, v in request.dict().items()
+        updates = {k: v for k, v in request.model_dump().items()
                    if v is not None and k not in BLOCKED_FIELDS}
 
         if not updates:
@@ -309,22 +395,30 @@ async def update_template_endpoint(template_id: str, request: UpdateTemplateRequ
                  })
             updates["steps"] = processed_steps
 
-        updated_template = manager.update_template(template_id, updates)
-        
+        result = _update_workflow_template_decision(
+            db,
+            actor=current_user,
+            template_id=template_id,
+            updates=updates,
+            operation_id=operation_id,
+            manager=manager,
+        )
+        _raise_workflow_template_decision(result)
+        data = result.get("data") or {}
+
         return {
             "status": "success",
             "message": f"Template {template_id} updated",
-            "template": updated_template.dict()
+            "template": data.get("template"),
+            "verification": data.get("verification"),
+            "operation_id": result.get("operation_id"),
+            "audit_id": result.get("audit_id"),
         }
-        
+
     except HTTPException:
         # R71: re-raise our own validation errors (e.g. "No updates provided"
         # -> 422) instead of letting the bare `except Exception` below mask
         # them as 500 internal errors.
-        raise
-    except HTTPException:
-        # R71: re-raise our own validation errors (e.g. "No updates provided"
-        # -> 422) instead of the bare `except Exception` masking them as 500.
         raise
     except ValueError as e:
         raise router.not_found_error(

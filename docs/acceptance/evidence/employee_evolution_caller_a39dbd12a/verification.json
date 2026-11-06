@@ -1,0 +1,68 @@
+{
+  "schema": "atom-oracle-evolution-caller-verification-1",
+  "status": "sandbox caller-transaction ownership repair submitted for independent verification; prior decision/material/audit and lineage/freshness controls preserved",
+  "candidate": {
+    "branch": "codex/oracle01-evolution-review-20261105",
+    "prior_decision_source": "e4816e59c",
+    "prior_lineage_repair": "6346cad2a",
+    "prior_lineage_evidence": "6fbeb4ebd",
+    "repair_product_source": "d4cce1625205f79412be9387f7c3fed1023d376f",
+    "executed_repair_source": "a39dbd12a01bbcaccaf51598f7fc586ed93926f4",
+    "accepted_base": "95f7bcac1a0375b4f0465a77e15130f68fc9665d",
+    "tree_clean_at_execution": true,
+    "runtime": "real scratch SQLite with fresh sessions and doubled sandbox; no live sandbox/model/provider"
+  },
+  "checks": {
+    "dirty_caller_edit_survives_losing_cas": true,
+    "flushed_caller_edit_survives_pre_dispatch_skip": true,
+    "caller_edit_not_committed_before_caller_commit": true,
+    "new_caller_object_survives_skipped_result": true,
+    "deleted_caller_object_survives_skipped_result": true,
+    "clean_caller_read_transaction_executes_once": true,
+    "flushed_caller_with_pending_mutation_deferred": true,
+    "caller_session_never_committed_or_rolled_back_by_sandbox": true,
+    "review_before_dispatch_zero_calls": true,
+    "review_during_worker_wins_result_cas": true,
+    "changed_lineage_code_error_skipped": true,
+    "original_decision_controls_green": true,
+    "no_new_status_worker_review_or_transaction_engine": true,
+    "no_live_sandbox_model_provider_credential_spend_send_download_deployment": true
+  },
+  "results": {
+    "verifier_probes_python314": {"passed": 5, "log": "probes-314.log"},
+    "focused_python314": {"passed": 65, "log": "focused-314.log"},
+    "focused_python311": {"passed": 65, "log": "focused-311.log"},
+    "affected_evolution_python314": {
+      "passed": 311, "skipped": 29, "failed": 1,
+      "baseline_failures": 1,
+      "baseline_failure_list_identical": true,
+      "log": "affected-evolution-314.log", "baseline_log": "baseline-evolution-314.log"
+    },
+    "affected_evolution_python311": {
+      "passed": 311, "skipped": 29, "failed": 1,
+      "baseline_failures": 1,
+      "baseline_failure_list_identical": true,
+      "log": "affected-evolution-311.log", "baseline_log": "baseline-evolution-311.log"
+    },
+    "affected_review_audit_python314": {"passed": 111, "log": "affected-review-audit-314.log"},
+    "affected_review_audit_python311": {"passed": 111, "log": "affected-review-audit-311.log"}
+  },
+  "focused_breakdown": {
+    "prior_controls": 58,
+    "new_caller_transaction_twins": 7,
+    "focused_total": 65
+  },
+  "baseline_exclusions": {
+    "reflection_pattern_detection": {
+      "test": "tests/test_auto_dev/test_reflection_engine.py::TestReflectionEnginePatternDetection::test_identifies_repeated_failure_patterns",
+      "reason": "pre-existing ReflectionEngine API drift; identical at accepted base"
+    }
+  },
+  "limits": [
+    "No physical cancellation of an in-flight sandbox worker; review wins the result CAS",
+    "No live sandbox/Docker/model/provider/credential/spend/send/download/deployment",
+    "No new status/worker/review/operation/transaction engine",
+    "PostgreSQL runtime/soak, multi-worker qualification and whole-app ORACLE-01 remain open",
+    "Repaired memory/skill/agent branches are independent and not merged"
+  ]
+}

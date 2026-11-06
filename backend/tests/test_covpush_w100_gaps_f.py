@@ -402,16 +402,20 @@ class TestSandboxExecuteMutationGap:
             "execution_seconds": 0.5, "environment": "docker",
         })
         eng, db = make_engine(sandbox=sandbox)
-        mutation = NS(tenant_id="t1", mutated_code="bad(", sandbox_status="pending",
-                      execution_error=None)
+        mutation = NS(
+            id="m1", tenant_id="t1", tool_name="t", mutated_code="bad(",
+            sandbox_status="pending", execution_error=None)
         db.query.return_value.filter.return_value.first.side_effect = lambda: mutation
+        db.execute.return_value.rowcount = 1
         result = run(eng.sandbox_execute_mutation("m1", "t1", {}))
         db.commit.assert_called()
         assert result["success"] is False
         assert result["proxy_signals"]["syntax_error"] is True
         assert result["proxy_signals"]["execution_latency_ms"] == 500.0
-        assert mutation.sandbox_status == "failed"
-        assert "SyntaxError" in mutation.execution_error
+        statement = db.execute.call_args.args[0]
+        values = statement.compile().params
+        assert values["sandbox_status"] == "failed"
+        assert "SyntaxError" in values["execution_error"]
 
 
 class TestSynthesisAndResearchGap:
@@ -465,12 +469,14 @@ class TestArborExperimentGap:
             side_effect=[{"content": c} for c in codes])
         eng.llm = llm
 
-        sandbox = MagicMock()
-        sandbox.execute_raw_python = AsyncMock(side_effect=[
-            {"status": "success", "output": "1", "execution_seconds": 0.1},
-            {"status": "failed", "output": "err", "execution_seconds": 0.1},
+        # Arbor is under test here; the sandbox writer has its own guard
+        # contracts. Return the proxy shape the engine would produce.
+        eng.sandbox_execute_mutation = AsyncMock(side_effect=[
+            {"success": True, "output": "1",
+             "proxy_signals": {"execution_latency_ms": 100.0}},
+            {"success": False, "output": "err",
+             "proxy_signals": {"execution_latency_ms": 100.0}},
         ])
-        eng.sandbox = sandbox
 
         result = run(eng.run_arbor_experiment("t1", "x = 0", "goal", iterations=3))
 
@@ -488,9 +494,9 @@ class TestArborExperimentGap:
         llm = MagicMock()
         llm.generate_completion = AsyncMock(return_value={"content": "x = 1\n"})
         eng.llm = llm
-        eng.sandbox = MagicMock()
-        eng.sandbox.execute_raw_python = AsyncMock(return_value={
-            "status": "success", "output": "1", "execution_seconds": 0.1})
+        eng.sandbox_execute_mutation = AsyncMock(return_value={
+            "success": True, "output": "1",
+            "proxy_signals": {"execution_latency_ms": 100.0}})
         # 'free' tier has the smallest node budget
         result = run(eng.run_arbor_experiment("t1", "x = 0", "goal",
                                               iterations=10_000, tier="free"))

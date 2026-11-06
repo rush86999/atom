@@ -1,0 +1,427 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-05 20:52:47 [    INFO] MCP Service initialized
+2026-11-05 20:52:47 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-05 20:52:47 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-05 20:52:47 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-05 20:52:47 [    INFO] EscalationManager initialized
+2026-11-05 20:52:47 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:47 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-05 20:52:47 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-05 20:52:47 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-05 20:52:47 [    INFO] EscalationManager initialized
+2026-11-05 20:52:47 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:47 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-05 20:52:47 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+
+tests/test_orch07_fleet_audit_consumer.py::test_shadow_consumer_writes_scoped_decision_and_exact_outcome 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:52:47 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:48 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-05 20:52:48 [    INFO] EscalationManager initialized
+2026-11-05 20:52:48 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:48 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 20:52:48 [    INFO] LanceDBHandler initialized. ID: 4942530832. LANCEDB_AVAILABLE: True
+2026-11-05 20:52:48 [    INFO] Lazy loading LanceDB connection...
+2026-11-05 20:52:48 [    INFO] Connecting to LanceDB at /private/tmp/atom-fleet-verify/backend/data/atom_memory with storage_options=None
+2026-11-05 20:52:48 [    INFO] LanceDB connected successfully
+2026-11-05 20:52:48 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-1: Tenant tenant-1 not found
+2026-11-05 20:52:48 [    INFO] EscalationManager initialized
+2026-11-05 20:52:48 [    INFO] CognitiveTierService initialized for workspace: workspace-1
+PASSED                                                                   [  1%]
+tests/test_orch07_fleet_audit_consumer.py::test_enforced_response_consumes_specialists_and_finalizes 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:49 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-05 20:52:49 [    INFO] EscalationManager initialized
+2026-11-05 20:52:49 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:49 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 20:52:49 [    INFO] LanceDBHandler initialized. ID: 4944315088. LANCEDB_AVAILABLE: True
+2026-11-05 20:52:49 [    INFO] Lazy loading LanceDB connection...
+2026-11-05 20:52:49 [    INFO] Connecting to LanceDB at /private/tmp/atom-fleet-verify/backend/data/atom_memory with storage_options=None
+2026-11-05 20:52:49 [    INFO] LanceDB connected successfully
+PASSED                                                                   [  3%]
+tests/test_orch07_fleet_audit_consumer.py::test_outcome_join_is_exact_idempotent_and_stale_refused PASSED [  4%]
+tests/test_orch07_fleet_audit_consumer.py::test_scope_conflict_and_missing_execution_do_not_default PASSED [  6%]
+tests/test_orch07_fleet_audit_consumer.py::test_calibration_excludes_pending_and_scope_unverified PASSED [  7%]
+tests/test_orch07_fleet_audit_consumer.py::test_shadow_only_healthy_data_queues_consent_not_silent_enforce PASSED [  9%]
+tests/test_orch07_fleet_audit_consumer.py::test_attempted_route_is_not_reported_as_served 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:53 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-05 20:52:53 [    INFO] EscalationManager initialized
+2026-11-05 20:52:53 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:53 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 20:52:53 [    INFO] LanceDBHandler initialized. ID: 4943418192. LANCEDB_AVAILABLE: True
+2026-11-05 20:52:53 [    INFO] Lazy loading LanceDB connection...
+2026-11-05 20:52:53 [    INFO] Connecting to LanceDB at /private/tmp/atom-fleet-verify/backend/data/atom_memory with storage_options=None
+2026-11-05 20:52:53 [    INFO] LanceDB connected successfully
+2026-11-05 20:52:53 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-1: Tenant tenant-1 not found
+PASSED                                                                   [ 10%]
+tests/unit/test_fleet_routing_stats.py::TestWorkloadKey::test_normalizes_case_and_whitespace PASSED [ 12%]
+tests/unit/test_fleet_routing_stats.py::TestWorkloadKey::test_unknown_for_empty PASSED [ 13%]
+tests/unit/test_fleet_routing_stats.py::TestWorkloadKey::test_stable_hex_signature PASSED [ 15%]
+tests/unit/test_fleet_routing_stats.py::TestRecordFleetDecision::test_writes_row_with_all_fields PASSED [ 16%]
+tests/unit/test_fleet_routing_stats.py::TestRecordFleetDecision::test_never_raises_on_db_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:53 [ WARNING] Fleet routing audit write failed: db down
+PASSED                                                                   [ 18%]
+tests/unit/test_fleet_routing_stats.py::TestRecordFleetDecision::test_truncates_request_text PASSED [ 20%]
+tests/unit/test_fleet_routing_stats.py::TestRecordFleetExecutionOutcome::test_joins_success_onto_matching_rows PASSED [ 21%]
+tests/unit/test_fleet_routing_stats.py::TestRecordFleetExecutionOutcome::test_joins_failure_with_error PASSED [ 23%]
+tests/unit/test_fleet_routing_stats.py::TestRecordFleetExecutionOutcome::test_never_raises_on_db_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:53 [ WARNING] Fleet routing outcome join failed: db down
+PASSED                                                                   [ 24%]
+tests/unit/test_fleet_routing_stats.py::TestCalibrationStatus::test_phase_off_when_routing_disabled PASSED [ 26%]
+tests/unit/test_fleet_routing_stats.py::TestCalibrationStatus::test_phase_collecting_below_min_rows PASSED [ 27%]
+tests/unit/test_fleet_routing_stats.py::TestCalibrationStatus::test_phase_blocked_on_unhealthy_recruitment PASSED [ 29%]
+tests/unit/test_fleet_routing_stats.py::TestCalibrationStatus::test_phase_ready_when_healthy_and_sufficient PASSED [ 30%]
+tests/unit/test_fleet_routing_stats.py::TestCalibrationStatus::test_phase_enforced_when_override_active PASSED [ 32%]
+tests/unit/test_fleet_routing_stats.py::TestCalibrationStatus::test_never_raises_and_reports_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:53 [ WARNING] Fleet calibration status failed: db down
+PASSED                                                                   [ 33%]
+tests/unit/test_fleet_routing_audit_wire.py::test_shadow_writes_audit_not_enforced 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:53 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-05 20:52:53 [    INFO] Queen: Designing architecture for goal: analyze my sales pipeline in detail this quarter (Mode: one_off)
+2026-11-05 20:52:53 [   ERROR] Queen: Failed to generate blueprint: the JSON object must be str, bytes or bytearray, not AsyncMock
+2026-11-05 20:52:53 [   ERROR] [SpendAggregationService] Error updating spend: (sqlite3.ProgrammingError) Error binding parameter 1: type 'MagicMock' is not supported
+[SQL: SELECT tenants.id AS tenants_id, tenants.name AS tenants_name, tenants.subdomain AS tenants_subdomain, tenants.domain AS tenants_domain, tenants.plan_type AS tenants_plan_type, tenants.edition AS tenants_edition, tenants.segregated_namespaces AS tenants_segregated_namespaces, tenants.is_active AS tenants_is_active, tenants.billing_email AS tenants_billing_email, tenants.budget_limit_usd AS tenants_budget_limit_usd, tenants.metadata_json AS tenants_metadata_json, tenants.current_spend_usd AS tenants_current_spend_usd, tenants.total_spend_usd AS tenants_total_spend_usd, tenants.created_at AS tenants_created_at, tenants.updated_at AS tenants_updated_at, tenants.computer_use_count AS tenants_computer_use_count, tenants.last_desktop_sync AS tenants_last_desktop_sync, tenants.api_key AS tenants_api_key, tenants.status AS tenants_status, tenants.user_id AS tenants_user_id, tenants.api_calls_count AS tenants_api_calls_count, tenants.ai_mode AS tenants_ai_mode 
+FROM tenants 
+WHERE tenants.id = ?
+ LIMIT ? OFFSET ?]
+[parameters: (<MagicMock name='SessionLocal().__enter__().query().filter().first().tenant_id' id='4944268656'>, 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2026-11-05 20:52:53 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant <MagicMock name='SessionLocal().__enter__().query().filter().first().tenant_id' id='4944268656'>: (sqlite3.ProgrammingError) Error binding parameter 1: type 'MagicMock' is not supported
+[SQL: SELECT tenants.id AS tenants_id, tenants.name AS tenants_name, tenants.subdomain AS tenants_subdomain, tenants.domain AS tenants_domain, tenants.plan_type AS tenants_plan_type, tenants.edition AS tenants_edition, tenants.segregated_namespaces AS tenants_segregated_namespaces, tenants.is_active AS tenants_is_active, tenants.billing_email AS tenants_billing_email, tenants.budget_limit_usd AS tenants_budget_limit_usd, tenants.metadata_json AS tenants_metadata_json, tenants.current_spend_usd AS tenants_current_spend_usd, tenants.total_spend_usd AS tenants_total_spend_usd, tenants.created_at AS tenants_created_at, tenants.updated_at AS tenants_updated_at, tenants.computer_use_count AS tenants_computer_use_count, tenants.last_desktop_sync AS tenants_last_desktop_sync, tenants.api_key AS tenants_api_key, tenants.status AS tenants_status, tenants.user_id AS tenants_user_id, tenants.api_calls_count AS tenants_api_calls_count, tenants.ai_mode AS tenants_ai_mode 
+FROM tenants 
+WHERE tenants.id = ?
+ LIMIT ? OFFSET ?]
+[parameters: (<MagicMock name='SessionLocal().__enter__().query().filter().first().tenant_id' id='4944268656'>, 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2026-11-05 20:52:53 [    INFO] EscalationManager initialized
+2026-11-05 20:52:53 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:53 [    INFO] EscalationManager initialized
+2026-11-05 20:52:53 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:53 [    INFO] Listed 0 skills (status=Active, type=None)
+2026-11-05 20:52:54 [ WARNING] Stage router audit persist failed (non-fatal): (sqlite3.ProgrammingError) Error binding parameter 2: type 'MagicMock' is not supported
+[SQL: INSERT INTO llm_stage_router_audit (id, tenant_id, workspace_id, agent_id, execution_id, step_index, picker, confidence_threshold, signals, selected_group, applied_group, split_group, default_group, confidence, decision_source, enforced, policy_source, model_type, handoff_note, rationale, created_at, success, quality_satisfied, actual_cost, actual_latency_ms, actual_model, actual_provider) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)]
+[parameters: ('34e3f709-dcee-4e33-b602-cdda60ed3656', <MagicMock name='SessionLocal().__enter__().query().filter().first().tenant_id' id='4944268656'>, 'test-ws', 'atom_main', None, 0, 'efficient_first', 0.5, '"{\\"severity\\": 0.0, \\"spinning\\": false, \\"exploring\\": false, \\"production_intensity\\": 0.0, \\"critical\\": false}"', 'efficient', 'efficient', None, 'efficient', 0.0, 'fall_open', 0, 'global', None, None, 'stage_router selected efficient (confidence 0.000, fall_open)', '2026-11-06 01:52:54.639960', None, None, None, None, None, None)]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2026-11-05 20:52:54 [   ERROR] Failed to record Atom governance outcome: 'MagicMock' object can't be awaited
+PASSED                                                                   [ 35%]
+tests/unit/test_fleet_routing_audit_wire.py::test_enforced_writes_audit_enforced_and_returns_summary 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:54 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-05 20:52:54 [   ERROR] Failed to record Atom governance outcome: 'MagicMock' object can't be awaited
+PASSED                                                                   [ 36%]
+tests/unit/test_fleet_routing_audit_wire.py::test_failed_recruitment_is_audited 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:54 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-05 20:52:54 [ WARNING] Fleet routing failed, falling back to Queen→ReAct: fleet admiral unavailable
+2026-11-05 20:52:54 [    INFO] Queen: Designing architecture for goal: analyze my sales pipeline in detail this quarter (Mode: one_off)
+2026-11-05 20:52:54 [   ERROR] Queen: Failed to generate blueprint: the JSON object must be str, bytes or bytearray, not AsyncMock
+2026-11-05 20:52:54 [   ERROR] [SpendAggregationService] Error updating spend: (sqlite3.ProgrammingError) Error binding parameter 1: type 'MagicMock' is not supported
+[SQL: SELECT tenants.id AS tenants_id, tenants.name AS tenants_name, tenants.subdomain AS tenants_subdomain, tenants.domain AS tenants_domain, tenants.plan_type AS tenants_plan_type, tenants.edition AS tenants_edition, tenants.segregated_namespaces AS tenants_segregated_namespaces, tenants.is_active AS tenants_is_active, tenants.billing_email AS tenants_billing_email, tenants.budget_limit_usd AS tenants_budget_limit_usd, tenants.metadata_json AS tenants_metadata_json, tenants.current_spend_usd AS tenants_current_spend_usd, tenants.total_spend_usd AS tenants_total_spend_usd, tenants.created_at AS tenants_created_at, tenants.updated_at AS tenants_updated_at, tenants.computer_use_count AS tenants_computer_use_count, tenants.last_desktop_sync AS tenants_last_desktop_sync, tenants.api_key AS tenants_api_key, tenants.status AS tenants_status, tenants.user_id AS tenants_user_id, tenants.api_calls_count AS tenants_api_calls_count, tenants.ai_mode AS tenants_ai_mode 
+FROM tenants 
+WHERE tenants.id = ?
+ LIMIT ? OFFSET ?]
+[parameters: (<MagicMock name='SessionLocal().__enter__().query().filter().first().tenant_id' id='5044849360'>, 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2026-11-05 20:52:54 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant <MagicMock name='SessionLocal().__enter__().query().filter().first().tenant_id' id='5044849360'>: (sqlite3.ProgrammingError) Error binding parameter 1: type 'MagicMock' is not supported
+[SQL: SELECT tenants.id AS tenants_id, tenants.name AS tenants_name, tenants.subdomain AS tenants_subdomain, tenants.domain AS tenants_domain, tenants.plan_type AS tenants_plan_type, tenants.edition AS tenants_edition, tenants.segregated_namespaces AS tenants_segregated_namespaces, tenants.is_active AS tenants_is_active, tenants.billing_email AS tenants_billing_email, tenants.budget_limit_usd AS tenants_budget_limit_usd, tenants.metadata_json AS tenants_metadata_json, tenants.current_spend_usd AS tenants_current_spend_usd, tenants.total_spend_usd AS tenants_total_spend_usd, tenants.created_at AS tenants_created_at, tenants.updated_at AS tenants_updated_at, tenants.computer_use_count AS tenants_computer_use_count, tenants.last_desktop_sync AS tenants_last_desktop_sync, tenants.api_key AS tenants_api_key, tenants.status AS tenants_status, tenants.user_id AS tenants_user_id, tenants.api_calls_count AS tenants_api_calls_count, tenants.ai_mode AS tenants_ai_mode 
+FROM tenants 
+WHERE tenants.id = ?
+ LIMIT ? OFFSET ?]
+[parameters: (<MagicMock name='SessionLocal().__enter__().query().filter().first().tenant_id' id='5044849360'>, 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2026-11-05 20:52:54 [    INFO] EscalationManager initialized
+2026-11-05 20:52:54 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:54 [    INFO] EscalationManager initialized
+2026-11-05 20:52:54 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:54 [    INFO] Listed 0 skills (status=Active, type=None)
+2026-11-05 20:52:54 [ WARNING] Stage router audit persist failed (non-fatal): (sqlite3.ProgrammingError) Error binding parameter 2: type 'MagicMock' is not supported
+[SQL: INSERT INTO llm_stage_router_audit (id, tenant_id, workspace_id, agent_id, execution_id, step_index, picker, confidence_threshold, signals, selected_group, applied_group, split_group, default_group, confidence, decision_source, enforced, policy_source, model_type, handoff_note, rationale, created_at, success, quality_satisfied, actual_cost, actual_latency_ms, actual_model, actual_provider) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)]
+[parameters: ('beb44532-ab67-44e3-98ae-d23594927d29', <MagicMock name='SessionLocal().__enter__().query().filter().first().tenant_id' id='5044849360'>, 'test-ws', 'atom_main', None, 0, 'efficient_first', 0.5, '"{\\"severity\\": 0.0, \\"spinning\\": false, \\"exploring\\": false, \\"production_intensity\\": 0.0, \\"critical\\": false}"', 'efficient', 'efficient', None, 'efficient', 0.0, 'fall_open', 0, 'global', None, None, 'stage_router selected efficient (confidence 0.000, fall_open)', '2026-11-06 01:52:54.668231', None, None, None, None, None, None)]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2026-11-05 20:52:54 [   ERROR] Failed to record Atom governance outcome: 'MagicMock' object can't be awaited
+PASSED                                                                   [ 38%]
+tests/unit/test_fleet_routing_audit_wire.py::test_failed_recruitment_still_joins_fallback_outcome 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:54 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-05 20:52:54 [ WARNING] Fleet routing failed, falling back to Queen→ReAct: fleet admiral unavailable
+2026-11-05 20:52:54 [    INFO] Queen: Designing architecture for goal: analyze my sales pipeline in detail this quarter (Mode: one_off)
+2026-11-05 20:52:54 [   ERROR] Queen: Failed to generate blueprint: the JSON object must be str, bytes or bytearray, not AsyncMock
+2026-11-05 20:52:54 [   ERROR] [SpendAggregationService] Error updating spend: (sqlite3.ProgrammingError) Error binding parameter 1: type 'MagicMock' is not supported
+[SQL: SELECT tenants.id AS tenants_id, tenants.name AS tenants_name, tenants.subdomain AS tenants_subdomain, tenants.domain AS tenants_domain, tenants.plan_type AS tenants_plan_type, tenants.edition AS tenants_edition, tenants.segregated_namespaces AS tenants_segregated_namespaces, tenants.is_active AS tenants_is_active, tenants.billing_email AS tenants_billing_email, tenants.budget_limit_usd AS tenants_budget_limit_usd, tenants.metadata_json AS tenants_metadata_json, tenants.current_spend_usd AS tenants_current_spend_usd, tenants.total_spend_usd AS tenants_total_spend_usd, tenants.created_at AS tenants_created_at, tenants.updated_at AS tenants_updated_at, tenants.computer_use_count AS tenants_computer_use_count, tenants.last_desktop_sync AS tenants_last_desktop_sync, tenants.api_key AS tenants_api_key, tenants.status AS tenants_status, tenants.user_id AS tenants_user_id, tenants.api_calls_count AS tenants_api_calls_count, tenants.ai_mode AS tenants_ai_mode 
+FROM tenants 
+WHERE tenants.id = ?
+ LIMIT ? OFFSET ?]
+[parameters: (<MagicMock name='SessionLocal().__enter__().query().filter().first().tenant_id' id='5045921040'>, 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2026-11-05 20:52:54 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant <MagicMock name='SessionLocal().__enter__().query().filter().first().tenant_id' id='5045921040'>: (sqlite3.ProgrammingError) Error binding parameter 1: type 'MagicMock' is not supported
+[SQL: SELECT tenants.id AS tenants_id, tenants.name AS tenants_name, tenants.subdomain AS tenants_subdomain, tenants.domain AS tenants_domain, tenants.plan_type AS tenants_plan_type, tenants.edition AS tenants_edition, tenants.segregated_namespaces AS tenants_segregated_namespaces, tenants.is_active AS tenants_is_active, tenants.billing_email AS tenants_billing_email, tenants.budget_limit_usd AS tenants_budget_limit_usd, tenants.metadata_json AS tenants_metadata_json, tenants.current_spend_usd AS tenants_current_spend_usd, tenants.total_spend_usd AS tenants_total_spend_usd, tenants.created_at AS tenants_created_at, tenants.updated_at AS tenants_updated_at, tenants.computer_use_count AS tenants_computer_use_count, tenants.last_desktop_sync AS tenants_last_desktop_sync, tenants.api_key AS tenants_api_key, tenants.status AS tenants_status, tenants.user_id AS tenants_user_id, tenants.api_calls_count AS tenants_api_calls_count, tenants.ai_mode AS tenants_ai_mode 
+FROM tenants 
+WHERE tenants.id = ?
+ LIMIT ? OFFSET ?]
+[parameters: (<MagicMock name='SessionLocal().__enter__().query().filter().first().tenant_id' id='5045921040'>, 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2026-11-05 20:52:54 [    INFO] EscalationManager initialized
+2026-11-05 20:52:54 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:54 [    INFO] EscalationManager initialized
+2026-11-05 20:52:54 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:54 [    INFO] Listed 0 skills (status=Active, type=None)
+2026-11-05 20:52:54 [ WARNING] Stage router audit persist failed (non-fatal): (sqlite3.ProgrammingError) Error binding parameter 2: type 'MagicMock' is not supported
+[SQL: INSERT INTO llm_stage_router_audit (id, tenant_id, workspace_id, agent_id, execution_id, step_index, picker, confidence_threshold, signals, selected_group, applied_group, split_group, default_group, confidence, decision_source, enforced, policy_source, model_type, handoff_note, rationale, created_at, success, quality_satisfied, actual_cost, actual_latency_ms, actual_model, actual_provider) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)]
+[parameters: ('9e3527e4-8ea0-410b-a835-f6632e612e8e', <MagicMock name='SessionLocal().__enter__().query().filter().first().tenant_id' id='5045921040'>, 'test-ws', 'atom_main', None, 0, 'efficient_first', 0.5, '"{\\"severity\\": 0.0, \\"spinning\\": false, \\"exploring\\": false, \\"production_intensity\\": 0.0, \\"critical\\": false}"', 'efficient', 'efficient', None, 'efficient', 0.0, 'fall_open', 0, 'global', None, None, 'stage_router selected efficient (confidence 0.000, fall_open)', '2026-11-06 01:52:54.684331', None, None, None, None, None, None)]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2026-11-05 20:52:54 [   ERROR] Failed to record Atom governance outcome: 'MagicMock' object can't be awaited
+PASSED                                                                   [ 40%]
+tests/unit/test_fleet_router_automation.py::TestVerdict::test_collecting_below_min_rows PASSED [ 41%]
+tests/unit/test_fleet_router_automation.py::TestVerdict::test_blocked_on_unhealthy_recruitment PASSED [ 43%]
+tests/unit/test_fleet_router_automation.py::TestVerdict::test_revoke_on_baseline_regression PASSED [ 44%]
+tests/unit/test_fleet_router_automation.py::TestVerdict::test_collecting_when_baseline_below_floor PASSED [ 46%]
+tests/unit/test_fleet_router_automation.py::TestVerdict::test_enable_when_healthy PASSED [ 47%]
+tests/unit/test_fleet_router_automation.py::TestModes::test_off_mode_is_noop PASSED [ 49%]
+tests/unit/test_fleet_router_automation.py::TestModes::test_approve_mode_queues_approval PASSED [ 50%]
+tests/unit/test_fleet_router_automation.py::TestModes::test_approve_mode_dedupes_pending PASSED [ 52%]
+tests/unit/test_fleet_router_automation.py::TestModes::test_auto_mode_applies_immediately PASSED [ 53%]
+tests/unit/test_fleet_router_automation.py::TestModes::test_revoke_applies_immediately_in_approve_mode PASSED [ 55%]
+tests/unit/test_fleet_router_automation.py::TestModes::test_approval_apply_flips_override PASSED [ 56%]
+tests/unit/test_fleet_router_automation.py::TestModes::test_approval_reject_then_unchanged_is_kept PASSED [ 58%]
+tests/unit/test_fleet_router_automation.py::TestModes::test_no_pending_approval_reports_reason PASSED [ 60%]
+tests/unit/test_fleet_router_automation.py::TestResolvedEnforce::test_env_kill_switch_wins PASSED [ 61%]
+tests/unit/test_fleet_router_automation.py::TestResolvedEnforce::test_applied_enable_override_enforces PASSED [ 63%]
+tests/unit/test_fleet_router_automation.py::TestResolvedEnforce::test_revoked_row_means_shadow PASSED [ 64%]
+tests/unit/test_fleet_router_automation.py::TestResolvedEnforce::test_approval_row_does_not_enforce PASSED [ 66%]
+tests/unit/test_fleet_router_automation.py::TestResolvedEnforce::test_empty_db_means_shadow PASSED [ 67%]
+tests/unit/test_fleet_router_automation.py::TestConfigStatus::test_set_automation_config_validates_mode PASSED [ 69%]
+tests/unit/test_fleet_router_automation.py::TestConfigStatus::test_run_auto_certification_off_mode PASSED [ 70%]
+tests/unit/test_fleet_router_automation.py::TestConfigStatus::test_run_auto_certification_never_raises 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:54 [ WARNING] Fleet router automation pass failed: db down
+PASSED                                                                   [ 72%]
+tests/unit/test_fleet_router_automation.py::TestConfigStatus::test_get_automation_status_shape PASSED [ 73%]
+tests/unit/test_fleet_routing_wire.py::test_flag_off_never_routes_through_governance 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:54 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-05 20:52:54 [    INFO] Queen: Designing architecture for goal: analyze my sales pipeline in detail this quarter (Mode: one_off)
+2026-11-05 20:52:54 [   ERROR] Queen: Failed to generate blueprint: the JSON object must be str, bytes or bytearray, not AsyncMock
+2026-11-05 20:52:54 [   ERROR] [SpendAggregationService] Error updating spend: (sqlite3.ProgrammingError) Error binding parameter 1: type 'MagicMock' is not supported
+[SQL: SELECT tenants.id AS tenants_id, tenants.name AS tenants_name, tenants.subdomain AS tenants_subdomain, tenants.domain AS tenants_domain, tenants.plan_type AS tenants_plan_type, tenants.edition AS tenants_edition, tenants.segregated_namespaces AS tenants_segregated_namespaces, tenants.is_active AS tenants_is_active, tenants.billing_email AS tenants_billing_email, tenants.budget_limit_usd AS tenants_budget_limit_usd, tenants.metadata_json AS tenants_metadata_json, tenants.current_spend_usd AS tenants_current_spend_usd, tenants.total_spend_usd AS tenants_total_spend_usd, tenants.created_at AS tenants_created_at, tenants.updated_at AS tenants_updated_at, tenants.computer_use_count AS tenants_computer_use_count, tenants.last_desktop_sync AS tenants_last_desktop_sync, tenants.api_key AS tenants_api_key, tenants.status AS tenants_status, tenants.user_id AS tenants_user_id, tenants.api_calls_count AS tenants_api_calls_count, tenants.ai_mode AS tenants_ai_mode 
+FROM tenants 
+WHERE tenants.id = ?
+ LIMIT ? OFFSET ?]
+[parameters: (<MagicMock name='SessionLocal().__enter__().query().filter().first().tenant_id' id='5044514704'>, 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2026-11-05 20:52:54 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant <MagicMock name='SessionLocal().__enter__().query().filter().first().tenant_id' id='5044514704'>: (sqlite3.ProgrammingError) Error binding parameter 1: type 'MagicMock' is not supported
+[SQL: SELECT tenants.id AS tenants_id, tenants.name AS tenants_name, tenants.subdomain AS tenants_subdomain, tenants.domain AS tenants_domain, tenants.plan_type AS tenants_plan_type, tenants.edition AS tenants_edition, tenants.segregated_namespaces AS tenants_segregated_namespaces, tenants.is_active AS tenants_is_active, tenants.billing_email AS tenants_billing_email, tenants.budget_limit_usd AS tenants_budget_limit_usd, tenants.metadata_json AS tenants_metadata_json, tenants.current_spend_usd AS tenants_current_spend_usd, tenants.total_spend_usd AS tenants_total_spend_usd, tenants.created_at AS tenants_created_at, tenants.updated_at AS tenants_updated_at, tenants.computer_use_count AS tenants_computer_use_count, tenants.last_desktop_sync AS tenants_last_desktop_sync, tenants.api_key AS tenants_api_key, tenants.status AS tenants_status, tenants.user_id AS tenants_user_id, tenants.api_calls_count AS tenants_api_calls_count, tenants.ai_mode AS tenants_ai_mode 
+FROM tenants 
+WHERE tenants.id = ?
+ LIMIT ? OFFSET ?]
+[parameters: (<MagicMock name='SessionLocal().__enter__().query().filter().first().tenant_id' id='5044514704'>, 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2026-11-05 20:52:54 [    INFO] EscalationManager initialized
+2026-11-05 20:52:54 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:54 [    INFO] EscalationManager initialized
+2026-11-05 20:52:54 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:54 [    INFO] Listed 0 skills (status=Active, type=None)
+2026-11-05 20:52:54 [ WARNING] Stage router audit persist failed (non-fatal): (sqlite3.ProgrammingError) Error binding parameter 2: type 'MagicMock' is not supported
+[SQL: INSERT INTO llm_stage_router_audit (id, tenant_id, workspace_id, agent_id, execution_id, step_index, picker, confidence_threshold, signals, selected_group, applied_group, split_group, default_group, confidence, decision_source, enforced, policy_source, model_type, handoff_note, rationale, created_at, success, quality_satisfied, actual_cost, actual_latency_ms, actual_model, actual_provider) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)]
+[parameters: ('255e1df5-209c-4fdc-b10d-d09f709c5f02', <MagicMock name='SessionLocal().__enter__().query().filter().first().tenant_id' id='5044514704'>, 'test-ws', 'atom_main', None, 0, 'efficient_first', 0.5, '"{\\"severity\\": 0.0, \\"spinning\\": false, \\"exploring\\": false, \\"production_intensity\\": 0.0, \\"critical\\": false}"', 'efficient', 'efficient', None, 'efficient', 0.0, 'fall_open', 0, 'global', None, None, 'stage_router selected efficient (confidence 0.000, fall_open)', '2026-11-06 01:52:54.714276', None, None, None, None, None, None)]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2026-11-05 20:52:54 [   ERROR] Failed to record Atom governance outcome: 'MagicMock' object can't be awaited
+PASSED                                                                   [ 75%]
+tests/unit/test_fleet_routing_wire.py::test_flag_on_force_enforce_routes_to_governance 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:54 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-05 20:52:54 [ WARNING] Fleet routing audit write failed: (sqlite3.ProgrammingError) Error binding parameter 2: type 'MagicMock' is not supported
+[SQL: INSERT INTO fleet_routing_audit (id, tenant_id, workspace_id, agent_id, execution_id, workload_key, request_text, chain_id, specialists_count, roster_json, recruitment_succeeded, enforced, decision_source, error, success, actual_latency_ms, actual_model, actual_provider) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING created_at]
+[parameters: ('e6462a5a-8f90-4973-9d40-fa175f12d4f2', <MagicMock name='SessionLocal().__enter__().query().filter().first().tenant_id' id='5047832256'>, 'test-ws', None, '22740113-f8da-4807-a26c-769dd4ae9404', 'fcff2e47395c11e1', 'analyze my sales pipeline in detail this quarter', 'chain-1', 2, '[]', 1, 1, 'scope_unverified', 'authenticated execution scope unavailable', None, None, None, None)]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2026-11-05 20:52:54 [   ERROR] Failed to record Atom governance outcome: 'MagicMock' object can't be awaited
+PASSED                                                                   [ 76%]
+tests/unit/test_fleet_routing_wire.py::test_flag_on_shadow_computes_but_does_not_return_summary 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:54 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-05 20:52:54 [ WARNING] Fleet routing audit write failed: (sqlite3.ProgrammingError) Error binding parameter 2: type 'MagicMock' is not supported
+[SQL: INSERT INTO fleet_routing_audit (id, tenant_id, workspace_id, agent_id, execution_id, workload_key, request_text, chain_id, specialists_count, roster_json, recruitment_succeeded, enforced, decision_source, error, success, actual_latency_ms, actual_model, actual_provider) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING created_at]
+[parameters: ('da89622c-32bc-4010-82bf-da214c5d9adc', <MagicMock name='SessionLocal().__enter__().query().filter().first().tenant_id' id='5048487280'>, 'test-ws', None, '0fc634da-ce41-46da-b946-3ec6ac45f4c0', 'fcff2e47395c11e1', 'analyze my sales pipeline in detail this quarter', 'chain-9', 0, '[]', 0, 0, 'scope_unverified', 'authenticated execution scope unavailable', None, None, None, None)]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2026-11-05 20:52:54 [    INFO] Queen: Designing architecture for goal: analyze my sales pipeline in detail this quarter (Mode: one_off)
+2026-11-05 20:52:54 [   ERROR] Queen: Failed to generate blueprint: the JSON object must be str, bytes or bytearray, not AsyncMock
+2026-11-05 20:52:54 [   ERROR] [SpendAggregationService] Error updating spend: (sqlite3.ProgrammingError) Error binding parameter 1: type 'MagicMock' is not supported
+[SQL: SELECT tenants.id AS tenants_id, tenants.name AS tenants_name, tenants.subdomain AS tenants_subdomain, tenants.domain AS tenants_domain, tenants.plan_type AS tenants_plan_type, tenants.edition AS tenants_edition, tenants.segregated_namespaces AS tenants_segregated_namespaces, tenants.is_active AS tenants_is_active, tenants.billing_email AS tenants_billing_email, tenants.budget_limit_usd AS tenants_budget_limit_usd, tenants.metadata_json AS tenants_metadata_json, tenants.current_spend_usd AS tenants_current_spend_usd, tenants.total_spend_usd AS tenants_total_spend_usd, tenants.created_at AS tenants_created_at, tenants.updated_at AS tenants_updated_at, tenants.computer_use_count AS tenants_computer_use_count, tenants.last_desktop_sync AS tenants_last_desktop_sync, tenants.api_key AS tenants_api_key, tenants.status AS tenants_status, tenants.user_id AS tenants_user_id, tenants.api_calls_count AS tenants_api_calls_count, tenants.ai_mode AS tenants_ai_mode 
+FROM tenants 
+WHERE tenants.id = ?
+ LIMIT ? OFFSET ?]
+[parameters: (<MagicMock name='SessionLocal().__enter__().query().filter().first().tenant_id' id='5048487280'>, 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2026-11-05 20:52:54 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant <MagicMock name='SessionLocal().__enter__().query().filter().first().tenant_id' id='5048487280'>: (sqlite3.ProgrammingError) Error binding parameter 1: type 'MagicMock' is not supported
+[SQL: SELECT tenants.id AS tenants_id, tenants.name AS tenants_name, tenants.subdomain AS tenants_subdomain, tenants.domain AS tenants_domain, tenants.plan_type AS tenants_plan_type, tenants.edition AS tenants_edition, tenants.segregated_namespaces AS tenants_segregated_namespaces, tenants.is_active AS tenants_is_active, tenants.billing_email AS tenants_billing_email, tenants.budget_limit_usd AS tenants_budget_limit_usd, tenants.metadata_json AS tenants_metadata_json, tenants.current_spend_usd AS tenants_current_spend_usd, tenants.total_spend_usd AS tenants_total_spend_usd, tenants.created_at AS tenants_created_at, tenants.updated_at AS tenants_updated_at, tenants.computer_use_count AS tenants_computer_use_count, tenants.last_desktop_sync AS tenants_last_desktop_sync, tenants.api_key AS tenants_api_key, tenants.status AS tenants_status, tenants.user_id AS tenants_user_id, tenants.api_calls_count AS tenants_api_calls_count, tenants.ai_mode AS tenants_ai_mode 
+FROM tenants 
+WHERE tenants.id = ?
+ LIMIT ? OFFSET ?]
+[parameters: (<MagicMock name='SessionLocal().__enter__().query().filter().first().tenant_id' id='5048487280'>, 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2026-11-05 20:52:54 [    INFO] EscalationManager initialized
+2026-11-05 20:52:54 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:54 [    INFO] EscalationManager initialized
+2026-11-05 20:52:54 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:54 [    INFO] Listed 0 skills (status=Active, type=None)
+2026-11-05 20:52:54 [ WARNING] Stage router audit persist failed (non-fatal): (sqlite3.ProgrammingError) Error binding parameter 2: type 'MagicMock' is not supported
+[SQL: INSERT INTO llm_stage_router_audit (id, tenant_id, workspace_id, agent_id, execution_id, step_index, picker, confidence_threshold, signals, selected_group, applied_group, split_group, default_group, confidence, decision_source, enforced, policy_source, model_type, handoff_note, rationale, created_at, success, quality_satisfied, actual_cost, actual_latency_ms, actual_model, actual_provider) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)]
+[parameters: ('178deabb-f8fe-4831-af72-5277650608df', <MagicMock name='SessionLocal().__enter__().query().filter().first().tenant_id' id='5048487280'>, 'test-ws', 'atom_main', None, 0, 'efficient_first', 0.5, '"{\\"severity\\": 0.0, \\"spinning\\": false, \\"exploring\\": false, \\"production_intensity\\": 0.0, \\"critical\\": false}"', 'efficient', 'efficient', None, 'efficient', 0.0, 'fall_open', 0, 'global', None, None, 'stage_router selected efficient (confidence 0.000, fall_open)', '2026-11-06 01:52:54.759788', None, None, None, None, None, None)]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+2026-11-05 20:52:54 [   ERROR] Failed to record Atom governance outcome: 'MagicMock' object can't be awaited
+PASSED                                                                   [ 78%]
+tests/unit/test_fleet_routing_wire.py::test_broken_module_level_route_with_governance_removed PASSED [ 80%]
+tests/test_contribution_credit_p4.py::TestComputeChainCredit::test_all_success_sums_to_outcome_last_gets_most PASSED [ 81%]
+tests/test_contribution_credit_p4.py::TestComputeChainCredit::test_failed_step_gets_zero_upstream_survives PASSED [ 83%]
+tests/test_contribution_credit_p4.py::TestComputeChainCredit::test_late_failure_dampens_but_does_not_zero PASSED [ 84%]
+tests/test_contribution_credit_p4.py::TestComputeChainCredit::test_unknown_status_counts_half PASSED [ 86%]
+tests/test_contribution_credit_p4.py::TestComputeChainCredit::test_empty_and_single PASSED [ 87%]
+tests/test_contribution_credit_p4.py::TestComputeChainCredit::test_duplicate_agents_aggregate PASSED [ 89%]
+tests/test_contribution_credit_p4.py::TestApplyCredit::test_strong_credit_records_verified_success PASSED [ 90%]
+tests/test_contribution_credit_p4.py::TestApplyCredit::test_moderate_credit_records_unverified_only PASSED [ 92%]
+tests/test_contribution_credit_p4.py::TestApplyCredit::test_zero_weight_skipped_no_poison PASSED [ 93%]
+tests/test_contribution_credit_p4.py::TestRecordChainCredit::test_flag_off_noop PASSED [ 95%]
+tests/test_contribution_credit_p4.py::TestRecordChainCredit::test_happy_path_applies_credits 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:54 [    INFO] contribution_credit: 3 specialists credited for exec exec-9
+PASSED                                                                   [ 96%]
+tests/test_contribution_credit_p4.py::TestRecordChainCredit::test_missing_execution_is_noop_never_raises PASSED [ 98%]
+tests/test_contribution_credit_p4.py::TestFinalizeWireIn::test_record_fleet_execution_outcome_calls_credit PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+core/fleet_orchestration/scaling_proposal_service.py:48
+  /private/tmp/atom-fleet-verify/backend/core/fleet_orchestration/scaling_proposal_service.py:48: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class ScalingProposal(BaseModel):
+
+core/fleet_orchestration/fleet_scaler_service.py:43
+  /private/tmp/atom-fleet-verify/backend/core/fleet_orchestration/fleet_scaler_service.py:43: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class ScalingOperation(BaseModel):
+
+core/graphrag_engine.py:203
+  /private/tmp/atom-fleet-verify/backend/core/graphrag_engine.py:203: SyntaxWarning: "\%" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\%"? A raw string is also an option.
+    Escaped pattern where % and _ are escaped to \%
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 130 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_orch07_fleet_audit_consumer.py::test_shadow_consumer_writes_scoped_decision_and_exact_outcome
+tests/test_orch07_fleet_audit_consumer.py::test_enforced_response_consumes_specialists_and_finalizes
+tests/test_orch07_fleet_audit_consumer.py::test_attempted_route_is_not_reported_as_served
+  /private/tmp/atom-fleet-verify/backend/core/lancedb_handler.py:407: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    names = set(self.db.table_names())
+
+tests/test_orch07_fleet_audit_consumer.py::test_shadow_consumer_writes_scoped_decision_and_exact_outcome
+tests/test_orch07_fleet_audit_consumer.py::test_shadow_consumer_writes_scoped_decision_and_exact_outcome
+tests/test_orch07_fleet_audit_consumer.py::test_enforced_response_consumes_specialists_and_finalizes
+tests/test_orch07_fleet_audit_consumer.py::test_enforced_response_consumes_specialists_and_finalizes
+tests/test_orch07_fleet_audit_consumer.py::test_attempted_route_is_not_reported_as_served
+tests/test_orch07_fleet_audit_consumer.py::test_attempted_route_is_not_reported_as_served
+  /Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/asyncio/events.py:94: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    self._context.run(self._callback, *self._args)
+
+tests/test_orch07_fleet_audit_consumer.py::test_shadow_consumer_writes_scoped_decision_and_exact_outcome
+tests/test_orch07_fleet_audit_consumer.py::test_enforced_response_consumes_specialists_and_finalizes
+tests/test_orch07_fleet_audit_consumer.py::test_attempted_route_is_not_reported_as_served
+  /private/tmp/atom-fleet-verify/backend/core/lancedb_handler.py:620: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    if table_name in self.db.table_names():
+
+tests/unit/test_fleet_routing_audit_wire.py::test_shadow_writes_audit_not_enforced
+tests/unit/test_fleet_routing_audit_wire.py::test_failed_recruitment_is_audited
+tests/unit/test_fleet_routing_audit_wire.py::test_failed_recruitment_still_joins_fallback_outcome
+tests/unit/test_fleet_routing_wire.py::test_flag_off_never_routes_through_governance
+tests/unit/test_fleet_routing_wire.py::test_flag_on_shadow_computes_but_does_not_return_summary
+  /private/tmp/atom-fleet-verify/backend/core/atom_meta_agent.py:2184: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    self._ledger_llm_decision(
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/unit/test_fleet_routing_audit_wire.py::test_shadow_writes_audit_not_enforced
+  /Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/asyncio/events.py:94: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    self._context.run(self._callback, *self._args)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/unit/test_fleet_routing_audit_wire.py::test_failed_recruitment_still_joins_fallback_outcome
+tests/unit/test_fleet_routing_wire.py::test_flag_on_force_enforce_routes_to_governance
+  /Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/unittest/mock.py:2259: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    def __init__(self, name, parent):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/unit/test_fleet_routing_wire.py::test_flag_off_never_routes_through_governance
+  /private/tmp/atom-fleet-verify/backend/tests/unit/test_fleet_routing_wire.py:97: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    await atom_agent.execute(
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+../../../../Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/glob.py:459
+  /Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/glob.py:459: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    if match is None or match(entry_name):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+====================== 65 passed, 161 warnings in 19.08s =======================

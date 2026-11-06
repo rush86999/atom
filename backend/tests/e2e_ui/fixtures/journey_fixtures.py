@@ -27,6 +27,54 @@ FRONTEND_URL = (os.getenv("FRONTEND_URL") or "http://localhost:3001").rstrip("/"
 DEFAULT_PASSWORD = "TestPassword123!"
 
 
+def route_capability(profile: Dict[str, Any], pathname: str) -> str:
+    """Mirror the frontend's longest-prefix product-profile route match."""
+    path = (pathname or "/").split("?")[0].rstrip("/") or "/"
+    routes = profile.get("routes", {})
+    for prefix in sorted(routes, key=len, reverse=True):
+        if path == prefix or path.startswith(f"{prefix}/"):
+            return routes[prefix]
+    return "deferred"
+
+
+def route_enabled(profile: Dict[str, Any], pathname: str) -> bool:
+    capability = route_capability(profile, pathname)
+    if capability == "core":
+        return True
+    return bool(
+        profile.get("capabilities", {}).get(capability, {}).get("enabled"))
+
+
+def deferred_label(profile: Dict[str, Any], pathname: str) -> str:
+    capability = route_capability(profile, pathname)
+    return profile.get("capabilities", {}).get(capability, {}).get(
+        "label", "This page")
+
+
+def dismiss_onboarding(page: Page) -> None:
+    """Close the first-run onboarding dialog if it opened for this user.
+
+    The wizard is a global product surface, not part of any page under test.
+    It self-dismisses through onClose (Escape/backdrop), which also writes the
+    session-scoped dismissal key so it does not reopen on later navigations.
+    """
+    try:
+        dialog = page.locator("[role='dialog']")
+        dialog.first.wait_for(state="visible", timeout=3000)
+        page.keyboard.press("Escape")
+        page.wait_for_timeout(300)
+    except Exception:
+        pass
+
+
+@pytest.fixture(scope="session")
+def product_profile() -> Dict[str, Any]:
+    """The installation's actual product surface, fetched once per run."""
+    response = requests.get(f"{BACKEND_URL}/api/product/profile", timeout=15)
+    response.raise_for_status()
+    return response.json()
+
+
 def _register_and_login(email: str, password: str) -> Dict[str, Any]:
     """Register a user and return {email, password, access_token}."""
     requests.post(
@@ -86,6 +134,11 @@ def authed_page(browser: Browser, journey_user_credentials: Dict[str, str]) -> P
     creds = journey_user_credentials
     context = browser.new_context()
     page = context.new_page()
+    # Feature journeys are not onboarding tests. Suppress the first-run wizard
+    # before the app mounts so its modal cannot intercept page interactions.
+    page.add_init_script(
+        "try { sessionStorage.setItem('atom.onboarding.dismissed', '1'); } "
+        "catch (e) {}")
     # UI login — establishes next-auth session + localStorage auth_token.
     page.goto(f"{FRONTEND_URL}/login", wait_until="domcontentloaded")
     try:
@@ -101,6 +154,7 @@ def authed_page(browser: Browser, journey_user_credentials: Dict[str, str]) -> P
         # If login didn't redirect, the test assertions will surface the real
         # problem; don't fail at fixture setup.
         pass
+    dismiss_onboarding(page)
     yield page
     try:
         context.close()

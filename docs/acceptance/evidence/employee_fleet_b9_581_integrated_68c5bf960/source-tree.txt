@@ -1,0 +1,13 @@
+executed_source: 68c5bf960
+product_source: 68c5bf960
+orch07_predecessor: b9ba56995
+orch02_predecessor: 581654d21
+accepted_orch01_source: 943fb32d7
+branch: codex/fleet-b9-581-integrated-repair-20261105
+git_status_short:
+git_log:
+68c5bf960 fix(fleet): bind outcomes, chain scope, cache material and execution identity
+581654d21 feat(orch02): consume recruited specialist work in the task response
+b9ba56995 fix(orch07): bind fleet audit decisions to execution and exact outcomes
+943fb32d7 docs(orch01): note the final HITL queue reason
+3978bdd46 docs(orch01): submit the complete-binding source and HITL refusal reason
