@@ -14,8 +14,8 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from api.admin.budget_routes import router
-from core.admin_endpoints import get_super_admin
-from core.models import UserRole
+from core.admin_endpoints import get_platform_admin
+from core.models import User, UserRole
 
 
 # ============================================================================
@@ -23,12 +23,30 @@ from core.models import UserRole
 # ============================================================================
 
 @pytest.fixture
-def mock_admin():
-    user = MagicMock()
-    user.id = "admin-1"
-    user.email = "admin@test.local"
-    user.role = UserRole.SUPER_ADMIN.value
-    return user
+def mock_admin(worker_database):
+    from core.models import User
+
+    SessionLocal = worker_database
+    db = SessionLocal()
+    try:
+        user = db.query(User).filter(User.id == "admin-1").first()
+        if user is None:
+            user = User(
+                id="admin-1",
+                email="admin@test.local",
+                hashed_password="x",
+                first_name="Admin",
+                last_name="User",
+                role=UserRole.WORKSPACE_ADMIN.value,
+                status="active",
+                is_active=True,
+            )
+            db.add(user)
+            db.commit()
+            db.refresh(user)
+        return user
+    finally:
+        db.close()
 
 
 @pytest.fixture
@@ -45,6 +63,7 @@ def client(app, mock_admin, worker_database):
     ``get_super_admin`` is overridden so we bypass JWT resolution; the DB is
     the shared in-memory SQLite factory so Tenant/TenantSetting rows persist.
     """
+    from core.admin_endpoints import get_platform_admin
     from core.database import get_db
 
     SessionLocal = worker_database
@@ -59,7 +78,7 @@ def client(app, mock_admin, worker_database):
         finally:
             session.close()
 
-    app.dependency_overrides[get_super_admin] = _override_admin
+    app.dependency_overrides[get_platform_admin] = _override_admin
     app.dependency_overrides[get_db] = _override_get_db
 
     yield TestClient(app)

@@ -310,6 +310,17 @@ def _content_digest(value: Any) -> str:
     return hashlib.sha256(blob.encode("utf-8")).hexdigest()
 
 
+def canvas_content_digest(value: Any) -> str:
+    """Public alias for the canonical canvas material digest.
+
+    The direct HTTP write service must freeze the SAME material the oracle
+    verifier reads back. Keeping one digest prevents a self-consistent
+    parallel representation from passing while the real consumer sees a
+    different value.
+    """
+    return _content_digest(value)
+
+
 def _read_with_db(ctx: Dict[str, Any], reader):
     db = ctx.get("db")
     if db is not None:
@@ -424,8 +435,62 @@ def _canvas_write_postcondition(restore: bool):
             or ctx.get("canvas_id") or "").strip()
         if not canvas_id:
             return OracleResult(action, False, "missing canvas_id")
+        expected_tenant = str(
+            ctx.get("_oracle_expected_tenant_id") or "").strip()
+        expected_workspace = str(
+            ctx.get("_oracle_expected_workspace_id") or "").strip()
+        expected_actor = str(
+            ctx.get("_oracle_expected_actor_id") or "").strip()
         write_outcome = str(ctx.get("write_outcome") or "")
         no_change = bool(ctx.get("no_change"))
+
+        def _read_canvas(session):
+            from core.models import Canvas
+            return (
+                session.query(Canvas)
+                .filter(Canvas.id == canvas_id)
+                .first()
+            )
+
+        def _scope_value_allowed(observed, expected):
+            """Mirror the writer's legacy/default scope rule."""
+            observed = str(observed or "").strip()
+            expected = str(expected or "").strip()
+            if not observed:
+                return True
+            if expected:
+                return observed == expected
+            return observed.lower() == "default"
+
+        def _scope_reasons(row, canvas, *, check_actor: bool):
+            reasons = []
+            strict_scope = bool(ctx.get("_oracle_require_scope_match"))
+            if expected_tenant or strict_scope:
+                if not _scope_value_allowed(row.tenant_id, expected_tenant):
+                    reasons.append(
+                        f"audit tenant={row.tenant_id!r}, expected "
+                        f"{expected_tenant!r}")
+            if canvas is None:
+                reasons.append("canvas mirror missing")
+            else:
+                if (expected_tenant or strict_scope) and (
+                        not _scope_value_allowed(
+                            canvas.tenant_id, expected_tenant)):
+                    reasons.append(
+                        f"canvas tenant={canvas.tenant_id!r}, expected "
+                        f"{expected_tenant!r}")
+                if (expected_workspace or strict_scope) and (
+                        not _scope_value_allowed(
+                            canvas.workspace_id, expected_workspace)):
+                    reasons.append(
+                        f"canvas workspace={canvas.workspace_id!r}, expected "
+                        f"{expected_workspace!r}")
+            if check_actor and expected_actor:
+                if str(row.user_id or "") != expected_actor:
+                    reasons.append(
+                        f"audit actor={row.user_id!r}, expected "
+                        f"{expected_actor!r}")
+            return reasons
 
         def _read_new(session, audit_id: str):
             from core.models import CanvasAudit, Canvas
@@ -468,6 +533,30 @@ def _canvas_write_postcondition(restore: bool):
                 value = json.loads(value)
             return value or {}
 
+        def _latest_content(session):
+            """Latest CONTENT revision, skipping event-only audit stamps.
+
+            A send/event row can append after the write without carrying a
+            body. Recency must compare against the current content revision,
+            not the absolute newest event row.
+            """
+            from core.models import CanvasAudit
+            from sqlalchemy import desc
+
+            rows = (
+                session.query(CanvasAudit)
+                .filter(CanvasAudit.canvas_id == canvas_id)
+                .order_by(desc(CanvasAudit.created_at),
+                          desc(CanvasAudit.id))
+                .limit(50)
+                .all()
+            )
+            for candidate in rows:
+                details = _details(candidate)
+                if "content" in details or "data" in details:
+                    return candidate
+            return rows[0] if rows else None
+
         try:
             if no_change:
                 target_id = str(
@@ -478,23 +567,63 @@ def _canvas_write_postcondition(restore: bool):
                         action, False, "no-change restore has no target audit")
                 target = _read_with_db(
                     ctx, lambda session: _read_audit(session, target_id))
-                latest = _read_with_db(ctx, _latest)
+                latest = _read_with_db(ctx, _latest_content)
                 if target is None or latest is None:
                     return OracleResult(
                         action, False,
                         "no-change restore could not read the target/current "
                         "version")
-                target_digest = _content_digest(
-                    _details(target).get("content",
-                                         _details(target).get("data")))
+                if str(target.action_type or "") == "delete":
+                    return OracleResult(
+                        action, False,
+                        "no-change target is a deletion marker")
+                target_details = _details(target)
+                if ("content" not in target_details
+                        and "data" not in target_details):
+                    return OracleResult(
+                        action, False,
+                        "no-change target carries no restorable content")
+                canvas = _read_with_db(ctx, _read_canvas)
+                scope_reasons = _scope_reasons(
+                    latest, canvas, check_actor=False)
+                if scope_reasons:
+                    return OracleResult(
+                        action, False, "; ".join(scope_reasons))
+                if canvas is None:
+                    return OracleResult(
+                        action, False,
+                        "no-change restore has no authoritative canvas "
+                        "mirror")
+                expected_target_tenant = expected_tenant or str(
+                    canvas.tenant_id or "")
+                if not _scope_value_allowed(
+                        target.tenant_id, expected_target_tenant):
+                    return OracleResult(
+                        action, False,
+                        f"target audit tenant={target.tenant_id!r}, expected "
+                        f"{expected_target_tenant!r}")
+                from tools.canvas_crud_tool import (
+                    canonical_restore_content,
+                )
+
+                _, restored_content = canonical_restore_content(
+                    latest, target)
+                if restored_content is None:
+                    return OracleResult(
+                        action, False,
+                        "no-change target carries no restorable content")
+                target_digest = _content_digest(restored_content)
                 latest_digest = _content_digest(
                     _details(latest).get("content",
                                          _details(latest).get("data")))
-                verified = target_digest == latest_digest
+                mirror_digest = _content_digest(canvas.content)
+                verified = (
+                    target_digest == latest_digest == mirror_digest)
                 return OracleResult(
                     action, verified,
                     f"no-change restore target {target_id[:12]} "
-                    f"content_match={verified}")
+                    f"content_match={target_digest == latest_digest} "
+                    f"mirror_match={latest_digest == mirror_digest}")
             if write_outcome and write_outcome != "committed":
                 return OracleResult(
                     action, False,
@@ -509,13 +638,33 @@ def _canvas_write_postcondition(restore: bool):
                 return OracleResult(
                     action, False,
                     f"canvas_audit {new_audit_id[:12]} not found")
+            scope_reasons = _scope_reasons(row, canvas, check_actor=True)
+            if scope_reasons:
+                return OracleResult(
+                    action, False, "; ".join(scope_reasons))
             if str(row.action_type or "") != "update":
                 return OracleResult(
                     action, False,
                     f"canvas_audit action_type == {row.action_type!r}")
+            latest_content = _read_with_db(ctx, _latest_content)
+            if (latest_content is None
+                    or str(latest_content.id) != new_audit_id):
+                return OracleResult(
+                    action, False,
+                    "audit is not the current content revision; a later "
+                    "content audit exists")
             details = _details(row)
             observed_content = details.get("content", details.get("data"))
             if restore:
+                expected_operation = str(
+                    ctx.get("_oracle_expected_operation_id") or "")
+                if expected_operation and str(
+                        details.get("operation_id") or ""
+                ) != expected_operation:
+                    return OracleResult(
+                        action, False,
+                        "restore audit operation_id does not match the "
+                        "authorized operation")
                 expected_target = str(
                     ctx.get("_oracle_expected_restore_audit_id") or "")
                 restored_from = details.get("restored_from") or {}
@@ -536,9 +685,29 @@ def _canvas_write_postcondition(restore: bool):
                 if target is None:
                     return OracleResult(
                         action, False, "authorized target version not found")
-                expected_digest = _content_digest(
-                    _details(target).get("content",
-                                         _details(target).get("data")))
+                if str(target.action_type or "") == "delete":
+                    return OracleResult(
+                        action, False,
+                        "authorized target is a deletion marker")
+                expected_target_tenant = expected_tenant
+                if not expected_target_tenant and canvas is not None:
+                    expected_target_tenant = str(canvas.tenant_id or "")
+                if not _scope_value_allowed(
+                        target.tenant_id, expected_target_tenant):
+                    return OracleResult(
+                        action, False,
+                        f"target audit tenant={target.tenant_id!r}, expected "
+                        f"{expected_target_tenant!r}")
+                from tools.canvas_crud_tool import (
+                    canonical_restore_content,
+                )
+
+                _, restored_content = canonical_restore_content(row, target)
+                if restored_content is None:
+                    return OracleResult(
+                        action, False,
+                        "authorized target carries no restorable content")
+                expected_digest = _content_digest(restored_content)
             else:
                 expected_digest = str(
                     ctx.get("_oracle_expected_canvas_content_sha256") or "")

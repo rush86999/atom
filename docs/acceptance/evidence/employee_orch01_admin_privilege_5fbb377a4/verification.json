@@ -1,0 +1,106 @@
+{
+  "candidate": {
+    "accepted_auth_2fa_base": "95f7bcac1a0375b4f0465a77e15130f68fc9665d",
+    "branch": "codex/oracle01-admin-privilege-20261105",
+    "executed_source": "5fbb377a4e1eef8fdd0013275cd8b1c9b278cd41",
+    "runtime": "real scratch SQLite with fresh sessions; controlled interleaving/fault seams; no model/provider/browser",
+    "tree_clean_at_execution": true
+  },
+  "checks": {
+    "actor_demotion_disablement_before_claim_refused": true,
+    "audit_missing_type_actor_target_material_scope_refused": true,
+    "budget_exact_setting_cas": true,
+    "budget_non_finite_and_mode_validation": true,
+    "budget_partial_merge": true,
+    "changed_credential_replay_refutes_without_overwrite": true,
+    "confirmed_atomic_rollback_reports_effect_none": true,
+    "credential_commitment_in_private_result_digest": true,
+    "fresh_session_budget_consumer_observes_commit": true,
+    "fresh_session_permission_consumer_observes_commit": true,
+    "later_target_revision_unverified": true,
+    "lost_confirmation_effect_unknown": true,
+    "lost_confirmation_remains_effect_unknown": true,
+    "malformed_or_deleted_credential_replay_refutes": true,
+    "no_model_or_provider_calls": true,
+    "no_password_hash_token_secret_or_sql_parameter_in_receipts": true,
+    "no_schema_change_or_migration_required": true,
+    "no_second_authorization_approval_or_operation_engine": true,
+    "ordinary_response_shapes_preserved": true,
+    "post_commit_readback_failure_remains_committed_unverified": true,
+    "role_create_unique_name_db_arbiter": true,
+    "role_delete_in_use_refused": true,
+    "role_delete_vs_assignment_no_dangling_user": true,
+    "role_update_material_cas": true,
+    "same_operation_changed_material_conflict": true,
+    "same_operation_same_material_already_applied": true,
+    "stored_credential_verified_against_authorized_password": true,
+    "tombstone_delete_replay": true,
+    "user_create_role_existence_in_insert": true,
+    "user_create_unique_email_db_arbiter": true,
+    "user_delete_material_cas": true,
+    "user_update_material_cas_including_last_login": true,
+    "wrong_syntactically_valid_hash_cannot_certify": true
+  },
+  "exclusions": {
+    "intervention_default_workspace": {
+      "log": "base-pre-existing.log",
+      "reason": "fails on the accepted auth/2FA base without this repair",
+      "test": "tests/test_covpush_w104_intervention.py::TestGetPendingInterventions::test_default_workspace_no_filter"
+    },
+    "unrelated_w75b_admin": {
+      "included": false,
+      "reason": "skill/cache/health admin modules have pre-existing 401 fixture failures and are outside this seven-route slice"
+    }
+  },
+  "limits": [
+    "Exactly seven routes; remaining admin routes, login/password/SSO/passkeys and whole-app ORACLE-01 remain outside this slice",
+    "PostgreSQL runtime/soak, multi-worker serialization and live administrator/account/budget changes are not qualified",
+    "No live provider, credential, spend, send, download or deployment authority",
+    "No new approval prompt; existing super-admin/platform-admin policy is retained",
+    "Accepted canvas/auth-2FA/ORCH-01/feedback/wait/employee lanes and historical model scores remain unchanged"
+  ],
+  "results": {
+    "affected_python311": {
+      "failed": 1,
+      "failed_pre_existing_on_accepted_base": true,
+      "log": "affected-311.log",
+      "passed": 414,
+      "skipped": 3
+    },
+    "affected_python314": {
+      "failed": 1,
+      "failed_pre_existing_on_accepted_base": true,
+      "log": "affected-314.log",
+      "passed": 414,
+      "skipped": 3
+    },
+    "credential_result_state_python311": {
+      "log": "credential-matrix-311.log",
+      "passed": 11
+    },
+    "credential_result_state_python314": {
+      "log": "credential-matrix-314.log",
+      "passed": 11
+    },
+    "external_probes_python311": {
+      "log": "probes-311.log",
+      "passed": 4
+    },
+    "external_probes_python314": {
+      "log": "probes-314.log",
+      "passed": 4
+    },
+    "focused_python311": {
+      "log": "focused-311.log",
+      "passed": 204,
+      "skipped": 2
+    },
+    "focused_python314": {
+      "log": "focused-314.log",
+      "passed": 204,
+      "skipped": 2
+    }
+  },
+  "schema": "atom-oracle-admin-privilege-1",
+  "status": "seven-route admin privilege/budget verified-write slice submitted for independent verification; remaining admin routes and whole-app ORACLE-01 remain open"
+}

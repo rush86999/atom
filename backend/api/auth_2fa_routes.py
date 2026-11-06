@@ -1,16 +1,23 @@
 import logging
-import secrets
 from typing import List, Optional
+
 from fastapi import Depends, HTTPException, Request, status
 from pydantic import BaseModel
-import pyotp
 from sqlalchemy.orm import Session
 
 from core.audit_service import audit_service
 from core.auth import get_current_user
+from core.auth_2fa_write_service import (
+    disable_2fa_verified,
+    enable_2fa_verified,
+    generate_backup_codes as _generate_backup_codes,
+    setup_2fa_verified,
+    verify_action_2fa_verified,
+    verify_backup_code_verified,
+)
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
-from core.models import AuditEventType, SecurityLevel, ThreatLevel, User
+from core.models import User
 from core.security.auth_rate_limit import AuthRateLimiter
 
 logger = logging.getLogger(__name__)
@@ -33,229 +40,226 @@ def totp_rate_limit(request: Request) -> None:
         )
 
 
-def _generate_backup_codes(n: int = 5) -> list:
-    """Generate N single-use backup codes.
-
-    Format: 4 groups of 4 hex chars (XXXX-XXXX-XXXX-XXXX).
-    64 bits of entropy per code — infeasible to brute-force.
-    """
-    codes = []
-    for _ in range(n):
-        raw = secrets.token_hex(8).upper()  # 16 hex chars
-        codes.append("-".join([raw[i:i + 4] for i in range(0, 16, 4)]))
-    return codes
-
 class TwoFactorSetupResponse(BaseModel):
     secret: str
     otpauth_url: str
+    operation_id: Optional[str] = None
+    status: Optional[str] = None
+    verification: Optional[dict] = None
+
 
 class TwoFactorVerifyRequest(BaseModel):
     code: str
 
+
 class TwoFactorStatusResponse(BaseModel):
     enabled: bool
-
-@router.get("/status", response_model=TwoFactorStatusResponse)
-async def get_2fa_status(current_user: User = Depends(get_current_user)):
-    """Check if 2FA is enabled for the current user"""
-    return {"enabled": current_user.two_factor_enabled}
-
-@router.post("/setup", response_model=TwoFactorSetupResponse)
-async def setup_2fa(current_user: User = Depends(get_current_user), db: Session = Depends(get_db)):
-    """Generate a new 2FA secret and provisioning URL"""
-    if current_user.two_factor_enabled:
-        raise router.conflict_error("2FA is already enabled")
-    
-    secret = pyotp.random_base32()
-    issuer_name = "Atom AI (Upstream)"
-    otpauth_url = pyotp.totp.TOTP(secret).provisioning_uri(
-        name=current_user.email, 
-        issuer_name=issuer_name
-    )
-    
-    current_user.two_factor_secret = secret
-    db.commit()
-    
-    return {
-        "secret": secret,
-        "otpauth_url": otpauth_url
-    }
-
-@router.post("/enable")
-async def enable_2fa(
-    request: Request,
-    verify_data: TwoFactorVerifyRequest,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-    _rl=Depends(totp_rate_limit),
-):
-    """Verify code and enable 2FA
-
-    SECURITY: rate-limited to prevent TOTP brute-forcing (BUG-091).
-    """
-    if current_user.two_factor_enabled:
-        raise router.conflict_error("2FA is already enabled")
-
-    if not current_user.two_factor_secret:
-        raise router.validation_error("two_factor_secret", "2FA setup not initiated")
-    
-    totp = pyotp.TOTP(current_user.two_factor_secret)
-    if totp.verify(verify_data.code):
-        current_user.two_factor_enabled = True
-        # SECURITY: generate random per-user backup codes — never hardcode.
-        current_user.two_factor_backup_codes = _generate_backup_codes(n=5)
-        db.commit()
-        
-        audit_service.log_event(
-            db,
-            event_type=AuditEventType.UPDATE.value,
-            action="2fa_enabled",
-            description=f"2FA enabled for user: {current_user.email}",
-            user_id=current_user.id,
-            user_email=current_user.email,
-            security_level=SecurityLevel.HIGH.value,
-            request=request
-        )
-
-        return router.success_response(
-            data={"backup_codes": current_user.two_factor_backup_codes},
-            message="2FA enabled successfully"
-        )
-    else:
-        raise router.validation_error("code", "Invalid verification code")
-
-@router.post("/disable")
-async def disable_2fa(
-    request: Request,
-    verify_data: TwoFactorVerifyRequest,
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-    _rl=Depends(totp_rate_limit),
-):
-    """Disable 2FA after verifying a code
-
-    SECURITY: rate-limited to prevent TOTP brute-forcing (BUG-091).
-    """
-    if not current_user.two_factor_enabled:
-        raise router.validation_error("two_factor_enabled", "2FA is not enabled")
-    
-    totp = pyotp.TOTP(current_user.two_factor_secret)
-    if totp.verify(verify_data.code):
-        current_user.two_factor_enabled = False
-        current_user.two_factor_secret = None
-        current_user.two_factor_backup_codes = None
-        db.commit()
-        
-        audit_service.log_event(
-            db,
-            event_type=AuditEventType.UPDATE.value,
-            action="2fa_disabled",
-            description=f"2FA disabled for user: {current_user.email}",
-            user_id=current_user.id,
-            user_email=current_user.email,
-            security_level=SecurityLevel.HIGH.value,
-            request=request
-        )
-
-        return router.success_response(message="2FA disabled successfully")
-    else:
-        raise router.validation_error("code", "Invalid verification code")
 
 
 class BackupCodeRequest(BaseModel):
     code: str
 
 
+class Action2FAVerifyRequest(BaseModel):
+    code: str
+
+
+def _raise_refusal(result: dict):
+    error = str(result.get("error") or "2FA request refused")
+    http_status = int(result.get("http_status") or 422)
+    field = result.get("field")
+    if http_status == 409:
+        raise router.conflict_error(
+            error, details={"field": field} if field else None)
+    if http_status == 403:
+        raise router.permission_denied_error(
+            "2FA request", details={"reason": error})
+    if http_status == 404:
+        raise HTTPException(status_code=404, detail=error)
+    raise router.validation_error(field or "code", error)
+
+
+def _raise_unverified(result: dict):
+    raise HTTPException(
+        status_code=503,
+        detail={
+            "error": {
+                "code": (
+                    "2FA_EFFECT_UNKNOWN"
+                    if result.get("status") == "effect_unknown"
+                    else "2FA_COMMITTED_UNVERIFIED"),
+                "message": result.get("message") or (
+                    "2FA state was committed but its verification is "
+                    "unresolved. Do not repeat the effect blindly."),
+            },
+            "status": result.get("status"),
+            "verification": result.get("verification"),
+            "operation_id": result.get("operation_id"),
+            "audit_id": result.get("audit_id"),
+            "action_id": result.get("action_id"),
+            "replay": "do_not_repeat",
+        },
+    )
+
+
+def _success(result: dict, default_message: str) -> dict:
+    response = router.success_response(
+        data=result.get("data"),
+        message=result.get("message") or default_message,
+    )
+    response["verification"] = result.get("verification")
+    for key in ("operation_id", "audit_id", "action_id"):
+        if result.get(key):
+            response[key] = result[key]
+    return response
+
+
+def _handle_factor_result(
+    result: dict, default_message: str, *, auth_grant: bool = False,
+) -> dict:
+    if result.get("status") == "refused":
+        _raise_refusal(result)
+    if result.get("status") == "effect_unknown":
+        _raise_unverified(result)
+    verification = result.get("verification") or {}
+    if verification.get("status") == "refuted":
+        _raise_unverified(result)
+    if auth_grant and verification.get("status") not in (
+            "verified", "already_applied"):
+        # A mutation receipt is not an authentication grant. Only an
+        # independently verified original outcome may be acknowledged.
+        _raise_unverified(result)
+    if auth_grant and result.get("status") in (
+            "committed_unverified", "effect_unknown"):
+        _raise_unverified(result)
+    return _success(result, default_message)
+
+
+@router.get("/status", response_model=TwoFactorStatusResponse)
+async def get_2fa_status(current_user: User = Depends(get_current_user)):
+    """Check if 2FA is enabled for the current user"""
+    return {"enabled": current_user.two_factor_enabled}
+
+
+@router.post("/setup", response_model=TwoFactorSetupResponse)
+async def setup_2fa(
+    request: Request,
+    operation_id: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Generate or recover the pending 2FA secret and provisioning URL.
+
+    A retry while setup is pending returns the SAME scanned enrollment. Once
+    2FA is enabled, a replay refuses and never exposes or replaces the secret.
+    """
+    result = setup_2fa_verified(
+        user_id=str(current_user.id),
+        request=request,
+        operation_id=operation_id,
+        audit_logger=audit_service,
+    )
+    if result.get("status") == "refused":
+        _raise_refusal(result)
+    if result.get("status") == "effect_unknown":
+        _raise_unverified(result)
+    verification = result.get("verification") or {}
+    if verification.get("status") == "refuted":
+        _raise_unverified(result)
+    return {
+        "secret": result["secret"],
+        "otpauth_url": result["otpauth_url"],
+        "operation_id": result.get("operation_id"),
+        "status": result.get("status"),
+        "verification": verification,
+    }
+
+
+@router.post("/enable")
+async def enable_2fa(
+    request: Request,
+    verify_data: TwoFactorVerifyRequest,
+    operation_id: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    _rl=Depends(totp_rate_limit),
+):
+    """Verify code and enable 2FA; recovery codes are delivered once."""
+    result = enable_2fa_verified(
+        user_id=str(current_user.id),
+        code=verify_data.code,
+        request=request,
+        operation_id=operation_id,
+        audit_logger=audit_service,
+    )
+    return _handle_factor_result(
+        result, "2FA enabled successfully", auth_grant=False)
+
+
+@router.post("/disable")
+async def disable_2fa(
+    request: Request,
+    verify_data: TwoFactorVerifyRequest,
+    operation_id: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    _rl=Depends(totp_rate_limit),
+):
+    """Disable 2FA after verifying a current TOTP code."""
+    result = disable_2fa_verified(
+        user_id=str(current_user.id),
+        code=verify_data.code,
+        request=request,
+        operation_id=operation_id,
+        audit_logger=audit_service,
+    )
+    return _handle_factor_result(
+        result, "2FA disabled successfully", auth_grant=False)
+
+
 @router.post("/backup/verify")
 async def verify_backup_code(
     request: Request,
     verify_data: BackupCodeRequest,
+    operation_id: Optional[str] = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Verify and CONSUME a single-use backup code (BUG-074).
-
-    Previously backup codes were generated and returned to the user but never
-    consumed — the same code could be replayed infinitely. Now the code is
-    removed from the user's list after successful verification.
-    """
-    if not current_user.two_factor_enabled:
-        raise router.validation_error("two_factor_enabled", "2FA is not enabled")
-
-    codes = current_user.two_factor_backup_codes or []
-    if verify_data.code not in codes:
-        raise router.validation_error("code", "Invalid backup code")
-
-    # Consume: remove the used code so it can't be replayed.
-    current_user.two_factor_backup_codes = [c for c in codes if c != verify_data.code]
-    db.commit()
-
-    audit_service.log_event(
-        db,
-        event_type=AuditEventType.UPDATE.value,
-        action="2fa_backup_code_used",
-        description=f"2FA backup code used for user: {current_user.email}",
-        user_id=current_user.id,
-        user_email=current_user.email,
-        security_level=SecurityLevel.HIGH.value,
+    """Verify and conditionally consume one single-use backup code."""
+    result = verify_backup_code_verified(
+        user_id=str(current_user.id),
+        code=verify_data.code,
         request=request,
+        operation_id=operation_id,
+        audit_logger=audit_service,
     )
+    return _handle_factor_result(
+        result, "Backup code verified and consumed", auth_grant=True)
 
-    return router.success_response(
-        message="Backup code verified and consumed",
-        data={"remaining_codes": len(current_user.two_factor_backup_codes)},
-    )
-
-
-class Action2FAVerifyRequest(BaseModel):
-    code: str
 
 @router.post("/verify-action/{action_id}")
 async def verify_action_2fa(
     action_id: str,
     verify_data: Action2FAVerifyRequest,
     request: Request,
+    operation_id: Optional[str] = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
     _rl=Depends(totp_rate_limit),
 ):
-    """Verify 2FA code and resolve a high-stakes HITL action.
+    """Verify 2FA and durably approve the exact scoped HITL action.
 
-    SECURITY: rate-limited to prevent TOTP brute-forcing.
+    A pending/rejected/foreign/stale/duplicate review never releases the
+    action. A committed-but-unverified approval returns 503 with the action
+    identity; it is not a successful authentication grant.
     """
-    if not current_user.two_factor_enabled:
-        raise router.validation_error("two_factor_enabled", "2FA is not enabled for your account")
-
-    # 1. Verify TOTP Code
-    totp = pyotp.TOTP(current_user.two_factor_secret)
-    if not totp.verify(verify_data.code):
-        raise router.validation_error("code", "Invalid verification code")
-
-    # 2. Resolve Action via HITLService
-    from core.hitl_service import hitl_service
-    try:
-        result = await hitl_service.resolve_action(
-            action_id=action_id,
-            resolution="approved",
-            resolver_id=current_user.id,
-            metadata={"verified_2fa": True}
-        )
-
-        # Log to Audit
-        audit_service.log_event(
-            db,
-            event_type=AuditEventType.UPDATE.value,
-            action="hitl_action_verified_2fa",
-            description=f"HITL Action {action_id} approved via 2FA by {current_user.email}",
-            user_id=current_user.id,
-            user_email=current_user.email,
-            security_level=SecurityLevel.HIGH.value
-        )
-
-        return router.success_response(data=result, message="Action approved successfully via 2FA")
-    except Exception as e:
-        logger.error(f"Failed to verify action via 2FA: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="Failed to resolve action",
-        )
+    result = await verify_action_2fa_verified(
+        user_id=str(current_user.id),
+        action_id=str(action_id),
+        code=verify_data.code,
+        request=request,
+        operation_id=operation_id,
+        audit_logger=audit_service,
+    )
+    return _handle_factor_result(
+        result, "Action approved successfully via 2FA", auth_grant=True)

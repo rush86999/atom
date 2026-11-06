@@ -1,0 +1,67 @@
+{
+  "schema": "atom-employee-evidence-1",
+  "status": "agent update/promote verified decision family submitted for independent verification; delete/run/live execution and remaining agent surfaces remain open",
+  "branch": "codex/oracle01-agent-decision-20261105",
+  "accepted_admin_base": "9d73552d249ae8ec5b05af77546faf9621bbcd47",
+  "accepted_admin_product": "5fbb377a4e1eef8fdd0013275cd8b1c9b278cd41",
+  "product_source": "af511bef0823051accefa415a48f065b9dffc3bf",
+  "executed_source": "5bebaaba96e728d6f4d0c66652095c1375c48b42",
+  "tree_clean_at_execution": true,
+  "source_files": {
+    "backend/api/agent_routes.py": "a6fe71b62af6a8e61438b901ef4980f984eae2bc4d07945790760d39ab09e6fd",
+    "backend/core/agent_decision_write_service.py": "fb537f942bc6c4740bf45ec18c1dd5b8d0fdea1cfc26da106632647f964b4155",
+    "backend/core/models.py": "4b238c35f6f235d94779f4598040f0c9fcd39599c26705e7016e8b045b51c3ef",
+    "backend/core/auth.py": "63b747a9e335f84128fc43b846eacb8beaef3874edeac00874ee803a5e287c61",
+    "backend/core/security/rbac.py": "48a7ecdb609f7e32267212e85b1993a0045eb84aca903f0152a8a498bcbd405e",
+    "backend/core/security_dependencies.py": "bb43051cc1f3455f1d8866ed6e576462765dcde92d492eed036cca317851f9f1",
+    "backend/core/rbac_service.py": "e9720e01d41d77cb3c1516052c8f24cad754b53be2a2aac2b559cb56d6651d29",
+    "backend/core/personal_scope.py": "f07dd35cf6eedb674ec9afbb06e10776cd4039e64ad7dd0a3427b7e0df31f78f",
+    "backend/core/base_routes.py": "b3af3c52d14582a3674a30adca6d8fea10ae7f4bde8d46c7b9164eb2ef0597fb",
+    "backend/core/database.py": "fd3736e7f679b9b30e242597e25a27565d3ab93fc8c0efd3ea0b1cef76e9b16e",
+    "backend/main_api_app.py": "83f6c051d58d39c70c94617cd6eedc9ce65e6414047c1297899dc6e771321af0",
+    "backend/tests/test_agent_decision_contract.py": "2d2dbeebbd356cb18db7e7e3ca0ab9b3babf02cbd4edd1395473c1d950a56160",
+    "backend/tests/unit/api/test_agent_routes.py": "9d34605b0d96d70a350145b3f38619d5688eef9fed8f46635cf6d1d2ab79e38b",
+    "backend/tests/test_agent_routes_coverage.py": "efd48f84e9b92d939a43d12097a36efb8b7d7ccd5dd25794f9117ba79a14bdb8"
+  },
+  "artifacts": {
+    "README.md": "95778e7454377da74cd9df33cfae1ef0085778b90707da71b2f2259408beaa2a",
+    "TEST_RESULTS.md": "543e1a80b6fcd578aaf476b69e5b4867cc3e65e41527fb0f71b41bb5260cef0d",
+    "affected-311.log": "8191b0501bef8320e05f3582fabd299f9290c9ff85c287bb88cac1ea9f0d7d27",
+    "affected-314.log": "84540ca57a958aa7ed73ed34fe497974dfdc9d6389eb90c68a289d9428bf492f",
+    "baseline-311.log": "d171c5ae6be34457bad193a6bcc9955a88cd34dfc03bfd6c3799cdf0412a7e98",
+    "baseline-314.log": "1ada3abaa333f2b881acf9e9646cb6904ce67fa377b4a2c09e6c4453d1139f8d",
+    "focused-311.log": "7c61b58477341dcd6f26ffcd2614a3ed814d654167afeef81832619c63f8ec0a",
+    "focused-314.log": "68eb1421b7075c306d64b9633b7a05097ec7fa6c10261e52199ae27a525190cf",
+    "routes.json": "7244f8d94b007efea9fbcc93b8fd17938dddcfe251d096f9421b4ac9ee5e91e1",
+    "source-tree.txt": "f84f188eed442e57d64663faaf1d9fcdb3c8d86742a96100a9dcfe8f8d194ca9",
+    "verification.json": "3c61ddca731d498c8e5ad5a9840db46021fae84f09be6a89ab2db3353fc47c12"
+  },
+  "checks": {
+    "focused_python314": "34 passed",
+    "focused_python311": "34 passed",
+    "affected_python314": "429 passed, 3 skipped, 27 baseline failures",
+    "affected_python311": "411 passed, 26 baseline failures",
+    "baseline_python314": "395 passed, 3 skipped, 27 failures",
+    "baseline_python311": "377 passed, 26 failures",
+    "baseline_failure_lists_identical": true,
+    "new_passing_controls": 34,
+    "model_calls": 0,
+    "provider_calls": 0,
+    "new_schema": false
+  },
+  "baseline_exclusions": {
+    "agent_gateway_request_manager": "pre-existing test_covpush_agents gateway/request controls; identical on base",
+    "delete_route": "pre-existing delete-route control; delete is out of scope",
+    "governance_maturity_cache": "pre-existing governance maturity/cache controls; identical on base",
+    "contract_pagination": "3.14-only contract pagination control; identical on base"
+  },
+  "boundaries": [
+    "two agent decision routes only",
+    "no delete/run/teach/feedback/replace changes",
+    "no live agent execution, model, provider, credential, spend, send, download or deployment",
+    "no new table, migration or second agent/approval/authorization engine",
+    "PostgreSQL runtime/soak, multi-worker serialization and whole-app ORACLE-01 not qualified",
+    "repaired review/memory/skill branches independent and not merged",
+    "accepted admin/auth-2FA/canvas/feedback/wait/employee/ORCH-01 lanes unchanged"
+  ]
+}

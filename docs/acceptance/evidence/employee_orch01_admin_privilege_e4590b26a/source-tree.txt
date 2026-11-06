@@ -1,0 +1,11 @@
+executed_source: e4590b26a0e0cbdacbccd032f7b77104296309df
+product_source: e91e12e82cfd13d2d748b0c29e5a51454fa2e5dc
+accepted_auth_2fa_base: 95f7bcac1a0375b4f0465a77e15130f68fc9665d
+branch: codex/oracle01-admin-privilege-20261105
+git_status_short:
+?? docs/acceptance/evidence/employee_orch01_admin_privilege_e4590b26a/
+git_log:
+e4590b26a test(admin): expand the seven-route privilege and budget matrix
+64f4df26b docs(admin): submit the seven-route privilege/budget evidence
+e91e12e82 feat(admin): verify the seven privilege and tenant-budget mutations
+95f7bcac1 fix(auth): clean stale backup mirrors and guard the 2FA migration

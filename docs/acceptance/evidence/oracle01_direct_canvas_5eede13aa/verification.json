@@ -1,0 +1,335 @@
+{
+  "schema": "atom-oracle-direct-canvas-1",
+  "status": "submitted for independent verification; whole-app ORACLE-01 remains open",
+  "candidate": {
+    "branch": "codex/oracle01-http-canvas-20261105",
+    "base_source": "81c5962bd17b3ffa90cd5107d5b3134821c0ffa1",
+    "initial_slice_source": "326534847041be79f4cf078861bd6dc223be8cc4",
+    "duplicate_after_later_edit_fix": "852aaf0398e38c8b1897b4a5f1fed745d7c8ac66",
+    "executed_source": "5eede13aa7a2f765619dbd54251eaa2954d778dd",
+    "tree_clean_at_execution": true,
+    "runtime": "local authenticated FastAPI TestClient + SQLite; no browser/LLM/provider",
+    "supersedes_reason": "The initial slice source reported a duplicate operation retry after a later edit as verified against the old audit and refreshed the mirror with the old content. 852aaf039 fixes that; 5eede13aa adds the remaining outcome controls with identical production code."
+  },
+  "route_family": {
+    "prefix": "/api/canvas",
+    "mount": "backend/main_api_app.py includes api.canvas_routes.router and api.canvas_routes.ws_router",
+    "routes": [
+      {
+        "method": "PUT",
+        "path": "/api/canvas/{canvas_id}",
+        "handler": "api.canvas_routes.update_canvas_content",
+        "service": "core.canvas_write_service.update_canvas_verified",
+        "writer": "tools.canvas_crud_tool.update_canvas_content",
+        "verifier": "canvas.update",
+        "request_identity": [
+          "content",
+          "canvas_type",
+          "title",
+          "retype",
+          "operation_id",
+          "expected_prior_audit_id"
+        ],
+        "frozen_scope": [
+          "actor_id",
+          "tenant_id",
+          "workspace_id",
+          "canvas_id",
+          "operation_id"
+        ]
+      },
+      {
+        "method": "POST",
+        "path": "/api/canvas/{canvas_id}/restore",
+        "handler": "api.canvas_routes.restore_canvas_version",
+        "service": "core.canvas_write_service.restore_canvas_verified",
+        "writer": "tools.canvas_crud_tool.restore_canvas_version",
+        "verifier": "canvas.restore_version",
+        "request_identity": [
+          "audit_id"
+        ],
+        "frozen_scope": [
+          "actor_id",
+          "tenant_id",
+          "workspace_id",
+          "canvas_id",
+          "restore_audit_id"
+        ]
+      }
+    ]
+  },
+  "outcomes": {
+    "verified": {
+      "http": 200,
+      "effect": "committed",
+      "verification": "exact audit/material/mirror/scope/operation match"
+    },
+    "no_change": {
+      "http": 200,
+      "effect": "none",
+      "verification": "truthful zero effect; no audit appended"
+    },
+    "committed_unverified": {
+      "http": 200,
+      "effect": "committed or already applied",
+      "verification": "disabled, unavailable or refuted",
+      "identity_retained": true,
+      "replay": "do_not_repeat"
+    },
+    "no_change_unverified": {
+      "http": 200,
+      "effect": "none",
+      "verification": "disabled, unavailable or refuted",
+      "identity_retained": true,
+      "replay": "do_not_repeat"
+    },
+    "effect_unknown": {
+      "http": 200,
+      "effect": "unknown",
+      "verification": "unavailable",
+      "identity_retained": true,
+      "replay": "do_not_repeat"
+    },
+    "refused": {
+      "http": "400, 404 or 409",
+      "effect": "none",
+      "verification": "not_attempted",
+      "audit_appended": false
+    }
+  },
+  "checks": {
+    "exact_current_request_bound": true,
+    "durable_audit_and_mirror_readback": true,
+    "independent_verifier_session": true,
+    "actor_tenant_workspace_target_operation_frozen": true,
+    "wrong_content_same_title_length_refused": true,
+    "foreign_canvas_audit_refused": true,
+    "stale_prior_audit_refused": true,
+    "no_change_truthful_no_audit": true,
+    "duplicate_operation_no_second_audit": true,
+    "deliberate_byte_identical_edit_distinct": true,
+    "duplicate_after_later_edit_not_verified": true,
+    "committed_unverified_identity_retained": true,
+    "effect_unknown_identity_retained": true,
+    "kill_switch_cannot_fabricate_verified": true,
+    "no_new_approval_flow": true,
+    "no_cross_workspace_restore": true,
+    "no_tenant_inference_from_content": true,
+    "assignment_canvas_regression_green": true,
+    "feedback_wait_regression_green": true
+  },
+  "controls": [
+    {
+      "id": 1,
+      "name": "test_direct_put_is_verified_against_durable_material",
+      "kind": "positive",
+      "assertion": "Normal PUT returns 200, status=verified, write_outcome=committed, exact audit_id; fresh readback has +1 audit, exact content and mirror"
+    },
+    {
+      "id": 2,
+      "name": "test_direct_put_same_title_and_length_still_checks_exact_content",
+      "kind": "negative",
+      "assertion": "Same title and same-length content are not sufficient; exact content is compared"
+    },
+    {
+      "id": 3,
+      "name": "test_direct_put_duplicate_operation_is_idempotent",
+      "kind": "positive",
+      "assertion": "Same operation_id twice: second is already_applied, same audit_id, verified, no second audit"
+    },
+    {
+      "id": 4,
+      "name": "test_direct_put_byte_identical_without_operation_is_a_distinct_edit",
+      "kind": "positive",
+      "assertion": "Byte-identical edits without an operation id append two distinct audits and both verify"
+    },
+    {
+      "id": 5,
+      "name": "test_direct_restore_is_verified_and_append_only",
+      "kind": "positive",
+      "assertion": "Restore verifies, restored_from is the target, +1 audit, provenance and restored content are durable"
+    },
+    {
+      "id": 6,
+      "name": "test_direct_restore_no_change_is_truthful_and_adds_no_audit",
+      "kind": "positive",
+      "assertion": "Restoring the current version reports no_change and appends nothing"
+    },
+    {
+      "id": 7,
+      "name": "test_direct_put_duplicate_operation_after_later_edit_is_not_verified",
+      "kind": "negative",
+      "assertion": "Duplicate retry after a later edit keeps the original audit_id, reports committed_unverified/refuted, adds no audit, and leaves the later audit and mirror intact"
+    },
+    {
+      "id": 8,
+      "name": "test_direct_put_workspace_mismatch_is_committed_but_unverified",
+      "kind": "negative",
+      "assertion": "Workspace mismatch: committed effect retained, committed_unverified, refuted, replay=do_not_repeat"
+    },
+    {
+      "id": 9,
+      "name": "test_direct_put_stale_prior_audit_is_refused_without_effect",
+      "kind": "negative",
+      "assertion": "Stale expected_prior_audit_id: HTTP 409, no audit appended"
+    },
+    {
+      "id": 10,
+      "name": "test_direct_restore_foreign_canvas_is_refused_without_effect",
+      "kind": "negative",
+      "assertion": "Foreign user's canvas: HTTP 404, no audit appended"
+    },
+    {
+      "id": 11,
+      "name": "test_direct_put_oracle_unavailable_preserves_committed_identity",
+      "kind": "negative",
+      "assertion": "Oracle returns None: committed audit retained, unavailable, replay=do_not_repeat"
+    },
+    {
+      "id": 12,
+      "name": "test_direct_put_oracle_refuted_preserves_committed_identity",
+      "kind": "negative",
+      "assertion": "Forced refutation: committed audit retained, refuted, replay=do_not_repeat"
+    },
+    {
+      "id": 13,
+      "name": "test_direct_put_kill_switch_never_fabricates_verified",
+      "kind": "negative",
+      "assertion": "Kill switch: committed_unverified/disabled, never verified"
+    },
+    {
+      "id": 14,
+      "name": "test_direct_put_verifier_gets_no_request_session",
+      "kind": "negative",
+      "assertion": "Captured verifier context has no request db; actor/canvas expectations are frozen"
+    },
+    {
+      "id": 15,
+      "name": "test_direct_put_tenant_mismatch_is_committed_but_unverified",
+      "kind": "negative",
+      "assertion": "Tenant mismatch: committed audit retained, committed_unverified/refuted"
+    },
+    {
+      "id": 16,
+      "name": "test_direct_put_oracle_exception_preserves_committed_identity",
+      "kind": "negative",
+      "assertion": "Oracle exception: committed audit retained, unavailable"
+    },
+    {
+      "id": 17,
+      "name": "test_direct_restore_wrong_canvas_audit_is_refused_without_effect",
+      "kind": "negative",
+      "assertion": "Audit from another canvas: HTTP 404, no audit appended"
+    },
+    {
+      "id": 18,
+      "name": "test_direct_restore_old_identical_material_is_no_change",
+      "kind": "negative",
+      "assertion": "An old audit with identical material is a truthful no_change, not a new version"
+    },
+    {
+      "id": 19,
+      "name": "test_verifier_refuses_operation_mismatch",
+      "kind": "negative",
+      "assertion": "Verifier refutes an audit whose operation_id differs from the frozen operation"
+    },
+    {
+      "id": 20,
+      "name": "test_verifier_refuses_absent_audit",
+      "kind": "negative",
+      "assertion": "Verifier refutes a missing audit id"
+    },
+    {
+      "id": 21,
+      "name": "test_verifier_refuses_stale_mirror",
+      "kind": "negative",
+      "assertion": "Verifier refutes an accepted audit whose canvas mirror is stale"
+    },
+    {
+      "id": 22,
+      "name": "test_verifier_refuses_restore_target_mismatch",
+      "kind": "negative",
+      "assertion": "Verifier refutes a restore whose restored_from differs from the frozen target"
+    },
+    {
+      "id": 23,
+      "name": "test_direct_put_effect_unknown_keeps_identity",
+      "kind": "negative",
+      "assertion": "A storage result that may have committed reports effect_unknown/unavailable, retains audit_id/operation_id, and says replay=do_not_repeat"
+    },
+    {
+      "id": 24,
+      "name": "test_direct_restore_no_change_kill_switch_is_unverified_no_effect",
+      "kind": "negative",
+      "assertion": "A no-change restore under the kill switch reports no_change_unverified/disabled, effect none, and appends no audit"
+    }
+  ],
+  "results": {
+    "python314": {
+      "direct": {
+        "passed": 24,
+        "log": "direct-314.log"
+      },
+      "canvas_neighborhood": {
+        "passed": 207,
+        "deselected": 8,
+        "log": "canvas-neighborhood-314.log"
+      },
+      "canvas_actions": {
+        "passed": 11,
+        "deselected": 131,
+        "log": "canvas-actions-314.log"
+      },
+      "feedback_regression": {
+        "passed": 263,
+        "log": "feedback-regression-314.log"
+      }
+    },
+    "python311": {
+      "direct": {
+        "passed": 24,
+        "log": "direct-311.log"
+      },
+      "canvas_neighborhood": {
+        "passed": 181,
+        "deselected": 8,
+        "log": "canvas-neighborhood-311.log",
+        "excluded": "tests/contract/test_canvas_api_contract.py (no schemathesis)"
+      },
+      "canvas_actions": {
+        "passed": 11,
+        "deselected": 131,
+        "log": "canvas-actions-311.log"
+      },
+      "feedback_regression": {
+        "passed": 263,
+        "log": "feedback-regression-311.log"
+      }
+    }
+  },
+  "exclusions": {
+    "websocket_fixture_gap": {
+      "tests": "tests/test_covpush_canvasroutes.py::TestCanvasWebSocket",
+      "base_result": "4 failed, 4 passed",
+      "reason": "fixture mounts router but not ws_router; reproduces on base 81c5962bd",
+      "log": "base-ws-pre-existing.log"
+    },
+    "unrelated_editor_action_async": {
+      "base_result": "18 failed, 319 passed",
+      "reason": "pre-existing on base 81c5962bd; outside the claimed route family",
+      "log": "base-editor-pre-existing.log"
+    },
+    "python311_contract": {
+      "excluded": "tests/contract/test_canvas_api_contract.py",
+      "reason": "schemathesis is not installed in the 3.11 environment; 26 contract tests ran on 3.14 only"
+    }
+  },
+  "limits": [
+    "Whole-app ORACLE-01 remains open; this is a two-route family, not the hundreds of mutation routes/provider methods in the historical discovery map",
+    "821 mounted mutation-shaped routes / 693 bypass candidates are historical discovery counts, not current verified coverage",
+    "Other canvas routes (context/state, logic, WebSocket state updates), goals routes, provider writes, multi-worker/soak and PostgreSQL remain outside this slice",
+    "No new approval flow for ordinary saves; no tenant inferred from model content; no cross-workspace restore",
+    "No live model, provider, credential, spend, send, download or deployment authority was added",
+    "Accepted CAS/feedback/wait/episode evidence and closed lanes are unchanged"
+  ]
+}

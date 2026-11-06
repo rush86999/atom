@@ -1,0 +1,56 @@
+{
+  "accepted_auth_2fa_base": "95f7bcac1a0375b4f0465a77e15130f68fc9665d",
+  "artifacts": {
+    "README.md": "33ba82f0f94d94d24eb8b8cf2561e711d01d121142064bf711a3b8cff8a858fd",
+    "TEST_RESULTS.md": "406519a6a6ce418e49223c437a0e2d39434c1492228d1b6ad2b1d1f083a8f8d7",
+    "affected-311.log": "0f77c3717b726df29d4ae7692a073e7b5cf17d7f7ab065ef36eb899f2e2c53e0",
+    "affected-314.log": "3afb243c8472a07f84199155c37f5877feea6d20a9b794d76de31e510b3cc014",
+    "base-pre-existing.log": "1139d22c23867417a8e74bb1b72c5e6a203312bc608616bea6ba2f48bdebaa3e",
+    "focused-311.log": "d561be0ed0a0bd9dcb2135277da577c148bf9df4e51b1845cbf23219b4be8b08",
+    "focused-314.log": "a7da31564f22c01f0316a800c7e1d200a9cec97cd77cf153ba67ddf819ed43c8",
+    "matrix-311.log": "572675957c46c4192c4925689acf25e1100bbc759c6f009a60ceec083fd191cc",
+    "matrix-314.log": "87e61ca47355f3f11cc9860c42263581f9db47f59de1bf194b8223f908e94b3e",
+    "routes.json": "5411bcd24a4e4322503ea79a4a677ff61b02e23633fc24dd363bf67c35efe3e1",
+    "verification.json": "38ec939c566cb81f3d20bc81fcbd62e31889042738d37b07f7cb71fdf81e8de6"
+  },
+  "boundaries": [
+    "exactly seven admin privilege/budget routes; remaining admin routes open",
+    "AdminRole/AdminUser are platform-scoped; tenant budget is tenant-scoped",
+    "existing require_super_admin/get_platform_admin policy retained",
+    "AuditLog is the operation receipt and audit ledger; no new table or engine",
+    "real scratch SQLite and fresh sessions; controlled interleaving/fault seams",
+    "no live administrator/account/budget change, provider, credential, spend, send or deployment",
+    "PostgreSQL runtime/soak, multi-worker serialization and whole-app ORACLE-01 not qualified",
+    "accepted canvas/auth-2FA/ORCH-01/feedback/wait/employee lanes remain closed"
+  ],
+  "branch": "codex/oracle01-admin-privilege-20261105",
+  "checks": {
+    "affected_python311": "400 passed, 3 skipped, 1 known pre-existing failure",
+    "affected_python314": "400 passed, 3 skipped, 1 known pre-existing failure",
+    "focused_python311": "190 passed, 2 skipped",
+    "focused_python314": "190 passed, 2 skipped",
+    "matrix_python311": "33 passed",
+    "matrix_python314": "33 passed",
+    "model_calls": 0,
+    "provider_calls": 0,
+    "schema_change": false
+  },
+  "executed_source": "e91e12e82cfd13d2d748b0c29e5a51454fa2e5dc",
+  "schema": "atom-employee-evidence-1",
+  "source_files": {
+    "backend/api/admin/budget_routes.py": "ebc74a7a77fb4dcafc7e98080c70e99048fafd20d120b7ddc9020f8b2785df1c",
+    "backend/api/admin_routes.py": "5a0d59e1a28ca1780f5340e275e526c2af8e8000b19614b70219e7c26b842287",
+    "backend/core/admin_endpoints.py": "82d4e1c6b6d7ad8ffd87446893d1c0e99a3c706632dc1779dabb9cc2055122d9",
+    "backend/core/admin_write_service.py": "a1f05c53b2339e2ec12418dc9b0b5cbe6d138e455a7e954a16bf3084f290828b",
+    "backend/core/models.py": "4b238c35f6f235d94779f4598040f0c9fcd39599c26705e7016e8b045b51c3ef",
+    "backend/tests/api/test_admin_routes_coverage.py": "6e4ea2c8029446ec60bbd89e25abd48cb3d47fb9f9bbe6f8409f2cf313c96cd6",
+    "backend/tests/api/test_admin_routes_part1.py": "b6af59e7b3f0baaff1fe251a57b5e9557da86e0881a293163aa9b7e06e1fff19",
+    "backend/tests/api/test_admin_routes_user_role_crud.py": "08c9c2677bfe3f894f7480d12a930f07395d97036ca9832d3802eb33d108b2c7",
+    "backend/tests/test_admin_budget_routes.py": "edd00fc535da696f03f945361dad31b49bb9092ee949b71ac012759048f8021b",
+    "backend/tests/test_admin_write_contract.py": "87bac8a7d9c9bb776bb39e2f7139adacf9a959bb04c689fff6f288e43242d7a6",
+    "backend/tests/test_admin_write_contract_matrix.py": "eb79e93b0d2aad32f962875095b61aaf0b8b3815b3ec859ff714290a10c45877",
+    "backend/tests/test_sync_admin_routes.py": "216f5bb2a6bdcc109f3a16478fe613debcbcec4fa395d3ce301b4969dd773d85"
+  },
+  "status": "seven-route admin privilege/budget verified-write slice submitted for independent verification; remaining admin routes and whole-app ORACLE-01 remain open",
+  "tree_clean_at_execution": true
+}

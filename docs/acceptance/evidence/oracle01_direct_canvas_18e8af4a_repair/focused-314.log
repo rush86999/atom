@@ -1,0 +1,280 @@
+
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_is_verified_against_durable_material 
+-------------------------------- live log setup --------------------------------
+2026-11-05 08:32:52 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-05 08:32:52 [    INFO] EscalationManager initialized
+2026-11-05 08:32:52 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:32:52 [    INFO] EscalationManager initialized
+2026-11-05 08:32:52 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 08:32:52 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 08:32:52 [    INFO] AgentTaskRegistry initialized
+2026-11-05 08:32:52 [    INFO] MCP Service initialized
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:32:52 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-ddd2dd5a'. type='canvas:update'
+2026-11-05 08:32:52 [    INFO] Updated canvas c-e969615a9e5f (generic)
+2026-11-05 08:32:52 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-e969615a9e5f "HTTP/1.1 200 OK"
+PASSED                                                                   [  2%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_same_title_and_length_still_checks_exact_content 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:32:52 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-b037740f'. type='canvas:update'
+2026-11-05 08:32:52 [    INFO] Updated canvas c-5ca1af7030d5 (generic)
+2026-11-05 08:32:52 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-5ca1af7030d5?title=same%20title "HTTP/1.1 200 OK"
+PASSED                                                                   [  4%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_duplicate_operation_is_idempotent 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:32:53 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-cfa3a826'. type='canvas:update'
+2026-11-05 08:32:53 [    INFO] Updated canvas c-e533a24353df (generic)
+2026-11-05 08:32:53 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-e533a24353df?operation_id=op-direct-1 "HTTP/1.1 200 OK"
+2026-11-05 08:32:53 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-e533a24353df?operation_id=op-direct-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [  6%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_byte_identical_without_operation_is_a_distinct_edit 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:32:53 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-b61a16d1'. type='canvas:update'
+2026-11-05 08:32:53 [    INFO] Updated canvas c-1d741aead8d5 (generic)
+2026-11-05 08:32:53 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-1d741aead8d5 "HTTP/1.1 200 OK"
+2026-11-05 08:32:53 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-b61a16d1'. type='canvas:update'
+2026-11-05 08:32:53 [    INFO] Updated canvas c-1d741aead8d5 (generic)
+2026-11-05 08:32:53 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-1d741aead8d5 "HTTP/1.1 200 OK"
+PASSED                                                                   [  8%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_restore_is_verified_and_append_only 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:32:53 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-27e868a2'. type='canvas:update'
+2026-11-05 08:32:53 [    INFO] Restored canvas c-a87c80433790 to version aff8c39c-84ff-44d6-8dce-8ca0fc64b53e (email) — appended as a new version
+2026-11-05 08:32:53 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-a87c80433790/restore "HTTP/1.1 200 OK"
+PASSED                                                                   [ 11%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_restore_no_change_is_truthful_and_adds_no_audit 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:32:53 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-5d4d874d8384/restore "HTTP/1.1 200 OK"
+PASSED                                                                   [ 13%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_foreign_workspace_refuses_before_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:32:53 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-826776110458 "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 15%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_stale_prior_audit_is_refused_without_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:32:53 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-a4a58d99'. type='canvas:update'
+2026-11-05 08:32:53 [    INFO] Updated canvas c-7509f9e56d25 (generic)
+2026-11-05 08:32:53 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-7509f9e56d25 "HTTP/1.1 200 OK"
+2026-11-05 08:32:53 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-7509f9e56d25?expected_prior_audit_id=43de16bb-c579-46a2-a290-b1399b1c71a4 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 17%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_restore_foreign_canvas_is_refused_without_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:32:53 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-317c28790136/restore "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 20%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_oracle_unavailable_preserves_committed_identity 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:32:53 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-28581cb1'. type='canvas:update'
+2026-11-05 08:32:53 [    INFO] Updated canvas c-82149e281968 (generic)
+2026-11-05 08:32:53 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-82149e281968 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 22%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_oracle_refuted_preserves_committed_identity 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:32:53 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-4bf2d49f'. type='canvas:update'
+2026-11-05 08:32:53 [    INFO] Updated canvas c-8aabc8501ead (generic)
+2026-11-05 08:32:53 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-8aabc8501ead "HTTP/1.1 200 OK"
+PASSED                                                                   [ 24%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_kill_switch_never_fabricates_verified 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:32:53 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-e19985a6'. type='canvas:update'
+2026-11-05 08:32:53 [    INFO] Updated canvas c-ebf520e560ed (generic)
+2026-11-05 08:32:53 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-ebf520e560ed "HTTP/1.1 200 OK"
+PASSED                                                                   [ 26%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_verifier_gets_no_request_session 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:32:53 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-f1ad9480'. type='canvas:update'
+2026-11-05 08:32:53 [    INFO] Updated canvas c-8cbb19310da4 (generic)
+2026-11-05 08:32:53 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-8cbb19310da4 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 28%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_foreign_tenant_refuses_before_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:32:53 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-7ea164c69e1c "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 31%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_oracle_exception_preserves_committed_identity 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:32:53 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-2d72511b'. type='canvas:update'
+2026-11-05 08:32:53 [    INFO] Updated canvas c-207c59941575 (generic)
+2026-11-05 08:32:53 [ WARNING] direct canvas canvas.update oracle unavailable: oracle crashed
+2026-11-05 08:32:53 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-207c59941575 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 33%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_restore_wrong_canvas_audit_is_refused_without_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:32:53 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-9513cbaf0168/restore "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 35%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_restore_old_identical_material_is_no_change 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:32:53 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-634b8d92cfb4/restore "HTTP/1.1 200 OK"
+PASSED                                                                   [ 37%]
+tests/test_oracle_direct_canvas_writes.py::test_verifier_refuses_operation_mismatch PASSED [ 40%]
+tests/test_oracle_direct_canvas_writes.py::test_verifier_refuses_absent_audit PASSED [ 42%]
+tests/test_oracle_direct_canvas_writes.py::test_verifier_refuses_stale_mirror PASSED [ 44%]
+tests/test_oracle_direct_canvas_writes.py::test_verifier_refuses_restore_target_mismatch PASSED [ 46%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_duplicate_operation_after_later_edit_is_not_verified 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:32:53 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-5cc044ce'. type='canvas:update'
+2026-11-05 08:32:53 [    INFO] Updated canvas c-6d9920c5efc2 (generic)
+2026-11-05 08:32:53 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-6d9920c5efc2?operation_id=op-late-1 "HTTP/1.1 200 OK"
+2026-11-05 08:32:53 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-5cc044ce'. type='canvas:update'
+2026-11-05 08:32:53 [    INFO] Updated canvas c-6d9920c5efc2 (generic)
+2026-11-05 08:32:53 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-6d9920c5efc2 "HTTP/1.1 200 OK"
+2026-11-05 08:32:53 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-6d9920c5efc2?operation_id=op-late-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 48%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_effect_unknown_keeps_identity 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:32:53 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-d6f79b4fb555?operation_id=op-unknown-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 51%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_restore_no_change_kill_switch_is_unverified_no_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:32:53 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-614c8fad9329/restore "HTTP/1.1 200 OK"
+PASSED                                                                   [ 53%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_restore_foreign_workspace_refuses_before_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:32:53 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-7eb31c34eae4/restore "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 55%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_restore_foreign_tenant_refuses_before_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:32:53 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-fec63cc2ebe4/restore "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 57%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_restore_no_change_stale_mirror_is_not_verified 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:32:53 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-57dff368c74c/restore "HTTP/1.1 200 OK"
+PASSED                                                                   [ 60%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_old_identical_audit_is_not_verified 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:32:53 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-e0b1b543b0e1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 62%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_manual_save_gets_server_operation_identity 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:32:53 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-d048f98a'. type='canvas:update'
+2026-11-05 08:32:53 [    INFO] Updated canvas c-9e93e1ea95d8 (generic)
+2026-11-05 08:32:53 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-9e93e1ea95d8 "HTTP/1.1 200 OK"
+2026-11-05 08:32:53 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-d048f98a'. type='canvas:update'
+2026-11-05 08:32:53 [    INFO] Updated canvas c-9e93e1ea95d8 (generic)
+2026-11-05 08:32:53 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-9e93e1ea95d8 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 64%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_operation_id_different_material_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:32:53 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-814bd871'. type='canvas:update'
+2026-11-05 08:32:53 [    INFO] Updated canvas c-5ae35c6e2e48 (generic)
+2026-11-05 08:32:53 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-5ae35c6e2e48?operation_id=op-bound-1 "HTTP/1.1 200 OK"
+2026-11-05 08:32:53 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-5ae35c6e2e48?operation_id=op-bound-1 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 66%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_restore_gets_server_operation_identity 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:32:53 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-33314907'. type='canvas:update'
+2026-11-05 08:32:53 [    INFO] Restored canvas c-08f82dbcb7bc to version 32ed2aad-2f78-4b4d-b68d-55fc9d5f91df (generic) — appended as a new version
+2026-11-05 08:32:53 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-08f82dbcb7bc/restore "HTTP/1.1 200 OK"
+PASSED                                                                   [ 68%]
+tests/test_oracle_direct_canvas_writes.py::test_writer_rechecks_scope_after_service_preflight 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:32:53 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-0c283ab61834 "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 71%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_post_commit_stale_mirror_is_committed_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:32:53 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-b7e713ac'. type='canvas:update'
+2026-11-05 08:32:53 [    INFO] Updated canvas c-138c27d609d9 (generic)
+2026-11-05 08:32:53 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-138c27d609d9 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 73%]
+tests/test_oracle_direct_canvas_writes.py::test_same_scope_coeditor_can_save_without_creator_ownership 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:32:53 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-77233380'. type='canvas:update'
+2026-11-05 08:32:53 [    INFO] Updated canvas c-ca626f03c877 (generic)
+2026-11-05 08:32:53 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-ca626f03c877 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 75%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_commits_across_real_sessions 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:32:54 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-multisession'. type='canvas:update'
+2026-11-05 08:32:54 [    INFO] Updated canvas c-multisession (generic)
+2026-11-05 08:32:54 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-multisession "HTTP/1.1 200 OK"
+PASSED                                                                   [ 77%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_restore_foreign_target_tenant_refuses_before_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:32:54 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-70094588c85d/restore "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 80%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_null_workspace_cannot_edit_scoped_canvas 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:32:54 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-3fc0e70a31a6 "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 82%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_workspace_principal_can_edit_legacy_unscoped_canvas 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:32:54 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-3565e889'. type='canvas:update'
+2026-11-05 08:32:54 [    INFO] Updated canvas c-0625e0f3831a (generic)
+2026-11-05 08:32:54 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-0625e0f3831a "HTTP/1.1 200 OK"
+PASSED                                                                   [ 84%]
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_post_commit_scope_change_is_committed_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:32:54 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-667d6f79'. type='canvas:update'
+2026-11-05 08:32:54 [    INFO] Updated canvas c-f4f4cf52c699 (generic)
+2026-11-05 08:32:54 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-f4f4cf52c699 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 86%]
+tests/test_verifier_canvas_scope_5eede.py::test_out_of_scope_canvas_refuses_before_mutation[put-workspace] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:32:55 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-59c3bb2d49ec "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 88%]
+tests/test_verifier_canvas_scope_5eede.py::test_out_of_scope_canvas_refuses_before_mutation[put-tenant] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:32:56 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-befd2d648041 "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 91%]
+tests/test_verifier_canvas_scope_5eede.py::test_out_of_scope_canvas_refuses_before_mutation[restore-workspace] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:32:57 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-5970be5d226f/restore "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 93%]
+tests/test_verifier_canvas_scope_5eede.py::test_out_of_scope_canvas_refuses_before_mutation[restore-tenant] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:32:58 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-cfde46c2e9fe/restore "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 95%]
+tests/test_verifier_canvas_scope_5eede.py::test_no_change_restore_does_not_verify_a_stale_mirror 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:32:59 [    INFO] HTTP Request: POST http://testserver/api/canvas/c-e99ace077de6/restore "HTTP/1.1 200 OK"
+PASSED                                                                   [ 97%]
+tests/test_verifier_canvas_scope_5eede.py::test_manual_save_cannot_be_verified_by_old_identical_audit 
+-------------------------------- live log call ---------------------------------
+2026-11-05 08:32:59 [    INFO] HTTP Request: PUT http://testserver/api/canvas/c-cad909df43d6 "HTTP/1.1 200 OK"
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 90 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_oracle_direct_canvas_writes.py::test_direct_put_is_verified_against_durable_material
+  /private/tmp/atom-oracle01-18e-314/backend/core/graphrag_engine.py:203: SyntaxWarning: "\%" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\%"? A raw string is also an option.
+    Escaped pattern where % and _ are escaped to \%
+
+tests/test_oracle_direct_canvas_writes.py: 38 warnings
+  /private/tmp/atom-oracle01-18e-314/backend/tests/conftest.py:507: SAWarning: Cannot correctly sort tables; there are unresolvable cycles between tables "agent_divisions, agent_registry, canvases, mini_apps", which is usually caused by mutually dependent foreign key constraints.  Foreign key constraints involving these tables will not be considered; this warning may raise an error in a future release.
+    for table in reversed(_all_models_base.metadata.sorted_tables):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+====================== 45 passed, 136 warnings in 18.45s =======================

@@ -1,0 +1,973 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-05 18:33:21 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+
+tests/test_evolution_review_tool_mutations.py::test_team_lead_approve_pending_verifies_and_audits 
+-------------------------------- live log setup --------------------------------
+2026-11-05 18:33:21 [    INFO] EscalationManager initialized
+2026-11-05 18:33:21 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:33:21 [    INFO] EscalationManager initialized
+2026-11-05 18:33:21 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:33:21 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 18:33:21 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:33:22 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-pending/approve?operation_id=approve-one "HTTP/1.1 200 OK"
+PASSED                                                                   [  0%]
+tests/test_evolution_review_tool_mutations.py::test_reject_allowed_prior_states[m-pending-pending] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:33:23 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-pending/reject?operation_id=reject-m-pending "HTTP/1.1 200 OK"
+PASSED                                                                   [  1%]
+tests/test_evolution_review_tool_mutations.py::test_reject_allowed_prior_states[m-passed-passed] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:33:24 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-passed/reject?operation_id=reject-m-passed "HTTP/1.1 200 OK"
+PASSED                                                                   [  2%]
+tests/test_evolution_review_tool_mutations.py::test_reject_allowed_prior_states[m-failed-failed] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:33:25 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-failed/reject?operation_id=reject-m-failed "HTTP/1.1 200 OK"
+PASSED                                                                   [  3%]
+tests/test_evolution_review_tool_mutations.py::test_approve_passed_allowed_but_failed_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:33:25 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-passed/approve?operation_id=approve-passed "HTTP/1.1 200 OK"
+2026-11-05 18:33:25 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-failed/approve?operation_id=approve-failed "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  4%]
+tests/test_evolution_review_tool_mutations.py::test_non_review_roles_cannot_decide[member-1] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:33:26 [ WARNING] Access denied: user member-1 has role member (level 3), required team_lead (level 4)
+2026-11-05 18:33:26 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-pending/approve?operation_id=role-denied "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [  5%]
+tests/test_evolution_review_tool_mutations.py::test_non_review_roles_cannot_decide[viewer-1] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:33:27 [ WARNING] Access denied: user viewer-1 has role viewer (level 2), required team_lead (level 4)
+2026-11-05 18:33:27 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-pending/approve?operation_id=role-denied "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [  6%]
+tests/test_evolution_review_tool_mutations.py::test_non_review_roles_cannot_decide[guest-1] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:33:28 [ WARNING] Access denied: user guest-1 has role guest (level 1), required team_lead (level 4)
+2026-11-05 18:33:28 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-pending/approve?operation_id=role-denied "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [  7%]
+tests/test_evolution_review_tool_mutations.py::test_admin_can_decide 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:33:28 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-pending/approve?operation_id=admin-approve "HTTP/1.1 200 OK"
+PASSED                                                                   [  8%]
+tests/test_evolution_review_tool_mutations.py::test_anonymous_cannot_decide 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:33:29 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-pending/approve?operation_id=anonymous "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [  9%]
+tests/test_evolution_review_tool_mutations.py::test_missing_and_foreign_target_are_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:33:30 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/does-not-exist/approve?operation_id=missing-target "HTTP/1.1 404 Not Found"
+2026-11-05 18:33:30 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-foreign/approve?operation_id=foreign-target "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 10%]
+tests/test_evolution_review_tool_mutations.py::test_foreign_tenant_actor_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:33:31 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-pending/approve?operation_id=foreign-actor "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 11%]
+tests/test_evolution_review_tool_mutations.py::test_competing_decision_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:33:32 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-pending/approve?operation_id=winner "HTTP/1.1 200 OK"
+2026-11-05 18:33:32 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-pending/reject?operation_id=loser "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 12%]
+tests/test_evolution_review_tool_mutations.py::test_same_operation_replay_is_idempotent 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:33:32 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-pending/approve?operation_id=replay-one "HTTP/1.1 200 OK"
+2026-11-05 18:33:32 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-pending/approve?operation_id=replay-one "HTTP/1.1 200 OK"
+2026-11-05 18:33:32 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-pending/reject?operation_id=replay-one "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 13%]
+tests/test_evolution_review_tool_mutations.py::test_replay_after_material_reset_is_committed_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:33:33 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-pending/approve?operation_id=reset-replay "HTTP/1.1 200 OK"
+2026-11-05 18:33:33 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-pending/approve?operation_id=reset-replay "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 14%]
+tests/test_evolution_review_tool_mutations.py::test_stale_material_before_claim_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:33:34 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-pending/approve?operation_id=stale-material "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 15%]
+tests/test_evolution_review_tool_mutations.py::test_authority_changed_before_claim_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:33:34 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-pending/approve?operation_id=demoted "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 16%]
+tests/test_evolution_review_tool_mutations.py::test_sandbox_never_overwrites_a_review_decision[approved] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:33:35 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-pending/approve?operation_id=sandbox-approved "HTTP/1.1 200 OK"
+PASSED                                                                   [ 17%]
+tests/test_evolution_review_tool_mutations.py::test_sandbox_never_overwrites_a_review_decision[rejected] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:33:36 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-failed/reject?operation_id=sandbox-rejected "HTTP/1.1 200 OK"
+PASSED                                                                   [ 18%]
+tests/test_evolution_review_tool_mutations.py::test_sandbox_guard_does_not_record_a_racing_review 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:33:37 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-race/approve?operation_id=race-review "HTTP/1.1 200 OK"
+PASSED                                                                   [ 19%]
+tests/test_evolution_review_tool_mutations.py::test_sandbox_pending_and_failed_writes_are_guarded PASSED [ 20%]
+tests/test_evolution_review_tool_mutations.py::test_confirmed_audit_rollback_reports_effect_none 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:33:38 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-pending/approve?operation_id=rollback "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 21%]
+tests/test_evolution_review_tool_mutations.py::test_post_commit_readback_failure_is_committed_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:33:39 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-pending/approve?operation_id=readback "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 22%]
+tests/test_evolution_review_tool_mutations.py::test_lost_confirmation_is_effect_unknown_with_identity 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:33:40 [   ERROR] tool-mutation decision outcome unknown: operation_id=autodev:tool-mutation:lost-confirmation target=m-pending error_class=RuntimeError
+PASSED                                                                   [ 23%]
+tests/test_evolution_review_tool_mutations.py::test_wrong_audit_receipt_is_never_verified[action] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:33:40 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-audit-action/approve?operation_id=audit-action "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 24%]
+tests/test_evolution_review_tool_mutations.py::test_wrong_audit_receipt_is_never_verified[user_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:33:41 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-audit-user_id/approve?operation_id=audit-user_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 25%]
+tests/test_evolution_review_tool_mutations.py::test_wrong_audit_receipt_is_never_verified[tenant_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:33:42 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-audit-tenant_id/approve?operation_id=audit-tenant_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 25%]
+tests/test_evolution_review_tool_mutations.py::test_wrong_audit_receipt_is_never_verified[workspace_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:33:43 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-audit-workspace_id/approve?operation_id=audit-workspace_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 26%]
+tests/test_evolution_review_tool_mutations.py::test_wrong_audit_receipt_is_never_verified[success] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:33:43 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-audit-success/approve?operation_id=audit-success "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 27%]
+tests/test_evolution_review_tool_mutations.py::test_wrong_audit_receipt_is_never_verified[security_level] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:33:44 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-audit-security_level/approve?operation_id=audit-security_level "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 28%]
+tests/test_evolution_review_tool_mutations.py::test_wrong_audit_receipt_is_never_verified[resource] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:33:45 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-audit-resource/approve?operation_id=audit-resource "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 29%]
+tests/test_evolution_review_tool_mutations.py::test_wrong_audit_receipt_is_never_verified[metadata_decision] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:33:46 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-audit-metadata_decision/approve?operation_id=audit-metadata_decision "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 30%]
+tests/test_evolution_review_tool_mutations.py::test_wrong_audit_receipt_is_never_verified[metadata_prior_status] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:33:47 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-audit-metadata_prior_status/approve?operation_id=audit-metadata_prior_status "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 31%]
+tests/test_evolution_review_tool_mutations.py::test_wrong_audit_receipt_is_never_verified[metadata_target_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:33:48 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-audit-metadata_target_id/approve?operation_id=audit-metadata_target_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 32%]
+tests/test_evolution_review_tool_mutations.py::test_wrong_audit_receipt_is_never_verified[metadata_actor_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:33:49 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-audit-metadata_actor_id/approve?operation_id=audit-metadata_actor_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 33%]
+tests/test_evolution_review_tool_mutations.py::test_wrong_audit_receipt_is_never_verified[metadata_code_digest] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:33:49 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-audit-metadata_code_digest/approve?operation_id=audit-metadata_code_digest "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 34%]
+tests/test_evolution_review_tool_mutations.py::test_wrong_audit_receipt_is_never_verified[metadata_material_digest] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:33:50 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-audit-metadata_material_digest/approve?operation_id=audit-metadata_material_digest "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 35%]
+tests/test_evolution_review_tool_mutations.py::test_wrong_audit_receipt_is_never_verified[metadata_result_digest] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:33:51 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-audit-metadata_result_digest/approve?operation_id=audit-metadata_result_digest "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 36%]
+tests/test_evolution_review_tool_mutations.py::test_decision_receipt_omits_code_and_execution_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:33:52 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/m-secret/reject?operation_id=secret-reject "HTTP/1.1 200 OK"
+PASSED                                                                   [ 37%]
+tests/test_evolution_sandbox_parallel_contract.py::test_pending_twin_executes_once_and_passes PASSED [ 38%]
+tests/test_evolution_sandbox_parallel_contract.py::test_failed_twin_executes_once_and_passes PASSED [ 39%]
+tests/test_evolution_sandbox_parallel_contract.py::test_changed_lineage_during_worker_is_skipped PASSED [ 40%]
+tests/test_evolution_sandbox_parallel_contract.py::test_unchanged_null_lineage_twin_passes PASSED [ 41%]
+tests/test_evolution_sandbox_parallel_contract.py::test_changed_code_during_worker_is_skipped PASSED [ 42%]
+tests/test_evolution_sandbox_parallel_contract.py::test_changed_prior_error_during_worker_is_skipped PASSED [ 43%]
+tests/test_evolution_sandbox_parallel_contract.py::test_stale_session_reloads_review_before_dispatch[approved] PASSED [ 44%]
+tests/test_evolution_sandbox_parallel_contract.py::test_stale_session_reloads_review_before_dispatch[rejected] PASSED [ 45%]
+tests/test_evolution_sandbox_parallel_contract.py::test_reviewer_during_worker_wins_result_cas[approved] PASSED [ 46%]
+tests/test_evolution_sandbox_parallel_contract.py::test_reviewer_during_worker_wins_result_cas[rejected] PASSED [ 47%]
+tests/test_evolution_sandbox_parallel_contract.py::test_missing_or_foreign_target_does_not_dispatch 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:34:00 [   ERROR] Mutation missing not found or unauthorized for tenant tenant-1
+2026-11-05 18:34:00 [   ERROR] Mutation m-foreign not found or unauthorized for tenant tenant-1
+PASSED                                                                   [ 48%]
+tests/test_autodev_review_routes.py::test_list_candidates_unifies_skills_and_mutations 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:34:01 [    INFO] HTTP Request: GET http://testserver/api/autodev/candidates "HTTP/1.1 200 OK"
+PASSED                                                                   [ 49%]
+tests/test_autodev_review_routes.py::test_approve_skill_marks_validated_and_commits 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:34:02 [    INFO] HTTP Request: POST http://testserver/api/autodev/skills/cand-1/approve "HTTP/1.1 200 OK"
+PASSED                                                                   [ 50%]
+tests/test_autodev_review_routes.py::test_reject_mutation_marks_rejected 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:34:03 [    INFO] HTTP Request: POST http://testserver/api/autodev/mutations/mut-1/reject?operation_id=route-reject "HTTP/1.1 200 OK"
+PASSED                                                                   [ 50%]
+tests/test_autodev_review_routes.py::test_approve_missing_candidate_404 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:34:04 [    INFO] HTTP Request: POST http://testserver/api/autodev/skills/nope/approve "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 51%]
+tests/test_autodev_review_routes.py::test_tool_errors_aggregate_by_signature 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:34:04 [    INFO] HTTP Request: GET http://testserver/api/autodev/tool-errors?agent_id=agent-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 52%]
+tests/test_covpush_w100_gaps_f.py::TestSandboxExecuteMutationGap::test_mutation_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:34:04 [   ERROR] Mutation m1 not found or unauthorized for tenant t1
+PASSED                                                                   [ 53%]
+tests/test_covpush_w100_gaps_f.py::TestSandboxExecuteMutationGap::test_sandbox_unavailable PASSED [ 54%]
+tests/test_covpush_w100_gaps_f.py::TestSandboxExecuteMutationGap::test_failed_execution_records_syntax_error_signal PASSED [ 55%]
+tests/test_reviewed_improvement_apply.py::test_pending_candidate_cannot_be_applied 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:34:05 [    INFO] EscalationManager initialized
+2026-11-05 18:34:05 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:05 [    INFO] EscalationManager initialized
+2026-11-05 18:34:05 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 56%]
+tests/test_reviewed_improvement_apply.py::test_validation_alone_changes_nothing PASSED [ 57%]
+tests/test_reviewed_improvement_apply.py::test_apply_writes_typed_skill_and_ordinary_work_consumes_it 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:34:05 [    INFO] EscalationManager initialized
+2026-11-05 18:34:05 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:05 [    INFO] EscalationManager initialized
+2026-11-05 18:34:05 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:05 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:34:05 [    INFO] Parsed skill 'repair_outlook_search' (type: prompt_only, packages: 0)
+2026-11-05 18:34:05 [    INFO] Scanning skill 'repair_outlook_search' (SHA: b7f3a76c...)
+2026-11-05 18:34:05 [    INFO] LLM scan completed for 'repair_outlook_search'
+2026-11-05 18:34:05 [    INFO] Security scan result: UNKNOWN
+2026-11-05 18:34:05 [ WARNING] Skill 'repair_outlook_search' marked as Untrusted (risk: UNKNOWN)
+2026-11-05 18:34:05 [    INFO] Imported skill 'repair_outlook_search' (id: bb7bc524-a10e-4a40-a158-e62ba4cb6966, status: Untrusted)
+2026-11-05 18:34:05 [    INFO] Promoted skill 'repair_outlook_search' from Untrusted to Active
+2026-11-05 18:34:05 [    INFO] EscalationManager initialized
+2026-11-05 18:34:05 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:05 [    INFO] EscalationManager initialized
+2026-11-05 18:34:05 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:05 [    INFO] Listed 1 skills (status=Active, type=None)
+2026-11-05 18:34:05 [    INFO] EscalationManager initialized
+2026-11-05 18:34:05 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:05 [    INFO] EscalationManager initialized
+2026-11-05 18:34:05 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:05 [    INFO] Listed 1 skills (status=Active, type=None)
+PASSED                                                                   [ 58%]
+tests/test_reviewed_improvement_apply.py::test_duplicate_apply_is_idempotent 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:34:05 [    INFO] EscalationManager initialized
+2026-11-05 18:34:05 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:05 [    INFO] EscalationManager initialized
+2026-11-05 18:34:05 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:05 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:34:05 [    INFO] Parsed skill 'repair_outlook_search' (type: prompt_only, packages: 0)
+2026-11-05 18:34:05 [    INFO] Scanning skill 'repair_outlook_search' (SHA: b7f3a76c...)
+2026-11-05 18:34:05 [    INFO] LLM scan completed for 'repair_outlook_search'
+2026-11-05 18:34:05 [    INFO] Security scan result: UNKNOWN
+2026-11-05 18:34:05 [ WARNING] Skill 'repair_outlook_search' marked as Untrusted (risk: UNKNOWN)
+2026-11-05 18:34:05 [    INFO] Imported skill 'repair_outlook_search' (id: afca5338-723e-4028-a6ab-9af1c89f84e6, status: Untrusted)
+2026-11-05 18:34:05 [    INFO] Promoted skill 'repair_outlook_search' from Untrusted to Active
+2026-11-05 18:34:06 [    INFO] EscalationManager initialized
+2026-11-05 18:34:06 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:06 [    INFO] EscalationManager initialized
+2026-11-05 18:34:06 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 59%]
+tests/test_reviewed_improvement_apply.py::test_route_requires_reviewer_authority 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:34:06 [ WARNING] Access denied: user viewer-user has role viewer (level 2), required team_lead (level 4)
+2026-11-05 18:34:06 [    INFO] HTTP Request: POST http://testserver/api/autodev/skills/cand-viewer_candidate/apply "HTTP/1.1 403 Forbidden"
+2026-11-05 18:34:06 [    INFO] EscalationManager initialized
+2026-11-05 18:34:06 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:06 [    INFO] EscalationManager initialized
+2026-11-05 18:34:06 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:06 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:34:06 [    INFO] Parsed skill 'admin_candidate' (type: prompt_only, packages: 0)
+2026-11-05 18:34:06 [    INFO] Scanning skill 'admin_candidate' (SHA: 02acab77...)
+2026-11-05 18:34:06 [    INFO] LLM scan completed for 'admin_candidate'
+2026-11-05 18:34:06 [    INFO] Security scan result: UNKNOWN
+2026-11-05 18:34:06 [ WARNING] Skill 'admin_candidate' marked as Untrusted (risk: UNKNOWN)
+2026-11-05 18:34:06 [    INFO] Imported skill 'admin_candidate' (id: 0061ef6a-a68b-49b0-a6d2-e63e90fdb540, status: Untrusted)
+2026-11-05 18:34:06 [    INFO] Promoted skill 'admin_candidate' from Untrusted to Active
+2026-11-05 18:34:06 [    INFO] HTTP Request: POST http://testserver/api/autodev/skills/cand-admin_candidate/apply "HTTP/1.1 200 OK"
+PASSED                                                                   [ 60%]
+tests/test_reviewed_improvement_boundaries.py::test_viewer_cannot_validate_candidate 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:34:06 [ WARNING] Access denied: user reviewer has role viewer (level 2), required team_lead (level 4)
+2026-11-05 18:34:06 [    INFO] HTTP Request: POST http://testserver/api/autodev/skills/cand-repair_outlook_search/approve "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 61%]
+tests/test_reviewed_improvement_boundaries.py::test_moved_employee_does_not_redirect_apply 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:34:06 [    INFO] HTTP Request: POST http://testserver/api/autodev/skills/cand-repair_outlook_search/apply "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 62%]
+tests/test_reviewed_improvement_boundaries.py::test_failed_apply_leaves_no_active_registry_entry 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:34:06 [    INFO] EscalationManager initialized
+2026-11-05 18:34:06 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:06 [    INFO] EscalationManager initialized
+2026-11-05 18:34:06 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:06 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:34:06 [    INFO] Parsed skill 'repair_outlook_search' (type: prompt_only, packages: 0)
+2026-11-05 18:34:06 [    INFO] Scanning skill 'repair_outlook_search' (SHA: b7f3a76c...)
+2026-11-05 18:34:06 [    INFO] LLM scan completed for 'repair_outlook_search'
+2026-11-05 18:34:06 [    INFO] Security scan result: UNKNOWN
+2026-11-05 18:34:06 [ WARNING] Skill 'repair_outlook_search' marked as Untrusted (risk: UNKNOWN)
+2026-11-05 18:34:06 [    INFO] Imported skill 'repair_outlook_search' (id: 94d341f3-b10a-4c37-9d23-95a171cffe9e, status: Untrusted)
+2026-11-05 18:34:06 [    INFO] Promoted skill 'repair_outlook_search' from Untrusted to Active
+PASSED                                                                   [ 63%]
+tests/test_reviewed_improvement_boundaries.py::test_stale_second_session_apply_is_idempotent 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:34:07 [    INFO] EscalationManager initialized
+2026-11-05 18:34:07 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:07 [    INFO] EscalationManager initialized
+2026-11-05 18:34:07 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:07 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:34:07 [    INFO] Parsed skill 'repair_outlook_search' (type: prompt_only, packages: 0)
+2026-11-05 18:34:07 [    INFO] Scanning skill 'repair_outlook_search' (SHA: b7f3a76c...)
+2026-11-05 18:34:07 [    INFO] LLM scan completed for 'repair_outlook_search'
+2026-11-05 18:34:07 [    INFO] Security scan result: UNKNOWN
+2026-11-05 18:34:07 [ WARNING] Skill 'repair_outlook_search' marked as Untrusted (risk: UNKNOWN)
+2026-11-05 18:34:07 [    INFO] Imported skill 'repair_outlook_search' (id: d3f260c7-53c5-4852-bf56-91dec864d360, status: Untrusted)
+2026-11-05 18:34:07 [    INFO] Promoted skill 'repair_outlook_search' from Untrusted to Active
+2026-11-05 18:34:07 [    INFO] EscalationManager initialized
+2026-11-05 18:34:07 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:07 [    INFO] EscalationManager initialized
+2026-11-05 18:34:07 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 64%]
+tests/test_reviewed_improvement_boundaries.py::test_changed_material_requires_fresh_review 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:34:07 [    INFO] HTTP Request: POST http://testserver/api/autodev/skills/cand-repair_outlook_search/approve "HTTP/1.1 200 OK"
+2026-11-05 18:34:07 [    INFO] EscalationManager initialized
+2026-11-05 18:34:07 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:07 [    INFO] EscalationManager initialized
+2026-11-05 18:34:07 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 65%]
+tests/test_reviewed_improvement_boundaries.py::test_new_review_between_validation_and_claim_is_preserved 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:34:07 [    INFO] EscalationManager initialized
+2026-11-05 18:34:07 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:07 [    INFO] EscalationManager initialized
+2026-11-05 18:34:07 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 66%]
+tests/test_reviewed_improvement_boundaries.py::test_identical_material_rereview_invalidates_older_claim 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:34:08 [    INFO] EscalationManager initialized
+2026-11-05 18:34:08 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:08 [    INFO] EscalationManager initialized
+2026-11-05 18:34:08 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 67%]
+tests/test_reviewed_improvement_boundaries.py::test_rejection_between_validation_and_claim_wins 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:34:08 [    INFO] EscalationManager initialized
+2026-11-05 18:34:08 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:08 [    INFO] EscalationManager initialized
+2026-11-05 18:34:08 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 68%]
+tests/test_reviewed_improvement_boundaries.py::test_employee_move_between_validation_and_claim_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:34:08 [    INFO] EscalationManager initialized
+2026-11-05 18:34:08 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:08 [    INFO] EscalationManager initialized
+2026-11-05 18:34:08 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 69%]
+tests/test_reviewed_improvement_boundaries.py::test_two_applies_same_review_produce_one_skill 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:34:08 [    INFO] EscalationManager initialized
+2026-11-05 18:34:08 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:08 [    INFO] EscalationManager initialized
+2026-11-05 18:34:08 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:08 [    INFO] EscalationManager initialized
+2026-11-05 18:34:08 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:08 [    INFO] EscalationManager initialized
+2026-11-05 18:34:08 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:08 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:34:08 [    INFO] Parsed skill 'repair_outlook_search' (type: prompt_only, packages: 0)
+2026-11-05 18:34:08 [    INFO] Scanning skill 'repair_outlook_search' (SHA: b7f3a76c...)
+2026-11-05 18:34:08 [    INFO] LLM scan completed for 'repair_outlook_search'
+2026-11-05 18:34:08 [    INFO] Security scan result: UNKNOWN
+2026-11-05 18:34:08 [ WARNING] Skill 'repair_outlook_search' marked as Untrusted (risk: UNKNOWN)
+2026-11-05 18:34:08 [    INFO] Imported skill 'repair_outlook_search' (id: 765aabdb-01ae-429f-8684-4656399977cf, status: Untrusted)
+2026-11-05 18:34:08 [    INFO] Promoted skill 'repair_outlook_search' from Untrusted to Active
+PASSED                                                                   [ 70%]
+tests/test_reviewed_improvement_boundaries.py::test_failed_apply_retry_reuses_package_and_stays_inert 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:34:09 [    INFO] EscalationManager initialized
+2026-11-05 18:34:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:09 [    INFO] EscalationManager initialized
+2026-11-05 18:34:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:09 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:34:09 [    INFO] Parsed skill 'repair_outlook_search' (type: prompt_only, packages: 0)
+2026-11-05 18:34:09 [    INFO] Scanning skill 'repair_outlook_search' (SHA: b7f3a76c...)
+2026-11-05 18:34:09 [    INFO] LLM scan completed for 'repair_outlook_search'
+2026-11-05 18:34:09 [    INFO] Security scan result: UNKNOWN
+2026-11-05 18:34:09 [ WARNING] Skill 'repair_outlook_search' marked as Untrusted (risk: UNKNOWN)
+2026-11-05 18:34:09 [    INFO] Imported skill 'repair_outlook_search' (id: cc9e11b9-8de5-4624-9bdd-27cb7dea0504, status: Untrusted)
+2026-11-05 18:34:09 [    INFO] Promoted skill 'repair_outlook_search' from Untrusted to Active
+2026-11-05 18:34:09 [    INFO] EscalationManager initialized
+2026-11-05 18:34:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:09 [    INFO] EscalationManager initialized
+2026-11-05 18:34:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:09 [    INFO] Listed 0 skills (status=Active, type=None)
+2026-11-05 18:34:09 [    INFO] EscalationManager initialized
+2026-11-05 18:34:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:09 [    INFO] EscalationManager initialized
+2026-11-05 18:34:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:09 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:34:09 [    INFO] Parsed skill 'repair_outlook_search' (type: prompt_only, packages: 0)
+2026-11-05 18:34:09 [    INFO] Scanning skill 'repair_outlook_search' (SHA: b7f3a76c...)
+2026-11-05 18:34:09 [    INFO] LLM scan completed for 'repair_outlook_search'
+2026-11-05 18:34:09 [    INFO] Security scan result: UNKNOWN
+2026-11-05 18:34:09 [ WARNING] Skill 'repair_outlook_search' marked as Untrusted (risk: UNKNOWN)
+2026-11-05 18:34:09 [    INFO] Imported skill 'repair_outlook_search' (id: 55161a68-29d7-4c15-8b86-31e78d9011ca, status: Untrusted)
+2026-11-05 18:34:09 [    INFO] Promoted skill 'repair_outlook_search' from Untrusted to Active
+2026-11-05 18:34:09 [    INFO] EscalationManager initialized
+2026-11-05 18:34:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:09 [    INFO] EscalationManager initialized
+2026-11-05 18:34:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:09 [    INFO] Listed 1 skills (status=Active, type=None)
+PASSED                                                                   [ 71%]
+tests/test_reviewed_skill_agent_consumption.py::test_promoted_skill_reaches_the_real_agent_prompt 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:34:09 [    INFO] EscalationManager initialized
+2026-11-05 18:34:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:09 [    INFO] EscalationManager initialized
+2026-11-05 18:34:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:09 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:34:09 [    INFO] Parsed skill 'repair_outlook_search' (type: prompt_only, packages: 0)
+2026-11-05 18:34:09 [    INFO] Scanning skill 'repair_outlook_search' (SHA: b7f3a76c...)
+2026-11-05 18:34:09 [    INFO] LLM scan completed for 'repair_outlook_search'
+2026-11-05 18:34:09 [    INFO] Security scan result: UNKNOWN
+2026-11-05 18:34:09 [ WARNING] Skill 'repair_outlook_search' marked as Untrusted (risk: UNKNOWN)
+2026-11-05 18:34:09 [    INFO] Imported skill 'repair_outlook_search' (id: dbef9741-a339-4eb4-9288-08651520236d, status: Untrusted)
+2026-11-05 18:34:09 [    INFO] Promoted skill 'repair_outlook_search' from Untrusted to Active
+2026-11-05 18:34:09 [    INFO] MCP Service initialized
+2026-11-05 18:34:09 [    INFO] EscalationManager initialized
+2026-11-05 18:34:09 [    INFO] CognitiveTierService initialized for workspace: ws-review
+2026-11-05 18:34:09 [    INFO] Creating isolated LanceDBHandler for workspace: ws-review at ./data/atom_memory/ws-review
+2026-11-05 18:34:09 [    INFO] EscalationManager initialized
+2026-11-05 18:34:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:09 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 18:34:09 [    INFO] LanceDBHandler initialized. ID: 5658057872. LANCEDB_AVAILABLE: True
+2026-11-05 18:34:09 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-05 18:34:09 [    INFO] EscalationManager initialized
+2026-11-05 18:34:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:09 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 18:34:09 [    INFO] EscalationManager initialized
+2026-11-05 18:34:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:09 [    INFO] EscalationManager initialized
+2026-11-05 18:34:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:09 [    INFO] Listed 1 skills (status=Active, type=None)
+PASSED                                                                   [ 72%]
+tests/test_reviewed_skill_agent_consumption.py::test_promoted_skill_is_consumed_after_a_new_session 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:34:09 [    INFO] EscalationManager initialized
+2026-11-05 18:34:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:09 [    INFO] EscalationManager initialized
+2026-11-05 18:34:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:09 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:34:09 [    INFO] Parsed skill 'repair_outlook_search' (type: prompt_only, packages: 0)
+2026-11-05 18:34:09 [    INFO] Scanning skill 'repair_outlook_search' (SHA: b7f3a76c...)
+2026-11-05 18:34:09 [    INFO] LLM scan completed for 'repair_outlook_search'
+2026-11-05 18:34:09 [    INFO] Security scan result: UNKNOWN
+2026-11-05 18:34:09 [ WARNING] Skill 'repair_outlook_search' marked as Untrusted (risk: UNKNOWN)
+2026-11-05 18:34:09 [    INFO] Imported skill 'repair_outlook_search' (id: b686c86e-57d0-4ef5-abe3-d088e0911d53, status: Untrusted)
+2026-11-05 18:34:09 [    INFO] Promoted skill 'repair_outlook_search' from Untrusted to Active
+2026-11-05 18:34:09 [    INFO] EscalationManager initialized
+2026-11-05 18:34:09 [    INFO] CognitiveTierService initialized for workspace: ws-review
+2026-11-05 18:34:09 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-05 18:34:09 [    INFO] EscalationManager initialized
+2026-11-05 18:34:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:09 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 18:34:09 [    INFO] EscalationManager initialized
+2026-11-05 18:34:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:09 [    INFO] EscalationManager initialized
+2026-11-05 18:34:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:09 [    INFO] Listed 1 skills (status=Active, type=None)
+PASSED                                                                   [ 73%]
+tests/test_reviewed_skill_agent_consumption.py::test_promoted_skill_does_not_leak_to_another_workspace 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:34:09 [    INFO] EscalationManager initialized
+2026-11-05 18:34:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:09 [    INFO] EscalationManager initialized
+2026-11-05 18:34:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:09 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:34:09 [    INFO] Parsed skill 'repair_outlook_search' (type: prompt_only, packages: 0)
+2026-11-05 18:34:09 [    INFO] Scanning skill 'repair_outlook_search' (SHA: b7f3a76c...)
+2026-11-05 18:34:09 [    INFO] LLM scan completed for 'repair_outlook_search'
+2026-11-05 18:34:09 [    INFO] Security scan result: UNKNOWN
+2026-11-05 18:34:09 [ WARNING] Skill 'repair_outlook_search' marked as Untrusted (risk: UNKNOWN)
+2026-11-05 18:34:09 [    INFO] Imported skill 'repair_outlook_search' (id: e0da950b-6475-4e5e-b60c-7bede678c5bb, status: Untrusted)
+2026-11-05 18:34:09 [    INFO] Promoted skill 'repair_outlook_search' from Untrusted to Active
+2026-11-05 18:34:09 [    INFO] EscalationManager initialized
+2026-11-05 18:34:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:09 [    INFO] EscalationManager initialized
+2026-11-05 18:34:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:09 [    INFO] Listed 1 skills (status=Active, type=None)
+2026-11-05 18:34:09 [    INFO] EscalationManager initialized
+2026-11-05 18:34:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:09 [    INFO] EscalationManager initialized
+2026-11-05 18:34:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:09 [    INFO] Listed 1 skills (status=Active, type=None)
+PASSED                                                                   [ 74%]
+tests/test_reviewed_skill_agent_consumption.py::test_meta_agent_consumes_the_promoted_skill 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:34:10 [    INFO] EscalationManager initialized
+2026-11-05 18:34:10 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:10 [    INFO] EscalationManager initialized
+2026-11-05 18:34:10 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:10 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:34:10 [    INFO] Parsed skill 'repair_outlook_search' (type: prompt_only, packages: 0)
+2026-11-05 18:34:10 [    INFO] Scanning skill 'repair_outlook_search' (SHA: b7f3a76c...)
+2026-11-05 18:34:10 [    INFO] LLM scan completed for 'repair_outlook_search'
+2026-11-05 18:34:10 [    INFO] Security scan result: UNKNOWN
+2026-11-05 18:34:10 [ WARNING] Skill 'repair_outlook_search' marked as Untrusted (risk: UNKNOWN)
+2026-11-05 18:34:10 [    INFO] Imported skill 'repair_outlook_search' (id: 93df6457-3850-4146-92b4-e80342039634, status: Untrusted)
+2026-11-05 18:34:10 [    INFO] Promoted skill 'repair_outlook_search' from Untrusted to Active
+2026-11-05 18:34:10 [    INFO] EscalationManager initialized
+2026-11-05 18:34:10 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:10 [    INFO] EscalationManager initialized
+2026-11-05 18:34:10 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:10 [    INFO] Listed 1 skills (status=Active, type=None)
+PASSED                                                                   [ 75%]
+tests/test_reviewed_skill_agent_consumption.py::test_react_step_final_model_request_contains_the_reviewed_skill 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:34:10 [    INFO] EscalationManager initialized
+2026-11-05 18:34:10 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:10 [    INFO] EscalationManager initialized
+2026-11-05 18:34:10 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:10 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:34:10 [    INFO] Parsed skill 'repair_outlook_search' (type: prompt_only, packages: 0)
+2026-11-05 18:34:10 [    INFO] Scanning skill 'repair_outlook_search' (SHA: b7f3a76c...)
+2026-11-05 18:34:10 [    INFO] LLM scan completed for 'repair_outlook_search'
+2026-11-05 18:34:10 [    INFO] Security scan result: UNKNOWN
+2026-11-05 18:34:10 [ WARNING] Skill 'repair_outlook_search' marked as Untrusted (risk: UNKNOWN)
+2026-11-05 18:34:10 [    INFO] Imported skill 'repair_outlook_search' (id: f10aca92-fb8b-4f34-897b-827f79c93315, status: Untrusted)
+2026-11-05 18:34:10 [    INFO] Promoted skill 'repair_outlook_search' from Untrusted to Active
+2026-11-05 18:34:10 [    INFO] EscalationManager initialized
+2026-11-05 18:34:10 [    INFO] CognitiveTierService initialized for workspace: ws-review
+2026-11-05 18:34:10 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-05 18:34:10 [    INFO] EscalationManager initialized
+2026-11-05 18:34:10 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:10 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 18:34:10 [    INFO] Initializing tool registry...
+2026-11-05 18:34:10 [    INFO] Discovering tools from modules: ['tools.dataset_tool', 'tools.device_tool', 'tools.canvas_crud_tool', 'tools.productivity_tool', 'tools.drive_tool', 'tools.data_analysis_tool', 'tools.agent_radio_tool', 'tools.media_tool', 'tools.canvas_docs_tool', 'tools.creative_tool', 'tools.memory_tool', 'tools.canvas_orchestration_tool', 'tools.platform_management_tool', 'tools.canvas_sheets_tool', 'tools.browser_tool', 'tools.canvas_terminal_tool', 'tools.canvas_email_tool', 'tools.pdf_canvas_tool', 'tools.email_attachment_tool', 'tools.agent_guidance_canvas_tool', 'tools.calendar_tool', 'tools.canvas_coding_tool', 'tools.mini_app_tool', 'tools.canvas_tool', 'tools.smarthome_tool', 'tools.email_ingest_tool', 'tools.office_tool']
+2026-11-05 18:34:10 [    INFO] Registered tool: find_datasets v1.0.0 (dataset)
+2026-11-05 18:34:10 [    INFO] Registered tool: load_registered_dataset v1.0.0 (dataset)
+2026-11-05 18:34:10 [    INFO] Device WebSocket module loaded - real device communication enabled
+2026-11-05 18:34:10 [    INFO] Registered tool: device_camera_snap v1.0.0 (device)
+2026-11-05 18:34:10 [    INFO] Registered tool: device_execute_command v1.0.0 (device)
+2026-11-05 18:34:10 [    INFO] Registered tool: device_get_location v1.0.0 (device)
+2026-11-05 18:34:10 [    INFO] Registered tool: device_screen_record_start v1.0.0 (device)
+2026-11-05 18:34:10 [    INFO] Registered tool: device_screen_record_stop v1.0.0 (device)
+2026-11-05 18:34:10 [    INFO] Registered tool: device_send_notification v1.0.0 (device)
+2026-11-05 18:34:10 [    INFO] Registered tool: execute_device_command v1.0.0 (device)
+2026-11-05 18:34:10 [    INFO] Registered tool: get_device_info v1.0.0 (device)
+2026-11-05 18:34:10 [    INFO] Registered tool: list_devices v1.0.0 (device)
+2026-11-05 18:34:10 [    INFO] Registered tool: send_device_command v1.0.0 (device)
+2026-11-05 18:34:10 [    INFO] Registered tool: delete_canvas v1.0.0 (canvas_crud)
+2026-11-05 18:34:10 [    INFO] Registered tool: list_canvas_versions v1.0.0 (canvas_crud)
+2026-11-05 18:34:10 [    INFO] Registered tool: list_canvases v1.0.0 (canvas_crud)
+2026-11-05 18:34:10 [    INFO] Registered tool: read_canvas v1.0.0 (canvas_crud)
+2026-11-05 18:34:10 [    INFO] Registered tool: restore_canvas_version v1.0.0 (canvas_crud)
+2026-11-05 18:34:10 [    INFO] Registered tool: restore_deleted_canvas v1.0.0 (canvas_crud)
+2026-11-05 18:34:10 [    INFO] Registered tool: update_canvas_content v1.0.0 (canvas_crud)
+2026-11-05 18:34:10 [    INFO] Registered tool: integration_ingest_item v1.0.0 (drive)
+2026-11-05 18:34:10 [    INFO] Registered tool: integration_search_index v1.0.0 (drive)
+2026-11-05 18:34:10 [    INFO] Registered tool: analyze_data v1.0.0 (data_analysis)
+2026-11-05 18:34:10 [    INFO] Registered tool: describe_data v1.0.0 (data_analysis)
+2026-11-05 18:34:10 [    INFO] Registered tool: list_datasets v1.0.0 (data_analysis)
+2026-11-05 18:34:10 [    INFO] Registered tool: load_dataset v1.0.0 (data_analysis)
+2026-11-05 18:34:10 [    INFO] Registered tool: query_data v1.0.0 (data_analysis)
+2026-11-05 18:34:10 [    INFO] Registered tool: radio_create_thread v1.0.0 (agent_radio)
+2026-11-05 18:34:10 [    INFO] Registered tool: radio_read_inbox v1.0.0 (agent_radio)
+2026-11-05 18:34:10 [    INFO] Registered tool: radio_send_message v1.0.0 (agent_radio)
+2026-11-05 18:34:10 [    INFO] Registered tool: radio_wait_for_mention v1.0.0 (agent_radio)
+2026-11-05 18:34:10 [ WARNING] SoCo library not installed - Sonos functions will fail
+2026-11-05 18:34:10 [    INFO] Registered tool: spotify_current v1.0.0 (media)
+2026-11-05 18:34:10 [    INFO] Registered tool: spotify_play v1.0.0 (media)
+2026-11-05 18:34:10 [    INFO] Registered tool: spotify_pause v1.0.0 (media)
+2026-11-05 18:34:10 [    INFO] Registered tool: spotify_next v1.0.0 (media)
+2026-11-05 18:34:10 [    INFO] Registered tool: spotify_previous v1.0.0 (media)
+2026-11-05 18:34:10 [    INFO] Registered tool: spotify_volume v1.0.0 (media)
+2026-11-05 18:34:10 [    INFO] Registered tool: spotify_devices v1.0.0 (media)
+2026-11-05 18:34:10 [    INFO] Registered tool: sonos_discover v1.0.0 (media)
+2026-11-05 18:34:10 [    INFO] Registered tool: sonos_play v1.0.0 (media)
+2026-11-05 18:34:10 [    INFO] Registered tool: sonos_pause v1.0.0 (media)
+2026-11-05 18:34:10 [    INFO] Registered tool: sonos_volume v1.0.0 (media)
+2026-11-05 18:34:10 [    INFO] Registered tool: sonos_groups v1.0.0 (media)
+2026-11-05 18:34:10 [    INFO] Media control tools registered with tool registry
+2026-11-05 18:34:10 [    INFO] Registered tool: present_docs_canvas v1.0.0 (canvas_docs)
+2026-11-05 18:34:10 [    INFO] Registered tool: present_specialized_canvas v1.0.0 (canvas_docs)
+2026-11-05 18:34:10 [    INFO] Registered tool: update_docs_canvas v1.0.0 (canvas_docs)
+2026-11-05 18:34:10 [ WARNING] ffmpeg-python not installed. Run: pip install ffmpeg-python
+2026-11-05 18:34:10 [   ERROR] Failed to initialize FFmpegService
+2026-11-05 18:34:10 [   ERROR] Failed to register FFmpeg tool
+2026-11-05 18:34:10 [    INFO] Registered tool: memory_forget v1.0.0 (memory)
+2026-11-05 18:34:10 [    INFO] Registered tool: memory_remember v1.0.0 (memory)
+2026-11-05 18:34:10 [    INFO] Registered tool: present_orchestration_canvas v1.0.0 (canvas_orchestration)
+2026-11-05 18:34:10 [    INFO] Registered tool: add_member_to_team v1.0.0 (platform_management)
+2026-11-05 18:34:10 [    INFO] Registered tool: add_member_to_workspace v1.0.0 (platform_management)
+2026-11-05 18:34:10 [    INFO] Registered tool: create_team v1.0.0 (platform_management)
+2026-11-05 18:34:10 [    INFO] Registered tool: create_tenant v1.0.0 (platform_management)
+2026-11-05 18:34:10 [    INFO] Registered tool: create_workspace v1.0.0 (platform_management)
+2026-11-05 18:34:10 [    INFO] Registered tool: delete_team v1.0.0 (platform_management)
+2026-11-05 18:34:10 [    INFO] Registered tool: delete_tenant v1.0.0 (platform_management)
+2026-11-05 18:34:10 [    INFO] Registered tool: delete_workspace v1.0.0 (platform_management)
+2026-11-05 18:34:10 [    INFO] Registered tool: get_platform_settings v1.0.0 (platform_management)
+2026-11-05 18:34:10 [    INFO] Registered tool: list_tenant_members v1.0.0 (platform_management)
+2026-11-05 18:34:10 [    INFO] Registered tool: manage_team v1.0.0 (platform_management)
+2026-11-05 18:34:10 [    INFO] Registered tool: manage_tenant_member v1.0.0 (platform_management)
+2026-11-05 18:34:10 [    INFO] Registered tool: manage_workspace v1.0.0 (platform_management)
+2026-11-05 18:34:10 [    INFO] Registered tool: remove_member_from_team v1.0.0 (platform_management)
+2026-11-05 18:34:10 [    INFO] Registered tool: remove_member_from_workspace v1.0.0 (platform_management)
+2026-11-05 18:34:10 [    INFO] Registered tool: set_byok_api_key v1.0.0 (platform_management)
+2026-11-05 18:34:10 [    INFO] Registered tool: update_platform_setting v1.0.0 (platform_management)
+2026-11-05 18:34:10 [    INFO] Registered tool: update_team v1.0.0 (platform_management)
+2026-11-05 18:34:10 [    INFO] Registered tool: update_tenant v1.0.0 (platform_management)
+2026-11-05 18:34:10 [    INFO] Registered tool: update_tenant_profile v1.0.0 (platform_management)
+2026-11-05 18:34:10 [    INFO] Registered tool: update_workspace v1.0.0 (platform_management)
+2026-11-05 18:34:10 [    INFO] Registered tool: present_sheets_canvas v1.0.0 (canvas_sheets)
+2026-11-05 18:34:10 [    INFO] Registered tool: attach_tiebreak v1.0.0 (browser)
+2026-11-05 18:34:10 [    INFO] Registered tool: browser_click v1.0.0 (browser)
+2026-11-05 18:34:10 [    INFO] Registered tool: browser_close_session v1.0.0 (browser)
+2026-11-05 18:34:10 [    INFO] Registered tool: browser_create_session v1.0.0 (browser)
+2026-11-05 18:34:10 [    INFO] Registered tool: browser_execute_script v1.0.0 (browser)
+2026-11-05 18:34:10 [    INFO] Registered tool: browser_extract_text v1.0.0 (browser)
+2026-11-05 18:34:10 [    INFO] Registered tool: browser_fill_form v1.0.0 (browser)
+2026-11-05 18:34:10 [    INFO] Registered tool: browser_get_page_info v1.0.0 (browser)
+2026-11-05 18:34:10 [    INFO] Registered tool: browser_navigate v1.0.0 (browser)
+2026-11-05 18:34:10 [    INFO] Registered tool: browser_screenshot v1.0.0 (browser)
+2026-11-05 18:34:10 [    INFO] Registered tool: present_terminal_canvas v1.0.0 (canvas_terminal)
+2026-11-05 18:34:10 [    INFO] Registered tool: present_email_canvas v1.0.0 (canvas_email)
+2026-11-05 18:34:10 [    INFO] Registered tool: pdf_canvas_annotate v1.0.0 (pdf_canvas)
+2026-11-05 18:34:10 [    INFO] Registered tool: pdf_canvas_apply_page_ops v1.0.0 (pdf_canvas)
+2026-11-05 18:34:10 [    INFO] Registered tool: pdf_canvas_approve v1.0.0 (pdf_canvas)
+2026-11-05 18:34:10 [    INFO] Registered tool: pdf_canvas_archive_to_onedrive v1.0.0 (pdf_canvas)
+2026-11-05 18:34:10 [    INFO] Registered tool: pdf_canvas_attach_to_email v1.0.0 (pdf_canvas)
+2026-11-05 18:34:10 [    INFO] Registered tool: pdf_canvas_flatten v1.0.0 (pdf_canvas)
+2026-11-05 18:34:10 [    INFO] Registered tool: pdf_canvas_generate_from_data v1.0.0 (pdf_canvas)
+2026-11-05 18:34:10 [    INFO] Registered tool: pdf_canvas_get_form_fields v1.0.0 (pdf_canvas)
+2026-11-05 18:34:10 [    INFO] Registered tool: pdf_canvas_get_state v1.0.0 (pdf_canvas)
+2026-11-05 18:34:10 [    INFO] Registered tool: pdf_canvas_list_versions v1.0.0 (pdf_canvas)
+2026-11-05 18:34:10 [    INFO] Registered tool: pdf_canvas_merge_canvas v1.0.0 (pdf_canvas)
+2026-11-05 18:34:10 [    INFO] Registered tool: pdf_canvas_read_text v1.0.0 (pdf_canvas)
+2026-11-05 18:34:10 [    INFO] Registered tool: pdf_canvas_redact v1.0.0 (pdf_canvas)
+2026-11-05 18:34:10 [    INFO] Registered tool: pdf_canvas_send_to_docusign v1.0.0 (pdf_canvas)
+2026-11-05 18:34:10 [    INFO] Registered tool: pdf_canvas_set_form_fields v1.0.0 (pdf_canvas)
+2026-11-05 18:34:10 [    INFO] Registered tool: pdf_canvas_stamp_signature v1.0.0 (pdf_canvas)
+2026-11-05 18:34:10 [    INFO] Registered tool: pdf_canvas_submit_for_review v1.0.0 (pdf_canvas)
+2026-11-05 18:34:10 [    INFO] Registered tool: email_attachment_attach v1.0.0 (email_attachment)
+2026-11-05 18:34:10 [    INFO] Registered tool: email_attachment_get_text v1.0.0 (email_attachment)
+2026-11-05 18:34:10 [    INFO] Registered tool: email_attachment_ingest v1.0.0 (email_attachment)
+2026-11-05 18:34:10 [    INFO] Registered tool: email_attachment_list v1.0.0 (email_attachment)
+2026-11-05 18:34:10 [    INFO] Registered tool: email_attachment_remove v1.0.0 (email_attachment)
+2026-11-05 18:34:10 [    INFO] Registered tool: email_attachment_stage_file v1.0.0 (email_attachment)
+2026-11-05 18:34:10 [    INFO] Registered tool: present_coding_canvas v1.0.0 (canvas_coding)
+2026-11-05 18:34:10 [    INFO] Registered tool: mini_app_db_query v1.0.0 (mini_app)
+2026-11-05 18:34:10 [    INFO] Registered tool: mini_app_db_write v1.0.0 (mini_app)
+2026-11-05 18:34:10 [    INFO] Registered tool: mini_app_dev_run v1.0.0 (mini_app)
+2026-11-05 18:34:10 [    INFO] Registered tool: mini_app_get_state v1.0.0 (mini_app)
+2026-11-05 18:34:10 [    INFO] Registered tool: mini_app_install v1.0.0 (mini_app)
+2026-11-05 18:34:10 [    INFO] Registered tool: mini_app_list v1.0.0 (mini_app)
+2026-11-05 18:34:10 [    INFO] Registered tool: mini_app_logic_history v1.0.0 (mini_app)
+2026-11-05 18:34:10 [    INFO] Registered tool: mini_app_publish v1.0.0 (mini_app)
+2026-11-05 18:34:10 [    INFO] Registered tool: mini_app_revert_logic v1.0.0 (mini_app)
+2026-11-05 18:34:10 [    INFO] Registered tool: mini_app_run v1.0.0 (mini_app)
+2026-11-05 18:34:10 [    INFO] Registered tool: mini_app_run_tests v1.0.0 (mini_app)
+2026-11-05 18:34:10 [    INFO] Registered tool: mini_app_scaffold v1.0.0 (mini_app)
+2026-11-05 18:34:10 [    INFO] Registered tool: mini_app_set_tests v1.0.0 (mini_app)
+2026-11-05 18:34:10 [    INFO] Registered tool: mini_app_status v1.0.0 (mini_app)
+2026-11-05 18:34:10 [    INFO] Registered tool: mini_app_write_logic v1.0.0 (mini_app)
+2026-11-05 18:34:10 [    INFO] Registered tool: canvas_execute_javascript v1.0.0 (canvas)
+2026-11-05 18:34:10 [    INFO] Registered tool: close_canvas v1.0.0 (canvas)
+2026-11-05 18:34:10 [    INFO] Registered tool: present_chart v1.0.0 (canvas)
+2026-11-05 18:34:10 [    INFO] Registered tool: present_form v1.0.0 (canvas)
+2026-11-05 18:34:10 [    INFO] Registered tool: present_markdown v1.0.0 (canvas)
+2026-11-05 18:34:10 [    INFO] Registered tool: present_status_panel v1.0.0 (canvas)
+2026-11-05 18:34:10 [    INFO] Registered tool: present_to_canvas v1.0.0 (canvas)
+2026-11-05 18:34:10 [    INFO] Registered tool: update_canvas v1.0.0 (canvas)
+2026-11-05 18:34:10 [ WARNING] python-hue-v2 library not available
+2026-11-05 18:34:10 [ WARNING] Hue integration will fail - install with: pip install python-hue-v2
+2026-11-05 18:34:10 [    INFO] Registered tool: hue_discover_bridges v1.0.0 (smarthome)
+2026-11-05 18:34:10 [    INFO] Registered tool: hue_get_lights v1.0.0 (smarthome)
+2026-11-05 18:34:10 [    INFO] Registered tool: hue_set_light_state v1.0.0 (smarthome)
+2026-11-05 18:34:10 [    INFO] Registered tool: home_assistant_get_states v1.0.0 (smarthome)
+2026-11-05 18:34:10 [    INFO] Registered tool: home_assistant_call_service v1.0.0 (smarthome)
+2026-11-05 18:34:10 [    INFO] Registered tool: home_assistant_get_lights v1.0.0 (smarthome)
+2026-11-05 18:34:10 [    INFO] Smart home tools registered with ToolRegistry
+2026-11-05 18:34:10 [    INFO] Registered tool: email_ingest_message v1.0.0 (email_ingest)
+2026-11-05 18:34:10 [    INFO] Registered tool: add_excel_pivot_table v1.0.0 (office)
+2026-11-05 18:34:10 [    INFO] Registered tool: get_excel_formula_result v1.0.0 (office)
+2026-11-05 18:34:10 [    INFO] Registered tool: insert_excel_columns v1.0.0 (office)
+2026-11-05 18:34:10 [    INFO] Registered tool: insert_excel_rows v1.0.0 (office)
+2026-11-05 18:34:10 [    INFO] Registered tool: modify_pptx_slides v1.0.0 (office)
+2026-11-05 18:34:10 [    INFO] Registered tool: modify_word_document v1.0.0 (office)
+2026-11-05 18:34:10 [    INFO] Registered tool: present_coedit_canvas v1.0.0 (office)
+2026-11-05 18:34:10 [    INFO] Registered tool: read_excel_cell v1.0.0 (office)
+2026-11-05 18:34:10 [    INFO] Registered tool: read_pptx_slides v1.0.0 (office)
+2026-11-05 18:34:10 [    INFO] Registered tool: read_word_document v1.0.0 (office)
+2026-11-05 18:34:10 [    INFO] Registered tool: recalculate_excel v1.0.0 (office)
+2026-11-05 18:34:10 [    INFO] Registered tool: run_excel_macro v1.0.0 (office)
+2026-11-05 18:34:10 [    INFO] Registered tool: write_excel_cell v1.0.0 (office)
+2026-11-05 18:34:10 [    INFO] Tool discovery complete. Discovered 131 new tools. Total tools: 149
+2026-11-05 18:34:10 [ WARNING] Tool 'present_chart' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: present_chart v1.2.0 (canvas)
+2026-11-05 18:34:10 [ WARNING] Tool 'present_markdown' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: present_markdown v1.2.0 (canvas)
+2026-11-05 18:34:10 [ WARNING] Tool 'present_form' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: present_form v1.2.0 (canvas)
+2026-11-05 18:34:10 [ WARNING] Tool 'update_canvas' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: update_canvas v1.0.0 (canvas)
+2026-11-05 18:34:10 [ WARNING] Tool 'read_canvas' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: read_canvas v1.0.0 (canvas)
+2026-11-05 18:34:10 [ WARNING] Tool 'update_canvas_content' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: update_canvas_content v1.0.0 (canvas)
+2026-11-05 18:34:10 [ WARNING] Tool 'delete_canvas' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: delete_canvas v1.0.0 (canvas)
+2026-11-05 18:34:10 [ WARNING] Tool 'list_canvases' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: list_canvases v1.0.0 (canvas)
+2026-11-05 18:34:10 [ WARNING] Tool 'browser_create_session' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: browser_create_session v1.0.0 (browser)
+2026-11-05 18:34:10 [ WARNING] Tool 'browser_navigate' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: browser_navigate v1.0.0 (browser)
+2026-11-05 18:34:10 [ WARNING] Tool 'browser_screenshot' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: browser_screenshot v1.0.0 (browser)
+2026-11-05 18:34:10 [ WARNING] Tool 'browser_fill_form' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: browser_fill_form v1.0.0 (browser)
+2026-11-05 18:34:10 [ WARNING] Tool 'browser_click' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: browser_click v1.0.0 (browser)
+2026-11-05 18:34:10 [ WARNING] Tool 'browser_extract_text' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: browser_extract_text v1.0.0 (browser)
+2026-11-05 18:34:10 [ WARNING] Tool 'browser_execute_script' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: browser_execute_script v1.0.0 (browser)
+2026-11-05 18:34:10 [ WARNING] Tool 'browser_close_session' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: browser_close_session v1.0.0 (browser)
+2026-11-05 18:34:10 [ WARNING] Tool 'browser_get_page_info' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: browser_get_page_info v1.0.0 (browser)
+2026-11-05 18:34:10 [    INFO] Registered tool: operator_start_task v1.0.0 (browser)
+2026-11-05 18:34:10 [    INFO] Registered tool: operator_get_status v1.0.0 (browser)
+2026-11-05 18:34:10 [    INFO] Registered tool: operator_get_screenshot v1.0.0 (browser)
+2026-11-05 18:34:10 [    INFO] Registered tool: operator_stop_task v1.0.0 (browser)
+2026-11-05 18:34:10 [ WARNING] Tool 'device_camera_snap' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: device_camera_snap v1.0.0 (device)
+2026-11-05 18:34:10 [ WARNING] Tool 'device_screen_record_start' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: device_screen_record_start v1.0.0 (device)
+2026-11-05 18:34:10 [ WARNING] Tool 'device_screen_record_stop' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: device_screen_record_stop v1.0.0 (device)
+2026-11-05 18:34:10 [ WARNING] Tool 'device_get_location' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: device_get_location v1.0.0 (device)
+2026-11-05 18:34:10 [ WARNING] Tool 'device_send_notification' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: device_send_notification v1.0.0 (device)
+2026-11-05 18:34:10 [ WARNING] Tool 'device_execute_command' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: device_execute_command v1.0.0 (device)
+2026-11-05 18:34:10 [   ERROR] No Google Calendar credentials provided
+2026-11-05 18:34:10 [    INFO] CalendarTool initialized
+2026-11-05 18:34:10 [    INFO] Registered tool: calendar_tool v1.0.0 (productivity)
+2026-11-05 18:34:10 [    INFO] CalendarTool registered with ToolRegistry
+2026-11-05 18:34:10 [    INFO] NotionTool initialized
+2026-11-05 18:34:10 [    INFO] Registered tool: notion_tool v1.0.0 (productivity)
+2026-11-05 18:34:10 [    INFO] NotionTool registered with ToolRegistry
+2026-11-05 18:34:10 [ WARNING] Tool 'memory_remember' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: memory_remember v1.0.0 (memory)
+2026-11-05 18:34:10 [ WARNING] Tool 'memory_forget' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: memory_forget v1.0.0 (memory)
+2026-11-05 18:34:10 [    INFO] memory_remember + memory_forget registered with ToolRegistry
+2026-11-05 18:34:10 [ WARNING] Tool 'integration_search_index' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: integration_search_index v1.0.0 (integrations)
+2026-11-05 18:34:10 [ WARNING] Tool 'integration_ingest_item' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: integration_ingest_item v1.0.0 (integrations)
+2026-11-05 18:34:10 [ WARNING] Tool 'load_dataset' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: load_dataset v1.0.0 (data)
+2026-11-05 18:34:10 [ WARNING] Tool 'analyze_data' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: analyze_data v1.0.0 (data)
+2026-11-05 18:34:10 [ WARNING] Tool 'query_data' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: query_data v1.0.0 (data)
+2026-11-05 18:34:10 [ WARNING] Tool 'describe_data' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: describe_data v1.0.0 (data)
+2026-11-05 18:34:10 [ WARNING] Tool 'list_datasets' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: list_datasets v1.0.0 (data)
+2026-11-05 18:34:10 [    INFO] Data analysis tools registered with ToolRegistry
+2026-11-05 18:34:10 [ WARNING] Tool 'find_datasets' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: find_datasets v1.0.0 (data)
+2026-11-05 18:34:10 [ WARNING] Tool 'load_registered_dataset' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: load_registered_dataset v1.0.0 (data)
+2026-11-05 18:34:10 [    INFO] Dataset catalog tools registered with ToolRegistry
+2026-11-05 18:34:10 [    INFO] Registered tool: forecast v1.0.0 (data)
+2026-11-05 18:34:10 [    INFO] Registered tool: run_model v1.0.0 (data)
+2026-11-05 18:34:10 [    INFO] Predictive modeling tools registered with ToolRegistry
+2026-11-05 18:34:10 [    INFO] Registered tool: radio.create_thread v1.0.0 (coordination)
+2026-11-05 18:34:10 [    INFO] Registered tool: radio.send_message v1.0.0 (coordination)
+2026-11-05 18:34:10 [    INFO] Registered tool: radio.wait_for_mention v1.0.0 (coordination)
+2026-11-05 18:34:10 [    INFO] Registered tool: radio.read_inbox v1.0.0 (coordination)
+2026-11-05 18:34:10 [    INFO] radio.* tools registered with ToolRegistry
+2026-11-05 18:34:10 [ WARNING] Tool 'email_attachment_list' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: email_attachment_list v1.0.0 (email)
+2026-11-05 18:34:10 [ WARNING] Tool 'email_attachment_get_text' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: email_attachment_get_text v1.0.0 (email)
+2026-11-05 18:34:10 [ WARNING] Tool 'email_attachment_stage_file' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: email_attachment_stage_file v1.0.0 (email)
+2026-11-05 18:34:10 [ WARNING] Tool 'email_attachment_attach' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: email_attachment_attach v1.0.0 (email)
+2026-11-05 18:34:10 [ WARNING] Tool 'email_attachment_remove' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: email_attachment_remove v1.0.0 (email)
+2026-11-05 18:34:10 [ WARNING] Tool 'email_attachment_ingest' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: email_attachment_ingest v1.0.0 (email)
+2026-11-05 18:34:10 [ WARNING] Tool 'email_ingest_message' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: email_ingest_message v1.0.0 (email)
+2026-11-05 18:34:10 [ WARNING] Tool 'pdf_canvas_get_state' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: pdf_canvas_get_state v1.0.0 (canvas)
+2026-11-05 18:34:10 [ WARNING] Tool 'pdf_canvas_read_text' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: pdf_canvas_read_text v1.0.0 (canvas)
+2026-11-05 18:34:10 [ WARNING] Tool 'pdf_canvas_list_versions' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: pdf_canvas_list_versions v1.0.0 (canvas)
+2026-11-05 18:34:10 [ WARNING] Tool 'pdf_canvas_get_form_fields' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: pdf_canvas_get_form_fields v1.0.0 (canvas)
+2026-11-05 18:34:10 [ WARNING] Tool 'pdf_canvas_apply_page_ops' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: pdf_canvas_apply_page_ops v1.0.0 (canvas)
+2026-11-05 18:34:10 [ WARNING] Tool 'pdf_canvas_merge_canvas' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: pdf_canvas_merge_canvas v1.0.0 (canvas)
+2026-11-05 18:34:10 [ WARNING] Tool 'pdf_canvas_submit_for_review' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: pdf_canvas_submit_for_review v1.0.0 (canvas)
+2026-11-05 18:34:10 [ WARNING] Tool 'pdf_canvas_set_form_fields' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: pdf_canvas_set_form_fields v1.0.0 (canvas)
+2026-11-05 18:34:10 [ WARNING] Tool 'pdf_canvas_flatten' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: pdf_canvas_flatten v1.0.0 (canvas)
+2026-11-05 18:34:10 [ WARNING] Tool 'pdf_canvas_annotate' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: pdf_canvas_annotate v1.0.0 (canvas)
+2026-11-05 18:34:10 [ WARNING] Tool 'pdf_canvas_generate_from_data' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: pdf_canvas_generate_from_data v1.0.0 (canvas)
+2026-11-05 18:34:10 [ WARNING] Tool 'pdf_canvas_approve' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: pdf_canvas_approve v1.0.0 (canvas)
+2026-11-05 18:34:10 [ WARNING] Tool 'pdf_canvas_attach_to_email' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: pdf_canvas_attach_to_email v1.0.0 (canvas)
+2026-11-05 18:34:10 [ WARNING] Tool 'pdf_canvas_redact' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: pdf_canvas_redact v1.0.0 (canvas)
+2026-11-05 18:34:10 [ WARNING] Tool 'pdf_canvas_stamp_signature' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: pdf_canvas_stamp_signature v1.0.0 (canvas)
+2026-11-05 18:34:10 [ WARNING] Tool 'pdf_canvas_archive_to_onedrive' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: pdf_canvas_archive_to_onedrive v1.0.0 (canvas)
+2026-11-05 18:34:10 [ WARNING] Tool 'pdf_canvas_send_to_docusign' already registered, updating...
+2026-11-05 18:34:10 [    INFO] Registered tool: pdf_canvas_send_to_docusign v1.0.0 (canvas)
+2026-11-05 18:34:10 [    INFO] Tool registry initialized with 161 tools
+2026-11-05 18:34:10 [    INFO] ✓ Tool Registry integrated with MCP Service
+2026-11-05 18:34:10 [    INFO] Core MCP Service initialized
+2026-11-05 18:34:12 [    INFO] EscalationManager initialized
+2026-11-05 18:34:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:12 [    INFO] EscalationManager initialized
+2026-11-05 18:34:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:34:12 [    INFO] Listed 1 skills (status=Active, type=None)
+2026-11-05 18:34:12 [ WARNING] get_or_create_reflection_pool_table() called on LanceDB stub (no table)
+PASSED                                                                   [ 75%]
+tests/test_memento_candidate_review.py::test_tool_error_candidate_stays_pending_and_review_does_not_mutate_agent 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:34:12 [    INFO] Generated skill candidate 'repair_outlook_search' from episode episode-tool-error
+PASSED                                                                   [ 76%]
+tests/test_memento_candidate_review.py::test_runtime_tool_failure_trigger_files_the_pending_candidate 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:34:12 [    INFO] ReflectionEngine: 1 similar failures detected for agent memento-agent. Triggering Auto-Dev fix.
+2026-11-05 18:34:12 [    INFO] Generated skill candidate 'auto_look_customer_email' from episode episode-runtime-tool-error
+2026-11-05 18:34:12 [    INFO] ReflectionEngine triggered skill candidate: auto_look_customer_email
+2026-11-05 18:34:12 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='autodev_guidance'
+PASSED                                                                   [ 77%]
+tests/test_audit_logger.py::TestIntegrationAuditLog::test_audit_log_creates_with_required_fields PASSED [ 78%]
+tests/test_audit_logger.py::TestIntegrationAuditLog::test_audit_log_to_dict_is_structured PASSED [ 79%]
+tests/test_audit_logger.py::TestIntegrationAuditLog::test_audit_log_includes_timestamp PASSED [ 80%]
+tests/test_audit_logger.py::TestIntegrationAuditLog::test_audit_log_sanitizes_sensitive_params PASSED [ 81%]
+tests/test_audit_logger.py::TestIntegrationAuditLog::test_audit_log_sanitizes_nested_sensitive_params PASSED [ 82%]
+tests/test_audit_logger.py::TestLogIntegrationCall::test_log_integration_call_creates_audit_log 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:34:13 [    INFO] Integration call: gmail.send_email
+PASSED                                                                   [ 83%]
+tests/test_audit_logger.py::TestLogIntegrationCall::test_log_integration_call_captures_metadata 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:34:13 [    INFO] Integration call: jira.get_issue
+PASSED                                                                   [ 84%]
+tests/test_audit_logger.py::TestLogIntegrationError::test_log_integration_error_creates_audit_log 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:34:13 [   ERROR] Integration error: slack.send_message: API rate limit exceeded
+NoneType: None
+PASSED                                                                   [ 85%]
+tests/test_audit_logger.py::TestLogIntegrationError::test_log_integration_error_captures_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:34:13 [   ERROR] Integration error: jira.create_issue: Invalid credentials
+NoneType: None
+PASSED                                                                   [ 86%]
+tests/test_audit_logger.py::TestLogIntegrationTiming::test_log_integration_attempt_creates_context PASSED [ 87%]
+tests/test_audit_logger.py::TestLogIntegrationTiming::test_log_integration_complete_calculates_duration 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:34:13 [    INFO] Integration call: slack.send_message
+PASSED                                                                   [ 88%]
+tests/test_audit_logger.py::TestLogIntegrationTiming::test_log_integration_complete_handles_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:34:13 [   ERROR] Integration error: jira.get_issue: Issue not found
+NoneType: None
+PASSED                                                                   [ 89%]
+tests/test_audit_logger.py::TestAuditLogFormatting::test_audit_log_format_is_structured PASSED [ 90%]
+tests/test_audit_logger.py::TestAuditLogFormatting::test_multiple_audit_logs_have_unique_timestamps PASSED [ 91%]
+tests/test_covpush_w103_audit_logger.py::TestRotateAuditLogsDeterministic::test_same_day_utc_mtime_no_rotation 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:34:13 [    INFO] AuditLogger initialized
+PASSED                                                                   [ 92%]
+tests/test_covpush_w103_audit_logger.py::TestRotateAuditLogsDeterministic::test_yesterday_utc_mtime_rotates 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:34:13 [    INFO] AuditLogger initialized
+2026-11-05 18:34:13 [    INFO] Audit log rotated and compressed
+PASSED                                                                   [ 93%]
+tests/test_covpush_w103_audit_logger.py::TestRotateAuditLogsDeterministic::test_two_day_old_mtime_rotates 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:34:13 [    INFO] AuditLogger initialized
+2026-11-05 18:34:13 [    INFO] Audit log rotated and compressed
+PASSED                                                                   [ 94%]
+tests/test_covpush_w103_audit_logger.py::TestRotateAuditLogsDeterministic::test_missing_log_file_noop 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:34:13 [    INFO] AuditLogger initialized
+PASSED                                                                   [ 95%]
+tests/test_covpush_w103_audit_logger.py::TestRotateAuditLogsDeterministic::test_rotated_filename_uses_utc_date 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:34:13 [    INFO] AuditLogger initialized
+2026-11-05 18:34:13 [    INFO] Audit log rotated and compressed
+PASSED                                                                   [ 96%]
+tests/test_covpush_w103_audit_logger.py::TestRotateAuditLogsDeterministic::test_writes_after_rotation_land_in_fresh_log 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:34:13 [    INFO] AuditLogger initialized
+2026-11-05 18:34:13 [    INFO] Audit log rotated and compressed
+PASSED                                                                   [ 97%]
+tests/test_covpush_w103_audit_logger.py::TestCleanupOldAuditLogsDeterministic::test_removes_old_rotated_logs_keeps_fresh 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:34:13 [    INFO] AuditLogger initialized
+2026-11-05 18:34:13 [    INFO] Old audit log removed
+2026-11-05 18:34:13 [    INFO] Old audit log removed
+2026-11-05 18:34:13 [    INFO] Audit log cleanup complete
+PASSED                                                                   [ 98%]
+tests/test_covpush_w103_audit_logger.py::TestCleanupOldAuditLogsDeterministic::test_keeps_logs_within_retention 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:34:13 [    INFO] AuditLogger initialized
+PASSED                                                                   [ 99%]
+tests/test_covpush_w103_audit_logger.py::TestCleanupOldAuditLogsDeterministic::test_cleanup_unreadable_file_logs_error_not_raise 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:34:13 [    INFO] AuditLogger initialized
+2026-11-05 18:34:13 [   ERROR] Failed to remove old audit log
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+tests/test_evolution_review_tool_mutations.py::test_team_lead_approve_pending_verifies_and_audits
+  /private/tmp/atom-evolution-review/backend/core/graphrag_engine.py:196: DeprecationWarning: invalid escape sequence '\%'
+    """
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================== 104 passed, 6 warnings in 73.46s (0:01:13) ==================

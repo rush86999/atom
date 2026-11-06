@@ -1,0 +1,206 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-05 19:23:27 [    INFO] MCP Service initialized
+2026-11-05 19:23:27 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-05 19:23:27 [    INFO] EscalationManager initialized
+2026-11-05 19:23:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:23:27 [    INFO] EscalationManager initialized
+2026-11-05 19:23:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:23:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+
+tests/test_orch02_specialist_response.py::test_enforced_response_consumes_specialist_work 
+-------------------------------- live log setup --------------------------------
+2026-11-05 19:23:28 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:28 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-05 19:23:28 [    INFO] EscalationManager initialized
+2026-11-05 19:23:28 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:23:28 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 19:23:28 [    INFO] LanceDBHandler initialized. ID: 4997719824. LANCEDB_AVAILABLE: True
+2026-11-05 19:23:28 [    INFO] Lazy loading LanceDB connection...
+2026-11-05 19:23:28 [    INFO] Connecting to LanceDB at /private/tmp/atom-orch02-verify/backend/data/atom_memory with storage_options=None
+2026-11-05 19:23:28 [    INFO] LanceDB connected successfully
+PASSED                                                                   [ 10%]
+tests/test_orch02_specialist_response.py::test_partial_success_preserves_failed_specialist 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:29 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-05 19:23:29 [    INFO] EscalationManager initialized
+2026-11-05 19:23:29 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:23:29 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 19:23:29 [    INFO] LanceDBHandler initialized. ID: 5003712848. LANCEDB_AVAILABLE: True
+2026-11-05 19:23:29 [    INFO] Lazy loading LanceDB connection...
+2026-11-05 19:23:29 [    INFO] Connecting to LanceDB at /private/tmp/atom-orch02-verify/backend/data/atom_memory with storage_options=None
+2026-11-05 19:23:29 [    INFO] LanceDB connected successfully
+PASSED                                                                   [ 20%]
+tests/test_orch02_specialist_response.py::test_all_failed_is_explicit_non_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:30 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-05 19:23:30 [    INFO] EscalationManager initialized
+2026-11-05 19:23:30 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:23:30 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 19:23:30 [    INFO] LanceDBHandler initialized. ID: 5003308704. LANCEDB_AVAILABLE: True
+2026-11-05 19:23:30 [    INFO] Lazy loading LanceDB connection...
+2026-11-05 19:23:30 [    INFO] Connecting to LanceDB at /private/tmp/atom-orch02-verify/backend/data/atom_memory with storage_options=None
+2026-11-05 19:23:30 [    INFO] LanceDB connected successfully
+PASSED                                                                   [ 30%]
+tests/test_orch02_specialist_response.py::test_missing_or_foreign_specialist_is_no_suitable 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:31 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-05 19:23:31 [    INFO] EscalationManager initialized
+2026-11-05 19:23:31 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:23:31 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 19:23:31 [    INFO] LanceDBHandler initialized. ID: 5003309312. LANCEDB_AVAILABLE: True
+2026-11-05 19:23:31 [    INFO] Lazy loading LanceDB connection...
+2026-11-05 19:23:31 [    INFO] Connecting to LanceDB at /private/tmp/atom-orch02-verify/backend/data/atom_memory with storage_options=None
+2026-11-05 19:23:31 [    INFO] LanceDB connected successfully
+PASSED                                                                   [ 40%]
+tests/test_orch02_specialist_response.py::test_wrong_capability_is_not_dispatched 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:32 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-05 19:23:32 [    INFO] EscalationManager initialized
+2026-11-05 19:23:32 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:23:32 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 19:23:32 [    INFO] LanceDBHandler initialized. ID: 5006353200. LANCEDB_AVAILABLE: True
+2026-11-05 19:23:32 [    INFO] Lazy loading LanceDB connection...
+2026-11-05 19:23:32 [    INFO] Connecting to LanceDB at /private/tmp/atom-orch02-verify/backend/data/atom_memory with storage_options=None
+2026-11-05 19:23:32 [    INFO] LanceDB connected successfully
+PASSED                                                                   [ 50%]
+tests/test_orch02_specialist_response.py::test_disabled_specialist_is_not_dispatched 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:32 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-05 19:23:32 [    INFO] EscalationManager initialized
+2026-11-05 19:23:32 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:23:32 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 19:23:32 [    INFO] LanceDBHandler initialized. ID: 4993878224. LANCEDB_AVAILABLE: True
+2026-11-05 19:23:32 [    INFO] Lazy loading LanceDB connection...
+2026-11-05 19:23:32 [    INFO] Connecting to LanceDB at /private/tmp/atom-orch02-verify/backend/data/atom_memory with storage_options=None
+2026-11-05 19:23:32 [    INFO] LanceDB connected successfully
+PASSED                                                                   [ 60%]
+tests/test_orch02_specialist_response.py::test_cancellation_stops_before_next_specialist 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-05 19:23:33 [    INFO] EscalationManager initialized
+2026-11-05 19:23:33 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:23:33 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 19:23:33 [    INFO] LanceDBHandler initialized. ID: 5005725760. LANCEDB_AVAILABLE: True
+2026-11-05 19:23:33 [    INFO] Lazy loading LanceDB connection...
+2026-11-05 19:23:33 [    INFO] Connecting to LanceDB at /private/tmp/atom-orch02-verify/backend/data/atom_memory with storage_options=None
+2026-11-05 19:23:33 [    INFO] LanceDB connected successfully
+PASSED                                                                   [ 70%]
+tests/test_orch02_specialist_response.py::test_duplicate_continuation_uses_cached_result 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:34 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-05 19:23:34 [    INFO] EscalationManager initialized
+2026-11-05 19:23:34 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:23:34 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 19:23:34 [    INFO] LanceDBHandler initialized. ID: 5003378256. LANCEDB_AVAILABLE: True
+2026-11-05 19:23:34 [    INFO] Lazy loading LanceDB connection...
+2026-11-05 19:23:34 [    INFO] Connecting to LanceDB at /private/tmp/atom-orch02-verify/backend/data/atom_memory with storage_options=None
+2026-11-05 19:23:34 [    INFO] LanceDB connected successfully
+2026-11-05 19:23:34 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-05 19:23:34 [    INFO] EscalationManager initialized
+2026-11-05 19:23:34 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:23:34 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 19:23:34 [    INFO] LanceDBHandler initialized. ID: 5005282128. LANCEDB_AVAILABLE: True
+2026-11-05 19:23:34 [    INFO] Lazy loading LanceDB connection...
+2026-11-05 19:23:34 [    INFO] Connecting to LanceDB at /private/tmp/atom-orch02-verify/backend/data/atom_memory with storage_options=None
+2026-11-05 19:23:34 [    INFO] LanceDB connected successfully
+PASSED                                                                   [ 80%]
+tests/test_orch02_specialist_response.py::test_chat_handler_returns_specialist_work_as_user_message 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:35 [    INFO] ComputerUseAgent initialized for tenant default
+2026-11-05 19:23:35 [ WARNING] Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+2026-11-05 19:23:35 [    INFO] No token storage file found, starting empty
+2026-11-05 19:23:35 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-05 19:23:35 [    INFO] EscalationManager initialized
+2026-11-05 19:23:35 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:23:35 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-05 19:23:35 [    INFO] EscalationManager initialized
+2026-11-05 19:23:35 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:23:35 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 19:23:35 [    INFO] Slack Enhanced Service initialized
+2026-11-05 19:23:35 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-05 19:23:35 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-05 19:23:35 [    INFO] EscalationManager initialized
+2026-11-05 19:23:35 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:23:35 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 19:23:35 [    INFO] LanceDBHandler initialized. ID: 5179229680. LANCEDB_AVAILABLE: True
+2026-11-05 19:23:35 [    INFO] Lazy loading LanceDB connection...
+2026-11-05 19:23:35 [    INFO] Connecting to LanceDB at /private/tmp/atom-orch02-verify/backend/data/atom_memory with storage_options=None
+2026-11-05 19:23:35 [    INFO] LanceDB connected successfully
+PASSED                                                                   [ 90%]
+tests/test_orch02_specialist_response.py::test_empty_roster_is_explicit_no_suitable 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:36 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-05 19:23:36 [    INFO] EscalationManager initialized
+2026-11-05 19:23:36 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:23:36 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 19:23:36 [    INFO] LanceDBHandler initialized. ID: 5177722112. LANCEDB_AVAILABLE: True
+2026-11-05 19:23:36 [    INFO] Lazy loading LanceDB connection...
+2026-11-05 19:23:36 [    INFO] Connecting to LanceDB at /private/tmp/atom-orch02-verify/backend/data/atom_memory with storage_options=None
+2026-11-05 19:23:36 [    INFO] LanceDB connected successfully
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+core/fleet_orchestration/scaling_proposal_service.py:48
+  /private/tmp/atom-orch02-verify/backend/core/fleet_orchestration/scaling_proposal_service.py:48: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class ScalingProposal(BaseModel):
+
+core/fleet_orchestration/fleet_scaler_service.py:43
+  /private/tmp/atom-orch02-verify/backend/core/fleet_orchestration/fleet_scaler_service.py:43: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class ScalingOperation(BaseModel):
+
+core/graphrag_engine.py:203
+  /private/tmp/atom-orch02-verify/backend/core/graphrag_engine.py:203: SyntaxWarning: "\%" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\%"? A raw string is also an option.
+    Escaped pattern where % and _ are escaped to \%
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 20 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_orch02_specialist_response.py: 11 warnings
+  /private/tmp/atom-orch02-verify/backend/core/lancedb_handler.py:407: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    names = set(self.db.table_names())
+
+tests/test_orch02_specialist_response.py: 22 warnings
+  /Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/asyncio/events.py:94: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    self._context.run(self._callback, *self._args)
+
+tests/test_orch02_specialist_response.py: 11 warnings
+  /private/tmp/atom-orch02-verify/backend/core/lancedb_handler.py:620: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    if table_name in self.db.table_names():
+
+tests/test_orch02_specialist_response.py::test_chat_handler_returns_specialist_work_as_user_message
+  /private/tmp/atom-orch02-verify/backend/core/token_storage.py:17: DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 10 passed, 74 warnings in 18.24s =======================

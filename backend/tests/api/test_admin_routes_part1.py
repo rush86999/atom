@@ -26,7 +26,7 @@ from api.admin_routes import router
 
 # Import models
 from core.models import (
-    Base, User, AdminUser, AdminRole
+    Base, User, AdminUser, AdminRole, AuditLog
 )
 
 # Import auth for password hashing
@@ -51,6 +51,7 @@ def test_db():
     from core.models import AdminUser, AdminRole, User
 
     # Create tables individually using Table.create()
+    AuditLog.__table__.create(bind=engine, checkfirst=True)
     AdminUser.__table__.create(bind=engine, checkfirst=True)
     AdminRole.__table__.create(bind=engine, checkfirst=True)
     User.__table__.create(bind=engine, checkfirst=True)
@@ -64,6 +65,7 @@ def test_db():
     # Cleanup
     db.close()
     # Drop tables individually
+    AuditLog.__table__.drop(bind=engine)
     AdminUser.__table__.drop(bind=engine)
     AdminRole.__table__.drop(bind=engine)
     User.__table__.drop(bind=engine)

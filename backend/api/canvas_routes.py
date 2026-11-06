@@ -679,6 +679,8 @@ async def update_canvas_content(
     canvas_type: str = "generic",
     title: Optional[str] = None,
     retype: bool = False,
+    operation_id: Optional[str] = None,
+    expected_prior_audit_id: Optional[str] = None,
     current_user: User = Depends(get_current_user)
 ):
     """Update the content of an existing canvas.
@@ -694,24 +696,55 @@ async def update_canvas_content(
     hatch when the agent-chat classifier created the wrong canvas type): the
     new ``canvas_type`` is pinned on the audit row and read-time email
     coercion can no longer override it.
+
+    ``operation_id`` is the optional stable identity of the LOGICAL edit; a
+    retry of the same operation reuses the existing audit row. Without it,
+    byte-identical edits remain deliberate distinct edits, preserving the
+    normal manual-edit contract. ``expected_prior_audit_id`` is the optional
+    optimistic-concurrency token.
+
+    The direct route now uses the shared postcondition oracle: a 200 success
+    carries an explicit ``verification`` status. A committed-but-unverified
+    write keeps its ``audit_id``/``operation_id`` and says
+    ``replay: do_not_repeat``; an effect with unknown outcome is reported as
+    ``effect_unknown`` rather than as a clean refusal.
     """
-    from tools.canvas_crud_tool import update_canvas_content as update_fn
-    result = await update_fn(
-        str(current_user.id), canvas_id, content, canvas_type, title,
+    from core.canvas_write_service import update_canvas_verified
+    result = await update_canvas_verified(
+        user_id=str(current_user.id),
+        canvas_id=canvas_id,
+        content=content,
+        canvas_type=canvas_type,
+        title=title,
         manual_retype=retype,
+        operation_id=operation_id,
+        expected_prior_audit_id=expected_prior_audit_id,
+        tenant_id=getattr(current_user, "tenant_id", None),
+        workspace_id=getattr(current_user, "workspace_id", None),
     )
-    if not result.get("success"):
+    if result.get("status") == "refused":
         # BUG FIX: not-found errors must return 404 (consistent with GET
         # /{canvas_id}), not 400 — a missing canvas is not a bad request.
-        status = 404 if "not found" in str(result.get("error", "")).lower() else 400
-        raise HTTPException(status_code=status, detail=result.get("error"))
-    # The save itself must never be blocked by the learning capture.
-    _maybe_record_canvas_correction(
-        str(current_user.id),
-        getattr(current_user, "tenant_id", None),
-        canvas_id,
-        content,
-    )
+        # A stale revision is a 409; a foreign tenant/workspace is 403 and
+        # never reaches the append.
+        error = str(result.get("error", ""))
+        status = int(result.get("http_status") or (
+            409 if result.get("conflict") else (
+                404 if "not found" in error.lower() else 400)))
+        raise HTTPException(status_code=status, detail=error)
+    # The save itself must never be blocked by the learning capture. Only a
+    # verified new edit feeds learning; a no-change/already-applied or
+    # committed-but-unverified result is not a clean new user edit.
+    verification_status = (result.get("verification") or {}).get("status")
+    if (result.get("success") and verification_status == "verified"
+            and not result.get("no_change")
+            and not result.get("already_applied")):
+        _maybe_record_canvas_correction(
+            str(current_user.id),
+            getattr(current_user, "tenant_id", None),
+            canvas_id,
+            content,
+        )
     return result
 
 
@@ -726,16 +759,31 @@ async def restore_canvas_version(
     Body: {"audit_id": "<canvas_audit.id>"}. The restore is APPENDED as a new
     version (append-only trail — nothing is rewritten), and broadcasts the
     same WS update as an ordinary edit, so open canvases converge live.
+
+    The direct route now uses the shared postcondition oracle. A successful
+    restore carries an explicit ``verification`` status; a committed-but-
+    unverified restore keeps its ``audit_id``/``restored_from`` identity and
+    says ``replay: do_not_repeat``. An effect with unknown outcome is reported
+    as ``effect_unknown`` rather than as a clean refusal.
     """
-    from tools.canvas_crud_tool import restore_canvas_version as restore_fn
+    from core.canvas_write_service import restore_canvas_verified
 
     audit_id = (body or {}).get("audit_id")
     if not audit_id:
         raise HTTPException(status_code=400, detail="audit_id is required")
-    result = await restore_fn(str(current_user.id), canvas_id, str(audit_id))
-    if not result.get("success"):
-        status = 404 if "not found" in str(result.get("error", "")).lower() else 400
-        raise HTTPException(status_code=status, detail=result.get("error"))
+    result = await restore_canvas_verified(
+        user_id=str(current_user.id),
+        canvas_id=canvas_id,
+        audit_id=str(audit_id),
+        tenant_id=getattr(current_user, "tenant_id", None),
+        workspace_id=getattr(current_user, "workspace_id", None),
+    )
+    if result.get("status") == "refused":
+        error = str(result.get("error", ""))
+        status = int(result.get("http_status") or (
+            409 if result.get("conflict") else (
+                404 if "not found" in error.lower() else 400)))
+        raise HTTPException(status_code=status, detail=error)
     return result
 
 

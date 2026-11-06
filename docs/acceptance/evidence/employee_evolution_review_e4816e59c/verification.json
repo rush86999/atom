@@ -1,0 +1,138 @@
+{
+  "schema": "atom-oracle-evolution-review-verification-1",
+  "status": "two-route tool-mutation review decision family and parallel sandbox-writer guard submitted for independent verification; remaining Auto-Dev surfaces and whole-app ORACLE-01 remain open",
+  "candidate": {
+    "branch": "codex/oracle01-evolution-review-20261105",
+    "accepted_base": "95f7bcac1a0375b4f0465a77e15130f68fc9665d",
+    "product_source": "eaba0cb8f551796677a8c516155a4be7399207ff",
+    "executed_source": "e4816e59c84041333c7571988ebf5da90f1dc1ce",
+    "tree_clean_at_execution": true,
+    "runtime": "real scratch SQLite with fresh sessions and controlled interleaving/fault seams; no model/provider/browser"
+  },
+  "checks": {
+    "team_lead_and_admin_valid_twins": true,
+    "member_viewer_guest_anonymous_refused": true,
+    "missing_and_foreign_target_404_zero_effect": true,
+    "foreign_tenant_actor_refused": true,
+    "approve_pending_and_passed_allowed": true,
+    "approve_failed_refused_zero_effect": true,
+    "reject_pending_passed_failed_allowed": true,
+    "competing_decision_one_winner_one_receipt": true,
+    "same_operation_same_material_already_applied": true,
+    "same_operation_changed_decision_conflict": true,
+    "later_material_revision_committed_unverified": true,
+    "stale_material_before_claim_refused": true,
+    "actor_demotion_before_claim_refused": true,
+    "sandbox_after_approve_or_reject_skipped": true,
+    "sandbox_racing_review_preserves_decision": true,
+    "sandbox_pending_and_failed_writes_guarded": true,
+    "confirmed_audit_rollback_reports_effect_none": true,
+    "post_commit_readback_failure_committed_unverified": true,
+    "lost_confirmation_effect_unknown_with_identity": true,
+    "audit_tampering_never_certified": true,
+    "raw_mutated_code_and_execution_error_absent_from_receipts_responses_logs": true,
+    "ordinary_success_response_shape_preserved": true,
+    "no_new_table_or_migration": true,
+    "no_live_model_provider_credential_spend_send_download_deployment": true,
+    "admin_branch_not_merged_or_assumed": true,
+    "accepted_lanes_unchanged": true
+  },
+  "results": {
+    "focused_python314": {
+      "passed": 47,
+      "log": "focused-314.log"
+    },
+    "focused_python311": {
+      "passed": 47,
+      "log": "focused-311.log"
+    },
+    "affected_autodev_python314": {
+      "passed": 747,
+      "failed": 28,
+      "baseline_failures": 28,
+      "baseline_failure_list_identical": true,
+      "log": "affected-autodev-314.log",
+      "baseline_log": "baseline-autodev-95f7-314.log"
+    },
+    "affected_autodev_python311": {
+      "passed": 747,
+      "failed": 28,
+      "baseline_failures": 28,
+      "baseline_failure_list_identical": true,
+      "log": "affected-autodev-311.log",
+      "baseline_log": "baseline-autodev-95f7-311.log"
+    },
+    "affected_evolution_python314": {
+      "passed": 293,
+      "skipped": 29,
+      "failed": 1,
+      "baseline_failures": 1,
+      "baseline_failure_list_identical": true,
+      "log": "affected-evolution-314.log",
+      "baseline_log": "baseline-evolution-95f7-314.log"
+    },
+    "affected_evolution_python311": {
+      "passed": 293,
+      "skipped": 29,
+      "failed": 1,
+      "baseline_failures": 1,
+      "baseline_failure_list_identical": true,
+      "log": "affected-evolution-311.log",
+      "baseline_log": "baseline-evolution-95f7-311.log"
+    },
+    "affected_review_audit_python314": {
+      "passed": 63,
+      "failed": 0,
+      "log": "affected-review-audit-314.log",
+      "baseline_log": "baseline-review-audit-95f7-314.log"
+    },
+    "affected_review_audit_python311": {
+      "passed": 63,
+      "failed": 0,
+      "log": "affected-review-audit-311.log",
+      "baseline_log": "baseline-review-audit-95f7-311.log"
+    }
+  },
+  "focused_breakdown": {
+    "new_decision_matrix_controls": 39,
+    "rewritten_autodev_route_controls": 5,
+    "sandbox_gap_controls": 3,
+    "focused_total": 47
+  },
+  "baseline_exclusions": {
+    "autodev_28": {
+      "base": "95f7bcac1a0375b4f0465a77e15130f68fc9665d",
+      "logs": [
+        "baseline-autodev-95f7-314.log",
+        "baseline-autodev-95f7-311.log"
+      ],
+      "counts": {
+        "test_covpush_autodev_comms": 14,
+        "test_covpush_w84c_autodev2": 8,
+        "test_covpush_w82a_autodev": 3,
+        "test_covpush_autodev2": 3
+      },
+      "reason": "pre-existing LanceDBHandler, ReflectionEngine API-drift and DynamicBenchmarkFetcher controls; failure lists byte-identical to the accepted base"
+    },
+    "evolution_1": {
+      "base": "95f7bcac1a0375b4f0465a77e15130f68fc9665d",
+      "test": "tests/test_auto_dev/test_reflection_engine.py::TestReflectionEnginePatternDetection::test_identifies_repeated_failure_patterns",
+      "logs": [
+        "baseline-evolution-95f7-314.log",
+        "baseline-evolution-95f7-311.log",
+        "baseline-reflection-95f7.log"
+      ],
+      "reason": "pre-existing ReflectionEngine pattern-grouping failure; identical on base and repaired source"
+    }
+  },
+  "execution_note": "The complete affected selection was executed as three deterministic groups because a single combined invocation was killed by the harness at 85% (exit 152, no test summary). Each group covers its complete file set and is independently baseline-matched.",
+  "limits": [
+    "Exactly two decision routes plus the parallel sandbox writer",
+    "No live model/provider/credential/spend/send/download/deployment or administrator/account/budget authority",
+    "No second review/approval/audit/operation engine",
+    "Existing AuditLog is the durable ledger; no new schema or migration",
+    "PostgreSQL runtime/soak, multi-worker serialization and live sandbox/model operation are not qualified",
+    "Whole-app ORACLE-01 and the remaining Auto-Dev surfaces remain open",
+    "Admin repair at 5fbb377a4 remains on its own branch and is not a dependency"
+  ]
+}

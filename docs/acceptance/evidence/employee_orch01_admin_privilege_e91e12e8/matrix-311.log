@@ -1,0 +1,190 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-05 15:04:54 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+
+tests/test_admin_write_contract_matrix.py::test_concurrent_duplicate_role_create_has_one_winner 
+-------------------------------- live log setup --------------------------------
+2026-11-05 15:04:55 [    INFO] EscalationManager initialized
+2026-11-05 15:04:55 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 15:04:55 [    INFO] EscalationManager initialized
+2026-11-05 15:04:55 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 15:04:55 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 15:04:55 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  3%]
+tests/test_admin_write_contract_matrix.py::test_concurrent_duplicate_user_create_has_one_winner PASSED [  6%]
+tests/test_admin_write_contract_matrix.py::test_role_delete_and_user_assignment_never_leave_a_dangling_user PASSED [  9%]
+tests/test_admin_write_contract_matrix.py::test_concurrent_budget_partial_updates_do_not_lose_fields PASSED [ 12%]
+tests/test_admin_write_contract_matrix.py::test_fresh_session_consumers_observe_committed_role_permissions 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:05:00 [    INFO] HTTP Request: POST http://testserver/api/admin/roles?operation_id=perm-role-create "HTTP/1.1 201 Created"
+2026-11-05 15:05:00 [    INFO] HTTP Request: PATCH http://testserver/api/admin/roles/a480a90c-f5f3-5d7c-b0a2-610e1bfe4d25?operation_id=perm-role-update "HTTP/1.1 200 OK"
+2026-11-05 15:05:00 [    INFO] HTTP Request: GET http://testserver/api/admin/roles/a480a90c-f5f3-5d7c-b0a2-610e1bfe4d25 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 15%]
+tests/test_admin_write_contract_matrix.py::test_fresh_session_budget_consumers_observe_committed_values 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:05:00 [    INFO] HTTP Request: PUT http://testserver/api/admin/tenants/tenant-1/budget?operation_id=consumer-budget "HTTP/1.1 200 OK"
+PASSED                                                                   [ 18%]
+tests/test_admin_write_contract_matrix.py::test_audit_matrix_never_certifies_a_wrong_receipt[audit_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:05:01 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 21%]
+tests/test_admin_write_contract_matrix.py::test_audit_matrix_never_certifies_a_wrong_receipt[workspace_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:05:02 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 24%]
+tests/test_admin_write_contract_matrix.py::test_audit_matrix_never_certifies_a_wrong_receipt[security_level] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:05:03 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 27%]
+tests/test_admin_write_contract_matrix.py::test_audit_matrix_never_certifies_a_wrong_receipt[success] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:05:03 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 30%]
+tests/test_admin_write_contract_matrix.py::test_audit_matrix_never_certifies_a_wrong_receipt[event_type] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:05:04 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 33%]
+tests/test_admin_write_contract_matrix.py::test_audit_matrix_never_certifies_a_wrong_receipt[action] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:05:05 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 36%]
+tests/test_admin_write_contract_matrix.py::test_audit_matrix_never_certifies_a_wrong_receipt[user_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:05:06 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 39%]
+tests/test_admin_write_contract_matrix.py::test_audit_matrix_never_certifies_a_wrong_receipt[resource] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:05:06 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 42%]
+tests/test_admin_write_contract_matrix.py::test_audit_matrix_never_certifies_a_wrong_receipt[tenant_column] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:05:07 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 45%]
+tests/test_admin_write_contract_matrix.py::test_audit_matrix_never_certifies_a_wrong_receipt[metadata_actor_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:05:08 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 48%]
+tests/test_admin_write_contract_matrix.py::test_audit_matrix_never_certifies_a_wrong_receipt[metadata_target_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:05:09 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 51%]
+tests/test_admin_write_contract_matrix.py::test_audit_matrix_never_certifies_a_wrong_receipt[metadata_material_digest] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:05:10 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 54%]
+tests/test_admin_write_contract_matrix.py::test_audit_matrix_never_certifies_a_wrong_receipt[metadata_scope] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:05:11 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 57%]
+tests/test_admin_write_contract_matrix.py::test_audit_matrix_never_certifies_a_wrong_receipt[metadata_tenant_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:05:11 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 60%]
+tests/test_admin_write_contract_matrix.py::test_audit_matrix_never_certifies_a_wrong_receipt[metadata_operation_id_type] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:05:12 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 63%]
+tests/test_admin_write_contract_matrix.py::test_audit_matrix_never_certifies_a_wrong_receipt[metadata_result_digest_missing] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:05:13 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 66%]
+tests/test_admin_write_contract_matrix.py::test_noop_updates_do_not_create_operations 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:05:14 [    INFO] HTTP Request: PATCH http://testserver/api/admin/roles/role-1 "HTTP/1.1 200 OK"
+2026-11-05 15:05:14 [    INFO] HTTP Request: PATCH http://testserver/api/admin/users/admin-user-1 "HTTP/1.1 200 OK"
+2026-11-05 15:05:14 [    INFO] HTTP Request: PUT http://testserver/api/admin/tenants/tenant-1/budget "HTTP/1.1 200 OK"
+PASSED                                                                   [ 69%]
+tests/test_admin_write_contract_matrix.py::test_non_finite_budget_values_are_rejected[Infinity] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:05:15 [    INFO] HTTP Request: PUT http://testserver/api/admin/tenants/tenant-1/budget "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 72%]
+tests/test_admin_write_contract_matrix.py::test_non_finite_budget_values_are_rejected[-Infinity] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:05:15 [    INFO] HTTP Request: PUT http://testserver/api/admin/tenants/tenant-1/budget "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 75%]
+tests/test_admin_write_contract_matrix.py::test_non_finite_budget_values_are_rejected[NaN] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:05:16 [    INFO] HTTP Request: PUT http://testserver/api/admin/tenants/tenant-1/budget "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 78%]
+tests/test_admin_write_contract_matrix.py::test_disabled_actor_refuses_before_effect[disable] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:05:17 [ WARNING] API Error: PERMISSION_DENIED - Permission denied: Admin request
+2026-11-05 15:05:17 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 81%]
+tests/test_admin_write_contract_matrix.py::test_disabled_actor_refuses_before_effect[suspend] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:05:18 [ WARNING] API Error: PERMISSION_DENIED - Permission denied: Admin request
+2026-11-05 15:05:18 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 84%]
+tests/test_admin_write_contract_matrix.py::test_later_role_target_revision_is_not_acknowledged 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:05:19 [    INFO] HTTP Request: POST http://testserver/api/admin/roles?operation_id=later-role-create "HTTP/1.1 201 Created"
+2026-11-05 15:05:19 [    INFO] HTTP Request: PATCH http://testserver/api/admin/roles/c03a7b7d-ee05-5800-967b-48ea67a5bad6?operation_id=later-role-update "HTTP/1.1 200 OK"
+2026-11-05 15:05:19 [    INFO] HTTP Request: PATCH http://testserver/api/admin/roles/c03a7b7d-ee05-5800-967b-48ea67a5bad6?operation_id=later-role-update "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 87%]
+tests/test_admin_write_contract_matrix.py::test_later_budget_revision_is_not_acknowledged 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:05:20 [    INFO] HTTP Request: PUT http://testserver/api/admin/tenants/tenant-1/budget?operation_id=later-budget "HTTP/1.1 200 OK"
+2026-11-05 15:05:20 [    INFO] HTTP Request: PUT http://testserver/api/admin/tenants/tenant-1/budget?operation_id=later-budget "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 90%]
+tests/test_admin_write_contract_matrix.py::test_role_and_user_delete_tombstones_replay 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:05:21 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 201 Created"
+2026-11-05 15:05:21 [    INFO] HTTP Request: DELETE http://testserver/api/admin/roles/4222dcea-cbb1-573a-83e5-25c1e61d8eaa?operation_id=tombstone-role-delete "HTTP/1.1 200 OK"
+2026-11-05 15:05:21 [    INFO] HTTP Request: DELETE http://testserver/api/admin/roles/4222dcea-cbb1-573a-83e5-25c1e61d8eaa?operation_id=tombstone-role-delete "HTTP/1.1 200 OK"
+2026-11-05 15:05:21 [    INFO] HTTP Request: POST http://testserver/api/admin/users "HTTP/1.1 201 Created"
+2026-11-05 15:05:21 [    INFO] HTTP Request: DELETE http://testserver/api/admin/users/3e85d73e-5a04-5236-9e28-4739754c2573?operation_id=tombstone-user-delete "HTTP/1.1 200 OK"
+2026-11-05 15:05:21 [    INFO] HTTP Request: DELETE http://testserver/api/admin/users/3e85d73e-5a04-5236-9e28-4739754c2573?operation_id=tombstone-user-delete "HTTP/1.1 200 OK"
+PASSED                                                                   [ 93%]
+tests/test_admin_write_contract_matrix.py::test_anonymous_admin_mutations_are_rejected 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:05:22 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 96%]
+tests/test_admin_write_contract_matrix.py::test_member_cannot_update_budget 
+-------------------------------- live log call ---------------------------------
+2026-11-05 15:05:23 [    INFO] HTTP Request: PUT http://testserver/api/admin/tenants/tenant-1/budget "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+api/admin_routes.py:185
+  /private/tmp/atom-admin-privilege/backend/api/admin_routes.py:185: PydanticDeprecatedSince20: Using extra keyword arguments on `Field` is deprecated and will be removed. Use `json_schema_extra` instead. (Extra keys: 'unique'). Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    name: str = Field(..., min_length=1, max_length=100, unique=True, description="Role name (must be unique)")
+
+api/admin_routes.py:1000
+  /private/tmp/atom-admin-privilege/backend/api/admin_routes.py:1000: PydanticDeprecatedSince20: `min_items` is deprecated and will be removed, use `min_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    conflict_ids: List[int] = Field(..., min_items=1, max_items=100, description="List of conflict IDs to resolve (max 100)")
+
+api/admin_routes.py:1000
+  /private/tmp/atom-admin-privilege/backend/api/admin_routes.py:1000: PydanticDeprecatedSince20: `max_items` is deprecated and will be removed, use `max_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    conflict_ids: List[int] = Field(..., min_items=1, max_items=100, description="List of conflict IDs to resolve (max 100)")
+
+tests/test_admin_write_contract_matrix.py::test_concurrent_duplicate_role_create_has_one_winner
+  /private/tmp/atom-admin-privilege/backend/core/graphrag_engine.py:196: DeprecationWarning: invalid escape sequence '\%'
+    """
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 33 passed, 9 warnings in 44.06s ========================

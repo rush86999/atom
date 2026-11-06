@@ -1,0 +1,75 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-05 06:56:21 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-05 06:56:21 [    INFO] EscalationManager initialized
+2026-11-05 06:56:21 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 06:56:21 [    INFO] EscalationManager initialized
+2026-11-05 06:56:21 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 06:56:21 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 06:56:21 [    INFO] MCP Service initialized
+2026-11-05 06:56:21 [    INFO] ComputerUseAgent initialized for tenant default
+2026-11-05 06:56:22 [ WARNING] Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+2026-11-05 06:56:22 [    INFO] No token storage file found, starting empty
+2026-11-05 06:56:22 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-05 06:56:22 [    INFO] EscalationManager initialized
+2026-11-05 06:56:22 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 06:56:22 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-05 06:56:22 [    INFO] EscalationManager initialized
+2026-11-05 06:56:22 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 06:56:22 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 06:56:22 [    INFO] Slack Enhanced Service initialized
+2026-11-05 06:56:22 [    INFO] Loaded 0 persisted sessions from file.
+
+tests/core/test_action_registry_coverage.py::TestCanvasActions::test_canvas_read_missing_id 
+-------------------------------- live log setup --------------------------------
+2026-11-05 06:56:22 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  9%]
+tests/core/test_action_registry_coverage.py::TestCanvasActions::test_canvas_read_missing_user PASSED [ 18%]
+tests/core/test_action_registry_coverage.py::TestCanvasActions::test_canvas_read_dispatches PASSED [ 27%]
+tests/core/test_action_registry_coverage.py::TestCanvasActions::test_canvas_update_missing_id PASSED [ 36%]
+tests/core/test_action_registry_coverage.py::TestCanvasActions::test_canvas_update_missing_content PASSED [ 45%]
+tests/core/test_action_registry_coverage.py::TestCanvasActions::test_canvas_update_missing_user PASSED [ 54%]
+tests/core/test_action_registry_coverage.py::TestCanvasActions::test_canvas_update_dispatches_with_optional_fields PASSED [ 63%]
+tests/test_async_turn_continuation.py::TestReconciliationContract::test_another_canvas_row_is_not_adopted PASSED [ 72%]
+tests/test_async_turn_continuation.py::TestReconciliationContract::test_reconciliation_writes_no_canvas_content 
+-------------------------------- live log call ---------------------------------
+2026-11-05 06:56:22 [    INFO] [async-continuation] c-s-nowrite-28bb39d8-0-0 reconciled authorized proposal a7d59fb0 -> accepted (review-state only)
+PASSED                                                                   [ 81%]
+tests/test_async_turn_continuation.py::TestConditionalSupersede::test_new_edit_on_another_canvas_does_not_cancel PASSED [ 90%]
+tests/test_async_turn_continuation.py::TestFirstRequestForkAuthorizationRecheck::test_superseded_canvas_conflicts_not_overwrites PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+core/graphrag_engine.py:196
+  /private/tmp/atom-oracle01-5ee-311/backend/core/graphrag_engine.py:196: DeprecationWarning: invalid escape sequence '\%'
+    """
+
+core/token_storage.py:17
+  /private/tmp/atom-oracle01-5ee-311/backend/core/token_storage.py:17: DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=============== 11 passed, 131 deselected, 7 warnings in 17.32s ================

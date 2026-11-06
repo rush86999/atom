@@ -1,0 +1,13 @@
+executed_source: e74115a92a6529910c24b0fe92833c1c5e48c539
+product_source: 96d838d5cdc6001242a43402eab5a52b758ac646
+accepted_admin_base: 9d73552d249ae8ec5b05af77546faf9621bbcd47
+accepted_admin_product: 5fbb377a4e1eef8fdd0013275cd8b1c9b278cd41
+branch: codex/oracle01-agent-decision-20261105
+git_status_short:
+git_log:
+e74115a92 test(goal-runs): cover the verified mode/cancel matrix
+96d838d5c feat(goal-runs): verify supervision and cancellation decisions
+b3e2242bd docs(agents): submit the verified update/promote evidence
+5bebaaba9 test(agents): cover the verified update/promote matrix
+af511bef0 feat(agents): verify update and promote decisions
+8704cef96 docs: add the continuous delivery directive

@@ -1,0 +1,276 @@
+FFFF                                                                     [100%]
+=================================== FAILURES ===================================
+___ test_scope_move_after_writer_check_refuses_before_commit[put-workspace] ____
+
+client = <starlette.testclient.TestClient object at 0x121ac57f0>
+db_session = <sqlalchemy.orm.session.Session object at 0x11081de80>
+users = {'current': <core.models.User object at 0x121ac7e00>}
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x11075f5c0>
+operation = 'put', scope = 'workspace'
+
+    @pytest.mark.parametrize('scope',['workspace','tenant'])
+    @pytest.mark.parametrize('operation',['put','restore'])
+    def test_scope_move_after_writer_check_refuses_before_commit(client,db_session,users,monkeypatch,operation,scope):
+        from tools import canvas_crud_tool as crud
+        user=_make_user(db_session);user.workspace_id='ws-original';users['current']=user
+        canvas=_make_canvas(db_session,user.id,content={'text':'current'})
+        canvas.workspace_id='ws-original'
+        target=CanvasAudit(canvas_id=canvas.id,tenant_id=user.tenant_id,action_type='update',user_id=user.id,canvas_type='generic',details_json={'content':{'text':'historical'}},created_at=datetime.now(timezone.utc)-timedelta(days=1))
+        db_session.add(target);db_session.commit();canvas_id=canvas.id;target_id=target.id
+        before=db_session.query(CanvasAudit).filter_by(canvas_id=canvas_id).count()
+        original=crud.canvas_write_scope_error
+        moved=[]
+        def check_then_move(db,*args,**kwargs):
+            error=original(db,*args,**kwargs)
+            if error is None and kwargs.get('lock') and not moved:
+                # Separate committed authoritative writer, after the final scope check.
+                with sessionmaker(bind=db.get_bind())() as other:
+                    other.query(Canvas).filter_by(id=canvas_id).update({'workspace_id':'ws-revoked'} if scope=='workspace' else {'tenant_id':'t-revoked'})
+                    other.commit()
+                moved.append(True)
+            return error
+        monkeypatch.setattr(crud,'canvas_write_scope_error',check_then_move)
+        if operation=='put':response=client.put(f'/api/canvas/{canvas_id}',json={'text':'out-of-scope effect'})
+        else:response=client.post(f'/api/canvas/{canvas_id}/restore',json={'audit_id':target_id})
+        assert moved
+        # Fresh session: check both scope winner and durable effects.
+        with sessionmaker(bind=db_session.get_bind())() as read:
+            row=read.query(Canvas).filter_by(id=canvas_id).one()
+            count=read.query(CanvasAudit).filter_by(canvas_id=canvas_id).count()
+            observed=(row.workspace_id,row.tenant_id,row.content,count)
+>       assert observed==('ws-revoked' if scope=='workspace' else 'ws-original','t-revoked' if scope=='tenant' else user.tenant_id,{'text':'current'},before),(response.status_code,response.json(),observed,before)
+E       AssertionError: (200, {'success': True, 'write_outcome': 'committed', 'canvas_id': 'c-053827a130ca', 'canvas_type': 'generic', ...}, ('ws-revoked', 't1', {'text': 'out-of-scope effect'}, 3), 2)
+E       assert ('ws-revoked'...e effect'}, 3) == ('ws-revoked'...'current'}, 2)
+E         
+E         At index 2 diff: {'text': 'out-of-scope effect'} != {'text': 'current'}
+E         Use -v to get more diff
+
+../../test_verifier_canvas_scope_commit_18e8.py:38: AssertionError
+------------------------------ Captured log setup ------------------------------
+WARNING  core.config:config.py:157 ⚠️ Generated temporary SECRET_KEY for development: xCj51fr5...
+WARNING  core.config:config.py:157 ⚠️ Generated temporary SECRET_KEY for development: HIQiLAlp...
+ERROR    core.llm.provider_policy:provider_policy.py:188 provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+ERROR    core.llm.byok_handler:byok_handler.py:1648 provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+WARNING  core.llm.byok_handler:byok_handler.py:2203 Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+WARNING  core.lancedb_handler:lancedb_handler.py:1956 LanceDB not initialized, chat history disabled
+ERROR    core.llm.provider_policy:provider_policy.py:188 provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+ERROR    core.llm.byok_handler:byok_handler.py:1648 provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+WARNING  core.llm.byok_handler:byok_handler.py:2203 Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+ERROR    core.llm.provider_policy:provider_policy.py:188 provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+ERROR    core.llm.byok_handler:byok_handler.py:1648 provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+WARNING  core.llm.byok_handler:byok_handler.py:2203 Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+------------------------------ Captured log call -------------------------------
+WARNING  core.websockets:websockets.py:172 [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-3ba2214c'. type='canvas:update'
+_____ test_scope_move_after_writer_check_refuses_before_commit[put-tenant] _____
+
+client = <starlette.testclient.TestClient object at 0x121d0c910>
+db_session = <sqlalchemy.orm.session.Session object at 0x117dfb770>
+users = {'current': <core.models.User object at 0x117e50b90>}
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x121b4cfc0>
+operation = 'put', scope = 'tenant'
+
+    @pytest.mark.parametrize('scope',['workspace','tenant'])
+    @pytest.mark.parametrize('operation',['put','restore'])
+    def test_scope_move_after_writer_check_refuses_before_commit(client,db_session,users,monkeypatch,operation,scope):
+        from tools import canvas_crud_tool as crud
+        user=_make_user(db_session);user.workspace_id='ws-original';users['current']=user
+        canvas=_make_canvas(db_session,user.id,content={'text':'current'})
+        canvas.workspace_id='ws-original'
+        target=CanvasAudit(canvas_id=canvas.id,tenant_id=user.tenant_id,action_type='update',user_id=user.id,canvas_type='generic',details_json={'content':{'text':'historical'}},created_at=datetime.now(timezone.utc)-timedelta(days=1))
+        db_session.add(target);db_session.commit();canvas_id=canvas.id;target_id=target.id
+        before=db_session.query(CanvasAudit).filter_by(canvas_id=canvas_id).count()
+        original=crud.canvas_write_scope_error
+        moved=[]
+        def check_then_move(db,*args,**kwargs):
+            error=original(db,*args,**kwargs)
+            if error is None and kwargs.get('lock') and not moved:
+                # Separate committed authoritative writer, after the final scope check.
+                with sessionmaker(bind=db.get_bind())() as other:
+                    other.query(Canvas).filter_by(id=canvas_id).update({'workspace_id':'ws-revoked'} if scope=='workspace' else {'tenant_id':'t-revoked'})
+                    other.commit()
+                moved.append(True)
+            return error
+        monkeypatch.setattr(crud,'canvas_write_scope_error',check_then_move)
+        if operation=='put':response=client.put(f'/api/canvas/{canvas_id}',json={'text':'out-of-scope effect'})
+        else:response=client.post(f'/api/canvas/{canvas_id}/restore',json={'audit_id':target_id})
+        assert moved
+        # Fresh session: check both scope winner and durable effects.
+        with sessionmaker(bind=db_session.get_bind())() as read:
+            row=read.query(Canvas).filter_by(id=canvas_id).one()
+            count=read.query(CanvasAudit).filter_by(canvas_id=canvas_id).count()
+            observed=(row.workspace_id,row.tenant_id,row.content,count)
+>       assert observed==('ws-revoked' if scope=='workspace' else 'ws-original','t-revoked' if scope=='tenant' else user.tenant_id,{'text':'current'},before),(response.status_code,response.json(),observed,before)
+E       AssertionError: (200, {'success': True, 'write_outcome': 'committed', 'canvas_id': 'c-5f540388dce7', 'canvas_type': 'generic', ...}, ('ws-original', 't-revoked', {'text': 'out-of-scope effect'}, 3), 2)
+E       assert ('ws-original...e effect'}, 3) == ('ws-original...'current'}, 2)
+E         
+E         At index 2 diff: {'text': 'out-of-scope effect'} != {'text': 'current'}
+E         Use -v to get more diff
+
+../../test_verifier_canvas_scope_commit_18e8.py:38: AssertionError
+------------------------------ Captured log call -------------------------------
+WARNING  core.websockets:websockets.py:172 [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-714afe10'. type='canvas:update'
+_ test_scope_move_after_writer_check_refuses_before_commit[restore-workspace] __
+
+client = <starlette.testclient.TestClient object at 0x121d0e990>
+db_session = <sqlalchemy.orm.session.Session object at 0x11081e3c0>
+users = {'current': <core.models.User object at 0x121d0e490>}
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x121f6a9f0>
+operation = 'restore', scope = 'workspace'
+
+    @pytest.mark.parametrize('scope',['workspace','tenant'])
+    @pytest.mark.parametrize('operation',['put','restore'])
+    def test_scope_move_after_writer_check_refuses_before_commit(client,db_session,users,monkeypatch,operation,scope):
+        from tools import canvas_crud_tool as crud
+        user=_make_user(db_session);user.workspace_id='ws-original';users['current']=user
+        canvas=_make_canvas(db_session,user.id,content={'text':'current'})
+        canvas.workspace_id='ws-original'
+        target=CanvasAudit(canvas_id=canvas.id,tenant_id=user.tenant_id,action_type='update',user_id=user.id,canvas_type='generic',details_json={'content':{'text':'historical'}},created_at=datetime.now(timezone.utc)-timedelta(days=1))
+        db_session.add(target);db_session.commit();canvas_id=canvas.id;target_id=target.id
+        before=db_session.query(CanvasAudit).filter_by(canvas_id=canvas_id).count()
+        original=crud.canvas_write_scope_error
+        moved=[]
+        def check_then_move(db,*args,**kwargs):
+            error=original(db,*args,**kwargs)
+            if error is None and kwargs.get('lock') and not moved:
+                # Separate committed authoritative writer, after the final scope check.
+                with sessionmaker(bind=db.get_bind())() as other:
+                    other.query(Canvas).filter_by(id=canvas_id).update({'workspace_id':'ws-revoked'} if scope=='workspace' else {'tenant_id':'t-revoked'})
+                    other.commit()
+                moved.append(True)
+            return error
+        monkeypatch.setattr(crud,'canvas_write_scope_error',check_then_move)
+        if operation=='put':response=client.put(f'/api/canvas/{canvas_id}',json={'text':'out-of-scope effect'})
+        else:response=client.post(f'/api/canvas/{canvas_id}/restore',json={'audit_id':target_id})
+        assert moved
+        # Fresh session: check both scope winner and durable effects.
+        with sessionmaker(bind=db_session.get_bind())() as read:
+            row=read.query(Canvas).filter_by(id=canvas_id).one()
+            count=read.query(CanvasAudit).filter_by(canvas_id=canvas_id).count()
+            observed=(row.workspace_id,row.tenant_id,row.content,count)
+>       assert observed==('ws-revoked' if scope=='workspace' else 'ws-original','t-revoked' if scope=='tenant' else user.tenant_id,{'text':'current'},before),(response.status_code,response.json(),observed,before)
+E       AssertionError: (200, {'success': True, 'write_outcome': 'committed', 'canvas_id': 'c-e6e7f952b124', 'canvas_type': 'generic', ...}, ('ws-revoked', 't1', {'text': 'historical'}, 3), 2)
+E       assert ('ws-revoked'...storical'}, 3) == ('ws-revoked'...'current'}, 2)
+E         
+E         At index 2 diff: {'text': 'historical'} != {'text': 'current'}
+E         Use -v to get more diff
+
+../../test_verifier_canvas_scope_commit_18e8.py:38: AssertionError
+------------------------------ Captured log call -------------------------------
+WARNING  core.websockets:websockets.py:172 [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-5b70c1fa'. type='canvas:update'
+___ test_scope_move_after_writer_check_refuses_before_commit[restore-tenant] ___
+
+client = <starlette.testclient.TestClient object at 0x121da68b0>
+db_session = <sqlalchemy.orm.session.Session object at 0x121d538c0>
+users = {'current': <core.models.User object at 0x121da7e10>}
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1220118c0>
+operation = 'restore', scope = 'tenant'
+
+    @pytest.mark.parametrize('scope',['workspace','tenant'])
+    @pytest.mark.parametrize('operation',['put','restore'])
+    def test_scope_move_after_writer_check_refuses_before_commit(client,db_session,users,monkeypatch,operation,scope):
+        from tools import canvas_crud_tool as crud
+        user=_make_user(db_session);user.workspace_id='ws-original';users['current']=user
+        canvas=_make_canvas(db_session,user.id,content={'text':'current'})
+        canvas.workspace_id='ws-original'
+        target=CanvasAudit(canvas_id=canvas.id,tenant_id=user.tenant_id,action_type='update',user_id=user.id,canvas_type='generic',details_json={'content':{'text':'historical'}},created_at=datetime.now(timezone.utc)-timedelta(days=1))
+        db_session.add(target);db_session.commit();canvas_id=canvas.id;target_id=target.id
+        before=db_session.query(CanvasAudit).filter_by(canvas_id=canvas_id).count()
+        original=crud.canvas_write_scope_error
+        moved=[]
+        def check_then_move(db,*args,**kwargs):
+            error=original(db,*args,**kwargs)
+            if error is None and kwargs.get('lock') and not moved:
+                # Separate committed authoritative writer, after the final scope check.
+                with sessionmaker(bind=db.get_bind())() as other:
+                    other.query(Canvas).filter_by(id=canvas_id).update({'workspace_id':'ws-revoked'} if scope=='workspace' else {'tenant_id':'t-revoked'})
+                    other.commit()
+                moved.append(True)
+            return error
+        monkeypatch.setattr(crud,'canvas_write_scope_error',check_then_move)
+        if operation=='put':response=client.put(f'/api/canvas/{canvas_id}',json={'text':'out-of-scope effect'})
+        else:response=client.post(f'/api/canvas/{canvas_id}/restore',json={'audit_id':target_id})
+        assert moved
+        # Fresh session: check both scope winner and durable effects.
+        with sessionmaker(bind=db_session.get_bind())() as read:
+            row=read.query(Canvas).filter_by(id=canvas_id).one()
+            count=read.query(CanvasAudit).filter_by(canvas_id=canvas_id).count()
+            observed=(row.workspace_id,row.tenant_id,row.content,count)
+>       assert observed==('ws-revoked' if scope=='workspace' else 'ws-original','t-revoked' if scope=='tenant' else user.tenant_id,{'text':'current'},before),(response.status_code,response.json(),observed,before)
+E       AssertionError: (200, {'success': True, 'write_outcome': 'committed', 'canvas_id': 'c-53d873806ab6', 'canvas_type': 'generic', ...}, ('ws-original', 't-revoked', {'text': 'historical'}, 3), 2)
+E       assert ('ws-original...storical'}, 3) == ('ws-original...'current'}, 2)
+E         
+E         At index 2 diff: {'text': 'historical'} != {'text': 'current'}
+E         Use -v to get more diff
+
+../../test_verifier_canvas_scope_commit_18e8.py:38: AssertionError
+------------------------------ Captured log call -------------------------------
+WARNING  core.websockets:websockets.py:172 [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:u-0f81dbfd'. type='canvas:update'
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED ../../test_verifier_canvas_scope_commit_18e8.py::test_scope_move_after_writer_check_refuses_before_commit[put-workspace]
+FAILED ../../test_verifier_canvas_scope_commit_18e8.py::test_scope_move_after_writer_check_refuses_before_commit[put-tenant]
+FAILED ../../test_verifier_canvas_scope_commit_18e8.py::test_scope_move_after_writer_check_refuses_before_commit[restore-workspace]
+FAILED ../../test_verifier_canvas_scope_commit_18e8.py::test_scope_move_after_writer_check_refuses_before_commit[restore-tenant]
+4 failed, 10 warnings in 4.24s

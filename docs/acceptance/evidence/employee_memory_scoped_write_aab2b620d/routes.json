@@ -1,0 +1,129 @@
+{
+  "schema": "atom-oracle-memory-routes-1",
+  "executed_source": "aab2b620df3e740c6c255c6a869e72fcc7eb4af7",
+  "product_source": "4a32ce30b03a47163fdd790297a96108d2c5c70f",
+  "accepted_admin_base": "9d73552d249ae8ec5b05af77546faf9621bbcd47",
+  "accepted_admin_product": "5fbb377a4e1eef8fdd0013275cd8b1c9b278cd41",
+  "prefix": "/api/memory",
+  "authority": {
+    "authentication": "get_current_user on every route",
+    "governance": "existing require_governance wrappers: MODERATE store/context, HIGH delete",
+    "scope": "tenant_id = resolve_tenant_id(current_user); user_id = current_user.id; agent_id = optional explicit query parameter",
+    "tenant_less_fallback": "resolve_tenant_id falls back to the personal tenant id 'default'",
+    "role_requirement": "none added beyond the existing authenticated/governance contract"
+  },
+  "routes": [
+    {
+      "method": "POST",
+      "path": "/api/memory",
+      "handler": "api.memory_routes.store_memory",
+      "service": "core.memory_write_service.store_memory",
+      "effect": "durable scoped TenantSetting create or conditional update, plus one AuditLog receipt",
+      "material": [
+        "exact scope (tenant/user/agent)",
+        "key",
+        "value",
+        "metadata",
+        "prior setting_value (CAS)"
+      ],
+      "transitions": "insert when absent; update only when the exact prior setting_value still matches; stale/competing write -> 409 effect=none"
+    },
+    {
+      "method": "POST",
+      "path": "/api/memory/context/{session_id}",
+      "handler": "api.memory_routes.update_context",
+      "service": "core.memory_write_service.update_context",
+      "effect": "durable scoped context merge, plus one AuditLog receipt",
+      "material": [
+        "exact scope",
+        "session_id",
+        "request context",
+        "prior context document (CAS)"
+      ],
+      "transitions": "merge preserves unseen fields; competing merge -> 409 effect=none; same-operation replay -> already_applied"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/memory/{key}",
+      "handler": "api.memory_routes.delete_memory",
+      "service": "core.memory_write_service.delete_memory",
+      "effect": "durable scoped conditional delete, plus one AuditLog tombstone receipt",
+      "material": [
+        "exact scope",
+        "key",
+        "exact prior setting_value (CAS)"
+      ],
+      "transitions": "missing -> 404; stale delete -> 409; same-operation tombstone replay -> already_applied"
+    }
+  ],
+  "read_consumers": [
+    {
+      "method": "GET",
+      "path": "/api/memory/{key}",
+      "handler": "api.memory_routes.retrieve_memory",
+      "scope": "caller's exact scope; cannot read another user/tenant/agent"
+    },
+    {
+      "method": "GET",
+      "path": "/api/memory/search",
+      "handler": "api.memory_routes.search_memory",
+      "scope": "scans only the caller's scoped key prefix"
+    },
+    {
+      "method": "GET",
+      "path": "/api/memory/context/{session_id}",
+      "handler": "api.memory_routes.get_context",
+      "scope": "caller's exact scope; missing returns empty context as before"
+    }
+  ],
+  "storage": {
+    "table": "tenant_settings",
+    "memory_key": "memory:v1:<scope-hmac>:<target-hmac>",
+    "context_key": "memory-context:v1:<scope-hmac>:<target-hmac>",
+    "document": "schema, exact scope, key/session, value/context, metadata, revision, timestamp",
+    "arbiter": "existing unique (tenant_id, setting_key) constraint",
+    "migration": "none; existing TenantSetting rows are namespaced and other consumers filter specific keys"
+  },
+  "durable_ledger": {
+    "table": "saas_audit_logs",
+    "operation_identity": "AuditLog.id is the server-owned operation id memory:<store|context|delete>:<supplied-or-generated>",
+    "metadata": [
+      "schema",
+      "operation_id",
+      "action",
+      "event_type",
+      "scope_json",
+      "setting_key",
+      "target_digest",
+      "request_digest",
+      "prior_digest",
+      "result_digest",
+      "actor_id",
+      "actor_role",
+      "tenant_id",
+      "user_id",
+      "agent_id"
+    ],
+    "sensitive_material": "no raw value, metadata, key, session content, secret, SQL parameter or exception text is stored or returned in logs",
+    "readback": "fresh session on the same engine; audit fields and the stored setting digest must match the original operation"
+  },
+  "result_states": {
+    "verified": "success shape plus additive verification/operation_id/audit_id; effect=committed",
+    "already_applied": "same operation id and request material; one receipt/effect; replay=do_not_repeat",
+    "conflict": "HTTP 409 typed STALE_TARGET / OPERATION_CONFLICT / NOT_FOUND; effect=none",
+    "not_applied": "HTTP 409 confirmed local rollback; effect=none; MEMORY_TRANSACTION_ROLLED_BACK; target/audit absent",
+    "committed_unverified": "HTTP 503; effect=committed; original identity; replay=do_not_repeat",
+    "effect_unknown": "HTTP 503; effect=unknown; original identity; replay=do_not_repeat; no exception text"
+  },
+  "parallel_writers": {
+    "memory_routes": "sole writer of the memory: and memory-context: TenantSetting namespaces",
+    "tenant_setting_consumers": "billing, governance alerts, BYOK/credential and other readers filter by specific setting_key; the memory namespace does not match them",
+    "audit_consumers": "existing AuditLog surface; additive safe receipt"
+  },
+  "not_covered": [
+    "LanceDB statistics/ingestion/webhooks/integration sync",
+    "live provider/account memory",
+    "PostgreSQL runtime/soak and multi-worker serialization",
+    "the remaining memory surfaces and whole-app ORACLE-01"
+  ]
+}

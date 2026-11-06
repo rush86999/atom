@@ -1,0 +1,1546 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-05 14:57:55 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-05 14:57:55 [ WARNING] Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+2026-11-05 14:57:55 [    INFO] No token storage file found, starting empty
+2026-11-05 14:57:55 [    INFO] OutlookEnhancedService initialized
+
+tests/test_budget_control.py::TestEnforcementModeDefault::test_unset_mode_defaults_to_soft_stop 
+-------------------------------- live log setup --------------------------------
+2026-11-05 14:57:56 [    INFO] EscalationManager initialized
+2026-11-05 14:57:56 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 14:57:56 [    INFO] EscalationManager initialized
+2026-11-05 14:57:56 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 14:57:56 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 14:57:56 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  0%]
+tests/test_budget_control.py::TestEnforcementModeDefault::test_empty_setting_defaults_to_soft_stop PASSED [  0%]
+tests/test_budget_control.py::TestEnforcementModeDefault::test_invalid_mode_falls_back_to_soft_stop 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:56 [ WARNING] [BudgetEnforcementService] Invalid enforcement mode 'bogus' for tenant t1, defaulting to soft_stop
+PASSED                                                                   [  0%]
+tests/test_budget_control.py::TestEnforcementModeDefault::test_explicit_alert_only_is_respected PASSED [  0%]
+tests/test_budget_control.py::TestEnforcementModeDefault::test_explicit_hard_stop_is_respected PASSED [  1%]
+tests/test_budget_control.py::TestEnforcementModeDefault::test_json_error_defaults_to_soft_stop 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:56 [ WARNING] [BudgetEnforcementService] Error reading enforcement mode: Expecting value: line 1 column 1 (char 0)
+PASSED                                                                   [  1%]
+tests/test_budget_control.py::TestEnforcementModeDefault::test_mode_constants_unchanged PASSED [  1%]
+tests/test_budget_control.py::TestAgentBudgetGate::test_gate_returns_allowed_when_budget_ok 
+-------------------------------- live log setup --------------------------------
+2026-11-05 14:57:56 [    INFO] MCP Service initialized
+PASSED                                                                   [  1%]
+tests/test_budget_control.py::TestAgentBudgetGate::test_gate_returns_denied_under_hard_stop PASSED [  2%]
+tests/test_budget_control.py::TestAgentBudgetGate::test_gate_fails_open_on_exception 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:56 [ WARNING] Budget pre-check failed (fail-open): DB down
+PASSED                                                                   [  2%]
+tests/test_budget_control.py::TestAgentBudgetGate::test_budget_exceeded_status_maps_to_failed PASSED [  2%]
+tests/test_budget_control.py::TestBudgetExitStatusContract::test_execute_returns_valid_status_when_budget_denied 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:56 [    INFO] Agent TestAgent (agent-1) starting task: do something
+2026-11-05 14:57:56 [    INFO] EscalationManager initialized
+2026-11-05 14:57:56 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 14:57:56 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 14:57:56 [    INFO] LanceDBHandler initialized. ID: 4965051088. LANCEDB_AVAILABLE: True
+2026-11-05 14:57:56 [    INFO] Lazy loading LanceDB connection...
+2026-11-05 14:57:56 [    INFO] Connecting to LanceDB at /private/tmp/atom-admin-privilege/backend/data/atom_memory with storage_options=None
+2026-11-05 14:57:56 [    INFO] LanceDB connected successfully
+2026-11-05 14:57:56 [ WARNING] Budget gate halted agent TestAgent at step 1: Budget exceeded. All operations halted immediately.
+2026-11-05 14:57:56 [ WARNING] Failed to generate self-critique: 'Mock' object can't be awaited
+PASSED                                                                   [  2%]
+tests/test_budget_control.py::TestSoftStopDefaultBehavior::test_unset_tenant_blocks_new_episode_when_over_budget PASSED [  3%]
+tests/test_budget_control.py::TestSoftStopDefaultBehavior::test_unset_tenant_allows_active_episode_when_over_budget PASSED [  3%]
+tests/test_budget_control.py::TestBudgetExceededMessageContract::test_message_mentions_budget_limit PASSED [  3%]
+tests/test_budget_control.py::TestBudgetExceededMessageContract::test_message_includes_the_underlying_reason PASSED [  3%]
+tests/test_budget_control.py::TestBudgetExceededMessageContract::test_message_has_safe_default_when_reason_missing PASSED [  4%]
+tests/test_personal_budget.py::TestPersonalBudgetTracking::test_check_budget_returns_false_when_under_limit PASSED [  4%]
+tests/test_personal_budget.py::TestPersonalBudgetTracking::test_check_budget_returns_true_when_exceeded 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:56 [ WARNING] Budget exceeded or will be exceeded. Limit: $100.00, Spent: $95.00, Remaining: $5.00, Estimated: $10.00. Continuing anyway (personal use = user responsibility).
+PASSED                                                                   [  4%]
+tests/test_personal_budget.py::TestPersonalBudgetTracking::test_get_current_spend_usd_aggregates_costs PASSED [  4%]
+tests/test_personal_budget.py::TestPersonalBudgetTracking::test_get_budget_forecast_predicts_exhaustion PASSED [  5%]
+tests/test_personal_budget.py::TestPersonalBudgetAlerts::test_send_budget_alert_at_threshold 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:56 [ WARNING] 🚨 BUDGET ALERT: 85.0% of monthly budget used. Spent: $85.00 of $100.00. Remaining: $15.00.
+PASSED                                                                   [  5%]
+tests/test_personal_budget.py::TestPersonalBudgetAlerts::test_send_budget_alert_below_threshold PASSED [  5%]
+tests/test_personal_budget.py::TestPersonalBudgetAlerts::test_budget_alert_logs_warning PASSED [  5%]
+tests/test_personal_budget.py::TestNoBillingEnforcement::test_no_stripe_integration PASSED [  6%]
+tests/test_personal_budget.py::TestNoBillingEnforcement::test_no_payment_processing PASSED [  6%]
+tests/test_personal_budget.py::TestNoBillingEnforcement::test_no_hard_stop_blocking PASSED [  6%]
+tests/test_personal_budget.py::TestNoBillingEnforcement::test_budget_warnings_only PASSED [  6%]
+tests/test_personal_budget.py::TestSingleTenantArchitecture::test_budget_is_global_not_per_tenant PASSED [  7%]
+tests/test_personal_budget.py::TestSingleTenantArchitecture::test_no_tenant_id_in_budget_queries PASSED [  7%]
+tests/test_personal_budget.py::TestSingleTenantArchitecture::test_no_tenant_isolation_in_budget_tracking PASSED [  7%]
+tests/test_personal_budget.py::TestBudgetServiceSingleton::test_personal_budget_service_singleton PASSED [  7%]
+tests/test_personal_budget.py::TestBudgetServiceSingleton::test_singleton_reuses_instance PASSED [  8%]
+tests/test_personal_budget.py::TestBudgetForecasting::test_forecast_status_on_track PASSED [  8%]
+tests/test_personal_budget.py::TestBudgetForecasting::test_forecast_status_at_risk PASSED [  8%]
+tests/test_personal_budget.py::TestBudgetForecasting::test_forecast_status_exceeded PASSED [  8%]
+tests/test_personal_budget.py::TestSpendRecording::test_record_spend_logs_information PASSED [  9%]
+tests/test_personal_budget.py::TestSpendRecording::test_record_spend_without_execution_id PASSED [  9%]
+tests/test_round70_budget_alert_notification.py::test_send_budget_alert_notifies_when_crossed 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:56 [ WARNING] 🚨 BUDGET ALERT: 85.0% of monthly budget used. Spent: $85.00 of $100.00. Remaining: $15.00.
+PASSED                                                                   [  9%]
+tests/test_round70_budget_alert_notification.py::test_send_budget_alert_no_notification_below_threshold PASSED [  9%]
+tests/test_round70_budget_alert_notification.py::test_budget_alert_still_logs_warning_when_crossed PASSED [ 10%]
+tests/test_round70_budget_alert_notification.py::test_budget_alert_notification_never_raises 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:56 [ WARNING] 🚨 BUDGET ALERT: 95.0% of monthly budget used. Spent: $95.00 of $100.00. Remaining: $5.00.
+PASSED                                                                   [ 10%]
+tests/test_audit_logger.py::TestIntegrationAuditLog::test_audit_log_creates_with_required_fields PASSED [ 10%]
+tests/test_audit_logger.py::TestIntegrationAuditLog::test_audit_log_to_dict_is_structured PASSED [ 10%]
+tests/test_audit_logger.py::TestIntegrationAuditLog::test_audit_log_includes_timestamp PASSED [ 11%]
+tests/test_audit_logger.py::TestIntegrationAuditLog::test_audit_log_sanitizes_sensitive_params PASSED [ 11%]
+tests/test_audit_logger.py::TestIntegrationAuditLog::test_audit_log_sanitizes_nested_sensitive_params PASSED [ 11%]
+tests/test_audit_logger.py::TestLogIntegrationCall::test_log_integration_call_creates_audit_log 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:56 [    INFO] Integration call: gmail.send_email
+PASSED                                                                   [ 11%]
+tests/test_audit_logger.py::TestLogIntegrationCall::test_log_integration_call_captures_metadata 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:56 [    INFO] Integration call: jira.get_issue
+PASSED                                                                   [ 12%]
+tests/test_audit_logger.py::TestLogIntegrationError::test_log_integration_error_creates_audit_log 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:56 [   ERROR] Integration error: slack.send_message: API rate limit exceeded
+NoneType: None
+PASSED                                                                   [ 12%]
+tests/test_audit_logger.py::TestLogIntegrationError::test_log_integration_error_captures_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:56 [   ERROR] Integration error: jira.create_issue: Invalid credentials
+NoneType: None
+PASSED                                                                   [ 12%]
+tests/test_audit_logger.py::TestLogIntegrationTiming::test_log_integration_attempt_creates_context PASSED [ 12%]
+tests/test_audit_logger.py::TestLogIntegrationTiming::test_log_integration_complete_calculates_duration 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:56 [    INFO] Integration call: slack.send_message
+PASSED                                                                   [ 13%]
+tests/test_audit_logger.py::TestLogIntegrationTiming::test_log_integration_complete_handles_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:56 [   ERROR] Integration error: jira.get_issue: Issue not found
+NoneType: None
+PASSED                                                                   [ 13%]
+tests/test_audit_logger.py::TestAuditLogFormatting::test_audit_log_format_is_structured PASSED [ 13%]
+tests/test_audit_logger.py::TestAuditLogFormatting::test_multiple_audit_logs_have_unique_timestamps PASSED [ 13%]
+tests/test_covpush_w103_audit_logger.py::TestRotateAuditLogsDeterministic::test_same_day_utc_mtime_no_rotation 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:56 [    INFO] AuditLogger initialized
+PASSED                                                                   [ 14%]
+tests/test_covpush_w103_audit_logger.py::TestRotateAuditLogsDeterministic::test_yesterday_utc_mtime_rotates 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:56 [    INFO] AuditLogger initialized
+2026-11-05 14:57:56 [    INFO] Audit log rotated and compressed
+PASSED                                                                   [ 14%]
+tests/test_covpush_w103_audit_logger.py::TestRotateAuditLogsDeterministic::test_two_day_old_mtime_rotates 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:56 [    INFO] AuditLogger initialized
+2026-11-05 14:57:56 [    INFO] Audit log rotated and compressed
+PASSED                                                                   [ 14%]
+tests/test_covpush_w103_audit_logger.py::TestRotateAuditLogsDeterministic::test_missing_log_file_noop 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:56 [    INFO] AuditLogger initialized
+PASSED                                                                   [ 14%]
+tests/test_covpush_w103_audit_logger.py::TestRotateAuditLogsDeterministic::test_rotated_filename_uses_utc_date 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:56 [    INFO] AuditLogger initialized
+2026-11-05 14:57:56 [    INFO] Audit log rotated and compressed
+PASSED                                                                   [ 15%]
+tests/test_covpush_w103_audit_logger.py::TestRotateAuditLogsDeterministic::test_writes_after_rotation_land_in_fresh_log 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:56 [    INFO] AuditLogger initialized
+2026-11-05 14:57:56 [    INFO] Audit log rotated and compressed
+PASSED                                                                   [ 15%]
+tests/test_covpush_w103_audit_logger.py::TestCleanupOldAuditLogsDeterministic::test_removes_old_rotated_logs_keeps_fresh 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:56 [    INFO] AuditLogger initialized
+2026-11-05 14:57:56 [    INFO] Old audit log removed
+2026-11-05 14:57:56 [    INFO] Old audit log removed
+2026-11-05 14:57:56 [    INFO] Audit log cleanup complete
+PASSED                                                                   [ 15%]
+tests/test_covpush_w103_audit_logger.py::TestCleanupOldAuditLogsDeterministic::test_keeps_logs_within_retention 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:56 [    INFO] AuditLogger initialized
+PASSED                                                                   [ 15%]
+tests/test_covpush_w103_audit_logger.py::TestCleanupOldAuditLogsDeterministic::test_cleanup_unreadable_file_logs_error_not_raise 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:56 [    INFO] AuditLogger initialized
+2026-11-05 14:57:56 [   ERROR] Failed to remove old audit log
+PASSED                                                                   [ 16%]
+tests/test_audit_routes_api.py::TestEventsEndpoint::test_lists_events_with_filters 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:56 [    INFO] HTTP Request: GET http://testserver/api/audit/events "HTTP/1.1 200 OK"
+2026-11-05 14:57:56 [    INFO] HTTP Request: GET http://testserver/api/audit/events?success=false "HTTP/1.1 200 OK"
+2026-11-05 14:57:56 [    INFO] HTTP Request: GET http://testserver/api/audit/events?agent_id=agent-2 "HTTP/1.1 200 OK"
+2026-11-05 14:57:56 [    INFO] HTTP Request: GET http://testserver/api/audit/events?event_type=llm_call "HTTP/1.1 200 OK"
+2026-11-05 14:57:56 [    INFO] HTTP Request: GET http://testserver/api/audit/events?execution_id=e1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 16%]
+tests/test_audit_routes_api.py::TestEventsEndpoint::test_pagination 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:56 [    INFO] HTTP Request: GET http://testserver/api/audit/events?limit=2&offset=3 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 16%]
+tests/test_audit_routes_api.py::TestExecutionTimeline::test_full_timeline 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:56 [    INFO] HTTP Request: GET http://testserver/api/audit/executions/e1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 16%]
+tests/test_audit_routes_api.py::TestExecutionTimeline::test_unknown_execution_404 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:56 [    INFO] HTTP Request: GET http://testserver/api/audit/executions/nope "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 17%]
+tests/test_audit_routes_api.py::TestExecutionTimeline::test_falls_back_to_agent_execution_row 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:56 [    INFO] HTTP Request: GET http://testserver/api/audit/executions/legacy-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 17%]
+tests/test_audit_routes_api.py::TestExecutionList::test_lists_runs_with_counts_and_status 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:56 [    INFO] HTTP Request: GET http://testserver/api/audit/executions "HTTP/1.1 200 OK"
+PASSED                                                                   [ 17%]
+tests/test_audit_routes_api.py::TestExecutionList::test_agent_filter 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:56 [    INFO] HTTP Request: GET http://testserver/api/audit/executions?agent_id=a1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 17%]
+tests/test_audit_routes_api.py::TestSummary::test_summary_aggregates 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:56 [    INFO] HTTP Request: GET http://testserver/api/audit/summary "HTTP/1.1 200 OK"
+PASSED                                                                   [ 18%]
+tests/test_audit_routes_api.py::TestSummary::test_summary_empty 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:56 [    INFO] HTTP Request: GET http://testserver/api/audit/summary "HTTP/1.1 200 OK"
+PASSED                                                                   [ 18%]
+tests/test_audit_routes_api.py::test_debug_override 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:56 [    INFO] HTTP Request: GET http://testserver/api/audit/events "HTTP/1.1 200 OK"
+PASSED                                                                   [ 18%]
+tests/test_agent_action_audit.py::TestLogAgentAction::test_writes_audit_row_with_execution_linkage PASSED [ 18%]
+tests/test_agent_action_audit.py::TestLogAgentAction::test_no_context_still_writes_row PASSED [ 19%]
+tests/test_agent_action_audit.py::TestLogAgentAction::test_failure_never_raises_but_logs_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:56 [   ERROR] AUDIT WRITE FAILED (event=agent_action action=tool:x execution=None): db down
+Traceback (most recent call last):
+  File "/private/tmp/atom-admin-privilege/backend/core/agent_action_audit.py", line 158, in _write_audit_log
+    db.commit()
+    ~~~~~~~~~^^
+  File "/Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/unittest/mock.py", line 1176, in __call__
+    return self._mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/unittest/mock.py", line 1180, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ~~~~~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "/Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/unittest/mock.py", line 1241, in _execute_mock_call
+    raise effect
+RuntimeError: db down
+PASSED                                                                   [ 19%]
+tests/test_agent_action_audit.py::TestLogAgentAction::test_payload_truncation PASSED [ 19%]
+tests/test_agent_action_audit.py::TestLLMCallLedger::test_llm_call_logged_inside_agent_context PASSED [ 19%]
+tests/test_agent_action_audit.py::TestLLMCallLedger::test_llm_call_skipped_outside_agent_context PASSED [ 20%]
+tests/test_agent_action_audit.py::TestLLMCallLedger::test_audited_llm_call_passthrough_and_ledger PASSED [ 20%]
+tests/test_agent_action_audit.py::TestLLMCallLedger::test_audited_llm_call_ledgers_failure PASSED [ 20%]
+tests/test_agent_action_audit.py::TestCompletenessGate::test_complete_when_audits_cover_expected PASSED [ 20%]
+tests/test_agent_action_audit.py::TestCompletenessGate::test_gap_detected_when_audits_missing PASSED [ 21%]
+tests/test_agent_action_audit.py::TestCompletenessGate::test_count_failure_reported_not_raised 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:56 [   ERROR] AUDIT COMPLETENESS CHECK FAILED for exec-1: boom
+PASSED                                                                   [ 21%]
+tests/test_agent_action_audit.py::TestStepActAuditWrapper::test_successful_tool_call_audited PASSED [ 21%]
+tests/test_agent_action_audit.py::TestStepActAuditWrapper::test_error_string_result_marked_failed PASSED [ 21%]
+tests/test_agent_action_audit.py::TestStepActAuditWrapper::test_exception_audited_then_reraised PASSED [ 22%]
+tests/test_agent_action_audit.py::TestStepActAuditWrapper::test_audit_failure_does_not_break_tool PASSED [ 22%]
+tests/test_integration_audit.py::TestIntegrationAuditLog::test_audit_log_initialization PASSED [ 22%]
+tests/test_integration_audit.py::TestIntegrationAuditLog::test_audit_log_to_dict PASSED [ 22%]
+tests/test_integration_audit.py::TestIntegrationAuditLog::test_audit_log_sanitizes_passwords PASSED [ 23%]
+tests/test_integration_audit.py::TestIntegrationAuditLog::test_audit_log_sanitizes_tokens PASSED [ 23%]
+tests/test_integration_audit.py::TestIntegrationAuditLog::test_audit_log_sanitizes_api_keys PASSED [ 23%]
+tests/test_integration_audit.py::TestIntegrationAuditLog::test_audit_log_sanitizes_secrets PASSED [ 23%]
+tests/test_integration_audit.py::TestIntegrationAuditLog::test_audit_log_sanitizes_nested_dicts PASSED [ 24%]
+tests/test_integration_audit.py::TestLogIntegrationCall::test_log_integration_call_returns_audit_log 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:56 [    INFO] Integration call: gmail.send_message
+PASSED                                                                   [ 24%]
+tests/test_integration_audit.py::TestLogIntegrationCall::test_log_integration_call_without_result 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:56 [    INFO] Integration call: slack.post_message
+PASSED                                                                   [ 24%]
+tests/test_integration_audit.py::TestLogIntegrationError::test_log_integration_error_returns_audit_log 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:56 [   ERROR] Integration error: jira.create_issue: Test error
+NoneType: None
+PASSED                                                                   [ 24%]
+tests/test_integration_audit.py::TestLogIntegrationError::test_log_integration_error_without_params 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:56 [   ERROR] Integration error: zoom.create_meeting: Invalid input
+NoneType: None
+PASSED                                                                   [ 25%]
+tests/test_integration_audit.py::TestLogIntegrationAttempt::test_log_integration_attempt_returns_context PASSED [ 25%]
+tests/test_integration_audit.py::TestLogIntegrationAttempt::test_log_integration_attempt_captures_time PASSED [ 25%]
+tests/test_integration_audit.py::TestLogIntegrationComplete::test_log_integration_complete_with_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:56 [    INFO] Integration call: gmail.send_message
+PASSED                                                                   [ 25%]
+tests/test_integration_audit.py::TestLogIntegrationComplete::test_log_integration_complete_with_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:56 [   ERROR] Integration error: jira.create_issue: Creation failed
+NoneType: None
+PASSED                                                                   [ 26%]
+tests/test_integration_audit.py::TestLogIntegrationComplete::test_log_integration_complete_returns_duration_ms 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:56 [    INFO] Integration call: test.test_method
+PASSED                                                                   [ 26%]
+tests/test_integration_audit.py::TestLogIntegrationComplete::test_log_integration_complete_without_result_or_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:56 [    INFO] Integration call: slack.post_message
+PASSED                                                                   [ 26%]
+tests/test_integration_audit.py::TestAuditLogTimestamps::test_custom_timestamp PASSED [ 26%]
+tests/test_integration_audit.py::TestAuditLogTimestamps::test_default_timestamp_is_current PASSED [ 27%]
+tests/test_integration_audit.py::TestAuditLogStructuredFormat::test_audit_log_has_iso_timestamp PASSED [ 27%]
+tests/test_integration_audit.py::TestAuditLogStructuredFormat::test_audit_log_includes_epoch PASSED [ 27%]
+tests/test_integration_audit.py::TestAuditLogStructuredFormat::test_audit_log_includes_all_fields PASSED [ 27%]
+tests/test_integration_audit.py::TestAuditLogErrorHandling::test_log_with_exception_object 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:56 [   ERROR] Integration error: test.test_method: Invalid value
+NoneType: None
+PASSED                                                                   [ 28%]
+tests/test_integration_audit.py::TestAuditLogErrorHandling::test_log_with_custom_exception 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:56 [   ERROR] Integration error: test.test_method: Custom error message
+NoneType: None
+PASSED                                                                   [ 28%]
+tests/test_integration_audit.py::TestAuditLogErrorHandling::test_log_with_none_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:56 [    INFO] Integration call: test.test_method
+PASSED                                                                   [ 28%]
+tests/test_execution_insert_path_audit.py::test_no_production_insert_path_bypasses_the_owner_stamp PASSED [ 28%]
+tests/test_execution_insert_path_audit.py::test_the_listener_is_actually_registered_and_fires PASSED [ 29%]
+tests/test_hitl_approvals_journey.py::TestRequiredRoleEnforcement::test_approve_denied_below_required_role 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:57 [    INFO] Created HITL action 2c18ecbe-271c-40d7-a57d-a0e18eccdeda for agent None
+PASSED                                                                   [ 29%]
+tests/test_hitl_approvals_journey.py::TestRequiredRoleEnforcement::test_approve_allowed_at_required_role 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:57 [    INFO] Created HITL action bd962287-e18d-4f9e-bdb7-2f2e7d78385f for agent None
+PASSED                                                                   [ 29%]
+tests/test_hitl_approvals_journey.py::TestRequiredRoleEnforcement::test_required_role_matching_is_case_insensitive 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:58 [    INFO] Created HITL action a66b5396-4aae-44cf-94d3-144dc3f88ed7 for agent None
+PASSED                                                                   [ 29%]
+tests/test_hitl_approvals_journey.py::TestRequiredRoleEnforcement::test_unknown_required_role_fails_closed 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:58 [    INFO] Created HITL action 7a5332b0-179e-4de4-b9eb-d14f7e5d1deb for agent None
+2026-11-05 14:57:58 [   ERROR] HITL action 7a5332b0-179e-4de4-b9eb-d14f7e5d1deb requires unknown role 'grand_wizard'; denying (fail closed)
+PASSED                                                                   [ 30%]
+tests/test_hitl_approvals_journey.py::TestRequiredRoleEnforcement::test_unverified_approver_denied 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:58 [    INFO] Created HITL action 5a032a4e-d919-4206-86e3-617317581145 for agent None
+PASSED                                                                   [ 30%]
+tests/test_hitl_approvals_journey.py::TestRequiredRoleEnforcement::test_reject_enforces_required_role 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:58 [    INFO] Created HITL action dac0af84-c530-409e-8ebc-0542b138e934 for agent None
+PASSED                                                                   [ 30%]
+tests/test_hitl_approvals_journey.py::TestRequiredRoleEnforcement::test_reject_allowed_at_required_role 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:58 [    INFO] Created HITL action d9e90ff7-5013-4d36-856c-c3d3403883a6 for agent None
+PASSED                                                                   [ 30%]
+tests/test_hitl_approvals_journey.py::TestRequiredRoleEnforcement::test_cannot_reject_non_pending_action 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:58 [    INFO] Created HITL action f982d7b8-a3b3-43a8-94a0-8269830c5ea7 for agent None
+PASSED                                                                   [ 31%]
+tests/test_hitl_approvals_journey.py::TestRequiredRoleEnforcement::test_modified_params_persist_on_approve 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:58 [    INFO] Created HITL action b65f3609-caf9-43ae-a2d8-c268b928c620 for agent None
+PASSED                                                                   [ 31%]
+tests/test_hitl_approvals_journey.py::TestApprovalsAliasSurface::test_pending_returns_plain_array 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:59 [    INFO] HTTP Request: GET http://testserver/api/agents/approvals/pending "HTTP/1.1 200 OK"
+PASSED                                                                   [ 31%]
+tests/test_hitl_approvals_journey.py::TestApprovalsAliasSurface::test_decide_approved 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:59 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/8b4eb0fd-bc49-4dee-b589-40b450fc88e7 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 31%]
+tests/test_hitl_approvals_journey.py::TestApprovalsAliasSurface::test_decide_rejected 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:59 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/2d671a12-4931-4f60-808f-59e0e51109c3 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 32%]
+tests/test_hitl_approvals_journey.py::TestApprovalsAliasSurface::test_decide_member_denied 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:59 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/some-action "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 32%]
+tests/test_hitl_approvals_journey.py::TestApprovalsAliasSurface::test_decide_respects_required_role 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:59 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/886b2d9f-83ff-49fd-b7b2-6d43a88dfb5b "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 32%]
+tests/test_hitl_approvals_journey.py::TestApprovalsAliasSurface::test_modified_params_applied 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:57:59 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/0ff0e141-06ad-49a9-a0db-e484d44f7666 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 32%]
+tests/test_hitl_approvals_journey.py::TestApprovalsAliasSurface::test_stale_goal_decision_is_refused_before_hitl_change 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:00 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/650b0725-99b0-484c-8d9e-71836795237a "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 33%]
+tests/test_hitl_approvals_journey.py::TestApprovalsAliasSurface::test_pending_requires_auth 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:00 [    INFO] HTTP Request: GET http://testserver/api/agents/approvals/pending "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 33%]
+tests/test_hitl_approvals_journey.py::TestGovernanceRejectGate::test_reject_member_denied 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:00 [ WARNING] API Error: PERMISSION_DENIED - Permission denied: reject_workflow on Workflow Approval
+2026-11-05 14:58:00 [    INFO] HTTP Request: POST http://testserver/api/agent-governance/reject/appr1?reason=nope "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 33%]
+tests/test_hitl_approvals_journey.py::TestGovernanceRejectGate::test_reject_supervisor_allowed 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:00 [    INFO] HTTP Request: POST http://testserver/api/agent-governance/reject/appr1?reason=nope "HTTP/1.1 200 OK"
+PASSED                                                                   [ 33%]
+tests/test_hitl_approvals_journey.py::TestMessagingDispatcherGates::test_member_cannot_approve_proposal PASSED [ 34%]
+tests/test_hitl_approvals_journey.py::TestMessagingDispatcherGates::test_supervisor_can_approve_proposal PASSED [ 34%]
+tests/test_hitl_approvals_journey.py::TestMessagingDispatcherGates::test_intervention_approve_uses_working_service_and_gates PASSED [ 34%]
+tests/test_hitl_resume.py::test_goal_run_decision_approval_resumes PASSED [ 34%]
+tests/test_hitl_resume.py::test_goal_run_checkpoint_rejection_rewinds PASSED [ 35%]
+tests/test_hitl_resume.py::test_workflow_approval_resumes_execution 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:00 [ WARNING] WorkflowNotifier: Slack initialization deferred: 'list' object has no attribute 'get'
+PASSED                                                                   [ 35%]
+tests/test_hitl_resume.py::test_workflow_rejection_fails_execution 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:00 [ WARNING] HITL hitl-1 decided (rejected) but work did not resume: {'handled': True, 'resumed': False, 'kind': 'workflow', 'status': 'FAILED'}
+PASSED                                                                   [ 35%]
+tests/test_hitl_resume.py::test_non_durable_action_is_not_claimed PASSED [ 35%]
+tests/test_hitl_resume.py::test_goal_run_legacy_unbound_action_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:00 [ WARNING] HITL hitl-1 decided (approved) but work did not resume: {'handled': True, 'kind': 'decision', 'resumed': False, 'stale_review': True, 'reason': 'decision_review_required'}
+PASSED                                                                   [ 36%]
+tests/test_hitl_resume.py::test_goal_run_stale_action_returns_refresh_required 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:00 [ WARNING] HITL hitl-1 decided (approved) but work did not resume: {'handled': True, 'kind': 'decision', 'resumed': False, 'stale_review': True, 'reason': 'stale_decision_review', 'current_decision_id': 'dec-2'}
+PASSED                                                                   [ 36%]
+tests/test_hitl_resume.py::test_preflight_goal_decision_rejects_stale_review PASSED [ 36%]
+tests/test_hitl_resume.py::test_preflight_goal_decision_rejects_decision_rewrite PASSED [ 36%]
+tests/test_hitl_resume.py::test_preflight_non_goal_action_is_unaffected PASSED [ 37%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestGetPendingApprovals::test_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:00 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/approvals/pending "HTTP/1.1 200 OK"
+PASSED                                                                   [ 37%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestGetPendingApprovals::test_empty_list 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:00 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/approvals/pending "HTTP/1.1 200 OK"
+PASSED                                                                   [ 37%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestGetPendingApprovals::test_no_waiting_steps 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:00 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/approvals/pending "HTTP/1.1 200 OK"
+PASSED                                                                   [ 37%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestGetPendingApprovals::test_malformed_context_json 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:00 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/approvals/pending "HTTP/1.1 200 OK"
+PASSED                                                                   [ 38%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestGetPendingApprovals::test_malformed_input_data_json 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:00 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/approvals/pending "HTTP/1.1 200 OK"
+PASSED                                                                   [ 38%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestGetPendingApprovals::test_null_context_and_input 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:00 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/approvals/pending "HTTP/1.1 200 OK"
+PASSED                                                                   [ 38%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestGetPendingApprovals::test_null_created_at 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:00 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/approvals/pending "HTTP/1.1 200 OK"
+PASSED                                                                   [ 38%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestGetPendingApprovals::test_anonymous_401 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:00 [    INFO] HTTP Request: GET http://testserver/api/v1/workflows/approvals/pending "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 39%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestRespondToApproval::test_approve_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:00 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/approvals/exec-1/respond "HTTP/1.1 200 OK"
+PASSED                                                                   [ 39%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestRespondToApproval::test_approve_legacy_waiting_marker 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:00 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/approvals/exec-1/respond "HTTP/1.1 200 OK"
+PASSED                                                                   [ 39%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestRespondToApproval::test_approve_service_failure_500 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:00 [   ERROR] Failed to resume workflow: boom
+2026-11-05 14:58:00 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/approvals/exec-1/respond "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 39%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestRespondToApproval::test_reject_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:00 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/approvals/exec-1/respond "HTTP/1.1 200 OK"
+PASSED                                                                   [ 40%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestRespondToApproval::test_reject_no_comments 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:00 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/approvals/exec-1/respond "HTTP/1.1 200 OK"
+PASSED                                                                   [ 40%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestRespondToApproval::test_unknown_execution_404 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:00 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/approvals/exec-zz/respond "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 40%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestRespondToApproval::test_not_waiting_400 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:00 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/approvals/exec-1/respond "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 40%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestRespondToApproval::test_missing_decision_422 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:00 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/approvals/exec-1/respond "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 41%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestRespondToApproval::test_missing_step_id_422 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:00 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/approvals/exec-1/respond "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 41%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestRespondToApproval::test_bad_decision_422 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:00 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/approvals/exec-1/respond "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 41%]
+tests/test_covpush_w105_workflow_approval_routes.py::TestRespondToApproval::test_anonymous_401 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:00 [    INFO] HTTP Request: POST http://testserver/api/v1/workflows/approvals/exec-1/respond "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 41%]
+tests/test_covpush_w104_intervention.py::TestRequestIntervention::test_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:00 [    INFO] Created HITL action cf421e7a-bad1-430f-845b-15488a1471c3 for agent agent-1
+PASSED                                                                   [ 42%]
+tests/test_covpush_w104_intervention.py::TestRequestIntervention::test_without_agent 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:00 [    INFO] Created HITL action 5debe817-b154-437f-adf7-cdeef4df91d3 for agent None
+PASSED                                                                   [ 42%]
+tests/test_covpush_w104_intervention.py::TestRequestIntervention::test_persist_failure_returns_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:01 [   ERROR] Failed to request intervention: disk full
+PASSED                                                                   [ 42%]
+tests/test_covpush_w104_intervention.py::TestGetPendingInterventions::test_all_pending 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:01 [    INFO] Created HITL action 8f66ac09-ea05-40ba-94df-9989c649849f for agent None
+2026-11-05 14:58:01 [    INFO] Created HITL action 55d25f53-b922-454e-9263-94fe30c7d890 for agent None
+PASSED                                                                   [ 42%]
+tests/test_covpush_w104_intervention.py::TestGetPendingInterventions::test_workspace_filter 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:01 [    INFO] Created HITL action 570b51e8-a41b-4c93-ae05-b11e7fa2a563 for agent None
+2026-11-05 14:58:01 [    INFO] Created HITL action ea894b49-a302-4b0f-a3c1-8546d735afa8 for agent None
+PASSED                                                                   [ 43%]
+tests/test_covpush_w104_intervention.py::TestGetPendingInterventions::test_default_workspace_no_filter 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:01 [    INFO] Created HITL action 9fdc40bd-4b87-4c97-9221-0f71b5169349 for agent None
+2026-11-05 14:58:01 [    INFO] Created HITL action 83775d19-800c-48d1-86de-26a709563e36 for agent None
+FAILED                                                                   [ 43%]
+tests/test_covpush_w104_intervention.py::TestGetPendingInterventions::test_serialized_shape 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:01 [    INFO] Created HITL action baba2b8b-95d9-4a99-ad11-197a4356b5fd for agent agent-1
+PASSED                                                                   [ 43%]
+tests/test_covpush_w104_intervention.py::TestGetPendingInterventions::test_agent_name_resolved 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:01 [    INFO] Created HITL action db90c2ef-20eb-4189-9393-38c4f8b8d959 for agent agent-1
+PASSED                                                                   [ 43%]
+tests/test_covpush_w104_intervention.py::TestGetPendingInterventions::test_unknown_agent_name 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:02 [    INFO] Created HITL action fab898d2-e90d-473c-a5d5-dc3749a6fbd0 for agent ghost-agent
+PASSED                                                                   [ 44%]
+tests/test_covpush_w104_intervention.py::TestGetPendingInterventions::test_no_agent_name 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:02 [    INFO] Created HITL action f7403634-3257-42ec-8cc7-a6baa6fd5338 for agent None
+PASSED                                                                   [ 44%]
+tests/test_covpush_w104_intervention.py::TestGetPendingInterventions::test_empty PASSED [ 44%]
+tests/test_covpush_w104_intervention.py::TestApproveIntervention::test_missing_action PASSED [ 44%]
+tests/test_covpush_w104_intervention.py::TestApproveIntervention::test_non_pending_action PASSED [ 45%]
+tests/test_covpush_w104_intervention.py::TestApproveIntervention::test_success PASSED [ 45%]
+tests/test_covpush_w104_intervention.py::TestRejectIntervention::test_missing_action PASSED [ 45%]
+tests/test_covpush_w104_intervention.py::TestRejectIntervention::test_success PASSED [ 45%]
+tests/test_covpush_w104_intervention.py::TestSingleton::test_module_singleton PASSED [ 46%]
+tests/test_covpush_w82_intervention.py::TestExecuteIntervention::test_dispatches_to_handler 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:03 [    INFO] Executing Intervention iv-1: draft_retention_email with {'client_name': 'Acme'}
+PASSED                                                                   [ 46%]
+tests/test_covpush_w82_intervention.py::TestExecuteIntervention::test_unknown_action_raises 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:03 [    INFO] Executing Intervention iv-1: delete_everything with {}
+PASSED                                                                   [ 46%]
+tests/test_covpush_w82_intervention.py::TestDraftRetentionEmail::test_gmail_success PASSED [ 46%]
+tests/test_covpush_w82_intervention.py::TestDraftRetentionEmail::test_gmail_no_draft PASSED [ 47%]
+tests/test_covpush_w82_intervention.py::TestDraftRetentionEmail::test_gmail_exception 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:03 [   ERROR] Gmail draft failed: SMTP down
+PASSED                                                                   [ 47%]
+tests/test_covpush_w82_intervention.py::TestDraftRetentionEmail::test_outlook_missing_user_id 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:03 [   ERROR] Outlook draft failed: Missing user_id for authentication
+PASSED                                                                   [ 47%]
+tests/test_covpush_w82_intervention.py::TestDraftRetentionEmail::test_outlook_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:03 [    INFO] Drafting Outlook email for Acme on behalf of user u-1
+PASSED                                                                   [ 47%]
+tests/test_covpush_w82_intervention.py::TestDraftRetentionEmail::test_no_provider_available PASSED [ 48%]
+tests/test_covpush_w82_intervention.py::TestDraftRetentionEmail::test_defaults PASSED [ 48%]
+tests/test_covpush_w82_intervention.py::TestCancelSubscription::test_missing_subscription_id PASSED [ 48%]
+tests/test_covpush_w82_intervention.py::TestCancelSubscription::test_missing_stripe_token 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:03 [   ERROR] Missing stripe_token for subscription cancellation
+PASSED                                                                   [ 48%]
+tests/test_covpush_w82_intervention.py::TestCancelSubscription::test_stripe_success PASSED [ 49%]
+tests/test_covpush_w82_intervention.py::TestCancelSubscription::test_stripe_api_error_not_reported_as_completed 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:03 [   ERROR] Stripe cancellation failed: card_declined
+PASSED                                                                   [ 49%]
+tests/test_covpush_w82_intervention.py::TestCancelSubscription::test_stripe_unavailable PASSED [ 49%]
+tests/test_covpush_w82_intervention.py::TestBulkRemindInvoices::test_empty_invoices PASSED [ 49%]
+tests/test_covpush_w82_intervention.py::TestBulkRemindInvoices::test_no_valid_recipients PASSED [ 50%]
+tests/test_covpush_w82_intervention.py::TestBulkRemindInvoices::test_gmail_success PASSED [ 50%]
+tests/test_covpush_w82_intervention.py::TestBulkRemindInvoices::test_gmail_no_result PASSED [ 50%]
+tests/test_covpush_w82_intervention.py::TestBulkRemindInvoices::test_gmail_exception 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:03 [   ERROR] Gmail bulk send failed: burst limit
+PASSED                                                                   [ 50%]
+tests/test_covpush_w82_intervention.py::TestBulkRemindInvoices::test_outlook_missing_user_id 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:03 [   ERROR] Outlook bulk send failed: Missing user_id for authentication
+PASSED                                                                   [ 50%]
+tests/test_covpush_w82_intervention.py::TestBulkRemindInvoices::test_outlook_success PASSED [ 51%]
+tests/test_covpush_w82_intervention.py::TestBulkRemindInvoices::test_outlook_send_failed PASSED [ 51%]
+tests/test_covpush_w82_intervention.py::TestBulkRemindInvoices::test_outlook_exception 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:03 [   ERROR] Outlook bulk send failed: graph down
+PASSED                                                                   [ 51%]
+tests/test_covpush_w82_intervention.py::TestBulkRemindInvoices::test_no_provider_available PASSED [ 51%]
+tests/test_covpush_w82_intervention.py::TestSingleton::test_module_singleton_is_service PASSED [ 52%]
+tests/test_covpush_w82_intervention.py::TestImportBranches::test_all_import_variants PASSED [ 52%]
+tests/api/test_admin_routes_user_role_crud.py::TestUserCRUD::test_list_admin_users 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:03 [    INFO] HTTP Request: GET http://testserver/api/admin/users "HTTP/1.1 200 OK"
+PASSED                                                                   [ 52%]
+tests/api/test_admin_routes_user_role_crud.py::TestUserCRUD::test_create_admin_user_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:04 [    INFO] HTTP Request: POST http://testserver/api/admin/users "HTTP/1.1 201 Created"
+PASSED                                                                   [ 52%]
+tests/api/test_admin_routes_user_role_crud.py::TestUserCRUD::test_create_admin_user_role_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:04 [    INFO] HTTP Request: POST http://testserver/api/admin/users "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 53%]
+tests/api/test_admin_routes_user_role_crud.py::TestUserCRUD::test_create_admin_user_duplicate_email 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:04 [ WARNING] API Error: CONFLICT - Admin user with this email already exists
+2026-11-05 14:58:04 [    INFO] HTTP Request: POST http://testserver/api/admin/users "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 53%]
+tests/api/test_admin_routes_user_role_crud.py::TestUserCRUD::test_get_admin_user_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:04 [    INFO] HTTP Request: GET http://testserver/api/admin/users/u-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 53%]
+tests/api/test_admin_routes_user_role_crud.py::TestUserCRUD::test_get_admin_user_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:04 [ WARNING] API Error: NOT_FOUND - AdminUser not found: ghost
+2026-11-05 14:58:04 [    INFO] HTTP Request: GET http://testserver/api/admin/users/ghost "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 53%]
+tests/api/test_admin_routes_user_role_crud.py::TestUserCRUD::test_update_admin_user_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:04 [    INFO] HTTP Request: PATCH http://testserver/api/admin/users/u-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 54%]
+tests/api/test_admin_routes_user_role_crud.py::TestUserCRUD::test_update_admin_user_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:04 [    INFO] HTTP Request: PATCH http://testserver/api/admin/users/ghost "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 54%]
+tests/api/test_admin_routes_user_role_crud.py::TestUserCRUD::test_update_admin_user_invalid_role 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:04 [    INFO] HTTP Request: PATCH http://testserver/api/admin/users/u-1 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 54%]
+tests/api/test_admin_routes_user_role_crud.py::TestUserCRUD::test_update_admin_user_invalid_status 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:04 [    INFO] HTTP Request: PATCH http://testserver/api/admin/users/u-1 "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 54%]
+tests/api/test_admin_routes_user_role_crud.py::TestUserCRUD::test_delete_admin_user_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:04 [    INFO] HTTP Request: DELETE http://testserver/api/admin/users/u-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 55%]
+tests/api/test_admin_routes_user_role_crud.py::TestUserCRUD::test_delete_admin_user_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:04 [    INFO] HTTP Request: DELETE http://testserver/api/admin/users/ghost "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 55%]
+tests/api/test_admin_routes_user_role_crud.py::TestUserCRUD::test_update_last_login_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:04 [    INFO] HTTP Request: PATCH http://testserver/api/admin/users/u-1/last-login "HTTP/1.1 200 OK"
+PASSED                                                                   [ 55%]
+tests/api/test_admin_routes_user_role_crud.py::TestUserCRUD::test_update_last_login_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:04 [ WARNING] API Error: NOT_FOUND - AdminUser not found: ghost
+2026-11-05 14:58:04 [    INFO] HTTP Request: PATCH http://testserver/api/admin/users/ghost/last-login "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 55%]
+tests/api/test_admin_routes_user_role_crud.py::TestRoleCRUD::test_list_admin_roles 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:04 [    INFO] HTTP Request: GET http://testserver/api/admin/roles "HTTP/1.1 200 OK"
+PASSED                                                                   [ 56%]
+tests/api/test_admin_routes_user_role_crud.py::TestRoleCRUD::test_create_admin_role_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:04 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 201 Created"
+PASSED                                                                   [ 56%]
+tests/api/test_admin_routes_user_role_crud.py::TestRoleCRUD::test_create_admin_role_duplicate 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:04 [ WARNING] API Error: CONFLICT - Role with this name already exists
+2026-11-05 14:58:04 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 56%]
+tests/api/test_admin_routes_user_role_crud.py::TestRoleCRUD::test_get_admin_role_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:04 [    INFO] HTTP Request: GET http://testserver/api/admin/roles/role-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 56%]
+tests/api/test_admin_routes_user_role_crud.py::TestRoleCRUD::test_get_admin_role_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:04 [ WARNING] API Error: NOT_FOUND - AdminRole not found: ghost
+2026-11-05 14:58:04 [    INFO] HTTP Request: GET http://testserver/api/admin/roles/ghost "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 57%]
+tests/api/test_admin_routes_user_role_crud.py::TestRoleCRUD::test_update_admin_role_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:04 [    INFO] HTTP Request: PATCH http://testserver/api/admin/roles/role-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 57%]
+tests/api/test_admin_routes_user_role_crud.py::TestRoleCRUD::test_update_admin_role_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:04 [    INFO] HTTP Request: PATCH http://testserver/api/admin/roles/ghost "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 57%]
+tests/api/test_admin_routes_user_role_crud.py::TestRoleCRUD::test_update_admin_role_duplicate_name 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:04 [ WARNING] API Error: CONFLICT - Role with this name already exists
+2026-11-05 14:58:04 [    INFO] HTTP Request: PATCH http://testserver/api/admin/roles/role-2 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 57%]
+tests/api/test_admin_routes_user_role_crud.py::TestRoleCRUD::test_delete_admin_role_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:04 [    INFO] HTTP Request: DELETE http://testserver/api/admin/roles/role-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 58%]
+tests/api/test_admin_routes_user_role_crud.py::TestRoleCRUD::test_delete_admin_role_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:04 [    INFO] HTTP Request: DELETE http://testserver/api/admin/roles/ghost "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 58%]
+tests/api/test_admin_routes_user_role_crud.py::TestUserRoleBranches::test_update_user_role_id 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:04 [    INFO] HTTP Request: PATCH http://testserver/api/admin/users/u-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 58%]
+tests/api/test_admin_routes_user_role_crud.py::TestUserRoleBranches::test_update_role_name_and_permissions 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:04 [    INFO] HTTP Request: PATCH http://testserver/api/admin/roles/role-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 58%]
+tests/api/test_admin_routes_user_role_crud.py::TestUserRoleBranches::test_delete_role_in_use_conflict 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:04 [ WARNING] API Error: CONFLICT - Cannot delete role: 1 admin user(s) still assigned
+2026-11-05 14:58:04 [    INFO] HTTP Request: DELETE http://testserver/api/admin/roles/role-1 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 59%]
+tests/api/test_admin_routes_user_role_crud.py::TestUserRoleBranches::test_status_validator_success_returns_value PASSED [ 59%]
+tests/api/test_admin_routes_user_role_crud.py::TestBulkResolveException::test_bulk_resolve_resolver_exception 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:04 [    INFO] Bulk resolve 2 conflicts by admin-1 (agent: None) using merge
+2026-11-05 14:58:04 [   ERROR] Failed to resolve conflict 1: boom
+2026-11-05 14:58:04 [   ERROR] Failed to resolve conflict 2: boom
+2026-11-05 14:58:04 [    INFO] HTTP Request: POST http://testserver/api/admin/conflicts/bulk-resolve "HTTP/1.1 200 OK"
+PASSED                                                                   [ 59%]
+tests/api/test_admin_routes_coverage.py::TestAdminUserList::test_list_admin_users_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:05 [    INFO] HTTP Request: GET http://testserver/api/admin/users "HTTP/1.1 200 OK"
+PASSED                                                                   [ 59%]
+tests/api/test_admin_routes_coverage.py::TestAdminUserList::test_list_admin_users_empty 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:05 [    INFO] HTTP Request: GET http://testserver/api/admin/users "HTTP/1.1 200 OK"
+PASSED                                                                   [ 60%]
+tests/api/test_admin_routes_coverage.py::TestAdminUserList::test_list_admin_users_includes_permissions 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:05 [    INFO] HTTP Request: GET http://testserver/api/admin/users "HTTP/1.1 200 OK"
+PASSED                                                                   [ 60%]
+tests/api/test_admin_routes_coverage.py::TestAdminUserGet::test_get_admin_user_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:05 [    INFO] HTTP Request: GET http://testserver/api/admin/users/b6872451-32d3-421f-a523-00fe52a3ee62 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 60%]
+tests/api/test_admin_routes_coverage.py::TestAdminUserGet::test_get_admin_user_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:05 [ WARNING] API Error: NOT_FOUND - AdminUser not found: 345b4bea-8fce-44e0-b97f-53901294852b
+2026-11-05 14:58:05 [    INFO] HTTP Request: GET http://testserver/api/admin/users/345b4bea-8fce-44e0-b97f-53901294852b "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 60%]
+tests/api/test_admin_routes_coverage.py::TestAdminUserGet::test_get_admin_user_includes_created_at 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:05 [    INFO] HTTP Request: GET http://testserver/api/admin/users/7bd31e94-2a35-4a27-a0ea-015a68f94126 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 61%]
+tests/api/test_admin_routes_coverage.py::TestAdminUserCreate::test_create_admin_user_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:06 [    INFO] HTTP Request: POST http://testserver/api/admin/users "HTTP/1.1 201 Created"
+PASSED                                                                   [ 61%]
+tests/api/test_admin_routes_coverage.py::TestAdminUserCreate::test_create_admin_user_role_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:06 [    INFO] HTTP Request: POST http://testserver/api/admin/users "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 61%]
+tests/api/test_admin_routes_coverage.py::TestAdminUserCreate::test_create_admin_user_duplicate_email 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:06 [ WARNING] API Error: CONFLICT - Admin user with this email already exists
+2026-11-05 14:58:06 [    INFO] HTTP Request: POST http://testserver/api/admin/users "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 61%]
+tests/api/test_admin_routes_coverage.py::TestAdminUserCreate::test_create_admin_user_password_hashed 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:06 [    INFO] HTTP Request: POST http://testserver/api/admin/users "HTTP/1.1 201 Created"
+PASSED                                                                   [ 62%]
+tests/api/test_admin_routes_coverage.py::TestAdminUserCreate::test_create_admin_user_default_status 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:06 [    INFO] HTTP Request: POST http://testserver/api/admin/users "HTTP/1.1 201 Created"
+PASSED                                                                   [ 62%]
+tests/api/test_admin_routes_coverage.py::TestAdminUserUpdate::test_update_admin_user_name 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:07 [    INFO] HTTP Request: PATCH http://testserver/api/admin/users/96a86172-a02e-400b-b7f4-4fa3ba7d3485 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 62%]
+tests/api/test_admin_routes_coverage.py::TestAdminUserUpdate::test_update_admin_user_role 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:07 [    INFO] HTTP Request: PATCH http://testserver/api/admin/users/b02f792e-2191-40da-9ec3-3ee5f10ee9f7 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 62%]
+tests/api/test_admin_routes_coverage.py::TestAdminUserUpdate::test_update_admin_user_role_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:07 [    INFO] HTTP Request: PATCH http://testserver/api/admin/users/c163485a-6b54-4005-8daf-4b13ee26ff7b "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 63%]
+tests/api/test_admin_routes_coverage.py::TestAdminUserUpdate::test_update_admin_user_status 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:07 [    INFO] HTTP Request: PATCH http://testserver/api/admin/users/ba8c7e78-2c04-40b7-a353-094671d5bd44 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 63%]
+tests/api/test_admin_routes_coverage.py::TestAdminUserUpdate::test_update_admin_user_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:08 [    INFO] HTTP Request: PATCH http://testserver/api/admin/users/11ab3149-a0a1-4374-a3f4-5276a8146b08 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 63%]
+tests/api/test_admin_routes_coverage.py::TestAdminUserDelete::test_delete_admin_user_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:08 [    INFO] HTTP Request: DELETE http://testserver/api/admin/users/b48eef05-6caa-45a9-9859-d17a3699d565 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 63%]
+tests/api/test_admin_routes_coverage.py::TestAdminUserDelete::test_delete_admin_user_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:08 [    INFO] HTTP Request: DELETE http://testserver/api/admin/users/2b6468cc-c17f-4614-8f4b-e6a53f462bf4 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 64%]
+tests/api/test_admin_routes_coverage.py::TestAdminUserLastLogin::test_update_last_login_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:08 [    INFO] HTTP Request: PATCH http://testserver/api/admin/users/04eae6f6-f86b-4339-9e64-5bb3155289fa/last-login "HTTP/1.1 200 OK"
+PASSED                                                                   [ 64%]
+tests/api/test_admin_routes_coverage.py::TestAdminUserLastLogin::test_update_last_login_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:08 [ WARNING] API Error: NOT_FOUND - AdminUser not found: e036fe73-a0c8-47c8-b6a6-ed2cba8b5602
+2026-11-05 14:58:08 [    INFO] HTTP Request: PATCH http://testserver/api/admin/users/e036fe73-a0c8-47c8-b6a6-ed2cba8b5602/last-login "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 64%]
+tests/api/test_admin_routes_coverage.py::TestAdminUserLastLogin::test_update_last_login_sets_timestamp 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:08 [    INFO] HTTP Request: PATCH http://testserver/api/admin/users/8e1b3ccc-609e-4329-96ed-e239741b5853/last-login "HTTP/1.1 200 OK"
+PASSED                                                                   [ 64%]
+tests/api/test_admin_routes_coverage.py::TestAdminRoleList::test_list_admin_roles_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:08 [    INFO] HTTP Request: GET http://testserver/api/admin/roles "HTTP/1.1 200 OK"
+PASSED                                                                   [ 65%]
+tests/api/test_admin_routes_coverage.py::TestAdminRoleList::test_list_admin_roles_empty 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:08 [    INFO] HTTP Request: GET http://testserver/api/admin/roles "HTTP/1.1 200 OK"
+PASSED                                                                   [ 65%]
+tests/api/test_admin_routes_coverage.py::TestAdminRoleGet::test_get_admin_role_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:08 [    INFO] HTTP Request: GET http://testserver/api/admin/roles/7a9500bf-2c3c-4ae6-aac7-10d69d094b5a "HTTP/1.1 200 OK"
+PASSED                                                                   [ 65%]
+tests/api/test_admin_routes_coverage.py::TestAdminRoleGet::test_get_admin_role_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:08 [ WARNING] API Error: NOT_FOUND - AdminRole not found: 37389a63-abe4-406f-8e11-4ecbab2b547b
+2026-11-05 14:58:08 [    INFO] HTTP Request: GET http://testserver/api/admin/roles/37389a63-abe4-406f-8e11-4ecbab2b547b "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 65%]
+tests/api/test_admin_routes_coverage.py::TestAdminRoleCreate::test_create_admin_role_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:08 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 201 Created"
+PASSED                                                                   [ 66%]
+tests/api/test_admin_routes_coverage.py::TestAdminRoleCreate::test_create_admin_role_duplicate_name 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:08 [ WARNING] API Error: CONFLICT - Role with this name already exists
+2026-11-05 14:58:08 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 66%]
+tests/api/test_admin_routes_coverage.py::TestAdminRoleUpdate::test_update_admin_role_name 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:08 [    INFO] HTTP Request: PATCH http://testserver/api/admin/roles/806af434-049d-440c-8b00-b5ac857e951a "HTTP/1.1 200 OK"
+PASSED                                                                   [ 66%]
+tests/api/test_admin_routes_coverage.py::TestAdminRoleUpdate::test_update_admin_role_name_conflict 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:08 [ WARNING] API Error: CONFLICT - Role with this name already exists
+2026-11-05 14:58:08 [    INFO] HTTP Request: PATCH http://testserver/api/admin/roles/62851acf-b4e6-4cd5-8de5-f7e2aa339f06 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 66%]
+tests/api/test_admin_routes_coverage.py::TestAdminRoleUpdate::test_update_admin_role_permissions 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:08 [    INFO] HTTP Request: PATCH http://testserver/api/admin/roles/940fe622-8278-42de-a3f4-0d3131068e46 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 67%]
+tests/api/test_admin_routes_coverage.py::TestAdminRoleUpdate::test_update_admin_role_description 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:09 [    INFO] HTTP Request: PATCH http://testserver/api/admin/roles/15d779c2-2d53-49a7-8942-f8d4343fa285 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 67%]
+tests/api/test_admin_routes_coverage.py::TestAdminRoleUpdate::test_update_admin_role_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:09 [    INFO] HTTP Request: PATCH http://testserver/api/admin/roles/9d9aef75-f4c9-4c27-8c66-0710c674e3e9 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 67%]
+tests/api/test_admin_routes_coverage.py::TestAdminRoleDelete::test_delete_admin_role_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:09 [    INFO] HTTP Request: DELETE http://testserver/api/admin/roles/17552cfc-46ab-443d-8a9b-6115f59182a4 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 67%]
+tests/api/test_admin_routes_coverage.py::TestAdminRoleDelete::test_delete_admin_role_with_users_fails 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:09 [ WARNING] API Error: CONFLICT - Cannot delete role: 1 admin user(s) still assigned
+2026-11-05 14:58:09 [    INFO] HTTP Request: DELETE http://testserver/api/admin/roles/baccd612-f210-49a7-9362-83acf32ea3c4 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 68%]
+tests/api/test_admin_routes_coverage.py::TestAdminRoleDelete::test_delete_admin_role_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:09 [    INFO] HTTP Request: DELETE http://testserver/api/admin/roles/297700bc-c47f-4dec-8e87-7420b8e51784 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 68%]
+tests/api/test_admin_routes_coverage.py::TestWebSocketStatus::test_get_websocket_status_connected 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:09 [    INFO] HTTP Request: GET http://testserver/api/admin/websocket/status "HTTP/1.1 200 OK"
+PASSED                                                                   [ 68%]
+tests/api/test_admin_routes_coverage.py::TestWebSocketStatus::test_get_websocket_status_no_state 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:09 [    INFO] HTTP Request: GET http://testserver/api/admin/websocket/status "HTTP/1.1 200 OK"
+PASSED                                                                   [ 68%]
+tests/api/test_admin_routes_coverage.py::TestWebSocketStatus::test_get_websocket_status_disconnected 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:09 [    INFO] HTTP Request: GET http://testserver/api/admin/websocket/status "HTTP/1.1 200 OK"
+PASSED                                                                   [ 69%]
+tests/api/test_admin_routes_coverage.py::TestWebSocketReconnect::test_trigger_websocket_reconnect 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:09 [    INFO] WebSocket reconnect triggered by fba5528b-c728-474d-b067-eca58e701587 (agent: None)
+2026-11-05 14:58:09 [    INFO] HTTP Request: POST http://testserver/api/admin/websocket/reconnect "HTTP/1.1 200 OK"
+PASSED                                                                   [ 69%]
+tests/api/test_admin_routes_coverage.py::TestWebSocketReconnect::test_trigger_websocket_reconnect_resets_counters 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:09 [    INFO] WebSocket reconnect triggered by 225be59b-0420-45a2-b6e9-6bcf07cf506e (agent: None)
+2026-11-05 14:58:09 [    INFO] HTTP Request: POST http://testserver/api/admin/websocket/reconnect "HTTP/1.1 200 OK"
+PASSED                                                                   [ 69%]
+tests/api/test_admin_routes_coverage.py::TestWebSocketToggle::test_disable_websocket 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:09 [    INFO] WebSocket disabled by bfeda784-c684-4cf4-b71d-9cf918fee545 (agent: None)
+2026-11-05 14:58:09 [    INFO] HTTP Request: POST http://testserver/api/admin/websocket/disable "HTTP/1.1 200 OK"
+PASSED                                                                   [ 69%]
+tests/api/test_admin_routes_coverage.py::TestWebSocketToggle::test_enable_websocket 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:09 [    INFO] WebSocket enabled by c523e15e-570a-4a2f-af2e-e217041d55e2 (agent: None)
+2026-11-05 14:58:09 [    INFO] HTTP Request: POST http://testserver/api/admin/websocket/enable "HTTP/1.1 200 OK"
+PASSED                                                                   [ 70%]
+tests/api/test_admin_routes_coverage.py::TestWebSocketToggle::test_disable_websocket_sets_disconnect_reason 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:09 [    INFO] WebSocket disabled by 3eb875c7-fec5-4ad9-9ae8-b2d386cd0212 (agent: None)
+2026-11-05 14:58:09 [    INFO] HTTP Request: POST http://testserver/api/admin/websocket/disable "HTTP/1.1 200 OK"
+PASSED                                                                   [ 70%]
+tests/api/test_admin_routes_coverage.py::TestRatingSync::test_trigger_rating_sync_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:09 [    INFO] Rating sync triggered by 77772479-09e0-4b27-88d5-f6b027123b1b (agent: None, upload_all: False)
+2026-11-05 14:58:09 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-05 14:58:09 [    INFO] Rating sync completed for 77772479-09e0-4b27-88d5-f6b027123b1b: 10 uploaded, 0 failed
+2026-11-05 14:58:09 [    INFO] HTTP Request: POST http://testserver/api/admin/sync/ratings "HTTP/1.1 200 OK"
+PASSED                                                                   [ 70%]
+tests/api/test_admin_routes_coverage.py::TestRatingSync::test_trigger_rating_sync_upload_all 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:09 [    INFO] Rating sync triggered by 595e14c1-9789-440b-b00d-c5c5b66b9910 (agent: None, upload_all: True)
+2026-11-05 14:58:09 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-05 14:58:09 [    INFO] Rating sync completed for 595e14c1-9789-440b-b00d-c5c5b66b9910: 10 uploaded, 0 failed
+2026-11-05 14:58:09 [    INFO] HTTP Request: POST http://testserver/api/admin/sync/ratings "HTTP/1.1 200 OK"
+PASSED                                                                   [ 70%]
+tests/api/test_admin_routes_coverage.py::TestRatingSync::test_trigger_rating_sync_in_progress 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:09 [    INFO] Rating sync triggered by d199f085-cfb4-4137-b69c-69131541ab31 (agent: None, upload_all: False)
+2026-11-05 14:58:09 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-05 14:58:09 [ WARNING] API Error: RATING_SYNC_IN_PROGRESS - Rating sync is already in progress
+2026-11-05 14:58:09 [    INFO] HTTP Request: POST http://testserver/api/admin/sync/ratings "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 71%]
+tests/api/test_admin_routes_coverage.py::TestFailedRatingUploads::test_get_failed_rating_uploads 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:09 [    INFO] HTTP Request: GET http://testserver/api/admin/ratings/failed-uploads "HTTP/1.1 200 OK"
+PASSED                                                                   [ 71%]
+tests/api/test_admin_routes_coverage.py::TestFailedRatingUploads::test_get_failed_rating_uploads_empty 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:09 [    INFO] HTTP Request: GET http://testserver/api/admin/ratings/failed-uploads "HTTP/1.1 200 OK"
+PASSED                                                                   [ 71%]
+tests/api/test_admin_routes_coverage.py::TestFailedRatingUploads::test_get_failed_uploads_limited 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:09 [    INFO] HTTP Request: GET http://testserver/api/admin/ratings/failed-uploads "HTTP/1.1 200 OK"
+PASSED                                                                   [ 71%]
+tests/api/test_admin_routes_coverage.py::TestRetryRatingUpload::test_retry_failed_upload_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:09 [    INFO] Retry failed rating upload failed_1 by 44a503e2-d022-4dbb-8bb1-79f2a1d6cfa3 (agent: None)
+2026-11-05 14:58:09 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-05 14:58:09 [    INFO] Retry successful for failed upload failed_1
+2026-11-05 14:58:09 [    INFO] HTTP Request: POST http://testserver/api/admin/ratings/failed-uploads/failed_1/retry "HTTP/1.1 200 OK"
+PASSED                                                                   [ 72%]
+tests/api/test_admin_routes_coverage.py::TestRetryRatingUpload::test_retry_failed_upload_rating_deleted 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:09 [    INFO] Retry failed rating upload failed_1 by 00f37507-be3c-4e05-9272-994c274c7d15 (agent: None)
+2026-11-05 14:58:09 [    INFO] HTTP Request: POST http://testserver/api/admin/ratings/failed-uploads/failed_1/retry "HTTP/1.1 200 OK"
+PASSED                                                                   [ 72%]
+tests/api/test_admin_routes_coverage.py::TestRetryRatingUpload::test_retry_failed_upload_fails_again 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:09 [    INFO] Retry failed rating upload failed_1 by 47345770-6a07-4de8-8c62-f44004095fc8 (agent: None)
+2026-11-05 14:58:09 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-05 14:58:09 [   ERROR] Retry failed for failed_1: API error
+2026-11-05 14:58:09 [    INFO] HTTP Request: POST http://testserver/api/admin/ratings/failed-uploads/failed_1/retry "HTTP/1.1 200 OK"
+PASSED                                                                   [ 72%]
+tests/api/test_admin_routes_coverage.py::TestRetryRatingUpload::test_retry_failed_upload_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:09 [    INFO] Retry failed rating upload nonexistent by 9a2ec781-4ec3-4e69-aed6-bddf7edf373f (agent: None)
+2026-11-05 14:58:09 [ WARNING] API Error: NOT_FOUND - FailedRatingUpload not found: nonexistent
+2026-11-05 14:58:09 [    INFO] HTTP Request: POST http://testserver/api/admin/ratings/failed-uploads/nonexistent/retry "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 72%]
+tests/api/test_admin_routes_coverage.py::TestConflictList::test_list_conflicts 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:09 [    INFO] List conflicts by 32ca64bb-3fc2-4819-b988-5ebc99b52a20 (agent: None) filters: severity=None, type=None
+2026-11-05 14:58:09 [    INFO] HTTP Request: GET http://testserver/api/admin/conflicts "HTTP/1.1 200 OK"
+PASSED                                                                   [ 73%]
+tests/api/test_admin_routes_coverage.py::TestConflictList::test_list_conflicts_with_filters 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:09 [    INFO] List conflicts by 2f910c49-7ab1-46bf-8ba4-d9e2cc4d2dac (agent: None) filters: severity=HIGH, type=skill_data
+2026-11-05 14:58:09 [    INFO] HTTP Request: GET http://testserver/api/admin/conflicts?severity=HIGH&conflict_type=skill_data "HTTP/1.1 200 OK"
+PASSED                                                                   [ 73%]
+tests/api/test_admin_routes_coverage.py::TestConflictList::test_list_conflicts_with_pagination 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:09 [    INFO] List conflicts by 1e6116ec-690a-4fc4-8328-7a73ea3b3f52 (agent: None) filters: severity=None, type=None
+2026-11-05 14:58:09 [    INFO] HTTP Request: GET http://testserver/api/admin/conflicts?page=2&page_size=25 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 73%]
+tests/api/test_admin_routes_coverage.py::TestConflictGet::test_get_conflict_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:09 [    INFO] Get conflict 1 by 13602d8a-579b-41c4-b629-b0bbedea521c (agent: None)
+2026-11-05 14:58:09 [    INFO] HTTP Request: GET http://testserver/api/admin/conflicts/1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 73%]
+tests/api/test_admin_routes_coverage.py::TestConflictGet::test_get_conflict_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:09 [    INFO] Get conflict 999 by d818fae5-3078-44b3-b2df-a9d8c4d0a9b2 (agent: None)
+2026-11-05 14:58:09 [ WARNING] API Error: NOT_FOUND - ConflictLog not found: 999
+2026-11-05 14:58:09 [    INFO] HTTP Request: GET http://testserver/api/admin/conflicts/999 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 74%]
+tests/api/test_admin_routes_coverage.py::TestConflictResolve::test_resolve_conflict_remote_wins 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:09 [    INFO] Resolve conflict 1 by e6e6ca9a-d253-455c-a740-3c3575f602e7 (agent: None) using remote_wins
+2026-11-05 14:58:09 [    INFO] HTTP Request: POST http://testserver/api/admin/conflicts/1/resolve "HTTP/1.1 200 OK"
+PASSED                                                                   [ 74%]
+tests/api/test_admin_routes_coverage.py::TestConflictResolve::test_resolve_conflict_local_wins 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:10 [    INFO] Resolve conflict 1 by 60ecfc44-0e28-45a8-aa37-4a405fafd518 (agent: None) using local_wins
+2026-11-05 14:58:10 [    INFO] HTTP Request: POST http://testserver/api/admin/conflicts/1/resolve "HTTP/1.1 200 OK"
+PASSED                                                                   [ 74%]
+tests/api/test_admin_routes_coverage.py::TestConflictResolve::test_resolve_conflict_merge 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:10 [    INFO] Resolve conflict 1 by 77f54a58-caf4-4be5-aa9b-e2e6e5779d81 (agent: None) using merge
+2026-11-05 14:58:10 [    INFO] HTTP Request: POST http://testserver/api/admin/conflicts/1/resolve "HTTP/1.1 200 OK"
+PASSED                                                                   [ 74%]
+tests/api/test_admin_routes_coverage.py::TestConflictResolve::test_resolve_conflict_invalid_strategy 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:10 [ WARNING] API Error: VALIDATION_ERROR - Invalid strategy
+2026-11-05 14:58:10 [    INFO] HTTP Request: POST http://testserver/api/admin/conflicts/1/resolve "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 75%]
+tests/api/test_admin_routes_coverage.py::TestConflictResolve::test_resolve_conflict_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:10 [    INFO] Resolve conflict 999 by 529a440b-ceab-4222-a264-d8525166a960 (agent: None) using remote_wins
+2026-11-05 14:58:10 [    INFO] HTTP Request: POST http://testserver/api/admin/conflicts/999/resolve "HTTP/1.1 200 OK"
+PASSED                                                                   [ 75%]
+tests/api/test_admin_routes_coverage.py::TestBulkConflictResolve::test_bulk_resolve_conflicts_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:10 [    INFO] Bulk resolve 3 conflicts by bf66fa85-18fe-4bf0-8fc7-d30f0d6e805b (agent: None) using remote_wins
+2026-11-05 14:58:10 [    INFO] HTTP Request: POST http://testserver/api/admin/conflicts/bulk-resolve "HTTP/1.1 200 OK"
+PASSED                                                                   [ 75%]
+tests/api/test_admin_routes_coverage.py::TestBulkConflictResolve::test_bulk_resolve_with_failures 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:10 [    INFO] Bulk resolve 3 conflicts by 97847feb-fe08-4e85-bc89-8a6e07f6b099 (agent: None) using remote_wins
+2026-11-05 14:58:10 [    INFO] HTTP Request: POST http://testserver/api/admin/conflicts/bulk-resolve "HTTP/1.1 200 OK"
+PASSED                                                                   [ 75%]
+tests/api/test_admin_routes_coverage.py::TestBulkConflictResolve::test_bulk_resolve_invalid_strategy 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:10 [ WARNING] API Error: VALIDATION_ERROR - Invalid strategy
+2026-11-05 14:58:10 [    INFO] HTTP Request: POST http://testserver/api/admin/conflicts/bulk-resolve "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 76%]
+tests/api/test_admin_routes_coverage.py::TestBulkConflictResolve::test_bulk_resolve_empty_conflict_ids 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:10 [    INFO] HTTP Request: POST http://testserver/api/admin/conflicts/bulk-resolve "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 76%]
+tests/api/test_admin_routes_coverage.py::TestBulkConflictResolve::test_bulk_resolve_too_many_conflicts 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:10 [    INFO] HTTP Request: POST http://testserver/api/admin/conflicts/bulk-resolve "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 76%]
+tests/api/test_admin_routes_coverage.py::TestAdminRoutesAuth::test_unauthenticated_request_fails 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:10 [    INFO] HTTP Request: GET http://testserver/api/admin/users "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 76%]
+tests/api/test_admin_routes_coverage.py::TestAdminRoutesAuth::test_inactive_admin_blocked 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:10 [    INFO] HTTP Request: GET http://testserver/api/admin/users "HTTP/1.1 200 OK"
+PASSED                                                                   [ 77%]
+tests/api/test_admin_routes_coverage.py::TestGovernanceEnforcement::test_create_user_governance_CRITICAL 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:10 [    INFO] HTTP Request: POST http://testserver/api/admin/users "HTTP/1.1 201 Created"
+PASSED                                                                   [ 77%]
+tests/api/test_admin_routes_coverage.py::TestGovernanceEnforcement::test_AUTONOMOUS_passes_all_checks 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:10 [    INFO] HTTP Request: POST http://testserver/api/admin/users "HTTP/1.1 201 Created"
+PASSED                                                                   [ 77%]
+tests/api/test_admin_routes_coverage.py::TestWebSocketStateCreationBranches::test_reconnect_creates_state_when_missing 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:10 [    INFO] WebSocket reconnect triggered by 972fd2b7-7695-4de1-a160-23fc493eb171 (agent: None)
+2026-11-05 14:58:10 [    INFO] HTTP Request: POST http://testserver/api/admin/websocket/reconnect "HTTP/1.1 200 OK"
+PASSED                                                                   [ 77%]
+tests/api/test_admin_routes_coverage.py::TestWebSocketStateCreationBranches::test_disable_creates_state_when_missing 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:10 [    INFO] WebSocket disabled by 16dd7e13-65ba-43f2-b6d3-c804e5a5aa5a (agent: None)
+2026-11-05 14:58:10 [    INFO] HTTP Request: POST http://testserver/api/admin/websocket/disable "HTTP/1.1 200 OK"
+PASSED                                                                   [ 78%]
+tests/api/test_admin_routes_coverage.py::TestWebSocketStateCreationBranches::test_enable_creates_state_when_missing 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:10 [    INFO] WebSocket enabled by f0cf24f4-ca62-47a4-9df8-1eb662e79654 (agent: None)
+2026-11-05 14:58:10 [    INFO] HTTP Request: POST http://testserver/api/admin/websocket/enable "HTTP/1.1 200 OK"
+PASSED                                                                   [ 78%]
+tests/api/test_admin_routes_coverage.py::TestRetryRatingUploadBranches::test_retry_increments_retry_count_on_failure SKIPPED [ 78%]
+tests/api/test_admin_routes_coverage.py::TestBugAdminUserStatusValidation::test_bug_arbitrary_status_rejected 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:10 [    INFO] HTTP Request: PATCH http://testserver/api/admin/users/ae0d92bf-b7f7-494c-8e75-34a695b7590e "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 78%]
+tests/api/test_admin_routes_coverage.py::TestBugAdminUserStatusValidation::test_bug_status_inactive_is_allowed 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:11 [    INFO] HTTP Request: PATCH http://testserver/api/admin/users/43c0583c-eb4e-4db8-8a9f-7fd5a48cd3ba "HTTP/1.1 200 OK"
+PASSED                                                                   [ 79%]
+tests/api/test_admin_routes_coverage.py::TestBugAdminUserStatusValidation::test_bug_status_active_is_allowed 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:11 [    INFO] HTTP Request: PATCH http://testserver/api/admin/users/7962a370-e53c-42bf-9290-272020a3622d "HTTP/1.1 200 OK"
+PASSED                                                                   [ 79%]
+tests/api/test_admin_routes_part1.py::TestAdminUserListing::test_list_admin_users_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:11 [    INFO] HTTP Request: GET http://testserver/api/admin/users "HTTP/1.1 200 OK"
+PASSED                                                                   [ 79%]
+tests/api/test_admin_routes_part1.py::TestAdminUserListing::test_list_admin_users_empty 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:11 [    INFO] HTTP Request: GET http://testserver/api/admin/users "HTTP/1.1 200 OK"
+PASSED                                                                   [ 79%]
+tests/api/test_admin_routes_part1.py::TestAdminUserListing::test_list_admin_users_with_roles_joined 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:11 [    INFO] HTTP Request: GET http://testserver/api/admin/users "HTTP/1.1 200 OK"
+PASSED                                                                   [ 80%]
+tests/api/test_admin_routes_part1.py::TestAdminUserRetrieval::test_get_admin_user_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:12 [    INFO] HTTP Request: GET http://testserver/api/admin/users/10809540-e575-4a26-acb5-28df52256a87 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 80%]
+tests/api/test_admin_routes_part1.py::TestAdminUserRetrieval::test_get_admin_user_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:12 [ WARNING] API Error: NOT_FOUND - AdminUser not found: 043b6124-1be9-4cc7-b6bb-864df2bafbd2
+2026-11-05 14:58:12 [    INFO] HTTP Request: GET http://testserver/api/admin/users/043b6124-1be9-4cc7-b6bb-864df2bafbd2 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 80%]
+tests/api/test_admin_routes_part1.py::TestAdminUserRetrieval::test_get_admin_user_unauthorized 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:12 [    INFO] HTTP Request: GET http://testserver/api/admin/users/edbaca9c-32f9-423d-945c-59bee21d6b69 "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 80%]
+tests/api/test_admin_routes_part1.py::TestAdminUserCreation::test_create_admin_user_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:12 [    INFO] HTTP Request: POST http://testserver/api/admin/users "HTTP/1.1 201 Created"
+PASSED                                                                   [ 81%]
+tests/api/test_admin_routes_part1.py::TestAdminUserCreation::test_create_admin_user_invalid_email 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:12 [    INFO] HTTP Request: POST http://testserver/api/admin/users "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 81%]
+tests/api/test_admin_routes_part1.py::TestAdminUserCreation::test_create_admin_user_weak_password 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:12 [    INFO] HTTP Request: POST http://testserver/api/admin/users "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 81%]
+tests/api/test_admin_routes_part1.py::TestAdminUserCreation::test_create_admin_user_role_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:12 [    INFO] HTTP Request: POST http://testserver/api/admin/users "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 81%]
+tests/api/test_admin_routes_part1.py::TestAdminUserCreation::test_create_admin_user_duplicate_email 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:12 [ WARNING] API Error: CONFLICT - Admin user with this email already exists
+2026-11-05 14:58:12 [    INFO] HTTP Request: POST http://testserver/api/admin/users "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 82%]
+tests/api/test_admin_routes_part1.py::TestAdminUserCreation::test_create_admin_user_password_hashed 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:13 [    INFO] HTTP Request: POST http://testserver/api/admin/users "HTTP/1.1 201 Created"
+PASSED                                                                   [ 82%]
+tests/api/test_admin_routes_part1.py::TestAdminUserUpdate::test_update_admin_user_name 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:13 [    INFO] HTTP Request: PATCH http://testserver/api/admin/users/55daca89-84e3-49f7-8e15-fbe27da35248 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 82%]
+tests/api/test_admin_routes_part1.py::TestAdminUserUpdate::test_update_admin_user_role 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:13 [    INFO] HTTP Request: PATCH http://testserver/api/admin/users/94b21cf4-5513-4413-97b2-74ae16d44db6 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 82%]
+tests/api/test_admin_routes_part1.py::TestAdminUserUpdate::test_update_admin_user_status 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:13 [    INFO] HTTP Request: PATCH http://testserver/api/admin/users/b75dce4b-2a0a-4de2-a04b-f6736737a9cc "HTTP/1.1 200 OK"
+PASSED                                                                   [ 83%]
+tests/api/test_admin_routes_part1.py::TestAdminUserUpdate::test_update_admin_user_multiple_fields 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:13 [    INFO] HTTP Request: PATCH http://testserver/api/admin/users/bc88eacd-6858-402f-9987-1ad63db40ddb "HTTP/1.1 200 OK"
+PASSED                                                                   [ 83%]
+tests/api/test_admin_routes_part1.py::TestAdminUserUpdate::test_update_admin_user_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:13 [    INFO] HTTP Request: PATCH http://testserver/api/admin/users/a0737c07-fa5e-44ca-86c6-340b3f97d4c3 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 83%]
+tests/api/test_admin_routes_part1.py::TestAdminUserUpdate::test_update_admin_user_invalid_role 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:14 [    INFO] HTTP Request: PATCH http://testserver/api/admin/users/10b306df-3408-4e3a-b1c8-a92b4057867d "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 83%]
+tests/api/test_admin_routes_part1.py::TestAdminUserDeletion::test_delete_admin_user_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:14 [    INFO] HTTP Request: DELETE http://testserver/api/admin/users/0d9a8d13-9531-460b-b984-9bd652de23ff "HTTP/1.1 200 OK"
+PASSED                                                                   [ 84%]
+tests/api/test_admin_routes_part1.py::TestAdminUserDeletion::test_delete_admin_user_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:14 [    INFO] HTTP Request: DELETE http://testserver/api/admin/users/b2ebf689-edcd-4a65-84fd-ba7dc7a47b5d "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 84%]
+tests/api/test_admin_routes_part1.py::TestAdminUserLastLogin::test_update_last_login_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:14 [    INFO] HTTP Request: PATCH http://testserver/api/admin/users/24b3828b-7b80-464c-831e-808f3aaadea6/last-login "HTTP/1.1 200 OK"
+PASSED                                                                   [ 84%]
+tests/api/test_admin_routes_part1.py::TestAdminUserLastLogin::test_update_last_login_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:14 [ WARNING] API Error: NOT_FOUND - AdminUser not found: 9b1194ef-b6b0-4fb5-b990-2cba48ec79c4
+2026-11-05 14:58:14 [    INFO] HTTP Request: PATCH http://testserver/api/admin/users/9b1194ef-b6b0-4fb5-b990-2cba48ec79c4/last-login "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 84%]
+tests/api/test_admin_routes_part1.py::TestAdminRoleListing::test_list_admin_roles_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:14 [    INFO] HTTP Request: GET http://testserver/api/admin/roles "HTTP/1.1 200 OK"
+PASSED                                                                   [ 85%]
+tests/api/test_admin_routes_part1.py::TestAdminRoleListing::test_list_admin_roles_empty 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:14 [    INFO] HTTP Request: GET http://testserver/api/admin/roles "HTTP/1.1 200 OK"
+PASSED                                                                   [ 85%]
+tests/api/test_admin_routes_part1.py::TestAdminRoleRetrieval::test_get_admin_role_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:14 [    INFO] HTTP Request: GET http://testserver/api/admin/roles/acfd1b99-27eb-4e17-9c57-8821f0e6911e "HTTP/1.1 200 OK"
+PASSED                                                                   [ 85%]
+tests/api/test_admin_routes_part1.py::TestAdminRoleRetrieval::test_get_admin_role_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:14 [ WARNING] API Error: NOT_FOUND - AdminRole not found: aad0197d-1a96-4029-84d8-089bb1629136
+2026-11-05 14:58:14 [    INFO] HTTP Request: GET http://testserver/api/admin/roles/aad0197d-1a96-4029-84d8-089bb1629136 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 85%]
+tests/api/test_admin_routes_part1.py::TestAdminRoleCreation::test_create_admin_role_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:14 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 201 Created"
+PASSED                                                                   [ 86%]
+tests/api/test_admin_routes_part1.py::TestAdminRoleCreation::test_create_admin_role_duplicate_name 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:14 [ WARNING] API Error: CONFLICT - Role with this name already exists
+2026-11-05 14:58:14 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 86%]
+tests/api/test_admin_routes_part1.py::TestAdminRoleUpdate::test_update_admin_role_name 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:14 [    INFO] HTTP Request: PATCH http://testserver/api/admin/roles/645252d2-e76e-4b37-9bfc-068ddf1dfd40 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 86%]
+tests/api/test_admin_routes_part1.py::TestAdminRoleUpdate::test_update_admin_role_permissions 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:14 [    INFO] HTTP Request: PATCH http://testserver/api/admin/roles/9bdc315b-5ba1-4927-a9cb-9c827b75b465 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 86%]
+tests/api/test_admin_routes_part1.py::TestAdminRoleUpdate::test_update_admin_role_description 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:14 [    INFO] HTTP Request: PATCH http://testserver/api/admin/roles/0c5198f1-955d-4624-bd59-d152712ba8f9 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 87%]
+tests/api/test_admin_routes_part1.py::TestAdminRoleUpdate::test_update_admin_role_duplicate_name 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:14 [ WARNING] API Error: CONFLICT - Role with this name already exists
+2026-11-05 14:58:14 [    INFO] HTTP Request: PATCH http://testserver/api/admin/roles/0b866e6c-2b1f-498a-bc36-0cdbab806655 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 87%]
+tests/api/test_admin_routes_part1.py::TestAdminRoleUpdate::test_update_admin_role_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:14 [    INFO] HTTP Request: PATCH http://testserver/api/admin/roles/536e7678-056b-493e-9be8-dd5fa60b1afa "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 87%]
+tests/api/test_admin_routes_part1.py::TestAdminRoleDeletion::test_delete_admin_role_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:14 [    INFO] HTTP Request: DELETE http://testserver/api/admin/roles/e849b8f4-f724-4d54-898c-1cc55456a58f "HTTP/1.1 200 OK"
+PASSED                                                                   [ 87%]
+tests/api/test_admin_routes_part1.py::TestAdminRoleDeletion::test_delete_admin_role_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:14 [    INFO] HTTP Request: DELETE http://testserver/api/admin/roles/3fdb344f-6fcf-4392-a4df-487bb22bdba7 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 88%]
+tests/api/test_admin_routes_part1.py::TestAdminRoleDeletion::test_delete_admin_role_in_use 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:15 [ WARNING] API Error: CONFLICT - Cannot delete role: 1 admin user(s) still assigned
+2026-11-05 14:58:15 [    INFO] HTTP Request: DELETE http://testserver/api/admin/roles/98603d65-1541-4006-ab5b-73058187e4a0 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 88%]
+tests/test_admin_write_contract.py::test_role_create_update_delete_and_replay 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:15 [    INFO] HTTP Request: POST http://testserver/api/admin/roles?operation_id=role-create-1 "HTTP/1.1 201 Created"
+2026-11-05 14:58:15 [    INFO] HTTP Request: POST http://testserver/api/admin/roles?operation_id=role-create-1 "HTTP/1.1 201 Created"
+2026-11-05 14:58:15 [ WARNING] API Error: CONFLICT - operation_id is bound to different material
+2026-11-05 14:58:15 [    INFO] HTTP Request: POST http://testserver/api/admin/roles?operation_id=role-create-1 "HTTP/1.1 409 Conflict"
+2026-11-05 14:58:15 [    INFO] HTTP Request: PATCH http://testserver/api/admin/roles/7b4c8614-a36a-5119-af02-a4be9030b5e4?operation_id=role-update-1 "HTTP/1.1 200 OK"
+2026-11-05 14:58:15 [    INFO] HTTP Request: DELETE http://testserver/api/admin/roles/7b4c8614-a36a-5119-af02-a4be9030b5e4?operation_id=role-delete-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 88%]
+tests/test_admin_write_contract.py::test_role_delete_in_use_and_concurrent_assignment_refuse 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:16 [ WARNING] API Error: CONFLICT - Cannot delete role: 1 admin user(s) still assigned
+2026-11-05 14:58:16 [    INFO] HTTP Request: DELETE http://testserver/api/admin/roles/role-1 "HTTP/1.1 409 Conflict"
+2026-11-05 14:58:16 [ WARNING] API Error: CONFLICT - Cannot delete role: 1 admin user(s) still assigned
+2026-11-05 14:58:16 [    INFO] HTTP Request: DELETE http://testserver/api/admin/roles/role-2 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 88%]
+tests/test_admin_write_contract.py::test_user_create_update_delete_and_replay 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:17 [    INFO] HTTP Request: POST http://testserver/api/admin/users?operation_id=user-create-1 "HTTP/1.1 201 Created"
+2026-11-05 14:58:18 [ WARNING] API Error: CONFLICT - Admin user with this email already exists
+2026-11-05 14:58:18 [    INFO] HTTP Request: POST http://testserver/api/admin/users "HTTP/1.1 409 Conflict"
+2026-11-05 14:58:18 [    INFO] HTTP Request: POST http://testserver/api/admin/users?operation_id=user-create-1 "HTTP/1.1 201 Created"
+2026-11-05 14:58:18 [    INFO] HTTP Request: PATCH http://testserver/api/admin/users/b8be9f86-f905-56c7-94b5-f67555a31366?operation_id=user-update-1 "HTTP/1.1 200 OK"
+2026-11-05 14:58:18 [    INFO] HTTP Request: DELETE http://testserver/api/admin/users/b8be9f86-f905-56c7-94b5-f67555a31366?operation_id=user-delete-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 89%]
+tests/test_admin_write_contract.py::test_actor_demotion_before_claim_refuses_without_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:19 [ WARNING] API Error: CONFLICT - administrator authority changed; refresh and retry
+2026-11-05 14:58:19 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 89%]
+tests/test_admin_write_contract.py::test_stale_role_update_and_user_update_refuse 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:20 [ WARNING] API Error: CONFLICT - admin role changed; refresh and retry
+2026-11-05 14:58:20 [    INFO] HTTP Request: PATCH http://testserver/api/admin/roles/role-2 "HTTP/1.1 409 Conflict"
+2026-11-05 14:58:20 [ WARNING] API Error: CONFLICT - admin user changed; refresh and retry
+2026-11-05 14:58:20 [    INFO] HTTP Request: PATCH http://testserver/api/admin/users/admin-user-1 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 89%]
+tests/test_admin_write_contract.py::test_budget_partial_merge_and_stale_update_refuses 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:20 [    INFO] HTTP Request: PUT http://testserver/api/admin/tenants/tenant-1/budget?operation_id=budget-1 "HTTP/1.1 200 OK"
+2026-11-05 14:58:20 [    INFO] HTTP Request: PUT http://testserver/api/admin/tenants/tenant-1/budget?operation_id=budget-1 "HTTP/1.1 200 OK"
+2026-11-05 14:58:20 [    INFO] HTTP Request: PUT http://testserver/api/admin/tenants/tenant-1/budget?operation_id=budget-1 "HTTP/1.1 409 Conflict"
+2026-11-05 14:58:20 [    INFO] HTTP Request: PUT http://testserver/api/admin/tenants/tenant-1/budget?operation_id=budget-2 "HTTP/1.1 200 OK"
+2026-11-05 14:58:20 [    INFO] HTTP Request: PUT http://testserver/api/admin/tenants/tenant-1/budget "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 89%]
+tests/test_admin_write_contract.py::test_audit_refuted_and_lost_confirmation_are_honest 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:21 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 503 Service Unavailable"
+2026-11-05 14:58:21 [   ERROR] admin write outcome unknown: operation_id=admin:role-create:f7533de5ac374a9f973e36b6d37a9217 target=9907347a-1573-5c19-9019-54d38ed353e9 stage=commit error_class=RuntimeError
+2026-11-05 14:58:21 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 90%]
+tests/test_admin_write_contract.py::test_authorization_and_missing_target_refusals 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:22 [ WARNING] API Error: PERMISSION_DENIED - Permission denied: access_admin_endpoints on Admin
+2026-11-05 14:58:22 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 403 Forbidden"
+2026-11-05 14:58:22 [    INFO] HTTP Request: PATCH http://testserver/api/admin/roles/missing-role "HTTP/1.1 404 Not Found"
+2026-11-05 14:58:22 [    INFO] HTTP Request: DELETE http://testserver/api/admin/users/missing-user "HTTP/1.1 404 Not Found"
+2026-11-05 14:58:22 [    INFO] HTTP Request: PUT http://testserver/api/admin/tenants/missing-tenant/budget "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 90%]
+tests/test_admin_write_contract.py::test_concurrent_duplicate_role_create_has_one_typed_conflict PASSED [ 90%]
+tests/test_admin_write_contract.py::test_concurrent_duplicate_user_email_has_one_typed_conflict PASSED [ 90%]
+tests/test_admin_write_contract_matrix.py::test_concurrent_duplicate_role_create_has_one_winner PASSED [ 91%]
+tests/test_admin_write_contract_matrix.py::test_concurrent_duplicate_user_create_has_one_winner PASSED [ 91%]
+tests/test_admin_write_contract_matrix.py::test_role_delete_and_user_assignment_never_leave_a_dangling_user PASSED [ 91%]
+tests/test_admin_write_contract_matrix.py::test_concurrent_budget_partial_updates_do_not_lose_fields PASSED [ 91%]
+tests/test_admin_write_contract_matrix.py::test_fresh_session_consumers_observe_committed_role_permissions 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:29 [    INFO] HTTP Request: POST http://testserver/api/admin/roles?operation_id=perm-role-create "HTTP/1.1 201 Created"
+2026-11-05 14:58:29 [    INFO] HTTP Request: PATCH http://testserver/api/admin/roles/a480a90c-f5f3-5d7c-b0a2-610e1bfe4d25?operation_id=perm-role-update "HTTP/1.1 200 OK"
+2026-11-05 14:58:29 [    INFO] HTTP Request: GET http://testserver/api/admin/roles/a480a90c-f5f3-5d7c-b0a2-610e1bfe4d25 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 92%]
+tests/test_admin_write_contract_matrix.py::test_fresh_session_budget_consumers_observe_committed_values 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:30 [    INFO] HTTP Request: PUT http://testserver/api/admin/tenants/tenant-1/budget?operation_id=consumer-budget "HTTP/1.1 200 OK"
+PASSED                                                                   [ 92%]
+tests/test_admin_write_contract_matrix.py::test_audit_matrix_never_certifies_a_wrong_receipt[audit_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:31 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 92%]
+tests/test_admin_write_contract_matrix.py::test_audit_matrix_never_certifies_a_wrong_receipt[workspace_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:32 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 92%]
+tests/test_admin_write_contract_matrix.py::test_audit_matrix_never_certifies_a_wrong_receipt[security_level] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:33 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 93%]
+tests/test_admin_write_contract_matrix.py::test_audit_matrix_never_certifies_a_wrong_receipt[success] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:34 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 93%]
+tests/test_admin_write_contract_matrix.py::test_audit_matrix_never_certifies_a_wrong_receipt[event_type] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:35 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 93%]
+tests/test_admin_write_contract_matrix.py::test_audit_matrix_never_certifies_a_wrong_receipt[action] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:36 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 93%]
+tests/test_admin_write_contract_matrix.py::test_audit_matrix_never_certifies_a_wrong_receipt[user_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:37 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 94%]
+tests/test_admin_write_contract_matrix.py::test_audit_matrix_never_certifies_a_wrong_receipt[resource] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:38 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 94%]
+tests/test_admin_write_contract_matrix.py::test_audit_matrix_never_certifies_a_wrong_receipt[tenant_column] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:39 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 94%]
+tests/test_admin_write_contract_matrix.py::test_audit_matrix_never_certifies_a_wrong_receipt[metadata_actor_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:40 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 94%]
+tests/test_admin_write_contract_matrix.py::test_audit_matrix_never_certifies_a_wrong_receipt[metadata_target_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:41 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 95%]
+tests/test_admin_write_contract_matrix.py::test_audit_matrix_never_certifies_a_wrong_receipt[metadata_material_digest] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:42 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 95%]
+tests/test_admin_write_contract_matrix.py::test_audit_matrix_never_certifies_a_wrong_receipt[metadata_scope] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:43 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 95%]
+tests/test_admin_write_contract_matrix.py::test_audit_matrix_never_certifies_a_wrong_receipt[metadata_tenant_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:44 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 95%]
+tests/test_admin_write_contract_matrix.py::test_audit_matrix_never_certifies_a_wrong_receipt[metadata_operation_id_type] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:45 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 96%]
+tests/test_admin_write_contract_matrix.py::test_audit_matrix_never_certifies_a_wrong_receipt[metadata_result_digest_missing] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:46 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 96%]
+tests/test_admin_write_contract_matrix.py::test_noop_updates_do_not_create_operations 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:47 [    INFO] HTTP Request: PATCH http://testserver/api/admin/roles/role-1 "HTTP/1.1 200 OK"
+2026-11-05 14:58:47 [    INFO] HTTP Request: PATCH http://testserver/api/admin/users/admin-user-1 "HTTP/1.1 200 OK"
+2026-11-05 14:58:47 [    INFO] HTTP Request: PUT http://testserver/api/admin/tenants/tenant-1/budget "HTTP/1.1 200 OK"
+PASSED                                                                   [ 96%]
+tests/test_admin_write_contract_matrix.py::test_non_finite_budget_values_are_rejected[Infinity] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:49 [    INFO] HTTP Request: PUT http://testserver/api/admin/tenants/tenant-1/budget "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 96%]
+tests/test_admin_write_contract_matrix.py::test_non_finite_budget_values_are_rejected[-Infinity] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:50 [    INFO] HTTP Request: PUT http://testserver/api/admin/tenants/tenant-1/budget "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 97%]
+tests/test_admin_write_contract_matrix.py::test_non_finite_budget_values_are_rejected[NaN] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:51 [    INFO] HTTP Request: PUT http://testserver/api/admin/tenants/tenant-1/budget "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 97%]
+tests/test_admin_write_contract_matrix.py::test_disabled_actor_refuses_before_effect[disable] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:53 [ WARNING] API Error: PERMISSION_DENIED - Permission denied: Admin request
+2026-11-05 14:58:53 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 97%]
+tests/test_admin_write_contract_matrix.py::test_disabled_actor_refuses_before_effect[suspend] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:56 [ WARNING] API Error: PERMISSION_DENIED - Permission denied: Admin request
+2026-11-05 14:58:56 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 97%]
+tests/test_admin_write_contract_matrix.py::test_later_role_target_revision_is_not_acknowledged 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:58:57 [    INFO] HTTP Request: POST http://testserver/api/admin/roles?operation_id=later-role-create "HTTP/1.1 201 Created"
+2026-11-05 14:58:57 [    INFO] HTTP Request: PATCH http://testserver/api/admin/roles/c03a7b7d-ee05-5800-967b-48ea67a5bad6?operation_id=later-role-update "HTTP/1.1 200 OK"
+2026-11-05 14:58:57 [    INFO] HTTP Request: PATCH http://testserver/api/admin/roles/c03a7b7d-ee05-5800-967b-48ea67a5bad6?operation_id=later-role-update "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 98%]
+tests/test_admin_write_contract_matrix.py::test_later_budget_revision_is_not_acknowledged 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:59:00 [    INFO] HTTP Request: PUT http://testserver/api/admin/tenants/tenant-1/budget?operation_id=later-budget "HTTP/1.1 200 OK"
+2026-11-05 14:59:00 [    INFO] HTTP Request: PUT http://testserver/api/admin/tenants/tenant-1/budget?operation_id=later-budget "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 98%]
+tests/test_admin_write_contract_matrix.py::test_role_and_user_delete_tombstones_replay 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:59:02 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 201 Created"
+2026-11-05 14:59:02 [    INFO] HTTP Request: DELETE http://testserver/api/admin/roles/e8557201-cad1-59be-9191-cac05a006a23?operation_id=tombstone-role-delete "HTTP/1.1 200 OK"
+2026-11-05 14:59:02 [    INFO] HTTP Request: DELETE http://testserver/api/admin/roles/e8557201-cad1-59be-9191-cac05a006a23?operation_id=tombstone-role-delete "HTTP/1.1 200 OK"
+2026-11-05 14:59:02 [    INFO] HTTP Request: POST http://testserver/api/admin/users "HTTP/1.1 201 Created"
+2026-11-05 14:59:02 [    INFO] HTTP Request: DELETE http://testserver/api/admin/users/2ea0a05f-f819-571f-b776-c7b0fb8828ae?operation_id=tombstone-user-delete "HTTP/1.1 200 OK"
+2026-11-05 14:59:02 [    INFO] HTTP Request: DELETE http://testserver/api/admin/users/2ea0a05f-f819-571f-b776-c7b0fb8828ae?operation_id=tombstone-user-delete "HTTP/1.1 200 OK"
+PASSED                                                                   [ 98%]
+tests/test_admin_write_contract_matrix.py::test_anonymous_admin_mutations_are_rejected 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:59:03 [    INFO] HTTP Request: POST http://testserver/api/admin/roles "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 98%]
+tests/test_admin_write_contract_matrix.py::test_member_cannot_update_budget 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:59:06 [    INFO] HTTP Request: PUT http://testserver/api/admin/tenants/tenant-1/budget "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 99%]
+tests/test_admin_budget_routes.py::TestBudgetRouteStatusCodes::test_get_unknown_tenant_returns_404_not_200 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:59:06 [    INFO] HTTP Request: GET http://testserver/api/admin/tenants/ghost/budget "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 99%]
+tests/test_admin_budget_routes.py::TestBudgetRouteStatusCodes::test_put_unknown_tenant_returns_404_not_200 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:59:06 [    INFO] HTTP Request: PUT http://testserver/api/admin/tenants/ghost/budget "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 99%]
+tests/test_admin_budget_routes.py::TestBudgetRouteStatusCodes::test_put_invalid_enforcement_mode_returns_422_not_200 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:59:06 [    INFO] HTTP Request: PUT http://testserver/api/admin/tenants/tenant-invalid-mode/budget "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 99%]
+tests/test_admin_budget_routes.py::TestBudgetRouteStatusCodes::test_put_valid_update_returns_200_and_persists 
+-------------------------------- live log call ---------------------------------
+2026-11-05 14:59:06 [    INFO] HTTP Request: PUT http://testserver/api/admin/tenants/tenant-valid/budget "HTTP/1.1 200 OK"
+2026-11-05 14:59:06 [    INFO] HTTP Request: GET http://testserver/api/admin/tenants/tenant-valid/budget "HTTP/1.1 200 OK"
+PASSED                                                                   [100%]
+
+=================================== FAILURES ===================================
+_________ TestGetPendingInterventions.test_default_workspace_no_filter _________
+tests/test_covpush_w104_intervention.py:149: in test_default_workspace_no_filter
+    assert len(svc.get_pending_interventions(workspace_id="default")) == 2
+E   AssertionError: assert 0 == 2
+E    +  where 0 = len([])
+E    +    where [] = get_pending_interventions(workspace_id='default')
+E    +      where get_pending_interventions = <core.intervention_service.InterventionService object at 0x1278b6bd0>.get_pending_interventions
+------------------------------ Captured log call -------------------------------
+INFO     core.intervention_service:intervention_service.py:57 Created HITL action 9fdc40bd-4b87-4c97-9221-0f71b5169349 for agent None
+INFO     core.intervention_service:intervention_service.py:57 Created HITL action 83775d19-800c-48d1-86de-26a709563e36 for agent None
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+core/token_storage.py:17
+  /private/tmp/atom-admin-privilege/backend/core/token_storage.py:17: DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+api/admin_routes.py:185
+  /private/tmp/atom-admin-privilege/backend/api/admin_routes.py:185: PydanticDeprecatedSince20: Using extra keyword arguments on `Field` is deprecated and will be removed. Use `json_schema_extra` instead. (Extra keys: 'unique'). Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    name: str = Field(..., min_length=1, max_length=100, unique=True, description="Role name (must be unique)")
+
+api/admin_routes.py:1000
+  /private/tmp/atom-admin-privilege/backend/api/admin_routes.py:1000: PydanticDeprecatedSince20: `min_items` is deprecated and will be removed, use `min_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    conflict_ids: List[int] = Field(..., min_items=1, max_items=100, description="List of conflict IDs to resolve (max 100)")
+
+api/admin_routes.py:1000
+  /private/tmp/atom-admin-privilege/backend/api/admin_routes.py:1000: PydanticDeprecatedSince20: `max_items` is deprecated and will be removed, use `max_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    conflict_ids: List[int] = Field(..., min_items=1, max_items=100, description="List of conflict IDs to resolve (max 100)")
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 804 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_budget_control.py::TestEnforcementModeDefault::test_unset_mode_defaults_to_soft_stop
+  /private/tmp/atom-admin-privilege/backend/core/graphrag_engine.py:203: SyntaxWarning: "\%" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\%"? A raw string is also an option.
+    Escaped pattern where % and _ are escaped to \%
+
+tests/test_budget_control.py::TestBudgetExitStatusContract::test_execute_returns_valid_status_when_budget_denied
+  /private/tmp/atom-admin-privilege/backend/core/lancedb_handler.py:407: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    names = set(self.db.table_names())
+
+tests/test_budget_control.py::TestBudgetExitStatusContract::test_execute_returns_valid_status_when_budget_denied
+tests/test_budget_control.py::TestBudgetExitStatusContract::test_execute_returns_valid_status_when_budget_denied
+  /Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/asyncio/events.py:94: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    self._context.run(self._callback, *self._args)
+
+tests/test_budget_control.py::TestBudgetExitStatusContract::test_execute_returns_valid_status_when_budget_denied
+  /private/tmp/atom-admin-privilege/backend/core/lancedb_handler.py:620: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    if table_name in self.db.table_names():
+
+tests/api/test_admin_routes_coverage.py::TestConflictResolve::test_resolve_conflict_invalid_strategy
+  /private/tmp/atom-admin-privilege/backend/api/admin_routes.py:1175: DeprecationWarning: 'HTTP_422_UNPROCESSABLE_ENTITY' is deprecated. Use 'HTTP_422_UNPROCESSABLE_CONTENT' instead.
+    raise router.validation_error(
+
+tests/api/test_admin_routes_coverage.py::TestBulkConflictResolve::test_bulk_resolve_invalid_strategy
+  /private/tmp/atom-admin-privilege/backend/api/admin_routes.py:1260: DeprecationWarning: 'HTTP_422_UNPROCESSABLE_ENTITY' is deprecated. Use 'HTTP_422_UNPROCESSABLE_CONTENT' instead.
+    raise router.validation_error(
+
+tests/api/test_admin_routes_part1.py::TestAdminUserCreation::test_create_admin_user_invalid_email
+tests/api/test_admin_routes_part1.py::TestAdminUserCreation::test_create_admin_user_weak_password
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/python.py:167: DeprecationWarning: 'HTTP_422_UNPROCESSABLE_ENTITY' is deprecated. Use 'HTTP_422_UNPROCESSABLE_CONTENT' instead.
+    result = testfunction(**testargs)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_covpush_w104_intervention.py::TestGetPendingInterventions::test_default_workspace_no_filter
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+====== 1 failed, 400 passed, 3 skipped, 824 warnings in 105.31s (0:01:45) ======
