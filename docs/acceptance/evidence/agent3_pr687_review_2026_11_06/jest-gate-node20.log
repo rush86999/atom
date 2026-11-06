@@ -1,0 +1,46 @@
+PASS tests/auth/test-signin.test.tsx
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS tests/auth/agent3-signin-callback-guard.test.tsx
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS tests/pages/__tests__/login.test.tsx
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS tests/middleware.test.ts
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS tests/lib/auth-headers.test.ts
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+
+Test Suites: 5 passed, 5 total
+Tests:       56 passed, 56 total
+Snapshots:   0 total
+Time:        3.354 s, estimated 5 s
+Ran all test suites matching tests/middleware.test.ts|tests/lib/auth-headers.test.ts|tests/pages/__tests__/login.test.tsx|tests/auth/test-signin.test.tsx|tests/auth/agent3-signin-callback-guard.test.tsx.
