@@ -1,9 +1,9 @@
 {
   "schema": "atom-auth-relative-callback-1",
-  "claim": "Protected deep-link return survives login as a safe relative path+query; default and unsafe-target behavior preserved",
+  "claim": "Protected deep-link return survives login as a safe relative path+query across password, social and existing-session consumers; default and unsafe-target behavior preserved",
   "status": "verified at unit/component and hosted frontend-job scope",
   "base_main": "ace04c8b9322c073508ce255c85b05dc0014b496",
-  "source_checkpoint": "26561052402150eea9e345b5acedb03421cd6eba",
+  "source_checkpoint": "aa731a9f582df7a82b172e301ddb28c28e4b002f",
   "pr": "https://github.com/rush86999/atom/pull/687",
   "captured_baseline": {
     "destination": "/settings?a4dl=return20261106",
@@ -12,10 +12,10 @@
     "observed": "login with absolute callbackUrl -> /dashboard"
   },
   "results": {
-    "gated_auth": "56 passed",
-    "full_auth_suite": "176 passed",
+    "gated_auth": "59 passed",
+    "full_auth_suite": "179 passed",
     "typecheck": "clean",
-    "hosted_frontend_job": "128084228917; 56 passed in the four gated suites",
+    "hosted_frontend_job": "128089878538; 59 passed in the four gated suites",
     "hosted_other": "backend, syntax, full-app-boots, quickstart, GitGuardian pass",
     "hosted_e2e_docker": "still running at capture; CI worker owns terminal tracking"
   },
@@ -32,6 +32,10 @@
       "git_blob": "08aa4af2c94528991b2efb7a07c9fa6c7b17e0f0",
       "sha256": "c4add7af70fadb435c3cc664ab33a5169fead0a935c5f4276330b5133cb25782"
     },
+    "frontend-nextjs/pages/auth/signin.tsx": {
+      "git_blob": "29c31972ce90a22e478a633a6c9e106556dd62ae",
+      "sha256": "ed6639ab5f9dbd6b7e71d2afe14a83061ccdbd47d975838fec917894f3ed9027"
+    },
     "frontend-nextjs/tests/middleware.test.ts": {
       "git_blob": "39863b87e3ef77ae22b57c261b9242677cf5f5ce",
       "sha256": "337ebd24e61ff0d5eb517098c12dd38666ffd8e768a4883fc2e496e31914f711"
@@ -45,8 +49,8 @@
       "sha256": "0726e6fe30b73c051fd564f0bc94fb98d7273c307cec5ed80d40fdf86d8f10b3"
     },
     "frontend-nextjs/tests/auth/test-signin.test.tsx": {
-      "git_blob": "32f06d7002f2863e64f1d413ef4161520c59e44e",
-      "sha256": "3791e434bc94b9d2cd89094f27d64aa7c2de62b32117bc9bfd4981d4546f7419"
+      "git_blob": "529c0cc5998b40241217c89b4331619568313453",
+      "sha256": "c896758abf3c80b1ece5d4a2c77f97c3deecbd8e70cacdeaa0cd489a351a0273"
     },
     ".github/workflows/ci.yml": {
       "git_blob": "a2cbb33a30c30e2111b8506908000f40641ab2b8",
@@ -54,10 +58,10 @@
     }
   },
   "artifact_sha256": {
-    "README.md": "54c8c91b5c1cd4b60a3a7536ecaadb4ea9d5009746fd46a71f639e2c9b67aee1",
-    "hosted-frontend-typecheck.log": "85c8532e72559fb2999b5a28848107bfdb2acddfce67f4caf2d89305cd805327",
-    "local-auth-gated.log": "55826c833dbdecf06740b9321d12b03722fb2b78a00e429a060a8b2cd7070622",
-    "local-auth-suite.log": "06f9ff8367a6ba950a58b9fc9cba15a4cd9164ea5aab891b309fb3d44b4ff909",
+    "README.md": "4c9c6b8b07e6eb603137bcd5c9cf482151a1343e373fbd50757770a30897b5f0",
+    "hosted-frontend-typecheck.log": "b193c2dad06e69ec6987e757e1d9562b5ab47ae740e56c7340b88ea16259dccd",
+    "local-auth-gated.log": "692a7577115b1339bb31d28daf57862b258c024815d1817f495c6458bc014435",
+    "local-auth-suite.log": "ffbd6515b0839b2eb65db37e1cd633a0ba8d483b242cebaaccf9a7937fd889ac",
     "local-typecheck.log": "4a96ab3ab2852e2273ecfd28bac3d5e0dfe3baa7b4206432365d209aae6a479f"
   },
   "boundaries": [

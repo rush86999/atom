@@ -1,6 +1,6 @@
 # Login-return callback repair — code/test evidence
 
-Bounded repair of the captured deep-link loss. Source: `265610524` (PR #687).
+Bounded repair of the captured deep-link loss. Source: `aa731a9f5` (PR #687).
 Base main: `ace04c8b9`.
 
 ## Captured defect
@@ -17,29 +17,33 @@ by the consumer guard and the deep link was lost.
 
 ## Repair
 
-Three producers now emit the safe relative target; the consumer guard,
-profile/role gates and authentication transport are unchanged.
+All redirect producers and the `/auth/signin` consumers now emit the safe
+relative target; the consumer guard, profile/role gates and authentication
+transport are unchanged.
 
 - `frontend-nextjs/middleware.ts`: `request.nextUrl.pathname + request.nextUrl.search`.
 - `frontend-nextjs/lib/auth-headers.ts`: shared `loginCallbackPath()` =
   `pathname + search`, used by `handleSessionExpired`.
 - `frontend-nextjs/lib/api.ts`: axios 401 interceptor uses the same helper.
+- `frontend-nextjs/pages/auth/signin.tsx`: the password form, Google/GitHub
+  buttons and existing-session redirect share the same open-redirect-safe
+  `safeDest`.
 
 ## Gates
 
 | Gate | Result |
 |---|---|
-| Gated auth command (middleware, helper, login, signin) | **56 passed** |
-| Full auth Jest suite | **176 passed** |
+| Gated auth command (middleware, helper, login, signin) | **59 passed** |
+| Full auth Jest suite | **179 passed** |
 | `npx tsc --noEmit` | clean |
-| Hosted frontend-typecheck job 128084228917 | **56 passed** in the four gated suites |
+| Hosted frontend-typecheck job 128089878538 | **59 passed** in the four gated suites |
 | Hosted backend, syntax, boot, quickstart, GitGuardian | pass |
 | Hosted e2e-journey / Docker | still running at capture; the CI worker owns terminal tracking |
 
 Twins covered:
 
-- captured `/settings?a4dl=return20261106` survives middleware → `/login`
-  and `/auth/signin` as a relative path+query;
+- captured `/settings?a4dl=return20261106` survives middleware → `/login`,
+  `/auth/signin` password, Google, GitHub and the existing-session redirect;
 - `/workflows/123?tab=steps` survives;
 - default `/dashboard` still reaches `/dashboard`;
 - `https://evil.example.com/...` and `//evil.example.com/...` still fall back
@@ -57,10 +61,11 @@ Logs: `local-auth-gated.log`, `local-auth-suite.log`, `local-typecheck.log`,
 | `frontend-nextjs/middleware.ts` | `caddad96560023e7c49e2cbea94c92a83d2c34a4` | `c493975745364ca2a9ca156d163dca77dcab43fdaf2e280647ddfa1af34c42ec` |
 | `frontend-nextjs/lib/auth-headers.ts` | `8e816b3a09179bbfc379d3e11e7603e9b1e598b4` | `ec2b9f540b383f5004fae47e473f7cfe568adb5c8bdb14a615498df76cbe9e78` |
 | `frontend-nextjs/lib/api.ts` | `08aa4af2c94528991b2efb7a07c9fa6c7b17e0f0` | `c4add7af70fadb435c3cc664ab33a5169fead0a935c5f4276330b5133cb25782` |
+| `frontend-nextjs/pages/auth/signin.tsx` | `29c31972ce90a22e478a633a6c9e106556dd62ae` | `ed6639ab5f9dbd6b7e71d2afe14a83061ccdbd47d975838fec917894f3ed9027` |
 | `frontend-nextjs/tests/middleware.test.ts` | `39863b87e3ef77ae22b57c261b9242677cf5f5ce` | `337ebd24e61ff0d5eb517098c12dd38666ffd8e768a4883fc2e496e31914f711` |
 | `frontend-nextjs/tests/lib/auth-headers.test.ts` | `6d4902f05c48b110c0baf65afcc245ee3a806220` | `291713059a1aa5df5712ba05b36e911bff2ffd4c76f44958780f7e3a88c46f54` |
 | `frontend-nextjs/tests/pages/__tests__/login.test.tsx` | `6189142c3368d3dba0e8a0edbb0c102f85243f14` | `0726e6fe30b73c051fd564f0bc94fb98d7273c307cec5ed80d40fdf86d8f10b3` |
-| `frontend-nextjs/tests/auth/test-signin.test.tsx` | `32f06d7002f2863e64f1d413ef4161520c59e44e` | `3791e434bc94b9d2cd89094f27d64aa7c2de62b32117bc9bfd4981d4546f7419` |
+| `frontend-nextjs/tests/auth/test-signin.test.tsx` | `529c0cc5998b40241217c89b4331619568313453` | `c896758abf3c80b1ece5d4a2c77f97c3deecbd8e70cacdeaa0cd489a351a0273` |
 | `.github/workflows/ci.yml` | `a2cbb33a30c30e2111b8506908000f40641ab2b8` | `7ee9ce376740ad9c39a3a67d6af67f128e0d4dd03b2f7bbd5eade59bbe36dd8d` |
 
 Artifact hashes are in `verification.json`.

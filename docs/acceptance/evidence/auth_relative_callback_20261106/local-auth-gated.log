@@ -32,7 +32,7 @@ PASS tests/lib/auth-headers.test.ts
 
 
 Test Suites: 4 passed, 4 total
-Tests:       56 passed, 56 total
+Tests:       59 passed, 59 total
 Snapshots:   0 total
-Time:        3.762 s
+Time:        3.291 s
 Ran all test suites matching tests/middleware.test.ts|tests/lib/auth-headers.test.ts|tests/pages/__tests__/login.test.tsx|tests/auth/test-signin.test.tsx.
