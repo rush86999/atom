@@ -49,6 +49,28 @@ def _clean_provider_cooldowns():
     yield
     BYOKHandler.invalidate_provider_failures()
 
+
+@pytest.fixture(autouse=True)
+def _route_catalog(monkeypatch, tmp_path):
+    """Explicit isolated discovery for this file's doubled cloud routes.
+
+    Production route eligibility is unchanged: an undiscovered catalogue
+    still refuses dispatch.
+    """
+    from tests._llm_route_catalog import install_route_catalog
+    install_route_catalog(monkeypatch, tmp_path, {
+        "opencode-go": [
+            "deepseek-v4-flash-free",
+            "deepseek-v4-flash",
+            "mimo-v2.5-free",
+            "minimax-m2.7",
+            "nemotron-3.5-lightning-free",
+            "deepseek-v4.1-flash-free",
+            "longcat-2.5-preview-free",
+            "deepseek-v4.1-flash",
+        ],
+    })
+
 CREDITS_ERROR = (
     "Error code: 401 - {'type': 'error', 'error': {'type': 'CreditsError', "
     "'message': 'Insufficient balance. Manage your billing at opencode.ai'}}"

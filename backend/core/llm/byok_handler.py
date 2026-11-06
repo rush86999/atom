@@ -7280,6 +7280,10 @@ class BYOKHandler:
                     if not _served:
                         _served = self._provider_models_cached(p)
                     for m in _served[:2]:
+                        # Never re-issue the exact pair that just failed —
+                        # that is the route the caller already exhausted.
+                        if (p, m) == (provider_id, model):
+                            continue
                         # Sweep candidates are AUTOMATIC — the same gate as
                         # every other automatic candidate. The narrow
                         # known-unserved rule used here before let an
@@ -10170,6 +10174,7 @@ class BYOKHandler:
         fallback_routes: Optional[List[tuple[str, str]]] = None,
         estimated_tokens: Optional[int] = None,
         explicit_route: Optional[bool] = None,
+        _allow_ladder_sweep: bool = True,  # sweep recursion guard (internal)
     ) -> AsyncGenerator[str, None]:
         """
         Stream LLM responses token-by-token with optional governance tracking.
@@ -10586,13 +10591,17 @@ class BYOKHandler:
                 except Exception as _cause_err:  # noqa: BLE001
                     logger.debug(f"failure classification skipped: {_cause_err}")
 
-                # Mid-stream inactivity: the user already has partial output.
-                # End the stream with what arrived — replaying the request
-                # would duplicate visible content (Qwen Code: never retry after
-                # the first chunk).
-                if isinstance(e, _StreamInactivityError) and _tokens_yielded:
+                # Mid-stream failure: the user already has partial output.
+                # End the stream with what arrived — replaying the request on
+                # a paid sibling, another provider, or the catalogue sweep
+                # would duplicate visible content (Qwen Code: never retry
+                # after the first chunk). This applies to ANY mid-stream
+                # error, not only the inactivity timeout: a provider that
+                # drops the connection after yielding text is the same
+                # caller-visible situation.
+                if _tokens_yielded:
                     logger.warning(
-                        f"mid-stream inactivity on {attempt_provider_id}/{model} "
+                        f"mid-stream failure on {attempt_provider_id}/{model} "
                         f"after {token_count} visible chunk(s) — keeping the "
                         f"partial answer, not replaying")
                     return
@@ -10914,7 +10923,9 @@ class BYOKHandler:
             # sweep does NOT re-rank — ranking (BPC + the learning router)
             # is exactly what kept crowning dead rungs; instead it walks the
             # untried providers' catalog-served models directly, cooldown-
-            # and client-checked, capped.
+            # and client-checked, capped. The sweep is one-shot: a recursive
+            # sweep would retry the same dead catalogue forever when every
+            # served model fails.
             try:
                 from core.llm.model_route_registry import (
                     get_provider_model_catalog,
@@ -10922,7 +10933,8 @@ class BYOKHandler:
 
                 _catalog = get_provider_model_catalog()
                 _sweep: List[tuple] = []
-                for p in self.clients.keys():
+                for p in (self.clients.keys()
+                          if _allow_ladder_sweep else ()):
                     if self._provider_cooldown_active(p):
                         continue
                     # A provider in provider_order may still be untried for
@@ -10937,6 +10949,10 @@ class BYOKHandler:
                     if not _served:
                         _served = self._provider_models_cached(p)
                     for m in _served[:2]:
+                        # Never re-issue the exact pair that just failed —
+                        # that is the route the caller already exhausted.
+                        if (p, m) == (provider_id, model):
+                            continue
                         # Sweep candidates are AUTOMATIC — the same gate as
                         # every other automatic candidate. The narrow
                         # known-unserved rule used here before let an
@@ -10966,6 +10982,7 @@ class BYOKHandler:
                     extra_kwargs=extra_kwargs,
                     reasoning_sink=reasoning_sink,
                     fallback_routes=_sweep[1:],
+                    _allow_ladder_sweep=False,
                 ):
                     yield _fb_tok
                 return
@@ -11624,6 +11641,10 @@ class BYOKHandler:
                     if not _served:
                         _served = self._provider_models_cached(p)
                     for m in _served[:2]:
+                        # Never re-issue the exact pair that just failed —
+                        # that is the route the caller already exhausted.
+                        if (p, m) == (provider_id, model):
+                            continue
                         if (
                             not self._ranked_model_is_known_unserved(p, m)
                             and not self._model_cooldown_active(p, m)
