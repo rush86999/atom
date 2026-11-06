@@ -1,0 +1,52 @@
+{
+  "schema": "atom-employee-evidence-1",
+  "status": "scoped agent stop/cancel submitted for independent verification; no merge or deployment",
+  "branch": "codex/oracle01-agent-stop-20261106",
+  "executed_source": "1faccf71cf00f5a1d421ce67adca3f0f652066d2",
+  "source_checkpoint": "6d7b453dc8e88813c3a142b1c88dd3c185a4872a",
+  "base_main": "66e09c5ee9f6693ab3a6e188bd50d03fae62bf39",
+  "source_files": {
+    "backend/core/agent_decision_write_service.py": "09670fc1e76d8f283f9f83dd4380d0a0b891aa43f3ed3805bbab0a1ad8f4ed74",
+    "backend/api/agent_routes.py": "6a38cadb027cb56ca1b305622e5edc74d731476fa62c51567432e5af857195db",
+    "backend/core/agent_task_registry.py": "65536e4d3be3d6bb32d6d6d3f6c65e915dea0f65ed13d537f32c79ba10b3e618",
+    "backend/tests/test_agent_stop_scope_contract.py": "44c9d0f6e2fe05c3bd5439ab9cd487e44ce74522bb282b9e3fd51d8a1a190884",
+    "backend/tests/api/test_agent_routes.py": "710a11aa0dd979502525c5ece26ea5c4d78f250b768da538390ba266d69fb84d",
+    "backend/tests/test_agent_routes_coverage.py": "b7cb7553ed8a0668f87a845185b984f5bcbfeb9056afe26e07b30cc67dec2cbb",
+    ".github/workflows/ci.yml": "7ee9ce376740ad9c39a3a67d6af67f128e0d4dd03b2f7bbd5eade59bbe36dd8d"
+  },
+  "artifacts": {
+    "README.md": "e55083cec7512a6ff47749a9e988aeb25cf43d0d952c451abe7028b1166dbe4f",
+    "TEST_RESULTS.md": "33b099a8e46fb3dd0b934f451d9b141a45b23b75e9eaaa2608d79204f29f1a34",
+    "affected-311.log": "d7a399dfb2c1e9f2ef7f3cd0850b7860ecf294b95a533de31797d0df030f5255",
+    "affected-314.log": "2a426cedf74bd5f9cc0fae62d8bac49f625915f3e38e869693fa6c7d3e1af612",
+    "baseline-main-311.log": "cb8899f9bbdc2f74387711c2a5063b6a924513b4101d684d12e7172d0d3f0b72",
+    "baseline-main-314.log": "6c00412f0083d40f00331547a467f24898f4d19331a7c5eb6daed3296e3722af",
+    "focused-311.log": "51f0df8122990fbb49fe7452e6d544d539b0e92e86d1ea0b8ad9f79590838ae8",
+    "focused-314.log": "3eb1e6c8e6da1b5d362be7cde9868a4db0f67f6bee8b72c213af4105ae719ab1",
+    "source-tree.txt": "acf33ad6bad07bc3c849f6aa8fd4fd4e7cac2dbfe039c426c43b53dc43ad2e0c",
+    "verification.json": "7e7d4e12b8eeb2cbb22b89207e51da7c168ff6800ae7309e2bfc84dd0a6685ba"
+  },
+  "checks": {
+    "focused_314": "74 passed",
+    "focused_311": "74 passed",
+    "affected_314": "367 passed, 3 skipped, 2 failed",
+    "affected_311": "349 passed, 1 failed",
+    "baseline_main_314": "358 passed, 3 skipped, 2 failed",
+    "baseline_main_311": "340 passed, 1 failed",
+    "candidate_added_failures": 0,
+    "stop_controls": 9,
+    "cross_scope_refused": true,
+    "exact_material_cas": true,
+    "no_tasks_no_receipt": true,
+    "replay_no_second_cancel": true,
+    "one_receipt_after_cancel": true,
+    "receipt_failure_effect_unknown": true,
+    "no_raw_secret_in_evidence": true
+  },
+  "boundaries": [
+    "in-process task-registry fake only; no real worker/OS/multi-worker cancellation qualification",
+    "scratch SQLite only; no PostgreSQL/soak/multi-worker qualification",
+    "shared baseline failures are pre-existing and not claimed as repaired",
+    "no merge or deployment; independent verification and code-owner review remain required"
+  ]
+}

@@ -1,0 +1,105 @@
+{
+  "schema": "atom-oracle-agent-stop-verification-1",
+  "status": "scoped stop/cancel submitted for independent verification; no merge or deployment",
+  "candidate": {
+    "branch": "codex/oracle01-agent-stop-20261106",
+    "base_main": "66e09c5ee9f6693ab3a6e188bd50d03fae62bf39",
+    "source_checkpoint": "6d7b453dc8e88813c3a142b1c88dd3c185a4872a",
+    "executed_source": "1faccf71cf00f5a1d421ce67adca3f0f652066d2",
+    "runtime": "scratch SQLite; in-process task-registry fake; no live model/provider/credential/spend/send/download/deployment",
+    "confirmed_gap": "the pre-existing stop route cancelled tasks directly without a durable scoped decision, exact-material CAS, replay suppression or AuditLog receipt"
+  },
+  "repair": {
+    "route": "delegates to core.agent_decision_write_service.stop_agent",
+    "authority": "current actor at MEMBER minimum with AGENT_RUN; tenant/workspace visible target; cross-scope is 404",
+    "material": "exact snapshot/CAS before cancellation; AUTHORITY_CHANGED and STALE_TARGET conflicts",
+    "effect": "existing AgentTaskRegistry.cancel_agent_tasks; no new engine",
+    "no_change": "zero active tasks returns cancelled_tasks 0 with no receipt",
+    "replay": "same operation_id returns the recorded result and does not cancel again",
+    "receipt": "exactly one AuditLog UPDATE after a successful cancellation",
+    "receipt_failure": "effect_unknown after cancellation; no false rollback claim"
+  },
+  "results": {
+    "focused_314": {
+      "passed": 74,
+      "failed": 0,
+      "log": "focused-314.log"
+    },
+    "focused_311": {
+      "passed": 74,
+      "failed": 0,
+      "log": "focused-311.log"
+    },
+    "affected_314": {
+      "passed": 367,
+      "skipped": 3,
+      "failed": 2,
+      "log": "affected-314.log"
+    },
+    "affected_311": {
+      "passed": 349,
+      "skipped": 0,
+      "failed": 1,
+      "log": "affected-311.log"
+    },
+    "baseline_main_314": {
+      "passed": 358,
+      "skipped": 3,
+      "failed": 2,
+      "log": "baseline-main-314.log"
+    },
+    "baseline_main_311": {
+      "passed": 340,
+      "skipped": 0,
+      "failed": 1,
+      "log": "baseline-main-311.log"
+    }
+  },
+  "stop_controls": {
+    "collected": 9,
+    "file": "tests/test_agent_stop_scope_contract.py",
+    "names": [
+      "member stops own agent and writes receipt",
+      "cross-tenant and cross-workspace stop refused",
+      "no tasks is no change without receipt",
+      "replay does not cancel new tasks",
+      "authority deactivation before claim refuses",
+      "authority demotion before claim refuses",
+      "target material change before claim refuses",
+      "receipt failure reports effect_unknown after cancel",
+      "missing agent is not found"
+    ]
+  },
+  "baseline_failure_identity": {
+    "shared": [
+      "tests/test_covpush_w29_governance.py::TestRegistry::test_register_new_agent"
+    ],
+    "shared_314_only": [
+      "tests/contract/test_agent_api_contract.py::TestAgentListContract::test_get_agents_invalid_pagination"
+    ],
+    "candidate_added_failures": 0,
+    "candidate_added_passes": 9,
+    "excluded_311_contract_file": "tests/contract/test_agent_api_contract.py requires schemathesis, unavailable on the 3.11 interpreter"
+  },
+  "checks": {
+    "current_actor_scope_bound": true,
+    "cross_tenant_stop_refused": true,
+    "cross_workspace_stop_refused": true,
+    "exact_agent_material_cas": true,
+    "authority_change_before_claim_effect_none": true,
+    "no_tasks_no_receipt": true,
+    "replay_no_second_cancel": true,
+    "one_receipt_after_cancel": true,
+    "receipt_failure_effect_unknown": true,
+    "missing_agent_not_found": true,
+    "legacy_route_tests_exercise_cancel_count": true,
+    "no_test_deleted_skipped_or_xfailed": true,
+    "no_raw_secret_in_evidence": true
+  },
+  "limits": [
+    "task registry is an in-process fake; real worker/OS/multi-worker cancellation is not qualified",
+    "scratch SQLite only; no PostgreSQL/soak/multi-worker qualification",
+    "shared baseline failures are pre-existing and are not claimed as repaired",
+    "no merge or deployment; independent verification and code-owner review remain required"
+  ]
+}

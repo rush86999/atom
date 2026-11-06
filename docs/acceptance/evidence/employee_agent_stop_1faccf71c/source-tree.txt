@@ -1,0 +1,21 @@
+executed_source: 1faccf71cf00f5a1d421ce67adca3f0f652066d2
+base_main: 66e09c5ee9f6693ab3a6e188bd50d03fae62bf39
+branch: codex/oracle01-agent-stop-20261106
+source_checkpoint: 6d7b453dc8e88813c3a142b1c88dd3c185a4872a
+test_alignment: 1faccf71c test-only get_agent_tasks preflight alignment
+status_short:
+A  docs/acceptance/evidence/employee_agent_stop_1faccf71c/README.md
+A  docs/acceptance/evidence/employee_agent_stop_1faccf71c/TEST_RESULTS.md
+A  docs/acceptance/evidence/employee_agent_stop_1faccf71c/affected-311.log
+A  docs/acceptance/evidence/employee_agent_stop_1faccf71c/affected-314.log
+A  docs/acceptance/evidence/employee_agent_stop_1faccf71c/baseline-main-311.log
+A  docs/acceptance/evidence/employee_agent_stop_1faccf71c/baseline-main-314.log
+A  docs/acceptance/evidence/employee_agent_stop_1faccf71c/focused-311.log
+A  docs/acceptance/evidence/employee_agent_stop_1faccf71c/focused-314.log
+A  docs/acceptance/evidence/employee_agent_stop_1faccf71c/source-tree.txt
+A  docs/acceptance/evidence/employee_agent_stop_1faccf71c/verification.json
+log:
+1faccf71c test(agents): align stop-route mocks with the task preflight
+6d7b453dc merge main; combine scoped stop/cancel with the verified agent engine
+66e09c5ee Security: redact JWTs from WebSocket and request logs (#689)
+aadb75ec1 Auth: preserve protected deep links through login (#687)
