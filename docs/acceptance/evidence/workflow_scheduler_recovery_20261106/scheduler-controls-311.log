@@ -1,0 +1,90 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-06 10:00:16 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+
+tests/test_workflow_scheduler_recovery.py::test_paused_schedule_survives_restart_without_firing 
+-------------------------------- live log setup --------------------------------
+2026-11-06 10:00:18 [    INFO] EscalationManager initialized
+2026-11-06 10:00:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 10:00:18 [    INFO] EscalationManager initialized
+2026-11-06 10:00:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 10:00:18 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 10:00:18 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-06 10:00:18 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-06 10:00:18 [    INFO] Scheduler started
+2026-11-06 10:00:18 [    INFO] WorkflowScheduler started
+2026-11-06 10:00:18 [    INFO] Added job "_counted_fire" to job store "default"
+2026-11-06 10:00:18 [    INFO] WorkflowScheduler shutdown
+2026-11-06 10:00:18 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-06 10:00:18 [    INFO] Scheduler started
+2026-11-06 10:00:18 [    INFO] WorkflowScheduler started
+2026-11-06 10:00:18 [    INFO] Scheduler has been shut down
+2026-11-06 10:00:18 [    INFO] WorkflowScheduler shutdown
+2026-11-06 10:00:18 [    INFO] Scheduler has been shut down
+PASSED                                                                   [ 33%]
+tests/test_workflow_scheduler_recovery.py::test_cancelled_schedule_survives_restart_without_firing 
+-------------------------------- live log call ---------------------------------
+2026-11-06 10:00:18 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-06 10:00:18 [    INFO] Scheduler started
+2026-11-06 10:00:18 [    INFO] WorkflowScheduler started
+2026-11-06 10:00:18 [    INFO] Added job "_counted_fire" to job store "default"
+2026-11-06 10:00:18 [    INFO] Removed job job_wf-cancelled_1793977218.8212
+2026-11-06 10:00:18 [    INFO] Removed job job_wf-cancelled_1793977218.8212
+2026-11-06 10:00:18 [    INFO] WorkflowScheduler shutdown
+2026-11-06 10:00:18 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-06 10:00:18 [    INFO] Scheduler started
+2026-11-06 10:00:18 [    INFO] WorkflowScheduler started
+2026-11-06 10:00:18 [    INFO] Scheduler has been shut down
+2026-11-06 10:00:19 [    INFO] WorkflowScheduler shutdown
+2026-11-06 10:00:19 [    INFO] Scheduler has been shut down
+PASSED                                                                   [ 66%]
+tests/test_workflow_scheduler_recovery.py::test_fired_once_schedule_does_not_duplicate_after_restart 
+-------------------------------- live log call ---------------------------------
+2026-11-06 10:00:19 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-06 10:00:19 [    INFO] Scheduler started
+2026-11-06 10:00:19 [    INFO] WorkflowScheduler started
+2026-11-06 10:00:19 [    INFO] Added job "_counted_fire" to job store "default"
+2026-11-06 10:00:19 [    INFO] Removed job job_wf-once_1793977219.543393
+2026-11-06 10:00:19 [    INFO] Running job "_counted_fire (trigger: date[2026-11-06 15:00:19 UTC], next run at: 2026-11-06 15:00:19 UTC)" (scheduled at 2026-11-06 15:00:19.643377+00:00)
+2026-11-06 10:00:19 [    INFO] Job "_counted_fire (trigger: date[2026-11-06 15:00:19 UTC], next run at: 2026-11-06 15:00:19 UTC)" executed successfully
+2026-11-06 10:00:20 [    INFO] WorkflowScheduler shutdown
+2026-11-06 10:00:20 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-06 10:00:20 [    INFO] Scheduler started
+2026-11-06 10:00:20 [    INFO] WorkflowScheduler started
+2026-11-06 10:00:20 [    INFO] Scheduler has been shut down
+2026-11-06 10:00:20 [    INFO] WorkflowScheduler shutdown
+2026-11-06 10:00:20 [    INFO] Scheduler has been shut down
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+tests/test_workflow_scheduler_recovery.py::test_paused_schedule_survives_restart_without_firing
+  /private/tmp/atom-onboarding/backend/core/graphrag_engine.py:196: DeprecationWarning: invalid escape sequence '\%'
+    """
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 3 passed, 6 warnings in 19.02s ========================
