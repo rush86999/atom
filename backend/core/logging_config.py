@@ -191,7 +191,8 @@ def setup_logging(
     level: Optional[str] = None,
     log_file: Optional[str] = None,
     enable_colors: bool = True,
-    show_logger_name: bool = True
+    show_logger_name: bool = True,
+    format_type: str = "text",
 ) -> None:
     """
     Setup application-wide logging configuration.
@@ -268,6 +269,10 @@ def setup_logging(
     # Suppress noisy library logs
     _configure_library_loggers()
 
+    # Redact credential-bearing request targets before any handler formats
+    # them. This includes uvicorn's WebSocket request-target logger.
+    install_log_redaction()
+
     # Log startup
     logger = logging.getLogger(__name__)
     logger.info(f"Logging initialized at {log_level_str} level")
@@ -281,9 +286,9 @@ def _configure_library_loggers() -> None:
 
     Most libraries are too chatty at INFO level, so we set them to WARNING.
     """
-    # Uvicorn/FastAPI
-    logging.getLogger("uvicorn").setLevel(logging.WARNING)
-    logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
+    # Uvicorn/FastAPI. Keep uvicorn's operator-selected level: access and
+    # WebSocket request-target lines remain observable and are redacted by
+    # install_log_redaction() rather than suppressed.
     logging.getLogger("fastapi").setLevel(logging.WARNING)
 
     # SQLAlchemy
@@ -298,6 +303,34 @@ def _configure_library_loggers() -> None:
     # Other common libraries
     logging.getLogger("websockets").setLevel(logging.WARNING)
     logging.getLogger("aiohttp").setLevel(logging.WARNING)
+
+
+_REDACTION_LOGGERS = (
+    "", "uvicorn", "uvicorn.error", "uvicorn.access",
+    "uvicorn.protocols.websockets.websockets_impl",
+    "uvicorn.protocols.websockets.wsproto_impl", "websockets",
+)
+
+
+def install_log_redaction() -> None:
+    """Attach the redaction filter to app and server logging surfaces.
+
+    Uvicorn WebSocket handshake messages are emitted on ``uvicorn.error``, not
+    ``uvicorn.access``. Attach to the logger and its current handlers so both
+    the CLI default configuration and ``uvicorn.run`` see the filter. Records
+    keep their path/status/operation fields; only credential values are
+    replaced.
+    """
+    from core.log_redaction import LogRedactionFilter
+
+    for name in _REDACTION_LOGGERS:
+        logger = logging.getLogger(name)
+        if not any(isinstance(f, LogRedactionFilter) for f in logger.filters):
+            logger.addFilter(LogRedactionFilter())
+        for handler in logger.handlers:
+            if not any(isinstance(f, LogRedactionFilter)
+                       for f in handler.filters):
+                handler.addFilter(LogRedactionFilter())
 
 
 def get_logger(name: str) -> logging.Logger:
