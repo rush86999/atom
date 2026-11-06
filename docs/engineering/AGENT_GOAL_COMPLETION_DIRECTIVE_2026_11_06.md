@@ -6,6 +6,8 @@ Progress refreshed 2026-11-06 against the current PR heads and merge records thr
 
 Agent 3 supports integration and independent verification under [its separate work order](AGENT3_INTEGRATION_VERIFICATION_GUIDANCE_2026_11_06.md). The primary agent remains the lead verifier, senior engineer and senior product manager for the whole app; adding Agent 3 does not transfer that authority.
 
+Agent 4 supports ordinary-user journey and usability verification under [its separate work order](AGENT4_PRODUCT_JOURNEY_GUIDANCE_2026_11_06.md). It first examines the fresh-browser account-return/session-recovery gap, after checking matching evidence. Agent 3 retains code-contract/integration review; neither support role transfers the lead's engineering/product or final acceptance authority.
+
 ## 1. Mandate and finish line
 
 Continue each authorized goal through diagnosis, implementation, meaningful regression, the required user boundary, evidence, remote push and review handoff. A phase checkpoint is an intermediate result. Do not stop after a plan, a small green test set, a packaging correction or a statement that you are ready for the next phase.
@@ -29,7 +31,7 @@ Use these existing records rather than inventing a new application state system:
 | G5_EVIDENCE_MATRIX.md and EMPLOYEE_G5_RECONCILIATION_2026-11-04.md | Employee evidence, negatives, later repairs and controlled-scope acceptance |
 | WHOLE_APP_COMPLETION_2026-10-27.md | Whole-app finish line beyond a successful pilot |
 | ACCEPTANCE_CONTRACT.md and the existing journey registry | Public-boundary journey requirements and candidate attribution |
-| /private/tmp/brennan-brief/COMMON.md, AGENT1.md, AGENT2.md, AGENT3.md and STATUS.md | Current ownership, submission pointers and asynchronous handoff |
+| /private/tmp/brennan-brief/COMMON.md, AGENT1.md, AGENT2.md, AGENT3.md, AGENT4.md and STATUS.md | Current ownership, submission pointers and asynchronous handoff |
 | Canonical evidence manifests and independent verifier decisions | Exact accepted source, configuration, boundary and exclusions |
 
 Some records live on newer branches or in assigned worktrees rather than the old local main checkout. Locate their committed version before concluding they are missing. Do not copy old base commits into a new branch merely because an old header names them. Inspect current origin, branch ancestry and accepted dependency commits.
@@ -75,6 +77,8 @@ The detailed verifier records remain in /private/tmp/brennan-brief/, including V
 | Acceptance | Submit immutable evidence and address findings | Same; neither self-grants independent acceptance |
 
 The lead retains whole-app engineering/product priorities, acceptance criteria, architectural guidance, coordination and final acceptance decisions. Agent 3 independently reviews submitted sources and integration/user-boundary evidence, then recommends a scoped decision to the lead. It owns its probes and review artifacts, not Agent 1 or 2's runtime files. Its first finite assignment is the merged PR675 admission review. The repository owner retains required code-owner approval, merge, deployment and new external-action authority. See the Agent 3 work order for its exact queue and boundaries.
+
+Agent 4 owns ordinary-user browser journey verification, usability evidence and the first failed user-facing transition. Its first finite candidate is sign-out/fresh-browser sign-in/session recovery, separate from the accepted wizard/reload proof. Agent 3 owns the code-contract/receipt/race/integration review; coordinate before either launches the same scenario. Agent 4 does not edit the implementation under review or grant final acceptance. Use its work order and AGENT4.md for the exact active journey; one active journey at a time.
 
 Keep separate codex branches and worktrees. A clean worktree does not establish a correct base. Read recent commits and current remote state before selecting the branch parent. Record file ownership before touching shared models, registries, LLM routing, employee_adaptation.py, chat orchestration or workflow execution.
 
@@ -303,4 +307,6 @@ Agent2: preserve the closed evolution, memory, admin, 2FA, Canvas, feedback and 
 
 Agent3: follow AGENT3_INTEGRATION_VERIFICATION_GUIDANCE_2026_11_06.md. Independently review merged PR675's admission/source/evidence boundary first; return decisive findings or a scoped acceptance recommendation to the lead. Continue another independent ready review while an implementation owner repairs a finding. Do not take over their runtime edits, grant final acceptance, repeat unchanged campaigns or start new inference. The lead remains the whole-app verifier and senior engineering/product authority.
 
-Both agents: own the complete delivery loop, keep one implementation family active, help resolve the earliest shared blocker, push between coherent phases and keep independent work moving while review is pending. Stop only at the specific authority or information boundary that actually prevents further progress. The owner should not have to repeatedly authorize the next test, correction, evidence file or push in the same assignment.
+Agent4: follow AGENT4_PRODUCT_JOURNEY_GUIDANCE_2026_11_06.md. Check existing evidence, then verify the first unqualified ordinary-user account-return/session-recovery boundary on a frozen scratch candidate. Deliver exact UI/network/readback evidence and a scoped recommendation or reproducible failure to the lead and implementation owner. Continue the next independent enabled journey while repairs are pending. Do not repeat accepted onboarding/streaming/fleet episodes, force-enable deferred features, edit another agent's runtime, duplicate Agent3's review or claim final acceptance. No new inference or external authority is granted.
+
+All implementation and verification agents: own the complete assigned delivery loop, keep the applicable single implementation family/review/journey active, help resolve the earliest shared blocker, push between coherent phases and keep independent work moving while review is pending. Stop only at the specific authority or information boundary that actually prevents further progress. The owner should not have to repeatedly authorize the next test, correction, evidence file or push in the same assignment. The lead remains responsible for whole-app engineering/product direction and final acceptance.
