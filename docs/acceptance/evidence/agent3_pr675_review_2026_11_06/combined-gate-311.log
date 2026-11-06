@@ -1,0 +1,108 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-06 11:30:38 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+
+tests/test_agent_run_admission_contract.py::test_member_admits_own_agent_and_dispatch_completes 
+-------------------------------- live log setup --------------------------------
+2026-11-06 11:30:38 [    INFO] EscalationManager initialized
+2026-11-06 11:30:38 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 11:30:38 [    INFO] EscalationManager initialized
+2026-11-06 11:30:38 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 11:30:38 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 11:30:38 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:30:39 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=run-one "HTTP/1.1 200 OK"
+PASSED                                                                   [  6%]
+tests/test_agent_run_admission_contract.py::test_member_cross_workspace_and_tenant_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:30:40 [    INFO] HTTP Request: POST http://testserver/api/agents/a2/run "HTTP/1.1 404 Not Found"
+2026-11-06 11:30:40 [    INFO] HTTP Request: POST http://testserver/api/agents/a3/run "HTTP/1.1 404 Not Found"
+2026-11-06 11:30:40 [    INFO] HTTP Request: POST http://testserver/api/agents/a2/run?operation_id=cross-ws "HTTP/1.1 200 OK"
+2026-11-06 11:30:40 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 13%]
+tests/test_agent_run_admission_contract.py::test_deprecated_paused_and_running_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:30:40 [    INFO] HTTP Request: POST http://testserver/api/agents/a-deprecated/run "HTTP/1.1 400 Bad Request"
+2026-11-06 11:30:40 [    INFO] HTTP Request: POST http://testserver/api/agents/a-paused/run "HTTP/1.1 400 Bad Request"
+2026-11-06 11:30:40 [    INFO] HTTP Request: POST http://testserver/api/agents/a-running/run "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 20%]
+tests/test_agent_run_admission_contract.py::test_active_job_blocks_second_admission 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:30:41 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=active-job "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 26%]
+tests/test_agent_run_admission_contract.py::test_target_change_before_claim_refuses 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:30:42 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=stale-run "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 33%]
+tests/test_agent_run_admission_contract.py::test_authority_change_before_claim_refuses[deactivate] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:30:43 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=authority-run "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 40%]
+tests/test_agent_run_admission_contract.py::test_authority_change_before_claim_refuses[demote] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:30:44 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=authority-run "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 46%]
+tests/test_agent_run_admission_contract.py::test_replay_same_operation_no_second_dispatch 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:30:45 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=run-replay "HTTP/1.1 200 OK"
+2026-11-06 11:30:45 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=run-replay "HTTP/1.1 200 OK"
+2026-11-06 11:30:45 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=run-replay "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 53%]
+tests/test_agent_run_admission_contract.py::test_audit_rollback_preserves_agent_and_job 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:30:46 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=rollback-run "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 60%]
+tests/test_agent_run_admission_contract.py::test_readback_failure_is_committed_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:30:47 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=readback-run "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 66%]
+tests/test_agent_run_admission_contract.py::test_execution_failure_marks_job_failed_and_restores_status 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:30:48 [   ERROR] Admitted agent run failed: agent=a1 job=ed9f4ccf-42ec-464d-8858-cdc0a09cf509 error_class=RuntimeError
+2026-11-06 11:30:48 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=failed-run "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 73%]
+tests/test_agent_run_admission_contract.py::test_sync_run_returns_stub_result_and_success_job 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:30:48 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=sync-run "HTTP/1.1 200 OK"
+PASSED                                                                   [ 80%]
+tests/test_agent3_pr675_admission_independent_probes.py::test_enabled_and_configuration_change_before_claim_refuses 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:30:49 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=agent3-stale-material "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 86%]
+tests/test_agent3_pr675_admission_independent_probes.py::test_concurrent_winner_preserved_losing_admission_traceless 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:30:50 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=agent3-loser "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 93%]
+tests/test_agent3_pr675_admission_independent_probes.py::test_replay_after_completion_acknowledges_without_redispatch 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:30:51 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=agent3-replay "HTTP/1.1 200 OK"
+2026-11-06 11:30:51 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=agent3-replay "HTTP/1.1 200 OK"
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 15 passed, 5 warnings in 29.32s ========================
