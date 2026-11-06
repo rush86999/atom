@@ -506,7 +506,8 @@ async def _replay(
                     workspace_id=expected["workspace_id"] or None,
                     counts=counts),
                 verification_status=(
-                    "committed_unverified" if effect == "partial" else None))
+                    "committed_unverified" if effect == "partial"
+                    else "unavailable"))
     except Exception as exc:  # noqa: BLE001 — unreadable is not verified
         logger.warning(
             "document delete replay read failed: operation_id=%s "
@@ -677,6 +678,7 @@ async def delete_document_verified(
         return _committed_unverified(
             operation_id, verified_receipt, target_id=doc_id,
             effect="unknown", data=data,
+            verification_status="unavailable",
             message=(
                 "The document deletion did not verify and its effect is "
                 "unknown. Reconcile the original operation; do not repeat "
