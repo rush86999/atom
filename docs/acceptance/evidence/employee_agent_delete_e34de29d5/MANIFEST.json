@@ -1,0 +1,56 @@
+{
+  "schema": "atom-employee-evidence-1",
+  "status": "scoped and verified agent deletion submitted for independent verification; cross-tenant delete gap reproduced and closed",
+  "branch": "codex/oracle01-agent-delete-20261106",
+  "executed_source": "e34de29d53636a5232e126bcba8e5f5aa7af9734",
+  "base_main": "f8706fb48569e77df21801df1cc23a8d7b61ba17",
+  "work_order": "/private/tmp/brennan-brief/AGENT2_AGENT_DELETE_WORK_ORDER_20261106.md",
+  "source_files": {
+    "backend/core/agent_decision_write_service.py": "c96e3c878d37f63a0c309ce7d7aa0fc5e508077f3c3628e9464b59ab0a689a3a",
+    "backend/api/agent_routes.py": "51c50c2494c56a7643201478286b355a3dc3b06b61c03dd65b836ae521f701fe",
+    "backend/tests/test_agent_delete_scope_contract.py": "d26e379f4d8d7c9ab9b8a9326f1ee91fc78865246206770bc1588c8742c7e286",
+    "backend/tests/test_agent_delete_cascade.py": "86cf8d37d3ba91d7f53c38cb291a88f7c3f134734500440c8d85284c4d355a6a",
+    "backend/tests/api/test_agent_routes.py": "eaa52582a6759a088749a69ab69d17864932209e0e5f06848fcaf94d7b02516b",
+    "backend/tests/test_agent_routes_coverage.py": "efd48f84e9b92d939a43d12097a36efb8b7d7ccd5dd25794f9117ba79a14bdb8",
+    "backend/core/models.py": "4b238c35f6f235d94779f4598040f0c9fcd39599c26705e7016e8b045b51c3ef",
+    "backend/core/security/rbac.py": "48a7ecdb609f7e32267212e85b1993a0045eb84aca903f0152a8a498bcbd405e",
+    "backend/core/personal_scope.py": "f07dd35cf6eedb674ec9afbb06e10776cd4039e64ad7dd0a3427b7e0df31f78f",
+    "backend/core/agent_task_registry.py": "65536e4d3be3d6bb32d6d6d3f6c65e915dea0f65ed13d537f32c79ba10b3e618",
+    "backend/core/admin_bootstrap.py": "75dfba7b4ff3b8862b7d3a677f69baea16ad5782dcdba8c2d33a89f9903fd5ed",
+    ".github/workflows/ci.yml": "816843c05a72f4a7b2f0fc1071b12ee0016b6b03b4593b9b98463076e45ee9af"
+  },
+  "artifacts": {
+    "README.md": "1780aa27d074c3410d5d8daa1df1433beb061857a30762bac3f0c6af409a47f0",
+    "TEST_RESULTS.md": "4470a4d6c2d1261a59e6890be260f2ca0115b754fb3cc645776d0e73b607e52b",
+    "affected-311.log": "836ea5313b31b905d7eb561632b0e1ced1cb44435c4de10f08bc70de7634e86a",
+    "affected-314.log": "0075a4f5dd0616d0c776dacf3d59e88ce9c78494805cbed98c37c8eba425f476",
+    "baseline-main-311.log": "e043d26cfc648ae4e70b13b6742c48d34c5c63cf3bac3ba920fdc3f6008183e7",
+    "baseline-main-314.log": "e845dd9fe0ee2114543538069a1905230862a910729a5e61645d4c32296b4633",
+    "cross-tenant-repro-base.log": "e37b5650cf40c4246f00cd25be825bceddf47c89715c4082b8b1063697a71a27",
+    "focused-311.log": "21ac2421a5f77fbba055291729de9af19bb869c40a5b70ba110d2a8a9ef46f2a",
+    "focused-314.log": "63590df15f0cd38de115ac326a83ddf28d14a3f37f75f4c7da9ab21c6504629e",
+    "routes.json": "a4b5b3e591b651a70e014dd74214a7aac50d0f5820697716bc80da3df3b99eb2",
+    "source-tree.txt": "cffa876502b82383f6a51df989910c96d606e4268728f6ab2c85f32cfd9387c9",
+    "verification.json": "d6a67e5374c227f92381cbfbb9feef73b7e1ea8a7bc8af63bdf0f59f87f6223b"
+  },
+  "checks": {
+    "focused_314": "53 passed",
+    "focused_311": "53 passed",
+    "affected_314": "346 passed, 3 skipped, 2 baseline failures",
+    "affected_311": "328 passed, 1 baseline failure",
+    "baseline_main_314": "332 passed, 3 skipped, 4 failed",
+    "baseline_main_311": "314 passed, 3 failed",
+    "candidate_new_controls": 12,
+    "candidate_repaired_route_fixtures": 2,
+    "candidate_added_failures": 0,
+    "cross_tenant_reproduction_on_base": true,
+    "no_test_deleted_skipped_or_xfailed": true,
+    "no_live_model_provider_credential_spend_send_download_deployment": true
+  },
+  "boundaries": [
+    "real scratch SQLite only; no PostgreSQL/soak or multi-worker qualification",
+    "agent run/stop/teach/feedback/replace remain out of scope",
+    "no new table or migration",
+    "no merge or deployment; code-owner review remains required"
+  ]
+}
