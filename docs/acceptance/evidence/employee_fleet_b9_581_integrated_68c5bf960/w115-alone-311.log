@@ -1,0 +1,136 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-05 21:00:25 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-05 21:00:25 [    INFO] EscalationManager initialized
+2026-11-05 21:00:25 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 21:00:25 [    INFO] EscalationManager initialized
+2026-11-05 21:00:25 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 21:00:25 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 21:00:25 [    INFO] MCP Service initialized
+2026-11-05 21:00:25 [    INFO] ComputerUseAgent initialized for tenant default
+2026-11-05 21:00:25 [ WARNING] Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+2026-11-05 21:00:25 [    INFO] No token storage file found, starting empty
+2026-11-05 21:00:25 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-05 21:00:26 [    INFO] EscalationManager initialized
+2026-11-05 21:00:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 21:00:26 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-05 21:00:26 [    INFO] EscalationManager initialized
+2026-11-05 21:00:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 21:00:26 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 21:00:26 [    INFO] Slack Enhanced Service initialized
+2026-11-05 21:00:26 [    INFO] Loaded 3 persisted sessions from file.
+
+tests/test_covpush_w115_chat_orchestrator.py::TestGetQwenResponse::test_success_with_history 
+-------------------------------- live log setup --------------------------------
+2026-11-05 21:00:26 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-05 21:00:26 [    INFO] EscalationManager initialized
+2026-11-05 21:00:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 21:00:26 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-05 21:00:26 [    INFO] EscalationManager initialized
+2026-11-05 21:00:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 21:00:26 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-05 21:00:26 [    INFO] Slack Enhanced Service initialized
+2026-11-05 21:00:26 [    INFO] Loaded 3 persisted sessions from file.
+2026-11-05 21:00:26 [    INFO] EscalationManager initialized
+2026-11-05 21:00:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 21:00:26 [    INFO] [MEMCTX] agent_id=None
+2026-11-05 21:00:26 [    INFO] EscalationManager initialized
+2026-11-05 21:00:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 21:00:26 [    INFO] EscalationManager initialized
+2026-11-05 21:00:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 21:00:26 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 21:00:26 [    INFO] Creating isolated LanceDBHandler for workspace: default at ./data/atom_memory/default
+2026-11-05 21:00:26 [    INFO] EscalationManager initialized
+2026-11-05 21:00:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 21:00:26 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 21:00:26 [    INFO] LanceDBHandler initialized. ID: 6059476176. LANCEDB_AVAILABLE: True
+2026-11-05 21:00:26 [    INFO] Lazy loading LanceDB connection...
+2026-11-05 21:00:26 [    INFO] Connecting to LanceDB at /private/tmp/atom-fleet-verify/backend/data/atom_memory/default with storage_options=None
+2026-11-05 21:00:26 [    INFO] LanceDB connected successfully
+2026-11-05 21:00:26 [    INFO] EscalationManager initialized
+2026-11-05 21:00:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 21:00:26 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 21:00:26 [    INFO] EscalationManager initialized
+2026-11-05 21:00:26 [    INFO] LanceDBHandler initialized. ID: 5609380048. LANCEDB_AVAILABLE: True
+2026-11-05 21:00:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 21:00:26 [    INFO] Lazy loading LanceDB connection...
+2026-11-05 21:00:26 [    INFO] integration records leg: ws=default role=None tables=[] (0 total)
+2026-11-05 21:00:26 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 21:00:26 [    INFO] Connecting to LanceDB at /private/tmp/atom-fleet-verify/backend/data/atom_memory with storage_options=None
+2026-11-05 21:00:26 [    INFO] LanceDBHandler initialized. ID: 5609232720. LANCEDB_AVAILABLE: True
+2026-11-05 21:00:26 [    INFO] Lazy loading LanceDB connection...
+2026-11-05 21:00:26 [    INFO] Connecting to LanceDB at /private/tmp/atom-fleet-verify/backend/data/atom_memory with storage_options=None
+2026-11-05 21:00:26 [    INFO] LanceDB connected successfully
+2026-11-05 21:00:26 [    INFO] LanceDB connected successfully
+2026-11-05 21:00:26 [    INFO] EscalationManager initialized
+2026-11-05 21:00:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 21:00:26 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-05 21:00:26 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-05 21:00:26 [    INFO] EscalationManager initialized
+2026-11-05 21:00:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 21:00:26 [    INFO] Webhook processor initialized and callback registered
+2026-11-05 21:00:26 [    INFO] EscalationManager initialized
+2026-11-05 21:00:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 21:00:26 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 21:00:26 [    INFO] LanceDBHandler initialized. ID: 6058721680. LANCEDB_AVAILABLE: True
+2026-11-05 21:00:26 [    INFO] Lazy loading LanceDB connection...
+2026-11-05 21:00:26 [    INFO] Connecting to LanceDB at /private/tmp/atom-fleet-verify/backend/data/atom_memory with storage_options=None
+2026-11-05 21:00:26 [    INFO] LanceDB connected successfully
+2026-11-05 21:00:26 [    INFO] Loading FastEmbed model: BAAI/bge-small-en-v1.5
+2026-11-05 21:00:27 [    INFO] Hybrid search: vector leg found 0 nodes
+2026-11-05 21:00:27 [    INFO] Hybrid search: keyword leg found 0 nodes
+2026-11-05 21:00:27 [ WARNING] sentence_transformers not available (error: huggingface-hub>=0.34.0,<1.0 is required for a normal functioning of this module, but found huggingface-hub==1.4.1.
+Try: `pip install transformers -U` or `pip install -e '.[dev]'` if you're working with git main), embeddings will be disabled
+2026-11-05 21:00:27 [ WARNING] sentence-transformers unavailable — trying FastEmbed
+2026-11-05 21:00:27 [    INFO] Using FastEmbed (bge-small, 384-dim) for communication embeddings
+2026-11-05 21:00:27 [    INFO] Opened existing atom_communications table
+2026-11-05 21:00:27 [    INFO] FTS index enabled on 'content' column
+2026-11-05 21:00:27 [    INFO] Opened existing ingestion_metadata table
+2026-11-05 21:00:27 [    INFO] LanceDB memory manager initialized successfully
+2026-11-05 21:00:27 [ WARNING] No LLM clients available
+2026-11-05 21:00:27 [    INFO] [stage-timing] tool plan (overlapped=False): 0.1s
+2026-11-05 21:00:27 [    INFO] [derivation] workbook lane: no dataset block for this ask
+2026-11-05 21:00:27 [    INFO] [planner-boundary] research turn recovery state: research=False required=[] consulted=[] planned=False block=False turn_left=infs
+2026-11-05 21:00:27 [    INFO] [derivation] ask=False matched-row-evidence=False tool_block=0 chars named_file=False
+2026-11-05 21:00:27 [    INFO] [prompt-budget] routing-default model=auto: input=683 tokens (window=32000, output reservation=6000, fits=True, window estimated)
+2026-11-05 21:00:27 [    INFO] [stage-timing] reply generation: 0.2s (incl. tool plan + exec above)
+2026-11-05 21:00:27 [    INFO] [verify-panel] state: mode=shadow tool_block=False content=True mission=False
+2026-11-05 21:00:27 [    INFO] [review-diag] generation_completed content_len=11 review_ask=False
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+core/graphrag_engine.py:196
+  /private/tmp/atom-fleet-verify/backend/core/graphrag_engine.py:196: DeprecationWarning: invalid escape sequence '\%'
+    """
+
+core/token_storage.py:17
+  /private/tmp/atom-fleet-verify/backend/core/token_storage.py:17: DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 1 passed, 7 warnings in 17.33s ========================
