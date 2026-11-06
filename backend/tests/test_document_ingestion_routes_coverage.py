@@ -320,14 +320,26 @@ class TestIngestionSettings:
             "max_file_size_mb": 20
         }
 
-        response = client.put("/api/document-ingestion/settings", json=settings_data)
-        # Should return 200 or 500 depending on service
-        assert response.status_code in [200, 500]
-
-        if response.status_code == 200:
-            data = response.json()
-            assert "data" in data
-            assert "message" in data
+        with patch(
+            "api.document_ingestion_routes."
+            "_update_ingestion_settings_decision",
+            return_value={
+                "status": "verified",
+                "data": {
+                    "integration_id": "test_integration", "enabled": False,
+                    "file_types": ["pdf", "txt"],
+                    "verification": {"status": "verified",
+                                     "effect": "committed"},
+                },
+                "message": "Ingestion settings updated",
+            },
+        ):
+            response = client.put(
+                "/api/document-ingestion/settings", json=settings_data)
+        assert response.status_code == 200
+        data = response.json()
+        assert "data" in data
+        assert "message" in data
 
     def test_update_settings_partial(self, client):
         """Test updating only some settings fields."""
@@ -336,9 +348,23 @@ class TestIngestionSettings:
             "enabled": False
         }
 
-        response = client.put("/api/document-ingestion/settings", json=settings_data)
-        # Should return 200 or 500 depending on service
-        assert response.status_code in [200, 500]
+        with patch(
+            "api.document_ingestion_routes."
+            "_update_ingestion_settings_decision",
+            return_value={
+                "status": "verified",
+                "data": {
+                    "integration_id": "test_integration", "enabled": False,
+                    "file_types": [],
+                    "verification": {"status": "verified",
+                                     "effect": "committed"},
+                },
+                "message": "Ingestion settings updated",
+            },
+        ):
+            response = client.put(
+                "/api/document-ingestion/settings", json=settings_data)
+        assert response.status_code == 200
 
 
 class TestDocumentSync:
@@ -721,8 +747,23 @@ class TestIntegrationSettingsEdgeCases:
             "max_file_size_mb": 25,
             "sync_frequency_minutes": 15
         }
-        response = client.put("/api/document-ingestion/settings", json=settings_data)
-        assert response.status_code in [200, 500]
+        with patch(
+            "api.document_ingestion_routes."
+            "_update_ingestion_settings_decision",
+            return_value={
+                "status": "verified",
+                "data": {
+                    "integration_id": "test_full", "enabled": True,
+                    "file_types": ["pdf", "docx", "txt", "md", "csv"],
+                    "verification": {"status": "verified",
+                                     "effect": "committed"},
+                },
+                "message": "Ingestion settings updated",
+            },
+        ):
+            response = client.put(
+                "/api/document-ingestion/settings", json=settings_data)
+        assert response.status_code == 200
 
     def test_update_settings_with_empty_lists(self, client):
         """Test updating settings with empty file type and folder lists."""
@@ -732,8 +773,23 @@ class TestIntegrationSettingsEdgeCases:
             "sync_folders": [],
             "exclude_folders": []
         }
-        response = client.put("/api/document-ingestion/settings", json=settings_data)
-        assert response.status_code in [200, 500]
+        with patch(
+            "api.document_ingestion_routes."
+            "_update_ingestion_settings_decision",
+            return_value={
+                "status": "verified",
+                "data": {
+                    "integration_id": "test_empty", "enabled": False,
+                    "file_types": [],
+                    "verification": {"status": "verified",
+                                     "effect": "committed"},
+                },
+                "message": "Ingestion settings updated",
+            },
+        ):
+            response = client.put(
+                "/api/document-ingestion/settings", json=settings_data)
+        assert response.status_code == 200
 
     def test_get_settings_multiple_integrations(self, client):
         """Test getting settings for multiple different integrations."""

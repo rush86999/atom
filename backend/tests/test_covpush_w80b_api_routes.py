@@ -515,41 +515,69 @@ class TestDocIngestionSettings:
 
     def test_update_success(self, di_client):
         svc, p = _mock_di_service()
-        updated = SimpleNamespace(enabled=True, file_types=["pdf", "docx"])
-        svc.update_settings.return_value = updated
+        decision = MagicMock(return_value={
+            "status": "verified",
+            "data": {
+                "integration_id": "gdrive", "enabled": True,
+                "file_types": ["pdf", "docx"],
+                "verification": {"status": "verified", "effect": "committed"},
+                "operation_id": "document-settings:update-test",
+                "audit_id": "document-settings:update-test",
+            },
+            "message": "Ingestion settings updated",
+        })
         payload = {
             "integration_id": "gdrive", "enabled": True,
             "auto_sync_new_files": True, "file_types": ["pdf"],
             "sync_folders": ["/a"], "exclude_folders": ["/b"],
             "max_file_size_mb": 50, "sync_frequency_minutes": 30,
         }
-        with p:
-            resp = di_client.put("/api/document-ingestion/settings", json=payload)
+        with p, patch(
+            "api.document_ingestion_routes."
+            "_update_ingestion_settings_decision", decision):
+            resp = di_client.put(
+                "/api/document-ingestion/settings?operation_id=update-test",
+                json=payload)
         assert resp.status_code == 200
         body = resp.json()
         assert body["success"] is True
         assert body["data"]["enabled"] is True
         assert body["data"]["file_types"] == ["pdf", "docx"]
-        svc.update_settings.assert_called_once()
-        call_kw = svc.update_settings.call_args.kwargs
+        assert body["data"]["audit_id"] == "document-settings:update-test"
+        decision.assert_called_once()
+        call_kw = decision.call_args.kwargs
         assert call_kw["integration_id"] == "gdrive"
-        assert call_kw["exclude_folders"] == ["/b"]
+        assert call_kw["operation_id"] == "update-test"
+        assert call_kw["changes"]["exclude_folders"] == ["/b"]
 
     def test_update_all_none_optional(self, di_client):
         svc, p = _mock_di_service()
-        svc.update_settings.return_value = SimpleNamespace(
-            enabled=False, file_types=[])
-        with p:
+        decision = MagicMock(return_value={
+            "status": "no_change",
+            "data": {
+                "integration_id": "gdrive", "enabled": False,
+                "file_types": [],
+                "verification": {"status": "no_change", "effect": "none"},
+            },
+            "message": "No ingestion-settings changes requested",
+        })
+        with p, patch(
+            "api.document_ingestion_routes."
+            "_update_ingestion_settings_decision", decision):
             resp = di_client.put("/api/document-ingestion/settings",
                                  json={"integration_id": "gdrive"})
         assert resp.status_code == 200
-        call_kw = svc.update_settings.call_args.kwargs
-        assert call_kw["enabled"] is None and call_kw["file_types"] is None
+        call_kw = decision.call_args.kwargs
+        assert call_kw["changes"] == {"integration_id": "gdrive"}
+        assert "enabled" not in call_kw["changes"]
+        assert "file_types" not in call_kw["changes"]
 
     def test_update_service_failure_500(self, di_client):
         svc, p = _mock_di_service()
-        svc.update_settings.side_effect = RuntimeError("boom")
-        with p:
+        decision = MagicMock(side_effect=RuntimeError("boom"))
+        with p, patch(
+            "api.document_ingestion_routes."
+            "_update_ingestion_settings_decision", decision):
             resp = di_client.put("/api/document-ingestion/settings",
                                  json={"integration_id": "gdrive"})
         assert resp.status_code == 500
