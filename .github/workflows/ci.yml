@@ -330,3 +330,6 @@ jobs:
         # absolute callbackUrls silently fall back to /dashboard. Keep the
         # same-app/open-redirect twins gated.
         run: npx jest tests/middleware.test.ts tests/lib/auth-headers.test.ts tests/pages/__tests__/login.test.tsx tests/auth/test-signin.test.tsx --runInBand --no-coverage
+      - name: Deferred-link regression tests
+        # Core profile must not link deferred governance/connector surfaces.
+        run: npx jest tests/pages/settings-index.test.tsx tests/components/AssignmentPanel.test.tsx --runInBand --no-coverage
