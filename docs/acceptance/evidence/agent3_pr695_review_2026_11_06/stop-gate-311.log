@@ -1,0 +1,346 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-06 16:36:47 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-06 16:36:47 [    INFO] AgentTaskRegistry initialized
+
+tests/test_agent_stop_scope_contract.py::test_member_stops_own_agent_and_writes_receipt 
+-------------------------------- live log setup --------------------------------
+2026-11-06 16:36:48 [    INFO] EscalationManager initialized
+2026-11-06 16:36:48 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 16:36:48 [    INFO] EscalationManager initialized
+2026-11-06 16:36:48 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 16:36:48 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:48 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/stop?operation_id=stop-one "HTTP/1.1 200 OK"
+PASSED                                                                   [  1%]
+tests/test_agent_stop_scope_contract.py::test_cross_tenant_and_cross_workspace_stop_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:49 [    INFO] HTTP Request: POST http://testserver/api/agents/a2/stop "HTTP/1.1 404 Not Found"
+2026-11-06 16:36:49 [    INFO] HTTP Request: POST http://testserver/api/agents/a3/stop "HTTP/1.1 404 Not Found"
+2026-11-06 16:36:49 [    INFO] HTTP Request: POST http://testserver/api/agents/a2/stop?operation_id=cross-ws "HTTP/1.1 200 OK"
+2026-11-06 16:36:49 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/stop "HTTP/1.1 404 Not Found"
+PASSED                                                                   [  2%]
+tests/test_agent_stop_scope_contract.py::test_no_tasks_is_no_change_without_receipt 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:50 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/stop?operation_id=no-tasks "HTTP/1.1 200 OK"
+PASSED                                                                   [  4%]
+tests/test_agent_stop_scope_contract.py::test_replay_does_not_cancel_new_tasks 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:50 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/stop?operation_id=stop-replay "HTTP/1.1 200 OK"
+2026-11-06 16:36:50 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/stop?operation_id=stop-replay "HTTP/1.1 200 OK"
+PASSED                                                                   [  5%]
+tests/test_agent_stop_scope_contract.py::test_authority_change_before_claim_refuses[deactivate] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:51 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/stop?operation_id=authority-stop "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  6%]
+tests/test_agent_stop_scope_contract.py::test_authority_change_before_claim_refuses[demote] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:52 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/stop?operation_id=authority-stop "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  8%]
+tests/test_agent_stop_scope_contract.py::test_target_change_before_claim_refuses 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:53 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/stop?operation_id=stale-stop "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  9%]
+tests/test_agent_stop_scope_contract.py::test_receipt_failure_reports_effect_unknown_after_cancel 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:53 [   ERROR] agent stop receipt failed after cancellation: operation_id=agent:stop:unknown-stop target=a1 error_class=IntegrityError
+2026-11-06 16:36:53 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/stop?operation_id=unknown-stop "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 11%]
+tests/test_agent_stop_scope_contract.py::test_missing_agent_is_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:54 [    INFO] HTTP Request: POST http://testserver/api/agents/missing/stop?operation_id=missing-stop "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 12%]
+tests/api/test_agent_routes.py::test_list_agents_success 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:54 [    INFO] HTTP Request: GET http://testserver/api/agents/ "HTTP/1.1 200 OK"
+PASSED                                                                   [ 13%]
+tests/api/test_agent_routes.py::test_list_agents_with_category_filter 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:54 [    INFO] HTTP Request: GET http://testserver/api/agents/?category=testing "HTTP/1.1 200 OK"
+PASSED                                                                   [ 15%]
+tests/api/test_agent_routes.py::test_run_agent_success 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:54 [   ERROR] Agent e9568df4-b963-4262-aebb-1cabe49d0246 not found in background task
+2026-11-06 16:36:54 [    INFO] HTTP Request: POST http://testserver/api/agents/e9568df4-b963-4262-aebb-1cabe49d0246/run "HTTP/1.1 200 OK"
+PASSED                                                                   [ 16%]
+tests/api/test_agent_routes.py::test_run_agent_sync_mode 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:54 [    INFO] HTTP Request: POST http://testserver/api/agents/6b8ebe1b-2474-4f1d-8070-506c9c63e977/run "HTTP/1.1 200 OK"
+PASSED                                                                   [ 18%]
+tests/api/test_agent_routes.py::test_run_agent_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:55 [    INFO] HTTP Request: POST http://testserver/api/agents/nonexistent-agent/run "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 19%]
+tests/api/test_agent_routes.py::test_submit_agent_feedback 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:55 [    INFO] HTTP Request: POST http://testserver/api/agents/e46abbec-ddb1-453e-9c9a-ac21bd7f9346/feedback "HTTP/1.1 200 OK"
+PASSED                                                                   [ 20%]
+tests/api/test_agent_routes.py::test_promote_agent_to_autonomous 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:55 [    INFO] HTTP Request: POST http://testserver/api/agents/027e9410-8f5d-464f-85e1-250355d2dc55/promote "HTTP/1.1 200 OK"
+PASSED                                                                   [ 22%]
+tests/api/test_agent_routes.py::test_list_pending_approvals 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:55 [    INFO] HTTP Request: GET http://testserver/api/agents/approvals/pending "HTTP/1.1 200 OK"
+PASSED                                                                   [ 23%]
+tests/api/test_agent_routes.py::test_approve_hitl_action 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:55 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/1ba560ab-2af6-4e28-a28f-131d1138aa0e "HTTP/1.1 200 OK"
+PASSED                                                                   [ 25%]
+tests/api/test_agent_routes.py::test_reject_hitl_action 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:55 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/2dd84433-17de-4b91-907a-60f7772a08bc "HTTP/1.1 200 OK"
+PASSED                                                                   [ 26%]
+tests/api/test_agent_routes.py::test_execute_atom_meta_agent 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:55 [    INFO] MCP Service initialized
+2026-11-06 16:36:55 [    INFO] HTTP Request: POST http://testserver/api/agents/atom/execute "HTTP/1.1 200 OK"
+PASSED                                                                   [ 27%]
+tests/api/test_agent_routes.py::test_spawn_custom_agent 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:55 [    INFO] HTTP Request: POST http://testserver/api/agents/spawn "HTTP/1.1 200 OK"
+PASSED                                                                   [ 29%]
+tests/api/test_agent_routes.py::test_trigger_atom_with_data 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:55 [    INFO] HTTP Request: POST http://testserver/api/agents/atom/trigger "HTTP/1.1 200 OK"
+PASSED                                                                   [ 30%]
+tests/api/test_agent_routes.py::test_create_custom_agent 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:55 [    INFO] HTTP Request: POST http://testserver/api/agents/custom "HTTP/1.1 201 Created"
+PASSED                                                                   [ 31%]
+tests/api/test_agent_routes.py::test_update_agent 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:55 [    INFO] HTTP Request: PUT http://testserver/api/agents/073c579d-f09f-48be-bf1f-7514d86dc891 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 33%]
+tests/api/test_agent_routes.py::test_update_agent_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:55 [    INFO] HTTP Request: PUT http://testserver/api/agents/nonexistent-agent "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 34%]
+tests/api/test_agent_routes.py::test_stop_running_agent 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:55 [    INFO] HTTP Request: POST http://testserver/api/agents/3a09e875-0615-407a-a3e6-d9568fba9822/stop "HTTP/1.1 200 OK"
+PASSED                                                                   [ 36%]
+tests/api/test_agent_routes.py::test_stop_agent_no_tasks 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:55 [    INFO] HTTP Request: POST http://testserver/api/agents/5fc88654-19cc-47aa-a29b-294df202d132/stop "HTTP/1.1 200 OK"
+PASSED                                                                   [ 37%]
+tests/api/test_agent_routes.py::test_get_agent_success 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:55 [    INFO] HTTP Request: GET http://testserver/api/agents/3fb609ba-f19a-46e9-86de-1c106e58d514 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 38%]
+tests/api/test_agent_routes.py::test_get_agent_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:55 [ WARNING] API Error: NOT_FOUND - Agent not found: nonexistent-agent
+2026-11-06 16:36:55 [    INFO] HTTP Request: GET http://testserver/api/agents/nonexistent-agent "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 40%]
+tests/api/test_agent_routes.py::test_get_agent_with_last_run 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:55 [    INFO] HTTP Request: GET http://testserver/api/agents/166caa67-2ad1-44e0-837b-1bb6224eeb82 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 41%]
+tests/api/test_agent_routes.py::test_get_agent_status_success 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:55 [    INFO] HTTP Request: GET http://testserver/api/agents/2ea5fe76-23e6-4637-b638-2de119c7d884/status "HTTP/1.1 200 OK"
+PASSED                                                                   [ 43%]
+tests/api/test_agent_routes.py::test_get_agent_status_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:55 [ WARNING] API Error: NOT_FOUND - Agent not found: nonexistent-agent
+2026-11-06 16:36:55 [    INFO] HTTP Request: GET http://testserver/api/agents/nonexistent-agent/status "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 44%]
+tests/api/test_agent_routes.py::test_delete_agent_success 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:55 [    INFO] HTTP Request: DELETE http://testserver/api/agents/bd6da7ba-8381-4fe6-884f-8419b26b5ced "HTTP/1.1 200 OK"
+PASSED                                                                   [ 45%]
+tests/api/test_agent_routes.py::test_delete_agent_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:55 [    INFO] HTTP Request: DELETE http://testserver/api/agents/nonexistent-agent "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 47%]
+tests/api/test_agent_routes.py::test_delete_agent_with_running_tasks 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:55 [    INFO] HTTP Request: DELETE http://testserver/api/agents/d38024f5-6e4d-40fd-b2cb-bc26042404ca "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 48%]
+tests/api/test_agent_routes.py::test_patch_agent_name 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:55 [    INFO] HTTP Request: PATCH http://testserver/api/agents/eafde717-baad-4d2e-906f-631987dd81bb "HTTP/1.1 200 OK"
+PASSED                                                                   [ 50%]
+tests/api/test_agent_routes.py::test_patch_agent_description 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:55 [    INFO] HTTP Request: PATCH http://testserver/api/agents/54690304-f978-4999-8b7c-55f03b5bfafb "HTTP/1.1 200 OK"
+PASSED                                                                   [ 51%]
+tests/api/test_agent_routes.py::test_patch_agent_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:56 [    INFO] HTTP Request: PATCH http://testserver/api/agents/nonexistent-agent "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 52%]
+tests/api/test_agent_routes.py::test_create_custom_agent_invalid_name_empty 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:56 [    INFO] HTTP Request: POST http://testserver/api/agents/custom "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 54%]
+tests/api/test_agent_routes.py::test_create_custom_agent_invalid_name_whitespace 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:56 [    INFO] HTTP Request: POST http://testserver/api/agents/custom "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 55%]
+tests/api/test_agent_routes.py::test_create_custom_agent_invalid_category 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:56 [    INFO] HTTP Request: POST http://testserver/api/agents/custom "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 56%]
+tests/api/test_agent_routes.py::test_create_custom_agent_with_schedule 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:56 [    INFO] HTTP Request: POST http://testserver/api/agents/custom "HTTP/1.1 201 Created"
+PASSED                                                                   [ 58%]
+tests/api/test_agent_routes.py::test_replace_agent_success 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:56 [    INFO] HTTP Request: PUT http://testserver/api/agents/aeeabdff-57db-4fbf-a428-0a6c4b07f722 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 59%]
+tests/api/test_agent_routes.py::test_replace_agent_missing_required_field 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:56 [    INFO] HTTP Request: PUT http://testserver/api/agents/4f6fe452-2bc9-4117-a216-3d6cd183f47d "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 61%]
+tests/api/test_agent_routes.py::test_replace_agent_invalid_name 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:56 [    INFO] HTTP Request: PUT http://testserver/api/agents/d7392662-df74-4e64-8e94-65cd66c6f766 "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 62%]
+tests/api/test_agent_routes.py::test_replace_agent_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:56 [    INFO] HTTP Request: PUT http://testserver/api/agents/nonexistent-agent "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 63%]
+tests/api/test_agent_routes.py::test_run_agent_deprecated_state 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:56 [    INFO] HTTP Request: POST http://testserver/api/agents/d5538294-eb57-4678-ab6f-fc77f4b16bd1/run "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 65%]
+tests/api/test_agent_routes.py::test_run_agent_paused_state 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:56 [    INFO] HTTP Request: POST http://testserver/api/agents/d1a436b8-4b0d-4f51-b780-91438286ca04/run "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 66%]
+tests/api/test_agent_routes.py::test_run_agent_already_running 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:56 [    INFO] HTTP Request: POST http://testserver/api/agents/5e38070d-b9d0-47a5-9ed0-fe6041d590a5/run "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 68%]
+tests/api/test_agent_routes.py::test_submit_feedback_minimal_data 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:56 [    INFO] HTTP Request: POST http://testserver/api/agents/4b29d6dc-4f00-4f05-9071-3dcb88b02b18/feedback "HTTP/1.1 200 OK"
+PASSED                                                                   [ 69%]
+tests/api/test_agent_routes.py::test_approve_action_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:56 [ WARNING] API Error: NOT_FOUND - HITLAction not found: nonexistent-action
+2026-11-06 16:36:56 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/nonexistent-action "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 70%]
+tests/api/test_agent_routes.py::test_reject_action_with_feedback 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:56 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/e7a018a2-24fe-498c-8955-f1030e0bd7ce "HTTP/1.1 200 OK"
+PASSED                                                                   [ 72%]
+tests/api/test_agent_routes.py::test_execute_atom_with_context 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:56 [    INFO] HTTP Request: POST http://testserver/api/agents/atom/execute "HTTP/1.1 200 OK"
+PASSED                                                                   [ 73%]
+tests/api/test_agent_routes.py::test_execute_atom_empty_request 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:56 [    INFO] HTTP Request: POST http://testserver/api/agents/atom/execute "HTTP/1.1 200 OK"
+PASSED                                                                   [ 75%]
+tests/api/test_agent_routes.py::test_spawn_agent_persist_true 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:56 [    INFO] HTTP Request: POST http://testserver/api/agents/spawn "HTTP/1.1 200 OK"
+PASSED                                                                   [ 76%]
+tests/api/test_agent_routes.py::test_spawn_agent_unknown_template 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:56 [    INFO] HTTP Request: POST http://testserver/api/agents/spawn "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 77%]
+tests/api/test_agent_routes.py::test_trigger_atom_with_complex_data 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:56 [    INFO] HTTP Request: POST http://testserver/api/agents/atom/trigger "HTTP/1.1 200 OK"
+PASSED                                                                   [ 79%]
+tests/api/test_agent_routes.py::test_trigger_atom_empty_data 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:56 [    INFO] HTTP Request: POST http://testserver/api/agents/atom/trigger "HTTP/1.1 200 OK"
+PASSED                                                                   [ 80%]
+tests/api/test_agent_routes.py::test_stop_agent_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:56 [    INFO] HTTP Request: POST http://testserver/api/agents/nonexistent-agent/stop "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 81%]
+tests/api/test_agent_routes.py::test_stop_agent_multiple_tasks 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:56 [    INFO] HTTP Request: POST http://testserver/api/agents/224eed68-f761-445b-ac03-f165272e043c/stop "HTTP/1.1 200 OK"
+PASSED                                                                   [ 83%]
+tests/api/test_agent_routes.py::test_list_agents_unauthorized 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:56 [    INFO] HTTP Request: GET http://testserver/api/agents/ "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 84%]
+tests/api/test_agent_routes.py::test_create_custom_agent_member_forbidden 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:56 [    INFO] HTTP Request: POST http://testserver/api/agents/custom "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 86%]
+tests/api/test_agent_routes.py::test_delete_agent_member_forbidden 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:56 [    INFO] HTTP Request: DELETE http://testserver/api/agents/c6ea6e30-0511-49a8-9647-da6d84cc2753 "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 87%]
+tests/api/test_agent_routes.py::test_promote_agent_member_forbidden 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:56 [    INFO] HTTP Request: POST http://testserver/api/agents/50e4e63a-5a3e-4543-92d1-3c95894187f5/promote "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 88%]
+tests/api/test_agent_routes.py::test_agent_crud_end_to_end 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:56 [    INFO] HTTP Request: POST http://testserver/api/agents/custom "HTTP/1.1 201 Created"
+2026-11-06 16:36:56 [    INFO] HTTP Request: GET http://testserver/api/agents/5ecac57d-59e7-469b-b876-ec5631601c46 "HTTP/1.1 200 OK"
+2026-11-06 16:36:56 [    INFO] HTTP Request: PATCH http://testserver/api/agents/5ecac57d-59e7-469b-b876-ec5631601c46 "HTTP/1.1 200 OK"
+2026-11-06 16:36:56 [    INFO] HTTP Request: DELETE http://testserver/api/agents/5ecac57d-59e7-469b-b876-ec5631601c46 "HTTP/1.1 200 OK"
+2026-11-06 16:36:56 [ WARNING] API Error: NOT_FOUND - Agent not found: 5ecac57d-59e7-469b-b876-ec5631601c46
+2026-11-06 16:36:56 [    INFO] HTTP Request: GET http://testserver/api/agents/5ecac57d-59e7-469b-b876-ec5631601c46 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 90%]
+tests/api/test_agent_routes.py::test_list_agents_with_pagination 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:56 [    INFO] HTTP Request: GET http://testserver/api/agents/ "HTTP/1.1 200 OK"
+PASSED                                                                   [ 91%]
+tests/api/test_agent_routes.py::test_run_agent_with_large_parameters 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:56 [    INFO] HTTP Request: POST http://testserver/api/agents/41bf2e39-2be3-48cd-9ad6-05347179701a/run "HTTP/1.1 200 OK"
+PASSED                                                                   [ 93%]
+tests/api/test_agent_routes.py::test_list_agents_performance 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:56 [    INFO] HTTP Request: GET http://testserver/api/agents/ "HTTP/1.1 200 OK"
+PASSED                                                                   [ 94%]
+tests/api/test_agent_routes.py::test_get_agent_performance 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:57 [    INFO] HTTP Request: GET http://testserver/api/agents/e4944754-95d3-4e94-b765-6a36f4561a42 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 95%]
+tests/api/test_agent_routes.py::test_agent_with_unicode_name 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:57 [    INFO] HTTP Request: POST http://testserver/api/agents/custom "HTTP/1.1 201 Created"
+PASSED                                                                   [ 97%]
+tests/api/test_agent_routes.py::test_agent_with_special_characters 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:57 [    INFO] HTTP Request: POST http://testserver/api/agents/custom "HTTP/1.1 201 Created"
+PASSED                                                                   [ 98%]
+tests/api/test_agent_routes.py::test_agent_with_very_long_description 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:36:57 [    INFO] HTTP Request: POST http://testserver/api/agents/custom "HTTP/1.1 201 Created"
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+tests/api/test_agent_routes.py: 63 warnings
+  /private/tmp/agent3-pr682-review/backend/tests/conftest.py:507: SAWarning: Cannot correctly sort tables; there are unresolvable cycles between tables "agent_divisions, agent_registry, canvases, mini_apps", which is usually caused by mutually dependent foreign key constraints.  Foreign key constraints involving these tables will not be considered; this warning may raise an error in a future release.
+    for table in reversed(_all_models_base.metadata.sorted_tables):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 72 passed, 68 warnings in 23.98s =======================

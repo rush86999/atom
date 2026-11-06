@@ -1,0 +1,98 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-06 16:39:40 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-06 16:39:40 [    INFO] AgentTaskRegistry initialized
+
+tests/test_agent_stop_scope_contract.py::test_member_stops_own_agent_and_writes_receipt 
+-------------------------------- live log setup --------------------------------
+2026-11-06 16:39:41 [    INFO] EscalationManager initialized
+2026-11-06 16:39:41 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 16:39:41 [    INFO] EscalationManager initialized
+2026-11-06 16:39:41 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 16:39:41 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:39:41 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/stop?operation_id=stop-one "HTTP/1.1 200 OK"
+PASSED                                                                   [  8%]
+tests/test_agent_stop_scope_contract.py::test_cross_tenant_and_cross_workspace_stop_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:39:42 [    INFO] HTTP Request: POST http://testserver/api/agents/a2/stop "HTTP/1.1 404 Not Found"
+2026-11-06 16:39:42 [    INFO] HTTP Request: POST http://testserver/api/agents/a3/stop "HTTP/1.1 404 Not Found"
+2026-11-06 16:39:42 [    INFO] HTTP Request: POST http://testserver/api/agents/a2/stop?operation_id=cross-ws "HTTP/1.1 200 OK"
+2026-11-06 16:39:42 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/stop "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 16%]
+tests/test_agent_stop_scope_contract.py::test_no_tasks_is_no_change_without_receipt 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:39:43 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/stop?operation_id=no-tasks "HTTP/1.1 200 OK"
+PASSED                                                                   [ 25%]
+tests/test_agent_stop_scope_contract.py::test_replay_does_not_cancel_new_tasks 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:39:44 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/stop?operation_id=stop-replay "HTTP/1.1 200 OK"
+2026-11-06 16:39:44 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/stop?operation_id=stop-replay "HTTP/1.1 200 OK"
+PASSED                                                                   [ 33%]
+tests/test_agent_stop_scope_contract.py::test_authority_change_before_claim_refuses[deactivate] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:39:45 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/stop?operation_id=authority-stop "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 41%]
+tests/test_agent_stop_scope_contract.py::test_authority_change_before_claim_refuses[demote] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:39:46 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/stop?operation_id=authority-stop "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 50%]
+tests/test_agent_stop_scope_contract.py::test_target_change_before_claim_refuses 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:39:47 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/stop?operation_id=stale-stop "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 58%]
+tests/test_agent_stop_scope_contract.py::test_receipt_failure_reports_effect_unknown_after_cancel 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:39:48 [   ERROR] agent stop receipt failed after cancellation: operation_id=agent:stop:unknown-stop target=a1 error_class=IntegrityError
+2026-11-06 16:39:48 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/stop?operation_id=unknown-stop "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 66%]
+tests/test_agent_stop_scope_contract.py::test_missing_agent_is_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:39:49 [    INFO] HTTP Request: POST http://testserver/api/agents/missing/stop?operation_id=missing-stop "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 75%]
+tests/test_agent3_pr695_stop_probes.py::test_enabled_change_before_claim_refuses 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:39:50 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/stop?operation_id=agent3-stale-enabled "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 83%]
+tests/test_agent3_pr695_stop_probes.py::test_competing_new_operation_stop_after_success_is_no_change 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:39:50 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/stop?operation_id=agent3-first-stop "HTTP/1.1 200 OK"
+2026-11-06 16:39:50 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/stop?operation_id=agent3-second-stop "HTTP/1.1 200 OK"
+PASSED                                                                   [ 91%]
+tests/test_agent3_pr695_stop_probes.py::test_receipt_failure_response_still_reports_cancelled_count 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:39:51 [   ERROR] agent stop receipt failed after cancellation: operation_id=agent:stop:agent3-unknown-count target=a1 error_class=IntegrityError
+2026-11-06 16:39:51 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/stop?operation_id=agent3-unknown-count "HTTP/1.1 503 Service Unavailable"
+FAILED                                                                   [100%]
+
+=================================== FAILURES ===================================
+/private/tmp/agent3-pr682-review/backend/tests/test_agent3_pr695_stop_probes.py:132: AssertionError: assert None == 2
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_agent3_pr695_stop_probes.py::test_receipt_failure_response_still_reports_cancelled_count
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================== 1 failed, 11 passed, 5 warnings in 27.96s ===================
