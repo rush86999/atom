@@ -13,4 +13,4 @@ core/graphrag_engine.py:196
     """
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-19 passed, 3 warnings in 19.43s
+19 passed, 3 warnings in 18.32s

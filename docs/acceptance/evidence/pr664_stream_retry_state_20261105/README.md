@@ -2,7 +2,7 @@
 
 Branch: `codex/pr659-backend-ci-fix-20261105`
 Base: `71f9e22b4` (current main)
-Code checkpoint: `10e0826b3`
+Code checkpoint: `70d38bef5`
 Prior PR #664 head: `929b7c6e6`
 
 This package closes the two runtime streaming probes that were withheld after
@@ -30,7 +30,7 @@ After (`probes-after-311.log`):
 2 passed in 3.71s
 ```
 
-The same 24-test matrix-plus-probes gate passes on Python 3.14
+The same 25-test matrix-plus-probes gate passes on Python 3.14
 (`matrix-and-probes-314.log`).
 
 ## One request-owned state
@@ -51,8 +51,9 @@ ranked-route hop and the catalogue sweep.
   fallback recursion now propagates `_allow_ladder_sweep`, and the sweep
   itself checks the request-wide flag.
 - `self_heal_used` / `paid_retry_used`: explicit bounded repairs are counted
-  separately. A self-heal may re-dispatch the same pair once; it cannot
-  restart the sweep. A free->paid retry is allowed once per free pair.
+  separately. The self-heal budget is one repair per request (not per
+  recursive frame) and cannot restart the sweep. A free->paid retry is
+  allowed once per free pair.
 - `attempts`: per-pair dispatch counter for attribution/evidence.
 
 Nested retries now also reject reasoning-only/empty streams instead of
@@ -70,8 +71,9 @@ table across:
 - content stage: zero visible, reasoning-only, visible partial;
 - exhaustion: one, two or three automatic routes.
 
-It includes the two exact external probes as named regressions, plus
-undiscovered-catalogue and local-only negative controls. The per-case
+It includes the two exact external probes plus a request-wide self-heal
+repair-limit regression as named cases, plus undiscovered-catalogue and
+local-only negative controls. The per-case
 attempt counters are in `attempt-counters.json`; every automatic pair is
 tried once, while the explicit self-heal repair is the only same-pair count
 of 2. The matrix is added to the CI backend selection.
@@ -138,10 +140,10 @@ PYTHONPATH=$PWD python3.11 -B -m core.memory_eval
 | Gate | Result |
 | --- | --- |
 | External probes, Python 3.11 | **2/2 passed** (before: 2 failed) |
-| Matrix + probes, Python 3.11 | **24 passed** |
-| Matrix + probes, Python 3.14 | **24 passed** |
-| Updated CI selection, Python 3.11 | **583 passed, 1 skipped, 0 failed** |
-| Updated CI selection, Python 3.14 | **583 passed, 1 skipped, 0 failed** |
+| Matrix + probes, Python 3.11 | **25 passed** |
+| Matrix + probes, Python 3.14 | **25 passed** |
+| Updated CI selection, Python 3.11 | **584 passed, 1 skipped, 0 failed** |
+| Updated CI selection, Python 3.14 | **584 passed, 1 skipped, 0 failed** |
 | Standalone memory gate | recall 1.0, keyword 1.0, paraphrase 1.0, 7/7 |
 | Accepted fleet probes | **19/19 passed** |
 | Streaming/fallback neighborhood | identical before/after failure set: 98 pre-existing failures, 505 passed, 6 skipped |
@@ -151,12 +153,12 @@ selection; `neighborhood-before-after.txt` shows the empty FAILED-set diff.
 
 ## Git source / artifact hashes
 
-Code checkpoint `10e0826b3e10d21fe29fa685b1c926fabea9e514`:
+Code checkpoint `70d38bef5250f8d1cacb274abde69ab8dd23e18b`:
 
 | File | Git blob | SHA-256 |
 | --- | --- | --- |
-| `backend/core/llm/byok_handler.py` | `2d6d08a6155ad1053437884c28b150bfe1712e65` | `cad7a8a22ae0111690c7e38c0cd33ba838c1f9f2c722ac057a07f9d8e9483a80` |
-| `backend/tests/test_stream_retry_state_contract.py` | `f01e41c3755ea2adca212e6cf60493c8549f9c0d` | `5ac243a519eefc55b6d9e2f023c0891111b720ac29169b5816d9471b22e0e296` |
+| `backend/core/llm/byok_handler.py` | `579df2756e8d1d854028921aab516af0eaa778d1` | `3db26a03f66a6d2f8ec330a3423314c3b42cabdab5cb392f7a82ed074c268feb` |
+| `backend/tests/test_stream_retry_state_contract.py` | `bc2caf3fc1d3f1b04e11c4359fc79b99595d3c60` | `f6c610121fdd067e49e44066d8e330914e9e0efccf998704e288d59830d7dc20` |
 | `.github/workflows/ci.yml` | `1202681bd5a16de3fee438efe9a4e97ce71aa4d8` | `5523145a904b7f27793df2b899a8f2b42b4c86d91e20981b649ab6b9d81c7a77` |
 
 Evidence artifact hashes are in `verification.json`.

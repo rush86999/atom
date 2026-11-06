@@ -358,5 +358,31 @@
       "opencode-go/model-z": 1
     },
     "expect_error": false
+  },
+  {
+    "id": "repair-limit-ranked-fallback",
+    "kind": "named_repair_limit",
+    "failure_location": "self_heal+ranked_fallback",
+    "content_stage": "zero",
+    "exhaustion": "three",
+    "expected_calls": [
+      [
+        "openai",
+        "gpt-4o"
+      ],
+      [
+        "openai",
+        "gpt-4o"
+      ],
+      [
+        "deepseek",
+        "deepseek-chat"
+      ]
+    ],
+    "attempt_counts": {
+      "openai/gpt-4o": 2,
+      "deepseek/deepseek-chat": 1
+    },
+    "expect_error": true
   }
 ]

@@ -3,7 +3,7 @@
   "branch": "codex/pr659-backend-ci-fix-20261105",
   "base_main": "71f9e22b41f7feea7ea55c7d32d6efeacc704081",
   "prior_pr664_head": "929b7c6e681b2eda4f9d14b3c1f077f3f3ae22d6",
-  "code_checkpoint": "10e0826b3e10d21fe29fa685b1c926fabea9e514",
+  "code_checkpoint": "70d38bef5250f8d1cacb274abde69ab8dd23e18b",
   "external_probes": {
     "file": "/private/tmp/test_verifier_pr664_stream_boundaries.py",
     "before_python_3_11": "2 failed",
@@ -19,16 +19,18 @@
   "matrix": {
     "file": "backend/tests/test_stream_retry_state_contract.py",
     "generated_cases": 18,
-    "named_regressions": 2,
+    "named_regressions": 3,
     "negative_controls": 2,
-    "python_3_11": "24 passed (matrix + 2 external probes)",
-    "python_3_14": "24 passed (matrix + 2 external probes)",
-    "attempt_counters": "attempt-counters.json"
+    "python_3_11": "25 passed (23 matrix + 2 external probes)",
+    "python_3_14": "25 passed (23 matrix + 2 external probes)",
+    "attempt_counters": "attempt-counters.json",
+    "matrix_tests": 23,
+    "with_external_probes": 25
   },
   "ci_selection": {
     "files": 31,
-    "python_3_11": "583 passed, 1 skipped, 0 failed",
-    "python_3_14": "583 passed, 1 skipped, 0 failed",
+    "python_3_11": "584 passed, 1 skipped, 0 failed",
+    "python_3_14": "584 passed, 1 skipped, 0 failed",
     "logs": [
       "ci-selection-311.log",
       "ci-selection-314.log"
@@ -57,12 +59,12 @@
   },
   "git_hashes": {
     "backend/core/llm/byok_handler.py": {
-      "git_blob": "2d6d08a6155ad1053437884c28b150bfe1712e65",
-      "sha256": "cad7a8a22ae0111690c7e38c0cd33ba838c1f9f2c722ac057a07f9d8e9483a80"
+      "git_blob": "579df2756e8d1d854028921aab516af0eaa778d1",
+      "sha256": "3db26a03f66a6d2f8ec330a3423314c3b42cabdab5cb392f7a82ed074c268feb"
     },
     "backend/tests/test_stream_retry_state_contract.py": {
-      "git_blob": "f01e41c3755ea2adca212e6cf60493c8549f9c0d",
-      "sha256": "5ac243a519eefc55b6d9e2f023c0891111b720ac29169b5816d9471b22e0e296"
+      "git_blob": "bc2caf3fc1d3f1b04e11c4359fc79b99595d3c60",
+      "sha256": "f6c610121fdd067e49e44066d8e330914e9e0efccf998704e288d59830d7dc20"
     },
     ".github/workflows/ci.yml": {
       "git_blob": "1202681bd5a16de3fee438efe9a4e97ce71aa4d8",
@@ -70,15 +72,15 @@
     }
   },
   "artifact_sha256": {
-    "README.md": "aca58d2dc09b5c9113919e4a4565fd41ff63ecef27eec514094dc6fd81129981",
-    "attempt-counters.json": "f482a7044636791666cc2bc7ac648a6250dcee45ef8f77744261d5e5319219d0",
-    "ci-selection-311.log": "ff77f5a9efa1f1127885b1294667c15aabdfd9199d3c540f47a821fd287db1c5",
-    "ci-selection-314.log": "b795de75d0502e121abc0216ceff7236bba86ddf442c464c3416c164af2b76cc",
-    "fleet-probes-311.log": "48bfdcaee3fd6d05001feb3760b08de173e6e042d4ca4109a8ced5ea65fdc6a3",
-    "matrix-and-probes-311.log": "85035b64fc7effae7ed56557eb109376025a15926a78629108562d1101a284d5",
-    "matrix-and-probes-314.log": "208250c07f3e4be2569496b0effd4213b17acdf101f750e574f889b122e6bfc7",
+    "README.md": "74b68a51aa44de12e95fb6c6d5b9b3beee285867d8922923204b95d1013f8f9f",
+    "attempt-counters.json": "003a605107fca67d9ce219430d69a83d302fa8f5b856a7fee0ede0bef16cf005",
+    "ci-selection-311.log": "10ac612bd9728a85a547924edab78597ed31e73ad0fde97d0533a03bd68e3555",
+    "ci-selection-314.log": "1ad1fa8e4e90ba24618ba82043a6ff46e99df11eacd39617b9d3f1cc416d0833",
+    "fleet-probes-311.log": "4eca439a3d10a9624b9f5b3c73449ab462b488bc7f6b142a34d5b2b80c9fac3d",
+    "matrix-and-probes-311.log": "d6ea4bb0ce05f990df03c6ebadf65ec358a95bb822f55574f57737c07386efaa",
+    "matrix-and-probes-314.log": "56753e48deaf0fe586da2740a883995935e26bbb8b7a29c07b5ea749b90095bc",
     "memory-gate-311.log": "a4d5e6919118c87c9449808af33d6762720925b4c50c3e45a6b840731f4c07b9",
-    "neighborhood-before-after.txt": "a8af2321737a1fcee5cfc88b7a6a910ba0224cd467553b7aec3982c27a7ba36b",
+    "neighborhood-before-after.txt": "8983ef9441d9238562b3d75fe9deba1239fcdbabe05197dce7affc519613c932",
     "probes-after-311.log": "6e126a793126c1ea73a9b4e04e7917db0d7d348e093189d17a258f8209cfe3cb",
     "probes-before-311.log": "1ff6a138918980011191b2235aa7132608f541f0d637ed4c2607f3e3c699cafa"
   },
@@ -87,5 +89,27 @@
     "local-only still refuses a cloud route",
     "strict pins, credentials, tenant/workspace scope and capability floors unchanged",
     "no live model/provider/browser/sandbox/credential/spend/send/download/deployment"
-  ]
+  ],
+  "repair_limit": {
+    "case": "one request repair total across ranked fallback",
+    "calls": [
+      [
+        "openai",
+        "gpt-4o"
+      ],
+      [
+        "openai",
+        "gpt-4o"
+      ],
+      [
+        "deepseek",
+        "deepseek-chat"
+      ]
+    ],
+    "attempt_counts": {
+      "openai/gpt-4o": 2,
+      "deepseek/deepseek-chat": 1
+    },
+    "note": "The second openai/gpt-4o dispatch is the one allowed self-heal; the ranked-route failure does not start another heal or sweep."
+  }
 }
