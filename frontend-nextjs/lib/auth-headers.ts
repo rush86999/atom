@@ -59,6 +59,13 @@ export async function authFetch(
   return response;
 }
 
+/** Same-app return target for /login: path + query, never an absolute URL. */
+export function loginCallbackPath(
+  location: Pick<Location, "pathname" | "search"> = window.location,
+): string {
+  return `${location.pathname}${location.search}`;
+}
+
 /**
  * Clear an invalid session and bounce to /login. Raw fetch() calls bypass
  * the axios 401 interceptor in lib/api.ts (which does exactly this), so
@@ -68,14 +75,21 @@ export async function authFetch(
  * Returns true when a redirect was started so callers can bail out of
  * in-flight handlers.
  */
-export function handleSessionExpired(): boolean {
+export function handleSessionExpired(
+  location?: Pick<Location, "pathname" | "search">,
+  navigate?: (url: string) => void,
+): boolean {
   if (typeof window === "undefined") return false;
-  const path = window.location.pathname;
+  const current = location ?? window.location;
+  const path = current.pathname;
   if (path.startsWith("/login") || path.startsWith("/auth/")) {
     return false;
   }
   window.localStorage.removeItem("auth_token");
   window.localStorage.removeItem("token");
-  window.location.href = `/login?callbackUrl=${encodeURIComponent(window.location.href)}`;
+  const go = navigate ?? ((url: string) => {
+    window.location.href = url;
+  });
+  go(`/login?callbackUrl=${encodeURIComponent(loginCallbackPath(current))}`);
   return true;
 }
