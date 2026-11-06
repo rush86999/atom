@@ -1,0 +1,7 @@
+normal_stream_contains_secret False
+fallback_stderr_contains_secret True
+fallback_diagnostic_bytes 1258
+safe_fallback_line_present False
+redacted_marker_count 2
+accepted_twin_present True
+rejected_twin_present True

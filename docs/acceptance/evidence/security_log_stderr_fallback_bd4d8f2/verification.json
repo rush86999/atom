@@ -1,0 +1,154 @@
+{
+  "schema": "atom-oracle-log-stderr-fallback-verification-1",
+  "status": "malformed-record stderr disclosure repaired and submitted for independent verification; no merge or deployment",
+  "candidate": {
+    "branch": "codex/oracle01-log-stderr-redaction-20261106",
+    "base_main": "213e75c436044634df2a0c2e7a88faf6d03c5797",
+    "executed_source": "bd4d8f253f3ab38c64d8945b2fddb0cfcd3a67f2",
+    "predecessor": "merged #689 normal WebSocket/request redaction at 66e09c5ee",
+    "runtime": "local logging/uvicorn scratch; runtime-generated synthetic secret; no live token/provider/credential/spend/send/download/deployment"
+  },
+  "confirmed_defect": {
+    "path": "LogRedactionFilter.filter caught record.getMessage() failure and passed the original msg/args through",
+    "effect": "StreamHandler.format failed and logging.Handler.handleError wrote the original Message/Arguments to stderr when logging.raiseExceptions was true",
+    "baseline_supplied_probe_314": "1 failed, 1 passed",
+    "baseline_supplied_probe_311": "1 failed, 1 passed",
+    "baseline_stderr_contains_secret": true,
+    "normal_redaction_was_not_failing": true
+  },
+  "repair": {
+    "malformed_record": "freeze to a context-only line with logger, level, path, stage, line, msg_type, args_type/len and exception type",
+    "payload_removal": "clear original format string, args, exc_info and exc_text before downstream handlers or handleError",
+    "multi_handler": "mark the frozen record so later handlers reuse the safe line",
+    "redaction_failure": "freeze a generic safe line rather than pass the original record",
+    "normal_path": "redact_log_text unchanged; path/status and non-sensitive parameters remain observable",
+    "not_used": [
+      "logging.raiseExceptions=False",
+      "swallowing valid records",
+      "disabling access logs",
+      "new logging engine"
+    ]
+  },
+  "results": {
+    "supplied_probe_base_314": {
+      "failed": 1,
+      "passed": 1,
+      "log": "supplied-base-314.log"
+    },
+    "supplied_probe_fixed_314": {
+      "passed": 2,
+      "failed": 0,
+      "log": "supplied-fixed-314.log"
+    },
+    "supplied_probe_base_311": {
+      "failed": 1,
+      "passed": 1,
+      "log": "supplied-base-311.log"
+    },
+    "supplied_probe_fixed_311": {
+      "passed": 2,
+      "failed": 0,
+      "log": "supplied-fixed-311.log"
+    },
+    "focused_314": {
+      "passed": 151,
+      "failed": 0,
+      "log": "focused-314.log"
+    },
+    "focused_311": {
+      "passed": 151,
+      "failed": 0,
+      "log": "focused-311.log"
+    },
+    "affected_314": {
+      "passed": 346,
+      "failed": 1,
+      "log": "affected-314.log"
+    },
+    "formatter_probe_base_314": {
+      "normal_stream_contains_secret": false,
+      "fallback_stderr_contains_secret": true,
+      "fallback_diagnostic_bytes": 1258,
+      "safe_fallback_line_present": false,
+      "redacted_marker_count": 2,
+      "accepted_twin_present": true,
+      "rejected_twin_present": true,
+      "log": "formatter-probe-base-314.txt"
+    },
+    "formatter_probe_fixed_314": {
+      "normal_stream_contains_secret": false,
+      "fallback_stderr_contains_secret": false,
+      "fallback_diagnostic_bytes": 0,
+      "safe_fallback_line_present": true,
+      "redacted_marker_count": 2,
+      "accepted_twin_present": true,
+      "rejected_twin_present": true,
+      "log": "formatter-probe-fixed-314.txt"
+    },
+    "formatter_probe_base_311": {
+      "normal_stream_contains_secret": false,
+      "fallback_stderr_contains_secret": true,
+      "fallback_diagnostic_bytes": 1304,
+      "safe_fallback_line_present": false,
+      "redacted_marker_count": 2,
+      "accepted_twin_present": true,
+      "rejected_twin_present": true,
+      "log": "formatter-probe-base-311.txt"
+    },
+    "formatter_probe_fixed_311": {
+      "normal_stream_contains_secret": false,
+      "fallback_stderr_contains_secret": false,
+      "fallback_diagnostic_bytes": 0,
+      "safe_fallback_line_present": true,
+      "redacted_marker_count": 2,
+      "accepted_twin_present": true,
+      "rejected_twin_present": true,
+      "log": "formatter-probe-fixed-311.txt"
+    },
+    "server_base": {
+      "raw_synthetic_present": false,
+      "redacted_marker_count": 3,
+      "websocket_lines": 2,
+      "accepted_and_403_preserved": true,
+      "log": "server-base-sanitized.log"
+    },
+    "server_fixed": {
+      "raw_synthetic_present": false,
+      "redacted_marker_count": 3,
+      "websocket_lines": 2,
+      "accepted_and_403_preserved": true,
+      "log": "server-fixed.log"
+    }
+  },
+  "baseline_failure_identity": {
+    "shared": [
+      "tests/core/test_logging_config_coverage.py::TestLibraryLoggerConfiguration::test_configure_library_loggers"
+    ],
+    "reason": "assert 0 >= 30; uvicorn is INFO because the merged design preserves the operator-selected level",
+    "candidate_added_failures": 0,
+    "not_claimed_as_repaired": true
+  },
+  "checks": {
+    "supplied_probe_passes_fixed_314": true,
+    "supplied_probe_passes_fixed_311": true,
+    "malformed_stderr_leak_base_reproduced": true,
+    "malformed_stderr_leak_fixed_absent": true,
+    "fallback_context_present": true,
+    "original_msg_args_exc_info_cleared": true,
+    "valid_records_still_logged": true,
+    "normal_redaction_preserved": true,
+    "accepted_rejected_websocket_twins_preserved": true,
+    "raise_exceptions_not_disabled": true,
+    "access_log_not_disabled": true,
+    "no_new_logging_engine": true,
+    "no_raw_secret_in_evidence": true,
+    "no_test_deleted_skipped_or_xfailed": true
+  },
+  "limits": [
+    "runtime-generated synthetic credentials only; no live token/revocation/rotation or production exposure claim",
+    "local logging/uvicorn scratch; not production log-pipeline qualification",
+    "malformed records are covered on the centralized filter path; handlers outside that path remain outside the boundary",
+    "shared baseline failure is pre-existing and not claimed as repaired",
+    "no merge or deployment; independent verification and code-owner review remain required"
+  ]
+}
