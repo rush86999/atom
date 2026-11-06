@@ -1,0 +1,46 @@
+{
+  "schema": "atom-auth-relative-callback-1",
+  "claim": "Protected deep-link return survives login as a safe relative path+query across password, social and existing-session consumers; default and unsafe-target behavior preserved",
+  "status": "verified at unit/component and hosted frontend-job scope",
+  "base_main": "66e09c5ee",
+  "source_checkpoint": "aa731a9f5",
+  "pr": "https://github.com/rush86999/atom/pull/687",
+  "captured_baseline": {
+    "destination": "/settings?a4dl=return20261106",
+    "runtime": "f653c790e",
+    "evidence": "2557156a1",
+    "observed": "login with absolute callbackUrl -> /dashboard"
+  },
+  "results": {
+    "gated_auth": "59 passed",
+    "full_auth_suite": "179 passed",
+    "typecheck": "clean",
+    "hosted_frontend_job": "128089878538; 59 passed in the four gated suites",
+    "hosted_pr687": "all eight checks pass at aa731a9f5"
+  },
+  "source_git_blob": {
+    "frontend-nextjs/middleware.ts": "caddad96560023e7c49e2cbea94c92a83d2c34a4",
+    "frontend-nextjs/lib/auth-headers.ts": "8e816b3a09179bbfc379d3e11e7603e9b1e598b4",
+    "frontend-nextjs/lib/api.ts": "08aa4af2c94528991b2efb7a07c9fa6c7b17e0f0",
+    "frontend-nextjs/pages/auth/signin.tsx": "29c31972ce90a22e478a633a6c9e106556dd62ae",
+    "frontend-nextjs/tests/middleware.test.ts": "39863b87e3ef77ae22b57c261b9242677cf5f5ce",
+    "frontend-nextjs/tests/lib/auth-headers.test.ts": "6d4902f05c48b110c0baf65afcc245ee3a806220",
+    "frontend-nextjs/tests/pages/__tests__/login.test.tsx": "6189142c3368d3dba0e8a0edbb0c102f85243f14",
+    "frontend-nextjs/tests/auth/test-signin.test.tsx": "529c0cc5998b40241217c89b4331619568313453",
+    ".github/workflows/ci.yml": "a2cbb33a30c30e2111b8506908000f40641ab2b8"
+  },
+  "artifact_git_blob": {
+    "README.md": "ad8c7089bb6739a4dd07bce8e46232c9964c4c68",
+    "hosted-frontend-typecheck.log": "5b5fd73c6513f9845ef23e71b37d075132ad9b1a",
+    "local-auth-gated.log": "1df07d7bd3e5d6b629103ab246dcfe1fad095444",
+    "local-auth-suite.log": "742c8e23fe59f8f59fe0596c9294a4c3c3c3b28c",
+    "local-typecheck.log": "337f07125b7c41fc9c970cfd6f13dad143877f4d"
+  },
+  "scanner_note": "Git blob IDs are used instead of 64-character SHA-256 strings; the superseded PR690 findings were content hashes, not credentials.",
+  "boundaries": [
+    "unit/component and hosted frontend-job scope; not a second browser acceptance",
+    "Agent4 captured-chain verification is the user-boundary record; no browser rerun for this packaging-only correction",
+    "open-redirect guard, profile/role gates and auth transport unchanged",
+    "no live provider/model/account/credential/SSO/production-world/deployment"
+  ]
+}
