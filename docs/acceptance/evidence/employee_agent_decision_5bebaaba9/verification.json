@@ -1,0 +1,74 @@
+{
+  "schema": "atom-oracle-agent-decision-verification-1",
+  "status": "agent update/promote verified decision family submitted for independent verification; delete/run/live execution and remaining agent surfaces remain open",
+  "candidate": {
+    "branch": "codex/oracle01-agent-decision-20261105",
+    "accepted_admin_base": "9d73552d249ae8ec5b05af77546faf9621bbcd47",
+    "accepted_admin_product": "5fbb377a4e1eef8fdd0013275cd8b1c9b278cd41",
+    "product_source": "af511bef0823051accefa415a48f065b9dffc3bf",
+    "executed_source": "5bebaaba96e728d6f4d0c66652095c1375c48b42",
+    "tree_clean_at_execution": true,
+    "runtime": "real scratch SQLite with fresh sessions; no live agent/model/provider"
+  },
+  "checks": {
+    "workspace_admin_and_admin_twins": true,
+    "member_and_team_lead_refused": true,
+    "missing_cross_tenant_cross_workspace_targets_404": true,
+    "admin_cross_workspace_within_tenant": true,
+    "foreign_tenant_actor_cannot_mutate": true,
+    "update_name_description_capabilities_floor": true,
+    "empty_and_matching_update_no_change_effect_none": true,
+    "promote_non_autonomous_to_autonomous": true,
+    "already_autonomous_new_operation_no_change": true,
+    "same_operation_replay_already_applied": true,
+    "same_operation_changed_material_conflict": true,
+    "later_revision_committed_unverified": true,
+    "stale_peer_edit_refused_peer_preserved": true,
+    "authority_deactivation_or_move_refused_effect_none": true,
+    "audit_rollback_effect_none": true,
+    "post_commit_readback_committed_unverified": true,
+    "lost_confirmation_effect_unknown_with_identity": true,
+    "audit_tampering_never_certified": true,
+    "raw_capabilities_configuration_secret_absent_from_receipts_logs": true,
+    "exact_material_cas_in_decision_transaction": true,
+    "no_new_table_or_migration": true,
+    "no_live_agent_execution_model_provider_credential_spend_send_download_deployment": true,
+    "repaired_review_memory_skill_branches_independent": true
+  },
+  "results": {
+    "focused_python314": {"passed": 34, "log": "focused-314.log"},
+    "focused_python311": {"passed": 34, "log": "focused-311.log"},
+    "affected_python314": {
+      "passed": 429, "skipped": 3, "failed": 27,
+      "baseline_failures": 27,
+      "baseline_failure_list_identical": true,
+      "log": "affected-314.log", "baseline_log": "baseline-314.log"
+    },
+    "affected_python311": {
+      "passed": 411, "failed": 26,
+      "baseline_failures": 26,
+      "baseline_failure_list_identical": true,
+      "contract_file_excluded": "3.11 lacks schemathesis",
+      "log": "affected-311.log", "baseline_log": "baseline-311.log"
+    },
+    "baseline_python314": {"passed": 395, "skipped": 3, "failed": 27, "log": "baseline-314.log"},
+    "baseline_python311": {"passed": 377, "failed": 26, "log": "baseline-311.log"}
+  },
+  "focused_breakdown": {
+    "new_decision_controls": 34,
+    "focused_total": 34
+  },
+  "baseline_exclusions": {
+    "agent_gateway_and_request_manager": "pre-existing test_covpush_agents gateway/request controls; identical on 9d73552d2",
+    "delete_route": "tests/unit/api/test_agent_routes.py::TestDeleteAgent::test_delete_agent_success pre-existing; delete is out of scope",
+    "governance_maturity_cache": "pre-existing unit governance maturity/cache controls; identical on base",
+    "contract_pagination": "tests/contract/test_agent_api_contract.py pagination control on 3.14 only; identical on base"
+  },
+  "limits": [
+    "Exactly two agent decision routes; delete/run/teach/feedback/replace remain out of scope",
+    "No live agent execution, model, provider, credential, spend, send, download or deployment",
+    "No new table, migration or second agent/approval/authorization engine",
+    "PostgreSQL runtime/soak, multi-worker serialization and whole-app ORACLE-01 remain open",
+    "Repaired review/memory/skill branches are independent and not merged"
+  ]
+}
