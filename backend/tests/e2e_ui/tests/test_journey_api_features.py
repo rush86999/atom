@@ -21,6 +21,7 @@ import requests
 
 from tests.e2e_ui.fixtures.journey_fixtures import (  # noqa: F401
     journey_api_headers,
+    journey_team_lead_headers,
     journey_user_credentials,
     BACKEND_URL,
 )
@@ -42,7 +43,8 @@ def _post(path, headers, **kw):
 class TestSkillsJourney:
     """Skill registry lifecycle: import → list → fetch → delete."""
 
-    def test_skill_lifecycle(self, journey_api_headers):
+    def test_skill_lifecycle(
+        self, journey_api_headers, journey_team_lead_headers):
         h = journey_api_headers
         name = f"Lifecycle Skill {uuid.uuid4().hex[:6]}"
 
@@ -64,9 +66,18 @@ class TestSkillsJourney:
         r = _get(f"/api/skills/{skill_id}", h)
         assert r.status_code == 200
 
-        # Delete
-        r = requests.delete(f"{BACKEND_URL}/api/skills/{skill_id}", headers=h, timeout=15)
-        assert r.status_code in (200, 204), f"delete failed: {r.status_code}"
+        # The accepted community-skill contract is TEAM_LEAD+: a member must
+        # be refused, and an isolated privileged journey user must delete.
+        r = requests.delete(
+            f"{BACKEND_URL}/api/skills/{skill_id}", headers=h, timeout=15)
+        assert r.status_code == 403, (
+            f"member delete must be refused, got {r.status_code}")
+
+        r = requests.delete(
+            f"{BACKEND_URL}/api/skills/{skill_id}",
+            headers=journey_team_lead_headers, timeout=15)
+        assert r.status_code in (200, 204), (
+            f"team_lead delete failed: {r.status_code} {r.text[:200]}")
 
 
 class TestWorkflowsJourney:

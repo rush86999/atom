@@ -117,6 +117,22 @@ def journey_api_headers(journey_user_credentials: Dict[str, str]) -> Dict[str, s
     }
 
 
+@pytest.fixture(scope="function")
+def journey_team_lead_headers() -> Dict[str, str]:
+    """Authorization headers for an isolated TEAM_LEAD+ journey user.
+
+    Community-skill promote/delete is an accepted TEAM_LEAD+ platform
+    decision. The ordinary journey user is a member, so routes that exercise
+    that contract need a privileged identity created against the live
+    backend's own DB (same mechanism as the role matrix fixtures).
+    """
+    creds = _register_role_user("team_lead")
+    return {
+        "Authorization": f"Bearer {creds['access_token']}",
+        "Content-Type": "application/json",
+    }
+
+
 # ============================================================================
 # Role-based fixtures (all 8 UserRole values)
 # ============================================================================
