@@ -172,11 +172,15 @@ def env(tmp_path, monkeypatch):
         finally:
             db.close()
 
-    yield SimpleNamespace(
-        engine=engine, Session=Session, agent=agent, run=run, rows=rows,
-        row_for=row_for, add_execution=add_execution,
-        monkeypatch=monkeypatch,
-    )
+    try:
+        yield SimpleNamespace(
+            engine=engine, Session=Session, agent=agent, run=run, rows=rows,
+            row_for=row_for, add_execution=add_execution,
+            monkeypatch=monkeypatch,
+        )
+    finally:
+        clear_route_attribution()
+        engine.dispose()
 
 
 def test_shadow_consumer_writes_scoped_decision_and_exact_outcome(env):
@@ -208,6 +212,28 @@ def test_shadow_consumer_writes_scoped_decision_and_exact_outcome(env):
         assert fresh.execution_id == execution_id
     finally:
         db.close()
+
+
+def test_enforced_response_consumes_specialists_and_finalizes(env):
+    from unittest.mock import AsyncMock
+
+    env.agent._execute_fleet_specialists = AsyncMock(return_value={
+        "success": True,
+        "status": "specialists_executed",
+        "final_output": "Specialist contributions:\n- Analyst: finding",
+        "specialist_results": [{"agent_id": "a1", "status": "success"}],
+        "specialists_count": 2,
+        "chain_id": "chain-controlled",
+    })
+    result = env.run(enforced=True)
+    assert result["success"] is True
+    assert result["status"] == "specialists_executed"
+    assert "Analyst" in result["final_output"]
+    row = env.row_for(result["execution_id"])
+    assert row.enforced is True
+    assert row.success is True
+    assert row.actual_model == "controlled-model"
+    assert row.actual_provider == "controlled-provider"
 
 
 def test_outcome_join_is_exact_idempotent_and_stale_refused(env):
@@ -310,13 +336,13 @@ def test_calibration_excludes_pending_and_scope_unverified(env):
     db = env.Session()
     try:
         db.add(FleetRoutingAudit(
-            tenant_id=TENANT, workspace_id=WORKSPACE,
+            tenant_id=TENANT, workspace_id=WORKSPACE, agent_id="atom_main",
             workload_key=stats.workload_key_for(REQUEST),
             request_text=REQUEST[:200], chain_id="chain-shadow",
             specialists_count=1, roster_json=[], recruitment_succeeded=True,
             enforced=False, decision_source="fleet_eligible", success=True))
         db.add(FleetRoutingAudit(
-            tenant_id=TENANT, workspace_id=WORKSPACE,
+            tenant_id=TENANT, workspace_id=WORKSPACE, agent_id="atom_main",
             workload_key=stats.workload_key_for(REQUEST),
             request_text=REQUEST[:200], chain_id="chain-enforced",
             specialists_count=1, roster_json=[], recruitment_succeeded=True,
@@ -345,6 +371,7 @@ def test_shadow_only_healthy_data_queues_consent_not_silent_enforce(env):
         for i in range(40):
             db.add(FleetRoutingAudit(
                 tenant_id=TENANT, workspace_id=WORKSPACE,
+                agent_id="atom_main",
                 workload_key=stats.workload_key_for(REQUEST),
                 request_text=REQUEST[:200], chain_id=f"chain-{i}",
                 specialists_count=1, roster_json=[],

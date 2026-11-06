@@ -174,7 +174,9 @@ Return JSON matching the TaskAnalysis schema."""
         self,
         task: str,
         user_id: str,  # Changed from tenant_id
-        root_agent_id: str = "atom_main"
+        root_agent_id: str = "atom_main",
+        tenant_id: Optional[str] = None,
+        workspace_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Analyze task, recruit specialist agents, and initialize fleet execution.
@@ -207,12 +209,13 @@ Return JSON matching the TaskAnalysis schema."""
 
         # Step 2: Initialize delegation chain (fleet)
         chain = self.fleet_service.initialize_fleet(
-            user_id=user_id,  # Changed from tenant_id
+            tenant_id=tenant_id or user_id,
             root_agent_id=root_agent_id,
             root_task=task,
             initial_metadata={
                 "task_analysis": task_analysis,
-                "recruitment_phase": "in_progress"
+                "recruitment_phase": "in_progress",
+                **({"workspace_id": workspace_id} if workspace_id else {}),
             }
         )
 
@@ -303,18 +306,57 @@ Return JSON matching the TaskAnalysis schema."""
     @staticmethod
     def _specialist_task_digest(
         task: str, chain_id: str, roster: List[Dict[str, Any]],
+        tenant_id: Optional[str] = None,
+        workspace_id: Optional[str] = None,
+        context: Optional[Dict[str, Any]] = None,
     ) -> str:
-        ids = sorted(str(item.get("agent_id") or "") for item in roster)
-        payload = json.dumps(
-            {
-                "task": " ".join(str(task or "").split()).lower(),
-                "chain_id": str(chain_id or ""),
-                "roster": ids,
-            },
-            sort_keys=True,
-            separators=(",", ":"),
-        )
-        return hashlib.sha1(payload.encode("utf-8")).hexdigest()[:16]
+        roster_material = []
+        for item in roster:
+            roster_material.append({
+                "agent_id": str(item.get("agent_id") or ""),
+                "agent_name": str(item.get("agent_name") or ""),
+                "domain": str(item.get("domain") or ""),
+                "capability_score": item.get("capability_score"),
+            })
+        roster_material.sort(key=lambda item: (
+            item["agent_id"], item["domain"], item["agent_name"]))
+        basis = {}
+        for key in (
+            "source_basis", "teaching_basis", "authority_basis",
+            "objective", "required_outcome",
+        ):
+            if context and context.get(key) is not None:
+                basis[key] = context[key]
+        payload = {
+            "task": str(task or ""),
+            "chain_id": str(chain_id or ""),
+            "tenant_id": str(tenant_id or ""),
+            "workspace_id": str(workspace_id or ""),
+            "roster": roster_material,
+            "basis": basis,
+        }
+        return hashlib.sha1(json.dumps(
+            payload, sort_keys=True, separators=(",", ":"), default=str,
+        ).encode("utf-8")).hexdigest()[:16]
+
+    @staticmethod
+    def _specialist_result_succeeded(raw: Dict[str, Any]) -> bool:
+        status = str(raw.get("status") or "").strip().lower()
+        failure_statuses = {
+            "failed", "timeout", "budget_exceeded", "cancelled", "error",
+            "killed_sandbox",
+        }
+        success_statuses = {
+            "success", "objective_satisfied", "completed",
+        }
+        explicit = raw.get("success")
+        if explicit is False:
+            return False
+        if status in failure_statuses:
+            return False
+        if explicit is True:
+            return True
+        return status in success_statuses
 
     async def execute_recruited_specialists(
         self,
@@ -360,8 +402,80 @@ Return JSON matching the TaskAnalysis schema."""
                 "chain_id": str(chain_id or ""),
             }
 
-        digest = self._specialist_task_digest(task, chain_id, roster)
+        def _cancelled() -> bool:
+            if cancel_check is not None:
+                try:
+                    if cancel_check():
+                        return True
+                except Exception:
+                    return True
+            return bool(
+                context.get("cancelled") or context.get("cancel_requested"))
+
         metadata = dict(chain.metadata_json or {})
+        chain_tenant = str(chain.tenant_id or "")
+        if tenant_id and chain_tenant and chain_tenant != str(tenant_id):
+            return {
+                "success": False,
+                "status": "no_suitable_specialists",
+                "error": "delegation_chain_scope_mismatch",
+                "final_output": (
+                    "The recruited fleet is outside the caller's scope."),
+                "specialist_results": [],
+                "specialists_count": len(roster),
+                "executed_count": 0,
+                "cancelled": False,
+                "chain_id": str(chain_id or ""),
+            }
+        chain_workspace = metadata.get("workspace_id")
+        if (
+            workspace_id and chain_workspace
+            and str(chain_workspace) != str(workspace_id)
+        ):
+            return {
+                "success": False,
+                "status": "no_suitable_specialists",
+                "error": "delegation_chain_scope_mismatch",
+                "final_output": (
+                    "The recruited fleet is outside the caller's scope."),
+                "specialist_results": [],
+                "specialists_count": len(roster),
+                "executed_count": 0,
+                "cancelled": False,
+                "chain_id": str(chain_id or ""),
+            }
+        chain_status = str(chain.status or "").strip().lower()
+        if chain_status in ("cancelled", "failed"):
+            return {
+                "success": False,
+                "status": "cancelled" if chain_status == "cancelled" else "failed",
+                "error": "delegation_chain_terminal",
+                "final_output": (
+                    "The recruited fleet is already cancelled."
+                    if chain_status == "cancelled"
+                    else "The recruited fleet has already failed."),
+                "specialist_results": [],
+                "specialists_count": len(roster),
+                "executed_count": 0,
+                "cancelled": chain_status == "cancelled",
+                "chain_id": str(chain_id or ""),
+            }
+        if _cancelled():
+            return {
+                "success": False,
+                "status": "cancelled",
+                "error": "fleet_specialist_execution_cancelled",
+                "final_output": (
+                    "Specialist work was cancelled before completion."),
+                "specialist_results": [],
+                "specialists_count": len(roster),
+                "executed_count": 0,
+                "cancelled": True,
+                "chain_id": str(chain_id or ""),
+            }
+
+        digest = self._specialist_task_digest(
+            task, chain_id, roster, tenant_id, workspace_id, context)
         cached = metadata.get("specialist_execution")
         if (
             isinstance(cached, dict)
@@ -372,16 +486,6 @@ Return JSON matching the TaskAnalysis schema."""
             cached_result = dict(cached["result"])
             cached_result["cached"] = True
             return cached_result
-
-        def _cancelled() -> bool:
-            if cancel_check is not None:
-                try:
-                    if cancel_check():
-                        return True
-                except Exception:
-                    return True
-            return bool(
-                context.get("cancelled") or context.get("cancel_requested"))
 
         results: List[Dict[str, Any]] = []
         successful: List[Dict[str, Any]] = []
@@ -409,6 +513,12 @@ Return JSON matching the TaskAnalysis schema."""
                     "error": "specialist_not_found",
                 })
                 continue
+            agent_name = str(
+                getattr(agent, "name", None)
+                or getattr(agent, "display_name", None)
+                or agent_id
+                or "Specialist"
+            )
             if getattr(agent, "enabled", True) is False:
                 results.append({
                     "agent_id": agent_id,
@@ -447,13 +557,20 @@ Return JSON matching the TaskAnalysis schema."""
             ]
             if agent.specialty:
                 capabilities.append(str(agent.specialty).lower())
-            if (
-                domain.lower() not in ("", "general")
-                and capabilities
-                and not any(
-                    domain.lower() in cap or cap in domain.lower()
-                    for cap in capabilities
-                )
+            domain_specific = domain.lower() not in ("", "general")
+            if domain_specific and not capabilities:
+                results.append({
+                    "agent_id": agent_id,
+                    "agent_name": agent_name,
+                    "domain": domain,
+                    "status": "capability_mismatch",
+                    "output": "",
+                    "error": "specialist_capability_missing",
+                })
+                continue
+            if domain_specific and not any(
+                domain.lower() in cap or cap in domain.lower()
+                for cap in capabilities
             ):
                 results.append({
                     "agent_id": agent_id,
@@ -498,9 +615,7 @@ Return JSON matching the TaskAnalysis schema."""
                 })
                 continue
 
-            success = bool(raw.get("success")) or str(
-                raw.get("status") or "") in (
-                    "success", "objective_satisfied", "completed")
+            success = self._specialist_result_succeeded(raw)
             output = str(
                 raw.get("final_output")
                 or raw.get("output")
