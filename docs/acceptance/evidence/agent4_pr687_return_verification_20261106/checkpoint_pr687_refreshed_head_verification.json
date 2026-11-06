@@ -1,0 +1,39 @@
+{
+  "checkpoint": "Agent 4 one-pass verification of the login-return repair on the REFRESHED actual PR687 head (lead order: 'refresh actual head, then one exact Settings+query login return check')",
+  "verdict": "REPAIR VERIFIED at the browser/public-API boundary on served source aa731a9f582d — the current branch tip, which contains the lead-named candidate 265610524 plus one later signin.tsx fix (aa731a9f5 'keep the deep link for social and existing-session sign-in').",
+  "head_lineage_note": "The lead's note named candidate 265610524. By execution time the branch tip had advanced to aa731a9f5 (265610524 is its direct parent). Per 'refresh actual head' the verification was run on the actual tip; an earlier validation pass on 4620c76a1 (two commits earlier, checkpoint_pr687_return_verification.json) passed identically.",
+  "attribution": {
+    "verified_source": "aa731a9f582d (branch tip of codex/auth-relative-callback-20261106)",
+    "also_validated_earlier_same_session": "4620c76a1 (checkpoint_pr687_return_verification.json, evidence commit 900eb0cbb)",
+    "served_identity": "backend health reported git_commit aa731a9f582d, pid 38531, cwd /private/tmp/atom-agent4-pr687-verify/backend (worktree checked out at aa731a9f5, .next purged before boot)",
+    "world": "same isolated scratch world 3 reused (/private/tmp/atom-agent4-pr687-scratch3, ports 18121/18122, own DB/SECRET_KEY); servers restarted on the refreshed head, then stopped after capture",
+    "test_user_reused": "a4fix-d35eac28-1106@example.com / id 4bd61912-b1f9-4323-a386-99b820b1d50c / workspace 14cf5f95-66b7-4638-883a-f6bb84e75e63 / role member; onboarding prerequisite persisted from the same world (recorded as prereq, not re-claimed)"
+  },
+  "chain_results": [
+    { "step": "fresh browser context (cleared cookies + storage, new tab; prior session state from the same world wiped first — first wipe attempt on a dead post-restart document threw SecurityError and was retried on a live page, recorded honestly)",
+      "observed": { "cookieNames": [], "localStorageKeys": [], "sessionStorageKeys": [] } },
+    { "step": "PRODUCER (unauthenticated deep visit)", "observed_url": "http://localhost:18122/login?callbackUrl=%2Fsettings%3Fa4dl%3Dreturn20261106", "note": "RELATIVE callbackUrl with path AND query marker, same as the earlier pass" },
+    { "step": "CONSUMER (same-account UI sign-in)", "observed_url_samples": [
+      { "t_ms": 0, "url": "http://localhost:18122/login?callbackUrl=%2Fsettings%3Fa4dl%3Dreturn20261106", "settingsHeading": false },
+      { "t_ms": 1000, "url": "http://localhost:18122/settings?a4dl=return20261106", "settingsHeading": true },
+      { "t_ms": 2000, "url": "http://localhost:18122/settings?a4dl=return20261106", "settingsHeading": true },
+      { "t_ms": 3000, "url": "http://localhost:18122/settings?a4dl=return20261106", "settingsHeading": true },
+      { "t_ms": 4000, "url": "http://localhost:18122/settings?a4dl=return20261106", "settingsHeading": true },
+      { "t_ms": 5000, "url": "http://localhost:18122/settings?a4dl=return20261106", "settingsHeading": true },
+      { "t_ms": 6000, "url": "http://localhost:18122/settings?a4dl=return20261106", "settingsHeading": true },
+      { "t_ms": 7000, "url": "http://localhost:18122/settings?a4dl=return20261106", "settingsHeading": true }
+    ], "verdict": "intended deep destination reached and stable; wizard absent" },
+    { "step": "post-return readback", "me": { "id": "4bd61912-b1f9-4323-a386-99b820b1d50c", "email": "a4fix-d35eac28-1106@example.com", "role": "member", "workspace_id": "14cf5f95-66b7-4638-883a-f6bb84e75e63" }, "onboarding": { "onboarding_completed": true, "onboarding_step": "completed" }, "screenshot": "22_refreshed_head_return_landed_settings.png" },
+    { "step": "default-login twin (no callbackUrl)", "observed": "bare /login -> same-account UI sign-in -> /dashboard with 'Your workspace' heading; no escape" }
+  ],
+  "durable_readback_world3_db_after_refreshed_head_run": { "users": 2, "test_user_rows": 1, "workspaces": 2, "tenants": 2, "user_workspaces": 1 },
+  "artifacts": [
+    { "file": "22_refreshed_head_return_landed_settings.png", "sha256": "committed with this checkpoint", "note": "post-repair login on refreshed head lands ON /settings?a4dl=return20261106, same account in sidebar" }
+  ],
+  "scope_and_exclusions": [
+    "One exact repaired-chain check per the lead's order; no broad auth rerun",
+    "External/protocol-relative negatives remain Agent 1's committed Jest twins",
+    "Social/existing-session sign-in paths of aa731a9f5 were NOT exercised through the UI (no social providers configured in the scratch world); the captured /login chain is what was ordered and verified",
+    "Merge/acceptance decisions remain with the lead/owner; hosted-CI waiting belongs to the delegated CI worker"
+  ]
+}

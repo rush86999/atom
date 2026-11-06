@@ -1,0 +1,55 @@
+{
+  "checkpoint": "fresh-state emptiness, fresh-context 401, expired-session 401s, and timed no-loop URL/state samples",
+  "provenance": "transcribed verbatim from run-session captures; the two expired-token 401 response bodies are also retained as committed files under retained_api_responses/",
+  "attribution": {
+    "source": "f653c790e549",
+    "backend": "uvicorn main_api_app:app pid 8095, 127.0.0.1:18117",
+    "frontend": "Next.js dev server http://localhost:18118, node v20.19.6",
+    "browser": "ZCode in-app browser (Chromium), single browser instance; freshness was produced by clearing storage + opening a new tab, NOT a separate browser profile"
+  },
+  "seam_description_correction": "The fresh browser context was produced by clearing all cookies + localStorage + sessionStorage via page JavaScript, closing the tab, and opening a NEW TAB whose storage was verified empty before any protected-route visit. No separate OS-level or browser-profile-level fresh installation was created. All other wording in earlier records should be read with this description.",
+  "fresh_state_emptiness_record": {
+    "when": "after clearing storage and opening the new tab, before any protected-route visit",
+    "url": "http://localhost:18118/login",
+    "cookieNames_visible_to_page": [],
+    "localStorageKeys": [],
+    "sessionStorageKeys": [],
+    "note": "document.cookie only exposes non-httpOnly cookies; the follow-up /api/auth/me 401 with credentials:include proves no httpOnly session material survived either"
+  },
+  "fresh_context_protected_route_record": {
+    "action": "visit /dashboard in the verified-empty context",
+    "url_after": "http://localhost:18118/login?callbackUrl=http%3A%2F%2Flocalhost%3A18118%2Fdashboard",
+    "me_without_credentials_credentials_include": { "status": 401 },
+    "auth_requirement_visible": { "emailField": true, "h1": ["ATOM Platform"], "passwordField": true },
+    "stale_protected_content": { "dashboardHeading": false, "wizardPresent": false }
+  },
+  "expired_session_records": {
+    "seam": "controlled negative injection: expired-but-correctly-signed JWT minted by the backend's own core.auth.create_access_token(expires_delta=-60s) using the scratch process's own SECRET_KEY for the test user's sub; injected mirroring the app's own storage shape (localStorage auth_token/token + JS-set cookies auth_token, next-auth.session-token, path=/, max-age=86400)",
+    "privacy": "token bytes and SECRET_KEY are private to the scratch world; token is recorded only as SHA-256 + decoded claims",
+    "token_sha256": "8f37de70edaaa92d8889f03d9ad83dc42cfc0d6b1d5968f9d08d686e964050f4",
+    "token_claims": { "sub": "24d65258-d46d-4c72-ac9c-9d23356ac288", "exp": 1793985650, "exp_read_utc": "2026-11-06T17:20:50Z", "jti": "975e466f-c80e-4998-a8a7-adcd3ad61418" },
+    "api_rejections": [
+      { "transport": "Authorization: Bearer", "request": "GET /api/auth/me", "status": 401, "body_file": "retained_api_responses/me_expired_bearer_401.json" },
+      { "transport": "Cookie: auth_token", "request": "GET /api/auth/me", "status": 401, "body_file": "retained_api_responses/me_expired_cookie_401.json" }
+    ],
+    "corroborating_log_lines": "the sanitized access-log excerpt contains GET /api/auth/me 401 lines from both the fresh-context probe and the expired-session window"
+  },
+  "timed_no_loop_samples": {
+    "method": "location.href + page state sampled every 1s for 10s after visiting /dashboard with the injected expired session",
+    "samples": [
+      { "t_ms": 0, "url": "http://localhost:18118/dashboard", "loginFields": false, "protectedHeading": true },
+      { "t_ms": 1000, "url": "http://localhost:18118/dashboard", "loginFields": false, "protectedHeading": true },
+      { "t_ms": 2000, "url": "http://localhost:18118/dashboard", "loginFields": false, "protectedHeading": true },
+      { "t_ms": 3000, "url": "http://localhost:18118/dashboard", "loginFields": false, "protectedHeading": true },
+      { "t_ms": 4000, "url": "http://localhost:18118/dashboard", "loginFields": false, "protectedHeading": true },
+      { "t_ms": 5000, "url": "http://localhost:18118/dashboard", "loginFields": false, "protectedHeading": true },
+      { "t_ms": 6000, "url": "http://localhost:18118/login?callbackUrl=http%3A%2F%2Flocalhost%3A18118%2Fdashboard", "loginFields": true, "protectedHeading": false },
+      { "t_ms": 7000, "url": "http://localhost:18118/login?callbackUrl=http%3A%2F%2Flocalhost%3A18118%2Fdashboard", "loginFields": true, "protectedHeading": false },
+      { "t_ms": 8000, "url": "http://localhost:18118/login?callbackUrl=http%3A%2F%2Flocalhost%3A18118%2Fdashboard", "loginFields": true, "protectedHeading": false },
+      { "t_ms": 9000, "url": "http://localhost:18118/login?callbackUrl=http%3A%2F%2Flocalhost%3A18118%2Fdashboard", "loginFields": true, "protectedHeading": false }
+    ],
+    "reading": "exactly one navigation transition (t=5s -> t=6s), then a stable usable login page for the remaining window; no redirect/retry loop",
+    "honest_limit": "sampling was 1s over a 10s window; a sub-second oscillation between samples cannot be excluded, and the final reauthentication (checkpoint_identity_auth_me.json phase2) demonstrates the loop did not persist"
+  },
+  "screenshots_note": "04_fresh_context_protected_route_login.png and 06_expired_session_recovered_to_login.png are intentionally byte-identical (same sha256) because both episodes end on the same /login?callbackUrl=... render; they are visual state evidence for two separate episodes and are NOT independent proof of either. The decisive records for the two episodes are the emptiness+401 record and the timed samples above."
+}

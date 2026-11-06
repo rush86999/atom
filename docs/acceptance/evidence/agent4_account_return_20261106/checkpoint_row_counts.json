@@ -1,0 +1,75 @@
+{
+  "checkpoint": "read-only user/workspace/tenant/user_workspaces count snapshots",
+  "provenance": {
+    "baseline_and_final_inrun": "transcribed verbatim from run-session read-only sqlite queries against the scratch DB",
+    "frozen_readback": "fresh read-only query against the RETAINED post-run scratch DB in this follow-through session; the world was frozen when the scratch servers were stopped and no process wrote to it afterwards"
+  },
+  "integrity_note": "the scratch DB is WAL-mode: atom.db mtime is its creation time (2026-11-06 12:10:36 local) and recent writes live in atom.db-wal (mtime 12:23 local, when the server stopped). The retained trio atom.db + atom.db-wal + atom.db-shm is the frozen world; read-only sqlite reads through the WAL. Hashes of all three are recorded below.",
+  "attribution": {
+    "database": "sqlite:////private/tmp/atom-agent4-acctret-scratch/run/atom.db",
+    "source": "f653c790e549",
+    "backend_pid": 8095,
+    "python": "3.11.16",
+    "frontend": "Next.js dev server, node v20.19.6, port 18118",
+    "backend_port": 18117,
+    "env": { "ENVIRONMENT": "development", "BYPASS_RATE_LIMIT": "1", "ALLOWED_ORIGINS": "http://localhost:18118" },
+    "secret_key_sha256": "a46b537c15980fe780f3183484e4e384d81c09cca32724e213b1f79300613d9f"
+  },
+  "snapshots": [
+    {
+      "label": "baseline_after_prerequisite_before_signout",
+      "users": 2,
+      "workspaces": 2,
+      "tenants": 2,
+      "user_workspaces": 1,
+      "user_rows_captured": [
+        { "id": "329d2db2-6a66-4f5c-8090-81084c6c1e07", "email": "admin@example.com", "role": "workspace_admin", "onboarding_completed": 0, "onboarding_step": "welcome", "workspace_id": null },
+        { "id": "24d65258-d46d-4c72-ac9c-9d23356ac288", "email": "a4ret-58c87249-1106@example.com", "role": "member", "onboarding_completed": 1, "onboarding_step": "completed", "workspace_id": "01da977f-557b-4c81-911d-2c45c63e9be9" }
+      ]
+    },
+    {
+      "label": "after_fresh_context_relogin",
+      "users": 2,
+      "test_user_rows_by_email": 1,
+      "workspaces": 2,
+      "tenants": 2,
+      "user_workspaces": 1,
+      "onboarding_state_captured": [{ "email": "a4ret-58c87249-1106@example.com", "completed": 1, "step": "completed" }]
+    },
+    {
+      "label": "after_expired_session_negative_and_relogin",
+      "users": 2,
+      "test_user_rows_by_email": 1,
+      "workspaces": 2,
+      "tenants": 2,
+      "user_workspaces": 1,
+      "onboarding_state_captured": [{ "email": "a4ret-58c87249-1106@example.com", "completed": 1, "step": "completed" }]
+    }
+  ],
+  "frozen_retained_db_readback": {
+    "when": "this follow-through session, 2026-11-06, servers stopped since 12:25 local",
+    "users": 2,
+    "workspaces": 2,
+    "tenants": 2,
+    "user_workspaces": 1,
+    "goal_runs": 0,
+    "user_rows": [
+      { "id": "329d2db2-6a66-4f5c-8090-81084c6c1e07", "email": "admin@example.com", "role": "workspace_admin", "status": "active", "onboarding_completed": 0, "onboarding_step": "welcome", "workspace_id": null, "created_at": "2026-11-06 17:10:37" },
+      { "id": "24d65258-d46d-4c72-ac9c-9d23356ac288", "email": "a4ret-58c87249-1106@example.com", "role": "member", "status": "active", "onboarding_completed": 1, "onboarding_step": "completed", "workspace_id": "01da977f-557b-4c81-911d-2c45c63e9be9", "created_at": "2026-11-06 17:15:35" }
+    ],
+    "workspace_rows": [
+      { "id": "default", "name": "Default Workspace" },
+      { "id": "01da977f-557b-4c81-911d-2c45c63e9be9", "name": "Default" }
+    ],
+    "tenant_rows": [
+      { "id": "default", "name": "Default Tenant" },
+      { "id": "9ae05884-80fe-4210-bbc6-cfb6226a5165", "name": "Agent4's Workspace" }
+    ],
+    "note": "the expired-session negative attempt created no user/workspace/tenant row; the test user remains the single row matching its email, still role=member"
+  },
+  "retained_artifact_hashes_sha256": {
+    "run/atom.db": "see CHECKPOINT_SUPPLEMENT_20261106.md hash table",
+    "run/atom.db-wal": "see CHECKPOINT_SUPPLEMENT_20261106.md hash table",
+    "run/atom.db-shm": "see CHECKPOINT_SUPPLEMENT_20261106.md hash table"
+  }
+}

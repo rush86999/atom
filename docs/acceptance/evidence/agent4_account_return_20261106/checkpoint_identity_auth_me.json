@@ -1,0 +1,63 @@
+{
+  "checkpoint": "identity + /api/auth/me + onboarding status across both reauth phases",
+  "provenance": "transcribed verbatim from the run-session captures (API responses fetched from the authenticated browser page against the served backend); not re-fetched, not reconstructed from the database",
+  "boundary_of_each_record": "browser-page fetch -> public API (http://localhost:18117) with the session's own bearer token in the Authorization header; header value never recorded",
+  "redaction": "no tokens, cookies, passwords, or authorization headers; opaque local test identities only",
+  "attribution": {
+    "source": "f653c790e549 (worktree /private/tmp/atom-agent4-acctret, branch codex/agent4-account-return-20261106)",
+    "backend_pid": 8095,
+    "backend_started_at_utc": "2026-11-06T17:10:12.517943+00:00",
+    "local_date": "2026-11-06 (local timestamps 12:10-12:25, UTC-5)"
+  },
+  "phases": [
+    {
+      "phase": "phase0_prerequisite_established",
+      "when_utc_approx": "2026-11-06T17:17:26Z",
+      "me_captured_fields": {
+        "id": "24d65258-d46d-4c72-ac9c-9d23356ac288",
+        "email": "a4ret-58c87249-1106@example.com",
+        "first_name": "Agent4",
+        "last_name": "ReturnJourney",
+        "role": "member",
+        "status": "active",
+        "workspace_id": "01da977f-557b-4c81-911d-2c45c63e9be9",
+        "created_at": "2026-11-06T17:15:35",
+        "last_login": null
+      },
+      "onboarding_status": { "data": { "onboarding_completed": true, "onboarding_step": "completed" }, "success": true, "timestamp": "2026-11-06T17:17:26.024000+00:00" },
+      "wizard_dialog_absent": true
+    },
+    {
+      "phase": "phase1_after_fresh_context_relogin",
+      "when_utc_approx": "2026-11-06T17:19Z (exact capture instant not retained per-field)",
+      "url_after": "http://localhost:18118/dashboard",
+      "me_captured_fields": {
+        "id": "24d65258-d46d-4c72-ac9c-9d23356ac288",
+        "email": "a4ret-58c87249-1106@example.com",
+        "role": "member",
+        "status": "active",
+        "workspace_id": "01da977f-557b-4c81-911d-2c45c63e9be9"
+      },
+      "onboarding_status": { "data": { "onboarding_completed": true, "onboarding_step": "completed" } },
+      "wizard_dialog_absent": true,
+      "login_error_shown": null
+    },
+    {
+      "phase": "phase2_after_expired_session_relogin",
+      "when_utc_approx": "2026-11-06T17:23Z (exact capture instant not retained per-field)",
+      "url_after": "http://localhost:18118/dashboard",
+      "me_http_status": 200,
+      "me_captured_fields": {
+        "id": "24d65258-d46d-4c72-ac9c-9d23356ac288",
+        "email": "a4ret-58c87249-1106@example.com",
+        "role": "member",
+        "workspace_id": "01da977f-557b-4c81-911d-2c45c63e9be9"
+      },
+      "onboarding_status": { "data": { "onboarding_completed": true, "onboarding_step": "completed" } },
+      "wizard_dialog_absent": true,
+      "dashboard_heading_visible": true,
+      "field_note": "the 'status' field was not included in this phase's captured sample; identity fields above are the exact captured set"
+    }
+  ],
+  "identity_stability_claim": "the same user id and workspace_id were returned in all three phases; no phase created a new user or workspace (see checkpoint_row_counts.json)"
+}
