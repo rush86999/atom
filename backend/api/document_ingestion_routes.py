@@ -12,8 +12,13 @@ from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 from fastapi import Depends, File, HTTPException, Query, UploadFile
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
 from core.base_routes import BaseAPIRouter
+from core.database import get_db as get_db_session_dependency
+from core.document_settings_write_service import (
+    update_ingestion_settings as _update_ingestion_settings_decision,
+)
 from core.ingestion_feedback import record_ingestion_feedback
 from core.lancedb_handler import get_lancedb_handler
 from core.models import User
@@ -148,41 +153,119 @@ async def get_integration_settings(
         raise router.internal_error(detail="Internal error")
 
 
+def _raise_document_settings_decision(result: Dict[str, Any]) -> None:
+    """Map the verified document-settings envelope to a safe HTTP error."""
+    status_value = str(result.get("status") or "")
+    if status_value == "refused":
+        raise HTTPException(
+            status_code=int(result.get("http_status") or 422),
+            detail={
+                "error": {
+                    "code": result.get("error_code") or "VALIDATION_ERROR",
+                    "message": result.get("error") or "Request refused",
+                },
+                "field": result.get("field"),
+                "verification": result.get("verification"),
+            },
+        )
+    if status_value == "conflict":
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": {
+                    "code": result.get("error_code") or "STALE_TARGET",
+                    "message": result.get("error") or "Conflict",
+                },
+                "verification": result.get("verification"),
+            },
+        )
+    if status_value == "not_applied":
+        raise HTTPException(
+            status_code=int(result.get("http_status") or 409),
+            detail={
+                "error": {
+                    "code": result.get("error_code")
+                    or "DOCUMENT_SETTINGS_TRANSACTION_ROLLED_BACK",
+                    "message": result.get("error")
+                    or "The ingestion-settings update did not apply.",
+                },
+                "verification": result.get("verification"),
+                "operation_id": result.get("operation_id"),
+                "audit_id": result.get("audit_id"),
+            },
+        )
+    if status_value in ("committed_unverified", "effect_unknown"):
+        code = (
+            "DOCUMENT_SETTINGS_EFFECT_UNKNOWN"
+            if status_value == "effect_unknown"
+            else "DOCUMENT_SETTINGS_COMMITTED_UNVERIFIED")
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": {
+                    "code": code,
+                    "message": result.get("message")
+                    or "The ingestion-settings outcome is uncertain.",
+                },
+                "verification": result.get("verification"),
+                "operation_id": result.get("operation_id"),
+                "audit_id": result.get("audit_id"),
+                "target_id": result.get("target_id"),
+            },
+        )
+
+
 @router.put("/settings")
 async def update_ingestion_settings(
     request: IngestionSettingsRequest,
-    current_user: User = Depends(get_current_user)
+    operation_id: Optional[str] = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db_session_dependency),
 ):
     """
     Update document ingestion settings for an integration.
     Enable/disable auto-sync, configure file types, folders, etc.
     """
-    try:
-        from core.auto_document_ingestion import get_document_ingestion_service
-        service = get_document_ingestion_service(get_workspace_id(current_user))
-        
-        settings = service.update_settings(
-            integration_id=request.integration_id,
-            enabled=request.enabled,
-            auto_sync_new_files=request.auto_sync_new_files,
-            file_types=request.file_types,
-            sync_folders=request.sync_folders,
-            exclude_folders=request.exclude_folders,
-            max_file_size_mb=request.max_file_size_mb,
-            sync_frequency_minutes=request.sync_frequency_minutes
-        )
-        
-        return router.success_response(
-            data={
-                "integration_id": request.integration_id,
-                "enabled": settings.enabled,
-                "file_types": settings.file_types
-            },
-            message=f"Settings updated for {request.integration_id}"
-        )
-    except Exception as e:
-        logger.error(f"Failed to update settings: {e}")
-        raise router.internal_error(detail="Internal error")
+    workspace_id = get_workspace_id(current_user)
+    result = _update_ingestion_settings_decision(
+        db,
+        actor=current_user,
+        workspace_id=workspace_id,
+        integration_id=request.integration_id,
+        changes=request.model_dump(exclude_none=True),
+        operation_id=operation_id,
+    )
+    _raise_document_settings_decision(result)
+    data = result.get("data") or {}
+
+    if result.get("status") in ("verified", "already_applied"):
+        try:
+            from core.auto_document_ingestion import (
+                get_document_ingestion_service,
+            )
+
+            service = get_document_ingestion_service(workspace_id)
+            service.settings.pop(request.integration_id, None)
+            service.get_settings(request.integration_id)
+        except Exception as e:  # noqa: BLE001 — committed DB row is authority
+            logger.warning(
+                "Failed to reload ingestion-settings cache for %s: %s",
+                request.integration_id, e)
+
+    return router.success_response(
+        data={
+            "integration_id": request.integration_id,
+            "enabled": data.get("enabled"),
+            "file_types": data.get("file_types", []),
+            "verification": data.get("verification"),
+            "operation_id": data.get("operation_id"),
+            "audit_id": data.get("audit_id"),
+        },
+        message=(
+            result.get("message")
+            if result.get("status") == "no_change"
+            else f"Settings updated for {request.integration_id}"),
+    )
 
 
 @router.post("/sync/{integration_id}", response_model=SyncResultResponse)
