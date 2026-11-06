@@ -1,0 +1,60 @@
+{
+  "schema": "atom-oracle-goal-run-decision-verification-1",
+  "status": "goal-run supervision/cancellation verified decision family submitted for independent verification; plan/advance/resume/execute and live execution remain open",
+  "candidate": {
+    "branch": "codex/oracle01-agent-decision-20261105",
+    "accepted_admin_base": "9d73552d249ae8ec5b05af77546faf9621bbcd47",
+    "accepted_admin_product": "5fbb377a4e1eef8fdd0013275cd8b1c9b278cd41",
+    "product_source": "96d838d5cdc6001242a43402eab5a52b758ac646",
+    "executed_source": "e74115a92a6529910c24b0fe92833c1c5e48c539",
+    "tree_clean_at_execution": true,
+    "runtime": "real scratch SQLite with fresh sessions; no live model/agent/provider"
+  },
+  "checks": {
+    "supervisor_mode_change": true,
+    "member_mode_refused": true,
+    "cross_workspace_mode_404": true,
+    "invalid_mode_422": true,
+    "already_requested_mode_no_change_effect_none": true,
+    "stale_mode_revision_refused_peer_preserved": true,
+    "mode_replay_changed_material_later_revision": true,
+    "owner_member_cancel": true,
+    "supervisor_cancel": true,
+    "non_owner_member_cancel_refused": true,
+    "cross_workspace_cancel_404": true,
+    "already_terminal_cancel_refused": true,
+    "stale_cancel_revision_refused": true,
+    "cancel_tombstone_replay": true,
+    "cancel_clears_waiting_on_and_appends_log": true,
+    "audit_rollback_effect_none": true,
+    "post_commit_readback_committed_unverified": true,
+    "lost_confirmation_effect_unknown_with_identity": true,
+    "audit_tampering_never_certified": true,
+    "authority_change_before_claim_refused": true,
+    "no_raw_plan_parameters_or_secret_in_receipts_logs": true,
+    "exact_material_revision_cas": true,
+    "no_new_table_or_migration": true,
+    "no_live_model_agent_provider_credential_spend_send_download_deployment": true,
+    "repaired_review_memory_skill_agent_branches_independent": true
+  },
+  "results": {
+    "focused_python314": {"passed": 27, "log": "focused-314.log"},
+    "focused_python311": {"passed": 27, "log": "focused-311.log"},
+    "affected_python314": {"passed": 148, "failed": 0, "log": "affected-314.log"},
+    "affected_python311": {"passed": 148, "failed": 0, "log": "affected-311.log"},
+    "baseline_python314": {"passed": 121, "failed": 0, "log": "baseline-314.log"},
+    "baseline_python311": {"passed": 121, "failed": 0, "log": "baseline-311.log"}
+  },
+  "focused_breakdown": {
+    "new_decision_controls": 27,
+    "focused_total": 27
+  },
+  "baseline_exclusions": {},
+  "limits": [
+    "Exactly two goal-run decision routes; plan/advance/resume/execute/checkpoint remain out of scope",
+    "No live model/agent execution, provider, credential, spend, send, download or deployment",
+    "No new table, migration or second goal/approval/authorization engine",
+    "PostgreSQL runtime/soak, multi-worker serialization and whole-app ORACLE-01 remain open",
+    "Repaired review/memory/skill/agent branches independent and not merged"
+  ]
+}

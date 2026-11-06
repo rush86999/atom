@@ -1,0 +1,65 @@
+{
+  "schema": "atom-oracle-goal-run-decision-routes-1",
+  "executed_source": "e74115a92a6529910c24b0fe92833c1c5e48c539",
+  "product_source": "96d838d5cdc6001242a43402eab5a52b758ac646",
+  "accepted_admin_base": "9d73552d249ae8ec5b05af77546faf9621bbcd47",
+  "accepted_admin_product": "5fbb377a4e1eef8fdd0013275cd8b1c9b278cd41",
+  "prefix": "/api/goal-runs",
+  "target": {
+    "model": "GoalRun",
+    "scope": "workspace_id from the existing request resolver; cross-workspace id is 404",
+    "revision": "material_revision is the exact CAS token; every material writer bumps it"
+  },
+  "authority": {
+    "mode": "existing _require_supervisor (TEAM_LEAD+) plus service re-read of the current User row",
+    "cancel": "existing _require_run_access (run owner or supervisor) plus service re-check of active status and owner/TEAM_LEAD+",
+    "claim": "guarded no-op User UPDATE binds current status/role/raw tenant in the decision transaction"
+  },
+  "routes": [
+    {
+      "method": "POST",
+      "path": "/api/goal-runs/{run_id}/mode",
+      "handler": "api.goal_run_routes.set_supervision_mode",
+      "service": "core.goal_run_decision_service.set_supervision_mode",
+      "effect": "conditional UPDATE supervision_mode + material_revision, plus one AuditLog receipt",
+      "transitions": "same mode -> no_change/effect=none; valid mode -> verified; stale revision/material -> 409; same-operation replay -> already_applied",
+      "material": ["id", "workspace_id", "prior status", "prior mode", "material_revision"]
+    },
+    {
+      "method": "POST",
+      "path": "/api/goal-runs/{run_id}/cancel",
+      "handler": "api.goal_run_routes.cancel_goal_run",
+      "service": "core.goal_run_decision_service.cancel_goal_run",
+      "effect": "conditional UPDATE status=cancelled, clear waiting_on, append cancelled decision-log entry, bump material_revision, plus one AuditLog receipt",
+      "transitions": "owner or supervisor; legal transition required; terminal/illegal -> 409; stale revision -> 409; same-operation replay -> already_applied",
+      "material": ["id", "workspace_id", "prior status", "prior mode", "material_revision"]
+    }
+  ],
+  "durable_ledger": {
+    "table": "saas_audit_logs",
+    "operation_identity": "AuditLog.id is the server-owned operation id goal-run:<mode|cancel>:<supplied-or-generated>",
+    "metadata": ["schema", "operation_id", "action", "event_type", "target_id", "target_workspace_id", "prior_status", "result_status", "prior_mode", "result_mode", "prior_revision", "result_revision", "request_digest", "prior_digest", "result_digest", "actor_id", "actor_role", "tenant_id"],
+    "sensitive_material": "no raw plan, parameters, decision log, secret, SQL parameter or exception text in the receipt or logs",
+    "readback": "fresh session; audit fields and target state/revision digest must match"
+  },
+  "result_states": {
+    "verified": "success plus additive verification/operation_id/audit_id; effect=committed",
+    "already_applied": "same operation/material; one receipt; replay=do_not_repeat",
+    "no_change": "already-requested mode; 200 effect=none; no audit",
+    "conflict": "409 UNSUPPORTED_STATUS/STALE_TARGET/OPERATION_CONFLICT/AUTHORITY_CHANGED; effect=none",
+    "not_applied": "409 confirmed rollback; effect=none; GOAL_RUN_TRANSACTION_ROLLED_BACK",
+    "committed_unverified": "503 effect=committed; original identity; replay=do_not_repeat",
+    "effect_unknown": "503 effect=unknown; original identity; replay=do_not_repeat; no exception text"
+  },
+  "parallel_writers": {
+    "GoalRunService": "plan/parameters/cursor/wait/resume/transition writers advance material_revision; a concurrent write makes the decision stale",
+    "routes": "verified mode/cancel decision writers",
+    "audit": "existing AuditLog; additive safe receipt"
+  },
+  "not_covered": [
+    "plan/advance/resume/execute/checkpoint routes",
+    "live model/agent execution",
+    "PostgreSQL runtime/soak and multi-worker serialization",
+    "whole-app ORACLE-01"
+  ]
+}

@@ -1,0 +1,62 @@
+{
+  "schema": "atom-employee-evidence-1",
+  "status": "goal-run supervision/cancellation verified decision family submitted for independent verification; plan/advance/resume/execute and live execution remain open",
+  "branch": "codex/oracle01-agent-decision-20261105",
+  "accepted_admin_base": "9d73552d249ae8ec5b05af77546faf9621bbcd47",
+  "accepted_admin_product": "5fbb377a4e1eef8fdd0013275cd8b1c9b278cd41",
+  "product_source": "96d838d5cdc6001242a43402eab5a52b758ac646",
+  "executed_source": "e74115a92a6529910c24b0fe92833c1c5e48c539",
+  "tree_clean_at_execution": true,
+  "source_files": {
+    "backend/api/goal_run_routes.py": "211e66db9e236b19a9d25266f7d5267126fa0fadbf46a510401dc4242c2b4e1c",
+    "backend/core/goal_run_decision_service.py": "27a97bcb24502f0b66f6ae006ef04ee67c14b2b94f734fe1544caacf7a32aa86",
+    "backend/core/goals/goal_run_service.py": "1fccae15b1e9f5e109f708170dbe9b23880dbb25163ff237bdc14ec7370fa260",
+    "backend/core/models.py": "4b238c35f6f235d94779f4598040f0c9fcd39599c26705e7016e8b045b51c3ef",
+    "backend/core/auth.py": "63b747a9e335f84128fc43b846eacb8beaef3874edeac00874ee803a5e287c61",
+    "backend/core/security/rbac.py": "48a7ecdb609f7e32267212e85b1993a0045eb84aca903f0152a8a498bcbd405e",
+    "backend/core/personal_scope.py": "f07dd35cf6eedb674ec9afbb06e10776cd4039e64ad7dd0a3427b7e0df31f78f",
+    "backend/core/base_routes.py": "b3af3c52d14582a3674a30adca6d8fea10ae7f4bde8d46c7b9164eb2ef0597fb",
+    "backend/core/database.py": "fd3736e7f679b9b30e242597e25a27565d3ab93fc8c0efd3ea0b1cef76e9b16e",
+    "backend/main_api_app.py": "83f6c051d58d39c70c94617cd6eedc9ce65e6414047c1297899dc6e771321af0",
+    "backend/tests/test_goal_run_decision_contract.py": "7acd95a35eb646e42c397d41d633b70986b8e3283caeda4c641d49e0199decf7",
+    "backend/tests/test_goal_run_routes.py": "6b28397b275db4c0f46c1975bbeda3660f83c7fa4a8edbaf2c357e3bf1804394",
+    "backend/tests/test_goal_journey_gaps.py": "2a4279dbea7bb3aefc324ded4bc108e44a08a599e72adabfdeb68393e9133ea5",
+    "backend/tests/test_goal_run_access_control.py": "30795bbd737bd6933c51d174ebf9800bc5faea38593f8edd918cc99a38e70f3f"
+  },
+  "artifacts": {
+    "README.md": "93e63c5a3628e7f686095ef645156ecc46596e8654f3fe2272843beb3ca9b544",
+    "TEST_RESULTS.md": "fd61bbccb6422031436a48d0e63a1f4e281047b93c0829e7e0b5e6478f4a11f1",
+    "affected-311.log": "38c77591ddb6e05c79595ffccd3dff0427acad388749596fe763d85b35b27071",
+    "affected-314.log": "fac23bfc111a563fd52980501c78add1e55d6ec2e17378f172a2819a7230be73",
+    "baseline-311.log": "49896bca7068dfd636cf0d1cb0fb07171cb21704b78d03657aedff202dc1e3a2",
+    "baseline-314.log": "c074b55078c0d0725844a1e29a3d189da801a6acbb4d52f66274b5d104846a19",
+    "focused-311.log": "9570ddd99f31ef48cb111d0289bfda6b22fbffb2de1308547317cc6e99e8736f",
+    "focused-314.log": "8ddc0bc9a2076023256aa9c406d643dc1b897e09ca58635c5282bc343600ac47",
+    "routes.json": "25c26462844797b9ad43d2bda4e95509ac3b573c97434076b977e9fdf2ee25b3",
+    "source-tree.txt": "177ddf87bd0a67ba3e0598cd807aab23006a53bec9aed10cbd291f409336ebbd",
+    "verification.json": "101b3abed5e35fcb9b6cefd0ce671a3e0c3f3e913dd0b12caf62c0d00ca6cf95"
+  },
+  "checks": {
+    "focused_python314": "27 passed",
+    "focused_python311": "27 passed",
+    "affected_python314": "148 passed",
+    "affected_python311": "148 passed",
+    "baseline_python314": "121 passed",
+    "baseline_python311": "121 passed",
+    "new_passing_controls": 27,
+    "baseline_failures": 0,
+    "model_calls": 0,
+    "provider_calls": 0,
+    "new_schema": false
+  },
+  "baseline_exclusions": {},
+  "boundaries": [
+    "two goal-run decision routes only",
+    "no plan/advance/resume/execute/checkpoint changes",
+    "no live model/agent execution, provider, credential, spend, send, download or deployment",
+    "no new table, migration or second goal/approval/authorization engine",
+    "PostgreSQL runtime/soak, multi-worker serialization and whole-app ORACLE-01 not qualified",
+    "repaired review/memory/skill/agent branches independent and not merged",
+    "accepted admin/auth-2FA/canvas/feedback/wait/employee/ORCH-01 lanes unchanged"
+  ]
+}
