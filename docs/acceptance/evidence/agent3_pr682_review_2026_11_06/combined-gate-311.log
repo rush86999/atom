@@ -1,0 +1,201 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-06 13:29:42 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-06 13:29:42 [ WARNING] Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+2026-11-06 13:29:42 [    INFO] No token storage file found, starting empty
+2026-11-06 13:29:43 [    INFO] EscalationManager initialized
+2026-11-06 13:29:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 13:29:43 [    INFO] EscalationManager initialized
+2026-11-06 13:29:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 13:29:43 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 13:29:43 [    INFO] MCP Service initialized
+2026-11-06 13:29:43 [ WARNING] WorkflowNotifier: Slack initialization deferred: 'list' object has no attribute 'get'
+
+tests/test_workflow_approval_scope.py::test_governance_created_approval_is_visible_to_scoped_reviewer 
+-------------------------------- live log setup --------------------------------
+2026-11-06 13:29:43 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:29:44 [    INFO] HTTP Request: GET http://testserver/api/agents/approvals/pending "HTTP/1.1 200 OK"
+PASSED                                                                   [  7%]
+tests/test_workflow_approval_scope.py::test_governance_created_approval_is_decidable_in_its_own_scope 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:29:45 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/8a266f37-ce9a-4ece-b7dc-9722f72342cb "HTTP/1.1 200 OK"
+PASSED                                                                   [ 14%]
+tests/test_workflow_approval_scope.py::test_wrong_scope_reviewer_cannot_list_or_decide[workspace] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:29:47 [    INFO] HTTP Request: GET http://testserver/api/agents/approvals/pending "HTTP/1.1 200 OK"
+2026-11-06 13:29:47 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/71ab3c21-ae1c-48bc-9fa1-0c4c4d07383c "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 21%]
+tests/test_workflow_approval_scope.py::test_wrong_scope_reviewer_cannot_list_or_decide[tenant] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:29:50 [    INFO] HTTP Request: GET http://testserver/api/agents/approvals/pending "HTTP/1.1 200 OK"
+2026-11-06 13:29:50 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/9a4fe332-e38e-40ea-8ff5-4f0043fab770 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 28%]
+tests/test_workflow_public_approval_flow.py::test_public_workflow_approval_is_visible_decidable_and_resumes_once 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:29:50 [    INFO] Event bus started
+2026-11-06 13:29:50 [    INFO] Loaded analytics data: 6 workflows, 0 integrations
+2026-11-06 13:29:50 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:29:50 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:29:50 [ WARNING] 🚫 Governance pause for execution 4e937857-c86c-4ef0-be5e-5fd26dad5e33 at step s1: Maturity check failed. Required: supervised
+2026-11-06 13:29:50 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:29:50 [    INFO] HTTP Request: POST http://test/workflows/wf-local-fc49b3de58/execute "HTTP/1.1 200 OK"
+2026-11-06 13:29:50 [    INFO] HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+2026-11-06 13:29:50 [    INFO] HTTP Request: POST http://test/api/agents/approvals/ac4415f7-934c-4f01-96c9-6004d1ac11f3 "HTTP/1.1 200 OK"
+2026-11-06 13:29:50 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:29:50 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:29:50 [    INFO] Workflow 4e937857-c86c-4ef0-be5e-5fd26dad5e33 step s1 authorized by durable HITL ac4415f7-934c-4f01-96c9-6004d1ac11f3
+2026-11-06 13:29:50 [    INFO] Executing database.create with params: {'record': 'harmless'}
+2026-11-06 13:29:50 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:29:50 [   ERROR] Failed to update step execution record: can't subtract offset-naive and offset-aware datetimes
+2026-11-06 13:29:50 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:29:50 [ WARNING] Slack token not configured, skipping notification
+2026-11-06 13:29:50 [    INFO] Initialized global governance cache
+2026-11-06 13:29:50 [    INFO] Observation event 'workflow_execution' learned by 1 student(s) in workspace-local-fc49b3de58
+2026-11-06 13:29:50 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:29:50 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:29:50 [ WARNING] Slack token not configured, skipping notification
+2026-11-06 13:29:50 [    INFO] Observation event 'workflow_execution' learned by 1 student(s) in workspace-local-fc49b3de58
+PASSED                                                                   [ 35%]
+tests/test_workflow_public_approval_flow.py::test_scheduled_real_workflow_approval_join 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:29:50 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-06 13:29:50 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-06 13:29:50 [    INFO] Scheduler started
+2026-11-06 13:29:50 [    INFO] WorkflowScheduler started
+2026-11-06 13:29:50 [    INFO] Added job "WorkflowScheduler._execute_job" to job store "default"
+2026-11-06 13:29:50 [    INFO] Removed job job_wf-local-e986a09bb1_1793989790.717456
+2026-11-06 13:29:50 [    INFO] Running job "WorkflowScheduler._execute_job (trigger: date[2026-11-06 18:29:50 UTC], next run at: 2026-11-06 18:29:50 UTC)" (scheduled at 2026-11-06 18:29:50.917449+00:00)
+2026-11-06 13:29:50 [    INFO] Executing scheduled workflow: wf-local-e986a09bb1
+2026-11-06 13:29:50 [    INFO] Scheduled execution cc743161-023c-4f3d-ae3d-a5eadc41b811 started
+2026-11-06 13:29:50 [    INFO] Job "WorkflowScheduler._execute_job (trigger: date[2026-11-06 18:29:50 UTC], next run at: 2026-11-06 18:29:50 UTC)" executed successfully
+2026-11-06 13:29:50 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:29:50 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:29:50 [ WARNING] 🚫 Governance pause for execution cc743161-023c-4f3d-ae3d-a5eadc41b811 at step s1: Maturity check failed. Required: supervised
+2026-11-06 13:29:51 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:29:51 [    INFO] HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+2026-11-06 13:29:51 [    INFO] HTTP Request: POST http://test/api/agents/approvals/39ad7cd0-4705-4545-9f85-953d6d053700 "HTTP/1.1 200 OK"
+2026-11-06 13:29:51 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:29:51 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:29:51 [    INFO] Workflow cc743161-023c-4f3d-ae3d-a5eadc41b811 step s1 authorized by durable HITL 39ad7cd0-4705-4545-9f85-953d6d053700
+2026-11-06 13:29:51 [    INFO] Executing database.create with params: {'record': 'harmless'}
+2026-11-06 13:29:51 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:29:51 [   ERROR] Failed to update step execution record: can't subtract offset-naive and offset-aware datetimes
+2026-11-06 13:29:51 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:29:51 [ WARNING] Slack token not configured, skipping notification
+2026-11-06 13:29:51 [    INFO] Observation event 'workflow_execution' learned by 1 student(s) in workspace-local-e986a09bb1
+2026-11-06 13:29:51 [    INFO] WorkflowScheduler shutdown
+2026-11-06 13:29:51 [    INFO] Scheduler has been shut down
+PASSED                                                                   [ 42%]
+tests/test_workflow_public_approval_flow.py::test_resume_inputs_cannot_rewrite_the_frozen_scope 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:29:51 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:29:51 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:29:51 [ WARNING] 🚫 Governance pause for execution 15dcf736-d73f-41ba-82dc-af14438091a2 at step s1: Maturity check failed. Required: supervised
+2026-11-06 13:29:51 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:29:51 [    INFO] HTTP Request: POST http://test/workflows/wf-local-e20c1f0c66/execute "HTTP/1.1 200 OK"
+2026-11-06 13:29:51 [    INFO] HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+2026-11-06 13:29:51 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:29:51 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:29:51 [    INFO] Workflow 15dcf736-d73f-41ba-82dc-af14438091a2 step s1 authorized by durable HITL 0b9a9a4e-5c09-4c07-9b32-225436d09959
+2026-11-06 13:29:51 [    INFO] Executing database.create with params: {'record': 'harmless'}
+2026-11-06 13:29:51 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:29:51 [   ERROR] Failed to update step execution record: can't subtract offset-naive and offset-aware datetimes
+2026-11-06 13:29:51 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:29:51 [ WARNING] Slack token not configured, skipping notification
+2026-11-06 13:29:51 [    INFO] Observation event 'workflow_execution' learned by 1 student(s) in workspace-local-e20c1f0c66
+PASSED                                                                   [ 50%]
+tests/test_workflow_public_approval_flow.py::test_schedule_freezes_caller_scope_and_discards_client_scope 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:29:51 [    INFO] HTTP Request: POST http://test/workflows/wf-local-9361d873f4/schedule "HTTP/1.1 200 OK"
+PASSED                                                                   [ 57%]
+tests/test_workflow_public_approval_flow.py::test_public_workflow_rejection_leaves_zero_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:29:51 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:29:51 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:29:51 [ WARNING] 🚫 Governance pause for execution d7a34eeb-0169-4656-b200-cd1b2b0222ef at step s1: Maturity check failed. Required: supervised
+2026-11-06 13:29:51 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:29:51 [    INFO] HTTP Request: POST http://test/workflows/wf-local-9ff8a16ce6/execute "HTTP/1.1 200 OK"
+2026-11-06 13:29:51 [    INFO] HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+2026-11-06 13:29:51 [ WARNING] HITL 2978fdee-9411-499c-a687-61414fc335c4 decided (rejected) but work did not resume: {'handled': True, 'resumed': False, 'kind': 'workflow', 'status': 'FAILED'}
+2026-11-06 13:29:51 [    INFO] HTTP Request: POST http://test/api/agents/approvals/2978fdee-9411-499c-a687-61414fc335c4 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 64%]
+tests/test_workflow_public_approval_flow.py::test_changed_material_after_review_does_not_execute 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:29:51 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:29:52 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:29:52 [ WARNING] 🚫 Governance pause for execution be6aa516-0c55-4e1b-8681-e0d392a29e6b at step s1: Maturity check failed. Required: supervised
+2026-11-06 13:29:52 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:29:52 [    INFO] HTTP Request: POST http://test/workflows/wf-local-cd615a6d3b/execute "HTTP/1.1 200 OK"
+2026-11-06 13:29:52 [    INFO] HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+2026-11-06 13:29:52 [    INFO] HTTP Request: POST http://test/api/agents/approvals/146253b2-d47d-4b57-b589-74f3e38a2be1 "HTTP/1.1 200 OK"
+2026-11-06 13:29:52 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:29:52 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:29:52 [ WARNING] workflow be6aa516-0c55-4e1b-8681-e0d392a29e6b: durable approval 146253b2-d47d-4b57-b589-74f3e38a2be1 does not bind the current step payload
+2026-11-06 13:29:52 [ WARNING] 🚫 Governance pause for execution be6aa516-0c55-4e1b-8681-e0d392a29e6b at step s1: Maturity check failed. Required: supervised
+2026-11-06 13:29:52 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+PASSED                                                                   [ 71%]
+tests/test_workflow_public_approval_flow.py::test_foreign_scope_cannot_see_or_decide_public_workflow_approval[workspace] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:29:52 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:29:52 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:29:52 [ WARNING] 🚫 Governance pause for execution 448e34f5-0933-4904-bff1-22e97e80f4c7 at step s1: Maturity check failed. Required: supervised
+2026-11-06 13:29:52 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:29:52 [    INFO] HTTP Request: POST http://test/workflows/wf-local-daa4ac51a8/execute "HTTP/1.1 200 OK"
+2026-11-06 13:29:52 [    INFO] HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+2026-11-06 13:29:52 [    INFO] HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+2026-11-06 13:29:52 [    INFO] HTTP Request: POST http://test/api/agents/approvals/b02cf25c-bdd9-41ce-b11d-097d1a8230eb "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 78%]
+tests/test_workflow_public_approval_flow.py::test_foreign_scope_cannot_see_or_decide_public_workflow_approval[tenant] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:29:52 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:29:52 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:29:52 [ WARNING] 🚫 Governance pause for execution b58635b4-0b2c-4944-9b96-a4ec8d59ffd0 at step s1: Maturity check failed. Required: supervised
+2026-11-06 13:29:52 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:29:52 [    INFO] HTTP Request: POST http://test/workflows/wf-local-3e3f7ff52f/execute "HTTP/1.1 200 OK"
+2026-11-06 13:29:52 [    INFO] HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+2026-11-06 13:29:52 [    INFO] HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+2026-11-06 13:29:52 [    INFO] HTTP Request: POST http://test/api/agents/approvals/9d929598-001c-4998-b48f-9dbf034a0f1b "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 85%]
+tests/test_agent3_pr682_scope_freeze_probes.py::test_execute_route_discards_client_supplied_scope 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:29:52 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:29:52 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:29:52 [ WARNING] 🚫 Governance pause for execution ceed4219-a446-457a-b5e0-1fe54d4ccb82 at step s1: Maturity check failed. Required: supervised
+2026-11-06 13:29:52 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-06 13:29:52 [    INFO] HTTP Request: POST http://test/workflows/wf-local-76399d8a73/execute "HTTP/1.1 200 OK"
+2026-11-06 13:29:52 [    INFO] HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+PASSED                                                                   [ 92%]
+tests/test_agent3_pr682_scope_freeze_probes.py::test_freeze_and_strip_helpers_discard_client_key_and_invent_nothing PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+core/token_storage.py:17
+  /private/tmp/agent3-pr682-review/backend/core/token_storage.py:17: DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 14 passed, 6 warnings in 31.93s ========================
