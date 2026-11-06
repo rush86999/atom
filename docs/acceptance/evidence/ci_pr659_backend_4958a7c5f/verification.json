@@ -8,7 +8,8 @@
     "observed_pr": "659 at baa695775/5ede9bf67",
     "observed_run_job": "42149250267/127668163932",
     "followup_pr": "663",
-    "runtime": "hosted-equivalent Python 3.11.18 selection reproduced locally on 3.11 and 3.14; no live model/provider/sandbox"
+    "runtime": "hosted-equivalent Python 3.11.18 selection reproduced locally on 3.11 and 3.14; no live model/provider/sandbox",
+    "e2e_fix_source": "b472ef80cd05fd6727a0dd3cfc88bd99dfbf26dd"
   },
   "failure_classes": {
     "feedback_observation": {
@@ -55,16 +56,48 @@
     "memory_eval_gate_green": true,
     "backend_job_green_on_pr663": true,
     "e2e_journey_separate_stale_fixture_documented": true,
-    "no_live_model_provider_credential_spend_send_download_deployment": true
+    "no_live_model_provider_credential_spend_send_download_deployment": true,
+    "e2e_journey_privileged_fixture_fixed": true
   },
   "results": {
-    "hosted_failed": {"failed": 39, "passed": 522, "skipped": 1, "log": "hosted-failed-job.log"},
-    "repro_before_fix_311": {"failed": 39, "passed": 522, "skipped": 1, "log": "repro-311.log"},
-    "base_60a1171b8_seven_files": {"failed": 39, "passed": 173, "log": "base-seven-311.log"},
-    "seven_files_after_fix_311": {"passed": 212, "log": "seven-files-311.log"},
-    "exact_ci_selection_after_fix_311": {"passed": 561, "skipped": 1, "failed": 0, "log": "final-311.log"},
-    "exact_ci_selection_after_fix_314": {"passed": 561, "skipped": 1, "failed": 0, "log": "final-314.log"},
-    "memory_eval_311": {"recall": 1.0, "missed": 0, "log": "memory-eval-311.log"},
+    "hosted_failed": {
+      "failed": 39,
+      "passed": 522,
+      "skipped": 1,
+      "log": "hosted-failed-job.log"
+    },
+    "repro_before_fix_311": {
+      "failed": 39,
+      "passed": 522,
+      "skipped": 1,
+      "log": "repro-311.log"
+    },
+    "base_60a1171b8_seven_files": {
+      "failed": 39,
+      "passed": 173,
+      "log": "base-seven-311.log"
+    },
+    "seven_files_after_fix_311": {
+      "passed": 212,
+      "log": "seven-files-311.log"
+    },
+    "exact_ci_selection_after_fix_311": {
+      "passed": 561,
+      "skipped": 1,
+      "failed": 0,
+      "log": "final-311.log"
+    },
+    "exact_ci_selection_after_fix_314": {
+      "passed": 561,
+      "skipped": 1,
+      "failed": 0,
+      "log": "final-314.log"
+    },
+    "memory_eval_311": {
+      "recall": 1.0,
+      "missed": 0,
+      "log": "memory-eval-311.log"
+    },
     "pr663_checks": {
       "backend-tests": "pass 4m42s",
       "syntax-gate": "pass",
@@ -73,16 +106,21 @@
       "quickstart": "pass",
       "docker-build": "pass",
       "GitGuardian Security Checks": "pass",
-      "e2e-journey": "fail - stale member vs TEAM_LEAD+ skill-delete fixture",
+      "e2e-journey": "pass 12m23s",
       "log": "pr663-checks.log"
+    },
+    "e2e_journey_api_local": {
+      "passed": 6,
+      "log": "e2e-journey-fixed-local.log"
     }
   },
   "e2e_note": {
     "test": "backend/tests/e2e_ui/tests/test_journey_api_features.py::TestSkillsJourney::test_skill_lifecycle",
-    "symptom": "DELETE /api/skills/{id} returns 403",
-    "cause": "journey fixture registers an ordinary member; accepted community-skill authority requires TEAM_LEAD+",
-    "scope": "separate required-check debt, not a backend CI failure and not caused by this test-only branch",
-    "log": "e2e-journey-fail.log"
+    "symptom": "DELETE /api/skills/{id} returned 403 for the ordinary journey member",
+    "cause": "accepted community-skill authority requires TEAM_LEAD+",
+    "fix": "isolated journey_team_lead_headers user registered against the backend DB; test asserts member 403 and team_lead success; authority guard unchanged",
+    "log": "e2e-journey-fixed-local.log",
+    "hosted_result": "pass 12m23s"
   },
   "baseline_exclusions": {
     "pr_base_fixture_drift": "The same seven files fail 39/39 on PR base 60a1171b8; no runtime regression from the merged fleet repair."

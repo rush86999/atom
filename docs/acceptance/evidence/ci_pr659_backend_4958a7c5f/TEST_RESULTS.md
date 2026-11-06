@@ -32,10 +32,11 @@ backend-tests.
 | Exact CI selection after fix, 3.11 | **561 passed, 1 skipped** | `final-311.log` |
 | Exact CI selection after fix, 3.14 | **561 passed, 1 skipped** | `final-314.log` |
 | Memory eval gate | recall 1.0, no missed | `memory-eval-311.log` |
+| E2E journey API file after fixture fix | 6 passed | `e2e-journey-fixed-local.log` |
 
 ## Follow-up PR checks
 
-`pr663-checks.log` records the GitHub check run:
+`pr663-checks-final.log` records the final green GitHub check run:
 
 | Check | Result |
 |---|---|
@@ -46,12 +47,13 @@ backend-tests.
 | quickstart | pass |
 | docker-build | pass |
 | GitGuardian Security Checks | pass |
-| e2e-journey | fail — separate skill-delete role fixture; see `e2e-journey-fail.log` |
+| e2e-journey | **pass** after the privileged journey fixture fix (12m23s) |
 
-The e2e failure is `TestSkillsJourney::test_skill_lifecycle`: the journey user
-is registered as a normal member, while the accepted community-skill delete
-contract requires TEAM_LEAD+ and returns 403. It is not part of the backend
-selection repaired here and is recorded as required-check debt.
+The original e2e failure was `TestSkillsJourney::test_skill_lifecycle`: the
+journey user is registered as a normal member, while the accepted
+community-skill delete contract requires TEAM_LEAD+. The fixture now creates an
+isolated team_lead user against the backend DB; the test asserts member 403 and
+team_lead 200/204. Final checks are all green.
 
 ## Changed files
 
@@ -62,5 +64,7 @@ selection repaired here and is recorded as required-check debt.
 - `backend/tests/test_covpush_w57_byok_handler_a.py`
 - `backend/tests/test_covpush_w57_byok_handler_d.py`
 - `backend/tests/test_deepseek_harness_gaps.py`
+- `backend/tests/e2e_ui/fixtures/journey_fixtures.py`
+- `backend/tests/e2e_ui/tests/test_journey_api_features.py`
 
 No runtime file changed. No test was removed, skipped or xfailed.

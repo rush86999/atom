@@ -14,6 +14,7 @@ weakened.
 | Follow-up branch | `codex/ci659-backend-repair-20261105` from main `71f9e22b4` |
 | Fix commit | `4958a7c5fa80c276f53c13b5fb33ee295f4bc5f5` |
 | Follow-up PR | https://github.com/rush86999/atom/pull/663 |
+| E2E fixture fix | `b472ef80cd05fd6727a0dd3cfc88bd99dfbf26dd` |
 
 ## Reproduction
 
@@ -53,17 +54,20 @@ unchanged.
 | Memory eval gate | **recall 1.0**, no misses |
 | PR #663 backend-tests | **pass** (4m42s) |
 | PR #663 syntax/frontend/boot/quickstart/docker/GitGuardian | **pass** |
-| PR #663 e2e-journey | **fail** — separate stale member-vs-TEAM_LEAD+ skill-delete fixture |
+| PR #663 e2e-journey | **pass** after the privileged journey fixture fix (12m23s) |
 
-## E2E check note
+## E2E check repair
 
-The `e2e-journey` job fails one test:
-`test_journey_api_features.py::TestSkillsJourney::test_skill_lifecycle` gets
-`403` on skill delete. The journey fixture registers an ordinary user, while
-the accepted community-skill authority contract requires TEAM_LEAD+ for
-delete. This is a separate stale e2e fixture, not a backend-test failure and
-not caused by this test-only repair. It is recorded as required-check debt,
-not declared green.
+The original `e2e-journey` failure was `TestSkillsJourney::test_skill_lifecycle`
+getting `403` on skill delete: the journey fixture registers an ordinary member,
+while the accepted community-skill contract requires TEAM_LEAD+.
+
+The fixture now adds an isolated `journey_team_lead_headers` user registered
+through the live backend with its role set in the backend's own DB. The test
+asserts both directions: the ordinary member delete is refused with `403`, and
+the privileged journey user deletes with `200/204`. The community-skill
+authority guard is unchanged. Local API journey run: **6 passed**; hosted
+`e2e-journey`: **pass 12m23s**.
 
 ## Boundaries
 
