@@ -1,0 +1,7 @@
+executed_source: 7503171eca9d27915d2911fb2fc0cc961bde9b8b
+base_main: 33b8d6472605b7fbb4c84a9e21286c3d168b7d5c
+reproduced_finding: tenant-A workspace_admin replaced a tenant-B agent with 200 before the repair
+status_short:
+log:
+7503171ec fix(agents): verify full PUT replacement with scope and receipt
+33b8d6472 docs: refresh the agent goal-completion directive progress (#678)

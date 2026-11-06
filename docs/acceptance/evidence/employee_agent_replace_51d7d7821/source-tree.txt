@@ -1,0 +1,17 @@
+executed_source: 51d7d782198cb279b0d6dcd50dec554b45da135a
+base_main: 33b8d6472605b7fbb4c84a9e21286c3d168b7d5c
+original_bundle: docs/acceptance/evidence/employee_agent_replace_7503171ec
+nullable_repair: physical SQL NULL / JSON null preserved in the guarded claim
+status_short:
+A  docs/acceptance/evidence/employee_agent_replace_7503171ec/affected-311.log
+A  docs/acceptance/evidence/employee_agent_replace_7503171ec/affected-314.log
+A  docs/acceptance/evidence/employee_agent_replace_7503171ec/baseline-main-311.log
+A  docs/acceptance/evidence/employee_agent_replace_7503171ec/baseline-main-314.log
+A  docs/acceptance/evidence/employee_agent_replace_7503171ec/cross-tenant-repro-base.log
+A  docs/acceptance/evidence/employee_agent_replace_7503171ec/focused-311.log
+A  docs/acceptance/evidence/employee_agent_replace_7503171ec/focused-314.log
+A  docs/acceptance/evidence/employee_agent_replace_7503171ec/source-tree.txt
+log:
+51d7d7821 fix(agents): preserve nullable JSON material in PUT replacement
+c58479a2d docs(agents): submit the verified PUT replacement evidence
+7503171ec fix(agents): verify full PUT replacement with scope and receipt

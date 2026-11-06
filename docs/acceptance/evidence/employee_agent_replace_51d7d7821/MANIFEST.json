@@ -1,0 +1,53 @@
+{
+  "schema": "atom-employee-evidence-1",
+  "status": "nullable-material repair resubmitted for independent verification; original evidence restored",
+  "branch": "codex/oracle01-agent-replace-20261106-v2",
+  "executed_source": "51d7d782198cb279b0d6dcd50dec554b45da135a",
+  "base_main": "33b8d6472605b7fbb4c84a9e21286c3d168b7d5c",
+  "original_bundle": "docs/acceptance/evidence/employee_agent_replace_7503171ec",
+  "source_files": {
+    "backend/core/agent_decision_write_service.py": "a6b3dd0f6005216e6cb63dc49640bcef3156b2cc6b002d585f0111beabf0c295",
+    "backend/api/agent_routes.py": "03b89d09fac7a4c1ba3da8fccf3e4f7b7b8fc5758c86a3eee2a95c7fdbd32dfb",
+    "backend/tests/test_agent_replace_scope_contract.py": "1cfb47d63c2e89c00ab9e2a561c86df12cdb9ad9c8a1ee8de1420ca389a07245",
+    "backend/tests/api/test_agent_routes.py": "eaa52582a6759a088749a69ab69d17864932209e0e5f06848fcaf94d7b02516b",
+    "backend/core/models.py": "4b238c35f6f235d94779f4598040f0c9fcd39599c26705e7016e8b045b51c3ef",
+    "backend/core/security/rbac.py": "48a7ecdb609f7e32267212e85b1993a0045eb84aca903f0152a8a498bcbd405e",
+    "backend/core/personal_scope.py": "f07dd35cf6eedb674ec9afbb06e10776cd4039e64ad7dd0a3427b7e0df31f78f",
+    "backend/core/scheduler.py": "4b04ac4a04ff93dc48ea7e84032ecfedef15628674af0c49a65745a5f1d849eb",
+    ".github/workflows/ci.yml": "0c3c2c6fb91c0419242a3dc22790d7d1b3a559cbe39178730922978d5dcd72ac"
+  },
+  "artifacts": {
+    "README.md": "8e93708d7d03ea6af560609292f6c17b2b00697f63fca825a4f5f42e8ba58894",
+    "TEST_RESULTS.md": "d18bebf5b2add509b4da89f338cadbd7bf748ce12e2d7e392dfaf1f0f2b49271",
+    "affected-311.log": "dce5e9c03ca93b848f59e8191481fc4b07cbca311bed2d8413dafdc08b621f02",
+    "affected-314.log": "dc7fcd039f875f3415e8bb37c961e24c719b35cfa764a21639fa06b9c768d36f",
+    "baseline-main-311.log": "4b5e80e1d81052ac862787c8167055361099b8404d27e33d1a7334e7bbbb153e",
+    "baseline-main-314.log": "bbfc93dc66b54b1229c5ebbd2db90baff6bf92ced95573472eeb55127d3b0347",
+    "cross-tenant-repro-base.log": "47435a996dafa6cccb8ec9f6eb893f5a2f8ce23c2406aa700dab715dfe18ed1d",
+    "focused-311.log": "4a1e04c8921e94223f6217522585926fe1666119ab13ffd64c9e3d46510f3913",
+    "focused-314.log": "c30326139ff89a026b9372df7047a113671ff58188b1e8201fee7438c3f6d608",
+    "nullable-probe-314.log": "e12ee6dfcb83cb464090d88ba3360e9eb4f9a626f84a7a983f3823a407e940fd",
+    "routes.json": "a95efb23768970ee84bdd019798f6b25b31edaa712c82c2b93dc1ec5a6f12293",
+    "source-tree.txt": "7ce3ddadaff606d397ddce61a77e46248b63daca27b708fd6132b0500dedb7fb",
+    "verification.json": "24c0d6367795d94993a855391f97d201ca7a6e224e834983b4c64e44595b4bb1"
+  },
+  "checks": {
+    "focused_314": "80 passed",
+    "focused_311": "80 passed",
+    "nullable_probe_314": "7 passed",
+    "affected_314": "376 passed, 3 skipped, 2 baseline failures",
+    "affected_311": "358 passed, 1 baseline failure",
+    "baseline_main_314": "358 passed, 3 skipped, 2 failed",
+    "baseline_main_311": "340 passed, 1 failed",
+    "candidate_new_controls": 18,
+    "candidate_added_failures": 0,
+    "original_evidence_artifacts_restored": true,
+    "no_live_model_provider_credential_spend_send_download_deployment": true
+  },
+  "boundaries": [
+    "real scratch SQLite only; no PostgreSQL/soak or multi-worker qualification",
+    "scheduler execution is stubbed; no live scheduler fleet operation",
+    "no new table or migration",
+    "no merge or deployment; code-owner review remains required"
+  ]
+}

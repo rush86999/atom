@@ -1,0 +1,71 @@
+{
+  "schema": "atom-oracle-agent-replace-verification-1",
+  "status": "nullable-material repair resubmitted for independent verification; original evidence restored; no merge or deployment",
+  "candidate": {
+    "branch": "codex/oracle01-agent-replace-20261106-v2",
+    "pr": 681,
+    "base_main": "33b8d6472605b7fbb4c84a9e21286c3d168b7d5c",
+    "executed_source": "51d7d782198cb279b0d6dcd50dec554b45da135a",
+    "original_bundle": "docs/acceptance/evidence/employee_agent_replace_7503171ec",
+    "runtime": "real scratch SQLite; no live model/provider/credential/spend/send/download/deployment",
+    "confirmed_finding": "tenant-A workspace_admin replaced a tenant-B agent with 200 on base main",
+    "confirmed_regression": "six valid unchanged SQL NULL / JSON-null cases returned 409 STALE_TARGET on 7503171ec; all seven pass on base and on this successor"
+  },
+  "nullable_repair": {
+    "source_read": "ORM row and physical nullable JSON in one snapshot",
+    "predicate": "IS NULL for physical SQL NULL; raw JSON text for JSON null; no or-{} coercion",
+    "digests": "null and empty-object material are distinct",
+    "matching": "explicit changes compared exactly"
+  },
+  "new_controls": {
+    "total_replacement_tests": 18,
+    "nullable_matrix": 8,
+    "external_probe": "7 passed",
+    "original_evidence_artifacts_restored": 8
+  },
+  "results": {
+    "focused_314": {"passed": 80, "failed": 0, "log": "focused-314.log"},
+    "focused_311": {"passed": 80, "failed": 0, "log": "focused-311.log"},
+    "nullable_probe_314": {"passed": 7, "failed": 0, "log": "nullable-probe-314.log"},
+    "affected_314": {"passed": 376, "skipped": 3, "failed": 2, "log": "affected-314.log"},
+    "affected_311": {"passed": 358, "failed": 1, "log": "affected-311.log"},
+    "baseline_main_314": {"passed": 358, "skipped": 3, "failed": 2, "log": "baseline-main-314.log"},
+    "baseline_main_311": {"passed": 340, "failed": 1, "log": "baseline-main-311.log"}
+  },
+  "baseline_failure_identity": {
+    "shared": [
+      "tests/test_covpush_w29_governance.py::TestRegistry::test_register_new_agent",
+      "tests/contract/test_agent_api_contract.py::TestAgentListContract::test_get_agents_invalid_pagination"
+    ],
+    "shared_314_only": [
+      "tests/contract/test_agent_api_contract.py::TestAgentListContract::test_get_agents_invalid_pagination"
+    ],
+    "candidate_added_failures": 0,
+    "candidate_new_controls": 18,
+    "excluded_311_contract_file": "tests/contract/test_agent_api_contract.py requires schemathesis, unavailable on the 3.11 interpreter"
+  },
+  "checks": {
+    "nullable_sql_null_preserved": true,
+    "nullable_json_null_preserved": true,
+    "empty_object_positive": true,
+    "null_peer_change_refused": true,
+    "scheduler_no_duplicate": true,
+    "cross_tenant_replace_refused": true,
+    "cross_workspace_replace_refused": true,
+    "authorized_replacement_succeeds": true,
+    "exact_prior_material_cas": true,
+    "authority_change_before_claim_effect_none": true,
+    "replay_no_duplicate_scheduler": true,
+    "rollback_preserves_agent": true,
+    "readback_committed_unverified": true,
+    "no_raw_configuration_or_schedule_in_receipt": true,
+    "original_evidence_hashes_restored": true,
+    "no_test_deleted_skipped_or_xfailed": true
+  },
+  "limits": [
+    "real scratch SQLite only; no PostgreSQL/soak or multi-worker qualification",
+    "scheduler execution is stubbed; no live scheduler fleet operation",
+    "no merge or deployment; code-owner review remains required",
+    "shared baseline failures are pre-existing and not claimed as repaired"
+  ]
+}
