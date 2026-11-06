@@ -1,0 +1,39 @@
+{
+  "checkpoint": "Agent 4 enablement inventory + tasks/boards deferral record on CURRENT main (goal-map line 111 row 'Tasks/boards ... a scope placeholder is not working feature acceptance')",
+  "verdict": "Tasks/boards are TRUTHFULLY DEFERRED on the core release profile at current main 248a23296 (source + live behavior agree). Per goal-map section 8, force-enabling them to create work is prohibited; the exact scoped limitation is recorded instead. Enabled surfaces inventoried; the next active journey (assignments, enabled 'activity' capability) is flow-mapped and prepared.",
+  "attribution": {
+    "verified_source": "248a23296 (origin/main tip at run time; includes merged #692/#693/#695/#696)",
+    "served_identity": "backend health reported git_commit 248a2329623b, pid 67976, cwd /private/tmp/atom-agent4-upload-journey/backend (worktree checked out at 248a23296, .next purged before boot)",
+    "world": "REUSED isolated scratch world 4 (/private/tmp/atom-agent4-w4-scratch, ports 18123/18124); servers stopped after capture",
+    "member_identity": "a4doc-4c848b84-1106@example.com, id 68e530df-d1f3-4a42-8804-a46b9de1218d, workspace 3c14bfec-f17e-4dfc-9049-4a40f0fe4eb5, role member (single UI sign-in as the existing member)",
+    "python": "3.11.16",
+    "frontend": "Next.js dev server, node v20.19.6"
+  },
+  "source_facts": {
+    "capability_defaults": "backend/core/product_profile.py: 'tasks' enabled=False, 'boards' enabled=False (labels 'Tasks'/'Kanban'); ROUTE_CAPABILITY maps /tasks->tasks and /boards->boards; comment: 'Everything not listed is deferred in core so a newly added page cannot silently appear in the release'",
+    "sidebar_gate": "components/layout/Sidebar.tsx gates items by isCapabilityEnabled(item.capability); the 'Kanban' item (path /boards, capability 'boards') is filtered out on the core profile"
+  },
+  "live_member_observations": [
+    { "route": "sidebar", "observed": "Kanban entry ABSENT from the member's navigation; visible items: Dashboard, Chat, Workspace, Data, Agents, Learning, Assignments, Activity, Settings" },
+    { "route": "/boards", "observed": "truthful deferred page: 'Kanban is not part of this release' + 'This installation is the company data + trained agent workspace.' + 'Deferred: Kanban boards. The code and any existing data remain in the installation...'", "evidence": "50_boards_tasks_deferred_core_profile.json" },
+    { "route": "/tasks", "observed": "truthful deferred page: 'Tasks is not part of this release' + 'Deferred: Task tracking...'", "evidence": "50_boards_tasks_deferred_core_profile.json" }
+  ],
+  "enabled_surface_inventory_on_core_profile": {
+    "enabled_capabilities_source": ["chat", "documents", "canvas", "agents", "learning", "activity", "settings", "approvals"],
+    "route_map": { "/dashboard": "chat", "/chat": "chat", "/documents": "documents", "/canvas": "canvas", "/agents": "agents", "/learning": "learning", "/goal-runs": "activity", "/execution-history": "activity", "/activity": "activity", "/assignments": "activity", "/approvals": "approvals", "/settings": "settings" },
+    "deferred": ["search", "tasks", "boards", "automations", "workflows", "marketplace", "team_chat", "business dashboards and other unlisted routes"],
+    "journey_coverage_status": {
+      "documents": "covered by agent4_upload_open_reload_20261106 (fixture+open+reload+isolation; UI upload/search unqualified)",
+      "assignments": "NEXT ACTIVE — enabled via 'activity'; AssignmentPanel multi-step flow mapped (start draft -> sources -> agent -> teaching terms -> create); primary action = create a durable assignment record; no inference required for creation; execution/runner legs out of scope",
+      "boards/tasks": "DEFERRED — this checkpoint",
+      "chat completion, canvas agent output": "require model inference — outside Agent 4's authorized scope"
+    }
+  },
+  "scope_and_exclusions": [
+    "No force-enable performed; deferral recorded per goal-map section 8",
+    "Full-profile worlds were not created; the alternate profile branch stays with component twins",
+    "No upload/auth rerun: the single sign-in reused the existing member",
+    "Boards UI create-flow was NOT exercised (deferred surface); its underlying API routes were not probed on this run",
+    "Merge/acceptance decisions remain with the lead/owner"
+  ]
+}

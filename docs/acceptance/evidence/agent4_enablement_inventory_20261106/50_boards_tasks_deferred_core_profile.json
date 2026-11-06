@@ -1,0 +1,14 @@
+{
+ "/boards": {
+  "bodyStart": "4doc-4c848b84-1106@example.com\n\nNo unread notifications\nKanban is not part of this release\n\nThis installation is the company data + trained agent workspace.\n\nDeferred: Kanban boards. The code and any existing data remain in the installation; they are simply no",
+  "checking": false,
+  "deferredMarker": "not part of this release",
+  "url": "http://localhost:18124/boards"
+ },
+ "/tasks": {
+  "bodyStart": "4doc-4c848b84-1106@example.com\n\nNo unread notifications\nTasks is not part of this release\n\nThis installation is the company data + trained agent workspace.\n\nDeferred: Task tracking. The code and any existing data remain in the installation; they are simply not",
+  "checking": false,
+  "deferredMarker": "not part of this release",
+  "url": "http://localhost:18124/tasks"
+ }
+}
