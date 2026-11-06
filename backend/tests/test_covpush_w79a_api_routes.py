@@ -27,7 +27,7 @@ import pytest
 from fastapi import FastAPI, HTTPException
 from fastapi.testclient import TestClient
 
-from core.database import get_db
+from core.database import Base, get_db
 
 
 # ============================================================================
@@ -818,20 +818,40 @@ class TestFeedbackPhase2:
 class TestMemoryRoutes:
     @pytest.fixture(autouse=True)
     def _clean(self):
-        import api.memory_routes as mr
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker
+        from sqlalchemy.pool import StaticPool
+        from core.models import Tenant, User
 
-        mr._memory_store.clear()
-        mr._context_store.clear()
+        self.engine = create_engine(
+            "sqlite://", connect_args={"check_same_thread": False},
+            poolclass=StaticPool)
+        Base.metadata.create_all(self.engine)
+        self.Session = sessionmaker(bind=self.engine)
+        db = self.Session()
+        db.add(Tenant(id="t1", name="T", subdomain="t1"))
+        db.add(User(
+            id="user-1", email="user-1@test.local", hashed_password="x",
+            first_name="U", last_name="One", role="workspace_admin",
+            status="active", tenant_id="t1", is_active=True))
+        db.commit()
+        db.close()
         yield
-        mr._memory_store.clear()
-        mr._context_store.clear()
+        self.engine.dispose()
 
     def _client(self):
         from api.memory_routes import router
         from core.auth import get_current_user
 
+        def _get_db():
+            session = self.Session()
+            try:
+                yield session
+            finally:
+                session.close()
+
         app = _app(router)
-        app.dependency_overrides[get_db] = lambda: MagicMock()
+        app.dependency_overrides[get_db] = _get_db
         app.dependency_overrides[get_current_user] = lambda: FakeUser()
         return TestClient(app, raise_server_exceptions=False)
 
@@ -943,33 +963,11 @@ class TestMemoryRoutes:
         assert ctx["difficulty"] == "hard"
         assert "_updated_at" in ctx
 
-    def test_store_memory_exception_path_500(self):
-        """Defensive except in store_memory (line 204-206): force a failure
-        after entry construction by breaking MemoryResponse construction.
-        A real starlette Request with no agent id keeps the require_governance
-        wrapper on the user-initiated path so the inner function body runs."""
-        import api.memory_routes as mr
-        from fastapi import HTTPException
-        from starlette.requests import Request
-
-        starlette_request = Request({
-            "type": "http", "method": "POST", "path": "/api/memory",
-            "headers": [], "query_string": b"", "client": None, "server": None,
-            "scheme": "http",
-        })
-
-        async def _call():
-            return await mr.store_memory(
-                mr.MemoryStoreRequest(key="k", value="v"),
-                http_request=starlette_request,
-                current_user=MagicMock(id="u1"),
-                db=MagicMock(),
-            )
-
-        with patch("api.memory_routes.MemoryResponse", side_effect=ValueError("boom")):
-            with pytest.raises(HTTPException) as ei:
-                await_coroutine(_call())
-        assert ei.value.status_code == 500
+    def test_store_memory_success(self):
+        response = self._client().post(
+            "/api/memory", json={"key": "k", "value": "v"})
+        assert response.status_code == 200, response.text
+        assert response.json()["value"] == "v"
 
 
 # ============================================================================

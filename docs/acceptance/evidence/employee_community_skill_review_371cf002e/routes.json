@@ -1,0 +1,39 @@
+{
+  "schema": "atom-community-skill-routes-1",
+  "branch": "codex/oracle01-community-skill-20261105",
+  "executed_source": "371cf002e",
+  "product_source": "acfee403b",
+  "routes": [
+    {
+      "method": "POST",
+      "path": "/api/skills/promote",
+      "handler": "promote_skill",
+      "service": "core.community_skill_write_service.promote_skill",
+      "authority": "get_current_user + TEAM_LEAD+ platform role",
+      "target": "SkillExecution.id where skill_source='community'",
+      "effect": "conditional status Untrusted -> Active with exact material CAS",
+      "receipt": "AuditLog id=community-skill:promote:<operation>",
+      "states": ["verified", "already_applied", "conflict", "not_applied", "committed_unverified", "effect_unknown"]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/skills/{skill_id}",
+      "handler": "delete_skill",
+      "service": "core.community_skill_write_service.delete_skill",
+      "authority": "get_current_user + TEAM_LEAD+ platform role",
+      "target": "SkillExecution.id where skill_source='community'",
+      "effect": "conditional tombstone delete with exact material CAS",
+      "receipt": "AuditLog id=community-skill:delete:<operation>",
+      "states": ["verified", "already_applied", "conflict", "not_applied", "committed_unverified", "effect_unknown"]
+    }
+  ],
+  "out_of_scope": [
+    "POST /api/skills/import",
+    "POST /api/skills/execute",
+    "POST /api/skills/{skill_id}/execute",
+    "marketplace package install/approve",
+    "sandbox/Docker/package execution",
+    "SkillRegistryService.import_skill/execute_skill",
+    "reviewed-improvement apply path"
+  ]
+}

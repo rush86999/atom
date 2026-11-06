@@ -16,7 +16,7 @@ from fastapi import FastAPI
 from fastapi.testclient import TestClient
 
 from core.auth import get_current_user
-from core.database import get_db
+from core.database import Base, get_db
 
 
 def _app(router):
@@ -353,18 +353,43 @@ class TestMeetingRoutes:
 class TestMemoryRoutes:
     @pytest.fixture(autouse=True)
     def _clean(self):
-        import api.memory_routes as mr
+        from sqlalchemy import create_engine
+        from sqlalchemy.orm import sessionmaker
+        from sqlalchemy.pool import StaticPool
+        from core.models import Tenant, User
 
-        mr._memory_store.clear()
-        mr._context_store.clear()
+        self.engine = create_engine(
+            "sqlite://", connect_args={"check_same_thread": False},
+            poolclass=StaticPool)
+        Base.metadata.create_all(self.engine)
+        self.Session = sessionmaker(bind=self.engine)
+        db = self.Session()
+        db.add(Tenant(id="t1", name="T", subdomain="t1"))
+        db.add(User(
+            id="u-1", email="u-1@test.local", hashed_password="x",
+            first_name="U", last_name="One", role="workspace_admin",
+            status="active", tenant_id="t1", is_active=True))
+        db.commit()
+        db.close()
         yield
-        mr._memory_store.clear()
-        mr._context_store.clear()
+        self.engine.dispose()
 
     def _c(self, db=None):
         from api.memory_routes import router
 
-        return _client(router, db or MagicMock())
+        def _get_db():
+            session = self.Session()
+            try:
+                yield session
+            finally:
+                session.close()
+
+        app = _app(router)
+        app.dependency_overrides[get_db] = _get_db
+        app.dependency_overrides[get_current_user] = lambda: SimpleNamespace(
+            id="u-1", role="workspace_admin", tenant_id="t1",
+            status="active", is_active=True)
+        return TestClient(app, raise_server_exceptions=False)
 
     def test_stats_from_lancedb(self):
         from core.lancedb_handler import get_lancedb_handler

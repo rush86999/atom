@@ -1,0 +1,294 @@
+F.FF.F..FF.....F..FF                                                     [100%]
+=================================== FAILURES ===================================
+_ test_server_required_review_rejects_partial_or_contradictory_identity[missing-execution_id] _
+
+real_db = {'engine': Engine(sqlite:////private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-4279...st-of-rushiparikh/pytest-4279/test_server_required_review_re0/orch01-real.db), autoflush=True, expire_on_commit=False)}
+governance_pending = None, changed_field = 'execution_id', change = 'missing'
+
+    @pytest.mark.parametrize('changed_field',['execution_id','workflow_id','definition_id','definition_digest','step_id','guarded_step','guarded_digest','input_digest','workspace_id','tenant_id'])
+    @pytest.mark.parametrize('change',['missing','wrong'])
+    def test_server_required_review_rejects_partial_or_contradictory_identity(real_db,governance_pending,changed_field,change):
+        from core.intervention_service import intervention_service
+        compiled=_compiled();effects=[];execution_id='exec-review-binding-'+changed_field+'-'+change
+        orch,definition=_orchestrator(compiled,effects)
+        _execute(orch,definition,execution_id,{'amount':100})
+        row=_row_for_execution(real_db,execution_id)
+        assert row and row.status=='pending'
+        params=dict(row.params)
+        if change=='wrong':params[changed_field]='wrong-reviewed-identity'
+        else:params.pop(changed_field,None)
+        # Use the existing reviewed modification path, not an arbitrary SQL write.
+        approved=asyncio.run(intervention_service.approve_intervention(row.id,APPROVER_ID,modified_params=params))
+        assert approved['success'] is True,approved
+        fresh,_=_orchestrator(compiled,effects)
+        result=asyncio.run(fresh.resume_workflow(execution_id,_approval_step(compiled)['step_id']))
+>       assert effects==[],(changed_field,effects,result.results)
+E       AssertionError: ('execution_id', ['record'], {'approval_record': {'status': 'completed', 'hitl_action_id': '980ecb5b-7e2c-4a28-a825-01...'Step requires human approval.', 'approved_at': '2026-11-05T09:40:28.382347', ...}, 'record': {'status': 'completed'}})
+E       assert ['record'] == []
+E         
+E         Left contains one more item: 'record'
+E         Use -v to get more diff
+
+../../test_verifier_orch513_review_binding.py:22: AssertionError
+_ test_server_required_review_rejects_partial_or_contradictory_identity[missing-definition_id] _
+
+real_db = {'engine': Engine(sqlite:////private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-4279...st-of-rushiparikh/pytest-4279/test_server_required_review_re2/orch01-real.db), autoflush=True, expire_on_commit=False)}
+governance_pending = None, changed_field = 'definition_id', change = 'missing'
+
+    @pytest.mark.parametrize('changed_field',['execution_id','workflow_id','definition_id','definition_digest','step_id','guarded_step','guarded_digest','input_digest','workspace_id','tenant_id'])
+    @pytest.mark.parametrize('change',['missing','wrong'])
+    def test_server_required_review_rejects_partial_or_contradictory_identity(real_db,governance_pending,changed_field,change):
+        from core.intervention_service import intervention_service
+        compiled=_compiled();effects=[];execution_id='exec-review-binding-'+changed_field+'-'+change
+        orch,definition=_orchestrator(compiled,effects)
+        _execute(orch,definition,execution_id,{'amount':100})
+        row=_row_for_execution(real_db,execution_id)
+        assert row and row.status=='pending'
+        params=dict(row.params)
+        if change=='wrong':params[changed_field]='wrong-reviewed-identity'
+        else:params.pop(changed_field,None)
+        # Use the existing reviewed modification path, not an arbitrary SQL write.
+        approved=asyncio.run(intervention_service.approve_intervention(row.id,APPROVER_ID,modified_params=params))
+        assert approved['success'] is True,approved
+        fresh,_=_orchestrator(compiled,effects)
+        result=asyncio.run(fresh.resume_workflow(execution_id,_approval_step(compiled)['step_id']))
+>       assert effects==[],(changed_field,effects,result.results)
+E       AssertionError: ('definition_id', ['record'], {'approval_record': {'status': 'completed', 'hitl_action_id': '11f255c6-f1ab-49cb-ac31-f...'Step requires human approval.', 'approved_at': '2026-11-05T09:40:29.596046', ...}, 'record': {'status': 'completed'}})
+E       assert ['record'] == []
+E         
+E         Left contains one more item: 'record'
+E         Use -v to get more diff
+
+../../test_verifier_orch513_review_binding.py:22: AssertionError
+_ test_server_required_review_rejects_partial_or_contradictory_identity[missing-definition_digest] _
+
+real_db = {'engine': Engine(sqlite:////private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-4279...st-of-rushiparikh/pytest-4279/test_server_required_review_re3/orch01-real.db), autoflush=True, expire_on_commit=False)}
+governance_pending = None, changed_field = 'definition_digest'
+change = 'missing'
+
+    @pytest.mark.parametrize('changed_field',['execution_id','workflow_id','definition_id','definition_digest','step_id','guarded_step','guarded_digest','input_digest','workspace_id','tenant_id'])
+    @pytest.mark.parametrize('change',['missing','wrong'])
+    def test_server_required_review_rejects_partial_or_contradictory_identity(real_db,governance_pending,changed_field,change):
+        from core.intervention_service import intervention_service
+        compiled=_compiled();effects=[];execution_id='exec-review-binding-'+changed_field+'-'+change
+        orch,definition=_orchestrator(compiled,effects)
+        _execute(orch,definition,execution_id,{'amount':100})
+        row=_row_for_execution(real_db,execution_id)
+        assert row and row.status=='pending'
+        params=dict(row.params)
+        if change=='wrong':params[changed_field]='wrong-reviewed-identity'
+        else:params.pop(changed_field,None)
+        # Use the existing reviewed modification path, not an arbitrary SQL write.
+        approved=asyncio.run(intervention_service.approve_intervention(row.id,APPROVER_ID,modified_params=params))
+        assert approved['success'] is True,approved
+        fresh,_=_orchestrator(compiled,effects)
+        result=asyncio.run(fresh.resume_workflow(execution_id,_approval_step(compiled)['step_id']))
+>       assert effects==[],(changed_field,effects,result.results)
+E       AssertionError: ('definition_digest', ['record'], {'approval_record': {'status': 'completed', 'hitl_action_id': 'd8899b67-81e9-43b0-b8...'Step requires human approval.', 'approved_at': '2026-11-05T09:40:30.200334', ...}, 'record': {'status': 'completed'}})
+E       assert ['record'] == []
+E         
+E         Left contains one more item: 'record'
+E         Use -v to get more diff
+
+../../test_verifier_orch513_review_binding.py:22: AssertionError
+_ test_server_required_review_rejects_partial_or_contradictory_identity[missing-guarded_step] _
+
+real_db = {'engine': Engine(sqlite:////private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-4279...st-of-rushiparikh/pytest-4279/test_server_required_review_re5/orch01-real.db), autoflush=True, expire_on_commit=False)}
+governance_pending = None, changed_field = 'guarded_step', change = 'missing'
+
+    @pytest.mark.parametrize('changed_field',['execution_id','workflow_id','definition_id','definition_digest','step_id','guarded_step','guarded_digest','input_digest','workspace_id','tenant_id'])
+    @pytest.mark.parametrize('change',['missing','wrong'])
+    def test_server_required_review_rejects_partial_or_contradictory_identity(real_db,governance_pending,changed_field,change):
+        from core.intervention_service import intervention_service
+        compiled=_compiled();effects=[];execution_id='exec-review-binding-'+changed_field+'-'+change
+        orch,definition=_orchestrator(compiled,effects)
+        _execute(orch,definition,execution_id,{'amount':100})
+        row=_row_for_execution(real_db,execution_id)
+        assert row and row.status=='pending'
+        params=dict(row.params)
+        if change=='wrong':params[changed_field]='wrong-reviewed-identity'
+        else:params.pop(changed_field,None)
+        # Use the existing reviewed modification path, not an arbitrary SQL write.
+        approved=asyncio.run(intervention_service.approve_intervention(row.id,APPROVER_ID,modified_params=params))
+        assert approved['success'] is True,approved
+        fresh,_=_orchestrator(compiled,effects)
+        result=asyncio.run(fresh.resume_workflow(execution_id,_approval_step(compiled)['step_id']))
+>       assert effects==[],(changed_field,effects,result.results)
+E       AssertionError: ('guarded_step', ['record'], {'approval_record': {'status': 'completed', 'hitl_action_id': 'a845ac5d-b3c2-4fae-a8de-f8...'Step requires human approval.', 'approved_at': '2026-11-05T09:40:31.315821', ...}, 'record': {'status': 'completed'}})
+E       assert ['record'] == []
+E         
+E         Left contains one more item: 'record'
+E         Use -v to get more diff
+
+../../test_verifier_orch513_review_binding.py:22: AssertionError
+_ test_server_required_review_rejects_partial_or_contradictory_identity[missing-workspace_id] _
+
+real_db = {'engine': Engine(sqlite:////private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-4279...st-of-rushiparikh/pytest-4279/test_server_required_review_re8/orch01-real.db), autoflush=True, expire_on_commit=False)}
+governance_pending = None, changed_field = 'workspace_id', change = 'missing'
+
+    @pytest.mark.parametrize('changed_field',['execution_id','workflow_id','definition_id','definition_digest','step_id','guarded_step','guarded_digest','input_digest','workspace_id','tenant_id'])
+    @pytest.mark.parametrize('change',['missing','wrong'])
+    def test_server_required_review_rejects_partial_or_contradictory_identity(real_db,governance_pending,changed_field,change):
+        from core.intervention_service import intervention_service
+        compiled=_compiled();effects=[];execution_id='exec-review-binding-'+changed_field+'-'+change
+        orch,definition=_orchestrator(compiled,effects)
+        _execute(orch,definition,execution_id,{'amount':100})
+        row=_row_for_execution(real_db,execution_id)
+        assert row and row.status=='pending'
+        params=dict(row.params)
+        if change=='wrong':params[changed_field]='wrong-reviewed-identity'
+        else:params.pop(changed_field,None)
+        # Use the existing reviewed modification path, not an arbitrary SQL write.
+        approved=asyncio.run(intervention_service.approve_intervention(row.id,APPROVER_ID,modified_params=params))
+        assert approved['success'] is True,approved
+        fresh,_=_orchestrator(compiled,effects)
+        result=asyncio.run(fresh.resume_workflow(execution_id,_approval_step(compiled)['step_id']))
+>       assert effects==[],(changed_field,effects,result.results)
+E       AssertionError: ('workspace_id', ['record'], {'approval_record': {'status': 'completed', 'hitl_action_id': 'ff307117-5968-4ad5-8a9d-96...'Step requires human approval.', 'approved_at': '2026-11-05T09:40:33.073519', ...}, 'record': {'status': 'completed'}})
+E       assert ['record'] == []
+E         
+E         Left contains one more item: 'record'
+E         Use -v to get more diff
+
+../../test_verifier_orch513_review_binding.py:22: AssertionError
+_ test_server_required_review_rejects_partial_or_contradictory_identity[missing-tenant_id] _
+
+real_db = {'engine': Engine(sqlite:////private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-4279...st-of-rushiparikh/pytest-4279/test_server_required_review_re9/orch01-real.db), autoflush=True, expire_on_commit=False)}
+governance_pending = None, changed_field = 'tenant_id', change = 'missing'
+
+    @pytest.mark.parametrize('changed_field',['execution_id','workflow_id','definition_id','definition_digest','step_id','guarded_step','guarded_digest','input_digest','workspace_id','tenant_id'])
+    @pytest.mark.parametrize('change',['missing','wrong'])
+    def test_server_required_review_rejects_partial_or_contradictory_identity(real_db,governance_pending,changed_field,change):
+        from core.intervention_service import intervention_service
+        compiled=_compiled();effects=[];execution_id='exec-review-binding-'+changed_field+'-'+change
+        orch,definition=_orchestrator(compiled,effects)
+        _execute(orch,definition,execution_id,{'amount':100})
+        row=_row_for_execution(real_db,execution_id)
+        assert row and row.status=='pending'
+        params=dict(row.params)
+        if change=='wrong':params[changed_field]='wrong-reviewed-identity'
+        else:params.pop(changed_field,None)
+        # Use the existing reviewed modification path, not an arbitrary SQL write.
+        approved=asyncio.run(intervention_service.approve_intervention(row.id,APPROVER_ID,modified_params=params))
+        assert approved['success'] is True,approved
+        fresh,_=_orchestrator(compiled,effects)
+        result=asyncio.run(fresh.resume_workflow(execution_id,_approval_step(compiled)['step_id']))
+>       assert effects==[],(changed_field,effects,result.results)
+E       AssertionError: ('tenant_id', ['record'], {'approval_record': {'status': 'completed', 'hitl_action_id': 'daf86b88-8fab-4ffd-97f7-ed5d1...'Step requires human approval.', 'approved_at': '2026-11-05T09:40:33.658713', ...}, 'record': {'status': 'completed'}})
+E       assert ['record'] == []
+E         
+E         Left contains one more item: 'record'
+E         Use -v to get more diff
+
+../../test_verifier_orch513_review_binding.py:22: AssertionError
+_ test_server_required_review_rejects_partial_or_contradictory_identity[wrong-guarded_step] _
+
+real_db = {'engine': Engine(sqlite:////private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-4279...t-of-rushiparikh/pytest-4279/test_server_required_review_re15/orch01-real.db), autoflush=True, expire_on_commit=False)}
+governance_pending = None, changed_field = 'guarded_step', change = 'wrong'
+
+    @pytest.mark.parametrize('changed_field',['execution_id','workflow_id','definition_id','definition_digest','step_id','guarded_step','guarded_digest','input_digest','workspace_id','tenant_id'])
+    @pytest.mark.parametrize('change',['missing','wrong'])
+    def test_server_required_review_rejects_partial_or_contradictory_identity(real_db,governance_pending,changed_field,change):
+        from core.intervention_service import intervention_service
+        compiled=_compiled();effects=[];execution_id='exec-review-binding-'+changed_field+'-'+change
+        orch,definition=_orchestrator(compiled,effects)
+        _execute(orch,definition,execution_id,{'amount':100})
+        row=_row_for_execution(real_db,execution_id)
+        assert row and row.status=='pending'
+        params=dict(row.params)
+        if change=='wrong':params[changed_field]='wrong-reviewed-identity'
+        else:params.pop(changed_field,None)
+        # Use the existing reviewed modification path, not an arbitrary SQL write.
+        approved=asyncio.run(intervention_service.approve_intervention(row.id,APPROVER_ID,modified_params=params))
+        assert approved['success'] is True,approved
+        fresh,_=_orchestrator(compiled,effects)
+        result=asyncio.run(fresh.resume_workflow(execution_id,_approval_step(compiled)['step_id']))
+>       assert effects==[],(changed_field,effects,result.results)
+E       AssertionError: ('guarded_step', ['record'], {'approval_record': {'status': 'completed', 'hitl_action_id': 'e4e0e699-2727-44b7-8921-70...'Step requires human approval.', 'approved_at': '2026-11-05T09:40:37.349875', ...}, 'record': {'status': 'completed'}})
+E       assert ['record'] == []
+E         
+E         Left contains one more item: 'record'
+E         Use -v to get more diff
+
+../../test_verifier_orch513_review_binding.py:22: AssertionError
+_ test_server_required_review_rejects_partial_or_contradictory_identity[wrong-workspace_id] _
+
+real_db = {'engine': Engine(sqlite:////private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-4279...t-of-rushiparikh/pytest-4279/test_server_required_review_re18/orch01-real.db), autoflush=True, expire_on_commit=False)}
+governance_pending = None, changed_field = 'workspace_id', change = 'wrong'
+
+    @pytest.mark.parametrize('changed_field',['execution_id','workflow_id','definition_id','definition_digest','step_id','guarded_step','guarded_digest','input_digest','workspace_id','tenant_id'])
+    @pytest.mark.parametrize('change',['missing','wrong'])
+    def test_server_required_review_rejects_partial_or_contradictory_identity(real_db,governance_pending,changed_field,change):
+        from core.intervention_service import intervention_service
+        compiled=_compiled();effects=[];execution_id='exec-review-binding-'+changed_field+'-'+change
+        orch,definition=_orchestrator(compiled,effects)
+        _execute(orch,definition,execution_id,{'amount':100})
+        row=_row_for_execution(real_db,execution_id)
+        assert row and row.status=='pending'
+        params=dict(row.params)
+        if change=='wrong':params[changed_field]='wrong-reviewed-identity'
+        else:params.pop(changed_field,None)
+        # Use the existing reviewed modification path, not an arbitrary SQL write.
+        approved=asyncio.run(intervention_service.approve_intervention(row.id,APPROVER_ID,modified_params=params))
+        assert approved['success'] is True,approved
+        fresh,_=_orchestrator(compiled,effects)
+        result=asyncio.run(fresh.resume_workflow(execution_id,_approval_step(compiled)['step_id']))
+>       assert effects==[],(changed_field,effects,result.results)
+E       AssertionError: ('workspace_id', ['record'], {'approval_record': {'status': 'completed', 'hitl_action_id': '94c0624b-fd78-4669-b471-55...'Step requires human approval.', 'approved_at': '2026-11-05T09:40:39.340781', ...}, 'record': {'status': 'completed'}})
+E       assert ['record'] == []
+E         
+E         Left contains one more item: 'record'
+E         Use -v to get more diff
+
+../../test_verifier_orch513_review_binding.py:22: AssertionError
+_ test_server_required_review_rejects_partial_or_contradictory_identity[wrong-tenant_id] _
+
+real_db = {'engine': Engine(sqlite:////private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-4279...t-of-rushiparikh/pytest-4279/test_server_required_review_re19/orch01-real.db), autoflush=True, expire_on_commit=False)}
+governance_pending = None, changed_field = 'tenant_id', change = 'wrong'
+
+    @pytest.mark.parametrize('changed_field',['execution_id','workflow_id','definition_id','definition_digest','step_id','guarded_step','guarded_digest','input_digest','workspace_id','tenant_id'])
+    @pytest.mark.parametrize('change',['missing','wrong'])
+    def test_server_required_review_rejects_partial_or_contradictory_identity(real_db,governance_pending,changed_field,change):
+        from core.intervention_service import intervention_service
+        compiled=_compiled();effects=[];execution_id='exec-review-binding-'+changed_field+'-'+change
+        orch,definition=_orchestrator(compiled,effects)
+        _execute(orch,definition,execution_id,{'amount':100})
+        row=_row_for_execution(real_db,execution_id)
+        assert row and row.status=='pending'
+        params=dict(row.params)
+        if change=='wrong':params[changed_field]='wrong-reviewed-identity'
+        else:params.pop(changed_field,None)
+        # Use the existing reviewed modification path, not an arbitrary SQL write.
+        approved=asyncio.run(intervention_service.approve_intervention(row.id,APPROVER_ID,modified_params=params))
+        assert approved['success'] is True,approved
+        fresh,_=_orchestrator(compiled,effects)
+        result=asyncio.run(fresh.resume_workflow(execution_id,_approval_step(compiled)['step_id']))
+>       assert effects==[],(changed_field,effects,result.results)
+E       AssertionError: ('tenant_id', ['record'], {'approval_record': {'status': 'completed', 'hitl_action_id': '2f82e396-ff41-4f14-b231-0cebd...'Step requires human approval.', 'approved_at': '2026-11-05T09:40:40.170545', ...}, 'record': {'status': 'completed'}})
+E       assert ['record'] == []
+E         
+E         Left contains one more item: 'record'
+E         Use -v to get more diff
+
+../../test_verifier_orch513_review_binding.py:22: AssertionError
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 40 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED ../../test_verifier_orch513_review_binding.py::test_server_required_review_rejects_partial_or_contradictory_identity[missing-execution_id]
+FAILED ../../test_verifier_orch513_review_binding.py::test_server_required_review_rejects_partial_or_contradictory_identity[missing-definition_id]
+FAILED ../../test_verifier_orch513_review_binding.py::test_server_required_review_rejects_partial_or_contradictory_identity[missing-definition_digest]
+FAILED ../../test_verifier_orch513_review_binding.py::test_server_required_review_rejects_partial_or_contradictory_identity[missing-guarded_step]
+FAILED ../../test_verifier_orch513_review_binding.py::test_server_required_review_rejects_partial_or_contradictory_identity[missing-workspace_id]
+FAILED ../../test_verifier_orch513_review_binding.py::test_server_required_review_rejects_partial_or_contradictory_identity[missing-tenant_id]
+FAILED ../../test_verifier_orch513_review_binding.py::test_server_required_review_rejects_partial_or_contradictory_identity[wrong-guarded_step]
+FAILED ../../test_verifier_orch513_review_binding.py::test_server_required_review_rejects_partial_or_contradictory_identity[wrong-workspace_id]
+FAILED ../../test_verifier_orch513_review_binding.py::test_server_required_review_rejects_partial_or_contradictory_identity[wrong-tenant_id]
+9 failed, 11 passed, 41 warnings in 14.36s

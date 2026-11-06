@@ -127,6 +127,17 @@ async def test_flag_on_force_enforce_routes_to_governance(atom_agent, monkeypatc
     monkeypatch.setattr(
         atom_agent, "route_with_governance", AsyncMock(return_value=summary)
     )
+    monkeypatch.setattr(
+        atom_agent, "_execute_fleet_specialists",
+        AsyncMock(return_value={
+            "success": True,
+            "status": "specialists_executed",
+            "final_output": "Analyst contribution",
+            "specialist_results": [{"agent_id": "a1", "status": "success"}],
+            "specialists_count": 2,
+            "chain_id": "chain-1",
+        }),
+    )
 
     # Patch SessionLocal so the Workspace lookup in execute() doesn't 404.
     with patch("core.atom_meta_agent.SessionLocal"), \
@@ -137,9 +148,10 @@ async def test_flag_on_force_enforce_routes_to_governance(atom_agent, monkeypatc
         )
 
     atom_agent.route_with_governance.assert_awaited()
-    assert result.get("status") == "fleet_recruited", (
-        "flag ON + force-enforce ON must return the fleet recruitment summary directly"
+    assert result.get("status") == "specialists_executed", (
+        "flag ON + force-enforce ON must return the specialist-consumed response"
     )
+    assert result.get("final_output") == "Analyst contribution"
     assert result.get("chain_id") == "chain-1"
 
 

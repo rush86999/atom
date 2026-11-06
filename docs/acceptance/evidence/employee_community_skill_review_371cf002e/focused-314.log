@@ -1,0 +1,1343 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-05 18:07:52 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+
+tests/test_community_skill_write_contract.py::test_authority_and_promote_roundtrip 
+-------------------------------- live log setup --------------------------------
+2026-11-05 18:07:52 [    INFO] EscalationManager initialized
+2026-11-05 18:07:52 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:07:52 [    INFO] EscalationManager initialized
+2026-11-05 18:07:52 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:07:52 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 18:07:52 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:07:54 [    INFO] HTTP Request: POST http://testserver/api/skills/promote "HTTP/1.1 403 Forbidden"
+2026-11-05 18:07:54 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=promote-one "HTTP/1.1 200 OK"
+2026-11-05 18:07:54 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=promote-other "HTTP/1.1 200 OK"
+PASSED                                                                   [  0%]
+tests/test_community_skill_write_contract.py::test_promote_replay_changed_material_and_later_revision 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:07:54 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=replay-one "HTTP/1.1 200 OK"
+2026-11-05 18:07:54 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=replay-one "HTTP/1.1 200 OK"
+2026-11-05 18:07:54 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=replay-one "HTTP/1.1 409 Conflict"
+2026-11-05 18:07:54 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=replay-one "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [  1%]
+tests/test_community_skill_write_contract.py::test_promote_stale_writer_refuses_without_overwrite 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:07:55 [    INFO] HTTP Request: POST http://testserver/api/skills/promote "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  2%]
+tests/test_community_skill_write_contract.py::test_delete_replay_missing_stale_and_cloud_scope 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:07:56 [    INFO] HTTP Request: DELETE http://testserver/api/skills/d1?operation_id=delete-one "HTTP/1.1 200 OK"
+2026-11-05 18:07:56 [    INFO] HTTP Request: DELETE http://testserver/api/skills/d1?operation_id=delete-one "HTTP/1.1 200 OK"
+2026-11-05 18:07:56 [    INFO] HTTP Request: DELETE http://testserver/api/skills/missing "HTTP/1.1 404 Not Found"
+2026-11-05 18:07:56 [    INFO] HTTP Request: DELETE http://testserver/api/skills/c1 "HTTP/1.1 404 Not Found"
+2026-11-05 18:07:56 [    INFO] HTTP Request: DELETE http://testserver/api/skills/d2 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  3%]
+tests/test_community_skill_write_contract.py::test_already_active_is_noop_without_audit 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:07:57 [    INFO] HTTP Request: POST http://testserver/api/skills/promote "HTTP/1.1 200 OK"
+PASSED                                                                   [  3%]
+tests/test_community_skill_write_contract.py::test_audit_rollback_reports_effect_none[promote] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:07:58 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=rollback-promote "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  4%]
+tests/test_community_skill_write_contract.py::test_audit_rollback_reports_effect_none[delete] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:07:59 [    INFO] HTTP Request: DELETE http://testserver/api/skills/r1?operation_id=rollback-delete "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  5%]
+tests/test_community_skill_write_contract.py::test_post_commit_readback_is_committed_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:07:59 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=readback "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [  6%]
+tests/test_community_skill_write_contract.py::test_lost_confirmation_is_effect_unknown 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:00 [   ERROR] community-skill write outcome unknown: operation_id=community-skill:promote:lost target=feb72beac76344513cb70e7e3fb56849a603e35dc7ac0f435dbd6fb6d7222a46 error_class=RuntimeError
+PASSED                                                                   [  7%]
+tests/test_community_skill_write_contract.py::test_wrong_audit_receipt_is_never_verified[action] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:01 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=tamper-action "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [  7%]
+tests/test_community_skill_write_contract.py::test_wrong_audit_receipt_is_never_verified[user_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:02 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=tamper-user_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [  8%]
+tests/test_community_skill_write_contract.py::test_wrong_audit_receipt_is_never_verified[tenant_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:03 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=tamper-tenant_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [  9%]
+tests/test_community_skill_write_contract.py::test_wrong_audit_receipt_is_never_verified[workspace_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:04 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=tamper-workspace_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 10%]
+tests/test_community_skill_write_contract.py::test_wrong_audit_receipt_is_never_verified[success] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:05 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=tamper-success "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 11%]
+tests/test_community_skill_write_contract.py::test_wrong_audit_receipt_is_never_verified[security_level] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:05 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=tamper-security_level "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 11%]
+tests/test_community_skill_write_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_scope_json] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:06 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=tamper-metadata_scope_json "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 12%]
+tests/test_community_skill_write_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_target_digest] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:07 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=tamper-metadata_target_digest "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 13%]
+tests/test_community_skill_write_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_material_digest] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:08 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=tamper-metadata_material_digest "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 14%]
+tests/test_community_skill_write_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_result_digest] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:09 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=tamper-metadata_result_digest "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 15%]
+tests/test_community_skill_write_contract.py::test_raw_skill_material_is_absent_from_audit_and_logs 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:09 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=secret-skill "HTTP/1.1 200 OK"
+PASSED                                                                   [ 15%]
+tests/test_community_skill_write_contract.py::test_anonymous_requests_are_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:10 [    INFO] HTTP Request: POST http://testserver/api/skills/promote "HTTP/1.1 401 Unauthorized"
+2026-11-05 18:08:10 [    INFO] HTTP Request: DELETE http://testserver/api/skills/s1 "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 16%]
+tests/unit/api/test_skill_routes.py::TestSkillManagement::test_list_skills 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:10 [    INFO] HTTP Request: GET http://testserver/api/skills "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 17%]
+tests/unit/api/test_skill_routes.py::TestSkillManagement::test_get_skill 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:10 [    INFO] EscalationManager initialized
+2026-11-05 18:08:10 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:10 [    INFO] EscalationManager initialized
+2026-11-05 18:08:10 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:10 [ WARNING] Skill not found: skill-001
+2026-11-05 18:08:10 [    INFO] HTTP Request: GET http://testserver/api/skills/skill-001 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 18%]
+tests/unit/api/test_skill_routes.py::TestSkillManagement::test_create_skill 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:10 [    INFO] HTTP Request: POST http://testserver/api/skills "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 19%]
+tests/unit/api/test_skill_routes.py::TestSkillManagement::test_delete_skill 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:10 [    INFO] HTTP Request: DELETE http://testserver/api/skills/skill-001 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 19%]
+tests/unit/api/test_skill_routes.py::TestSkillOperations::test_update_skill 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:10 [    INFO] HTTP Request: PUT http://testserver/api/skills/skill-001 "HTTP/1.1 405 Method Not Allowed"
+PASSED                                                                   [ 20%]
+tests/unit/api/test_skill_routes.py::TestSkillOperations::test_execute_skill 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:10 [    INFO] HTTP Request: POST http://testserver/api/skills/skill-001/execute "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 21%]
+tests/unit/api/test_skill_routes.py::TestSkillOperations::test_get_skill_versions 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:10 [    INFO] HTTP Request: GET http://testserver/api/skills/skill-001/versions "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 22%]
+tests/unit/api/test_skill_routes.py::TestSkillExecution::test_execute_skill_async 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:10 [    INFO] HTTP Request: POST http://testserver/api/skills/skill-001/execute "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 23%]
+tests/unit/api/test_skill_routes.py::TestSkillExecution::test_get_execution_output 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:10 [    INFO] HTTP Request: GET http://testserver/api/skills/skill-001/execution/exec-001/output "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 23%]
+tests/unit/api/test_skill_routes.py::TestSkillExecution::test_get_execution_logs 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:10 [    INFO] HTTP Request: GET http://testserver/api/skills/skill-001/execution/exec-001/logs "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 24%]
+tests/unit/api/test_skill_routes.py::TestSkillRegistry::test_search_skills 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:10 [    INFO] EscalationManager initialized
+2026-11-05 18:08:10 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:10 [    INFO] EscalationManager initialized
+2026-11-05 18:08:10 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:10 [ WARNING] Skill not found: search
+2026-11-05 18:08:10 [    INFO] HTTP Request: GET http://testserver/api/skills/search?q=automation "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 25%]
+tests/unit/api/test_skill_routes.py::TestSkillRegistry::test_get_skill_categories 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:10 [    INFO] EscalationManager initialized
+2026-11-05 18:08:10 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:10 [    INFO] EscalationManager initialized
+2026-11-05 18:08:10 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:10 [ WARNING] Skill not found: categories
+2026-11-05 18:08:10 [    INFO] HTTP Request: GET http://testserver/api/skills/categories "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 26%]
+tests/unit/api/test_skill_routes.py::TestSkillRegistry::test_get_skill_dependencies 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:10 [    INFO] HTTP Request: GET http://testserver/api/skills/skill-001/dependencies "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 26%]
+tests/unit/api/test_skill_routes.py::TestErrorHandling::test_skill_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:10 [    INFO] EscalationManager initialized
+2026-11-05 18:08:10 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:10 [    INFO] EscalationManager initialized
+2026-11-05 18:08:10 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:10 [ WARNING] Skill not found: nonexistent
+2026-11-05 18:08:10 [    INFO] HTTP Request: GET http://testserver/api/skills/nonexistent "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 27%]
+tests/test_covpush_skill_registry.py::TestImportSkillAsync::test_import_active_for_low_risk 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:11 [    INFO] Parsed skill 'Greeter' (type: prompt_only, packages: 0)
+2026-11-05 18:08:11 [    INFO] Security scan result: LOW
+2026-11-05 18:08:11 [    INFO] Imported skill 'Greeter' (id: 2ee7f1cc-f310-40ce-bf83-b632903cf68f, status: Active)
+PASSED                                                                   [ 28%]
+tests/test_covpush_skill_registry.py::TestImportSkillAsync::test_import_untrusted_for_high_risk 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:11 [    INFO] raw_content: Missing 'description', auto-generated from body
+2026-11-05 18:08:11 [    INFO] Parsed skill 'Calc' (type: python_code, packages: 1)
+2026-11-05 18:08:11 [    INFO] Security scan result: CRITICAL
+2026-11-05 18:08:11 [ WARNING] Skill 'Calc' marked as Untrusted (risk: CRITICAL)
+2026-11-05 18:08:11 [    INFO] Imported skill 'Calc' (id: 8614e07d-1dc4-4dd1-8d38-d7501c9c33f9, status: Untrusted)
+PASSED                                                                   [ 29%]
+tests/test_covpush_skill_registry.py::TestImportSkillAsync::test_import_extracts_packages_and_manager 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:11 [    INFO] raw_content: Missing 'description', auto-generated from body
+2026-11-05 18:08:11 [    INFO] Parsed skill 'Calc' (type: python_code, packages: 1)
+2026-11-05 18:08:11 [    INFO] Security scan result: LOW
+2026-11-05 18:08:11 [    INFO] Imported skill 'Calc' (id: 97ab143e-75a4-4f34-853e-4d8eb4733e3f, status: Active)
+PASSED                                                                   [ 30%]
+tests/test_covpush_skill_registry.py::TestImportSkillAsync::test_import_bad_frontmatter_rolls_back 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:11 [   ERROR] Failed to import skill: while parsing a flow sequence
+  in "<unicode string>", line 2, column 6
+did not find expected ',' or ']'
+  in "<unicode string>", line 3, column 1
+PASSED                                                                   [ 30%]
+tests/test_covpush_skill_registry.py::TestListAndGet::test_list_filters_status_type_limit 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:11 [    INFO] raw_content: Missing 'description', auto-generated from body
+2026-11-05 18:08:11 [    INFO] Parsed skill 'Calc-ff5272' (type: python_code, packages: 1)
+2026-11-05 18:08:11 [    INFO] Security scan result: LOW
+2026-11-05 18:08:11 [    INFO] Imported skill 'Calc-ff5272' (id: 358c55ea-4a08-497e-bafa-9fd066c6634e, status: Active)
+2026-11-05 18:08:11 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:11 [    INFO] Parsed skill 'Greeter-ff5272' (type: prompt_only, packages: 0)
+2026-11-05 18:08:11 [    INFO] Security scan result: LOW
+2026-11-05 18:08:11 [    INFO] Imported skill 'Greeter-ff5272' (id: 1e298349-9c11-4486-ba68-67d0209c6556, status: Active)
+2026-11-05 18:08:11 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:11 [    INFO] raw_content: Missing 'description', auto-generated from body
+2026-11-05 18:08:11 [    INFO] Parsed skill 'Calc-ff5272' (type: python_code, packages: 1)
+2026-11-05 18:08:11 [    INFO] Security scan result: HIGH
+2026-11-05 18:08:11 [ WARNING] Skill 'Calc-ff5272' marked as Untrusted (risk: HIGH)
+2026-11-05 18:08:11 [    INFO] Imported skill 'Calc-ff5272' (id: 114ca0d5-1c30-4225-8646-d87a908ef5dc, status: Untrusted)
+2026-11-05 18:08:11 [    INFO] Listed 3 skills (status=None, type=None)
+2026-11-05 18:08:11 [    INFO] Listed 2 skills (status=Active, type=None)
+2026-11-05 18:08:11 [    INFO] Listed 1 skills (status=Untrusted, type=None)
+2026-11-05 18:08:11 [    INFO] Listed 2 skills (status=None, type=python_code)
+2026-11-05 18:08:11 [    INFO] Listed 2 skills (status=None, type=None)
+2026-11-05 18:08:11 [    INFO] Listed 1 skills (status=None, type=prompt_only)
+PASSED                                                                   [ 31%]
+tests/test_covpush_skill_registry.py::TestListAndGet::test_get_skill_full_and_missing 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:11 [    INFO] raw_content: Missing 'description', auto-generated from body
+2026-11-05 18:08:11 [    INFO] Parsed skill 'Calc' (type: python_code, packages: 1)
+2026-11-05 18:08:11 [    INFO] Security scan result: LOW
+2026-11-05 18:08:11 [    INFO] Imported skill 'Calc' (id: 9703c895-d082-4524-be81-a8ace206e9cb, status: Active)
+2026-11-05 18:08:11 [ WARNING] Skill not found: nope
+PASSED                                                                   [ 32%]
+tests/test_covpush_skill_registry.py::TestExecuteSkill::test_execute_prompt_skill_succeeds 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:11 [    INFO] Parsed skill 'Greeter' (type: prompt_only, packages: 0)
+2026-11-05 18:08:11 [    INFO] Security scan result: LOW
+2026-11-05 18:08:11 [    INFO] Imported skill 'Greeter' (id: 7227b08d-f3dc-4c89-a2c7-026a3a686319, status: Active)
+2026-11-05 18:08:11 [    INFO] Executing skill 'Greeter' (type: prompt_only, status: Active, python_packages: 0, node_packages: 0)
+2026-11-05 18:08:11 [    INFO] Created episode segment e9a86da9-83ef-46c0-bb7e-0c516afe0b5a for skill execution: Greeter
+PASSED                                                                   [ 33%]
+tests/test_covpush_skill_registry.py::TestExecuteSkill::test_execute_unknown_skill_type_fails 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:11 [    INFO] Parsed skill 'Greeter' (type: prompt_only, packages: 0)
+2026-11-05 18:08:11 [    INFO] Security scan result: LOW
+2026-11-05 18:08:11 [    INFO] Imported skill 'Greeter' (id: c960db3d-fff1-4333-ba1f-274099501c7e, status: Active)
+2026-11-05 18:08:11 [    INFO] Executing skill 'Greeter' (type: bogus_type, status: Active, python_packages: 0, node_packages: 0)
+2026-11-05 18:08:11 [   ERROR] Skill execution failed: Unknown skill type: bogus_type
+2026-11-05 18:08:11 [    INFO] Created episode segment ba1611a5-1a98-4d86-9264-9856d28fb9dc for skill execution: Greeter
+PASSED                                                                   [ 34%]
+tests/test_covpush_skill_registry.py::TestExecuteSkill::test_execute_missing_skill_raises 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [ WARNING] Skill not found: nope
+PASSED                                                                   [ 34%]
+tests/test_covpush_skill_registry.py::TestExecuteSkill::test_student_denied_python_skill 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:11 [    INFO] raw_content: Missing 'description', auto-generated from body
+2026-11-05 18:08:11 [    INFO] Parsed skill 'PlainCalc' (type: python_code, packages: 0)
+2026-11-05 18:08:11 [    INFO] Security scan result: LOW
+2026-11-05 18:08:11 [    INFO] Imported skill 'PlainCalc' (id: bff11f46-801e-4af7-8f30-f51a16be29f3, status: Active)
+PASSED                                                                   [ 35%]
+tests/test_covpush_skill_registry.py::TestExecuteSkill::test_python_skill_sandbox_execution 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:11 [    INFO] raw_content: Missing 'description', auto-generated from body
+2026-11-05 18:08:11 [    INFO] Parsed skill 'PlainCalc' (type: python_code, packages: 0)
+2026-11-05 18:08:11 [    INFO] Security scan result: LOW
+2026-11-05 18:08:11 [    INFO] Imported skill 'PlainCalc' (id: 92b2877e-3f2c-4052-ad60-ef76462bb36a, status: Active)
+2026-11-05 18:08:11 [    INFO] Executing skill 'PlainCalc' (type: python_code, status: Active, python_packages: 0, node_packages: 0)
+2026-11-05 18:08:11 [    INFO] Created episode segment 2345ed0d-66b2-4191-b60e-5e87edf8f18a for skill execution: PlainCalc
+PASSED                                                                   [ 36%]
+tests/test_covpush_skill_registry.py::TestExecuteSkillPythonPackages::test_python_with_packages 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:11 [    INFO] raw_content: Missing 'description', auto-generated from body
+2026-11-05 18:08:11 [    INFO] Parsed skill 'Calc' (type: python_code, packages: 1)
+2026-11-05 18:08:11 [    INFO] Security scan result: LOW
+2026-11-05 18:08:11 [    INFO] Imported skill 'Calc' (id: 419d0692-7c90-4c41-aff0-213f9b2d6b4d, status: Active)
+2026-11-05 18:08:11 [    INFO] Executing skill 'Calc' (type: python_code, status: Active, python_packages: 1, node_packages: 0)
+2026-11-05 18:08:11 [    INFO] Executing skill 'Calc' with 1 packages
+2026-11-05 18:08:11 [    INFO] Installing 1 packages for skill 'Calc'
+2026-11-05 18:08:11 [    INFO] Executing skill 'Calc' with image img-1
+2026-11-05 18:08:11 [    INFO] Created episode segment bae4608e-5f66-4fa1-ac86-100a6148fdad for skill execution: Calc
+PASSED                                                                   [ 37%]
+tests/test_covpush_skill_registry.py::TestExecuteSkillPythonPackages::test_python_package_permission_denied 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:11 [    INFO] raw_content: Missing 'description', auto-generated from body
+2026-11-05 18:08:11 [    INFO] Parsed skill 'Calc' (type: python_code, packages: 1)
+2026-11-05 18:08:11 [    INFO] Security scan result: LOW
+2026-11-05 18:08:11 [    INFO] Imported skill 'Calc' (id: 1f05495a-2e41-4c1c-81ec-e6669fd5d18a, status: Active)
+2026-11-05 18:08:11 [    INFO] Executing skill 'Calc' (type: python_code, status: Active, python_packages: 1, node_packages: 0)
+2026-11-05 18:08:11 [ WARNING] Package permission denied: numpy@==1.26.0. Reason: denylisted
+PASSED                                                                   [ 38%]
+tests/test_covpush_skill_registry.py::TestExecuteSkillPythonPackages::test_python_package_install_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:11 [    INFO] raw_content: Missing 'description', auto-generated from body
+2026-11-05 18:08:11 [    INFO] Parsed skill 'Calc' (type: python_code, packages: 1)
+2026-11-05 18:08:11 [    INFO] Security scan result: LOW
+2026-11-05 18:08:11 [    INFO] Imported skill 'Calc' (id: deb0b5a5-436b-4255-9723-4a39433d032f, status: Active)
+2026-11-05 18:08:11 [    INFO] Executing skill 'Calc' (type: python_code, status: Active, python_packages: 1, node_packages: 0)
+2026-11-05 18:08:11 [    INFO] Executing skill 'Calc' with 1 packages
+2026-11-05 18:08:11 [    INFO] Installing 1 packages for skill 'Calc'
+2026-11-05 18:08:11 [   ERROR] Package installation failed for skill 'Calc': pip exploded
+2026-11-05 18:08:11 [   ERROR] Package execution failed for skill 'Calc': Package installation failed: pip exploded
+2026-11-05 18:08:11 [   ERROR] Skill execution failed: Package installation failed: pip exploded
+2026-11-05 18:08:11 [    INFO] Created episode segment afa79cbe-b734-4cff-bc5c-059db37d69cb for skill execution: Calc
+PASSED                                                                   [ 38%]
+tests/test_covpush_skill_registry.py::TestExecuteSkillPythonPackages::test_python_package_no_code_in_body 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:11 [    INFO] raw_content: Missing 'description', auto-generated from body
+2026-11-05 18:08:11 [    INFO] Parsed skill 'Calc' (type: python_code, packages: 1)
+2026-11-05 18:08:11 [    INFO] Security scan result: LOW
+2026-11-05 18:08:11 [    INFO] Imported skill 'Calc' (id: 644def28-afd4-4199-973c-7ceddaa2727e, status: Active)
+2026-11-05 18:08:11 [    INFO] Executing skill 'Calc' (type: python_code, status: Active, python_packages: 1, node_packages: 0)
+2026-11-05 18:08:11 [    INFO] Executing skill 'Calc' with 1 packages
+2026-11-05 18:08:11 [    INFO] Installing 1 packages for skill 'Calc'
+2026-11-05 18:08:11 [   ERROR] Package execution failed for skill 'Calc': No Python code found in skill 'Calc'
+2026-11-05 18:08:11 [   ERROR] Skill execution failed: No Python code found in skill 'Calc'
+2026-11-05 18:08:11 [    INFO] Created episode segment 234ebcaa-573a-4305-b3e1-58a8bcf715c0 for skill execution: Calc
+PASSED                                                                   [ 39%]
+tests/test_covpush_skill_registry.py::TestExecuteSkillGovernanceFailClosed::test_python_governance_error_fails_closed 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:11 [    INFO] raw_content: Missing 'description', auto-generated from body
+2026-11-05 18:08:11 [    INFO] Parsed skill 'Calc' (type: python_code, packages: 1)
+2026-11-05 18:08:11 [    INFO] Security scan result: LOW
+2026-11-05 18:08:11 [    INFO] Imported skill 'Calc' (id: d3849336-33dc-45ca-8097-eef5e8be163e, status: Active)
+2026-11-05 18:08:11 [    INFO] Executing skill 'Calc' (type: python_code, status: Active, python_packages: 1, node_packages: 0)
+2026-11-05 18:08:11 [   ERROR] Package permission check failed for numpy==1.26.0: governance down
+PASSED                                                                   [ 40%]
+tests/test_covpush_skill_registry.py::TestExecuteSkillGovernanceFailClosed::test_npm_governance_error_fails_closed 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:11 [    INFO] raw_content: Missing 'description', auto-generated from body
+2026-11-05 18:08:11 [    INFO] Parsed skill 'BothSkill' (type: python_code, packages: 1)
+2026-11-05 18:08:11 [    INFO] Security scan result: LOW
+2026-11-05 18:08:11 [    INFO] Imported skill 'BothSkill' (id: 4edc605a-ff70-4465-a0ed-c9f50f2bdcf7, status: Active)
+2026-11-05 18:08:11 [    INFO] Executing skill 'BothSkill' (type: python_code, status: Active, python_packages: 1, node_packages: 1)
+2026-11-05 18:08:11 [   ERROR] Error checking npm package permission for lodash@4.17.21: governance down
+PASSED                                                                   [ 41%]
+tests/test_covpush_skill_registry.py::TestExecuteSkillNode::test_nodejs_skill_with_packages 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:11 [    INFO] raw_content: Missing 'description', auto-generated from body
+2026-11-05 18:08:11 [    INFO] Parsed skill 'NodeSkill' (type: python_code, packages: 0)
+2026-11-05 18:08:11 [    INFO] Security scan result: LOW
+2026-11-05 18:08:11 [    INFO] Imported skill 'NodeSkill' (id: dfe10659-c08e-425e-8e62-b99b776004db, status: Active)
+2026-11-05 18:08:11 [    INFO] Executing skill 'NodeSkill' (type: python_code, status: Active, python_packages: 0, node_packages: 1)
+2026-11-05 18:08:11 [    INFO] Executing Node.js skill 'NodeSkill' with 1 npm packages
+2026-11-05 18:08:11 [    INFO] Installing 1 npm packages for skill 'NodeSkill'
+2026-11-05 18:08:11 [    INFO] Checking npm governance permissions for 1 packages
+2026-11-05 18:08:11 [    INFO] Governance check passed for npm package lodash@4.17.21
+2026-11-05 18:08:11 [    INFO] Successfully installed 1 npm packages for skill skill-dfe10659-c08e-425e-8e62-b99b776004db (image: npm-img)
+2026-11-05 18:08:11 [    INFO] Executing skill 'NodeSkill' with image npm-img
+2026-11-05 18:08:11 [    INFO] Created episode segment 03bdd2c6-6429-4300-9d57-8cc0f4f727c3 for skill execution: NodeSkill
+PASSED                                                                   [ 42%]
+tests/test_covpush_skill_registry.py::TestExecuteSkillNode::test_nodejs_malicious_scripts_blocked 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:11 [    INFO] raw_content: Missing 'description', auto-generated from body
+2026-11-05 18:08:11 [    INFO] Parsed skill 'NodeSkill' (type: python_code, packages: 0)
+2026-11-05 18:08:11 [    INFO] Security scan result: LOW
+2026-11-05 18:08:11 [    INFO] Imported skill 'NodeSkill' (id: fff24ce5-1bdb-4fd7-83f4-d392730e248d, status: Active)
+2026-11-05 18:08:11 [    INFO] Executing skill 'NodeSkill' (type: python_code, status: Active, python_packages: 0, node_packages: 1)
+2026-11-05 18:08:11 [    INFO] Executing Node.js skill 'NodeSkill' with 1 npm packages
+2026-11-05 18:08:11 [    INFO] Installing 1 npm packages for skill 'NodeSkill'
+2026-11-05 18:08:11 [    INFO] Checking npm governance permissions for 1 packages
+2026-11-05 18:08:11 [    INFO] Governance check passed for npm package lodash@4.17.21
+2026-11-05 18:08:11 [   ERROR] Malicious postinstall/preinstall scripts detected: ['postinstall evil']
+2026-11-05 18:08:11 [   ERROR] npm execution failed for skill 'NodeSkill': Malicious postinstall/preinstall scripts detected: ['postinstall evil']
+2026-11-05 18:08:11 [   ERROR] Skill execution failed: Malicious postinstall/preinstall scripts detected: ['postinstall evil']
+2026-11-05 18:08:11 [    INFO] Created episode segment f50ac654-1f55-4d66-aabd-59566a9b58b2 for skill execution: NodeSkill
+PASSED                                                                   [ 42%]
+tests/test_covpush_skill_registry.py::TestExecuteSkillNode::test_nodejs_npm_permission_denied 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:11 [    INFO] raw_content: Missing 'description', auto-generated from body
+2026-11-05 18:08:11 [    INFO] Parsed skill 'NodeSkill' (type: python_code, packages: 0)
+2026-11-05 18:08:11 [    INFO] Security scan result: LOW
+2026-11-05 18:08:11 [    INFO] Imported skill 'NodeSkill' (id: a4a9a2b9-bb6f-445d-a42d-74a3f252b7f0, status: Active)
+2026-11-05 18:08:11 [    INFO] Executing skill 'NodeSkill' (type: python_code, status: Active, python_packages: 0, node_packages: 1)
+2026-11-05 18:08:11 [    INFO] Executing Node.js skill 'NodeSkill' with 1 npm packages
+2026-11-05 18:08:11 [    INFO] Installing 1 npm packages for skill 'NodeSkill'
+2026-11-05 18:08:11 [    INFO] Checking npm governance permissions for 1 packages
+2026-11-05 18:08:11 [ WARNING] npm package lodash@4.17.21 blocked by governance: denylisted
+2026-11-05 18:08:11 [   ERROR] npm execution failed for skill 'NodeSkill': npm package lodash@4.17.21 blocked by governance: denylisted
+2026-11-05 18:08:11 [   ERROR] Skill execution failed: npm package lodash@4.17.21 blocked by governance: denylisted
+2026-11-05 18:08:11 [    INFO] Created episode segment 0bc7862d-cd94-448c-9ac0-b190f2ef3114 for skill execution: NodeSkill
+PASSED                                                                   [ 43%]
+tests/test_covpush_skill_registry.py::TestExecuteSkillNode::test_nodejs_install_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:11 [    INFO] raw_content: Missing 'description', auto-generated from body
+2026-11-05 18:08:11 [    INFO] Parsed skill 'NodeSkill' (type: python_code, packages: 0)
+2026-11-05 18:08:11 [    INFO] Security scan result: LOW
+2026-11-05 18:08:11 [    INFO] Imported skill 'NodeSkill' (id: e76a7456-bb89-426c-a6f2-157c093f8ec1, status: Active)
+2026-11-05 18:08:11 [    INFO] Executing skill 'NodeSkill' (type: python_code, status: Active, python_packages: 0, node_packages: 1)
+2026-11-05 18:08:11 [    INFO] Executing Node.js skill 'NodeSkill' with 1 npm packages
+2026-11-05 18:08:11 [    INFO] Installing 1 npm packages for skill 'NodeSkill'
+2026-11-05 18:08:11 [    INFO] Checking npm governance permissions for 1 packages
+2026-11-05 18:08:11 [    INFO] Governance check passed for npm package lodash@4.17.21
+2026-11-05 18:08:11 [   ERROR] npm installation failed: npm registry down
+2026-11-05 18:08:11 [   ERROR] npm execution failed for skill 'NodeSkill': npm registry down
+2026-11-05 18:08:11 [   ERROR] Skill execution failed: npm registry down
+2026-11-05 18:08:11 [    INFO] Created episode segment abeca675-aa44-4723-9303-a1d1cb83859f for skill execution: NodeSkill
+PASSED                                                                   [ 44%]
+tests/test_covpush_skill_registry.py::TestExecuteHelpers::test_python_skill_sandbox_required 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 45%]
+tests/test_covpush_skill_registry.py::TestExecuteHelpers::test_extract_nodejs_code_variants 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 46%]
+tests/test_covpush_skill_registry.py::TestExecuteHelpers::test_parse_npm_package 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 46%]
+tests/test_covpush_skill_registry.py::TestExecuteHelpers::test_summarize_inputs 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 47%]
+tests/test_covpush_skill_registry.py::TestExecuteHelpers::test_detect_skill_type 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 48%]
+tests/test_covpush_skill_registry.py::TestLifecycle::test_promote_skill 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:11 [    INFO] Parsed skill 'Greeter' (type: prompt_only, packages: 0)
+2026-11-05 18:08:11 [    INFO] Security scan result: LOW
+2026-11-05 18:08:11 [    INFO] Imported skill 'Greeter' (id: 951d865e-5ced-4b8f-a8a1-3e95ed007246, status: Active)
+2026-11-05 18:08:11 [ WARNING] Skill '951d865e-5ced-4b8f-a8a1-3e95ed007246' is already Active
+PASSED                                                                   [ 49%]
+tests/test_covpush_skill_registry.py::TestLifecycle::test_promote_flow 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:11 [    INFO] raw_content: Missing 'description', auto-generated from body
+2026-11-05 18:08:11 [    INFO] Parsed skill 'Calc' (type: python_code, packages: 1)
+2026-11-05 18:08:11 [    INFO] Security scan result: HIGH
+2026-11-05 18:08:11 [ WARNING] Skill 'Calc' marked as Untrusted (risk: HIGH)
+2026-11-05 18:08:11 [    INFO] Imported skill 'Calc' (id: d7d05a17-7a38-4052-9f81-b9dc4f35cd61, status: Untrusted)
+2026-11-05 18:08:11 [    INFO] Promoted skill 'Calc' from Untrusted to Active
+PASSED                                                                   [ 50%]
+tests/test_covpush_skill_registry.py::TestLifecycle::test_delete_skill 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:11 [    INFO] Parsed skill 'Greeter' (type: prompt_only, packages: 0)
+2026-11-05 18:08:11 [    INFO] Security scan result: LOW
+2026-11-05 18:08:11 [    INFO] Imported skill 'Greeter' (id: ffbf6f5a-a8cf-4a5a-8e3a-be851716f24b, status: Active)
+2026-11-05 18:08:11 [    INFO] Deleted community skill 'Greeter' (ffbf6f5a-a8cf-4a5a-8e3a-be851716f24b)
+PASSED                                                                   [ 50%]
+tests/test_covpush_skill_registry.py::TestLifecycle::test_load_and_reload_dynamic 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 51%]
+tests/test_covpush_skill_registry.py::TestLifecycle::test_load_dynamic_error_path 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [   ERROR] Dynamic skill loading failed: no loader
+PASSED                                                                   [ 52%]
+tests/test_covpush_skill_registry.py::TestLifecycle::test_create_execution_episode_failure_returns_none 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [   ERROR] Failed to create episode segment for skill execution: __name__
+PASSED                                                                   [ 53%]
+tests/test_covpush_w116_skill_registry.py::TestSandboxLazyInit::test_sandbox_created_on_first_use 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 53%]
+tests/test_covpush_w116_skill_registry.py::TestExecuteAgentCaps::test_agent_caps_none_executes_as_system 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:11 [    INFO] Parsed skill 'Greeter' (type: prompt_only, packages: 0)
+2026-11-05 18:08:11 [    INFO] Security scan result: LOW
+2026-11-05 18:08:11 [    INFO] Imported skill 'Greeter' (id: c51d885b-933c-40eb-b368-dd0ddaed17d4, status: Active)
+2026-11-05 18:08:11 [ WARNING] Agent not found: ghost-agent, executing as system
+2026-11-05 18:08:11 [    INFO] Executing skill 'Greeter' (type: prompt_only, status: Active, python_packages: 0, node_packages: 0)
+2026-11-05 18:08:11 [    INFO] Created episode segment 37d556f9-2bf9-4cad-973b-993a4dcd0b36 for skill execution: Greeter
+PASSED                                                                   [ 54%]
+tests/test_covpush_w116_skill_registry.py::TestExecuteNpmPermissionInPythonPath::test_npm_package_denied_in_python_skill 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:11 [    INFO] raw_content: Missing 'description', auto-generated from body
+2026-11-05 18:08:11 [    INFO] Parsed skill 'BothSkill' (type: python_code, packages: 1)
+2026-11-05 18:08:11 [    INFO] Security scan result: LOW
+2026-11-05 18:08:11 [    INFO] Imported skill 'BothSkill' (id: c3b9d678-af1c-4a42-aff2-263137d58ecb, status: Active)
+2026-11-05 18:08:11 [    INFO] Executing skill 'BothSkill' (type: python_code, status: Active, python_packages: 1, node_packages: 1)
+2026-11-05 18:08:11 [ WARNING] npm package permission denied: lodash@4.17.21. Reason: denylisted
+PASSED                                                                   [ 55%]
+tests/test_covpush_w116_skill_registry.py::TestExecuteNpmPermissionInPythonPath::test_npm_permission_check_error_re_raises 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:11 [    INFO] raw_content: Missing 'description', auto-generated from body
+2026-11-05 18:08:11 [    INFO] Parsed skill 'BothSkill' (type: python_code, packages: 1)
+2026-11-05 18:08:11 [    INFO] Security scan result: LOW
+2026-11-05 18:08:11 [    INFO] Imported skill 'BothSkill' (id: 56e7fcfc-739d-4ed6-bc1c-2ac789799a22, status: Active)
+2026-11-05 18:08:11 [    INFO] Executing skill 'BothSkill' (type: python_code, status: Active, python_packages: 1, node_packages: 1)
+PASSED                                                                   [ 56%]
+tests/test_covpush_w116_skill_registry.py::TestPythonVulnerabilityWarning::test_python_install_with_vulnerabilities_proceeds 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:11 [    INFO] raw_content: Missing 'description', auto-generated from body
+2026-11-05 18:08:11 [    INFO] Parsed skill 'Calc' (type: python_code, packages: 1)
+2026-11-05 18:08:11 [    INFO] Security scan result: LOW
+2026-11-05 18:08:11 [    INFO] Imported skill 'Calc' (id: ee3d25c3-4671-49ad-ad7d-5f52446e87af, status: Active)
+2026-11-05 18:08:11 [    INFO] Executing skill 'Calc' (type: python_code, status: Active, python_packages: 1, node_packages: 0)
+2026-11-05 18:08:11 [    INFO] Executing skill 'Calc' with 1 packages
+2026-11-05 18:08:11 [    INFO] Installing 1 packages for skill 'Calc'
+2026-11-05 18:08:11 [ WARNING] Skill 'Calc' has 1 vulnerabilities (proceeding with execution)
+2026-11-05 18:08:11 [    INFO] Executing skill 'Calc' with image img-1
+2026-11-05 18:08:11 [    INFO] Created episode segment 38acc7d8-c599-4d2d-ab10-b963c5ee7d9b for skill execution: Calc
+PASSED                                                                   [ 57%]
+tests/test_covpush_w116_skill_registry.py::TestNodeEdgeBranches::test_nodejs_install_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:11 [    INFO] raw_content: Missing 'description', auto-generated from body
+2026-11-05 18:08:11 [    INFO] Parsed skill 'NodeSkill' (type: python_code, packages: 0)
+2026-11-05 18:08:11 [    INFO] Security scan result: LOW
+2026-11-05 18:08:11 [    INFO] Imported skill 'NodeSkill' (id: aa782e1c-30fd-407c-9221-4110c1a484c8, status: Active)
+2026-11-05 18:08:11 [    INFO] Executing skill 'NodeSkill' (type: python_code, status: Active, python_packages: 0, node_packages: 1)
+2026-11-05 18:08:11 [    INFO] Executing Node.js skill 'NodeSkill' with 1 npm packages
+2026-11-05 18:08:11 [    INFO] Installing 1 npm packages for skill 'NodeSkill'
+2026-11-05 18:08:11 [    INFO] Checking npm governance permissions for 1 packages
+2026-11-05 18:08:11 [    INFO] Governance check passed for npm package lodash@4.17.21
+2026-11-05 18:08:11 [   ERROR] npm installation failed: registry timeout
+2026-11-05 18:08:11 [   ERROR] npm execution failed for skill 'NodeSkill': registry timeout
+2026-11-05 18:08:11 [   ERROR] Skill execution failed: registry timeout
+2026-11-05 18:08:11 [    INFO] Created episode segment 10646fb9-a21f-4615-a0f2-984cd04e095f for skill execution: NodeSkill
+PASSED                                                                   [ 57%]
+tests/test_covpush_w116_skill_registry.py::TestNodeEdgeBranches::test_nodejs_executor_install_failure_defensive_branch 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:11 [    INFO] raw_content: Missing 'description', auto-generated from body
+2026-11-05 18:08:11 [    INFO] Parsed skill 'NodeSkill' (type: python_code, packages: 0)
+2026-11-05 18:08:11 [    INFO] Security scan result: LOW
+2026-11-05 18:08:11 [    INFO] Imported skill 'NodeSkill' (id: a1c76f67-d25d-4b57-953b-6e5fa4cc6087, status: Active)
+2026-11-05 18:08:11 [    INFO] Executing Node.js skill 'NodeSkill' with 1 npm packages
+2026-11-05 18:08:11 [    INFO] Installing 1 npm packages for skill 'NodeSkill'
+2026-11-05 18:08:11 [   ERROR] npm installation failed for skill 'NodeSkill': registry timeout
+2026-11-05 18:08:11 [   ERROR] npm execution failed for skill 'NodeSkill': npm installation failed: registry timeout
+PASSED                                                                   [ 58%]
+tests/test_covpush_w116_skill_registry.py::TestNodeEdgeBranches::test_nodejs_vulnerabilities_warn_and_proceed 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:11 [    INFO] raw_content: Missing 'description', auto-generated from body
+2026-11-05 18:08:11 [    INFO] Parsed skill 'NodeSkill' (type: python_code, packages: 0)
+2026-11-05 18:08:11 [    INFO] Security scan result: LOW
+2026-11-05 18:08:11 [    INFO] Imported skill 'NodeSkill' (id: 0a32aa9b-ed23-4a61-b96c-fca0d9b3cf07, status: Active)
+2026-11-05 18:08:11 [    INFO] Executing skill 'NodeSkill' (type: python_code, status: Active, python_packages: 0, node_packages: 1)
+2026-11-05 18:08:11 [    INFO] Executing Node.js skill 'NodeSkill' with 1 npm packages
+2026-11-05 18:08:11 [    INFO] Installing 1 npm packages for skill 'NodeSkill'
+2026-11-05 18:08:11 [    INFO] Checking npm governance permissions for 1 packages
+2026-11-05 18:08:11 [    INFO] Governance check passed for npm package lodash@4.17.21
+2026-11-05 18:08:11 [    INFO] Successfully installed 1 npm packages for skill skill-0a32aa9b-ed23-4a61-b96c-fca0d9b3cf07 (image: npm-img)
+2026-11-05 18:08:11 [ WARNING] Skill 'NodeSkill' has 1 vulnerabilities (proceeding with execution)
+2026-11-05 18:08:11 [    INFO] Executing skill 'NodeSkill' with image npm-img
+2026-11-05 18:08:11 [    INFO] Created episode segment 87003ca4-c387-40ec-a3e9-8f0a2f02f7b4 for skill execution: NodeSkill
+PASSED                                                                   [ 59%]
+tests/test_covpush_w116_skill_registry.py::TestNodeEdgeBranches::test_nodejs_missing_code_raises 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:11 [    INFO] raw_content: Missing 'description', auto-generated from body
+2026-11-05 18:08:11 [    INFO] Parsed skill 'NodeSkill' (type: python_code, packages: 0)
+2026-11-05 18:08:11 [    INFO] Security scan result: LOW
+2026-11-05 18:08:11 [    INFO] Imported skill 'NodeSkill' (id: 731da383-a9c1-4042-bec2-b5928517da42, status: Active)
+2026-11-05 18:08:11 [    INFO] Executing skill 'NodeSkill' (type: python_code, status: Active, python_packages: 0, node_packages: 1)
+2026-11-05 18:08:11 [    INFO] Executing Node.js skill 'NodeSkill' with 1 npm packages
+2026-11-05 18:08:11 [    INFO] Installing 1 npm packages for skill 'NodeSkill'
+2026-11-05 18:08:11 [    INFO] Checking npm governance permissions for 1 packages
+2026-11-05 18:08:11 [    INFO] Governance check passed for npm package lodash@4.17.21
+2026-11-05 18:08:11 [    INFO] Successfully installed 1 npm packages for skill skill-731da383-a9c1-4042-bec2-b5928517da42 (image: npm-img)
+2026-11-05 18:08:11 [   ERROR] npm execution failed for skill 'NodeSkill': No Node.js code found in skill 'NodeSkill'
+2026-11-05 18:08:11 [   ERROR] Skill execution failed: No Node.js code found in skill 'NodeSkill'
+2026-11-05 18:08:11 [    INFO] Created episode segment fc9c5bc4-32fe-443a-aba5-d20183a1de8b for skill execution: NodeSkill
+PASSED                                                                   [ 60%]
+tests/test_covpush_w116_skill_registry.py::TestSuspiciousNpmScripts::test_suspicious_scripts_warn_and_proceed 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:11 [    INFO] raw_content: Missing 'description', auto-generated from body
+2026-11-05 18:08:11 [    INFO] Parsed skill 'NodeSkill' (type: python_code, packages: 0)
+2026-11-05 18:08:11 [    INFO] Security scan result: LOW
+2026-11-05 18:08:11 [    INFO] Imported skill 'NodeSkill' (id: 88e55eef-e229-49ac-8e2c-a0a7b08ad944, status: Active)
+2026-11-05 18:08:11 [    INFO] Executing skill 'NodeSkill' (type: python_code, status: Active, python_packages: 0, node_packages: 1)
+2026-11-05 18:08:11 [    INFO] Executing Node.js skill 'NodeSkill' with 1 npm packages
+2026-11-05 18:08:11 [    INFO] Installing 1 npm packages for skill 'NodeSkill'
+2026-11-05 18:08:11 [    INFO] Checking npm governance permissions for 1 packages
+2026-11-05 18:08:11 [    INFO] Governance check passed for npm package lodash@4.17.21
+2026-11-05 18:08:11 [ WARNING] Suspicious npm scripts detected: ['postinstall uses curl']
+2026-11-05 18:08:11 [    INFO] Successfully installed 1 npm packages for skill skill-88e55eef-e229-49ac-8e2c-a0a7b08ad944 (image: npm-img)
+2026-11-05 18:08:11 [    INFO] Executing skill 'NodeSkill' with image npm-img
+2026-11-05 18:08:11 [    INFO] Created episode segment 5ccc2659-d231-4bd1-a765-a9ecd1f7327c for skill execution: NodeSkill
+PASSED                                                                   [ 61%]
+tests/test_covpush_w116_skill_registry.py::TestDetectSkillTypeFallback::test_frontmatter_parse_error_falls_back_to_python 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [ WARNING] Failed to parse skill content for type detection: bad frontmatter
+PASSED                                                                   [ 61%]
+tests/test_covpush_w116_skill_registry.py::TestDetectSkillTypeFallback::test_frontmatter_parse_error_no_hint 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [ WARNING] Failed to parse skill content for type detection: boom
+PASSED                                                                   [ 62%]
+tests/test_covpush_w116_skill_registry.py::TestReloadDynamicallyError::test_reload_exception_returns_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [   ERROR] Skill hot-reload failed: loader exploded
+PASSED                                                                   [ 63%]
+tests/test_covpush_w116_skill_registry.py::TestReloadDynamicallyError::test_reload_not_loaded_returns_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 64%]
+tests/test_skill_registry_service.py::TestSkillImportBasic::test_import_skill_creates_record 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:11 [    INFO] Parsed skill 'Test Skill' (type: prompt_only, packages: 0)
+2026-11-05 18:08:11 [    INFO] Security scan result: LOW
+2026-11-05 18:08:11 [    INFO] Imported skill 'Test Skill' (id: 645e3522-1fb2-462b-9cfb-b056a64346ad, status: Active)
+PASSED                                                                   [ 65%]
+tests/test_skill_registry_service.py::TestSkillImportBasic::test_import_skill_with_raw_content 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:11 [    INFO] Parsed skill 'Test Skill' (type: prompt_only, packages: 0)
+2026-11-05 18:08:11 [    INFO] Security scan result: LOW
+2026-11-05 18:08:11 [    INFO] Imported skill 'Test Skill' (id: ce164452-1d49-4502-8eef-91f8f2626db4, status: Active)
+PASSED                                                                   [ 65%]
+tests/test_skill_registry_service.py::TestSkillImportBasic::test_import_skill_parses_frontmatter 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:11 [    INFO] Parsed skill 'Test Skill' (type: prompt_only, packages: 0)
+2026-11-05 18:08:11 [    INFO] Security scan result: LOW
+2026-11-05 18:08:11 [    INFO] Imported skill 'Test Skill' (id: a31fbdf6-f777-413a-af09-8597bc5a354a, status: Active)
+PASSED                                                                   [ 66%]
+tests/test_skill_registry_service.py::TestSkillImportBasic::test_import_skill_extracts_body 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:11 [    INFO] Parsed skill 'Test Skill' (type: prompt_only, packages: 0)
+2026-11-05 18:08:11 [    INFO] Security scan result: LOW
+2026-11-05 18:08:11 [    INFO] Imported skill 'Test Skill' (id: 0542f8d5-fa0a-45ff-bf5c-829f1e830a97, status: Active)
+PASSED                                                                   [ 67%]
+tests/test_skill_registry_service.py::TestSkillImportBasic::test_import_skill_generates_uuid 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:11 [    INFO] Parsed skill 'Test Skill' (type: prompt_only, packages: 0)
+2026-11-05 18:08:11 [    INFO] Security scan result: LOW
+2026-11-05 18:08:11 [    INFO] Imported skill 'Test Skill' (id: d4a88d14-ac8e-413b-94f0-09f98e3bd21a, status: Active)
+PASSED                                                                   [ 68%]
+tests/test_skill_registry_service.py::TestSkillImportBasic::test_import_skill_default_status 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:11 [    INFO] Parsed skill 'Test Skill' (type: prompt_only, packages: 0)
+2026-11-05 18:08:11 [    INFO] Security scan result: LOW
+2026-11-05 18:08:11 [    INFO] Imported skill 'Test Skill' (id: 74737c29-0d57-4189-9704-d0293872bcd1, status: Active)
+PASSED                                                                   [ 69%]
+tests/test_skill_registry_service.py::TestSkillImportPackages::test_import_skill_extracts_python_packages 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:11 [    INFO] Parsed skill 'Python Packages Skill' (type: python_code, packages: 2)
+2026-11-05 18:08:11 [    INFO] Security scan result: LOW
+2026-11-05 18:08:11 [    INFO] Imported skill 'Python Packages Skill' (id: aa5cc73e-295b-4616-95d1-62cbdaef515e, status: Active)
+PASSED                                                                   [ 69%]
+tests/test_skill_registry_service.py::TestSkillImportPackages::test_import_skill_extracts_node_packages 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:11 [    INFO] Parsed skill 'NPM Packages Skill' (type: prompt_only, packages: 0)
+2026-11-05 18:08:11 [    INFO] Security scan result: LOW
+2026-11-05 18:08:11 [    INFO] Imported skill 'NPM Packages Skill' (id: 99f00079-091b-4dff-a076-c4a4251789eb, status: Active)
+PASSED                                                                   [ 70%]
+tests/test_skill_registry_service.py::TestSkillImportPackages::test_import_skill_extracts_package_manager 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:11 [    INFO] Parsed skill 'NPM Packages Skill' (type: prompt_only, packages: 0)
+2026-11-05 18:08:11 [    INFO] Security scan result: LOW
+2026-11-05 18:08:11 [    INFO] Imported skill 'NPM Packages Skill' (id: 5affcc0a-399e-497f-8132-0abbe9673a7e, status: Active)
+PASSED                                                                   [ 71%]
+tests/test_skill_registry_service.py::TestSkillImportPackages::test_import_skill_packages_stored_in_input_params 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:11 [    INFO] Parsed skill 'Python Packages Skill' (type: python_code, packages: 2)
+2026-11-05 18:08:11 [    INFO] Security scan result: LOW
+2026-11-05 18:08:11 [    INFO] Imported skill 'Python Packages Skill' (id: 6d0ba337-d336-4045-8942-c4f8e6c6d177, status: Active)
+PASSED                                                                   [ 72%]
+tests/test_skill_registry_service.py::TestSkillImportPackages::test_import_skill_empty_packages 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:11 [    INFO] Parsed skill 'Test Skill' (type: prompt_only, packages: 0)
+2026-11-05 18:08:11 [    INFO] Security scan result: LOW
+2026-11-05 18:08:11 [    INFO] Imported skill 'Test Skill' (id: f6a2de68-2b0d-44fe-86f2-d31402c6eec2, status: Active)
+PASSED                                                                   [ 73%]
+tests/test_skill_registry_service.py::TestSkillImportPackages::test_import_skill_multiple_packages 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:11 [    INFO] Parsed skill 'Python Packages Skill' (type: python_code, packages: 2)
+2026-11-05 18:08:11 [    INFO] Security scan result: LOW
+2026-11-05 18:08:11 [    INFO] Imported skill 'Python Packages Skill' (id: 22bfd617-8e3f-45a3-b1a7-787c8addecee, status: Active)
+PASSED                                                                   [ 73%]
+tests/test_skill_registry_service.py::TestSkillImportSecurity::test_low_risk_sets_active_status 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:11 [    INFO] Parsed skill 'Test Skill' (type: prompt_only, packages: 0)
+2026-11-05 18:08:11 [    INFO] Security scan result: LOW
+2026-11-05 18:08:11 [    INFO] Imported skill 'Test Skill' (id: dce75a46-923a-4511-a862-1c8a9d1235e4, status: Active)
+PASSED                                                                   [ 74%]
+tests/test_skill_registry_service.py::TestSkillImportSecurity::test_high_risk_sets_untrusted_status 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:11 [    INFO] Parsed skill 'Risky Skill' (type: python_code, packages: 0)
+2026-11-05 18:08:11 [    INFO] Security scan result: HIGH
+2026-11-05 18:08:11 [ WARNING] Skill 'Risky Skill' marked as Untrusted (risk: HIGH)
+2026-11-05 18:08:11 [    INFO] Imported skill 'Risky Skill' (id: 82bee1c2-1245-44df-bbe5-3d445755e516, status: Untrusted)
+PASSED                                                                   [ 75%]
+tests/test_skill_registry_service.py::TestSkillImportSecurity::test_security_scan_result_stored 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] EscalationManager initialized
+2026-11-05 18:08:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:11 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:11 [    INFO] Parsed skill 'Test Skill' (type: prompt_only, packages: 0)
+2026-11-05 18:08:11 [    INFO] Security scan result: LOW
+2026-11-05 18:08:11 [    INFO] Imported skill 'Test Skill' (id: fbaa5244-9933-426b-9f4b-2c134600b0e1, status: Active)
+PASSED                                                                   [ 76%]
+tests/test_skill_registry_service.py::TestSkillImportSecurity::test_sandbox_enabled_for_python 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:12 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:12 [    INFO] Parsed skill 'Risky Skill' (type: python_code, packages: 0)
+2026-11-05 18:08:12 [    INFO] Security scan result: HIGH
+2026-11-05 18:08:12 [ WARNING] Skill 'Risky Skill' marked as Untrusted (risk: HIGH)
+2026-11-05 18:08:12 [    INFO] Imported skill 'Risky Skill' (id: 9065564c-8429-4558-b45a-1904c50b2036, status: Untrusted)
+PASSED                                                                   [ 76%]
+tests/test_skill_registry_service.py::TestSkillImportSecurity::test_sandbox_disabled_for_prompt 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:12 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:12 [    INFO] Parsed skill 'Test Skill' (type: prompt_only, packages: 0)
+2026-11-05 18:08:12 [    INFO] Security scan result: LOW
+2026-11-05 18:08:12 [    INFO] Imported skill 'Test Skill' (id: 74629c4f-28c2-4437-a69b-448c4477ae24, status: Active)
+PASSED                                                                   [ 77%]
+tests/test_skill_registry_service.py::TestSkillListing::test_list_skills_all 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:12 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:12 [    INFO] Parsed skill 'Test Skill' (type: prompt_only, packages: 0)
+2026-11-05 18:08:12 [    INFO] Security scan result: LOW
+2026-11-05 18:08:12 [    INFO] Imported skill 'Test Skill' (id: 09b71f03-592b-40f1-b0e2-faeb0e68f5c8, status: Active)
+2026-11-05 18:08:12 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:12 [    INFO] Parsed skill 'Test Skill' (type: prompt_only, packages: 0)
+2026-11-05 18:08:12 [    INFO] Security scan result: LOW
+2026-11-05 18:08:12 [    INFO] Imported skill 'Test Skill' (id: cc02ea65-4d80-4124-9bff-d944a69ce4c1, status: Active)
+2026-11-05 18:08:12 [    INFO] Listed 2 skills (status=None, type=None)
+PASSED                                                                   [ 78%]
+tests/test_skill_registry_service.py::TestSkillListing::test_list_skills_by_status 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:12 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:12 [    INFO] Parsed skill 'Test Skill' (type: prompt_only, packages: 0)
+2026-11-05 18:08:12 [    INFO] Security scan result: LOW
+2026-11-05 18:08:12 [    INFO] Imported skill 'Test Skill' (id: f1a9fe76-235b-46c6-95cb-66c6debf6754, status: Active)
+2026-11-05 18:08:12 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:12 [    INFO] Parsed skill 'Risky Skill' (type: python_code, packages: 0)
+2026-11-05 18:08:12 [    INFO] Security scan result: HIGH
+2026-11-05 18:08:12 [ WARNING] Skill 'Risky Skill' marked as Untrusted (risk: HIGH)
+2026-11-05 18:08:12 [    INFO] Imported skill 'Risky Skill' (id: d319f118-6b76-42ee-ba73-7da5bd86ee7c, status: Untrusted)
+2026-11-05 18:08:12 [    INFO] Listed 1 skills (status=Active, type=None)
+2026-11-05 18:08:12 [    INFO] Listed 1 skills (status=Untrusted, type=None)
+PASSED                                                                   [ 79%]
+tests/test_skill_registry_service.py::TestSkillListing::test_list_skills_by_type 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:12 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:12 [    INFO] Parsed skill 'Test Skill' (type: prompt_only, packages: 0)
+2026-11-05 18:08:12 [    INFO] Security scan result: LOW
+2026-11-05 18:08:12 [    INFO] Imported skill 'Test Skill' (id: 8a1e2e47-c561-4a46-b3c8-27f896a6ab27, status: Active)
+2026-11-05 18:08:12 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:12 [    INFO] Parsed skill 'Risky Skill' (type: python_code, packages: 0)
+2026-11-05 18:08:12 [    INFO] Security scan result: HIGH
+2026-11-05 18:08:12 [ WARNING] Skill 'Risky Skill' marked as Untrusted (risk: HIGH)
+2026-11-05 18:08:12 [    INFO] Imported skill 'Risky Skill' (id: 6670fb4f-195b-4903-9a62-0606810ac583, status: Untrusted)
+2026-11-05 18:08:12 [    INFO] Listed 1 skills (status=None, type=prompt_only)
+2026-11-05 18:08:12 [    INFO] Listed 1 skills (status=None, type=python_code)
+PASSED                                                                   [ 80%]
+tests/test_skill_registry_service.py::TestSkillListing::test_list_skills_limit 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:12 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:12 [    INFO] Parsed skill 'Test Skill' (type: prompt_only, packages: 0)
+2026-11-05 18:08:12 [    INFO] Security scan result: LOW
+2026-11-05 18:08:12 [    INFO] Imported skill 'Test Skill' (id: cd9d2a9f-808b-4cc2-937a-85b5eb7b24b2, status: Active)
+2026-11-05 18:08:12 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:12 [    INFO] Parsed skill 'Test Skill' (type: prompt_only, packages: 0)
+2026-11-05 18:08:12 [    INFO] Security scan result: LOW
+2026-11-05 18:08:12 [    INFO] Imported skill 'Test Skill' (id: e0652c11-c695-4bf5-aa50-6843a7009250, status: Active)
+2026-11-05 18:08:12 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:12 [    INFO] Parsed skill 'Test Skill' (type: prompt_only, packages: 0)
+2026-11-05 18:08:12 [    INFO] Security scan result: LOW
+2026-11-05 18:08:12 [    INFO] Imported skill 'Test Skill' (id: 4d0e6dac-4439-4b16-919a-a21cc7404985, status: Active)
+2026-11-05 18:08:12 [    INFO] Listed 2 skills (status=None, type=None)
+PASSED                                                                   [ 80%]
+tests/test_skill_registry_service.py::TestSkillListing::test_list_skills_empty 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:12 [    INFO] Listed 0 skills (status=Active, type=None)
+PASSED                                                                   [ 81%]
+tests/test_skill_registry_service.py::TestSkillRetrieval::test_get_skill_by_id 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:12 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:12 [    INFO] Parsed skill 'Test Skill' (type: prompt_only, packages: 0)
+2026-11-05 18:08:12 [    INFO] Security scan result: LOW
+2026-11-05 18:08:12 [    INFO] Imported skill 'Test Skill' (id: d8ed9335-2495-4106-a17e-2ad778c6bd9c, status: Active)
+PASSED                                                                   [ 82%]
+tests/test_skill_registry_service.py::TestSkillRetrieval::test_get_skill_returns_full_metadata 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:12 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:12 [    INFO] Parsed skill 'Test Skill' (type: prompt_only, packages: 0)
+2026-11-05 18:08:12 [    INFO] Security scan result: LOW
+2026-11-05 18:08:12 [    INFO] Imported skill 'Test Skill' (id: 6685c667-5c1e-4e77-aafc-fa28e12c034d, status: Active)
+PASSED                                                                   [ 83%]
+tests/test_skill_registry_service.py::TestSkillRetrieval::test_get_skill_nonexistent_returns_none 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:12 [ WARNING] Skill not found: nonexistent-id
+PASSED                                                                   [ 84%]
+tests/test_skill_registry_service.py::TestSkillRetrieval::test_get_skill_includes_packages 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:12 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:12 [    INFO] Parsed skill 'Python Packages Skill' (type: python_code, packages: 2)
+2026-11-05 18:08:12 [    INFO] Security scan result: LOW
+2026-11-05 18:08:12 [    INFO] Imported skill 'Python Packages Skill' (id: b86aaa7a-7df5-4a11-901d-67d1acfe04db, status: Active)
+PASSED                                                                   [ 84%]
+tests/test_skill_registry_service.py::TestSkillRetrieval::test_get_skill_includes_node_packages 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:12 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:12 [    INFO] Parsed skill 'NPM Packages Skill' (type: prompt_only, packages: 0)
+2026-11-05 18:08:12 [    INFO] Security scan result: LOW
+2026-11-05 18:08:12 [    INFO] Imported skill 'NPM Packages Skill' (id: e9a275be-6bf8-4b29-8bee-6cf76aa5b8f4, status: Active)
+PASSED                                                                   [ 85%]
+tests/test_skill_registry_service.py::TestSkillMetadataExtraction::test_skill_type_detection 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:12 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:12 [    INFO] Parsed skill 'Test Skill' (type: prompt_only, packages: 0)
+2026-11-05 18:08:12 [    INFO] Security scan result: LOW
+2026-11-05 18:08:12 [    INFO] Imported skill 'Test Skill' (id: 473333ef-6cae-41a6-a77e-72efa9157d9b, status: Active)
+2026-11-05 18:08:12 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:12 [    INFO] Parsed skill 'Risky Skill' (type: python_code, packages: 0)
+2026-11-05 18:08:12 [    INFO] Security scan result: HIGH
+2026-11-05 18:08:12 [ WARNING] Skill 'Risky Skill' marked as Untrusted (risk: HIGH)
+2026-11-05 18:08:12 [    INFO] Imported skill 'Risky Skill' (id: af61472b-ecaa-4df1-a0c9-9807f8812ca4, status: Untrusted)
+PASSED                                                                   [ 86%]
+tests/test_skill_registry_service.py::TestSkillMetadataExtraction::test_skill_name_extraction 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:12 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:12 [    INFO] Parsed skill 'Test Skill' (type: prompt_only, packages: 0)
+2026-11-05 18:08:12 [    INFO] Security scan result: LOW
+2026-11-05 18:08:12 [    INFO] Imported skill 'Test Skill' (id: 152de440-fdee-44e2-90c0-280e888c514d, status: Active)
+PASSED                                                                   [ 87%]
+tests/test_skill_registry_service.py::TestSkillMetadataExtraction::test_skill_body_extraction 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:12 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:12 [    INFO] Parsed skill 'Test Skill' (type: prompt_only, packages: 0)
+2026-11-05 18:08:12 [    INFO] Security scan result: LOW
+2026-11-05 18:08:12 [    INFO] Imported skill 'Test Skill' (id: 951c7e4f-ae71-4e45-a431-af564e91d9e5, status: Active)
+PASSED                                                                   [ 88%]
+tests/test_skill_registry_service.py::TestSkillMetadataExtraction::test_skill_metadata_merge 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:12 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:12 [    INFO] Parsed skill 'Test Skill' (type: prompt_only, packages: 0)
+2026-11-05 18:08:12 [    INFO] Security scan result: LOW
+2026-11-05 18:08:12 [    INFO] Imported skill 'Test Skill' (id: 6ac41b16-160d-4da5-ac99-5c832efbb210, status: Active)
+PASSED                                                                   [ 88%]
+tests/test_skill_registry_service.py::TestSkillPromotion::test_promote_skill_updates_status 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:12 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:12 [    INFO] Parsed skill 'Risky Skill' (type: python_code, packages: 0)
+2026-11-05 18:08:12 [    INFO] Security scan result: HIGH
+2026-11-05 18:08:12 [ WARNING] Skill 'Risky Skill' marked as Untrusted (risk: HIGH)
+2026-11-05 18:08:12 [    INFO] Imported skill 'Risky Skill' (id: 3c9957c9-6229-432d-9ef4-74103f7a63d8, status: Untrusted)
+2026-11-05 18:08:12 [    INFO] Promoted skill 'Risky Skill' from Untrusted to Active
+PASSED                                                                   [ 89%]
+tests/test_skill_registry_service.py::TestSkillPromotion::test_promote_already_active_returns_message 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:12 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:12 [    INFO] Parsed skill 'Test Skill' (type: prompt_only, packages: 0)
+2026-11-05 18:08:12 [    INFO] Security scan result: LOW
+2026-11-05 18:08:12 [    INFO] Imported skill 'Test Skill' (id: 8448d14b-76cc-475b-aa43-1cb35fa55b2f, status: Active)
+2026-11-05 18:08:12 [ WARNING] Skill '8448d14b-76cc-475b-aa43-1cb35fa55b2f' is already Active
+PASSED                                                                   [ 90%]
+tests/test_skill_registry_service.py::TestSkillPromotion::test_promote_nonexistent_raises_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 91%]
+tests/test_skill_registry_service.py::TestSkillPromotion::test_promote_returns_previous_status 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:12 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:12 [    INFO] Parsed skill 'Risky Skill' (type: python_code, packages: 0)
+2026-11-05 18:08:12 [    INFO] Security scan result: HIGH
+2026-11-05 18:08:12 [ WARNING] Skill 'Risky Skill' marked as Untrusted (risk: HIGH)
+2026-11-05 18:08:12 [    INFO] Imported skill 'Risky Skill' (id: 79024ef7-74d6-46c2-be3f-3faa6b91819d, status: Untrusted)
+2026-11-05 18:08:12 [    INFO] Promoted skill 'Risky Skill' from Untrusted to Active
+PASSED                                                                   [ 92%]
+tests/test_skill_registry_service.py::TestSkillPromotion::test_promote_logs_info 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:12 [    INFO] Importing skill from source: raw_content
+2026-11-05 18:08:12 [    INFO] Parsed skill 'Risky Skill' (type: python_code, packages: 0)
+2026-11-05 18:08:12 [    INFO] Security scan result: HIGH
+2026-11-05 18:08:12 [ WARNING] Skill 'Risky Skill' marked as Untrusted (risk: HIGH)
+2026-11-05 18:08:12 [    INFO] Imported skill 'Risky Skill' (id: c64117bc-c7e7-4763-9254-2224a5f03eb9, status: Untrusted)
+2026-11-05 18:08:12 [    INFO] Promoted skill 'Risky Skill' from Untrusted to Active
+PASSED                                                                   [ 92%]
+tests/test_skill_registry_service.py::TestNpmPackageParsing::test_parse_npm_regular_package 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 93%]
+tests/test_skill_registry_service.py::TestNpmPackageParsing::test_parse_npm_scoped_package 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 94%]
+tests/test_skill_registry_service.py::TestNpmPackageParsing::test_parse_npm_no_version 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 95%]
+tests/test_skill_registry_service.py::TestNpmPackageParsing::test_parse_npm_double_at_scoped 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 96%]
+tests/test_skill_registry_service.py::TestDetectSkillType::test_detect_python_with_packages 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 96%]
+tests/test_skill_registry_service.py::TestDetectSkillType::test_detect_npm_with_node_packages 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 97%]
+tests/test_skill_registry_service.py::TestDetectSkillType::test_detect_python_from_extension 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 98%]
+tests/test_skill_registry_service.py::TestDetectSkillType::test_detect_npm_from_extension 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 99%]
+tests/test_skill_registry_service.py::TestDetectSkillType::test_detect_npm_from_code_block 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:08:12 [    INFO] EscalationManager initialized
+2026-11-05 18:08:12 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 252 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_community_skill_write_contract.py::test_authority_and_promote_roundtrip
+  /private/tmp/atom-community-skill-verify/backend/core/graphrag_engine.py:203: SyntaxWarning: "\%" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\%"? A raw string is also an option.
+    Escaped pattern where % and _ are escaped to \%
+
+tests/test_covpush_skill_registry.py: 32 warnings
+tests/test_covpush_w116_skill_registry.py: 14 warnings
+tests/test_skill_registry_service.py: 45 warnings
+  /private/tmp/atom-community-skill-verify/backend/tests/conftest.py:507: SAWarning: Cannot correctly sort tables; there are unresolvable cycles between tables "agent_divisions, agent_registry, canvases, mini_apps", which is usually caused by mutually dependent foreign key constraints.  Foreign key constraints involving these tables will not be considered; this warning may raise an error in a future release.
+    for table in reversed(_all_models_base.metadata.sorted_tables):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+====================== 126 passed, 351 warnings in 32.98s ======================

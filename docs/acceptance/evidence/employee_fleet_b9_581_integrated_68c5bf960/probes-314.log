@@ -1,0 +1,51 @@
+...................                                                      [100%]
+=============================== warnings summary ===============================
+core/fleet_orchestration/scaling_proposal_service.py:48
+  /private/tmp/atom-fleet-verify/backend/core/fleet_orchestration/scaling_proposal_service.py:48: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class ScalingProposal(BaseModel):
+
+core/fleet_orchestration/fleet_scaler_service.py:43
+  /private/tmp/atom-fleet-verify/backend/core/fleet_orchestration/fleet_scaler_service.py:43: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class ScalingOperation(BaseModel):
+
+core/graphrag_engine.py:203
+  /private/tmp/atom-fleet-verify/backend/core/graphrag_engine.py:203: SyntaxWarning: "\%" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\%"? A raw string is also an option.
+    Escaped pattern where % and _ are escaped to \%
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 38 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+test_verifier_orch07_b9_bindings.py::test_old_handler_route_does_not_certify_current_unserved_call
+test_verifier_orch02_581_contracts.py::test_empty_capabilities_are_not_domain_qualification
+test_verifier_orch02_581_contracts.py::test_enforced_response_finalizes_its_durable_execution[success]
+test_verifier_orch02_581_contracts.py::test_enforced_response_finalizes_its_durable_execution[failure]
+test_verifier_orch02_581_contracts.py::test_enforced_response_finalizes_its_durable_execution[cancelled]
+test_verifier_orch02_581_contracts.py::test_shared_audit_bracket_uses_same_execution_and_truthful_success
+test_verifier_orch02_581_contracts.py::test_contradictory_or_terminal_failure_is_not_specialist_success[raw0]
+test_verifier_orch02_581_contracts.py::test_contradictory_or_terminal_failure_is_not_specialist_success[raw1]
+  /private/tmp/atom-fleet-verify/backend/core/lancedb_handler.py:407: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    names = set(self.db.table_names())
+
+test_verifier_orch07_b9_bindings.py: 2 warnings
+test_verifier_orch02_581_contracts.py: 14 warnings
+  /Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/asyncio/events.py:94: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    self._context.run(self._callback, *self._args)
+
+test_verifier_orch07_b9_bindings.py::test_old_handler_route_does_not_certify_current_unserved_call
+test_verifier_orch02_581_contracts.py::test_empty_capabilities_are_not_domain_qualification
+test_verifier_orch02_581_contracts.py::test_enforced_response_finalizes_its_durable_execution[success]
+test_verifier_orch02_581_contracts.py::test_enforced_response_finalizes_its_durable_execution[failure]
+test_verifier_orch02_581_contracts.py::test_enforced_response_finalizes_its_durable_execution[cancelled]
+test_verifier_orch02_581_contracts.py::test_shared_audit_bracket_uses_same_execution_and_truthful_success
+test_verifier_orch02_581_contracts.py::test_contradictory_or_terminal_failure_is_not_specialist_success[raw0]
+test_verifier_orch02_581_contracts.py::test_contradictory_or_terminal_failure_is_not_specialist_success[raw1]
+  /private/tmp/atom-fleet-verify/backend/core/lancedb_handler.py:620: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    if table_name in self.db.table_names():
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+19 passed, 74 warnings in 16.75s

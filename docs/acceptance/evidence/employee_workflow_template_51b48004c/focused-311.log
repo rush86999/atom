@@ -1,0 +1,303 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-05 20:37:44 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+
+tests/test_workflow_template_decision_contract.py::test_create_template_with_audit_and_no_raw_content 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:37:44 [    INFO] EscalationManager initialized
+2026-11-05 20:37:44 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:37:44 [    INFO] EscalationManager initialized
+2026-11-05 20:37:44 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:37:44 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 20:37:44 [    INFO] AgentTaskRegistry initialized
+2026-11-05 20:37:45 [    INFO] Template manager initialized with 14 templates
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:37:45 [    INFO] Template created: template_d9e30fca0d17
+2026-11-05 20:37:45 [    INFO] HTTP Request: POST http://testserver/api/workflow-templates/?operation_id=create-one "HTTP/1.1 200 OK"
+PASSED                                                                   [  3%]
+tests/test_workflow_template_decision_contract.py::test_member_cannot_create_or_update 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:37:46 [    INFO] Template manager initialized with 14 templates
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:37:46 [    INFO] HTTP Request: POST http://testserver/api/workflow-templates/ "HTTP/1.1 403 Forbidden"
+2026-11-05 20:37:46 [    INFO] Template created: template_213f288cdbea
+2026-11-05 20:37:46 [    INFO] HTTP Request: POST http://testserver/api/workflow-templates/?operation_id=create-one "HTTP/1.1 200 OK"
+2026-11-05 20:37:46 [    INFO] HTTP Request: PUT http://testserver/api/workflow-templates/template_213f288cdbea "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [  7%]
+tests/test_workflow_template_decision_contract.py::test_create_replay_changed_material_and_missing_target 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:37:46 [    INFO] Template manager initialized with 14 templates
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:37:46 [    INFO] Template created: template_ee77ac877d00
+2026-11-05 20:37:46 [    INFO] HTTP Request: POST http://testserver/api/workflow-templates/?operation_id=create-replay "HTTP/1.1 200 OK"
+2026-11-05 20:37:46 [    INFO] Template created: template_ee77ac877d00
+2026-11-05 20:37:46 [    INFO] HTTP Request: POST http://testserver/api/workflow-templates/?operation_id=create-replay "HTTP/1.1 200 OK"
+2026-11-05 20:37:46 [    INFO] HTTP Request: POST http://testserver/api/workflow-templates/?operation_id=create-replay "HTTP/1.1 409 Conflict"
+2026-11-05 20:37:46 [    INFO] HTTP Request: POST http://testserver/api/workflow-templates/?operation_id=create-replay "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 11%]
+tests/test_workflow_template_decision_contract.py::test_update_template_with_audit_and_preserved_material 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:37:47 [    INFO] Template manager initialized with 14 templates
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:37:47 [    INFO] Template created: template_7f49f2e5eb24
+2026-11-05 20:37:47 [    INFO] HTTP Request: POST http://testserver/api/workflow-templates/?operation_id=create-one "HTTP/1.1 200 OK"
+2026-11-05 20:37:47 [    INFO] Template manager initialized with 15 templates
+2026-11-05 20:37:47 [    INFO] Template manager initialized with 15 templates
+2026-11-05 20:37:47 [    INFO] HTTP Request: PUT http://testserver/api/workflow-templates/template_7f49f2e5eb24?operation_id=update-one "HTTP/1.1 200 OK"
+PASSED                                                                   [ 14%]
+tests/test_workflow_template_decision_contract.py::test_matching_update_is_no_change 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:37:48 [    INFO] Template manager initialized with 14 templates
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:37:48 [    INFO] Template created: template_e79b615f3d8c
+2026-11-05 20:37:48 [    INFO] HTTP Request: POST http://testserver/api/workflow-templates/?operation_id=create-one "HTTP/1.1 200 OK"
+2026-11-05 20:37:48 [    INFO] Template manager initialized with 15 templates
+2026-11-05 20:37:48 [    INFO] HTTP Request: PUT http://testserver/api/workflow-templates/template_e79b615f3d8c "HTTP/1.1 200 OK"
+PASSED                                                                   [ 18%]
+tests/test_workflow_template_decision_contract.py::test_create_existing_id_is_conflict 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:37:49 [    INFO] Template manager initialized with 14 templates
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:37:49 [    INFO] HTTP Request: POST http://testserver/api/workflow-templates/?operation_id=create-collision "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 22%]
+tests/test_workflow_template_decision_contract.py::test_create_audit_rollback_removes_new_file 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:37:50 [    INFO] Template manager initialized with 14 templates
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:37:50 [    INFO] HTTP Request: POST http://testserver/api/workflow-templates/?operation_id=create-rollback "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 25%]
+tests/test_workflow_template_decision_contract.py::test_update_missing_and_empty_body 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:37:51 [    INFO] Template manager initialized with 14 templates
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:37:51 [    INFO] Template manager initialized with 14 templates
+2026-11-05 20:37:51 [    INFO] HTTP Request: PUT http://testserver/api/workflow-templates/missing-id "HTTP/1.1 404 Not Found"
+2026-11-05 20:37:51 [    INFO] Template created: template_f70f16e71b9a
+2026-11-05 20:37:51 [    INFO] HTTP Request: POST http://testserver/api/workflow-templates/?operation_id=create-one "HTTP/1.1 200 OK"
+2026-11-05 20:37:51 [ WARNING] API Error: VALIDATION_ERROR - No updates provided
+2026-11-05 20:37:51 [    INFO] HTTP Request: PUT http://testserver/api/workflow-templates/template_f70f16e71b9a "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 29%]
+tests/test_workflow_template_decision_contract.py::test_stale_peer_edit_before_claim_refuses 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:37:52 [    INFO] Template manager initialized with 14 templates
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:37:52 [    INFO] Template created: template_4ab2da8a9be0
+2026-11-05 20:37:52 [    INFO] HTTP Request: POST http://testserver/api/workflow-templates/?operation_id=create-one "HTTP/1.1 200 OK"
+2026-11-05 20:37:52 [    INFO] Template manager initialized with 15 templates
+2026-11-05 20:37:52 [    INFO] Template manager initialized with 15 templates
+2026-11-05 20:37:52 [    INFO] HTTP Request: PUT http://testserver/api/workflow-templates/template_4ab2da8a9be0?operation_id=stale "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 33%]
+tests/test_workflow_template_decision_contract.py::test_update_replay_changed_material_and_later_revision 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:37:53 [    INFO] Template manager initialized with 14 templates
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:37:53 [    INFO] Template created: template_0a1f24787c5e
+2026-11-05 20:37:53 [    INFO] HTTP Request: POST http://testserver/api/workflow-templates/?operation_id=create-one "HTTP/1.1 200 OK"
+2026-11-05 20:37:53 [    INFO] Template manager initialized with 15 templates
+2026-11-05 20:37:53 [    INFO] Template manager initialized with 15 templates
+2026-11-05 20:37:53 [    INFO] HTTP Request: PUT http://testserver/api/workflow-templates/template_0a1f24787c5e?operation_id=update-replay "HTTP/1.1 200 OK"
+2026-11-05 20:37:53 [    INFO] Template manager initialized with 15 templates
+2026-11-05 20:37:53 [    INFO] HTTP Request: PUT http://testserver/api/workflow-templates/template_0a1f24787c5e?operation_id=update-replay "HTTP/1.1 200 OK"
+2026-11-05 20:37:53 [    INFO] Template manager initialized with 15 templates
+2026-11-05 20:37:53 [    INFO] HTTP Request: PUT http://testserver/api/workflow-templates/template_0a1f24787c5e?operation_id=update-replay "HTTP/1.1 409 Conflict"
+2026-11-05 20:37:53 [    INFO] Template manager initialized with 15 templates
+2026-11-05 20:37:53 [    INFO] HTTP Request: PUT http://testserver/api/workflow-templates/template_0a1f24787c5e?operation_id=update-replay "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 37%]
+tests/test_workflow_template_decision_contract.py::test_authority_change_before_claim_refuses[deactivate] 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:37:53 [    INFO] Template manager initialized with 14 templates
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:37:54 [    INFO] Template created: template_2e5697bd6a3e
+2026-11-05 20:37:54 [    INFO] HTTP Request: POST http://testserver/api/workflow-templates/?operation_id=create-one "HTTP/1.1 200 OK"
+2026-11-05 20:37:54 [    INFO] Template manager initialized with 15 templates
+2026-11-05 20:37:54 [    INFO] Template manager initialized with 15 templates
+2026-11-05 20:37:54 [    INFO] HTTP Request: PUT http://testserver/api/workflow-templates/template_2e5697bd6a3e?operation_id=authority "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 40%]
+tests/test_workflow_template_decision_contract.py::test_authority_change_before_claim_refuses[demote] 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:37:54 [    INFO] Template manager initialized with 14 templates
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:37:54 [    INFO] Template created: template_027eebe360a0
+2026-11-05 20:37:54 [    INFO] HTTP Request: POST http://testserver/api/workflow-templates/?operation_id=create-one "HTTP/1.1 200 OK"
+2026-11-05 20:37:54 [    INFO] Template manager initialized with 15 templates
+2026-11-05 20:37:54 [    INFO] Template manager initialized with 15 templates
+2026-11-05 20:37:54 [    INFO] HTTP Request: PUT http://testserver/api/workflow-templates/template_027eebe360a0?operation_id=authority "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 44%]
+tests/test_workflow_template_decision_contract.py::test_audit_rollback_restores_prior_template 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:37:55 [    INFO] Template manager initialized with 14 templates
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:37:55 [    INFO] Template created: template_279f42aeffb2
+2026-11-05 20:37:55 [    INFO] HTTP Request: POST http://testserver/api/workflow-templates/?operation_id=create-one "HTTP/1.1 200 OK"
+2026-11-05 20:37:55 [    INFO] Template manager initialized with 15 templates
+2026-11-05 20:37:55 [    INFO] Template manager initialized with 15 templates
+2026-11-05 20:37:55 [    INFO] HTTP Request: PUT http://testserver/api/workflow-templates/template_279f42aeffb2?operation_id=rollback "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 48%]
+tests/test_workflow_template_decision_contract.py::test_post_commit_readback_is_committed_unverified 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:37:56 [    INFO] Template manager initialized with 14 templates
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:37:56 [    INFO] Template created: template_d6bd566113eb
+2026-11-05 20:37:56 [    INFO] HTTP Request: POST http://testserver/api/workflow-templates/?operation_id=create-one "HTTP/1.1 200 OK"
+2026-11-05 20:37:56 [    INFO] Template manager initialized with 15 templates
+2026-11-05 20:37:56 [    INFO] Template manager initialized with 15 templates
+2026-11-05 20:37:56 [    INFO] HTTP Request: PUT http://testserver/api/workflow-templates/template_d6bd566113eb?operation_id=readback "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 51%]
+tests/test_workflow_template_decision_contract.py::test_lost_confirmation_is_effect_unknown_with_identity 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:37:57 [    INFO] Template manager initialized with 14 templates
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:37:57 [    INFO] Template created: template_56d660b0953e
+2026-11-05 20:37:57 [    INFO] HTTP Request: POST http://testserver/api/workflow-templates/?operation_id=create-one "HTTP/1.1 200 OK"
+2026-11-05 20:37:57 [    INFO] Template manager initialized with 15 templates
+2026-11-05 20:37:57 [    INFO] Template manager initialized with 15 templates
+2026-11-05 20:37:57 [   ERROR] workflow-template decision outcome unknown: operation_id=workflow-template:update:lost-confirmation target=template_56d660b0953e error_class=RuntimeError
+PASSED                                                                   [ 55%]
+tests/test_workflow_template_decision_contract.py::test_wrong_audit_receipt_is_never_verified[action] 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:37:57 [    INFO] Template manager initialized with 14 templates
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:37:57 [    INFO] Template created: template_bb8fba191b57
+2026-11-05 20:37:57 [    INFO] HTTP Request: POST http://testserver/api/workflow-templates/?operation_id=create-one "HTTP/1.1 200 OK"
+2026-11-05 20:37:57 [    INFO] Template manager initialized with 15 templates
+2026-11-05 20:37:57 [    INFO] Template manager initialized with 15 templates
+2026-11-05 20:37:57 [    INFO] HTTP Request: PUT http://testserver/api/workflow-templates/template_bb8fba191b57?operation_id=audit-action "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 59%]
+tests/test_workflow_template_decision_contract.py::test_wrong_audit_receipt_is_never_verified[user_id] 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:37:58 [    INFO] Template manager initialized with 14 templates
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:37:58 [    INFO] Template created: template_06f8a2b945aa
+2026-11-05 20:37:58 [    INFO] HTTP Request: POST http://testserver/api/workflow-templates/?operation_id=create-one "HTTP/1.1 200 OK"
+2026-11-05 20:37:58 [    INFO] Template manager initialized with 15 templates
+2026-11-05 20:37:58 [    INFO] Template manager initialized with 15 templates
+2026-11-05 20:37:58 [    INFO] HTTP Request: PUT http://testserver/api/workflow-templates/template_06f8a2b945aa?operation_id=audit-user_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 62%]
+tests/test_workflow_template_decision_contract.py::test_wrong_audit_receipt_is_never_verified[tenant_id] 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:37:59 [    INFO] Template manager initialized with 14 templates
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:37:59 [    INFO] Template created: template_5a35d76773f7
+2026-11-05 20:37:59 [    INFO] HTTP Request: POST http://testserver/api/workflow-templates/?operation_id=create-one "HTTP/1.1 200 OK"
+2026-11-05 20:37:59 [    INFO] Template manager initialized with 15 templates
+2026-11-05 20:37:59 [    INFO] Template manager initialized with 15 templates
+2026-11-05 20:37:59 [    INFO] HTTP Request: PUT http://testserver/api/workflow-templates/template_5a35d76773f7?operation_id=audit-tenant_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 66%]
+tests/test_workflow_template_decision_contract.py::test_wrong_audit_receipt_is_never_verified[resource] 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:38:00 [    INFO] Template manager initialized with 14 templates
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:38:00 [    INFO] Template created: template_9b55948699e4
+2026-11-05 20:38:00 [    INFO] HTTP Request: POST http://testserver/api/workflow-templates/?operation_id=create-one "HTTP/1.1 200 OK"
+2026-11-05 20:38:00 [    INFO] Template manager initialized with 15 templates
+2026-11-05 20:38:00 [    INFO] Template manager initialized with 15 templates
+2026-11-05 20:38:00 [    INFO] HTTP Request: PUT http://testserver/api/workflow-templates/template_9b55948699e4?operation_id=audit-resource "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 70%]
+tests/test_workflow_template_decision_contract.py::test_wrong_audit_receipt_is_never_verified[success] 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:38:00 [    INFO] Template manager initialized with 14 templates
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:38:01 [    INFO] Template created: template_1cb068c05fdd
+2026-11-05 20:38:01 [    INFO] HTTP Request: POST http://testserver/api/workflow-templates/?operation_id=create-one "HTTP/1.1 200 OK"
+2026-11-05 20:38:01 [    INFO] Template manager initialized with 15 templates
+2026-11-05 20:38:01 [    INFO] Template manager initialized with 15 templates
+2026-11-05 20:38:01 [    INFO] HTTP Request: PUT http://testserver/api/workflow-templates/template_1cb068c05fdd?operation_id=audit-success "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 74%]
+tests/test_workflow_template_decision_contract.py::test_wrong_audit_receipt_is_never_verified[security_level] 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:38:01 [    INFO] Template manager initialized with 14 templates
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:38:01 [    INFO] Template created: template_a27a5c0bff77
+2026-11-05 20:38:01 [    INFO] HTTP Request: POST http://testserver/api/workflow-templates/?operation_id=create-one "HTTP/1.1 200 OK"
+2026-11-05 20:38:01 [    INFO] Template manager initialized with 15 templates
+2026-11-05 20:38:01 [    INFO] Template manager initialized with 15 templates
+2026-11-05 20:38:01 [    INFO] HTTP Request: PUT http://testserver/api/workflow-templates/template_a27a5c0bff77?operation_id=audit-security_level "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 77%]
+tests/test_workflow_template_decision_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_target_id] 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:38:02 [    INFO] Template manager initialized with 14 templates
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:38:02 [    INFO] Template created: template_e3b085349ec5
+2026-11-05 20:38:02 [    INFO] HTTP Request: POST http://testserver/api/workflow-templates/?operation_id=create-one "HTTP/1.1 200 OK"
+2026-11-05 20:38:02 [    INFO] Template manager initialized with 15 templates
+2026-11-05 20:38:02 [    INFO] Template manager initialized with 15 templates
+2026-11-05 20:38:02 [    INFO] HTTP Request: PUT http://testserver/api/workflow-templates/template_e3b085349ec5?operation_id=audit-metadata_target_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 81%]
+tests/test_workflow_template_decision_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_prior_digest] 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:38:03 [    INFO] Template manager initialized with 14 templates
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:38:03 [    INFO] Template created: template_07d70b518796
+2026-11-05 20:38:03 [    INFO] HTTP Request: POST http://testserver/api/workflow-templates/?operation_id=create-one "HTTP/1.1 200 OK"
+2026-11-05 20:38:03 [    INFO] Template manager initialized with 15 templates
+2026-11-05 20:38:03 [    INFO] Template manager initialized with 15 templates
+2026-11-05 20:38:03 [    INFO] HTTP Request: PUT http://testserver/api/workflow-templates/template_07d70b518796?operation_id=audit-metadata_prior_digest "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 85%]
+tests/test_workflow_template_decision_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_result_digest] 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:38:04 [    INFO] Template manager initialized with 14 templates
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:38:04 [    INFO] Template created: template_8ad6f7beda26
+2026-11-05 20:38:04 [    INFO] HTTP Request: POST http://testserver/api/workflow-templates/?operation_id=create-one "HTTP/1.1 200 OK"
+2026-11-05 20:38:04 [    INFO] Template manager initialized with 15 templates
+2026-11-05 20:38:04 [    INFO] Template manager initialized with 15 templates
+2026-11-05 20:38:04 [    INFO] HTTP Request: PUT http://testserver/api/workflow-templates/template_8ad6f7beda26?operation_id=audit-metadata_result_digest "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 88%]
+tests/test_workflow_template_decision_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_request_digest] 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:38:05 [    INFO] Template manager initialized with 14 templates
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:38:05 [    INFO] Template created: template_488b0039264a
+2026-11-05 20:38:05 [    INFO] HTTP Request: POST http://testserver/api/workflow-templates/?operation_id=create-one "HTTP/1.1 200 OK"
+2026-11-05 20:38:05 [    INFO] Template manager initialized with 15 templates
+2026-11-05 20:38:05 [    INFO] Template manager initialized with 15 templates
+2026-11-05 20:38:05 [    INFO] HTTP Request: PUT http://testserver/api/workflow-templates/template_488b0039264a?operation_id=audit-metadata_request_digest "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 92%]
+tests/test_workflow_template_decision_contract.py::test_path_traversal_template_id_is_not_found 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:38:06 [    INFO] Template manager initialized with 14 templates
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:38:06 [    INFO] HTTP Request: PUT http://testserver/api/workflow-templates/..%2F..%2Fetc%2Fpasswd "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 96%]
+tests/test_workflow_template_decision_contract.py::test_anonymous_requests_are_refused 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:38:06 [    INFO] Template manager initialized with 14 templates
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:38:06 [    INFO] HTTP Request: POST http://testserver/api/workflow-templates/ "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+tests/test_workflow_template_decision_contract.py::test_create_template_with_audit_and_no_raw_content
+  /private/tmp/atom-workflow-template/backend/core/graphrag_engine.py:196: DeprecationWarning: invalid escape sequence '\%'
+    """
+
+tests/test_workflow_template_decision_contract.py::test_update_missing_and_empty_body
+  /private/tmp/atom-workflow-template/backend/api/workflow_template_routes.py:373: DeprecationWarning: 'HTTP_422_UNPROCESSABLE_ENTITY' is deprecated. Use 'HTTP_422_UNPROCESSABLE_CONTENT' instead.
+    raise router.validation_error(
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 27 passed, 7 warnings in 37.79s ========================

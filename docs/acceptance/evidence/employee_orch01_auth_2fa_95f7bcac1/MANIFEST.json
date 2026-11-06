@@ -1,0 +1,71 @@
+{
+  "accepted_canvas_base": "fe401e1112fdb544ce07650f7733519c14b25790",
+  "accepted_canvas_runtime": "82ac9681ad66b276a135ce06e1d2b7f03cbb30d9",
+  "artifacts": {
+    "README.md": "9e1650c31377a08662e2ac5ea2dac460107af8116b83a8d3b4ba19c7cc45b5cf",
+    "TEST_RESULTS.md": "ad217611eb338c8437d69cf08a773f723b9d2b4f40ab85e3faa4d71cb6e1a97f",
+    "affected-311.log": "2be5250f8a483097137941b78e22ff2eec5ff87289f54edc304bdabcba203fa6",
+    "affected-314.log": "692a551098286e8c6eb899c345ea642b2bd44b6d31737a117b7f1a51a47435b1",
+    "base-pre-existing.log": "1139d22c23867417a8e74bb1b72c5e6a203312bc608616bea6ba2f48bdebaa3e",
+    "boundary-probes-311.log": "f750181d37dfd5da814b769cf03ae3a97d5415b59758655cc1c111fc8f4bea1b",
+    "boundary-probes-314.log": "726dbbbe544da8f87e31cbd0686f71c815a9b0d77e1f58484d6771e427c65062",
+    "focused-311.log": "d0365124089b5c29240358ee9c681b8efc087342a56e9528e387536b4f7eb9ad",
+    "focused-314.log": "ba66898e83219c1c74103e8437ed995496afb71f64fa119f7ff29670a58fe093",
+    "migration-311.log": "6666b88999c64107389ec2f2e87768aa996f1f94750b1d77702fbafcad5e4646",
+    "migration-314.log": "02a8485745216db1ddb7c6fbf418cda06d71bf524719820f57e6666d058cd52b",
+    "original-47-frozen.log": "b1bf244f3592ace4b7fbf9e8aa3516cbf12bfe90699d6e3a83633144df9406f5",
+    "routes.json": "79a46676ee97de30d5e0c7581baa6e35f682bcd455b948297938808db9aced9c",
+    "verification.json": "22eae74bd20477c4243ebd7316dd67abb8a2a6ca14248ea134625121578e6328",
+    "w80b-2fa-311.log": "6bf39cd31b90b4f20fc046e230757e6d2942de851125d3e64f52578c04ebb192",
+    "w80b-2fa-314.log": "c5d0a3ad77b877581d8b21f8e3b36466b9d41f269e366d16f084e2959bc2b130"
+  },
+  "boundaries": [
+    "five routes only; login/password/SSO/passkeys/mobile biometric/provider disconnect remain outside",
+    "no live account/factor change, credential/provider setup, message, spend or deployment",
+    "no second authentication/OTP/review/approval/operation engine",
+    "PostgreSQL concurrency/soak and live identity-provider operation not claimed",
+    "registration counts do not establish runtime qualification",
+    "whole-app ORACLE-01 remains open",
+    "accepted canvas/feedback/wait/employee lanes and historical 111/123/tags/model scores unchanged"
+  ],
+  "branch": "codex/oracle01-auth-2fa-20261105",
+  "checks": {
+    "focused_python314": "82 passed",
+    "focused_python311": "82 passed",
+    "original_47_frozen_python314": "47 passed",
+    "boundary_probes_python314": "12 passed",
+    "boundary_probes_python311": "12 passed",
+    "migration_python314": "1 passed",
+    "migration_python311": "1 passed",
+    "w80b_2fa_python314": "33 passed, 308 deselected",
+    "w80b_2fa_python311": "33 passed, 308 deselected",
+    "affected_python314": "199 passed, 1 pre-existing failure",
+    "affected_python311": "199 passed, 1 pre-existing failure",
+    "selections_overlap": true,
+    "model_calls": 0,
+    "provider_calls": 0
+  },
+  "exclusions": {
+    "intervention_default_workspace": "pre-existing on accepted base fe401e111",
+    "w75_auth_environment": "JWT-secret/rate-limit test-seam failures reproduce on accepted base; unrelated and excluded",
+    "w80b_workflow_debug": "unrelated classes deselected via -k 2FA"
+  },
+  "executed_source": "95f7bcac1a0375b4f0465a77e15130f68fc9665d",
+  "schema": "atom-employee-evidence-1",
+  "source_files": {
+    "backend/api/auth_2fa_routes.py": "83d187f0c1d78bf2c2514963b7ad94dab02a7b48d9553d028420b144bb42dd2e",
+    "backend/core/auth_2fa_write_service.py": "52aed1171996d21f325b1888ebb9288f61a4ecc2b1ed83dec295340e7b5dc147",
+    "backend/core/hitl_service.py": "8c4d232a8277954d9cc07483d7af2ce475e5f6dd28cf3a7d2e2b4227193ac6f6",
+    "backend/core/models.py": "4b238c35f6f235d94779f4598040f0c9fcd39599c26705e7016e8b045b51c3ef",
+    "backend/alembic/versions/20261105_auth_2fa_durable_state.py": "5e74c3f4fe037a8cd3233d561283edaca0f0141654600722321be8838f4201bf",
+    "backend/tests/test_covpush_w89_auth_2fa.py": "37515851da985aa83c646f77bd6c2c8d3679c1e0d521829ecd23af29ddb2f595",
+    "backend/tests/test_covpush_w80b_api_routes.py": "b1f1d05cf0c40efda56672f5a55ed1070a47c6a412c084b76bd5a4ffb171a11f",
+    "backend/tests/test_oracle_auth_2fa_writes.py": "a4c8add79cf5d8a7fb0d741e19c6f011abb8d8e9c46eb688439503f9e509a8c1",
+    "backend/tests/test_auth_2fa_boundary_repair.py": "79bd527bfa48d19cf1945cccf05b37f254aee182b91927b3405e0eaa5e16b761",
+    "backend/tests/test_auth_2fa_migration_upgrade.py": "36a2b4aac060dbfc48c6fff9b935db7e8cac235e75d3d80f04d69103d83dba29",
+    "backend/main_api_app.py": "83f6c051d58d39c70c94617cd6eedc9ce65e6414047c1297899dc6e771321af0",
+    "backend/core/lazy_integration_registry.py": "98464346c6b1d00a8f511fff46e3d9ce305f1c720c0adcaaf118f5a335967698"
+  },
+  "status": "five-route auth/2FA boundary repair submitted for independent verification; supersedes ef4a2fb4d with stale-mirror cleanup and guarded migration re-entry; whole-app ORACLE-01 remains open",
+  "tree_clean_at_execution": true
+}

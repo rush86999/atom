@@ -6,14 +6,27 @@ Integrates the advanced workflow orchestrator with the main API system
 
 import asyncio
 import logging
+import os
 from typing import Any, Dict, List
 from advanced_workflow_orchestrator import WorkflowContext, WorkflowStatus, get_orchestrator
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException
 from pydantic import BaseModel
+from sqlalchemy.orm import Session
 
+from core.agents.workflow_blueprint import (
+    BlueprintGenerationError,
+    BlueprintValidationError,
+    compile_blueprint,
+)
+from core.database import get_db
 from core.models import User
 from core.rbac_service import Permission
 from core.security_dependencies import require_permission
+from core.workflow_blueprint_service import (
+    load_blueprint,
+    persist_blueprint,
+    register_compiled_workflow,
+)
 from core.workflow_security import require_workflow_executor_orchestrator
 
 logger = logging.getLogger(__name__)
@@ -353,55 +366,145 @@ class AgentWorkflowRequest(BaseModel):
 async def generate_workflow_from_agent(
     request: AgentWorkflowRequest,
     current_user: User = Depends(require_permission(Permission.WORKFLOW_RUN)),
+    db: Session = Depends(get_db),
 ):
+    """Design, validate and durably persist one workflow blueprint.
+
+    The model owns the plain-language design. The server owns DAG validation,
+    HITL insertion, workspace/tenant scope, persistence and the readback
+    contract. This endpoint never executes the workflow or activates its
+    trigger, and a fallback/template is never presented as a model blueprint.
     """
-    Generate a real workflow from a user prompt using Queen Agent.
-    Bridges the NLU routing and Queen blueprinting with the Workflow Engine.
-    """
+    if not str(request.prompt or "").strip():
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error": "workflow_request_empty",
+                "message": "a workflow request is required",
+            })
+
+    # R69: identity comes from the token — never from the spoofable body
+    # fields (the tenant_id/user_id body fields are kept for backward
+    # compatibility but ignored).
+    tenant_id = str(current_user.tenant_id or "default")
+    workspace_id = str(current_user.workspace_id or "default")
+    user_id = str(current_user.id or "")
+
     try:
-        from core.llm_service import LLMService
         from ai.nlp_engine import NaturalLanguageEngine, RouteCategory
         from core.agents.queen_agent import QueenAgent
+        from core.llm_service import LLMService
 
-        # R69: identity comes from the token — never from the spoofable body
-        # fields (the tenant_id/user_id body fields are kept for backward
-        # compat but ignored).
-        tenant_id = current_user.tenant_id
-        user_id = current_user.id
-
-        # 1. Classify Route (using standard NLU Engine)
         nlu = NaturalLanguageEngine()
-        route = await nlu.classify_route(request.prompt, tenant_id=tenant_id)
+        route = await nlu.classify_route(
+            request.prompt, tenant_id=tenant_id)
+        execution_mode = (
+            "recurring_automation"
+            if route.category == RouteCategory.AUTOMATION else "one_off")
 
-        # 2. Use Queen Agent to design blueprint
-        # In OS, we use workspace_id as the primary identifier, but preserve tenant_id for compatibility.
-        llm = LLMService(tenant_id=tenant_id)
-        queen = QueenAgent(db=None, llm=llm, tenant_id=tenant_id)
-
-        execution_mode = "recurring_automation" if route.category == RouteCategory.AUTOMATION else "one_off"
-
-        blueprint = await queen.generate_blueprint(
-            goal=request.prompt,
+        llm = LLMService(
+            db=db, workspace_id=workspace_id, tenant_id=tenant_id)
+        queen = QueenAgent(
+            db=db, llm=llm, workspace_id=workspace_id,
+            tenant_id=tenant_id)
+        draft = await queen.generate_workflow_blueprint(
+            request.prompt,
+            execution_mode=execution_mode,
+            workspace_id=workspace_id,
             tenant_id=tenant_id,
-            user_id=user_id,
-            execution_mode=execution_mode
+            deadline_seconds=float(os.getenv(
+                "ATOM_WORKFLOW_BLUEPRINT_DEADLINE_SECONDS", "120")),
         )
-
-        # 3. Realize into Orchestrator
-        workflow_id = await queen.realize_blueprint(blueprint, tenant_id=tenant_id)
-
-        # 4. Return the result for UI rendering
+        compiled = compile_blueprint(
+            draft, execution_mode=execution_mode,
+            workspace_id=workspace_id, tenant_id=tenant_id)
+        stored = persist_blueprint(
+            db,
+            compiled=compiled,
+            tenant_id=tenant_id,
+            workspace_id=workspace_id,
+            user_id=user_id,
+            route_reasoning=str(getattr(route, "reasoning", "") or ""),
+            provenance={
+                "profile": "workflow_blueprint",
+                "route_reasoning": str(
+                    getattr(route, "reasoning", "") or ""),
+            },
+        )
+        registered = register_compiled_workflow(compiled)
         return {
-            "workflow_id": workflow_id,
-            "name": blueprint.get("architecture_name"),
-            "description": blueprint.get("description"),
-            "execution_mode": execution_mode,
-            "route_reasoning": route.reasoning,
-            "nodes": blueprint.get("nodes", []),
-            "blueprint": blueprint
+            **stored,
+            "route_reasoning": str(
+                getattr(route, "reasoning", "") or ""),
+            "model_generated": True,
+            "registration": {"registered": bool(registered)},
+            "definition_digest": stored.get("definition_digest"),
         }
+    except BlueprintValidationError as exc:
+        raise HTTPException(
+            status_code=422,
+            detail={
+                "error": exc.code,
+                "message": exc.message,
+                "details": exc.details,
+            },
+        ) from exc
+    except BlueprintGenerationError as exc:
+        raise HTTPException(
+            status_code=exc.status_code,
+            detail={
+                "error": exc.code,
+                "message": exc.message,
+                "details": exc.details,
+            },
+        ) from exc
     except HTTPException:
         raise
-    except Exception as e:
-        logger.error(f"Failed to generate workflow from agent: {e}", exc_info=True)
-        raise HTTPException(status_code=500, detail="Internal error")
+    except Exception as exc:  # noqa: BLE001 — safe typed boundary
+        logger.error(
+            "Failed to generate workflow from agent: %s", exc,
+            exc_info=True)
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": "workflow_blueprint_failed",
+                "message": (
+                    "the workflow designer could not produce a persisted "
+                    "blueprint"),
+            },
+        ) from exc
+
+
+@router.get("/generated/{workflow_id}")
+async def get_generated_workflow(
+    workflow_id: str,
+    current_user: User = Depends(require_permission(Permission.WORKFLOW_VIEW)),
+    db: Session = Depends(get_db),
+):
+    """Read one generated blueprint in the caller's authorized scope."""
+    stored = load_blueprint(
+        db,
+        workflow_id=workflow_id,
+        tenant_id=str(current_user.tenant_id or "default"),
+        workspace_id=str(current_user.workspace_id or "default"),
+    )
+    if stored is None:
+        raise HTTPException(
+            status_code=404,
+            detail={
+                "error": "workflow_not_found",
+                "message": "workflow not found",
+            },
+        )
+    return stored
+
+
+@router.get("/{workflow_id}")
+async def get_generated_workflow_legacy_path(
+    workflow_id: str,
+    current_user: User = Depends(require_permission(Permission.WORKFLOW_VIEW)),
+    db: Session = Depends(get_db),
+):
+    """Compatibility read path for the normal workflow URL shape."""
+    return await get_generated_workflow(
+        workflow_id, current_user=current_user, db=db)

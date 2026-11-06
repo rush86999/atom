@@ -1,0 +1,82 @@
+{
+  "schema": "atom-oracle-fleet-integrated-verification-1",
+  "status": "integrated ORCH-07/ORCH-02 repair submitted for independent verification; all 19 supplied probes pass",
+  "candidate": {
+    "branch": "codex/fleet-b9-581-integrated-repair-20261105",
+    "executed_source": "68c5bf960",
+    "orch07_predecessor": "b9ba56995",
+    "orch02_predecessor": "581654d21",
+    "accepted_orch01_source": "943fb32d7",
+    "tree_clean_at_execution": true,
+    "runtime": "real scratch SQLite, doubled NLU/specialist transport; no live model/provider/sandbox"
+  },
+  "checks": {
+    "outcome_first_writer_atomic": true,
+    "peer_winner_preserved": true,
+    "workspace_move_cannot_certify_stale_scope": true,
+    "exact_outcome_material_not_boolean_only": true,
+    "missing_execution_agent_not_caller_authority": true,
+    "changed_execution_agent_refused": true,
+    "scope_unverified_excluded_from_calibration": true,
+    "recruitment_health_excludes_unverified": true,
+    "old_handler_route_not_current_provenance": true,
+    "foreign_chain_refused_before_cache": true,
+    "chain_workspace_authorized": true,
+    "cache_binds_opaque_task_and_full_roster": true,
+    "cancelled_chain_does_not_revive_cache": true,
+    "positive_capability_required": true,
+    "generic_domain_positive_twin": true,
+    "contradictory_specialist_result_not_success": true,
+    "terminal_specialist_failure_not_success": true,
+    "enforced_run_finalizes_durable_execution": true,
+    "canonical_execution_id_across_audit_and_response": true,
+    "audit_bracket_truthful_success": true,
+    "no_live_model_provider_credential_spend_send_download_deployment": true
+  },
+  "results": {
+    "integrated_probes_python314": {"passed": 19, "log": "probes-314.log"},
+    "integrated_probes_python311": {"passed": 19, "log": "probes-311.log"},
+    "orch07_gate_python314": {"passed": 65, "log": "orch07-gate-314.log"},
+    "orch07_gate_python311": {"passed": 65, "log": "orch07-gate-311.log"},
+    "orch02_gate_python314": {"passed": 116, "log": "orch02-gate-314.log"},
+    "orch02_gate_python311": {"passed": 116, "log": "orch02-gate-311.log"},
+    "affected_python314": {
+      "passed": 516, "failed": 11, "baseline_failures": 11,
+      "log": "affected-314.log"
+    },
+    "affected_python311": {
+      "passed": 515, "failed": 11, "baseline_failures": 11,
+      "order_sensitive_extra": 1, "log": "affected-311.log"
+    },
+    "baseline_python314": {
+      "passed": 495, "failed": 11, "log": "baseline-affected-314.log"
+    },
+    "baseline_python311": {
+      "passed": 495, "failed": 11, "log": "baseline-affected-311.log"
+    }
+  },
+  "baseline_exclusions": {
+    "fleet_deadlock_source_checks_3": {
+      "file": "tests/test_fleet_orchestration_deadlocks.py",
+      "reason": "pre-existing source-pattern checks; identical at 581654d21"
+    },
+    "round20_route_security_2": {
+      "file": "tests/test_round20_agent_fleet_security.py",
+      "reason": "pre-existing route-security checks; identical at 581654d21"
+    },
+    "chat_controls_6": {
+      "file": "tests/test_covpush_w109_chat_orchestrator.py / tests/test_covpush_w92_chat_routes.py",
+      "reason": "pre-existing chat controls; identical at 581654d21"
+    },
+    "w115_order_sensitive_1": {
+      "test": "tests/test_covpush_w115_chat_orchestrator.py::TestGetQwenResponse::test_success_with_history",
+      "reason": "passes alone and with new contract+chat files; only the full 3.11 combined order exposes the pre-existing history-order sensitivity"
+    }
+  },
+  "limits": [
+    "Doubled specialist transport; live model quality is not qualified",
+    "No live model/provider/browser/sandbox/credential/spend/send/download/deployment",
+    "PostgreSQL runtime/soak, multi-worker serialization and whole-app ORACLE-01 remain open",
+    "Accepted ORCH-01/employee/feedback/wait/admin/memory scopes and historical scores remain unchanged"
+  ]
+}

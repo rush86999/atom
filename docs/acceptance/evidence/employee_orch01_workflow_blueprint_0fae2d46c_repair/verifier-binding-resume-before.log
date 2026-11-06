@@ -1,0 +1,131 @@
+FFFF                                                                     [100%]
+=================================== FAILURES ===================================
+_________ test_unsupported_known_word_action_is_not_changed_to_create __________
+
+    def test_unsupported_known_word_action_is_not_changed_to_create():
+        draft={'architecture_name':'delete a record','nodes':[{'id':'record','type':'entity','name':'Delete existing record','action':{'kind':'write','service':'knowledge','action':'delete'},'metadata':{'entity_name':'existing record','entity_type':'business_record'}}]}
+        try: compiled=compile_blueprint(draft,workspace_id='ws-1',tenant_id='tenant-1')
+        except BlueprintValidationError:return
+        if not compiled.get('execution_ready'):return
+        action=next(s['parameters']['action'] for s in compiled['steps'] if s['step_id']=='record')
+>       assert action=='delete',compiled
+E       AssertionError: {'workflow_id': 'ai_wf_ee77261e4ca3', 'blueprint_id': '2f9f54da-d4c6-4a51-b07f-dddf82cb6f04', 'status': 'designed', 'source': 'model', ...}
+E       assert 'create' == 'delete'
+E         
+E         - delete
+E         + create
+
+../../test_verifier_orch01_binding_resume_4d3f.py:14: AssertionError
+____ test_resume_does_not_dispatch_without_authoritative_approval[pending] _____
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x113392c40>
+approval_status = 'pending'
+
+    @pytest.mark.parametrize('approval_status',['pending','rejected'])
+    def test_resume_does_not_dispatch_without_authoritative_approval(monkeypatch,approval_status):
+        compiled=_compile([{'id':'write','type':'entity','name':'Write','action':{'kind':'write'},'metadata':{'entity_name':'record','entity_type':'record'}}])
+        approval=SimpleNamespace(status=approval_status,id='hitl-not-approved')
+        orch=_orchestrator(monkeypatch,enforce={'proceed':True,'status':'APPROVED'},approval_row=approval)
+        effects=[]
+        # Leave the context at a real pending checkpoint before calling the public resume consumer.
+        if approval_status=='pending':
+            ctx=_run(orch,compiled,effects)
+        else:
+            ctx=WorkflowContext(workflow_id=compiled['workflow_id'])
+            ctx.status=WorkflowStatus.WAITING_APPROVAL
+            ctx.results[compiled['start_step']]={'status':'waiting_approval','hitl_action_id':approval.id}
+            async def dispatch(workflow,step,context):
+                effects.append(step.step_id);return {'status':'completed'}
+            orch._execute_step_by_type=dispatch
+        assert effects==[]
+        wf=WorkflowDefinition(workflow_id=compiled['workflow_id'],name='controlled',description='',steps=_steps(compiled),start_step=compiled['start_step'])
+        orch.workflows={wf.workflow_id:wf};orch.active_contexts={ctx.workflow_id:ctx};orch._save_execution_state=lambda *args:None
+        asyncio.run(orch.resume_workflow(ctx.workflow_id,compiled['start_step']))
+>       assert effects==[],(approval_status,effects,ctx.results)
+E       AssertionError: ('pending', ['write'], {'approval_write': {'status': 'completed', 'requires_confirmation': True, 'hitl_action_id': 'hitl-not-approved', 'approved_at': '2026-11-05T08:38:24.700144'}, 'write': {'status': 'completed'}})
+E       assert ['write'] == []
+E         
+E         Left contains one more item: 'write'
+E         Use -v to get more diff
+
+../../test_verifier_orch01_binding_resume_4d3f.py:36: AssertionError
+____ test_resume_does_not_dispatch_without_authoritative_approval[rejected] ____
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1137fa190>
+approval_status = 'rejected'
+
+    @pytest.mark.parametrize('approval_status',['pending','rejected'])
+    def test_resume_does_not_dispatch_without_authoritative_approval(monkeypatch,approval_status):
+        compiled=_compile([{'id':'write','type':'entity','name':'Write','action':{'kind':'write'},'metadata':{'entity_name':'record','entity_type':'record'}}])
+        approval=SimpleNamespace(status=approval_status,id='hitl-not-approved')
+        orch=_orchestrator(monkeypatch,enforce={'proceed':True,'status':'APPROVED'},approval_row=approval)
+        effects=[]
+        # Leave the context at a real pending checkpoint before calling the public resume consumer.
+        if approval_status=='pending':
+            ctx=_run(orch,compiled,effects)
+        else:
+            ctx=WorkflowContext(workflow_id=compiled['workflow_id'])
+            ctx.status=WorkflowStatus.WAITING_APPROVAL
+            ctx.results[compiled['start_step']]={'status':'waiting_approval','hitl_action_id':approval.id}
+            async def dispatch(workflow,step,context):
+                effects.append(step.step_id);return {'status':'completed'}
+            orch._execute_step_by_type=dispatch
+        assert effects==[]
+        wf=WorkflowDefinition(workflow_id=compiled['workflow_id'],name='controlled',description='',steps=_steps(compiled),start_step=compiled['start_step'])
+        orch.workflows={wf.workflow_id:wf};orch.active_contexts={ctx.workflow_id:ctx};orch._save_execution_state=lambda *args:None
+        asyncio.run(orch.resume_workflow(ctx.workflow_id,compiled['start_step']))
+>       assert effects==[],(approval_status,effects,ctx.results)
+E       AssertionError: ('rejected', ['write'], {'approval_write': {'status': 'completed', 'hitl_action_id': 'hitl-not-approved', 'approved_at': '2026-11-05T08:38:24.702819'}, 'write': {'status': 'completed'}})
+E       assert ['write'] == []
+E         
+E         Left contains one more item: 'write'
+E         Use -v to get more diff
+
+../../test_verifier_orch01_binding_resume_4d3f.py:36: AssertionError
+_____ test_top_level_execution_does_not_complete_after_blocked_checkpoint ______
+
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x11388dfd0>
+
+    def test_top_level_execution_does_not_complete_after_blocked_checkpoint(monkeypatch):
+        compiled=_compile([{'id':'write','type':'entity','name':'Write','action':{'kind':'write'},'metadata':{'entity_name':'record','entity_type':'record'}}])
+        orch=_orchestrator(monkeypatch,enforce={'proceed':False,'status':'BLOCKED','reason':'no authority'})
+        effects=[]
+        async def dispatch(workflow,step,ctx):
+            if step.step_type.value=='approval_required':
+                return await orch._execute_approval_required_step(step,ctx)
+            effects.append(step.step_id);return {'status':'completed'}
+        orch._execute_step_by_type=dispatch
+        wf=WorkflowDefinition(workflow_id=compiled['workflow_id'],name='controlled',description='',steps=_steps(compiled),start_step=compiled['start_step'])
+        orch.workflows={wf.workflow_id:wf};orch.active_contexts={};orch.ai_service=None;orch._save_execution_state=lambda *args:None
+        result=asyncio.run(orch.execute_workflow(wf.workflow_id,{}))
+        assert effects==[]
+>       assert result.status!=WorkflowStatus.COMPLETED,(result.status,result.results)
+E       AssertionError: (<WorkflowStatus.COMPLETED: 'completed'>, {'approval_write': {'status': 'blocked', 'error': 'no authority', 'governance': {'proceed': False, 'status': 'BLOCKED', 'reason': 'no authority'}}})
+E       assert <WorkflowStatus.COMPLETED: 'completed'> != <WorkflowStatus.COMPLETED: 'completed'>
+E        +  where <WorkflowStatus.COMPLETED: 'completed'> = WorkflowContext(workflow_id='7651ebc0-2241-4821-a16a-57920f6deec8', input_data={}, variables={}, results={'approval_wr...me.datetime(2026, 11, 5, 8, 38, 24, 706126), current_step='approval_write', error_message=None, user_id='default_user').status
+E        +  and   <WorkflowStatus.COMPLETED: 'completed'> = WorkflowStatus.COMPLETED
+
+../../test_verifier_orch01_binding_resume_4d3f.py:51: AssertionError
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED ../../test_verifier_orch01_binding_resume_4d3f.py::test_unsupported_known_word_action_is_not_changed_to_create
+FAILED ../../test_verifier_orch01_binding_resume_4d3f.py::test_resume_does_not_dispatch_without_authoritative_approval[pending]
+FAILED ../../test_verifier_orch01_binding_resume_4d3f.py::test_resume_does_not_dispatch_without_authoritative_approval[rejected]
+FAILED ../../test_verifier_orch01_binding_resume_4d3f.py::test_top_level_execution_does_not_complete_after_blocked_checkpoint
+4 failed, 9 warnings in 0.73s

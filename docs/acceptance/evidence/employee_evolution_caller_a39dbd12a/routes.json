@@ -1,0 +1,39 @@
+{
+  "schema": "atom-oracle-evolution-caller-routes-1",
+  "executed_source": "a39dbd12a01bbcaccaf51598f7fc586ed93926f4",
+  "product_source": "d4cce1625205f79412be9387f7c3fed1023d376f",
+  "prior_repair_source": "6346cad2a",
+  "prior_repair_evidence": "6fbeb4ebd",
+  "prior_decision_source": "e4816e59c",
+  "accepted_base": "95f7bcac1a0375b4f0465a77e15130f68fc9665d",
+  "component": "core.auto_dev.alpha_evolver_engine.AlphaEvolverEngine.sandbox_execute_mutation",
+  "parallel_writer": {
+    "target": "ToolMutation",
+    "effect": "pending/failed -> passed/failed",
+    "guard": "exact id, tenant, prior status, tool, parent lineage, code and prior execution error",
+    "transaction": "dedicated owned session for snapshot/result CAS/commit; caller session is never committed or rolled back by the sandbox"
+  },
+  "caller_contract": {
+    "unflushed_orm_work": "left untouched; owned CAS may run; caller commits its own edit",
+    "flushed_caller_work": "detected by public Session after_flush marker; returns bounded skipped/deferred caller_transaction_pending before dispatch; caller transaction preserved",
+    "clean_read_transaction": "released only after the authoritative snapshot read; releases no writes",
+    "caller_identity_map": "expired after an owned commit only when the caller is clean and has no pending/flushed work",
+    "never": "commit, rollback or discard unrelated caller work; autoflush the caller into the result CAS"
+  },
+  "review_contract": {
+    "pre_dispatch": "approved/rejected committed before invocation -> zero sandbox calls",
+    "during_worker": "review wins the result CAS; sandbox is skipped; review preserved",
+    "lineage_code_error": "changed material during worker -> zero-row CAS, skipped, peer preserved"
+  },
+  "result_states": {
+    "verified": "owned CAS matched; passed/failed committed on the owned session",
+    "skipped": "review/status/material changed, missing target or unsafe flushed caller transaction; caller/peer state preserved",
+    "deferred": "caller_transaction_pending; caller must commit or roll back its own work and retry"
+  },
+  "not_covered": [
+    "physical cancellation of an in-flight worker",
+    "live sandbox/Docker/model/provider",
+    "PostgreSQL runtime/soak and multi-worker serialization",
+    "whole-app ORACLE-01"
+  ]
+}

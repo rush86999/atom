@@ -1,0 +1,89 @@
+{
+  "schema": "atom-oracle-workflow-template-verification-1",
+  "status": "verified workflow-template create/update submitted for independent verification; read/instantiate/execute/import/delete and live operation remain open",
+  "candidate": {
+    "branch": "codex/oracle01-workflow-template-20261105",
+    "accepted_admin_base": "9d73552d249ae8ec5b05af77546faf9621bbcd47",
+    "accepted_admin_product": "5fbb377a4e1eef8fdd0013275cd8b1c9b278cd41",
+    "product_source": "5fbd5c8f51449ed3fa6323a304713c04161d3491",
+    "executed_source": "51b48004cdacace1a077865c3ee8fd6edbff8b50",
+    "tree_clean_at_execution": true,
+    "runtime": "real scratch SQLite and temporary template directory; no live workflow/model/provider"
+  },
+  "checks": {
+    "team_lead_and_admin_create_update": true,
+    "member_and_anonymous_refused": true,
+    "create_writes_one_file_and_audit": true,
+    "create_audit_omits_raw_template_content": true,
+    "create_collision_peer_preserved": true,
+    "create_replay_already_applied": true,
+    "create_changed_material_conflict": true,
+    "create_missing_target_committed_unverified": true,
+    "update_only_allowed_fields": true,
+    "update_preserves_unrelated_material": true,
+    "update_recalculates_duration": true,
+    "matching_update_no_change_effect_none": true,
+    "empty_update_422": true,
+    "missing_template_404": true,
+    "stale_peer_edit_refused_peer_preserved": true,
+    "exact_canonical_prior_material_cas": true,
+    "update_replay_already_applied": true,
+    "update_changed_material_conflict": true,
+    "update_later_revision_committed_unverified": true,
+    "authority_deactivation_or_demotion_refused_effect_none": true,
+    "audit_receipt_in_same_transaction_boundary": true,
+    "audit_rollback_restores_or_removes_file": true,
+    "post_commit_readback_committed_unverified": true,
+    "lost_confirmation_effect_unknown_with_identity": true,
+    "audit_tampering_never_certified": true,
+    "raw_template_content_absent_from_receipts_logs": true,
+    "path_traversal_id_not_found": true,
+    "no_new_table_or_migration": true,
+    "no_live_workflow_model_provider_credential_spend_send_download_deployment": true,
+    "submitted_review_memory_skill_agent_goal_document_branches_independent": true
+  },
+  "results": {
+    "focused_python314": {"passed": 27, "log": "focused-314.log"},
+    "focused_python311": {"passed": 27, "log": "focused-311.log"},
+    "affected_python314": {
+      "passed": 646, "skipped": 14, "failed": 40,
+      "baseline_failures": 40,
+      "baseline_failure_list_identical": true,
+      "log": "affected-314.log", "baseline_log": "baseline-314.log"
+    },
+    "affected_python311": {
+      "passed": 646, "skipped": 14, "failed": 40,
+      "baseline_failures": 40,
+      "baseline_failure_list_identical": true,
+      "log": "affected-311.log", "baseline_log": "baseline-311.log"
+    },
+    "baseline_python314": {"passed": 619, "skipped": 14, "failed": 40, "log": "baseline-314.log"},
+    "baseline_python311": {"passed": 619, "skipped": 14, "failed": 40, "log": "baseline-311.log"}
+  },
+  "focused_breakdown": {
+    "new_decision_controls": 27,
+    "focused_total": 27
+  },
+  "baseline_exclusions": {
+    "w79c_template_fixture": {
+      "file": "tests/test_covpush_w79c_api_routes.py",
+      "count": 38,
+      "reason": "pre-existing MagicMock user without a real role/DB row; permission dependency refuses before the route body; identical on the accepted admin base"
+    },
+    "import_author_mock": {
+      "test": "tests/test_workflow_template_routes_coverage.py::TestImportExportTemplate::test_import_template_valid",
+      "reason": "pre-existing MagicMock author email passed into WorkflowTemplate; identical on base"
+    },
+    "step_alias_legacy_expectation": {
+      "test": "tests/test_workflow_template_routes_coverage.py::TestUpdateTemplate::test_update_template_steps",
+      "reason": "pre-existing expectation of the legacy id step key while the model exposes step_id; identical on base"
+    }
+  },
+  "limits": [
+    "Exactly two template mutation routes; read/list/search/instantiate/execute/import/delete/rate/export remain out of scope",
+    "No live workflow/agent/model/provider/credential/spend/send/download/deployment operation",
+    "No new table, migration or second template/approval engine",
+    "PostgreSQL runtime/soak, multi-worker serialization and whole-app ORACLE-01 remain open",
+    "Submitted review/memory/skill/agent/goal/document branches independent and not merged"
+  ]
+}

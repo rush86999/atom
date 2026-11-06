@@ -1,0 +1,15 @@
+executed_source: a39dbd12a01bbcaccaf51598f7fc586ed93926f4
+product_source: d4cce1625205f79412be9387f7c3fed1023d376f
+prior_repair_source: 6346cad2a
+prior_repair_evidence: 6fbeb4ebd
+prior_decision_source: e4816e59c
+accepted_base: 95f7bcac1a0375b4f0465a77e15130f68fc9665d
+branch: codex/oracle01-evolution-review-20261105
+git_status_short:
+git_log:
+a39dbd12a test(autodev): cover sandbox caller transaction ownership
+d4cce1625 fix(autodev): own the sandbox result transaction
+6fbeb4ebd docs(evolution-review): submit the sandbox lineage/freshness evidence
+6346cad2a fix(autodev): guard sandbox results with lineage and freshness
+5dc4f1b0f docs(evolution-review): submit the tool-mutation decision evidence
+e4816e59c test(autodev): cover the tool-mutation decision matrix

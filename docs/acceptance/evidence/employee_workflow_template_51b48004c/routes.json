@@ -1,0 +1,73 @@
+{
+  "schema": "atom-oracle-workflow-template-routes-1",
+  "executed_source": "51b48004cdacace1a077865c3ee8fd6edbff8b50",
+  "product_source": "5fbd5c8f51449ed3fa6323a304713c04161d3491",
+  "accepted_admin_base": "9d73552d249ae8ec5b05af77546faf9621bbcd47",
+  "accepted_admin_product": "5fbb377a4e1eef8fdd0013275cd8b1c9b278cd41",
+  "prefix": "/api/workflow-templates",
+  "target": {
+    "store": "existing WorkflowTemplateManager template_dir JSON files",
+    "path_rule": "template ids match [A-Za-z0-9_-]{1,80} before any path join",
+    "database": "no template row, table or migration"
+  },
+  "authority": {
+    "route": "require_permission(Permission.WORKFLOW_MANAGE) plus get_current_user (TEAM_LEAD+)",
+    "service": "re-reads the current User row, requires active status and TEAM_LEAD+, freezes status/is_active/role/raw tenant and claims that exact material in the AuditLog transaction",
+    "scope": "global workflow definitions; audit attributed to the acting user's real tenant/workspace",
+    "path_traversal": "unsafe template ids are not found"
+  },
+  "routes": [
+    {
+      "method": "POST",
+      "path": "/api/workflow-templates/",
+      "handler": "api.workflow_template_routes.create_template",
+      "service": "core.workflow_template_write_service.create_template",
+      "effect": "atomic exclusive create of one template JSON file plus one AuditLog receipt",
+      "validation": "route retains category/complexity 422 and step normalization",
+      "material": ["generated template id", "whole WorkflowTemplate payload"],
+      "collision": "pre-existing file -> 409 TEMPLATE_EXISTS, peer file unchanged",
+      "replay": "same operation/material -> already_applied; changed -> 409; missing target -> committed_unverified"
+    },
+    {
+      "method": "PUT",
+      "path": "/api/workflow-templates/{template_id}",
+      "handler": "api.workflow_template_routes.update_template_endpoint",
+      "service": "core.workflow_template_write_service.update_template",
+      "effect": "atomic replace of one template JSON file plus one AuditLog receipt",
+      "validation": "blocked mass-assignment fields and empty update 422 preserved",
+      "material": ["template id", "whole canonical prior WorkflowTemplate payload", "name/description/steps/inputs/tags changes"],
+      "cas": "per-template lock, re-read immediately before write; any peer change -> 409 STALE_TARGET",
+      "no_change": "matching material -> 200 effect=none, no audit",
+      "replay": "same operation/material -> already_applied; changed -> 409; later revision -> committed_unverified"
+    }
+  ],
+  "durable_ledger": {
+    "table": "saas_audit_logs",
+    "operation_identity": "AuditLog.id is the server-owned operation id workflow-template:<create|update>:<supplied-or-generated>",
+    "metadata": ["schema", "operation_id", "action", "event_type", "target_id", "prior_digest", "result_digest", "request_digest", "actor_id", "actor_role", "tenant_id"],
+    "sensitive_material": "no raw template name, description, steps, parameters, prompts, code, secret, SQL parameter or exception text in the receipt or logs",
+    "readback": "fresh session; audit fields and target canonical payload digest must match"
+  },
+  "result_states": {
+    "verified": "success plus additive verification/operation_id/audit_id",
+    "already_applied": "same operation/material; one receipt; replay=do_not_repeat",
+    "no_change": "matching update; 200 effect=none; no audit",
+    "conflict": "409 TEMPLATE_EXISTS/STALE_TARGET/OPERATION_CONFLICT/AUTHORITY_CHANGED; effect=none",
+    "not_applied": "409 confirmed rollback; file restored/removed; effect=none",
+    "committed_unverified": "503 effect=committed; original identity; replay=do_not_repeat",
+    "effect_unknown": "503 effect=unknown; original identity; replay=do_not_repeat; no exception text"
+  },
+  "parallel_writers": {
+    "routes": "sole verified create/update writers for the template JSON files",
+    "WorkflowTemplateManager.create_template": "retained for internal/test callers; the route no longer uses it",
+    "WorkflowTemplateManager.update_template": "retained for internal/test callers; the route no longer uses it",
+    "read/list/search/instantiate/execute/import": "unchanged; read the existing files/manager",
+    "other template ids": "untouched"
+  },
+  "not_covered": [
+    "template read/list/search/instantiate/execute/import/delete/rate/export",
+    "live workflow/agent execution, model or provider",
+    "PostgreSQL runtime/soak and multi-worker serialization",
+    "whole-app ORACLE-01"
+  ]
+}
