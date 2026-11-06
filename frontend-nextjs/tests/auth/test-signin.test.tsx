@@ -333,6 +333,50 @@ describe('SignIn Component', () => {
         expect(signIn).toHaveBeenCalledWith('github', { callbackUrl: '/dashboard' });
       });
     });
+
+    it('should pass the captured deep link to the Google provider', async () => {
+      (useRouter as jest.Mock).mockReturnValue({
+        push: mockPush,
+        pathname: '/auth/signin',
+        query: { callbackUrl: '/settings?a4dl=return20261106' },
+      });
+      render(<SignIn />);
+      fireEvent.click(screen.getByRole('button', { name: /sign in with google/i }));
+
+      await waitFor(() => {
+        expect(signIn).toHaveBeenCalledWith('google', {
+          callbackUrl: '/settings?a4dl=return20261106',
+        });
+      });
+    });
+
+    it('should not pass an external target to a social provider', async () => {
+      (useRouter as jest.Mock).mockReturnValue({
+        push: mockPush,
+        pathname: '/auth/signin',
+        query: { callbackUrl: 'https://evil.example.com/phish' },
+      });
+      render(<SignIn />);
+      fireEvent.click(screen.getByRole('button', { name: /sign in with github/i }));
+
+      await waitFor(() => {
+        expect(signIn).toHaveBeenCalledWith('github', { callbackUrl: '/dashboard' });
+      });
+    });
+
+    it('should return an existing session to the captured deep link', async () => {
+      (useRouter as jest.Mock).mockReturnValue({
+        push: mockPush,
+        pathname: '/auth/signin',
+        query: { callbackUrl: '/settings?a4dl=return20261106' },
+      });
+      (getSession as jest.Mock).mockResolvedValue({ user: { email: 'test@example.com' } });
+      render(<SignIn />);
+
+      await waitFor(() => {
+        expect(mockPush).toHaveBeenCalledWith('/settings?a4dl=return20261106');
+      });
+    });
   });
 
   describe('Accessibility', () => {
