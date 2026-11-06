@@ -1,0 +1,9 @@
+executed_source: 725a819618c424e2b8c56dabe5619233fa7e66b3
+base_main: 3925cf3592e955bebb8282ec7168e3fdce20ec42
+synthetic_digest: 53959228c59942a9d18d1717d2c70f82cd223ac859395e8d39616910456acc5a
+server_probe: synthetic JWT in accepted and rejected WebSocket targets
+status_short:
+?? docs/acceptance/evidence/security_ws_log_redaction_725a81961/
+log:
+725a81961 fix(logging): redact JWTs from websocket and request logs
+ace04c8b9 docs: record the merged public workflow approval scope (#685)

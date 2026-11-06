@@ -1,0 +1,7 @@
+synthetic_digest d91237f84b225b7fea76275c0b2087b4cf7363ca998ae909a0c5f5162497d4db
+log_bytes 691
+raw_synthetic_present True
+redacted_marker_count 0
+ws_path_lines 2
+WS_LINE INFO:     127.0.0.1:63845 - "WebSocket /ws?token=<synthetic-jwt>&api_key=<synthetic-jwt>&x=1" [accepted]
+WS_LINE INFO:     127.0.0.1:63846 - "WebSocket /ws/reject?token=<synthetic-jwt>&x=1" 403

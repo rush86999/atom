@@ -35,11 +35,17 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import os
+import re
 import threading
 from typing import Any, Dict, List, Optional
+from urllib.parse import unquote
 
-__all__ = ["shape", "fingerprint", "describe", "capture", "capture_enabled"]
+__all__ = [
+    "shape", "fingerprint", "describe", "capture", "capture_enabled",
+    "redact_log_text", "LogRedactionFilter",
+]
 
 _MAX_DEPTH = 4
 _MAX_KEYS = 24
@@ -129,3 +135,78 @@ def capture(value: Any, label: str) -> Optional[str]:
         with open(path, "a", encoding="utf-8") as fh:
             fh.write(line + "\n")
     return path
+
+
+# ---------------------------------------------------------------------------
+# Credential-safe log text
+# ---------------------------------------------------------------------------
+# Uvicorn logs the WebSocket request target at INFO on its own logger
+# (``uvicorn.error``), including the ``?token=<jwt>`` query string.  The
+# generic payload helpers above intentionally describe application payloads;
+# this filter is the narrower boundary for request/status log lines.
+_SENSITIVE_KEYS = {
+    "access_token", "refresh_token", "id_token", "session_token",
+    "device_token", "token", "jwt", "api_key", "apikey", "secret",
+    "password", "passwd", "authorization", "auth", "signature", "sig",
+}
+_QUERY_RE = re.compile(r"([?&;])([^=&#\s]+)=([^&#\s]*)")
+_ASSIGN_RE = re.compile(
+    r"(?i)(\b(?:access[_-]?token|refresh[_-]?token|id[_-]?token|"
+    r"session[_-]?token|device[_-]?token|token|jwt|api[_-]?key|apikey|"
+    r"secret|password|passwd|auth|signature|sig)\b"
+    r"[\"']?\s*[:=]\s*[\"']?)([^\"'\s,;&}]+)")
+_AUTH_HEADER_RE = re.compile(
+    r"(?i)\b(Authorization\s*:\s*)(Bearer\s+)?"
+    r"[A-Za-z0-9._~+/=\-]{8,}")
+_BEARER_RE = re.compile(
+    r"(?i)\b(Bearer)\s+[A-Za-z0-9._~+/=\-]{8,}")
+
+
+def _normalized_key(key: str) -> str:
+    try:
+        key = unquote(key)
+    except Exception:  # noqa: BLE001 — malformed escape is still a key
+        pass
+    return key.strip().lower().replace("-", "_")
+
+
+def _redact_query(match: "re.Match[str]") -> str:
+    separator, key, _value = match.groups()
+    if _normalized_key(key) in _SENSITIVE_KEYS:
+        return f"{separator}{key}=<redacted>"
+    return match.group(0)
+
+
+def redact_log_text(text: str) -> str:
+    """Redact credential-bearing query/assignment material from log text.
+
+    Preserves the path, status, operation and non-sensitive parameters. Handles
+    repeated and percent-encoded query keys/values, URL query strings, ordinary
+    key/value text and ``Bearer`` headers. Never raises.
+    """
+    if not text:
+        return text
+    try:
+        value = str(text)
+        value = _QUERY_RE.sub(_redact_query, value)
+        value = _AUTH_HEADER_RE.sub(r"\1\2<redacted>", value)
+        value = _BEARER_RE.sub(r"\1 <redacted>", value)
+        value = _ASSIGN_RE.sub(r"\1<redacted>", value)
+        return value
+    except Exception:  # noqa: BLE001 — logging must never break
+        return text
+
+
+class LogRedactionFilter(logging.Filter):
+    """Apply :func:`redact_log_text` before handlers format a record."""
+
+    def filter(self, record: logging.LogRecord) -> bool:
+        try:
+            message = record.getMessage()
+            redacted = redact_log_text(message)
+            if redacted != message:
+                record.msg = redacted
+                record.args = ()
+        except Exception:  # noqa: BLE001 — never drop a log record
+            pass
+        return True
