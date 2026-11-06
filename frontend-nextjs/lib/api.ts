@@ -8,6 +8,7 @@ import {
   isRetryableError,
   enhanceError,
 } from "./error-mapping";
+import { loginCallbackPath } from "./auth-headers";
 import { retry } from "@lifeomic/attempt";
 
 // The response interceptor below honors a per-request `retry: false` opt-out
@@ -136,7 +137,7 @@ apiClient.interceptors.response.use(
         if (typeof window !== "undefined") {
           localStorage.removeItem("auth_token");
           localStorage.removeItem("token");
-          window.location.href = `/login?callbackUrl=${encodeURIComponent(window.location.href)}`;
+          window.location.href = `/login?callbackUrl=${encodeURIComponent(loginCallbackPath())}`;
         }
       }
     }
