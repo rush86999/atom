@@ -723,8 +723,18 @@ async def execute_workflow(
         # Initialize engine
         engine = get_workflow_engine()
         
-        # Execute workflow (starts in background)
-        execution_id = await engine.start_workflow(workflow, input_data or {}, background_tasks)
+        # Execute workflow (starts in background). Freeze the authenticated
+        # caller's scope into the durable execution so a governance-created
+        # approval lands in the reviewer's real queue and survives a resume.
+        execution_id = await engine.start_workflow(
+            workflow,
+            input_data or {},
+            background_tasks,
+            scope={
+                "workspace_id": getattr(user, "workspace_id", None),
+                "tenant_id": getattr(user, "tenant_id", None),
+            },
+        )
         
         return ExecutionResult(
             execution_id=execution_id,
@@ -954,6 +964,16 @@ async def schedule_workflow(
         trigger_type = schedule_config.get('trigger_type')
         trigger_config = schedule_config.get('trigger_config')
         input_data = schedule_config.get('input_data')
+
+        # Freeze the scheduling user's authoritative scope into the persisted
+        # job args: the deferred fire has no request principal, and a later
+        # approval must still land in that user's tenant/workspace queue.
+        from core.workflow_engine import freeze_execution_scope
+        input_data = freeze_execution_scope(
+            input_data,
+            workspace_id=getattr(user, "workspace_id", None),
+            tenant_id=getattr(user, "tenant_id", None),
+        )
         
         if not trigger_type or not trigger_config:
             raise HTTPException(status_code=400, detail="Missing trigger_type or trigger_config")    

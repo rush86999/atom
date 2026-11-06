@@ -1,0 +1,10 @@
+executed_source: 1a76d7151105d8e7c845b0f7512a4bbf0e576f52
+stacked_base_673: 46dc253a134104da4426ce8d5f9bf47aa7956372
+delete_source_673: e34de29d53636a5232e126bcba8e5f5aa7af9734
+underlying_main: f8706fb48569e77df21801df1cc23a8d7b61ba17
+reproduced_finding: tenant-A member started a tenant-B agent with 200 before the repair
+status_short:
+log:
+1a76d7151 fix(agents): admit scoped agent runs with exact material and durable job
+46dc253a1 docs(agents): submit the scoped agent-delete evidence
+e34de29d5 fix(agents): bind scoped authority and exact material to agent deletion
