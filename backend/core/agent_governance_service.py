@@ -1052,6 +1052,10 @@ class AgentGovernanceService:
         hitl = HITLAction(
             id=str(uuid.uuid4()),
             workspace_id=self.workspace_id,
+            # The scoped service already knows the authoritative tenant; the
+            # row must carry it or a real tenant's review queue (which filters
+            # on tenant_id) can never see the work it is waiting on.
+            tenant_id=self.tenant_id,
             agent_id=agent_id,
             action_type=action_type,
             platform="internal",

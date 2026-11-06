@@ -49,6 +49,44 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 
+# Reserved execution-input key carrying the authenticated caller's frozen
+# scope. It lives in the persisted execution input_data so a resumed worker
+# (including one in a new process) resolves the same tenant/workspace as the
+# request that started the run. Never read as a workflow parameter.
+EXECUTION_SCOPE_KEY = "_atom_execution_scope"
+
+
+def freeze_execution_scope(
+    input_data: Optional[Dict[str, Any]],
+    *,
+    workspace_id: Optional[str] = None,
+    tenant_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Attach the caller's authoritative scope to execution inputs.
+
+    Call this only AFTER authentication. Any client-supplied value under the
+    reserved key is discarded first; missing scope values are not invented —
+    the engine falls back to the workflow definition's own scope.
+    """
+    frozen = dict(input_data or {})
+    frozen.pop(EXECUTION_SCOPE_KEY, None)
+    scope: Dict[str, str] = {}
+    for key, value in (("workspace_id", workspace_id), ("tenant_id", tenant_id)):
+        text = str(value or "").strip()
+        if text:
+            scope[key] = text
+    if scope:
+        frozen[EXECUTION_SCOPE_KEY] = scope
+    return frozen
+
+
+def strip_execution_scope(input_data: Optional[Dict[str, Any]]) -> Dict[str, Any]:
+    """Drop the reserved scope key from untrusted resume inputs."""
+    cleaned = dict(input_data or {})
+    cleaned.pop(EXECUTION_SCOPE_KEY, None)
+    return cleaned
+
+
 class WorkflowEngine:
     def __init__(self, max_concurrent_steps: int = 5):
         self.state_manager = get_state_manager()
@@ -236,8 +274,49 @@ class WorkflowEngine:
                 execution_id, exc)
             return None
 
-    async def start_workflow(self, workflow: Dict[str, Any], input_data: Dict[str, Any], background_tasks: Any = None) -> str:
-        """Start a new workflow execution"""
+    def _execution_scope(
+        self,
+        workflow: Dict[str, Any],
+        state: Optional[Dict[str, Any]] = None,
+    ) -> tuple:
+        """Resolve the durable execution scope, then the definition's own.
+
+        The public start path freezes the authenticated caller's scope into
+        the persisted execution inputs; a resumed worker therefore resolves
+        the same tenant/workspace as the original request. Seeded/scheduled
+        definitions that carry their own scope remain supported, and a run
+        with no scope at all keeps the legacy ``"default"`` behavior.
+        """
+        frozen: Dict[str, Any] = {}
+        if isinstance(state, dict):
+            inputs = state.get("input_data")
+            if isinstance(inputs, dict):
+                candidate = inputs.get(EXECUTION_SCOPE_KEY)
+                if isinstance(candidate, dict):
+                    frozen = candidate
+        workspace_id = str(frozen.get("workspace_id") or "").strip()
+        tenant_id = str(frozen.get("tenant_id") or "").strip()
+        if not workspace_id:
+            workspace_id = str(workflow.get("workspace_id") or "").strip()
+        if not tenant_id:
+            tenant_id = str(workflow.get("tenant_id") or "").strip()
+        return workspace_id or "default", tenant_id or "default"
+
+    async def start_workflow(
+        self,
+        workflow: Dict[str, Any],
+        input_data: Dict[str, Any],
+        background_tasks: Any = None,
+        *,
+        scope: Optional[Dict[str, Any]] = None,
+    ) -> str:
+        """Start a new workflow execution.
+
+        ``scope`` is the authenticated caller's authoritative
+        ``{"workspace_id", "tenant_id"}``. When supplied it is frozen into the
+        persisted execution inputs so governance-created approvals and every
+        later resume resolve the same scope.
+        """
         # Convert graph to steps if needed
         if "steps" not in workflow and "nodes" in workflow:
             workflow["steps"] = self._convert_nodes_to_steps(workflow)
@@ -247,6 +326,13 @@ class WorkflowEngine:
         # _run_execution) works without a KeyError.
         if "id" not in workflow and workflow.get("workflow_id"):
             workflow["id"] = workflow["workflow_id"]
+
+        if scope is not None:
+            input_data = freeze_execution_scope(
+                input_data,
+                workspace_id=scope.get("workspace_id"),
+                tenant_id=scope.get("tenant_id"),
+            )
 
         execution_id = await self.state_manager.create_execution(workflow["id"], input_data)
 
@@ -387,8 +473,7 @@ class WorkflowEngine:
         analytics = get_analytics_engine()
 
         graph = self._build_execution_graph(workflow)
-        workspace_id = workflow.get("workspace_id", "default")
-        tenant_id = workflow.get("tenant_id", "default")
+        workspace_id, tenant_id = self._execution_scope(workflow, state)
         nodes = graph["nodes"]
         adjacency = graph["adjacency"]
         reverse_adjacency = graph["reverse_adjacency"]
@@ -693,6 +778,11 @@ class WorkflowEngine:
             logger.warning(f"Cannot resume execution {execution_id} in state {state['status']}")
             return False
 
+        # Resume inputs are untrusted: they may carry the approval reference,
+        # never a replacement execution scope. The scope frozen at start (and
+        # persisted in the execution row) stays authoritative.
+        new_inputs = strip_execution_scope(new_inputs)
+
         # Update state with new inputs
         await self.state_manager.update_execution_inputs(execution_id, new_inputs)
         await self.state_manager.update_execution_status(execution_id, "RUNNING")
@@ -729,8 +819,6 @@ class WorkflowEngine:
         analytics = get_analytics_engine()
         
         user_id = workflow.get("created_by", "default")
-        workspace_id = workflow.get("workspace_id", "default")
-        tenant_id = workflow.get("tenant_id", "default")
         start_time = datetime.now(timezone.utc)
         
         try:
@@ -738,6 +826,9 @@ class WorkflowEngine:
             await ws_manager.notify_workflow_status(user_id, execution_id, "RUNNING")
             
             state = await self.state_manager.get_execution_state(execution_id)
+            # Prefer the scope frozen at start (durable across restarts);
+            # fall back to the definition's own scope for seeded/scheduled runs.
+            workspace_id, tenant_id = self._execution_scope(workflow, state)
 
             # Decide execution mode based on conditional connections
             if self._has_conditional_connections(workflow):
@@ -847,7 +938,9 @@ class WorkflowEngine:
                 # error) must not abort the run — fail open as intended.
                 try:
                     with get_db_session() as db:
-                        governance = ServiceFactory.get_governance_service(db, tenant_id=tenant_id)
+                        governance = ServiceFactory.get_governance_service(
+                            db, workspace_id=workspace_id,
+                            tenant_id=tenant_id)
                         agent_id = workflow.get("agent_id") or "system_agent"
                         
                         # Find registry agent if not system
