@@ -1,0 +1,15 @@
+executed_source: bd43da6446f71fb0237c64c189f9e25f0b028d95
+base_main: d860072a787e6460d83260e9cb629cfa5d5ea14b
+prepared_branch_tip: 4e25a2836820eb4ae17286876c1788a0ade5791f
+removed_files_at_prepared_tip:
+100644 blob bc9d3f90593927cfc4820cd7e7bc7fc7e5b880cd	backend/core/skill_review_write_service.py
+100644 blob 08b969c0d2d49309006389db14cc26743dec5751	backend/tests/test_skill_review_write_contract.py
+route_matches_base_main:
+yes
+service_blob:
+8a29acc8b5ca81a7d00e36a2ad4a284be51899ec
+status_short:
+?? docs/acceptance/evidence/employee_community_skill_consolidated_bd43da644/
+log:
+bd43da644 fix(skills): bind current reviewer authority in the community write service
+d860072a7 CI: repair the PR659 backend selection, streaming retry state and skill-delete journey (#664)

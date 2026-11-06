@@ -326,6 +326,95 @@ def test_already_active_is_noop_without_audit(env):
 
 
 @pytest.mark.parametrize("kind", ["promote", "delete"])
+@pytest.mark.parametrize("change", ["deactivate", "demote", "tenant_move"])
+def test_authority_change_before_claim_refuses(
+    env, monkeypatch, kind, change,
+):
+    """The reviewer authority is claimed inside the decision transaction.
+
+    A concurrent deactivation, demotion or tenant reassignment after the
+    service resolved the principal must leave the target untouched and write
+    no audit receipt.
+    """
+    db = env.Session()
+    db.add(_skill("s-authority", name="Authority"))
+    db.commit()
+    db.close()
+    original = service._read_skill
+    changed = {"done": False}
+
+    def read_then_change(db, skill_id):
+        row = original(db, skill_id)
+        if row is not None and not changed["done"]:
+            changed["done"] = True
+            peer = env.Session()
+            try:
+                values = (
+                    {"status": "inactive", "is_active": False}
+                    if change == "deactivate"
+                    else {"role": "member"}
+                    if change == "demote"
+                    else {"tenant_id": "system"})
+                peer.execute(update(User).where(
+                    User.id == "user-lead").values(**values))
+                peer.commit()
+            finally:
+                peer.close()
+        return row
+
+    monkeypatch.setattr(service, "_read_skill", read_then_change)
+    client = env.client(env.actors["lead"])
+    if kind == "promote":
+        response = client.post(
+            "/api/skills/promote?operation_id=authority-change",
+            json={"skill_id": "s-authority"})
+    else:
+        response = client.delete(
+            "/api/skills/s-authority?operation_id=authority-change")
+    assert response.status_code == 409, response.text
+    detail = response.json()["detail"]
+    assert detail["error"]["code"] == "AUTHORITY_CHANGED"
+    assert detail["verification"]["effect"] == "none"
+    rows = [row for row in _rows(env) if row.id == "s-authority"]
+    assert rows and rows[0].status == "Untrusted"
+    assert _audits(env) == []
+
+
+@pytest.mark.parametrize("change", ["deactivate", "demote"])
+def test_invalid_authority_at_resolution_refuses(env, change):
+    """Current User status/role is authoritative before any target work."""
+    db = env.Session()
+    db.add(_skill("s-stale-actor", name="StaleActor"))
+    db.commit()
+    db.close()
+    stale_actor = env.actors["lead"]
+    peer = env.Session()
+    try:
+        values = (
+            {"status": "inactive", "is_active": False}
+            if change == "deactivate" else {"role": "member"})
+        peer.execute(update(User).where(
+            User.id == "user-lead").values(**values))
+        peer.commit()
+    finally:
+        peer.close()
+
+    db = env.Session()
+    try:
+        result = service.promote_skill(
+            db, actor=stale_actor, skill_id="s-stale-actor",
+            operation_id="stale-actor")
+    finally:
+        db.close()
+    assert result["status"] == "refused"
+    assert result["http_status"] == 403
+    assert result["verification"]["effect"] == "none"
+    rows = [row for row in _rows(env) if row.id == "s-stale-actor"]
+    assert rows and rows[0].status == "Untrusted"
+    assert _audits(env) == []
+
+
+@pytest.mark.parametrize("kind", ["promote", "delete"])
 def test_audit_rollback_reports_effect_none(env, monkeypatch, kind):
     db = env.Session()
     db.add(_skill("r1", name="Rollback"))

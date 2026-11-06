@@ -1,0 +1,70 @@
+{
+  "schema": "atom-oracle-community-skill-consolidated-routes-1",
+  "executed_source": "bd43da6446f71fb0237c64c189f9e25f0b028d95",
+  "base_main": "d860072a787e6460d83260e9cb629cfa5d5ea14b",
+  "branch_tip_before_merge": "4e25a2836820eb4ae17286876c1788a0ade5791f",
+  "removed_parallel_engine": "core.skill_review_write_service (not present at executed source)",
+  "prefix": "/api/skills",
+  "target": {
+    "model": "SkillExecution",
+    "source": "community",
+    "row_scope": "tenant_id='system', agent_id='system', workspace_id='default'",
+    "statuses": ["Untrusted", "Active"],
+    "cloud_rows": "skill_source!='community' is not visible"
+  },
+  "authority": {
+    "route": "get_current_user plus main's DB-backed _require_community_skill_reviewer (TEAM_LEAD+ from the current User row)",
+    "service_resolution": "_resolve_actor reads the authoritative User row in a fresh session: active status and role_level(role) >= role_level(UserRole.TEAM_LEAD)",
+    "service_claim": "_claim_actor executes a guarded no-op UPDATE User matching id, is_active, status, role and raw tenant inside the decision transaction",
+    "zero_match": "409 AUTHORITY_CHANGED with verification.effect=none; rollback; peer skill preserved; zero audit rows",
+    "read_failure": "503 AUTHORITY_UNAVAILABLE; no target or audit work",
+    "scope": "global/system community registry; the audit is attributed to the acting reviewer's current tenant/user"
+  },
+  "routes": [
+    {
+      "method": "POST",
+      "path": "/api/skills/promote",
+      "handler": "api.skill_routes.promote_skill",
+      "service": "core.community_skill_write_service.promote_skill",
+      "effect": "authority claim + guarded UPDATE status Untrusted -> Active plus one AuditLog receipt in the same transaction",
+      "transitions": "Untrusted -> Active; already Active new operation -> already_applied/effect=none; same-operation replay -> already_applied; stale material or authority -> 409 effect=none"
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/skills/{skill_id}",
+      "handler": "api.skill_routes.delete_skill",
+      "service": "core.community_skill_write_service.delete_skill",
+      "effect": "authority claim + guarded community-row DELETE plus one AuditLog tombstone in the same transaction",
+      "transitions": "missing -> 404; same-operation tombstone -> already_applied; stale/competing/authority change -> 409 peer preserved or effect=none"
+    }
+  ],
+  "material": [
+    "id",
+    "prior status",
+    "skill_source",
+    "target skill_id",
+    "row tenant/agent/workspace",
+    "input_params",
+    "security_scan_result",
+    "sandbox_enabled"
+  ],
+  "durable_ledger": {
+    "table": "saas_audit_logs",
+    "metadata": "schema, operation_id, action, event_type, target/request/material digests, actor identity and role, prior/result status",
+    "sensitive_material": "no raw skill body, package list, scan payload, secret, SQL parameter or exception text in the receipt or logs",
+    "readback": "fresh session; audit fields and target state/material digest must match"
+  },
+  "result_states": {
+    "verified": "success plus additive verification/operation_id/audit_id; effect=committed",
+    "already_applied": "same operation/material; one receipt; replay=do_not_repeat",
+    "conflict": "409 STALE_COMMUNITY_SKILL or AUTHORITY_CHANGED; effect=none",
+    "not_applied": "409 confirmed rollback; effect=none",
+    "committed_unverified": "503 effect=committed; original identity; replay=do_not_repeat",
+    "effect_unknown": "503 effect=unknown; original identity; replay=do_not_repeat"
+  },
+  "parallel_writers": {
+    "routes": "sole verified writers for community skill status/delete",
+    "removed_branch_engine": "core.skill_review_write_service deleted; its unique current-authority claim was ported into the community service",
+    "SkillRegistryService": "promote_skill/delete_skill retained for internal/test callers; routes do not use them"
+  }
+}
