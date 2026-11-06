@@ -828,8 +828,9 @@ class _StreamRequestState:
       catalogue sweep and ranked fallback skip pairs already tried.
     * ``sweep_consumed`` — the last-resort catalogue sweep is one-shot per
       request, even across recursive ranked-route hops.
-    * ``self_heal_used`` / ``paid_retry_used`` — explicitly permitted
-      same-request repairs are bounded separately and never restart the sweep.
+    * ``self_heal_used`` — one request repair total; ``paid_retry_used`` —
+      one free->paid sibling retry per free pair. Both are bounded separately
+      and never restart the sweep.
     * ``attempts`` — per-pair dispatch counter for attribution and evidence.
 
     This is state, not a router: every candidate still passes the existing
@@ -10740,7 +10741,7 @@ class BYOKHandler:
                 _heal_pair = (attempt_provider_id, model)
                 if (not heal_attempted_stream
                         and not state.visible_yielded
-                        and _heal_pair not in state.self_heal_used):
+                        and not state.self_heal_used):
                     heal_attempted_stream = True
                     state.self_heal_used.add(_heal_pair)
                     try:

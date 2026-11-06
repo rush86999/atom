@@ -524,3 +524,44 @@ def test_local_only_still_refuses_cloud_route(handler, monkeypatch, tmp_path):
     with pytest.raises(ValueError, match="No available providers"):
         _run(handler, "gpt-4o", "openai")
     assert calls == []
+
+
+def test_one_request_repair_total_across_ranked_fallback(
+        handler, monkeypatch, tmp_path):
+    """The self-heal budget is request-wide, not per recursive frame."""
+    calls = _install_case(handler, monkeypatch, tmp_path, dict(
+        providers=["openai", "deepseek"], model="gpt-4o",
+        provider_id="openai",
+        catalog={"openai": ["gpt-4o"], "deepseek": ["deepseek-chat"]},
+        fallback_routes=[("deepseek", "deepseek-chat")],
+        script=[_generic_failure(), _generic_failure(),
+                _generic_failure()],
+    ))
+    monkeypatch.setattr(
+        "core.llm.routing.request_healer.get_request_healer",
+        lambda: SimpleNamespace(
+            heal=lambda exc, kwargs, provider, model: SimpleNamespace(
+                patched_kwargs={
+                    "model": kwargs["model"],
+                    "messages": kwargs["messages"],
+                    "temperature": kwargs["temperature"],
+                    "max_tokens": kwargs["max_tokens"],
+                    "stream": True,
+                },
+                rule="test-repair",
+                patched_keys=["model"],
+            )),
+    )
+    text = "".join(_run(
+        handler, "gpt-4o", "openai",
+        fallback_routes=[("deepseek", "deepseek-chat")],
+    ))
+    assert text == ERROR_TOKEN, text
+    assert calls == [
+        ("openai", "gpt-4o"),
+        ("openai", "gpt-4o"),
+        ("deepseek", "deepseek-chat"),
+    ], calls
+    assert all(
+        success is not True for success in _feedback_successes(handler)
+    ), _feedback_successes(handler)
