@@ -95,6 +95,28 @@ class HITLApprovalRequest(BaseModel):
 
 # --- Endpoints ---
 
+def _safe_decision_observation(
+    result: Dict[str, Any],
+) -> Optional[Dict[str, Any]]:
+    """Project only established, public-safe outcome fields for error responses.
+
+    Service envelopes may carry structured data for several operations. A 503
+    must preserve the known stop observation without dumping raw job
+    parameters, configuration, schedules, exception text or credentials.
+    """
+    data = result.get("data")
+    if not isinstance(data, dict):
+        return None
+    safe: Dict[str, Any] = {}
+    agent_id = data.get("agent_id")
+    if isinstance(agent_id, str) and agent_id.strip():
+        safe["agent_id"] = agent_id
+    cancelled_tasks = data.get("cancelled_tasks")
+    if type(cancelled_tasks) is int and cancelled_tasks >= 0:
+        safe["cancelled_tasks"] = cancelled_tasks
+    return safe or None
+
+
 def _raise_agent_decision(result: Dict[str, Any]) -> None:
     """Map the verified agent-decision envelope to a safe HTTP error."""
     status_value = str(result.get("status") or "")
@@ -139,26 +161,43 @@ def _raise_agent_decision(result: Dict[str, Any]) -> None:
                 "audit_id": result.get("audit_id"),
             },
         )
+    if status_value == "state_unavailable":
+        raise HTTPException(
+            status_code=int(result.get("http_status") or 503),
+            detail={
+                "success": False,
+                "error": {
+                    "code": result.get("error_code")
+                    or "AGENT_TASK_STATE_UNAVAILABLE",
+                    "message": result.get("error")
+                    or "The agent task state is unavailable.",
+                },
+                "verification": result.get("verification"),
+                "operation_id": result.get("operation_id"),
+                "target_id": result.get("target_id"),
+            },
+        )
     if status_value in ("committed_unverified", "effect_unknown"):
         code = (
             "AGENT_EFFECT_UNKNOWN"
             if status_value == "effect_unknown"
             else "AGENT_COMMITTED_UNVERIFIED")
-        raise HTTPException(
-            status_code=503,
-            detail={
-                "success": False,
-                "error": {
-                    "code": code,
-                    "message": result.get("message")
-                    or "The agent decision outcome is uncertain.",
-                },
-                "verification": result.get("verification"),
-                "operation_id": result.get("operation_id"),
-                "audit_id": result.get("audit_id"),
-                "target_id": result.get("target_id"),
+        detail = {
+            "success": False,
+            "error": {
+                "code": code,
+                "message": result.get("message")
+                or "The agent decision outcome is uncertain.",
             },
-        )
+            "verification": result.get("verification"),
+            "operation_id": result.get("operation_id"),
+            "audit_id": result.get("audit_id"),
+            "target_id": result.get("target_id"),
+        }
+        observation = _safe_decision_observation(result)
+        if observation is not None:
+            detail["data"] = observation
+        raise HTTPException(status_code=503, detail=detail)
 
 
 @router.get("/history")
