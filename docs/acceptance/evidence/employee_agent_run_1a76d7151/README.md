@@ -1,7 +1,9 @@
 # Controlled agent-run admission — scoped authority, exact material and durable job
 
 Status: **submitted for independent verification.** PR
-[#675](https://github.com/rush86999/atom/pull/675), stacked on #673. No merge or
+[#675](https://github.com/rush86999/atom/pull/675), targeting `main` and
+carrying the green #673 delete source `46dc253a1` as a dependency. The PR diff
+therefore includes both agent-mutation families until #673 merges. No merge or
 deployment was performed.
 
 ## Confirmed finding on base main `f8706fb48`
