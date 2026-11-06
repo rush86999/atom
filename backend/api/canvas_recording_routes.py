@@ -113,7 +113,11 @@ async def start_recording(
     Returns recording_id for use in subsequent event recording.
     """
     try:
-        recording_service = get_canvas_recording_service(db)
+        recording_service = get_canvas_recording_service(
+            db,
+            tenant_id=getattr(user, "tenant_id", None) or "default",
+            workspace_id=getattr(user, "workspace_id", None) or "default",
+        )
 
         recording_id = await recording_service.start_recording(
             user_id=user.id,
@@ -163,7 +167,11 @@ async def record_event(
     - user_input: When user provides input
     """
     try:
-        recording_service = get_canvas_recording_service(db)
+        recording_service = get_canvas_recording_service(
+            db,
+            tenant_id=getattr(user, "tenant_id", None) or "default",
+            workspace_id=getattr(user, "workspace_id", None) or "default",
+        )
 
         await recording_service.record_event(
             recording_id=recording_id,
@@ -198,7 +206,11 @@ async def stop_recording(
     Calculates duration, generates summary, and sets expiration.
     """
     try:
-        recording_service = get_canvas_recording_service(db)
+        recording_service = get_canvas_recording_service(
+            db,
+            tenant_id=getattr(user, "tenant_id", None) or "default",
+            workspace_id=getattr(user, "workspace_id", None) or "default",
+        )
 
         await recording_service.stop_recording(
             recording_id=recording_id,
@@ -229,7 +241,11 @@ async def get_recording(
     Returns complete recording with all events for playback/review.
     """
     try:
-        recording_service = get_canvas_recording_service(db)
+        recording_service = get_canvas_recording_service(
+            db,
+            tenant_id=getattr(user, "tenant_id", None) or "default",
+            workspace_id=getattr(user, "workspace_id", None) or "default",
+        )
 
         recording = await recording_service.get_recording(recording_id)
 
@@ -276,7 +292,11 @@ async def list_recordings(
     Returns list of recordings with metadata (not full events).
     """
     try:
-        recording_service = get_canvas_recording_service(db)
+        recording_service = get_canvas_recording_service(
+            db,
+            tenant_id=getattr(user, "tenant_id", None) or "default",
+            workspace_id=getattr(user, "workspace_id", None) or "default",
+        )
 
         recordings = await recording_service.list_recordings(
             user_id=user.id,
@@ -325,7 +345,11 @@ async def flag_recording(
                 resource_id=recording_id
             )
 
-        recording_service = get_canvas_recording_service(db)
+        recording_service = get_canvas_recording_service(
+            db,
+            tenant_id=getattr(user, "tenant_id", None) or "default",
+            workspace_id=getattr(user, "workspace_id", None) or "default",
+        )
 
         await recording_service.flag_for_review(
             recording_id=recording_id,
@@ -359,7 +383,11 @@ async def get_recording_replay(
     Similar to get_recording but optimized for playback.
     """
     try:
-        recording_service = get_canvas_recording_service(db)
+        recording_service = get_canvas_recording_service(
+            db,
+            tenant_id=getattr(user, "tenant_id", None) or "default",
+            workspace_id=getattr(user, "workspace_id", None) or "default",
+        )
 
         recording = await recording_service.get_recording(recording_id)
 
