@@ -32,8 +32,10 @@ from core.models import (
     SecurityLevel,
     SkillExecution,
     User,
+    UserRole,
 )
 from core.personal_scope import resolve_tenant_id
+from core.security.rbac import role_level
 
 logger = logging.getLogger(__name__)
 
@@ -195,6 +197,100 @@ def _actor_snapshot(actor: Any) -> Dict[str, Any]:
         "role": str(getattr(actor, "role", "") or ""),
         "tenant_id": str(resolve_tenant_id(actor)),
     }
+
+
+def _exact(column, value: Any):
+    if value is None:
+        return column.is_(None)
+    return column == value
+
+
+def _actor_refusal(actor: Dict[str, Any]) -> Dict[str, Any]:
+    return _refused(
+        str(actor.get("message")
+            or "TEAM_LEAD+ reviewer authority is required"),
+        http_status=int(actor.get("http_status") or 403),
+        error_code=str(actor.get("error_code") or "AUTHORITY_REQUIRED"),
+    )
+
+
+def _resolve_actor(db: Session, actor: Any) -> Dict[str, Any]:
+    """Resolve the authoritative User row before any decision.
+
+    The request-entry User object is a snapshot. A concurrent deactivation,
+    demotion or tenant reassignment must not let a decision commit under stale
+    authority. The frozen status/is_active/role/raw tenant are later bound in
+    the guarded no-op UPDATE in the same transaction as the target CAS.
+    """
+    actor_id = str(getattr(actor, "id", "") or "")
+    if not actor_id:
+        return {
+            "ok": False, "http_status": 401,
+            "error_code": "UNAUTHENTICATED",
+            "message": "Authentication required",
+        }
+    try:
+        with _fresh_session(db) as fresh:
+            row = fresh.query(User).filter(User.id == actor_id).first()
+            if row is None:
+                return {
+                    "ok": False, "http_status": 401,
+                    "error_code": "UNAUTHENTICATED",
+                    "message": "Authentication required",
+                }
+            if not bool(row.is_active) or str(row.status or "") != "active":
+                return {
+                    "ok": False, "http_status": 403,
+                    "error_code": "ACCOUNT_INACTIVE",
+                    "message": (
+                        "This account is not active; refresh and sign in "
+                        "again"),
+                }
+            if role_level(row.role) < role_level(UserRole.TEAM_LEAD):
+                return {
+                    "ok": False, "http_status": 403,
+                    "error_code": "AUTHORITY_REQUIRED",
+                    "message": "TEAM_LEAD+ reviewer authority is required",
+                }
+            return {
+                "ok": True,
+                "id": actor_id,
+                "email": str(row.email or ""),
+                "role": str(row.role or ""),
+                "status": str(row.status or ""),
+                "is_active": bool(row.is_active),
+                "tenant_id": str(resolve_tenant_id(row)),
+                "raw_tenant_id": row.tenant_id,
+            }
+    except Exception as exc:  # noqa: BLE001 — unreadable authority fails closed
+        logger.warning(
+            "community-skill authority read failed: actor=%s error_class=%s",
+            actor_id, type(exc).__name__)
+        return {
+            "ok": False, "http_status": 503,
+            "error_code": "AUTHORITY_UNAVAILABLE",
+            "message": "Authorization could not be confirmed; retry",
+        }
+
+
+def _claim_actor(db: Session, actor: Dict[str, Any]) -> bool:
+    """Bind the frozen principal in the decision transaction.
+
+    A zero-match means the User row was deactivated, demoted or moved after the
+    service resolved it. The caller rolls back all attempted target/audit work.
+    """
+    result = db.execute(
+        update(User)
+        .where(
+            User.id == actor["id"],
+            User.is_active.is_(True),
+            User.status == actor["status"],
+            User.role == actor["role"],
+            _exact(User.tenant_id, actor["raw_tenant_id"]),
+        )
+        .values(updated_at=User.updated_at)
+    )
+    return result.rowcount == 1
 
 
 def _target_digest(skill_id: str) -> str:
@@ -510,11 +606,9 @@ def promote_skill(
     skill_id = str(skill_id or "").strip()
     if not skill_id:
         return _refused("skill_id must be non-empty", field="skill_id")
-    actor_snapshot = _actor_snapshot(actor)
-    if not actor_snapshot["id"]:
-        return _refused(
-            "Authentication required", http_status=401,
-            error_code="UNAUTHENTICATED")
+    actor_snapshot = _resolve_actor(db, actor)
+    if not actor_snapshot.get("ok"):
+        return _actor_refusal(actor_snapshot)
     try:
         operation_id = _operation_id("promote", operation_id)
     except ValueError as exc:
@@ -582,6 +676,12 @@ def promote_skill(
     expected = dict(expected_base)
     expected["result_digest"] = result_digest
 
+    if not _claim_actor(db, actor_snapshot):
+        db.rollback()
+        return _conflict(
+            "reviewer authority changed; refresh and retry",
+            code="AUTHORITY_CHANGED")
+
     try:
         updated = db.execute(
             update(SkillExecution)
@@ -628,11 +728,9 @@ def delete_skill(
     skill_id = str(skill_id or "").strip()
     if not skill_id:
         return _refused("skill_id must be non-empty", field="skill_id")
-    actor_snapshot = _actor_snapshot(actor)
-    if not actor_snapshot["id"]:
-        return _refused(
-            "Authentication required", http_status=401,
-            error_code="UNAUTHENTICATED")
+    actor_snapshot = _resolve_actor(db, actor)
+    if not actor_snapshot.get("ok"):
+        return _actor_refusal(actor_snapshot)
     try:
         operation_id = _operation_id("delete", operation_id)
     except ValueError as exc:
@@ -677,6 +775,12 @@ def delete_skill(
     expected_base["material_digest"] = prior_digest
     expected_base["prior_digest"] = prior_digest
     expected_base["result_digest"] = deleted_digest
+
+    if not _claim_actor(db, actor_snapshot):
+        db.rollback()
+        return _conflict(
+            "reviewer authority changed; refresh and retry",
+            code="AUTHORITY_CHANGED")
 
     try:
         deleted = db.execute(
