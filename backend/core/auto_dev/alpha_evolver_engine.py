@@ -18,14 +18,34 @@ Arbor Integration (2026-06-19):
 import ast
 import logging
 import uuid
+import weakref
 from typing import Any
 
+from sqlalchemy import event, update
 from sqlalchemy.orm import Session
 
 from core.auto_dev.base_engine import BaseLearningEngine, SandboxProtocol
 from core.auto_dev.models import ToolMutation, WorkflowVariant
 
 logger = logging.getLogger(__name__)
+
+# Caller sessions that have emitted a flush in their current transaction. The
+# ORM's new/dirty/deleted collections cannot distinguish a clean read
+# transaction from an already-flushed write, so this public Session event gives
+# the sandbox writer a truthful "do not take ownership" signal. Entries clear
+# on commit, rollback or close.
+_FLUSHED_CALLER_SESSIONS: "weakref.WeakSet[Session]" = weakref.WeakSet()
+
+
+@event.listens_for(Session, "after_flush")
+def _mark_flushed_caller(session, flush_context):
+    _FLUSHED_CALLER_SESSIONS.add(session)
+
+
+@event.listens_for(Session, "after_commit")
+@event.listens_for(Session, "after_rollback")
+def _clear_flushed_caller(session):
+    _FLUSHED_CALLER_SESSIONS.discard(session)
 
 
 class AlphaEvolverEngine(BaseLearningEngine):
@@ -269,6 +289,92 @@ class AlphaEvolverEngine(BaseLearningEngine):
 
         return mutation
 
+    def _caller_has_pending_orm_work(self) -> bool:
+        """True when the caller has unflushed ORM new/dirty/deleted state."""
+        if not isinstance(self.db, Session):
+            return False
+        return bool(self.db.new or self.db.dirty or self.db.deleted)
+
+    def _caller_has_flushed_work(self) -> bool:
+        """True when the caller already emitted a flush in this transaction."""
+        if not isinstance(self.db, Session):
+            return False
+        return self.db in _FLUSHED_CALLER_SESSIONS
+
+    def _caller_is_clean(self) -> bool:
+        return (
+            isinstance(self.db, Session)
+            and not self._caller_has_pending_orm_work()
+            and not self._caller_has_flushed_work()
+        )
+
+    def _release_clean_transaction(self) -> None:
+        """End a clean caller read transaction without touching caller work.
+
+        This is called only when the caller has no pending and no already
+        flushed writes. A clean read transaction holds no writes, so ending it
+        releases the SQLite read lock without discarding user data.
+        """
+        if self._caller_is_clean() and self.db.in_transaction():
+            self.db.rollback()
+
+    def _owned_session(self):
+        """A session owned by this sandbox operation, or None for mock seams.
+
+        The dedicated session owns its commit/rollback. It never commits or
+        rolls back the caller's session; a caller read transaction is released
+        separately only when the caller is clean.
+        """
+        if not isinstance(self.db, Session):
+            return None
+        from sqlalchemy.engine import Connection, Engine
+        from sqlalchemy.orm import sessionmaker
+
+        bind = self.db.get_bind()
+        engine = bind.engine if isinstance(bind, Connection) else bind
+        if not isinstance(engine, Engine):
+            return None
+        return sessionmaker(bind=engine)()
+
+    def _read_mutation_snapshot(
+        self, mutation_id: str, tenant_id: str, db=None,
+    ) -> dict[str, Any] | None:
+        """Read authoritative executable material from the given session."""
+        session = db if db is not None else self.db
+        query = session.query(ToolMutation).filter(
+            ToolMutation.id == str(mutation_id),
+            ToolMutation.tenant_id == str(tenant_id),
+        )
+        if isinstance(session, Session):
+            query = query.populate_existing()
+        row = query.first()
+        if row is None:
+            return None
+        return {
+            "id": str(row.id),
+            "tenant_id": str(row.tenant_id),
+            "sandbox_status": str(row.sandbox_status or "pending"),
+            "tool_name": str(row.tool_name or ""),
+            "parent_tool_id": getattr(row, "parent_tool_id", None),
+            "mutated_code": str(row.mutated_code or ""),
+            "execution_error": row.execution_error,
+        }
+
+    def _skipped_result(self, reason: str, status: str) -> dict[str, Any]:
+        return {
+            "success": False,
+            "output": None,
+            "skipped": True,
+            "reason": reason,
+            "status": status,
+            "proxy_signals": {
+                "syntax_error": False,
+                "execution_success": False,
+                "execution_latency_ms": 0.0,
+                "environment": "not_executed",
+            },
+        }
+
     async def sandbox_execute_mutation(
         self, mutation_id: str, tenant_id: str, inputs: dict[str, Any]
     ) -> dict[str, Any]:
@@ -276,56 +382,163 @@ class AlphaEvolverEngine(BaseLearningEngine):
         Execute a mutation in the sandbox and record results.
 
         Returns proxy fitness signals for downstream evaluation.
+
+        Transaction ownership: an already-flushed caller write transaction
+        makes independent SQLite execution unsafe, so that case returns a
+        bounded deferred/skipped result before reading or touching the caller.
+        Unflushed ORM pending work is safe to leave untouched: the result CAS
+        runs on a dedicated owned session and the caller can commit its edit
+        afterwards. A clean caller read transaction is released only after the
+        authoritative snapshot has been read. The result CAS and commit never
+        run on the caller session.
         """
-        mutation = (
-            self.db.query(ToolMutation)
-            .filter(
-                ToolMutation.id == mutation_id,
-                ToolMutation.tenant_id == tenant_id,
+        if self._caller_has_flushed_work():
+            return self._skipped_result(
+                "caller_transaction_pending", "deferred")
+
+        owned = self._owned_session()
+        db = owned if owned is not None else self.db
+        try:
+            try:
+                snapshot = self._read_mutation_snapshot(
+                    mutation_id, tenant_id, db)
+            except Exception as exc:  # noqa: BLE001 — preserve caller state
+                logger.warning(
+                    "sandbox snapshot read failed for mutation %s: %s",
+                    mutation_id, type(exc).__name__)
+                return self._skipped_result(
+                    "caller_transaction_conflict", "deferred")
+
+            if snapshot is None:
+                msg = f"Mutation {mutation_id} not found or unauthorized for tenant {tenant_id}"
+                logger.error(msg)
+                return {"error": msg}
+
+            sandbox = self._get_sandbox()
+            if not sandbox:
+                return {"error": "Sandbox unavailable"}
+
+            prior_status = snapshot["sandbox_status"]
+            if prior_status not in ("pending", "failed"):
+                reason = (
+                    "review_decision_present"
+                    if prior_status in ("approved", "rejected")
+                    else "status_not_executable")
+                return self._skipped_result(reason, prior_status)
+
+            # The snapshot is authoritative and the caller is clean. Release
+            # its read transaction so the owned writer is not blocked; this
+            # cannot discard caller work because the guarded check above found
+            # none.
+            self._release_clean_transaction()
+
+            mutation_pk = snapshot["id"]
+            mutation_tenant = snapshot["tenant_id"]
+            tool_name = snapshot["tool_name"]
+            parent_tool_id = snapshot["parent_tool_id"]
+            mutated_code = snapshot["mutated_code"]
+            prior_error = snapshot["execution_error"]
+
+            result = await sandbox.execute_raw_python(
+                tenant_id=mutation_tenant,
+                code=mutated_code,
+                input_params=inputs,
             )
-            .first()
-        )
 
-        if not mutation:
-            msg = f"Mutation {mutation_id} not found or unauthorized for tenant {tenant_id}"
-            logger.error(msg)
-            return {"error": msg}
+            execution_success = result.get("status") == "success"
+            new_status = "passed" if execution_success else "failed"
+            new_error = (
+                None if execution_success
+                else result.get("output", "Unknown error")
+            )
 
-        sandbox = self._get_sandbox()
-        if not sandbox:
-            return {"error": "Sandbox unavailable"}
+            # The sandbox is a parallel writer to the review decision. Only a
+            # pending/failed mutation may advance to passed/failed, and only
+            # if its exact material (including parent lineage and prior error)
+            # is still the material that was executed. An approved/rejected
+            # decision or any peer edit matches zero rows and must never be
+            # overwritten.
+            predicates = [
+                ToolMutation.id == mutation_pk,
+                ToolMutation.tenant_id == mutation_tenant,
+                ToolMutation.sandbox_status == prior_status,
+                ToolMutation.tool_name == tool_name,
+                ToolMutation.mutated_code == mutated_code,
+            ]
+            if parent_tool_id is None:
+                predicates.append(ToolMutation.parent_tool_id.is_(None))
+            else:
+                predicates.append(
+                    ToolMutation.parent_tool_id == str(parent_tool_id))
+            if prior_error is None:
+                predicates.append(ToolMutation.execution_error.is_(None))
+            else:
+                predicates.append(ToolMutation.execution_error == prior_error)
 
-        result = await sandbox.execute_raw_python(
-            tenant_id=mutation.tenant_id,
-            code=mutation.mutated_code,
-            input_params=inputs,
-        )
+            try:
+                updated = db.execute(
+                    update(ToolMutation)
+                    .where(*predicates)
+                    .values(
+                        sandbox_status=new_status,
+                        execution_error=new_error)
+                )
+            except Exception as exc:  # noqa: BLE001 — preserve caller state
+                if owned is not None:
+                    owned.rollback()
+                logger.warning(
+                    "sandbox result update failed for mutation %s: %s",
+                    mutation_pk, type(exc).__name__)
+                current = self._read_mutation_snapshot(
+                    mutation_pk, mutation_tenant, db)
+                current_status = (
+                    current["sandbox_status"] if current is not None
+                    else "missing")
+                return self._skipped_result(
+                    "stale_mutation", current_status)
 
-        execution_success = result.get("status") == "success"
+            if updated.rowcount != 1:
+                if owned is not None:
+                    owned.rollback()
+                current = self._read_mutation_snapshot(
+                    mutation_pk, mutation_tenant, db)
+                current_status = (
+                    current["sandbox_status"] if current is not None
+                    else "missing")
+                reason = (
+                    "review_decision_present"
+                    if current_status in ("approved", "rejected")
+                    else "stale_mutation")
+                return self._skipped_result(reason, current_status)
 
-        # Update mutation record
-        mutation.sandbox_status = "passed" if execution_success else "failed"
-        if not execution_success:
-            mutation.execution_error = result.get("output", "Unknown error")
+            db.commit()
+            if self._caller_is_clean():
+                try:
+                    self.db.expire_all()
+                except Exception:  # noqa: BLE001 — refresh is best effort
+                    pass
 
-        self.db.commit()
+            proxy_signals = {
+                "syntax_error": (
+                    not execution_success
+                    and "SyntaxError" in (new_error or "")
+                ),
+                "execution_success": execution_success,
+                "execution_latency_ms": result.get(
+                    "execution_seconds", 0) * 1000.0,
+                "environment": result.get("environment", "unknown"),
+            }
 
-        # Generate proxy signals
-        proxy_signals = {
-            "syntax_error": (
-                not execution_success
-                and "SyntaxError" in (mutation.execution_error or "")
-            ),
-            "execution_success": execution_success,
-            "execution_latency_ms": result.get("execution_seconds", 0) * 1000.0,
-            "environment": result.get("environment", "unknown"),
-        }
-
-        return {
-            "success": execution_success,
-            "output": result.get("output"),
-            "proxy_signals": proxy_signals,
-        }
+            return {
+                "success": execution_success,
+                "output": result.get("output"),
+                "proxy_signals": proxy_signals,
+                "status": new_status,
+                "skipped": False,
+            }
+        finally:
+            if owned is not None:
+                owned.close()
 
     def spawn_workflow_variant(
         self,

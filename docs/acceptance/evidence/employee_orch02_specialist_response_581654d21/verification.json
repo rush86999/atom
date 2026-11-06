@@ -1,0 +1,67 @@
+{
+  "schema": "atom-oracle-orch02-verification-1",
+  "status": "ORCH-02 recruited-specialist work reaching the user-visible response submitted for independent verification; live model quality remains open",
+  "candidate": {
+    "branch": "codex/orch02-specialist-response-20261105",
+    "orch07_source": "b9ba56995",
+    "accepted_orch01_source": "943fb32d7",
+    "executed_source": "581654d21",
+    "tree_clean_at_execution": true,
+    "runtime": "real scratch SQLite, doubled specialist transport, controlled outputs; no live model/provider/sandbox"
+  },
+  "checks": {
+    "real_atom_meta_agent_enforced_consumer": true,
+    "recruited_roster_executed_via_generic_agent": true,
+    "response_cites_specialist_names_and_outputs": true,
+    "chat_handler_returns_final_output_as_user_message": true,
+    "partial_success_preserves_failed_specialist": true,
+    "all_failed_is_explicit_non_success": true,
+    "missing_or_foreign_specialist_refused": true,
+    "disabled_specialist_refused": true,
+    "wrong_capability_refused_before_dispatch": true,
+    "cancellation_stops_before_next_specialist": true,
+    "duplicate_continuation_uses_cached_result": true,
+    "empty_roster_is_explicit_no_suitable": true,
+    "exact_orch07_outcome_join_gets_truthful_result": true,
+    "failure_reason_present_for_failed_cancelled_no_suitable": true,
+    "no_new_router_or_employee_engine": true,
+    "no_live_model_provider_credential_spend_send_download_deployment": true
+  },
+  "results": {
+    "consumer_python314": {"passed": 10, "log": "consumer-314.log"},
+    "consumer_python311": {"passed": 10, "log": "consumer-311.log"},
+    "focused_python314": {"passed": 114, "log": "focused-314.log"},
+    "focused_python311": {"passed": 114, "log": "focused-311.log"},
+    "affected_python314": {
+      "passed": 277, "failed": 5, "baseline_failures": 5,
+      "log": "affected-314.log"
+    },
+    "affected_python311": {
+      "passed": 277, "failed": 5, "baseline_failures": 5,
+      "log": "affected-311.log"
+    },
+    "baseline_python314": {
+      "failed": 5, "log": "baseline-5-943fb32d7-314.log"
+    },
+    "baseline_python311": {
+      "failed": 5, "log": "baseline-5-943fb32d7-311.log"
+    }
+  },
+  "baseline_exclusions": {
+    "fleet_deadlock_source_checks_3": {
+      "file": "tests/test_fleet_orchestration_deadlocks.py",
+      "reason": "pre-existing source-pattern checks; identical at accepted ORCH-01 source"
+    },
+    "round20_route_security_2": {
+      "file": "tests/test_round20_agent_fleet_security.py",
+      "reason": "pre-existing route-security checks; identical at accepted ORCH-01 source"
+    }
+  },
+  "limits": [
+    "Doubled specialist transport; live model behavior/quality is not qualified",
+    "Existing recruitment ranking is preserved; this slice consumes its roster",
+    "No live model/provider/browser/sandbox/credential/spend/send/download/deployment",
+    "PostgreSQL runtime/soak, multi-worker qualification and whole-app ORACLE-01 remain open",
+    "Accepted admin/auth-2FA/canvas/feedback/wait/employee/ORCH-01 and submitted memory/evolution/ORCH-07 remain independent"
+  ]
+}

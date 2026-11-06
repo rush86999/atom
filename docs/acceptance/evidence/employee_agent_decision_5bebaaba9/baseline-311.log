@@ -1,0 +1,1865 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-05 19:22:13 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+
+tests/unit/api/test_agent_routes.py::TestGetAgent::test_get_agent_success 
+-------------------------------- live log setup --------------------------------
+2026-11-05 19:22:13 [    INFO] EscalationManager initialized
+2026-11-05 19:22:13 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:22:13 [    INFO] EscalationManager initialized
+2026-11-05 19:22:13 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:22:13 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 19:22:13 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:15 [    INFO] HTTP Request: GET http://testserver/api/agents/test-agent-123 "HTTP/1.1 200 OK"
+PASSED                                                                   [  0%]
+tests/unit/api/test_agent_routes.py::TestGetAgent::test_get_agent_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:16 [ WARNING] API Error: NOT_FOUND - Agent not found: nonexistent-agent
+2026-11-05 19:22:16 [    INFO] HTTP Request: GET http://testserver/api/agents/nonexistent-agent "HTTP/1.1 404 Not Found"
+PASSED                                                                   [  0%]
+tests/unit/api/test_agent_routes.py::TestGetAgentStatus::test_get_agent_status_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:17 [    INFO] HTTP Request: GET http://testserver/api/agents/test-agent-123/status "HTTP/1.1 200 OK"
+PASSED                                                                   [  0%]
+tests/unit/api/test_agent_routes.py::TestGetAgentStatus::test_get_agent_status_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:18 [ WARNING] API Error: NOT_FOUND - Agent not found: nonexistent
+2026-11-05 19:22:18 [    INFO] HTTP Request: GET http://testserver/api/agents/nonexistent/status "HTTP/1.1 404 Not Found"
+PASSED                                                                   [  0%]
+tests/unit/api/test_agent_routes.py::TestUpdateAgent::test_update_agent_name 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:19 [    INFO] HTTP Request: PATCH http://testserver/api/agents/test-agent-123 "HTTP/1.1 200 OK"
+PASSED                                                                   [  1%]
+tests/unit/api/test_agent_routes.py::TestUpdateAgent::test_update_agent_description 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:20 [    INFO] HTTP Request: PATCH http://testserver/api/agents/test-agent-123 "HTTP/1.1 200 OK"
+PASSED                                                                   [  1%]
+tests/unit/api/test_agent_routes.py::TestUpdateAgent::test_update_agent_both_fields 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:21 [    INFO] HTTP Request: PATCH http://testserver/api/agents/test-agent-123 "HTTP/1.1 200 OK"
+PASSED                                                                   [  1%]
+tests/unit/api/test_agent_routes.py::TestDeleteAgent::test_delete_agent_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:22 [    INFO] HTTP Request: DELETE http://testserver/api/agents/test-agent-123 "HTTP/1.1 200 OK"
+FAILED                                                                   [  1%]
+tests/unit/api/test_agent_routes.py::TestDeleteAgent::test_delete_agent_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:23 [ WARNING] API Error: NOT_FOUND - Agent not found: nonexistent
+2026-11-05 19:22:23 [    INFO] HTTP Request: DELETE http://testserver/api/agents/nonexistent "HTTP/1.1 404 Not Found"
+PASSED                                                                   [  2%]
+tests/unit/api/test_agent_routes.py::TestRunAgent::test_run_agent_background 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:25 [   ERROR] Agent test-agent-123 not found in background task
+2026-11-05 19:22:25 [    INFO] HTTP Request: POST http://testserver/api/agents/test-agent-123/run "HTTP/1.1 200 OK"
+PASSED                                                                   [  2%]
+tests/unit/api/test_agent_routes.py::TestRunAgent::test_run_agent_synchronously 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:26 [   ERROR] Agent test-agent-123 not found in background task
+2026-11-05 19:22:26 [    INFO] HTTP Request: POST http://testserver/api/agents/test-agent-123/run "HTTP/1.1 200 OK"
+PASSED                                                                   [  2%]
+tests/unit/api/test_agent_routes.py::TestRunAgent::test_run_agent_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:27 [ WARNING] API Error: NOT_FOUND - Agent not found: nonexistent
+2026-11-05 19:22:27 [    INFO] HTTP Request: POST http://testserver/api/agents/nonexistent/run "HTTP/1.1 404 Not Found"
+PASSED                                                                   [  2%]
+tests/test_agent_routes_coverage.py::TestAgentFixtures::test_db_fixture PASSED [  3%]
+tests/test_agent_routes_coverage.py::TestAgentFixtures::test_admin_user_fixture PASSED [  3%]
+tests/test_agent_routes_coverage.py::TestAgentFixtures::test_agent_factory_creates_agent PASSED [  3%]
+tests/test_agent_routes_coverage.py::TestAgentFixtures::test_client_fixture_works 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:27 [    INFO] HTTP Request: GET http://testserver/api/agents/ "HTTP/1.1 200 OK"
+PASSED                                                                   [  3%]
+tests/test_agent_routes_coverage.py::TestAgentListOperations::test_list_agents_empty 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:27 [    INFO] HTTP Request: GET http://testserver/api/agents/ "HTTP/1.1 200 OK"
+PASSED                                                                   [  4%]
+tests/test_agent_routes_coverage.py::TestAgentListOperations::test_list_agents_with_agents 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:27 [    INFO] HTTP Request: GET http://testserver/api/agents/ "HTTP/1.1 200 OK"
+PASSED                                                                   [  4%]
+tests/test_agent_routes_coverage.py::TestAgentListOperations::test_list_agents_by_category 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:27 [    INFO] HTTP Request: GET http://testserver/api/agents/?category=finance "HTTP/1.1 200 OK"
+PASSED                                                                   [  4%]
+tests/test_agent_routes_coverage.py::TestAgentListOperations::test_list_agents_structure 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:27 [    INFO] HTTP Request: GET http://testserver/api/agents/ "HTTP/1.1 200 OK"
+PASSED                                                                   [  4%]
+tests/test_agent_routes_coverage.py::TestAgentGetOperations::test_get_agent_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:27 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-dae90447-46ed-454d-bcf2-804aaa3f684e "HTTP/1.1 200 OK"
+PASSED                                                                   [  5%]
+tests/test_agent_routes_coverage.py::TestAgentGetOperations::test_get_agent_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:27 [ WARNING] API Error: NOT_FOUND - Agent not found: nonexistent-agent-123
+2026-11-05 19:22:27 [    INFO] HTTP Request: GET http://testserver/api/agents/nonexistent-agent-123 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [  5%]
+tests/test_agent_routes_coverage.py::TestAgentGetOperations::test_get_agent_includes_metadata 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:27 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-a3f90ada-940c-4a36-80ce-1f81fa4cf475 "HTTP/1.1 200 OK"
+PASSED                                                                   [  5%]
+tests/test_agent_routes_coverage.py::TestAgentUpdateOperations::test_update_agent_name 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:27 [    INFO] HTTP Request: PATCH http://testserver/api/agents/agent-d80e0c84-c3e2-4369-8740-808b5c17f832 "HTTP/1.1 200 OK"
+PASSED                                                                   [  5%]
+tests/test_agent_routes_coverage.py::TestAgentUpdateOperations::test_update_agent_description 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:27 [    INFO] HTTP Request: PATCH http://testserver/api/agents/agent-c51deafb-17c8-4a9e-9b90-c7451e3e7d5a "HTTP/1.1 200 OK"
+PASSED                                                                   [  6%]
+tests/test_agent_routes_coverage.py::TestAgentUpdateOperations::test_update_agent_both_fields 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:27 [    INFO] HTTP Request: PATCH http://testserver/api/agents/agent-57220e6c-d5cb-4d3c-82b4-f4f726cf5774 "HTTP/1.1 200 OK"
+PASSED                                                                   [  6%]
+tests/test_agent_routes_coverage.py::TestAgentUpdateOperations::test_update_agent_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:27 [ WARNING] API Error: NOT_FOUND - Agent not found: nonexistent-agent
+2026-11-05 19:22:27 [    INFO] HTTP Request: PATCH http://testserver/api/agents/nonexistent-agent "HTTP/1.1 404 Not Found"
+PASSED                                                                   [  6%]
+tests/test_agent_routes_coverage.py::TestAgentUpdateOperations::test_update_agent_empty_fields 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:27 [    INFO] HTTP Request: PATCH http://testserver/api/agents/agent-0e0d6a14-71be-4fed-9d37-c0a5fcf20ca0 "HTTP/1.1 200 OK"
+PASSED                                                                   [  6%]
+tests/test_agent_routes_coverage.py::TestAgentDeleteOperations::test_delete_agent_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:28 [    INFO] HTTP Request: DELETE http://testserver/api/agents/agent-fda2fb6f-5691-458d-9d29-364e7166ac63 "HTTP/1.1 200 OK"
+PASSED                                                                   [  7%]
+tests/test_agent_routes_coverage.py::TestAgentDeleteOperations::test_delete_agent_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:28 [ WARNING] API Error: NOT_FOUND - Agent not found: nonexistent-agent
+2026-11-05 19:22:28 [    INFO] HTTP Request: DELETE http://testserver/api/agents/nonexistent-agent "HTTP/1.1 404 Not Found"
+PASSED                                                                   [  7%]
+tests/test_agent_routes_coverage.py::TestAgentDeleteOperations::test_delete_agent_with_running_tasks_blocked 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:28 [ WARNING] API Error: AGENT_HAS_RUNNING_TASKS - Cannot delete agent with 2 running task(s)
+2026-11-05 19:22:28 [    INFO] HTTP Request: DELETE http://testserver/api/agents/agent-094d2d11-76d6-467a-a928-e93575e8684b "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [  7%]
+tests/test_agent_routes_coverage.py::TestAgentRunOperations::test_run_agent_background 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:28 [   ERROR] Agent agent-8669c2bb-479e-4edf-8b3a-fc89e7f8b94f not found in background task
+2026-11-05 19:22:28 [    INFO] HTTP Request: POST http://testserver/api/agents/agent-8669c2bb-479e-4edf-8b3a-fc89e7f8b94f/run "HTTP/1.1 200 OK"
+PASSED                                                                   [  7%]
+tests/test_agent_routes_coverage.py::TestAgentRunOperations::test_run_agent_sync 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:28 [   ERROR] Agent agent-ecbedfce-721d-4d5e-9397-99dc47e07f40 not found in background task
+2026-11-05 19:22:28 [    INFO] HTTP Request: POST http://testserver/api/agents/agent-ecbedfce-721d-4d5e-9397-99dc47e07f40/run "HTTP/1.1 200 OK"
+PASSED                                                                   [  8%]
+tests/test_agent_routes_coverage.py::TestAgentRunOperations::test_run_agent_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:28 [ WARNING] API Error: NOT_FOUND - Agent not found: nonexistent
+2026-11-05 19:22:28 [    INFO] HTTP Request: POST http://testserver/api/agents/nonexistent/run "HTTP/1.1 404 Not Found"
+PASSED                                                                   [  8%]
+tests/test_agent_routes_coverage.py::TestAgentRunOperations::test_run_agent_deprecated_blocked 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:28 [ WARNING] API Error: AGENT_INVALID_STATE - Agent is deprecated
+2026-11-05 19:22:28 [    INFO] HTTP Request: POST http://testserver/api/agents/agent-2dd7893f-ce1b-494d-ae5a-2f664e82793f/run "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [  8%]
+tests/test_agent_routes_coverage.py::TestAgentRunOperations::test_run_agent_paused_blocked 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:28 [ WARNING] API Error: AGENT_INVALID_STATE - Agent is paused
+2026-11-05 19:22:28 [    INFO] HTTP Request: POST http://testserver/api/agents/agent-b8a03da1-b4fb-481d-8d97-8fb9dfdeb4c8/run "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [  8%]
+tests/test_agent_routes_coverage.py::TestAgentRunOperations::test_run_agent_already_running_conflict 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:28 [ WARNING] API Error: CONFLICT - Agent is already running
+2026-11-05 19:22:28 [    INFO] HTTP Request: POST http://testserver/api/agents/agent-8bfb2679-01de-473d-baf8-097b24a3c2cc/run "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  9%]
+tests/test_agent_routes_coverage.py::TestAgentStatusEndpoint::test_get_agent_status_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:28 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-83ac228c-d03f-459a-9bc3-bfa6ee6bdc55/status "HTTP/1.1 200 OK"
+PASSED                                                                   [  9%]
+tests/test_agent_routes_coverage.py::TestAgentStatusEndpoint::test_get_agent_status_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:28 [ WARNING] API Error: NOT_FOUND - Agent not found: nonexistent
+2026-11-05 19:22:28 [    INFO] HTTP Request: GET http://testserver/api/agents/nonexistent/status "HTTP/1.1 404 Not Found"
+PASSED                                                                   [  9%]
+tests/test_agent_routes_coverage.py::TestAgentStatusEndpoint::test_get_agent_status_with_running_tasks 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:28 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-3ca889ac-f832-4896-abc4-69bcd35713f4/status "HTTP/1.1 200 OK"
+PASSED                                                                   [  9%]
+tests/test_agent_routes_coverage.py::TestAgentFeedbackEndpoint::test_submit_feedback_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:28 [    INFO] HTTP Request: POST http://testserver/api/agents/agent-26faa6b1-3c4c-4f37-9d81-3850dd815292/feedback "HTTP/1.1 200 OK"
+PASSED                                                                   [ 10%]
+tests/test_agent_routes_coverage.py::TestAgentFeedbackEndpoint::test_submit_feedback_minimal_data 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:28 [    INFO] HTTP Request: POST http://testserver/api/agents/agent-4b053d21-2855-4595-9f0d-5b54586541de/feedback "HTTP/1.1 200 OK"
+PASSED                                                                   [ 10%]
+tests/test_agent_routes_coverage.py::TestAgentPromoteEndpoint::test_promote_agent_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:28 [    INFO] HTTP Request: POST http://testserver/api/agents/agent-a3474afe-313e-4f1d-876b-bc50331666c9/promote "HTTP/1.1 200 OK"
+PASSED                                                                   [ 10%]
+tests/test_agent_routes_coverage.py::TestHITLApprovalEndpoints::test_list_pending_approvals_empty 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:28 [    INFO] HTTP Request: GET http://testserver/api/agents/approvals/pending "HTTP/1.1 200 OK"
+PASSED                                                                   [ 10%]
+tests/test_agent_routes_coverage.py::TestHITLApprovalEndpoints::test_list_pending_approvals_with_actions 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:28 [    INFO] HTTP Request: GET http://testserver/api/agents/approvals/pending "HTTP/1.1 200 OK"
+PASSED                                                                   [ 11%]
+tests/test_agent_routes_coverage.py::TestHITLApprovalEndpoints::test_approve_hitl_action 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:28 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-05 19:22:28 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/action-approve "HTTP/1.1 200 OK"
+PASSED                                                                   [ 11%]
+tests/test_agent_routes_coverage.py::TestHITLApprovalEndpoints::test_reject_hitl_action 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:28 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-05 19:22:28 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/action-reject "HTTP/1.1 200 OK"
+PASSED                                                                   [ 11%]
+tests/test_agent_routes_coverage.py::TestHITLApprovalEndpoints::test_decide_nonexistent_action 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:28 [ WARNING] API Error: NOT_FOUND - HITLAction not found: nonexistent
+2026-11-05 19:22:28 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/nonexistent "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 11%]
+tests/test_agent_routes_coverage.py::TestCustomAgentEndpoints::test_create_custom_agent_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:28 [    INFO] HTTP Request: POST http://testserver/api/agents/custom "HTTP/1.1 201 Created"
+PASSED                                                                   [ 12%]
+tests/test_agent_routes_coverage.py::TestCustomAgentEndpoints::test_create_custom_agent_with_schedule 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:28 [    INFO] Scheduler started
+2026-11-05 19:22:28 [    INFO] AgentScheduler started.
+2026-11-05 19:22:28 [ WARNING] No cron expression for agent fb0e2b47-768d-47e8-ac1e-f48c28611969
+2026-11-05 19:22:28 [    INFO] HTTP Request: POST http://testserver/api/agents/custom "HTTP/1.1 201 Created"
+PASSED                                                                   [ 12%]
+tests/test_agent_routes_coverage.py::TestCustomAgentEndpoints::test_update_agent_put_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:28 [    INFO] HTTP Request: PUT http://testserver/api/agents/agent-09277a81-93ec-4c36-8ec2-747143e69c66 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 12%]
+tests/test_agent_routes_coverage.py::TestCustomAgentEndpoints::test_update_agent_put_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:28 [ WARNING] API Error: NOT_FOUND - Agent not found: nonexistent
+2026-11-05 19:22:28 [    INFO] HTTP Request: PUT http://testserver/api/agents/nonexistent "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 12%]
+tests/test_agent_routes_coverage.py::TestAgentStopEndpoint::test_stop_agent_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:28 [    INFO] Stop request received for agent agent-d01cb056-a952-4a7f-8722-15c94b047ff9 by user admin-user-123
+2026-11-05 19:22:28 [    INFO] HTTP Request: POST http://testserver/api/agents/agent-d01cb056-a952-4a7f-8722-15c94b047ff9/stop "HTTP/1.1 200 OK"
+PASSED                                                                   [ 13%]
+tests/test_agent_routes_coverage.py::TestAgentStopEndpoint::test_stop_agent_no_tasks 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:29 [    INFO] Stop request received for agent agent-60e0b88c-fd63-49fd-9e7d-495dcd8b78b2 by user admin-user-123
+2026-11-05 19:22:29 [ WARNING] No tasks found for agent agent-60e0b88c-fd63-49fd-9e7d-495dcd8b78b2
+2026-11-05 19:22:29 [    INFO] HTTP Request: POST http://testserver/api/agents/agent-60e0b88c-fd63-49fd-9e7d-495dcd8b78b2/stop "HTTP/1.1 200 OK"
+PASSED                                                                   [ 13%]
+tests/test_agent_routes_coverage.py::TestAgentStopEndpoint::test_stop_agent_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:29 [    INFO] Stop request received for agent nonexistent by user admin-user-123
+2026-11-05 19:22:29 [ WARNING] No tasks found for agent nonexistent
+2026-11-05 19:22:29 [ WARNING] API Error: NOT_FOUND - Agent not found: nonexistent
+2026-11-05 19:22:29 [    INFO] HTTP Request: POST http://testserver/api/agents/nonexistent/stop "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 13%]
+tests/test_agent_routes_coverage.py::TestAtomMetaAgentEndpoints::test_execute_atom_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:29 [    INFO] MCP Service initialized
+2026-11-05 19:22:29 [    INFO] HTTP Request: POST http://testserver/api/agents/atom/execute "HTTP/1.1 200 OK"
+PASSED                                                                   [ 13%]
+tests/test_agent_routes_coverage.py::TestAtomMetaAgentEndpoints::test_execute_atom_minimal_request 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:29 [    INFO] HTTP Request: POST http://testserver/api/agents/atom/execute "HTTP/1.1 200 OK"
+PASSED                                                                   [ 14%]
+tests/test_agent_routes_coverage.py::TestAtomMetaAgentEndpoints::test_spawn_agent_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:29 [    INFO] HTTP Request: POST http://testserver/api/agents/spawn "HTTP/1.1 200 OK"
+PASSED                                                                   [ 14%]
+tests/test_agent_routes_coverage.py::TestAtomMetaAgentEndpoints::test_spawn_agent_minimal 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:29 [    INFO] HTTP Request: POST http://testserver/api/agents/spawn "HTTP/1.1 200 OK"
+PASSED                                                                   [ 14%]
+tests/test_agent_routes_coverage.py::TestAtomMetaAgentEndpoints::test_trigger_atom_with_data 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:29 [    INFO] HTTP Request: POST http://testserver/api/agents/atom/trigger "HTTP/1.1 200 OK"
+PASSED                                                                   [ 14%]
+tests/test_agent_routes_coverage.py::TestBoundaryConditions::test_agent_name_max_length 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:29 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-5cb4df96-701a-43c8-984d-4575397cc2b6 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 15%]
+tests/test_agent_routes_coverage.py::TestBoundaryConditions::test_agent_name_too_long_fails PASSED [ 15%]
+tests/test_agent_routes_coverage.py::TestBoundaryConditions::test_empty_agent_description 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:29 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-884dec1c-1912-4a7b-ba1f-8e5224ca571d "HTTP/1.1 200 OK"
+PASSED                                                                   [ 15%]
+tests/test_agent_routes_coverage.py::TestBoundaryConditions::test_agent_with_none_description 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:29 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-ffffb7fc-6292-4836-9cfa-466ff5d0d4b0 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 15%]
+tests/test_agent_routes_coverage.py::TestBoundaryConditions::test_confidence_score_boundary_low 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:29 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-f2f5e2f9-8355-4ce6-90bc-24140ee03bcd "HTTP/1.1 200 OK"
+PASSED                                                                   [ 16%]
+tests/test_agent_routes_coverage.py::TestBoundaryConditions::test_confidence_score_boundary_high 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:29 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-9554c95c-eebb-4717-8404-2178cd42c77c "HTTP/1.1 200 OK"
+PASSED                                                                   [ 16%]
+tests/test_agent_routes_coverage.py::TestBoundaryConditions::test_invalid_confidence_score_rejected PASSED [ 16%]
+tests/test_agent_routes_coverage.py::TestBoundaryConditions::test_agent_configuration_empty 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:29 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-b0b66ff6-66fa-4223-8f62-3fa0efe5ba4e "HTTP/1.1 200 OK"
+PASSED                                                                   [ 16%]
+tests/test_agent_routes_coverage.py::TestBoundaryConditions::test_agent_configuration_complex 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:29 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-aad70382-87a1-4193-9d59-f6466bd3772d "HTTP/1.1 200 OK"
+PASSED                                                                   [ 17%]
+tests/test_agent_routes_coverage.py::TestBoundaryConditions::test_update_agent_with_same_values 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:29 [    INFO] HTTP Request: PATCH http://testserver/api/agents/agent-ff9f1080-9ccf-44a7-9f86-81d3b5687b1a "HTTP/1.1 200 OK"
+PASSED                                                                   [ 17%]
+tests/test_agent_routes_coverage.py::TestBoundaryConditions::test_concurrent_agent_updates 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:29 [    INFO] HTTP Request: PATCH http://testserver/api/agents/agent-2686f469-474e-4a9c-a224-268cf44b0ad4 "HTTP/1.1 200 OK"
+2026-11-05 19:22:29 [    INFO] HTTP Request: PATCH http://testserver/api/agents/agent-2686f469-474e-4a9c-a224-268cf44b0ad4 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 17%]
+tests/test_agent_routes_coverage.py::TestInvalidInputs::test_update_with_invalid_field 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:29 [    INFO] HTTP Request: PATCH http://testserver/api/agents/agent-2b274b6a-4f6c-4e6b-acc0-f52182ca700a "HTTP/1.1 200 OK"
+PASSED                                                                   [ 17%]
+tests/test_agent_routes_coverage.py::TestInvalidInputs::test_run_with_empty_parameters 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:29 [   ERROR] Agent agent-892d7630-03dd-4ea2-acac-f5d02162db82 not found in background task
+2026-11-05 19:22:29 [    INFO] HTTP Request: POST http://testserver/api/agents/agent-892d7630-03dd-4ea2-acac-f5d02162db82/run "HTTP/1.1 200 OK"
+PASSED                                                                   [ 18%]
+tests/test_agent_routes_coverage.py::TestInvalidInputs::test_feedback_missing_required_field 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:29 [    INFO] HTTP Request: POST http://testserver/api/agents/agent-43b8dff5-5a85-4ebb-8f7d-48b665c14076/feedback "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 18%]
+tests/test_agent_routes_coverage.py::TestInvalidInputs::test_create_custom_agent_missing_name 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:29 [    INFO] HTTP Request: POST http://testserver/api/agents/custom "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 18%]
+tests/test_agent_routes_coverage.py::TestInvalidInputs::test_create_custom_agent_missing_category 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:29 [    INFO] HTTP Request: POST http://testserver/api/agents/custom "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 18%]
+tests/test_agent_routes_coverage.py::TestStateTransitions::test_status_values 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:29 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-330b9191-4bc1-43cc-b7f4-d59919f064bf/status "HTTP/1.1 200 OK"
+2026-11-05 19:22:29 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-ed410eb6-a555-422b-8dd8-e9c87be3ceb3/status "HTTP/1.1 200 OK"
+2026-11-05 19:22:29 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-aa3db1d5-244e-4bdd-b8db-f0664ab4836e/status "HTTP/1.1 200 OK"
+2026-11-05 19:22:29 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-381115ee-11df-49bc-9e90-6d143302ae2a/status "HTTP/1.1 200 OK"
+2026-11-05 19:22:29 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-5ec21f70-f719-4aca-a3e4-d8cc8f7e9466/status "HTTP/1.1 200 OK"
+2026-11-05 19:22:29 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-76399a01-0611-4917-953b-c4b2defcf63c/status "HTTP/1.1 200 OK"
+PASSED                                                                   [ 19%]
+tests/test_agent_routes_coverage.py::TestStateTransitions::test_agent_enabled_true 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:30 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-e80b29b6-c21a-4b7a-a636-f18f8e2527b9 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 19%]
+tests/test_agent_routes_coverage.py::TestStateTransitions::test_agent_enabled_false 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:30 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-95cdb454-8db5-4238-b122-a317df13b084 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 19%]
+tests/test_agent_routes_coverage.py::TestStateTransitions::test_confidence_score_progression 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:30 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-84b456f4-3a1c-4cf0-ae08-36e18011bfef "HTTP/1.1 200 OK"
+PASSED                                                                   [ 19%]
+tests/test_agent_routes_coverage.py::TestErrorResponseFormats::test_404_response_format 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:30 [ WARNING] API Error: NOT_FOUND - Agent not found: nonexistent-agent-404
+2026-11-05 19:22:30 [    INFO] HTTP Request: GET http://testserver/api/agents/nonexistent-agent-404 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 20%]
+tests/test_agent_routes_coverage.py::TestErrorResponseFormats::test_400_response_format 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:30 [ WARNING] API Error: AGENT_INVALID_STATE - Agent is deprecated
+2026-11-05 19:22:30 [    INFO] HTTP Request: POST http://testserver/api/agents/agent-91ab7342-034c-4221-8ee9-e252949343b5/run "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 20%]
+tests/test_agent_routes_coverage.py::TestErrorResponseFormats::test_409_response_format 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:30 [ WARNING] API Error: CONFLICT - Agent is already running
+2026-11-05 19:22:30 [    INFO] HTTP Request: POST http://testserver/api/agents/agent-a3027665-c68a-4c92-b38f-2a0e98788166/run "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 20%]
+tests/test_agent_routes_coverage.py::TestErrorResponseFormats::test_422_validation_error_format 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:30 [    INFO] HTTP Request: POST http://testserver/api/agents/custom "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 20%]
+tests/test_agent_routes_coverage.py::TestAgentIntegrationPoints::test_agent_run_with_world_model 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:30 [    INFO] Starting agent WM Agent (ID: agent-4127124f-489e-40c7-aa48-583fc239f993)...
+2026-11-05 19:22:30 [    INFO] Agents WM Agent found 1 relevant past experiences.
+2026-11-05 19:22:30 [    INFO]   [Memory] Past task -> Lesson (Success)
+2026-11-05 19:22:30 [    INFO] Executing Agent WM Agent with ReAct Loop. Input: Test
+2026-11-05 19:22:30 [    INFO] HTTP Request: POST http://testserver/api/agents/agent-4127124f-489e-40c7-aa48-583fc239f993/run "HTTP/1.1 200 OK"
+PASSED                                                                   [ 21%]
+tests/test_agent_routes_coverage.py::TestAgentIntegrationPoints::test_agent_run_broadcasts_to_websocket 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:30 [    INFO] Starting agent WS Agent (ID: agent-53365cda-893e-4fbe-a4b2-b31e5e296f65)...
+2026-11-05 19:22:30 [    INFO] Executing Agent WS Agent with ReAct Loop. Input: Test
+2026-11-05 19:22:30 [    INFO] HTTP Request: POST http://testserver/api/agents/agent-53365cda-893e-4fbe-a4b2-b31e5e296f65/run "HTTP/1.1 200 OK"
+PASSED                                                                   [ 21%]
+tests/test_agent_routes_coverage.py::TestAgentIntegrationPoints::test_agent_failure_sends_notification 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:30 [    INFO] Starting agent Failing Agent (ID: agent-221de05b-f6cc-41ac-916b-e259f0c3380b)...
+2026-11-05 19:22:30 [    INFO] Executing Agent Failing Agent with ReAct Loop. Input: Test
+2026-11-05 19:22:30 [   ERROR] Agent agent-221de05b-f6cc-41ac-916b-e259f0c3380b logic failed: Test failure
+2026-11-05 19:22:30 [CRITICAL] !!! CRITICAL AGENT ERROR !!!
+Agent execution FAILED: Test failure
+Traceback (most recent call last):
+  File "/private/tmp/atom-memory-base/backend/api/agent_routes.py", line 931, in execute_agent_task
+    raise e
+  File "/private/tmp/atom-memory-base/backend/api/agent_routes.py", line 867, in execute_agent_task
+    result_obj = await runner.execute(task_input, context=params, step_callback=streaming_callback)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/unittest/mock.py", line 2240, in _execute_mock_call
+    raise effect
+Exception: Test failure
+
+2026-11-05 19:22:30 [   ERROR] Agent agent-221de05b-f6cc-41ac-916b-e259f0c3380b execution wrapper failed: Test failure
+2026-11-05 19:22:30 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='agent_status_change'
+2026-11-05 19:22:30 [    INFO] HTTP Request: POST http://testserver/api/agents/agent-221de05b-f6cc-41ac-916b-e259f0c3380b/run "HTTP/1.1 200 OK"
+PASSED                                                                   [ 21%]
+tests/test_agent_routes_coverage.py::TestListAgentsResilience::test_list_agents_governance_error_returns_500_json 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:30 [   ERROR] Failed to list agents: agent_registry table missing
+Traceback (most recent call last):
+  File "/private/tmp/atom-memory-base/backend/api/agent_routes.py", line 135, in list_agents
+    agents_db = governance_service.list_agents(category)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/atom-memory-base/backend/tests/test_agent_routes_coverage.py", line 1430, in <lambda>
+    "list_agents": lambda self, category=None: (_ for _ in ()).throw(
+                                               ^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/atom-memory-base/backend/tests/test_agent_routes_coverage.py", line 1430, in <genexpr>
+    "list_agents": lambda self, category=None: (_ for _ in ()).throw(
+RuntimeError: agent_registry table missing
+2026-11-05 19:22:30 [ WARNING] API Error: AGENT_LIST_FAILED - Failed to load agents: agent_registry table missing
+2026-11-05 19:22:30 [    INFO] HTTP Request: GET http://testserver/api/agents/ "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 21%]
+tests/test_agent_routes_coverage.py::TestListAgentsResilience::test_list_agents_job_query_error_returns_500_json 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:30 [   ERROR] Failed to list agents: no such column: agent_jobs.start_time
+Traceback (most recent call last):
+  File "/private/tmp/atom-memory-base/backend/api/agent_routes.py", line 139, in list_agents
+    latest_jobs = db.query(AgentJob.agent_id, func.max(AgentJob.start_time).label('last_run'))\
+                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/atom-memory-base/backend/tests/test_agent_routes_coverage.py", line 1449, in _boom_max
+    raise RuntimeError("no such column: agent_jobs.start_time")
+RuntimeError: no such column: agent_jobs.start_time
+2026-11-05 19:22:30 [ WARNING] API Error: AGENT_LIST_FAILED - Failed to load agents: no such column: agent_jobs.start_time
+2026-11-05 19:22:30 [    INFO] HTTP Request: GET http://testserver/api/agents/ "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 22%]
+tests/test_agent_delete_cascade.py::test_delete_agent_cleans_dependent_rows 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:30 [    INFO] HTTP Request: DELETE http://testserver/api/agents/agent-cascade-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 22%]
+tests/test_agent_delete_cascade.py::test_delete_agent_spares_other_agents_rows 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:30 [    INFO] HTTP Request: DELETE http://testserver/api/agents/agent-cascade-drop "HTTP/1.1 200 OK"
+PASSED                                                                   [ 22%]
+tests/test_agent_delete_cascade.py::test_delete_agent_protects_main_agent 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:30 [ WARNING] API Error: CANNOT_DELETE_MAIN_AGENT - The main agent (atom_main) cannot be deleted.
+2026-11-05 19:22:30 [    INFO] HTTP Request: DELETE http://testserver/api/agents/atom_main "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 22%]
+tests/test_agent_delete_cascade.py::test_delete_demo_agent_writes_tombstone 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:30 [    INFO] HTTP Request: DELETE http://testserver/api/agents/agent-cascade-demo "HTTP/1.1 200 OK"
+PASSED                                                                   [ 23%]
+tests/test_agent_delete_cascade.py::test_delete_non_demo_agent_writes_no_tombstone 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:30 [    INFO] HTTP Request: DELETE http://testserver/api/agents/agent-cascade-plain "HTTP/1.1 200 OK"
+PASSED                                                                   [ 23%]
+tests/test_agent_delete_cascade.py::test_deleted_demo_agent_stays_deleted_across_boots 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:30 [    INFO] BOOTSTRAP: Created onboarding Demo Assistant agent (id=9c0ba71c-8fbf-4770-a18f-42af3129164a)
+2026-11-05 19:22:30 [    INFO] HTTP Request: DELETE http://testserver/api/agents/9c0ba71c-8fbf-4770-a18f-42af3129164a "HTTP/1.1 200 OK"
+2026-11-05 19:22:30 [    INFO] BOOTSTRAP: Demo Assistant was deleted by the operator; respecting tombstone (no re-creation).
+PASSED                                                                   [ 23%]
+tests/test_agent_delete_cascade.py::test_delete_agent_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:30 [ WARNING] API Error: NOT_FOUND - Agent not found: agent-cascade-nope
+2026-11-05 19:22:30 [    INFO] HTTP Request: DELETE http://testserver/api/agents/agent-cascade-nope "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 23%]
+tests/test_covpush_agents.py::TestAgentPromotionService::test_get_promotion_suggestions_returns_interns PASSED [ 24%]
+tests/test_covpush_agents.py::TestAgentPromotionService::test_get_promotion_suggestions_excludes_autonomous PASSED [ 24%]
+tests/test_covpush_agents.py::TestAgentPromotionService::test_get_promotion_suggestions_sorted_and_limited PASSED [ 24%]
+tests/test_covpush_agents.py::TestAgentPromotionService::test_get_promotion_suggestions_agents_not_ready PASSED [ 24%]
+tests/test_covpush_agents.py::TestAgentPromotionService::test_is_agent_ready_not_found PASSED [ 25%]
+tests/test_covpush_agents.py::TestAgentPromotionService::test_is_agent_ready_already_autonomous PASSED [ 25%]
+tests/test_covpush_agents.py::TestAgentPromotionService::test_is_agent_ready_with_explicit_target PASSED [ 25%]
+tests/test_covpush_agents.py::TestAgentPromotionService::test_evaluate_no_feedback PASSED [ 25%]
+tests/test_covpush_agents.py::TestAgentPromotionService::test_evaluate_supervised_to_autonomous_requires_0_9_confidence PASSED [ 26%]
+tests/test_covpush_agents.py::TestAgentPromotionService::test_evaluate_ready_for_supervised PASSED [ 26%]
+tests/test_covpush_agents.py::TestAgentPromotionService::test_evaluate_not_ready PASSED [ 26%]
+tests/test_covpush_agents.py::TestAgentPromotionService::test_get_promotion_path_not_found PASSED [ 26%]
+tests/test_covpush_agents.py::TestAgentPromotionService::test_get_promotion_path_student PASSED [ 27%]
+tests/test_covpush_agents.py::TestAgentPromotionService::test_get_promotion_path_intern PASSED [ 27%]
+tests/test_covpush_agents.py::TestAgentPromotionService::test_get_promotion_path_supervised PASSED [ 27%]
+tests/test_covpush_agents.py::TestAgentPromotionService::test_get_promotion_path_autonomous PASSED [ 27%]
+tests/test_covpush_agents.py::TestAgentPromotionService::test_executions_affect_success_rate_criteria PASSED [ 28%]
+tests/test_covpush_agents.py::TestBackgroundAgentRunner::test_register_agent 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:52 [    INFO] Registered background agent: agent-1
+PASSED                                                                   [ 28%]
+tests/test_covpush_agents.py::TestBackgroundAgentRunner::test_start_agent_not_registered PASSED [ 28%]
+tests/test_covpush_agents.py::TestBackgroundAgentRunner::test_start_and_stop_agent 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:52 [    INFO] Registered background agent: agent-1
+2026-11-05 19:22:52 [    INFO] Started background agent: agent-1
+2026-11-05 19:22:52 [    INFO] Stopped background agent: agent-1
+PASSED                                                                   [ 28%]
+tests/test_covpush_agents.py::TestBackgroundAgentRunner::test_stop_agent_unregistered 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:52 [    INFO] Stopped background agent: missing
+PASSED                                                                   [ 29%]
+tests/test_covpush_agents.py::TestBackgroundAgentRunner::test_run_loop_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:52 [    INFO] Registered background agent: agent-1
+PASSED                                                                   [ 29%]
+tests/test_covpush_agents.py::TestBackgroundAgentRunner::test_run_loop_error_sets_error_state 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:52 [    INFO] Registered background agent: agent-1
+2026-11-05 19:22:52 [   ERROR] Agent agent-1 error: boom
+PASSED                                                                   [ 29%]
+tests/test_covpush_agents.py::TestBackgroundAgentRunner::test_execute_agent_in_registry PASSED [ 29%]
+tests/test_covpush_agents.py::TestBackgroundAgentRunner::test_execute_agent_not_in_registry PASSED [ 30%]
+tests/test_covpush_agents.py::TestBackgroundAgentRunner::test_execute_agent_exception_re_raises 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:52 [ WARNING] Could not fetch agent owner context: db down
+PASSED                                                                   [ 30%]
+tests/test_covpush_agents.py::TestBackgroundAgentRunner::test_log_and_get_logs 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:52 [    INFO] Registered background agent: agent-1
+PASSED                                                                   [ 30%]
+tests/test_covpush_agents.py::TestBackgroundAgentRunner::test_get_logs_limit PASSED [ 30%]
+tests/test_covpush_agents.py::TestBackgroundAgentRunner::test_get_status_not_found PASSED [ 31%]
+tests/test_covpush_agents.py::TestBackgroundAgentRunner::test_get_status_all 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:52 [    INFO] Registered background agent: agent-1
+2026-11-05 19:22:52 [    INFO] Registered background agent: agent-2
+PASSED                                                                   [ 31%]
+tests/test_covpush_agents.py::TestBackgroundAgentRunner::test_global_runner_exists PASSED [ 31%]
+tests/test_covpush_agents.py::TestAgentRequestManager::test_create_permission_request_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:user-1'. type='agent:request'
+2026-11-05 19:22:55 [   ERROR] Failed to create audit: name 'audit_session_id' is not defined
+2026-11-05 19:22:55 [    INFO] Created permission request e268bfd6-1f5c-471e-879d-97148f7b5da9 from agent agent-1, user user-1
+FAILED                                                                   [ 31%]
+tests/test_covpush_agents.py::TestAgentRequestManager::test_create_permission_request_blocking_signature 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:user-1'. type='agent:request'
+2026-11-05 19:22:55 [   ERROR] Failed to create audit: name 'audit_session_id' is not defined
+2026-11-05 19:22:55 [    INFO] Created permission request 3bc08590-44d2-4bf2-a293-1558fb6680f3 from agent agent-1, user user-1
+PASSED                                                                   [ 32%]
+tests/test_covpush_agents.py::TestAgentRequestManager::test_create_permission_request_disabled PASSED [ 32%]
+tests/test_covpush_agents.py::TestAgentRequestManager::test_create_permission_request_exception 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:57 [   ERROR] Failed to create permission request: ws down
+PASSED                                                                   [ 32%]
+tests/test_covpush_agents.py::TestAgentRequestManager::test_create_decision_request 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:58 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:user-1'. type='agent:request'
+2026-11-05 19:22:58 [   ERROR] Failed to create audit: name 'audit_session_id' is not defined
+2026-11-05 19:22:58 [    INFO] Created decision request f1b752c1-c850-4c2d-9b46-8d009360a2fc from agent agent-1
+PASSED                                                                   [ 32%]
+tests/test_covpush_agents.py::TestAgentRequestManager::test_create_decision_request_missing_agent_name 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:22:59 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:user-1'. type='agent:request'
+2026-11-05 19:22:59 [   ERROR] Failed to create audit: name 'audit_session_id' is not defined
+2026-11-05 19:22:59 [    INFO] Created decision request 7a0e7ab0-5508-4eca-8d85-e81f953cd09b from agent ghost-agent
+PASSED                                                                   [ 33%]
+tests/test_covpush_agents.py::TestAgentRequestManager::test_wait_for_response_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:00 [ WARNING] Request missing not found
+PASSED                                                                   [ 33%]
+tests/test_covpush_agents.py::TestAgentRequestManager::test_wait_for_response_timeout_marks_revoked 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:01 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:user-1'. type='agent:request'
+2026-11-05 19:23:01 [   ERROR] Failed to create audit: name 'audit_session_id' is not defined
+2026-11-05 19:23:01 [    INFO] Created permission request 16c27716-2077-4389-8ce3-cdcf8251984f from agent agent-1, user user-1
+2026-11-05 19:23:01 [ WARNING] Request 16c27716-2077-4389-8ce3-cdcf8251984f timed out
+PASSED                                                                   [ 33%]
+tests/test_covpush_agents.py::TestAgentRequestManager::test_wait_for_response_returns_user_response 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:02 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:user-1'. type='agent:request'
+2026-11-05 19:23:02 [   ERROR] Failed to create audit: name 'audit_session_id' is not defined
+2026-11-05 19:23:02 [    INFO] Created permission request c8204340-72e3-4ec0-98b3-2f8f9df06787 from agent agent-1, user user-1
+PASSED                                                                   [ 33%]
+tests/test_covpush_agents.py::TestAgentRequestManager::test_handle_response_disabled PASSED [ 33%]
+tests/test_covpush_agents.py::TestAgentRequestManager::test_handle_response_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:04 [ WARNING] Request missing not found for user user-1
+PASSED                                                                   [ 34%]
+tests/test_covpush_agents.py::TestAgentRequestManager::test_handle_response_wrong_user 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:04 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:user-1'. type='agent:request'
+2026-11-05 19:23:04 [   ERROR] Failed to create audit: name 'audit_session_id' is not defined
+2026-11-05 19:23:04 [    INFO] Created permission request 203cbcfc-99bf-4022-adc8-321e98ab65f6 from agent agent-1, user user-1
+2026-11-05 19:23:04 [ WARNING] Request 203cbcfc-99bf-4022-adc8-321e98ab65f6 not found for user user-2
+PASSED                                                                   [ 34%]
+tests/test_covpush_agents.py::TestAgentRequestManager::test_handle_response_expired 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:05 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:user-1'. type='agent:request'
+2026-11-05 19:23:05 [   ERROR] Failed to create audit: name 'audit_session_id' is not defined
+2026-11-05 19:23:05 [    INFO] Created permission request 37cfab2f-a002-4d5f-bc25-51714ef65611 from agent agent-1, user user-1
+2026-11-05 19:23:05 [ WARNING] Request 37cfab2f-a002-4d5f-bc25-51714ef65611 has expired
+PASSED                                                                   [ 34%]
+tests/test_covpush_agents.py::TestAgentRequestManager::test_handle_response_success_sets_event 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:06 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:user-1'. type='agent:request'
+2026-11-05 19:23:06 [   ERROR] Failed to create audit: name 'audit_session_id' is not defined
+2026-11-05 19:23:06 [    INFO] Created permission request 8458164b-89ab-4b0f-8acd-19cb071e11da from agent agent-1, user user-1
+2026-11-05 19:23:06 [   ERROR] Failed to create audit: name 'audit_session_id' is not defined
+2026-11-05 19:23:06 [    INFO] Handled response for request 8458164b-89ab-4b0f-8acd-19cb071e11da
+FAILED                                                                   [ 34%]
+tests/test_covpush_agents.py::TestAgentRequestManager::test_revoke_request 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:07 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:user-1'. type='agent:request'
+2026-11-05 19:23:07 [   ERROR] Failed to create audit: name 'audit_session_id' is not defined
+2026-11-05 19:23:07 [    INFO] Created permission request fc4f5a9f-f79a-4351-aa6e-1f9def7fba7d from agent agent-1, user user-1
+2026-11-05 19:23:07 [    INFO] Revoked request fc4f5a9f-f79a-4351-aa6e-1f9def7fba7d
+PASSED                                                                   [ 35%]
+tests/test_covpush_agents.py::TestAgentRequestManager::test_revoke_request_unknown 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:08 [    INFO] Revoked request missing
+PASSED                                                                   [ 35%]
+tests/test_covpush_agents.py::TestAgentRequestManager::test_create_audit_exception 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:08 [   ERROR] Failed to create audit: name 'audit_session_id' is not defined
+PASSED                                                                   [ 35%]
+tests/test_covpush_agents.py::TestAgentRequestManager::test_get_agent_request_manager_factory PASSED [ 35%]
+tests/test_covpush_agents.py::TestAgentHandoffProtocol::test_validate_payload_no_schema PASSED [ 36%]
+tests/test_covpush_agents.py::TestAgentHandoffProtocol::test_validate_payload_valid PASSED [ 36%]
+tests/test_covpush_agents.py::TestAgentHandoffProtocol::test_validate_payload_invalid 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:11 [   ERROR] Handoff schema validation error: 'task' is a required property
+
+Failed validating 'required' in schema:
+    {'type': 'object', 'required': ['task']}
+
+On instance:
+    {'nope': 1}
+PASSED                                                                   [ 36%]
+tests/test_covpush_agents.py::TestAgentHandoffProtocol::test_validate_payload_import_error_fallback 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:12 [   ERROR] Schema validation failed: missing required key 'task'
+PASSED                                                                   [ 36%]
+tests/test_covpush_agents.py::TestAgentHandoffProtocol::test_initiate_handoff_invalid_agents PASSED [ 37%]
+tests/test_covpush_agents.py::TestAgentHandoffProtocol::test_initiate_handoff_invalid_canvas PASSED [ 37%]
+tests/test_covpush_agents.py::TestAgentHandoffProtocol::test_initiate_handoff_schema_mismatch 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:14 [   ERROR] Handoff schema validation error: 'task' is a required property
+
+Failed validating 'required' in schema:
+    {'required': ['task']}
+
+On instance:
+    {}
+PASSED                                                                   [ 37%]
+tests/test_covpush_agents.py::TestAgentHandoffProtocol::test_initiate_handoff_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:15 [    INFO] Agent handoff initiated: Alpha -> Beta
+PASSED                                                                   [ 37%]
+tests/test_covpush_agents.py::TestAgentHandoffProtocol::test_accept_handoff PASSED [ 38%]
+tests/test_covpush_agents.py::TestAgentHandoffProtocol::test_accept_handoff_not_found PASSED [ 38%]
+tests/test_covpush_agents.py::TestAgentHandoffProtocol::test_accept_handoff_unauthorized PASSED [ 38%]
+tests/test_covpush_agents.py::TestAgentHandoffProtocol::test_reject_handoff PASSED [ 38%]
+tests/test_covpush_agents.py::TestAgentHandoffProtocol::test_reject_handoff_not_found PASSED [ 39%]
+tests/test_covpush_agents.py::TestAgentHandoffProtocol::test_complete_handoff PASSED [ 39%]
+tests/test_covpush_agents.py::TestAgentHandoffProtocol::test_complete_handoff_not_found PASSED [ 39%]
+tests/test_covpush_agents.py::TestMultiAgentCanvasService::test_add_agent_invalid PASSED [ 39%]
+tests/test_covpush_agents.py::TestMultiAgentCanvasService::test_add_agent_success PASSED [ 40%]
+tests/test_covpush_agents.py::TestMultiAgentCanvasService::test_add_agent_already_present PASSED [ 40%]
+tests/test_covpush_agents.py::TestMultiAgentCanvasService::test_remove_agent_not_present PASSED [ 40%]
+tests/test_covpush_agents.py::TestMultiAgentCanvasService::test_remove_agent_success PASSED [ 40%]
+tests/test_covpush_agents.py::TestMultiAgentCanvasService::test_coordinate_sequential PASSED [ 41%]
+tests/test_covpush_agents.py::TestMultiAgentCanvasService::test_coordinate_diverse_strategy 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:26 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'tenant:tenant-1:canvas:canvas-1'. type='agent:join'
+PASSED                                                                   [ 41%]
+tests/test_covpush_agents.py::TestMultiAgentCanvasService::test_coordinate_dynamic_import_fails_falls_back PASSED [ 41%]
+tests/test_covpush_agents.py::TestMultiAgentCanvasService::test_coordinate_dynamic_flag_off_falls_back PASSED [ 41%]
+tests/test_covpush_agents.py::TestMultiAgentCanvasService::test_coordinate_dynamic_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:28 [    INFO] EscalationManager initialized
+2026-11-05 19:23:28 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 42%]
+tests/test_covpush_agents.py::TestMultiAgentCanvasService::test_coordinate_unsupported_strategy PASSED [ 42%]
+tests/test_covpush_agents.py::TestHandleAgentHandoff::test_missing_fields 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:30 [   ERROR] Invalid agent_handoff message: missing required fields
+PASSED                                                                   [ 42%]
+tests/test_covpush_agents.py::TestHandleAgentHandoff::test_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:31 [    INFO] Agent handoff initiated: A -> B
+2026-11-05 19:23:31 [    INFO] Agent handoff successful: {'handoff_id': '2b229a4d-9487-4028-a2ea-e7d8d4222728', 'status': 'pending', 'message': 'Handoff initiated from A to B'}
+PASSED                                                                   [ 42%]
+tests/test_covpush_agents.py::TestHandleAgentHandoff::test_exception_logged 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:31 [   ERROR] Agent handoff failed: Invalid agent IDs
+Traceback (most recent call last):
+  File "/private/tmp/atom-memory-base/backend/core/agent_coordination.py", line 597, in handle_agent_handoff
+    result = await protocol.initiate_handoff(
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/atom-memory-base/backend/core/agent_coordination.py", line 134, in initiate_handoff
+    raise ValueError("Invalid agent IDs")
+ValueError: Invalid agent IDs
+PASSED                                                                   [ 43%]
+tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_unsupported_action 
+-------------------------------- live log setup --------------------------------
+2026-11-05 19:23:31 [ WARNING] Discord integration services not available: No module named 'atom_ingestion_pipeline'
+2026-11-05 19:23:31 [    INFO] ATOM Discord Integration initialized
+2026-11-05 19:23:32 [    INFO] EscalationManager initialized
+2026-11-05 19:23:32 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:23:32 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-05 19:23:32 [    INFO] RealAIWorkflowService modernized with unified LLMService.
+2026-11-05 19:23:32 [    INFO] EscalationManager initialized
+2026-11-05 19:23:32 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:23:32 [    INFO] Webhook processor initialized and callback registered
+2026-11-05 19:23:32 [ WARNING] Enterprise services not available: No module named 'ai_enhanced_service'. Using stubs/None.
+2026-11-05 19:23:32 [    INFO] EscalationManager initialized
+2026-11-05 19:23:32 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 19:23:32 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 19:23:32 [    INFO] LanceDBHandler initialized. ID: 5633673424. LANCEDB_AVAILABLE: True
+2026-11-05 19:23:32 [    INFO] LanceDB handler initialized for Telegram integration
+2026-11-05 19:23:32 [    INFO] Telegram Integration initialized
+2026-11-05 19:23:32 [ WARNING] AI integration services not available: No module named 'atom_discord_integration'
+2026-11-05 19:23:32 [    INFO] ATOM AI Integration initialized
+2026-11-05 19:23:32 [ WARNING] Enterprise security services not available: No module named 'ai_enhanced_service'
+2026-11-05 19:23:32 [    INFO] Enterprise Security Service initialized
+2026-11-05 19:23:32 [ WARNING] Enterprise unified services not available: No module named 'ai_enhanced_service'
+2026-11-05 19:23:32 [    INFO] Enterprise Unified Service initialized
+2026-11-05 19:23:32 [ WARNING] Google Chat integration services not available: No module named 'atom_ingestion_pipeline'
+2026-11-05 19:23:32 [    INFO] Google Chat Enhanced Service initialized
+2026-11-05 19:23:32 [    INFO] ATOM Google Chat Integration initialized
+2026-11-05 19:23:32 [    INFO] Teams Enhanced Service initialized
+2026-11-05 19:23:32 [    INFO] ATOM Teams Integration initialized
+2026-11-05 19:23:32 [    INFO] Workflow Automation Service initialized
+2026-11-05 19:23:32 [    INFO] WhatsApp Integration initialized
+2026-11-05 19:23:32 [ WARNING] AI enhanced service not available for Document Logic Service
+2026-11-05 19:23:32 [ WARNING] Enterprise document_logic_service not available, using stub
+2026-11-05 19:23:32 [    INFO] Google Chat Enhanced Service initialized
+2026-11-05 19:23:32 [ WARNING] Marketing service not available
+2026-11-05 19:23:32 [ WARNING] Meta Business service not available
+2026-11-05 19:23:32 [ WARNING] OpenClaw service not available
+2026-11-05 19:23:32 [ WARNING] Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+2026-11-05 19:23:32 [    INFO] No token storage file found, starting empty
+2026-11-05 19:23:32 [    INFO] Slack Enhanced Service initialized
+2026-11-05 19:23:32 [    INFO] Teams Enhanced Service initialized
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:32 [    INFO] Agent executing sync_data on x
+PASSED                                                                   [ 43%]
+tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_meta_unavailable 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:32 [    INFO] Agent executing send_message on meta
+FAILED                                                                   [ 43%]
+tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_meta_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:32 [    INFO] Agent executing send_message on meta
+FAILED                                                                   [ 43%]
+tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_meta_failed 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:32 [    INFO] Agent executing send_message on meta
+FAILED                                                                   [ 44%]
+tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_whatsapp 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:32 [    INFO] Agent executing send_message on whatsapp
+FAILED                                                                   [ 44%]
+tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_agent_route 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:32 [    INFO] Agent executing send_message on agent
+FAILED                                                                   [ 44%]
+tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_discord 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:32 [    INFO] Agent executing send_message on discord
+FAILED                                                                   [ 44%]
+tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_teams 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:32 [    INFO] Agent executing send_message on teams
+FAILED                                                                   [ 45%]
+tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_telegram 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:32 [    INFO] Agent executing send_message on telegram
+FAILED                                                                   [ 45%]
+tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_google_chat 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:32 [    INFO] Agent executing send_message on google_chat
+FAILED                                                                   [ 45%]
+tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_slack 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:32 [    INFO] Agent executing send_message on slack
+FAILED                                                                   [ 45%]
+tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_twilio 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:32 [    INFO] Agent executing send_message on twilio
+FAILED                                                                   [ 46%]
+tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_matrix_import_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:32 [    INFO] Agent executing send_message on matrix
+FAILED                                                                   [ 46%]
+tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_matrix_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:32 [    INFO] Agent executing send_message on matrix
+FAILED                                                                   [ 46%]
+tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_messenger_import_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:32 [    INFO] Agent executing send_message on messenger
+FAILED                                                                   [ 46%]
+tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_line_signal 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:32 [    INFO] Agent executing send_message on line
+FAILED                                                                   [ 47%]
+tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_openclaw 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:32 [    INFO] Agent executing send_message on openclaw
+FAILED                                                                   [ 47%]
+tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_legacy_fallback 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:32 [    INFO] Agent executing send_message on carrier_pigeon
+FAILED                                                                   [ 47%]
+tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_governance_pause 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:32 [    INFO] Agent executing send_message on whatsapp
+PASSED                                                                   [ 47%]
+tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_update_record_inventory 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:32 [    INFO] Agent executing update_record on amazon
+PASSED                                                                   [ 48%]
+tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_update_record_generic 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:32 [    INFO] Agent executing update_record on crm
+PASSED                                                                   [ 48%]
+tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_fetch_insights_meta 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:32 [    INFO] Agent executing fetch_insights on meta
+2026-11-05 19:23:32 [    INFO] Agent executing fetch_insights on meta
+PASSED                                                                   [ 48%]
+tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_fetch_insights_marketing 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:32 [    INFO] Agent executing fetch_insights on google_ads
+2026-11-05 19:23:32 [    INFO] Agent executing fetch_insights on tiktok_ads
+PASSED                                                                   [ 48%]
+tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_fetch_insights_no_provider 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:32 [    INFO] Agent executing fetch_insights on yahoo
+PASSED                                                                   [ 49%]
+tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_fetch_logic 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:32 [    INFO] Agent executing fetch_logic on docs
+PASSED                                                                   [ 49%]
+tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_fetch_formulas_with_results 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:32 [    INFO] Agent executing fetch_formulas on x
+PASSED                                                                   [ 49%]
+tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_fetch_formulas_empty 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:32 [    INFO] Agent executing fetch_formulas on x
+PASSED                                                                   [ 49%]
+tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_fetch_formulas_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:32 [    INFO] Agent executing fetch_formulas on x
+2026-11-05 19:23:32 [   ERROR] Formula fetch failed: formula memory down
+PASSED                                                                   [ 50%]
+tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_apply_formula_no_id 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:32 [    INFO] Agent executing apply_formula on x
+PASSED                                                                   [ 50%]
+tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_apply_formula_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:32 [    INFO] Agent executing apply_formula on x
+2026-11-05 19:23:32 [    INFO] Updated confidence for agent agent-1 after formula success
+PASSED                                                                   [ 50%]
+tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_apply_formula_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:32 [    INFO] Agent executing apply_formula on x
+2026-11-05 19:23:32 [   ERROR] Formula apply failed: mem down
+PASSED                                                                   [ 50%]
+tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_shopify_handlers_missing_credentials 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:32 [    INFO] Agent executing shopify_get_customers on shopify
+2026-11-05 19:23:32 [    INFO] Agent executing shopify_get_orders on shopify
+2026-11-05 19:23:32 [    INFO] Agent executing shopify_get_products on shopify
+2026-11-05 19:23:32 [    INFO] Agent executing shopify_create_fulfillment on shopify
+2026-11-05 19:23:32 [    INFO] Agent executing shopify_get_analytics on shopify
+2026-11-05 19:23:32 [    INFO] Agent executing shopify_manage_inventory on shopify
+PASSED                                                                   [ 51%]
+tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_shopify_customers_branches 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:32 [    INFO] Agent executing shopify_get_customers on shopify
+2026-11-05 19:23:32 [    INFO] Agent executing shopify_get_customers on shopify
+2026-11-05 19:23:32 [    INFO] Agent executing shopify_get_customers on shopify
+PASSED                                                                   [ 51%]
+tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_shopify_orders_products_analytics 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:32 [    INFO] Agent executing shopify_get_orders on shopify
+2026-11-05 19:23:32 [    INFO] Agent executing shopify_get_products on shopify
+2026-11-05 19:23:32 [    INFO] Agent executing shopify_get_analytics on shopify
+PASSED                                                                   [ 51%]
+tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_shopify_fulfillment_and_inventory 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:32 [    INFO] Agent executing shopify_create_fulfillment on shopify
+2026-11-05 19:23:32 [    INFO] Agent created fulfillment for order o1
+2026-11-05 19:23:32 [    INFO] Agent executing shopify_create_fulfillment on shopify
+2026-11-05 19:23:32 [    INFO] Agent created fulfillment for order o1
+2026-11-05 19:23:32 [    INFO] Agent executing shopify_manage_inventory on shopify
+PASSED                                                                   [ 51%]
+tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_shopify_error_path 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:32 [    INFO] Agent executing shopify_get_customers on shopify
+PASSED                                                                   [ 52%]
+tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_gateway_generic_exception 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:32 [    INFO] Agent executing send_message on whatsapp
+FAILED                                                                   [ 52%]
+tests/test_agent_action_audit.py::TestLogAgentAction::test_writes_audit_row_with_execution_linkage PASSED [ 52%]
+tests/test_agent_action_audit.py::TestLogAgentAction::test_no_context_still_writes_row PASSED [ 52%]
+tests/test_agent_action_audit.py::TestLogAgentAction::test_failure_never_raises_but_logs_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:32 [   ERROR] AUDIT WRITE FAILED (event=agent_action action=tool:x execution=None): db down
+Traceback (most recent call last):
+  File "/private/tmp/atom-memory-base/backend/core/agent_action_audit.py", line 158, in _write_audit_log
+    db.commit()
+  File "/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/unittest/mock.py", line 1124, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/unittest/mock.py", line 1128, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/unittest/mock.py", line 1183, in _execute_mock_call
+    raise effect
+RuntimeError: db down
+PASSED                                                                   [ 53%]
+tests/test_agent_action_audit.py::TestLogAgentAction::test_payload_truncation PASSED [ 53%]
+tests/test_agent_action_audit.py::TestLLMCallLedger::test_llm_call_logged_inside_agent_context PASSED [ 53%]
+tests/test_agent_action_audit.py::TestLLMCallLedger::test_llm_call_skipped_outside_agent_context PASSED [ 53%]
+tests/test_agent_action_audit.py::TestLLMCallLedger::test_audited_llm_call_passthrough_and_ledger PASSED [ 54%]
+tests/test_agent_action_audit.py::TestLLMCallLedger::test_audited_llm_call_ledgers_failure PASSED [ 54%]
+tests/test_agent_action_audit.py::TestCompletenessGate::test_complete_when_audits_cover_expected PASSED [ 54%]
+tests/test_agent_action_audit.py::TestCompletenessGate::test_gap_detected_when_audits_missing PASSED [ 54%]
+tests/test_agent_action_audit.py::TestCompletenessGate::test_count_failure_reported_not_raised 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:32 [   ERROR] AUDIT COMPLETENESS CHECK FAILED for exec-1: boom
+PASSED                                                                   [ 55%]
+tests/test_agent_action_audit.py::TestStepActAuditWrapper::test_successful_tool_call_audited PASSED [ 55%]
+tests/test_agent_action_audit.py::TestStepActAuditWrapper::test_error_string_result_marked_failed PASSED [ 55%]
+tests/test_agent_action_audit.py::TestStepActAuditWrapper::test_exception_audited_then_reraised PASSED [ 55%]
+tests/test_agent_action_audit.py::TestStepActAuditWrapper::test_audit_failure_does_not_break_tool PASSED [ 56%]
+tests/unit/test_agent_governance_service.py::TestAgentRegistration::test_register_new_agent 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:32 [    INFO] Registered new agent: New Agent
+PASSED                                                                   [ 56%]
+tests/unit/test_agent_governance_service.py::TestAgentRegistration::test_register_new_agent_with_description 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:32 [    INFO] Registered new agent: Described Agent
+PASSED                                                                   [ 56%]
+tests/unit/test_agent_governance_service.py::TestAgentRegistration::test_update_existing_agent PASSED [ 56%]
+tests/unit/test_agent_governance_service.py::TestAgentRegistration::test_agent_starts_with_student_status 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:32 [    INFO] Registered new agent: New Agent
+PASSED                                                                   [ 57%]
+tests/unit/test_agent_governance_service.py::TestAgentRegistration::test_register_agent_with_existing_confidence PASSED [ 57%]
+tests/unit/test_agent_governance_service.py::TestFeedbackSubmission::test_submit_feedback_creates_record PASSED [ 57%]
+tests/unit/test_agent_governance_service.py::TestFeedbackSubmission::test_submit_feedback_without_context PASSED [ 57%]
+tests/unit/test_agent_governance_service.py::TestFeedbackSubmission::test_feedback_for_nonexistent_agent_raises_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [   ERROR] API Error: NOT_FOUND - Agent with ID 'nonexistent' not found
+PASSED                                                                   [ 58%]
+tests/unit/test_agent_governance_service.py::TestFeedbackSubmission::test_feedback_calls_adjudication PASSED [ 58%]
+tests/unit/test_agent_governance_service.py::TestFeedbackAdjudication::test_admin_feedback_accepted 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [    INFO] Initialized global governance cache
+2026-11-05 19:23:33 [   ERROR] Failed to update learning from feedback: 'AgentRegistry' object has no attribute 'total_feedback'
+2026-11-05 19:23:33 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+PASSED                                                                   [ 58%]
+tests/unit/test_agent_governance_service.py::TestFeedbackAdjudication::test_super_admin_feedback_accepted 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [   ERROR] Failed to update learning from feedback: 'AgentRegistry' object has no attribute 'total_feedback'
+2026-11-05 19:23:33 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+PASSED                                                                   [ 58%]
+tests/unit/test_agent_governance_service.py::TestFeedbackAdjudication::test_specialty_match_accepted 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [   ERROR] Failed to update learning from feedback: 'AgentRegistry' object has no attribute 'total_feedback'
+2026-11-05 19:23:33 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+PASSED                                                                   [ 59%]
+tests/unit/test_agent_governance_service.py::TestFeedbackAdjudication::test_no_specialty_match_queued 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+PASSED                                                                   [ 59%]
+tests/unit/test_agent_governance_service.py::TestFeedbackAdjudication::test_none_specialty_no_match 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+PASSED                                                                   [ 59%]
+tests/unit/test_agent_governance_service.py::TestFeedbackAdjudication::test_admin_no_specialty_accepted 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [   ERROR] Failed to update learning from feedback: 'AgentRegistry' object has no attribute 'total_feedback'
+2026-11-05 19:23:33 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+PASSED                                                                   [ 59%]
+tests/unit/test_agent_governance_service.py::TestFeedbackAdjudication::test_confidence_decreases_on_accepted_feedback 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [ WARNING] Promotion evidence gate error for agent_123 -> intern: '<' not supported between instances of 'MagicMock' and 'int'
+2026-11-05 19:23:33 [    INFO] Agent Test Agent evidence gate blocked intern: gate error: '<' not supported between instances of 'MagicMock' and 'int'
+2026-11-05 19:23:33 [   ERROR] Failed to update learning from feedback: 'AgentRegistry' object has no attribute 'total_feedback'
+2026-11-05 19:23:33 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+PASSED                                                                   [ 60%]
+tests/unit/test_agent_governance_service.py::TestFeedbackAdjudication::test_confidence_decreases_low_on_queued_feedback 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [ WARNING] Promotion evidence gate error for agent_123 -> intern: '<' not supported between instances of 'MagicMock' and 'int'
+2026-11-05 19:23:33 [    INFO] Agent Test Agent evidence gate blocked intern: gate error: '<' not supported between instances of 'MagicMock' and 'int'
+2026-11-05 19:23:33 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+PASSED                                                                   [ 60%]
+tests/unit/test_agent_governance_service.py::TestFeedbackAdjudication::test_specialty_match_case_insensitive_reverse 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [   ERROR] Failed to update learning from feedback: 'AgentRegistry' object has no attribute 'total_feedback'
+2026-11-05 19:23:33 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+PASSED                                                                   [ 60%]
+tests/unit/test_agent_governance_service.py::TestConfidenceScoring::test_positive_outcome_increases_confidence PASSED [ 60%]
+tests/unit/test_agent_governance_service.py::TestConfidenceScoring::test_negative_outcome_decreases_confidence PASSED [ 61%]
+tests/unit/test_agent_governance_service.py::TestConfidenceScoring::test_confidence_capped_at_one PASSED [ 61%]
+tests/unit/test_agent_governance_service.py::TestConfidenceScoring::test_confidence_floored_at_zero PASSED [ 61%]
+tests/unit/test_agent_governance_service.py::TestConfidenceScoring::test_positive_low_impact_boost PASSED [ 61%]
+tests/unit/test_agent_governance_service.py::TestConfidenceScoring::test_negative_high_impact_penalty PASSED [ 62%]
+tests/unit/test_agent_governance_service.py::TestMaturityTransitions::test_student_to_intern_transition 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [ WARNING] Promotion evidence gate error for agent_student -> intern: '<' not supported between instances of 'MagicMock' and 'int'
+2026-11-05 19:23:33 [    INFO] Agent None evidence gate blocked intern: gate error: '<' not supported between instances of 'MagicMock' and 'int'
+FAILED                                                                   [ 62%]
+tests/unit/test_agent_governance_service.py::TestMaturityTransitions::test_intern_to_supervised_transition 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [ WARNING] Promotion evidence gate error for agent_intern -> supervised: division by zero
+2026-11-05 19:23:33 [    INFO] Agent None evidence gate blocked supervised: gate error: division by zero
+FAILED                                                                   [ 62%]
+tests/unit/test_agent_governance_service.py::TestMaturityTransitions::test_supervised_to_autonomous_transition 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [ WARNING] Promotion evidence gate error for agent_supervised -> autonomous: division by zero
+2026-11-05 19:23:33 [    INFO] Agent None evidence gate blocked autonomous: gate error: division by zero
+FAILED                                                                   [ 62%]
+tests/unit/test_agent_governance_service.py::TestMaturityTransitions::test_autonomous_demoted_on_low_confidence 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [    INFO] Agent None transitioned: autonomous -> supervised
+2026-11-05 19:23:33 [    INFO] Agent None transitioned: supervised -> intern
+2026-11-05 19:23:33 [    INFO] Agent None transitioned: intern -> student
+PASSED                                                                   [ 63%]
+tests/unit/test_agent_governance_service.py::TestOutcomeRecording::test_record_successful_outcome 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [    INFO] Recorded outcome for agent_123: success
+2026-11-05 19:23:33 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+PASSED                                                                   [ 63%]
+tests/unit/test_agent_governance_service.py::TestOutcomeRecording::test_record_failed_outcome 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [    INFO] Recorded outcome for agent_123: failure
+2026-11-05 19:23:33 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+PASSED                                                                   [ 63%]
+tests/unit/test_agent_governance_service.py::TestOutcomeRecording::test_record_outcome_low_impact 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [    INFO] Recorded outcome for agent_123: success
+2026-11-05 19:23:33 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+PASSED                                                                   [ 63%]
+tests/unit/test_agent_governance_service.py::TestCacheInvalidation::test_cache_invalidation_on_student_to_intern 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [ WARNING] Promotion evidence gate error for agent_student -> intern: '<' not supported between instances of 'MagicMock' and 'int'
+2026-11-05 19:23:33 [    INFO] Agent None evidence gate blocked intern: gate error: '<' not supported between instances of 'MagicMock' and 'int'
+PASSED                                                                   [ 64%]
+tests/unit/test_agent_governance_service.py::TestCacheInvalidation::test_cache_invalidation_on_intern_to_supervised 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [ WARNING] Promotion evidence gate error for agent_intern -> supervised: division by zero
+2026-11-05 19:23:33 [    INFO] Agent None evidence gate blocked supervised: gate error: division by zero
+PASSED                                                                   [ 64%]
+tests/unit/test_agent_governance_service.py::TestCacheInvalidation::test_cache_invalidation_on_supervised_to_autonomous 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [ WARNING] Promotion evidence gate error for agent_supervised -> autonomous: division by zero
+2026-11-05 19:23:33 [    INFO] Agent None evidence gate blocked autonomous: gate error: division by zero
+PASSED                                                                   [ 64%]
+tests/unit/test_agent_governance_service.py::TestCacheInvalidation::test_cache_result_structure_complete 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [   ERROR] [BudgetEnforcementService] Error checking budget: 'AgentRegistry' object has no attribute 'setting_value'
+PASSED                                                                   [ 64%]
+tests/unit/test_agent_governance_service.py::TestCacheInvalidation::test_cache_invalidation_when_status_changes 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [ WARNING] Promotion evidence gate error for agent_transition -> supervised: division by zero
+2026-11-05 19:23:33 [    INFO] Agent None evidence gate blocked supervised: gate error: division by zero
+FAILED                                                                   [ 65%]
+tests/unit/test_agent_governance_service.py::TestCacheInvalidation::test_no_cache_invalidation_when_status_unchanged FAILED [ 65%]
+tests/unit/test_agent_governance_service.py::TestAgentListing::test_list_all_agents PASSED [ 65%]
+tests/unit/test_agent_governance_service.py::TestAgentListing::test_list_agents_by_category PASSED [ 65%]
+tests/unit/test_agent_governance_service.py::TestAgentListing::test_list_agents_empty_result PASSED [ 66%]
+tests/unit/test_agent_governance_service.py::TestActionComplexity::test_action_complexity_contains_all_levels PASSED [ 66%]
+tests/unit/test_agent_governance_service.py::TestActionComplexity::test_action_complexity_simple_actions PASSED [ 66%]
+tests/unit/test_agent_governance_service.py::TestActionComplexity::test_action_complexity_moderate_actions PASSED [ 66%]
+tests/unit/test_agent_governance_service.py::TestActionComplexity::test_action_complexity_medium_actions PASSED [ 66%]
+tests/unit/test_agent_governance_service.py::TestActionComplexity::test_action_complexity_high_actions PASSED [ 67%]
+tests/unit/test_agent_governance_service.py::TestMaturityRequirements::test_maturity_requirements_all_levels PASSED [ 67%]
+tests/unit/test_agent_governance_service.py::TestMaturityRequirements::test_maturity_requirements_correct_mapping PASSED [ 67%]
+tests/unit/test_agent_governance_service.py::TestCanPerformAction::test_can_perform_action_allowed 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [   ERROR] [BudgetEnforcementService] Error checking budget: 'AgentRegistry' object has no attribute 'setting_value'
+PASSED                                                                   [ 67%]
+tests/unit/test_agent_governance_service.py::TestCanPerformAction::test_can_perform_action_not_found PASSED [ 68%]
+tests/unit/test_agent_governance_service.py::TestCanPerformAction::test_can_perform_action_blocked_by_maturity PASSED [ 68%]
+tests/unit/test_agent_governance_service.py::TestCanPerformAction::test_can_perform_action_require_approval 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [   ERROR] [BudgetEnforcementService] Error checking budget: 'AgentRegistry' object has no attribute 'setting_value'
+PASSED                                                                   [ 68%]
+tests/unit/test_agent_governance_service.py::TestCanPerformAction::test_can_perform_action_with_require_approval_flag 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [   ERROR] [BudgetEnforcementService] Error checking budget: 'AgentRegistry' object has no attribute 'setting_value'
+PASSED                                                                   [ 68%]
+tests/unit/test_agent_governance_service.py::TestGetAgentCapabilities::test_get_capabilities_student PASSED [ 69%]
+tests/unit/test_agent_governance_service.py::TestGetAgentCapabilities::test_get_capabilities_intern PASSED [ 69%]
+tests/unit/test_agent_governance_service.py::TestGetAgentCapabilities::test_get_capabilities_supervised PASSED [ 69%]
+tests/unit/test_agent_governance_service.py::TestGetAgentCapabilities::test_get_capabilities_autonomous PASSED [ 69%]
+tests/unit/test_agent_governance_service.py::TestGetAgentCapabilities::test_get_capabilities_agent_not_found PASSED [ 70%]
+tests/unit/test_agent_governance_service.py::TestGetAgentCapabilities::test_get_capabilities_includes_confidence PASSED [ 70%]
+tests/unit/test_agent_governance_service.py::TestGetAgentCapabilities::test_get_capabilities_no_confidence_uses_default PASSED [ 70%]
+tests/unit/test_agent_governance_service.py::TestEnforceAction::test_enforce_action_allowed 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [   ERROR] [BudgetEnforcementService] Error checking budget: 'AgentRegistry' object has no attribute 'setting_value'
+PASSED                                                                   [ 70%]
+tests/unit/test_agent_governance_service.py::TestEnforceAction::test_enforce_action_blocked PASSED [ 71%]
+tests/unit/test_agent_governance_service.py::TestEnforceAction::test_enforce_action_requires_approval 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [   ERROR] [BudgetEnforcementService] Error checking budget: 'AgentRegistry' object has no attribute 'setting_value'
+PASSED                                                                   [ 71%]
+tests/unit/test_agent_governance_service.py::TestHITLActions::test_create_hitl_action PASSED [ 71%]
+tests/unit/test_agent_governance_service.py::TestHITLActions::test_create_hitl_action_saves_to_db PASSED [ 71%]
+tests/unit/test_agent_governance_service.py::TestHITLActions::test_get_approval_status_found PASSED [ 72%]
+tests/unit/test_agent_governance_service.py::TestHITLActions::test_get_approval_status_not_found PASSED [ 72%]
+tests/unit/test_agent_governance_service.py::TestHITLActions::test_get_approval_status_includes_feedback PASSED [ 72%]
+tests/unit/test_agent_governance_service.py::TestEvolutionDirectiveValidation::test_valid_config_approved PASSED [ 72%]
+tests/unit/test_agent_governance_service.py::TestEvolutionDirectiveValidation::test_danger_phrase_ignore_all_rules_blocked 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [ WARNING] Evolution directive REJECTED for tenant tenant_123: danger pattern in system_prompt: 'ignore all rules'
+PASSED                                                                   [ 73%]
+tests/unit/test_agent_governance_service.py::TestEvolutionDirectiveValidation::test_danger_phrase_bypass_guardrails_blocked 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [ WARNING] Evolution directive REJECTED for tenant tenant_123: danger pattern in system_prompt: 'bypass guardrails'
+PASSED                                                                   [ 73%]
+tests/unit/test_agent_governance_service.py::TestEvolutionDirectiveValidation::test_danger_phrase_disable_safety_blocked 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [ WARNING] Evolution directive REJECTED for tenant tenant_123: danger pattern in system_prompt: 'disable safety'
+PASSED                                                                   [ 73%]
+tests/unit/test_agent_governance_service.py::TestEvolutionDirectiveValidation::test_danger_phrase_override_governance_blocked 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [ WARNING] Evolution directive REJECTED for tenant tenant_123: danger pattern in system_prompt: 'override governance'
+PASSED                                                                   [ 73%]
+tests/unit/test_agent_governance_service.py::TestEvolutionDirectiveValidation::test_danger_phrase_skip_compliance_blocked 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [ WARNING] Evolution directive REJECTED for tenant tenant_123: danger pattern in system_prompt: 'skip compliance'
+PASSED                                                                   [ 74%]
+tests/unit/test_agent_governance_service.py::TestEvolutionDirectiveValidation::test_danger_phrase_ignore_tenant_policy_blocked 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [ WARNING] Evolution directive REJECTED for tenant tenant_123: danger pattern in system_prompt: 'ignore tenant policy'
+PASSED                                                                   [ 74%]
+tests/unit/test_agent_governance_service.py::TestEvolutionDirectiveValidation::test_danger_phrase_case_insensitive 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [ WARNING] Evolution directive REJECTED for tenant tenant_123: danger pattern in system_prompt: 'ignore all rules'
+PASSED                                                                   [ 74%]
+tests/unit/test_agent_governance_service.py::TestEvolutionDirectiveValidation::test_evolution_depth_at_boundary_allowed PASSED [ 74%]
+tests/unit/test_agent_governance_service.py::TestEvolutionDirectiveValidation::test_evolution_depth_below_boundary_allowed PASSED [ 75%]
+tests/unit/test_agent_governance_service.py::TestEvolutionDirectiveValidation::test_empty_evolution_history_allowed PASSED [ 75%]
+tests/unit/test_agent_governance_service.py::TestEvolutionDirectiveValidation::test_missing_system_prompt_handled PASSED [ 75%]
+tests/unit/test_agent_governance_service.py::TestEvolutionDirectiveValidation::test_none_system_prompt_handled PASSED [ 75%]
+tests/unit/test_agent_governance_service.py::TestEvolutionDirectiveValidation::test_missing_evolution_history_allowed PASSED [ 76%]
+tests/unit/test_agent_governance_service.py::TestEvolutionDirectiveValidation::test_complex_danger_phrase_in_middle_blocked 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [ WARNING] Evolution directive REJECTED for tenant tenant_123: danger pattern in system_prompt: 'bypass guardrails'
+PASSED                                                                   [ 76%]
+tests/unit/test_agent_governance_service.py::TestEvolutionDirectiveValidation::test_valid_prompt_with_long_history_allowed PASSED [ 76%]
+tests/unit/test_agent_governance_service.py::TestEvolutionDirectiveValidation::test_safe_prompt_with_special_characters_allowed PASSED [ 76%]
+tests/unit/governance/test_agent_governance_coverage.py::TestAgentRegistration::test_register_new_agent_creates_record 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [    INFO] Registered new agent: TestAgent
+PASSED                                                                   [ 77%]
+tests/unit/governance/test_agent_governance_coverage.py::TestAgentRegistration::test_register_existing_agent_updates_metadata PASSED [ 77%]
+tests/unit/governance/test_agent_governance_coverage.py::TestAgentRegistration::test_register_agent_with_all_fields 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [    INFO] Registered new agent: FullAgent
+PASSED                                                                   [ 77%]
+tests/unit/governance/test_agent_governance_coverage.py::TestAgentRegistration::test_register_agent_default_student_status 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [    INFO] Registered new agent: StudentAgent
+PASSED                                                                   [ 77%]
+tests/unit/governance/test_agent_governance_coverage.py::TestPermissionChecksByMaturity::test_student_allowed_complexity_1_only 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+PASSED                                                                   [ 78%]
+tests/unit/governance/test_agent_governance_coverage.py::TestPermissionChecksByMaturity::test_student_blocked_complexity_2_3_4 PASSED [ 78%]
+tests/unit/governance/test_agent_governance_coverage.py::TestPermissionChecksByMaturity::test_intern_allowed_complexity_1_2 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+PASSED                                                                   [ 78%]
+tests/unit/governance/test_agent_governance_coverage.py::TestPermissionChecksByMaturity::test_intern_blocked_complexity_3_4 PASSED [ 78%]
+tests/unit/governance/test_agent_governance_coverage.py::TestPermissionChecksByMaturity::test_supervised_allowed_complexity_1_2_3 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+PASSED                                                                   [ 79%]
+tests/unit/governance/test_agent_governance_coverage.py::TestPermissionChecksByMaturity::test_supervised_blocked_complexity_4 PASSED [ 79%]
+tests/unit/governance/test_agent_governance_coverage.py::TestPermissionChecksByMaturity::test_autonomous_allowed_all_complexities 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+PASSED                                                                   [ 79%]
+tests/unit/governance/test_agent_governance_coverage.py::TestPermissionChecksByMaturity::test_unknown_agent_returns_denial PASSED [ 79%]
+tests/unit/governance/test_agent_governance_coverage.py::TestFeedbackSubmission::test_submit_feedback_creates_pending_record PASSED [ 80%]
+tests/unit/governance/test_agent_governance_coverage.py::TestFeedbackSubmission::test_submit_feedback_with_all_fields PASSED [ 80%]
+tests/unit/governance/test_agent_governance_coverage.py::TestFeedbackSubmission::test_submit_feedback_for_unknown_agent_raises 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [   ERROR] API Error: NOT_FOUND - Agent with ID 'unknown-agent' not found
+PASSED                                                                   [ 80%]
+tests/unit/governance/test_agent_governance_coverage.py::TestFeedbackSubmission::test_submit_feedback_triggers_adjudication_async PASSED [ 80%]
+tests/unit/governance/test_agent_governance_coverage.py::TestHITLActionManagement::test_create_hitl_action_saves_record PASSED [ 81%]
+tests/unit/governance/test_agent_governance_coverage.py::TestHITLActionManagement::test_update_hitl_action_status PASSED [ 81%]
+tests/unit/governance/test_agent_governance_coverage.py::TestHITLActionManagement::test_get_pending_hitl_actions_for_agent PASSED [ 81%]
+tests/unit/governance/test_agent_governance_coverage.py::TestGovernanceCacheIntegration::test_cache_invalidation_on_agent_update PASSED [ 81%]
+tests/unit/governance/test_agent_governance_coverage.py::TestErrorPaths::test_handle_not_found_for_missing_agent PASSED [ 82%]
+tests/unit/governance/test_agent_governance_coverage.py::TestErrorPaths::test_handle_permission_denied_unauthorized_action PASSED [ 82%]
+tests/unit/governance/test_agent_governance_coverage.py::TestErrorPaths::test_database_error_handling PASSED [ 82%]
+tests/unit/governance/test_agent_governance_coverage.py::TestAdditionalCoveragePaths::test_enforce_action_blocks_unauthorized PASSED [ 82%]
+tests/unit/governance/test_agent_governance_coverage.py::TestAdditionalCoveragePaths::test_enforce_action_approves_autonomous 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+PASSED                                                                   [ 83%]
+tests/unit/governance/test_agent_governance_coverage.py::TestAdditionalCoveragePaths::test_enforce_action_pending_approval_supervised 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+PASSED                                                                   [ 83%]
+tests/unit/governance/test_agent_governance_coverage.py::TestAdditionalCoveragePaths::test_get_approval_status_pending PASSED [ 83%]
+tests/unit/governance/test_agent_governance_coverage.py::TestAdditionalCoveragePaths::test_get_approval_status_not_found PASSED [ 83%]
+tests/unit/governance/test_agent_governance_coverage.py::TestAdditionalCoveragePaths::test_list_agents_no_filter PASSED [ 84%]
+tests/unit/governance/test_agent_governance_coverage.py::TestAdditionalCoveragePaths::test_list_agents_with_category_filter PASSED [ 84%]
+tests/unit/governance/test_agent_governance_coverage.py::TestAdditionalCoveragePaths::test_record_outcome_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [    INFO] Recorded outcome for agent-id: success
+PASSED                                                                   [ 84%]
+tests/unit/governance/test_agent_governance_coverage.py::TestAdditionalCoveragePaths::test_record_outcome_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [    INFO] Recorded outcome for agent-id: failure
+PASSED                                                                   [ 84%]
+tests/unit/governance/test_agent_governance_coverage.py::TestAdditionalCoveragePaths::test_validate_evolution_directive_safe_config PASSED [ 85%]
+tests/unit/governance/test_agent_governance_coverage.py::TestAdditionalCoveragePaths::test_validate_evolution_directive_danger_phrase 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [ WARNING] Evolution directive REJECTED for tenant tenant-123: danger pattern in system_prompt: 'ignore all rules'; danger pattern in system_prompt: 'bypass guardrails'
+PASSED                                                                   [ 85%]
+tests/unit/governance/test_agent_governance_coverage.py::TestAdditionalCoveragePaths::test_get_agent_capabilities_structure PASSED [ 85%]
+tests/unit/governance/test_agent_governance_coverage.py::TestAgentGovernanceServiceEdgeCases::test_check_permissions_with_null_agent PASSED [ 85%]
+tests/unit/governance/test_agent_governance_coverage.py::TestAgentGovernanceServiceEdgeCases::test_check_permissions_with_deleted_agent 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+PASSED                                                                   [ 86%]
+tests/unit/governance/test_agent_governance_coverage.py::TestAgentGovernanceServiceEdgeCases::test_check_permissions_with_inactive_status 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+PASSED                                                                   [ 86%]
+tests/unit/governance/test_agent_governance_coverage.py::TestAgentGovernanceServiceEdgeCases::test_check_permissions_boundary_conditions 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+PASSED                                                                   [ 86%]
+tests/unit/governance/test_agent_governance_coverage.py::TestAgentGovernanceServiceEdgeCases::test_maturity_level_boundaries 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+PASSED                                                                   [ 86%]
+tests/unit/governance/test_agent_governance_coverage.py::TestAgentGovernanceServiceEdgeCases::test_confidence_score_boundaries 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+PASSED                                                                   [ 87%]
+tests/unit/governance/test_agent_governance_coverage.py::TestAgentGovernanceServiceEdgeCases::test_action_complexity_boundaries 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+PASSED                                                                   [ 87%]
+tests/unit/governance/test_agent_governance_coverage.py::TestAgentGovernanceServiceEdgeCases::test_check_permissions_with_invalid_action 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+PASSED                                                                   [ 87%]
+tests/unit/governance/test_agent_governance_coverage.py::TestAgentGovernanceServiceEdgeCases::test_check_permissions_with_negative_complexity 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+PASSED                                                                   [ 87%]
+tests/unit/governance/test_agent_governance_coverage.py::TestAgentGovernanceServiceEdgeCases::test_check_permissions_with_overflow_agent_id PASSED [ 88%]
+tests/unit/governance/test_agent_governance_coverage.py::TestAgentGovernanceServiceEdgeCases::test_database_connection_failure_handling PASSED [ 88%]
+tests/unit/governance/test_agent_governance_coverage.py::TestAgentGovernanceServiceEdgeCases::test_cache_miss_with_database_unavailable PASSED [ 88%]
+tests/unit/governance/test_agent_governance_coverage.py::TestAgentGovernanceServiceEdgeCases::test_permission_denied_logging PASSED [ 88%]
+tests/unit/governance/test_agent_governance_coverage.py::TestMaturityMatrix::test_maturity_matrix_permissions[STUDENT-1-True] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+PASSED                                                                   [ 89%]
+tests/unit/governance/test_agent_governance_coverage.py::TestMaturityMatrix::test_maturity_matrix_permissions[STUDENT-2-False] PASSED [ 89%]
+tests/unit/governance/test_agent_governance_coverage.py::TestMaturityMatrix::test_maturity_matrix_permissions[STUDENT-3-False] PASSED [ 89%]
+tests/unit/governance/test_agent_governance_coverage.py::TestMaturityMatrix::test_maturity_matrix_permissions[STUDENT-4-False] PASSED [ 89%]
+tests/unit/governance/test_agent_governance_coverage.py::TestMaturityMatrix::test_maturity_matrix_permissions[INTERN-1-True] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+PASSED                                                                   [ 90%]
+tests/unit/governance/test_agent_governance_coverage.py::TestMaturityMatrix::test_maturity_matrix_permissions[INTERN-2-True] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+PASSED                                                                   [ 90%]
+tests/unit/governance/test_agent_governance_coverage.py::TestMaturityMatrix::test_maturity_matrix_permissions[INTERN-3-False] PASSED [ 90%]
+tests/unit/governance/test_agent_governance_coverage.py::TestMaturityMatrix::test_maturity_matrix_permissions[INTERN-4-False] PASSED [ 90%]
+tests/unit/governance/test_agent_governance_coverage.py::TestMaturityMatrix::test_maturity_matrix_permissions[SUPERVISED-1-True] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+PASSED                                                                   [ 91%]
+tests/unit/governance/test_agent_governance_coverage.py::TestMaturityMatrix::test_maturity_matrix_permissions[SUPERVISED-2-True] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+PASSED                                                                   [ 91%]
+tests/unit/governance/test_agent_governance_coverage.py::TestMaturityMatrix::test_maturity_matrix_permissions[SUPERVISED-3-True] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+PASSED                                                                   [ 91%]
+tests/unit/governance/test_agent_governance_coverage.py::TestMaturityMatrix::test_maturity_matrix_permissions[SUPERVISED-4-False] PASSED [ 91%]
+tests/unit/governance/test_agent_governance_coverage.py::TestMaturityMatrix::test_maturity_matrix_permissions[AUTONOMOUS-1-True] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+PASSED                                                                   [ 92%]
+tests/unit/governance/test_agent_governance_coverage.py::TestMaturityMatrix::test_maturity_matrix_permissions[AUTONOMOUS-2-True] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+PASSED                                                                   [ 92%]
+tests/unit/governance/test_agent_governance_coverage.py::TestMaturityMatrix::test_maturity_matrix_permissions[AUTONOMOUS-3-True] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+PASSED                                                                   [ 92%]
+tests/unit/governance/test_agent_governance_coverage.py::TestMaturityMatrix::test_maturity_matrix_permissions[AUTONOMOUS-4-True] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-05 19:23:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-05 19:23:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: '>' not supported between instances of 'Mock' and 'datetime.date'
+PASSED                                                                   [ 92%]
+tests/unit/governance/test_agent_governance_coverage.py::TestMaturityMatrix::test_maturity_matrix_coverage_complete PASSED [ 93%]
+tests/unit/governance/test_agent_governance_coverage.py::TestTriggerInterceptor::test_trigger_for_student_agent_blocked PASSED [ 93%]
+tests/unit/governance/test_agent_governance_coverage.py::TestTriggerInterceptor::test_trigger_for_intern_agent_proposed PASSED [ 93%]
+tests/unit/governance/test_agent_governance_coverage.py::TestTriggerInterceptor::test_trigger_for_supervised_agent_supervised PASSED [ 93%]
+tests/unit/governance/test_agent_governance_coverage.py::TestTriggerInterceptor::test_trigger_for_autonomous_agent_executed PASSED [ 94%]
+tests/unit/governance/test_agent_governance_coverage.py::TestTriggerInterceptor::test_trigger_with_nonexistent_agent PASSED [ 94%]
+tests/unit/governance/test_agent_governance_coverage.py::TestTriggerInterceptor::test_trigger_with_invalid_trigger_data PASSED [ 94%]
+tests/unit/governance/test_agent_governance_coverage.py::TestTriggerInterceptor::test_trigger_with_inactive_agent PASSED [ 94%]
+tests/unit/governance/test_agent_governance_coverage.py::TestTriggerInterceptor::test_trigger_check_latency_sub_5ms PASSED [ 95%]
+tests/unit/governance/test_agent_governance_coverage.py::TestTriggerInterceptor::test_concurrent_trigger_checks PASSED [ 95%]
+tests/unit/governance/test_agent_governance_coverage.py::TestTriggerInterceptor::test_cache_hit_rate_for_repeated_checks PASSED [ 95%]
+tests/test_governance_graduation_integration.py::TestPolicyEngine::test_documented_example_denies_with_reasons PASSED [ 95%]
+tests/test_governance_graduation_integration.py::TestPolicyEngine::test_unregulated_action_allows PASSED [ 96%]
+tests/test_governance_graduation_integration.py::TestPolicyEngine::test_missing_context_counts_as_violation PASSED [ 96%]
+tests/test_governance_graduation_integration.py::TestPolicyEngine::test_duplicate_policy_id_rejected PASSED [ 96%]
+tests/test_governance_graduation_integration.py::TestPolicyEngine::test_unregister_policy PASSED [ 96%]
+tests/test_governance_graduation_integration.py::TestDefaultGraduationPolicies::test_defaults_mirror_readiness_thresholds PASSED [ 97%]
+tests/test_governance_graduation_integration.py::TestDefaultGraduationPolicies::test_layers_match_doc PASSED [ 97%]
+tests/test_governance_graduation_integration.py::TestDynamicGovernanceManager::test_layer_for_action_mapping PASSED [ 97%]
+tests/test_governance_graduation_integration.py::TestDynamicGovernanceManager::test_strategic_pass_requires_human PASSED [ 97%]
+tests/test_governance_graduation_integration.py::TestDynamicGovernanceManager::test_operational_pass_is_automated PASSED [ 98%]
+tests/test_governance_graduation_integration.py::TestDynamicGovernanceManager::test_denied_has_no_human_step PASSED [ 98%]
+tests/test_governance_graduation_integration.py::TestDynamicGovernanceManager::test_layer_inferred_when_omitted PASSED [ 98%]
+tests/test_governance_graduation_integration.py::TestConductExamGovernanceWiring::test_autonomous_pass_withholds_promotion_for_human 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [    INFO] Agent agent-1 PASSED the autonomous exam; promotion withheld pending human approval (STRATEGIC governance)
+PASSED                                                                   [ 98%]
+tests/test_governance_graduation_integration.py::TestConductExamGovernanceWiring::test_supervised_pass_still_auto_promotes 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [    INFO] Agent agent-1 promoted from intern to supervised
+PASSED                                                                   [ 99%]
+tests/test_governance_graduation_integration.py::TestConductExamGovernanceWiring::test_policy_deny_fails_exam_with_reason 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [    INFO] Agent agent-1 failed graduation exam: unknown reason | Governance policy denied: readiness_score 0.9 below min_readiness_score 0.95
+PASSED                                                                   [ 99%]
+tests/test_governance_graduation_integration.py::TestPromoteAgentStrategicGate::test_autonomous_denied_on_weak_evidence 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [ WARNING] Autonomous promotion DENIED by governance policy for a1: episode_count 40 below min_episodes 50; readiness_score 0.92 below min_readiness_score 0.95
+PASSED                                                                   [ 99%]
+tests/test_governance_graduation_integration.py::TestPromoteAgentStrategicGate::test_autonomous_allowed_on_strong_evidence 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:23:33 [    INFO] Agent a2 promoted to AUTONOMOUS by supervisor-1
+2026-11-05 19:23:33 [ WARNING] Graduation notification failed for agent a2 (promotion already committed): This event loop is already running
+PASSED                                                                   [ 99%]
+tests/test_governance_graduation_integration.py::TestPromoteAgentStrategicGate::test_lower_tier_requires_readiness PASSED [100%]
+
+=================================== FAILURES ===================================
+__________________ TestDeleteAgent.test_delete_agent_success ___________________
+tests/unit/api/test_agent_routes.py:207: in test_delete_agent_success
+    assert data["data"]["agent_id"] == sample_agent.id
+                                       ^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/attributes.py:566: in __get__
+    return self.impl.get(state, dict_)  # type: ignore[no-any-return]
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/attributes.py:1086: in get
+    value = self._fire_loader_callables(state, key, passive)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/attributes.py:1116: in _fire_loader_callables
+    return state._load_expired(state, passive)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/state.py:798: in _load_expired
+    self.manager.expired_attribute_loader(self, toload, passive)
+/usr/local/lib/python3.11/site-packages/sqlalchemy/orm/loading.py:1661: in load_scalar_attributes
+    raise orm_exc.ObjectDeletedError(state)
+E   sqlalchemy.orm.exc.ObjectDeletedError: Instance '<AgentRegistry at 0x150cc4d10>' has been deleted, or its row is otherwise not present.
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: DELETE http://testserver/api/agents/test-agent-123 "HTTP/1.1 200 OK"
+________ TestAgentRequestManager.test_create_permission_request_success ________
+tests/test_covpush_agents.py:406: in test_create_permission_request_success
+    assert db_session.query(CanvasAudit).count() == 1
+E   AssertionError: assert 0 == 1
+E    +  where 0 = count()
+E    +    where count = <sqlalchemy.orm.query.Query object at 0x1511622d0>.count
+E    +      where <sqlalchemy.orm.query.Query object at 0x1511622d0> = query(<class 'core.models.CanvasAudit'>)
+E    +        where query = <sqlalchemy.orm.session.Session object at 0x15129de10>.query
+------------------------------ Captured log call -------------------------------
+WARNING  core.websockets:websockets.py:172 [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:user-1'. type='agent:request'
+ERROR    core.agent_request_manager:agent_request_manager.py:487 Failed to create audit: name 'audit_session_id' is not defined
+INFO     core.agent_request_manager:agent_request_manager.py:176 Created permission request e268bfd6-1f5c-471e-879d-97148f7b5da9 from agent agent-1, user user-1
+_______ TestAgentRequestManager.test_handle_response_success_sets_event ________
+tests/test_covpush_agents.py:553: in test_handle_response_success_sets_event
+    assert db_session.query(CanvasAudit).count() == 2
+E   AssertionError: assert 0 == 2
+E    +  where 0 = count()
+E    +    where count = <sqlalchemy.orm.query.Query object at 0x14f5ed7d0>.count
+E    +      where <sqlalchemy.orm.query.Query object at 0x14f5ed7d0> = query(<class 'core.models.CanvasAudit'>)
+E    +        where query = <sqlalchemy.orm.session.Session object at 0x15113cf90>.query
+------------------------------ Captured log call -------------------------------
+WARNING  core.websockets:websockets.py:172 [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:user-1'. type='agent:request'
+ERROR    core.agent_request_manager:agent_request_manager.py:487 Failed to create audit: name 'audit_session_id' is not defined
+INFO     core.agent_request_manager:agent_request_manager.py:176 Created permission request 8458164b-89ab-4b0f-8acd-19cb071e11da from agent agent-1, user user-1
+ERROR    core.agent_request_manager:agent_request_manager.py:487 Failed to create audit: name 'audit_session_id' is not defined
+INFO     core.agent_request_manager:agent_request_manager.py:423 Handled response for request 8458164b-89ab-4b0f-8acd-19cb071e11da
+________ TestAgentIntegrationGateway.test_send_message_meta_unavailable ________
+tests/test_covpush_agents.py:1034: in test_send_message_meta_unavailable
+    assert result["status"] == "failed"
+E   AssertionError: assert 'approval_binding_mismatch' == 'failed'
+E     
+E     - failed
+E     + approval_binding_mismatch
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on meta
+__________ TestAgentIntegrationGateway.test_send_message_meta_success __________
+tests/test_covpush_agents.py:1044: in test_send_message_meta_success
+    assert result["status"] == "success"
+E   AssertionError: assert 'approval_binding_mismatch' == 'success'
+E     
+E     - success
+E     + approval_binding_mismatch
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on meta
+__________ TestAgentIntegrationGateway.test_send_message_meta_failed ___________
+tests/test_covpush_agents.py:1053: in test_send_message_meta_failed
+    assert result["status"] == "failed"
+E   AssertionError: assert 'approval_binding_mismatch' == 'failed'
+E     
+E     - failed
+E     + approval_binding_mismatch
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on meta
+____________ TestAgentIntegrationGateway.test_send_message_whatsapp ____________
+tests/test_covpush_agents.py:1063: in test_send_message_whatsapp
+    assert result["status"] == "success"
+E   AssertionError: assert 'approval_binding_mismatch' == 'success'
+E     
+E     - success
+E     + approval_binding_mismatch
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on whatsapp
+__________ TestAgentIntegrationGateway.test_send_message_agent_route ___________
+tests/test_covpush_agents.py:1083: in test_send_message_agent_route
+    assert result == {"status": "ok"}
+E   AssertionError: assert {'error': <Ma...l': True, ...} == {'status': 'ok'}
+E     
+E     Differing items:
+E     {'status': 'approval_binding_mismatch'} != {'status': 'ok'}
+E     Left contains 4 more items:
+E     {'error': <MagicMock name='contact_governance.find_approved_action().get()' id='5661217808'>,
+E      'hitl_id': <MagicMock name='contact_governance.find_approved_action().get()' id='5661217808'>,
+E      'message': 'The request changed after human review; the approved payload is '...
+E     
+E     ...Full output truncated (13 lines hidden), use '-vv' to show
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on agent
+____________ TestAgentIntegrationGateway.test_send_message_discord _____________
+tests/test_covpush_agents.py:1094: in test_send_message_discord
+    assert result["status"] == "success"
+E   AssertionError: assert 'approval_binding_mismatch' == 'success'
+E     
+E     - success
+E     + approval_binding_mismatch
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on discord
+_____________ TestAgentIntegrationGateway.test_send_message_teams ______________
+tests/test_covpush_agents.py:1107: in test_send_message_teams
+    assert result["status"] == "failed"
+E   AssertionError: assert 'approval_binding_mismatch' == 'failed'
+E     
+E     - failed
+E     + approval_binding_mismatch
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on teams
+____________ TestAgentIntegrationGateway.test_send_message_telegram ____________
+tests/test_covpush_agents.py:1120: in test_send_message_telegram
+    assert result["status"] == "success"
+E   AssertionError: assert 'approval_binding_mismatch' == 'success'
+E     
+E     - success
+E     + approval_binding_mismatch
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on telegram
+__________ TestAgentIntegrationGateway.test_send_message_google_chat ___________
+tests/test_covpush_agents.py:1128: in test_send_message_google_chat
+    assert result["status"] == "failed"
+E   AssertionError: assert 'approval_binding_mismatch' == 'failed'
+E     
+E     - failed
+E     + approval_binding_mismatch
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on google_chat
+_____________ TestAgentIntegrationGateway.test_send_message_slack ______________
+tests/test_covpush_agents.py:1142: in test_send_message_slack
+    assert result["status"] == "failed"
+E   AssertionError: assert 'approval_binding_mismatch' == 'failed'
+E     
+E     - failed
+E     + approval_binding_mismatch
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on slack
+_____________ TestAgentIntegrationGateway.test_send_message_twilio _____________
+tests/test_covpush_agents.py:1164: in test_send_message_twilio
+    assert result["status"] == "success"
+E   AssertionError: assert 'approval_binding_mismatch' == 'success'
+E     
+E     - success
+E     + approval_binding_mismatch
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on twilio
+______ TestAgentIntegrationGateway.test_send_message_matrix_import_error _______
+tests/test_covpush_agents.py:1172: in test_send_message_matrix_import_error
+    assert result["status"] == "failed"
+E   AssertionError: assert 'approval_binding_mismatch' == 'failed'
+E     
+E     - failed
+E     + approval_binding_mismatch
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on matrix
+_________ TestAgentIntegrationGateway.test_send_message_matrix_success _________
+tests/test_covpush_agents.py:1184: in test_send_message_matrix_success
+    assert result["status"] == "success"
+E   AssertionError: assert 'approval_binding_mismatch' == 'success'
+E     
+E     - success
+E     + approval_binding_mismatch
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on matrix
+_____ TestAgentIntegrationGateway.test_send_message_messenger_import_error _____
+tests/test_covpush_agents.py:1192: in test_send_message_messenger_import_error
+    assert result["status"] == "failed"
+E   AssertionError: assert 'approval_binding_mismatch' == 'failed'
+E     
+E     - failed
+E     + approval_binding_mismatch
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on messenger
+__________ TestAgentIntegrationGateway.test_send_message_line_signal ___________
+tests/test_covpush_agents.py:1203: in test_send_message_line_signal
+    assert result["status"] == "success"
+E   AssertionError: assert 'approval_binding_mismatch' == 'success'
+E     
+E     - success
+E     + approval_binding_mismatch
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on line
+____________ TestAgentIntegrationGateway.test_send_message_openclaw ____________
+tests/test_covpush_agents.py:1222: in test_send_message_openclaw
+    assert result["status"] == "failed"
+E   AssertionError: assert 'approval_binding_mismatch' == 'failed'
+E     
+E     - failed
+E     + approval_binding_mismatch
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on openclaw
+________ TestAgentIntegrationGateway.test_send_message_legacy_fallback _________
+tests/test_covpush_agents.py:1235: in test_send_message_legacy_fallback
+    assert result["status"] == "success"
+E   AssertionError: assert 'approval_binding_mismatch' == 'success'
+E     
+E     - success
+E     + approval_binding_mismatch
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on carrier_pigeon
+__________ TestAgentIntegrationGateway.test_gateway_generic_exception __________
+tests/test_covpush_agents.py:1484: in test_gateway_generic_exception
+    assert result["status"] == "error"
+E   AssertionError: assert 'approval_binding_mismatch' == 'error'
+E     
+E     - error
+E     + approval_binding_mismatch
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on whatsapp
+__________ TestMaturityTransitions.test_student_to_intern_transition ___________
+tests/unit/test_agent_governance_service.py:691: in test_student_to_intern_transition
+    assert agent.status in ["intern", "supervised", "autonomous"]
+E   AssertionError: assert 'student' in ['intern', 'supervised', 'autonomous']
+E    +  where 'student' = <core.models.AgentRegistry object at 0x151dea890>.status
+------------------------------ Captured log call -------------------------------
+WARNING  core.agent_governance_service:agent_governance_service.py:706 Promotion evidence gate error for agent_student -> intern: '<' not supported between instances of 'MagicMock' and 'int'
+INFO     core.agent_governance_service:agent_governance_service.py:660 Agent None evidence gate blocked intern: gate error: '<' not supported between instances of 'MagicMock' and 'int'
+_________ TestMaturityTransitions.test_intern_to_supervised_transition _________
+tests/unit/test_agent_governance_service.py:709: in test_intern_to_supervised_transition
+    assert agent.status in ["supervised", "autonomous"]
+E   AssertionError: assert 'intern' in ['supervised', 'autonomous']
+E    +  where 'intern' = <core.models.AgentRegistry object at 0x151df31d0>.status
+------------------------------ Captured log call -------------------------------
+WARNING  core.agent_governance_service:agent_governance_service.py:706 Promotion evidence gate error for agent_intern -> supervised: division by zero
+INFO     core.agent_governance_service:agent_governance_service.py:660 Agent None evidence gate blocked supervised: gate error: division by zero
+_______ TestMaturityTransitions.test_supervised_to_autonomous_transition _______
+tests/unit/test_agent_governance_service.py:727: in test_supervised_to_autonomous_transition
+    assert agent.status == "autonomous"
+E   AssertionError: assert 'supervised' == 'autonomous'
+E     
+E     - autonomous
+E     + supervised
+------------------------------ Captured log call -------------------------------
+WARNING  core.agent_governance_service:agent_governance_service.py:706 Promotion evidence gate error for agent_supervised -> autonomous: division by zero
+INFO     core.agent_governance_service:agent_governance_service.py:660 Agent None evidence gate blocked autonomous: gate error: division by zero
+______ TestCacheInvalidation.test_cache_invalidation_when_status_changes _______
+tests/unit/test_agent_governance_service.py:924: in test_cache_invalidation_when_status_changes
+    assert agent.status == AgentStatus.SUPERVISED.value
+E   AssertionError: assert 'intern' == 'supervised'
+E     
+E     - supervised
+E     + intern
+------------------------------ Captured log call -------------------------------
+WARNING  core.agent_governance_service:agent_governance_service.py:706 Promotion evidence gate error for agent_transition -> supervised: division by zero
+INFO     core.agent_governance_service:agent_governance_service.py:660 Agent None evidence gate blocked supervised: gate error: division by zero
+____ TestCacheInvalidation.test_no_cache_invalidation_when_status_unchanged ____
+/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/unittest/mock.py:900: in assert_not_called
+    raise AssertionError(msg)
+E   AssertionError: Expected 'invalidate' to not have been called. Called 1 times.
+E   Calls: [call('agent_no_change')].
+
+During handling of the above exception, another exception occurred:
+tests/unit/test_agent_governance_service.py:956: in test_no_cache_invalidation_when_status_unchanged
+    mock_cache.invalidate.assert_not_called()
+E   AssertionError: Expected 'invalidate' to not have been called. Called 1 times.
+E   Calls: [call('agent_no_change')].
+E   
+E   pytest introspection follows:
+E   
+E   Args:
+E   assert ('agent_no_change',) == ()
+E     
+E     Left contains one more item: 'agent_no_change'
+E     
+E     Full diff:
+E     - ()
+E     + (
+E     +     'agent_no_change',
+E     + )
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+tests/unit/api/test_agent_routes.py::TestGetAgent::test_get_agent_success
+  /private/tmp/atom-memory-base/backend/core/graphrag_engine.py:196: DeprecationWarning: invalid escape sequence '\%'
+    """
+
+tests/unit/api/test_agent_routes.py: 12 warnings
+  /private/tmp/atom-memory-base/backend/tests/unit/conftest.py:53: SAWarning: Cannot correctly sort tables; there are unresolvable cycles between tables "agent_divisions, agent_registry, canvases, mini_apps", which is usually caused by mutually dependent foreign key constraints.  Foreign key constraints involving these tables will not be considered; this warning may raise an error in a future release.
+    for table in Base.metadata.sorted_tables:
+
+tests/test_agent_routes_coverage.py: 77 warnings
+tests/test_agent_delete_cascade.py: 7 warnings
+  /private/tmp/atom-memory-base/backend/tests/conftest.py:507: SAWarning: Cannot correctly sort tables; there are unresolvable cycles between tables "agent_divisions, agent_registry, canvases, mini_apps", which is usually caused by mutually dependent foreign key constraints.  Foreign key constraints involving these tables will not be considered; this warning may raise an error in a future release.
+    for table in reversed(_all_models_base.metadata.sorted_tables):
+
+tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_unsupported_action
+  /private/tmp/atom-memory-base/backend/core/token_storage.py:17: DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+tests/test_governance_graduation_integration.py::TestPromoteAgentStrategicGate::test_autonomous_allowed_on_strong_evidence
+  /usr/local/lib/python3.11/site-packages/_pytest/stash.py:108: RuntimeWarning: coroutine 'NotificationService.send_notification' was never awaited
+    del self._storage[key]
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/unit/api/test_agent_routes.py::TestDeleteAgent::test_delete_agent_success
+FAILED tests/test_covpush_agents.py::TestAgentRequestManager::test_create_permission_request_success
+FAILED tests/test_covpush_agents.py::TestAgentRequestManager::test_handle_response_success_sets_event
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_meta_unavailable
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_meta_success
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_meta_failed
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_whatsapp
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_agent_route
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_discord
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_teams
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_telegram
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_google_chat
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_slack
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_twilio
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_matrix_import_error
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_matrix_success
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_messenger_import_error
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_line_signal
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_openclaw
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_legacy_fallback
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_gateway_generic_exception
+FAILED tests/unit/test_agent_governance_service.py::TestMaturityTransitions::test_student_to_intern_transition
+FAILED tests/unit/test_agent_governance_service.py::TestMaturityTransitions::test_intern_to_supervised_transition
+FAILED tests/unit/test_agent_governance_service.py::TestMaturityTransitions::test_supervised_to_autonomous_transition
+FAILED tests/unit/test_agent_governance_service.py::TestCacheInvalidation::test_cache_invalidation_when_status_changes
+FAILED tests/unit/test_agent_governance_service.py::TestCacheInvalidation::test_no_cache_invalidation_when_status_unchanged
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========== 26 failed, 377 passed, 104 warnings in 99.96s (0:01:39) ============

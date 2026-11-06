@@ -1,0 +1,57 @@
+{
+  "accepted_admin_base": "9d73552d249ae8ec5b05af77546faf9621bbcd47",
+  "accepted_admin_product": "5fbb377a4e1eef8fdd0013275cd8b1c9b278cd41",
+  "artifacts": {
+    "README.md": "05afbd943bc30fc212f1988796e686b420b23ed5fce1c450012a521f5e8295ce",
+    "TEST_RESULTS.md": "5e17bc93b710bc725d1f2158558fe7fd36e94dd47ee6efc9607f8d87e24ed8a5",
+    "affected-311.log": "18bb997e3cba43d26edbee5d91a0f55483ac6ca6794037ce71cc31205c1f5cb1",
+    "affected-314.log": "8d91e224a1b5ac7c5057c041522c1b9a5f32028992d7dd9ef5b808b9615c651b",
+    "baseline-round22-9d73552d2.log": "8a756dcfb1f5191aeab8a457d12c4744df38d2dee779ce640782f6f3a10ca61d",
+    "focused-311.log": "bc84f103fe39ac5036f15694cfade61b6f88fc0b1df19b598495af5e42a482ee",
+    "focused-314.log": "8ec4f3ab4d8e757542d186d99d24604f564b57d6a078b178c38a9f71d0ff71cb",
+    "routes.json": "7240c4c69ee12af49a3b206f6b6f5f1b243297d83d61a10111f844a2497be3da",
+    "source-tree.txt": "0d58c39d9693d892ac6caed2c92b64af890f8b9bae9237c45c0f971c559cedcd",
+    "verification.json": "8e4c07791749f6d4f2e6714ccef3504f515690aa2143c2ae7bf926f9108c3beb"
+  },
+  "boundaries": [
+    "exactly two community-skill review mutations; import/execute/sandbox/package install open",
+    "platform-global SkillExecution community rows; no tenant-scoped registry",
+    "existing TEAM_LEAD+ authority; no new role",
+    "AuditLog receipt; no new table, migration or engine",
+    "scratch SQLite and fresh sessions; controlled interleaving/fault seams",
+    "no live model/provider/credential/spend/send/download/deployment or sandbox execution",
+    "PostgreSQL runtime/soak, multi-worker serialization and live-code execution not qualified",
+    "accepted memory/admin/auth-2FA/canvas/feedback/wait/employee/ORCH-01 and submitted tool-mutation review remain independent"
+  ],
+  "branch": "codex/oracle01-community-skill-20261105",
+  "checks": {
+    "affected_python311": "252 passed",
+    "affected_python314": "252 passed",
+    "baseline_round22_python314": "4 passed, 4 pre-existing failures",
+    "focused_python311": "126 passed",
+    "focused_python314": "126 passed",
+    "model_calls": 0,
+    "new_passing_controls": 21,
+    "new_schema": false,
+    "package_installs": 0,
+    "provider_calls": 0,
+    "sandbox_calls": 0
+  },
+  "executed_source": "371cf002e",
+  "product_source": "acfee403b",
+  "schema": "atom-employee-evidence-1",
+  "source_files": {
+    "backend/api/skill_routes.py": "527325f2be61dc000aacd5a584e048f4ce9764929b6ca32129d3b777e913a612",
+    "backend/core/auth.py": "63b747a9e335f84128fc43b846eacb8beaef3874edeac00874ee803a5e287c61",
+    "backend/core/base_routes.py": "b3af3c52d14582a3674a30adca6d8fea10ae7f4bde8d46c7b9164eb2ef0597fb",
+    "backend/core/community_skill_write_service.py": "f96febda2012b78c569fa3b8c0c59ee62cd79c53455506e1aab763661c2013e2",
+    "backend/core/database.py": "fd3736e7f679b9b30e242597e25a27565d3ab93fc8c0efd3ea0b1cef76e9b16e",
+    "backend/core/models.py": "4b238c35f6f235d94779f4598040f0c9fcd39599c26705e7016e8b045b51c3ef",
+    "backend/core/security/rbac.py": "48a7ecdb609f7e32267212e85b1993a0045eb84aca903f0152a8a498bcbd405e",
+    "backend/core/skill_registry_service.py": "397985f4dc85f70cdf5edcc575876aff5c8052f16336a969fdfc6e4f17661ebc",
+    "backend/main_api_app.py": "83f6c051d58d39c70c94617cd6eedc9ce65e6414047c1297899dc6e771321af0",
+    "backend/tests/test_community_skill_write_contract.py": "2df11884947d8555af2d588f6a519f1dfbaae1dd8b741c8d76701600e10de062"
+  },
+  "status": "two-route community-skill promote/delete verified-write family submitted for independent verification; import/execute and remaining skill surfaces remain open",
+  "tree_clean_at_execution": true
+}

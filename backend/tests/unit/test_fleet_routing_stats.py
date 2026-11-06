@@ -32,6 +32,9 @@ class FakeQuery:
     def all(self) -> List[Any]:
         return list(self.rows)
 
+    def first(self):
+        return self.rows[0] if self.rows else None
+
     def count(self) -> int:
         return len(self.rows)
 

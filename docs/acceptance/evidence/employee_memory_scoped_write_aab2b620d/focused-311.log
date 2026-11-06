@@ -1,0 +1,423 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-05 17:46:27 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+
+tests/test_memory_write_contract.py::test_store_roundtrip_audit_and_safe_receipt 
+-------------------------------- live log setup --------------------------------
+2026-11-05 17:46:29 [    INFO] EscalationManager initialized
+2026-11-05 17:46:29 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 17:46:29 [    INFO] EscalationManager initialized
+2026-11-05 17:46:29 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 17:46:29 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 17:46:29 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:29 [    INFO] HTTP Request: POST http://testserver/api/memory?operation_id=store-one "HTTP/1.1 200 OK"
+2026-11-05 17:46:29 [    INFO] HTTP Request: GET http://testserver/api/memory/k1 "HTTP/1.1 200 OK"
+PASSED                                                                   [  1%]
+tests/test_memory_write_contract.py::test_scope_isolation_across_users_tenants_and_agents 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:30 [    INFO] HTTP Request: POST http://testserver/api/memory "HTTP/1.1 200 OK"
+2026-11-05 17:46:30 [    INFO] HTTP Request: POST http://testserver/api/memory "HTTP/1.1 200 OK"
+2026-11-05 17:46:30 [    INFO] HTTP Request: POST http://testserver/api/memory "HTTP/1.1 200 OK"
+2026-11-05 17:46:30 [    INFO] HTTP Request: GET http://testserver/api/memory/shared "HTTP/1.1 200 OK"
+2026-11-05 17:46:30 [    INFO] HTTP Request: GET http://testserver/api/memory/shared "HTTP/1.1 200 OK"
+2026-11-05 17:46:30 [    INFO] HTTP Request: GET http://testserver/api/memory/shared "HTTP/1.1 200 OK"
+2026-11-05 17:46:30 [    INFO] HTTP Request: GET http://testserver/api/memory/search?q=user "HTTP/1.1 200 OK"
+2026-11-05 17:46:30 [    INFO] HTTP Request: GET http://testserver/api/memory/search?q=user "HTTP/1.1 200 OK"
+2026-11-05 17:46:30 [    INFO] HTTP Request: DELETE http://testserver/api/memory/shared "HTTP/1.1 200 OK"
+2026-11-05 17:46:30 [    INFO] HTTP Request: GET http://testserver/api/memory/shared "HTTP/1.1 200 OK"
+2026-11-05 17:46:30 [ WARNING] Requested agent_id agent-a not found
+2026-11-05 17:46:30 [    INFO] Creating system default Chat Assistant agent
+2026-11-05 17:46:30 [    INFO] Created system default agent: 47651b1a-5a22-4c0a-a340-845375354d0e
+2026-11-05 17:46:30 [    INFO] Resolved agent via system default: Chat Assistant
+2026-11-05 17:46:30 [ WARNING] can_perform_action() called from a running event loop (agent=47651b1a-5a22-4c0a-a340-845375354d0e action=store_memory); budget not checked synchronously — use can_perform_action_async() to enforce the budget
+2026-11-05 17:46:30 [    INFO] Governance check passed: agent=47651b1a-5a22-4c0a-a340-845375354d0e (intern), action=store_memory, complexity=2
+2026-11-05 17:46:30 [    INFO] HTTP Request: POST http://testserver/api/memory?agent_id=agent-a "HTTP/1.1 200 OK"
+2026-11-05 17:46:30 [ WARNING] API Error: NOT_FOUND - Memory key not found: agent-key
+2026-11-05 17:46:30 [    INFO] HTTP Request: GET http://testserver/api/memory/agent-key "HTTP/1.1 404 Not Found"
+2026-11-05 17:46:30 [    INFO] HTTP Request: GET http://testserver/api/memory/agent-key?agent_id=agent-a "HTTP/1.1 200 OK"
+2026-11-05 17:46:30 [ WARNING] API Error: NOT_FOUND - Memory key not found: agent-key
+2026-11-05 17:46:30 [    INFO] HTTP Request: GET http://testserver/api/memory/agent-key?agent_id=agent-a "HTTP/1.1 404 Not Found"
+2026-11-05 17:46:30 [ WARNING] API Error: NOT_FOUND - Memory key not found: agent-key
+2026-11-05 17:46:30 [    INFO] HTTP Request: GET http://testserver/api/memory/agent-key?agent_id=agent-a "HTTP/1.1 404 Not Found"
+PASSED                                                                   [  2%]
+tests/test_memory_write_contract.py::test_store_update_and_stale_prior_refuses 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:31 [    INFO] HTTP Request: POST http://testserver/api/memory "HTTP/1.1 200 OK"
+2026-11-05 17:46:31 [    INFO] HTTP Request: POST http://testserver/api/memory "HTTP/1.1 200 OK"
+2026-11-05 17:46:31 [    INFO] HTTP Request: POST http://testserver/api/memory "HTTP/1.1 409 Conflict"
+2026-11-05 17:46:31 [    INFO] HTTP Request: GET http://testserver/api/memory/k2 "HTTP/1.1 200 OK"
+PASSED                                                                   [  4%]
+tests/test_memory_write_contract.py::test_store_replay_changed_material_and_later_revision 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:32 [    INFO] HTTP Request: POST http://testserver/api/memory?operation_id=replay "HTTP/1.1 200 OK"
+2026-11-05 17:46:32 [    INFO] HTTP Request: POST http://testserver/api/memory?operation_id=replay "HTTP/1.1 200 OK"
+2026-11-05 17:46:32 [    INFO] HTTP Request: POST http://testserver/api/memory?operation_id=replay "HTTP/1.1 409 Conflict"
+2026-11-05 17:46:32 [    INFO] HTTP Request: POST http://testserver/api/memory?operation_id=replay "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [  5%]
+tests/test_memory_write_contract.py::test_context_merge_replay_competing_and_scope_isolation 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:33 [    INFO] HTTP Request: POST http://testserver/api/memory/context/s1?operation_id=ctx-one "HTTP/1.1 200 OK"
+2026-11-05 17:46:33 [    INFO] HTTP Request: POST http://testserver/api/memory/context/s1?operation_id=ctx-one "HTTP/1.1 200 OK"
+2026-11-05 17:46:33 [    INFO] HTTP Request: POST http://testserver/api/memory/context/s1?operation_id=ctx-two "HTTP/1.1 200 OK"
+2026-11-05 17:46:33 [    INFO] HTTP Request: GET http://testserver/api/memory/context/s1 "HTTP/1.1 200 OK"
+2026-11-05 17:46:33 [    INFO] HTTP Request: GET http://testserver/api/memory/context/s1 "HTTP/1.1 200 OK"
+2026-11-05 17:46:33 [    INFO] HTTP Request: POST http://testserver/api/memory/context/s1?operation_id=ctx-one "HTTP/1.1 503 Service Unavailable"
+2026-11-05 17:46:33 [    INFO] HTTP Request: POST http://testserver/api/memory/context/s1 "HTTP/1.1 409 Conflict"
+2026-11-05 17:46:33 [    INFO] HTTP Request: GET http://testserver/api/memory/context/s1 "HTTP/1.1 200 OK"
+PASSED                                                                   [  6%]
+tests/test_memory_write_contract.py::test_delete_replay_missing_and_stale 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:33 [    INFO] HTTP Request: POST http://testserver/api/memory "HTTP/1.1 200 OK"
+2026-11-05 17:46:33 [    INFO] HTTP Request: DELETE http://testserver/api/memory/k4?operation_id=del-one "HTTP/1.1 200 OK"
+2026-11-05 17:46:33 [ WARNING] API Error: NOT_FOUND - Memory key not found: k4
+2026-11-05 17:46:33 [    INFO] HTTP Request: GET http://testserver/api/memory/k4 "HTTP/1.1 404 Not Found"
+2026-11-05 17:46:33 [    INFO] HTTP Request: DELETE http://testserver/api/memory/k4?operation_id=del-one "HTTP/1.1 200 OK"
+2026-11-05 17:46:33 [    INFO] HTTP Request: DELETE http://testserver/api/memory/missing "HTTP/1.1 404 Not Found"
+2026-11-05 17:46:33 [    INFO] HTTP Request: POST http://testserver/api/memory "HTTP/1.1 200 OK"
+2026-11-05 17:46:33 [    INFO] HTTP Request: DELETE http://testserver/api/memory/k5 "HTTP/1.1 409 Conflict"
+2026-11-05 17:46:33 [    INFO] HTTP Request: GET http://testserver/api/memory/k5 "HTTP/1.1 200 OK"
+PASSED                                                                   [  8%]
+tests/test_memory_write_contract.py::test_confirmed_audit_rollback_reports_effect_none[store] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:34 [    INFO] HTTP Request: POST http://testserver/api/memory?operation_id=rollback-store "HTTP/1.1 409 Conflict"
+2026-11-05 17:46:34 [ WARNING] API Error: NOT_FOUND - Memory key not found: rollback-store
+2026-11-05 17:46:34 [    INFO] HTTP Request: GET http://testserver/api/memory/rollback-store "HTTP/1.1 404 Not Found"
+PASSED                                                                   [  9%]
+tests/test_memory_write_contract.py::test_confirmed_audit_rollback_reports_effect_none[context] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:35 [    INFO] HTTP Request: POST http://testserver/api/memory/context/rollback-context?operation_id=rollback-context "HTTP/1.1 409 Conflict"
+2026-11-05 17:46:35 [    INFO] HTTP Request: GET http://testserver/api/memory/context/rollback-context "HTTP/1.1 200 OK"
+PASSED                                                                   [ 10%]
+tests/test_memory_write_contract.py::test_confirmed_audit_rollback_reports_effect_none[delete] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:36 [    INFO] HTTP Request: POST http://testserver/api/memory "HTTP/1.1 200 OK"
+2026-11-05 17:46:36 [    INFO] HTTP Request: DELETE http://testserver/api/memory/rollback-delete?operation_id=rollback-delete "HTTP/1.1 409 Conflict"
+2026-11-05 17:46:36 [    INFO] HTTP Request: GET http://testserver/api/memory/rollback-delete "HTTP/1.1 200 OK"
+PASSED                                                                   [ 12%]
+tests/test_memory_write_contract.py::test_post_commit_readback_is_committed_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:36 [    INFO] HTTP Request: POST http://testserver/api/memory?operation_id=readback "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 13%]
+tests/test_memory_write_contract.py::test_lost_confirmation_is_effect_unknown_with_identity 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:37 [   ERROR] memory write outcome unknown: operation_id=memory:store:lost-confirmation target=2d2a3d04a2d6761affd44bc453f155b1f09f8254bf629717a947808204ea1bf9 error_class=RuntimeError
+PASSED                                                                   [ 14%]
+tests/test_memory_write_contract.py::test_wrong_audit_receipt_is_never_verified[action] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:38 [    INFO] HTTP Request: POST http://testserver/api/memory?operation_id=audit-action "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 16%]
+tests/test_memory_write_contract.py::test_wrong_audit_receipt_is_never_verified[user_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:39 [    INFO] HTTP Request: POST http://testserver/api/memory?operation_id=audit-user_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 17%]
+tests/test_memory_write_contract.py::test_wrong_audit_receipt_is_never_verified[tenant_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:40 [    INFO] HTTP Request: POST http://testserver/api/memory?operation_id=audit-tenant_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 18%]
+tests/test_memory_write_contract.py::test_wrong_audit_receipt_is_never_verified[workspace_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:40 [    INFO] HTTP Request: POST http://testserver/api/memory?operation_id=audit-workspace_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 20%]
+tests/test_memory_write_contract.py::test_wrong_audit_receipt_is_never_verified[success] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:41 [    INFO] HTTP Request: POST http://testserver/api/memory?operation_id=audit-success "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 21%]
+tests/test_memory_write_contract.py::test_wrong_audit_receipt_is_never_verified[security_level] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:42 [    INFO] HTTP Request: POST http://testserver/api/memory?operation_id=audit-security_level "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 22%]
+tests/test_memory_write_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_scope_json] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:43 [    INFO] HTTP Request: POST http://testserver/api/memory?operation_id=audit-metadata_scope_json "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 24%]
+tests/test_memory_write_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_setting_key] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:44 [    INFO] HTTP Request: POST http://testserver/api/memory?operation_id=audit-metadata_setting_key "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 25%]
+tests/test_memory_write_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_target_digest] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:45 [    INFO] HTTP Request: POST http://testserver/api/memory?operation_id=audit-metadata_target_digest "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 27%]
+tests/test_memory_write_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_request_digest] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:46 [    INFO] HTTP Request: POST http://testserver/api/memory?operation_id=audit-metadata_request_digest "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 28%]
+tests/test_memory_write_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_prior_digest] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:46 [    INFO] HTTP Request: POST http://testserver/api/memory?operation_id=audit-metadata_prior_digest "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 29%]
+tests/test_memory_write_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_result_digest] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:47 [    INFO] HTTP Request: POST http://testserver/api/memory?operation_id=audit-metadata_result_digest "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 31%]
+tests/test_memory_write_contract.py::test_raw_memory_material_is_absent_from_audit_and_logs 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:48 [    INFO] HTTP Request: POST http://testserver/api/memory?operation_id=secret-store "HTTP/1.1 200 OK"
+PASSED                                                                   [ 32%]
+tests/test_memory_write_contract.py::test_anonymous_requests_are_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:49 [    INFO] HTTP Request: GET http://testserver/api/memory/k1 "HTTP/1.1 401 Unauthorized"
+2026-11-05 17:46:49 [    INFO] HTTP Request: POST http://testserver/api/memory "HTTP/1.1 401 Unauthorized"
+2026-11-05 17:46:49 [    INFO] HTTP Request: DELETE http://testserver/api/memory/anon "HTTP/1.1 401 Unauthorized"
+2026-11-05 17:46:49 [    INFO] HTTP Request: GET http://testserver/api/memory/search?q=x "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 33%]
+tests/test_covpush_w10d_routes.py::TestMemoryRoutes::test_stats_from_lancedb 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:49 [    INFO] HTTP Request: GET http://testserver/api/memory/stats?workspace_id=ws-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 35%]
+tests/test_covpush_w10d_routes.py::TestMemoryRoutes::test_stats_lancedb_unavailable 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:49 [    INFO] HTTP Request: GET http://testserver/api/memory/stats "HTTP/1.1 200 OK"
+PASSED                                                                   [ 36%]
+tests/test_covpush_w10d_routes.py::TestMemoryRoutes::test_stats_lancedb_error_generic_no_leak 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:50 [   ERROR] Failed to get memory stats
+2026-11-05 17:46:50 [    INFO] HTTP Request: GET http://testserver/api/memory/stats "HTTP/1.1 200 OK"
+PASSED                                                                   [ 37%]
+tests/test_covpush_w10d_routes.py::TestMemoryRoutes::test_store_and_retrieve 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:50 [    INFO] HTTP Request: POST http://testserver/api/memory "HTTP/1.1 200 OK"
+2026-11-05 17:46:50 [    INFO] HTTP Request: GET http://testserver/api/memory/k1 "HTTP/1.1 200 OK"
+2026-11-05 17:46:50 [ WARNING] API Error: NOT_FOUND - Memory key not found: ghost
+2026-11-05 17:46:50 [    INFO] HTTP Request: GET http://testserver/api/memory/ghost "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 39%]
+tests/test_covpush_w10d_routes.py::TestMemoryRoutes::test_delete_memory 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:50 [    INFO] HTTP Request: POST http://testserver/api/memory "HTTP/1.1 200 OK"
+2026-11-05 17:46:50 [    INFO] HTTP Request: DELETE http://testserver/api/memory/k2 "HTTP/1.1 200 OK"
+2026-11-05 17:46:50 [ WARNING] API Error: NOT_FOUND - Memory key not found: k2
+2026-11-05 17:46:50 [    INFO] HTTP Request: GET http://testserver/api/memory/k2 "HTTP/1.1 404 Not Found"
+2026-11-05 17:46:50 [    INFO] HTTP Request: DELETE http://testserver/api/memory/k2 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 40%]
+tests/test_covpush_w10d_routes.py::TestMemoryRoutes::test_search 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:50 [    INFO] HTTP Request: POST http://testserver/api/memory "HTTP/1.1 200 OK"
+2026-11-05 17:46:50 [    INFO] HTTP Request: POST http://testserver/api/memory "HTTP/1.1 200 OK"
+2026-11-05 17:46:50 [    INFO] HTTP Request: GET http://testserver/api/memory/search?q=hello "HTTP/1.1 200 OK"
+2026-11-05 17:46:50 [    INFO] HTTP Request: GET http://testserver/api/memory/search?q=zzz "HTTP/1.1 200 OK"
+PASSED                                                                   [ 41%]
+tests/test_covpush_w10d_routes.py::TestMemoryRoutes::test_context_crud 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:50 [    INFO] HTTP Request: GET http://testserver/api/memory/context/sess-1 "HTTP/1.1 200 OK"
+2026-11-05 17:46:50 [    INFO] HTTP Request: POST http://testserver/api/memory/context/sess-1 "HTTP/1.1 200 OK"
+2026-11-05 17:46:50 [    INFO] HTTP Request: GET http://testserver/api/memory/context/sess-1 "HTTP/1.1 200 OK"
+2026-11-05 17:46:50 [    INFO] HTTP Request: POST http://testserver/api/memory/context/sess-1 "HTTP/1.1 200 OK"
+2026-11-05 17:46:51 [    INFO] HTTP Request: GET http://testserver/api/memory/context/sess-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 43%]
+tests/test_covpush_w10d_routes.py::TestMemoryRoutes::test_requires_auth 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:51 [    INFO] HTTP Request: GET http://testserver/api/memory/stats "HTTP/1.1 401 Unauthorized"
+2026-11-05 17:46:51 [    INFO] HTTP Request: GET http://testserver/api/memory/search?q=x "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 44%]
+tests/test_covpush_w10d_routes_b.py::TestMemoryTail::test_empty_query_returns_limited_results 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:51 [    INFO] HTTP Request: POST http://testserver/api/memory "HTTP/1.1 200 OK"
+2026-11-05 17:46:51 [    INFO] HTTP Request: POST http://testserver/api/memory "HTTP/1.1 200 OK"
+2026-11-05 17:46:51 [    INFO] HTTP Request: POST http://testserver/api/memory "HTTP/1.1 200 OK"
+2026-11-05 17:46:51 [    INFO] HTTP Request: POST http://testserver/api/memory "HTTP/1.1 200 OK"
+2026-11-05 17:46:51 [    INFO] HTTP Request: POST http://testserver/api/memory "HTTP/1.1 200 OK"
+2026-11-05 17:46:51 [    INFO] HTTP Request: POST http://testserver/api/memory "HTTP/1.1 200 OK"
+2026-11-05 17:46:51 [    INFO] HTTP Request: POST http://testserver/api/memory "HTTP/1.1 200 OK"
+2026-11-05 17:46:51 [    INFO] HTTP Request: POST http://testserver/api/memory "HTTP/1.1 200 OK"
+2026-11-05 17:46:51 [    INFO] HTTP Request: POST http://testserver/api/memory "HTTP/1.1 200 OK"
+2026-11-05 17:46:51 [    INFO] HTTP Request: POST http://testserver/api/memory "HTTP/1.1 200 OK"
+2026-11-05 17:46:51 [    INFO] HTTP Request: POST http://testserver/api/memory "HTTP/1.1 200 OK"
+2026-11-05 17:46:51 [    INFO] HTTP Request: POST http://testserver/api/memory "HTTP/1.1 200 OK"
+2026-11-05 17:46:51 [    INFO] HTTP Request: POST http://testserver/api/memory "HTTP/1.1 200 OK"
+2026-11-05 17:46:51 [    INFO] HTTP Request: POST http://testserver/api/memory "HTTP/1.1 200 OK"
+2026-11-05 17:46:51 [    INFO] HTTP Request: POST http://testserver/api/memory "HTTP/1.1 200 OK"
+2026-11-05 17:46:51 [    INFO] HTTP Request: GET http://testserver/api/memory/search?q= "HTTP/1.1 200 OK"
+PASSED                                                                   [ 45%]
+tests/test_covpush_w79a_api_routes.py::TestMemoryRoutes::test_unauth_401[get-/api/memory/stats-params0] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:51 [    INFO] HTTP Request: GET http://testserver/api/memory/stats "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 47%]
+tests/test_covpush_w79a_api_routes.py::TestMemoryRoutes::test_unauth_401[get-/api/memory/search-params1] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:51 [    INFO] HTTP Request: GET http://testserver/api/memory/search "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 48%]
+tests/test_covpush_w79a_api_routes.py::TestMemoryRoutes::test_unauth_401[get-/api/memory/context/s1-params2] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:52 [    INFO] HTTP Request: GET http://testserver/api/memory/context/s1 "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 50%]
+tests/test_covpush_w79a_api_routes.py::TestMemoryRoutes::test_unauth_401[post-/api/memory/context/s1-params3] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:52 [    INFO] HTTP Request: POST http://testserver/api/memory/context/s1 "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 51%]
+tests/test_covpush_w79a_api_routes.py::TestMemoryRoutes::test_unauth_401[post-/api/memory-params4] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:52 [    INFO] HTTP Request: POST http://testserver/api/memory "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 52%]
+tests/test_covpush_w79a_api_routes.py::TestMemoryRoutes::test_unauth_401[delete-/api/memory/k-params5] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:52 [    INFO] HTTP Request: DELETE http://testserver/api/memory/k "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 54%]
+tests/test_covpush_w79a_api_routes.py::TestMemoryRoutes::test_stats_from_lancedb 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:52 [    INFO] HTTP Request: GET http://testserver/api/memory/stats?workspace_id=ws-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 55%]
+tests/test_covpush_w79a_api_routes.py::TestMemoryRoutes::test_stats_import_error_empty 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:53 [    INFO] HTTP Request: GET http://testserver/api/memory/stats "HTTP/1.1 200 OK"
+PASSED                                                                   [ 56%]
+tests/test_covpush_w79a_api_routes.py::TestMemoryRoutes::test_stats_generic_error_no_leak 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:53 [   ERROR] Failed to get memory stats
+2026-11-05 17:46:53 [    INFO] HTTP Request: GET http://testserver/api/memory/stats "HTTP/1.1 200 OK"
+PASSED                                                                   [ 58%]
+tests/test_covpush_w79a_api_routes.py::TestMemoryRoutes::test_store_and_retrieve_roundtrip 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:53 [    INFO] HTTP Request: POST http://testserver/api/memory "HTTP/1.1 200 OK"
+2026-11-05 17:46:53 [    INFO] HTTP Request: GET http://testserver/api/memory/k1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 59%]
+tests/test_covpush_w79a_api_routes.py::TestMemoryRoutes::test_store_without_metadata 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:53 [    INFO] HTTP Request: POST http://testserver/api/memory "HTTP/1.1 200 OK"
+PASSED                                                                   [ 60%]
+tests/test_covpush_w79a_api_routes.py::TestMemoryRoutes::test_retrieve_missing_404 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:54 [ WARNING] API Error: NOT_FOUND - Memory key not found: ghost
+2026-11-05 17:46:54 [    INFO] HTTP Request: GET http://testserver/api/memory/ghost "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 62%]
+tests/test_covpush_w79a_api_routes.py::TestMemoryRoutes::test_delete_success_and_404 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:54 [    INFO] HTTP Request: POST http://testserver/api/memory "HTTP/1.1 200 OK"
+2026-11-05 17:46:54 [    INFO] HTTP Request: DELETE http://testserver/api/memory/k3 "HTTP/1.1 200 OK"
+2026-11-05 17:46:54 [    INFO] HTTP Request: DELETE http://testserver/api/memory/k3 "HTTP/1.1 404 Not Found"
+2026-11-05 17:46:54 [ WARNING] API Error: NOT_FOUND - Memory key not found: k3
+2026-11-05 17:46:54 [    INFO] HTTP Request: GET http://testserver/api/memory/k3 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 63%]
+tests/test_covpush_w79a_api_routes.py::TestMemoryRoutes::test_search_hits_and_limit 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:54 [    INFO] HTTP Request: POST http://testserver/api/memory "HTTP/1.1 200 OK"
+2026-11-05 17:46:54 [    INFO] HTTP Request: POST http://testserver/api/memory "HTTP/1.1 200 OK"
+2026-11-05 17:46:54 [    INFO] HTTP Request: POST http://testserver/api/memory "HTTP/1.1 200 OK"
+2026-11-05 17:46:54 [    INFO] HTTP Request: GET http://testserver/api/memory/search?q=hello&limit=1 "HTTP/1.1 200 OK"
+2026-11-05 17:46:54 [    INFO] HTTP Request: GET http://testserver/api/memory/search?q=zzz "HTTP/1.1 200 OK"
+PASSED                                                                   [ 64%]
+tests/test_covpush_w79a_api_routes.py::TestMemoryRoutes::test_context_get_empty_then_update_merge 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:54 [    INFO] HTTP Request: GET http://testserver/api/memory/context/sess-1 "HTTP/1.1 200 OK"
+2026-11-05 17:46:54 [    INFO] HTTP Request: POST http://testserver/api/memory/context/sess-1 "HTTP/1.1 200 OK"
+2026-11-05 17:46:54 [    INFO] HTTP Request: POST http://testserver/api/memory/context/sess-1 "HTTP/1.1 200 OK"
+2026-11-05 17:46:54 [    INFO] HTTP Request: GET http://testserver/api/memory/context/sess-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 66%]
+tests/test_covpush_w79a_api_routes.py::TestMemoryRoutes::test_store_memory_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:55 [    INFO] HTTP Request: POST http://testserver/api/memory "HTTP/1.1 200 OK"
+PASSED                                                                   [ 67%]
+tests/unit/api/test_memory_routes.py::TestMemoryStorage::test_store_memory 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:55 [    INFO] HTTP Request: POST http://testserver/api/memory/store "HTTP/1.1 405 Method Not Allowed"
+PASSED                                                                   [ 68%]
+tests/unit/api/test_memory_routes.py::TestMemoryStorage::test_store_memory_with_metadata 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:55 [    INFO] HTTP Request: POST http://testserver/api/memory/store "HTTP/1.1 405 Method Not Allowed"
+PASSED                                                                   [ 70%]
+tests/unit/api/test_memory_routes.py::TestMemoryStorage::test_batch_store_memories 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:55 [    INFO] HTTP Request: POST http://testserver/api/memory/batch "HTTP/1.1 405 Method Not Allowed"
+PASSED                                                                   [ 71%]
+tests/unit/api/test_memory_routes.py::TestMemoryRetrieval::test_get_memory 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:55 [    INFO] HTTP Request: GET http://testserver/api/memory/memories/memory-001 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 72%]
+tests/unit/api/test_memory_routes.py::TestMemoryRetrieval::test_search_memories 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:55 [    INFO] HTTP Request: GET http://testserver/api/memory/search?query=important+information "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 74%]
+tests/unit/api/test_memory_routes.py::TestMemoryRetrieval::test_search_memories_by_type 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:55 [    INFO] HTTP Request: GET http://testserver/api/memory/search?type=episodic&query=test "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 75%]
+tests/unit/api/test_memory_routes.py::TestMemoryRetrieval::test_get_recent_memories 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:55 [    INFO] HTTP Request: GET http://testserver/api/memory/recent?limit=10 "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 77%]
+tests/unit/api/test_memory_routes.py::TestMemoryRetrieval::test_list_agent_memories 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:55 [    INFO] HTTP Request: GET http://testserver/api/memory/agents/agent-001/memories "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 78%]
+tests/unit/api/test_memory_routes.py::TestMemoryConsolidation::test_consolidate_memories 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:55 [    INFO] HTTP Request: POST http://testserver/api/memory/consolidate "HTTP/1.1 405 Method Not Allowed"
+PASSED                                                                   [ 79%]
+tests/unit/api/test_memory_routes.py::TestMemoryConsolidation::test_get_consolidation_status 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:55 [    INFO] HTTP Request: GET http://testserver/api/memory/consolidation/cons-001 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 81%]
+tests/unit/api/test_memory_routes.py::TestMemoryConsolidation::test_auto_consolidate 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:55 [    INFO] HTTP Request: POST http://testserver/api/memory/agents/agent-001/auto-consolidate "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 82%]
+tests/unit/api/test_memory_routes.py::TestMemoryManagement::test_update_memory 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:55 [    INFO] HTTP Request: PUT http://testserver/api/memory/memories/memory-001 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 83%]
+tests/unit/api/test_memory_routes.py::TestMemoryManagement::test_delete_memory 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:55 [    INFO] HTTP Request: DELETE http://testserver/api/memory/memories/memory-001 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 85%]
+tests/unit/api/test_memory_routes.py::TestMemoryManagement::test_archive_memory 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:55 [    INFO] HTTP Request: POST http://testserver/api/memory/memories/memory-001/archive "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 86%]
+tests/unit/api/test_memory_routes.py::TestMemoryManagement::test_get_memory_stats 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:55 [    INFO] HTTP Request: GET http://testserver/api/memory/stats "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 87%]
+tests/unit/api/test_memory_routes.py::TestErrorHandling::test_store_memory_missing_content 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:55 [    INFO] HTTP Request: POST http://testserver/api/memory/store "HTTP/1.1 405 Method Not Allowed"
+PASSED                                                                   [ 89%]
+tests/unit/api/test_memory_routes.py::TestErrorHandling::test_get_nonexistent_memory 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:55 [    INFO] HTTP Request: GET http://testserver/api/memory/memories/nonexistent-001 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 90%]
+tests/test_round26_memory_security.py::TestMemoryRoutesRequireAuth::test_store_memory_requires_auth PASSED [ 91%]
+tests/test_round26_memory_security.py::TestMemoryRoutesRequireAuth::test_delete_memory_requires_auth PASSED [ 93%]
+tests/test_round26_memory_security.py::TestEpisodeRoutesRequireAuth::test_promote_agent_requires_auth 
+-------------------------------- live log call ---------------------------------
+2026-11-05 17:46:55 [    INFO] MCP Service initialized
+PASSED                                                                   [ 94%]
+tests/test_round26_memory_security.py::TestEpisodeRoutesRequireAuth::test_list_episodes_requires_auth PASSED [ 95%]
+tests/test_round26_memory_security.py::TestGraphRagRoutesRequireAuth::test_add_entity_requires_auth PASSED [ 97%]
+tests/test_round26_memory_security.py::TestGraphRagRoutesRequireAuth::test_ingest_document_requires_auth PASSED [ 98%]
+tests/test_round26_memory_security.py::TestEntityTypeRoutesRequireAuth::test_create_entity_type_requires_auth PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+tests/test_memory_write_contract.py::test_store_roundtrip_audit_and_safe_receipt
+  /private/tmp/atom-memory-write/backend/core/graphrag_engine.py:196: DeprecationWarning: invalid escape sequence '\%'
+    """
+
+tests/test_round26_memory_security.py::TestEpisodeRoutesRequireAuth::test_promote_agent_requires_auth
+  /private/tmp/atom-memory-write/backend/api/episode_routes.py:397: FastAPIDeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    canvas_context_detail: str = Query("summary", regex="^(summary|standard|full)$"),
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 74 passed, 7 warnings in 43.41s ========================

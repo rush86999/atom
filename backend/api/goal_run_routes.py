@@ -20,6 +20,10 @@ from sqlalchemy.orm import Session
 from core.auth import get_current_user, User
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
+from core.goal_run_decision_service import (
+    cancel_goal_run as _cancel_goal_run,
+    set_supervision_mode as _set_supervision_mode,
+)
 from core.models import HITLAction, HITLActionStatus, User as UserModel, UserRole
 from core.security.rbac import user_meets_role
 from core.personal_scope import resolve_tenant_id, resolve_workspace_id
@@ -70,6 +74,67 @@ def _require_supervisor(db: Session, current_user: User) -> None:
         raise HTTPException(
             status_code=403,
             detail="Insufficient permissions. Required role: team_lead or higher",
+        )
+
+
+def _raise_goal_decision(result: dict) -> None:
+    status_value = str(result.get("status") or "")
+    if status_value == "refused":
+        raise HTTPException(
+            status_code=int(result.get("http_status") or 403),
+            detail={
+                "error": {
+                    "code": result.get("error_code") or "AUTHORITY_REQUIRED",
+                    "message": result.get("error") or "Request refused",
+                },
+                "field": result.get("field"),
+                "verification": result.get("verification"),
+            },
+        )
+    if status_value == "conflict":
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": {
+                    "code": result.get("error_code") or "STALE_TARGET",
+                    "message": result.get("error") or "Conflict",
+                },
+                "verification": result.get("verification"),
+            },
+        )
+    if status_value == "not_applied":
+        raise HTTPException(
+            status_code=int(result.get("http_status") or 409),
+            detail={
+                "error": {
+                    "code": result.get("error_code")
+                    or "GOAL_RUN_TRANSACTION_ROLLED_BACK",
+                    "message": result.get("error")
+                    or "The goal-run decision did not apply.",
+                },
+                "verification": result.get("verification"),
+                "operation_id": result.get("operation_id"),
+                "audit_id": result.get("audit_id"),
+            },
+        )
+    if status_value in ("committed_unverified", "effect_unknown"):
+        code = (
+            "GOAL_RUN_EFFECT_UNKNOWN"
+            if status_value == "effect_unknown"
+            else "GOAL_RUN_COMMITTED_UNVERIFIED")
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": {
+                    "code": code,
+                    "message": result.get("message")
+                    or "The goal-run decision outcome is uncertain.",
+                },
+                "verification": result.get("verification"),
+                "operation_id": result.get("operation_id"),
+                "audit_id": result.get("audit_id"),
+                "target_id": result.get("target_id"),
+            },
         )
 
 
@@ -539,21 +604,37 @@ async def distill_goal_run(
 async def set_supervision_mode(
     run_id: str,
     payload: ModeBody,
+    operation_id: Optional[str] = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
     _require_supervisor(db, current_user)
+    workspace_id = resolve_workspace_id(current_user)
+    result = _set_supervision_mode(
+        db,
+        actor=current_user,
+        workspace_id=workspace_id,
+        run_id=run_id,
+        mode=payload.supervision_mode,
+        operation_id=operation_id,
+    )
+    _raise_goal_decision(result)
     svc = _service(current_user, db)
-    try:
-        run = svc.set_supervision_mode(run_id, payload.supervision_mode)
-    except ValueError as exc:
-        raise HTTPException(status_code=422, detail=str(exc))
-    return {"success": True, "run": run}
+    run = svc.get_run(run_id) or result.get("data")
+    result_data = result.get("data") or {}
+    return {
+        "success": True,
+        "run": run,
+        "verification": result_data.get("verification"),
+        "operation_id": result.get("operation_id"),
+        "audit_id": result.get("audit_id"),
+    }
 
 
 @router.post("/{run_id}/cancel")
 async def cancel_goal_run(
     run_id: str,
+    operation_id: Optional[str] = None,
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
@@ -562,11 +643,28 @@ async def cancel_goal_run(
     if not existing:
         raise router.not_found_error("GoalRun", run_id)
     _require_run_access(db, current_user, existing)
-    try:
-        run = svc.cancel(run_id)
-    except ValueError as exc:
-        raise HTTPException(status_code=409, detail=str(exc))
-    return {"success": True, "run": run}
+    result = _cancel_goal_run(
+        db,
+        actor=current_user,
+        workspace_id=resolve_workspace_id(current_user),
+        run_id=run_id,
+        operation_id=operation_id,
+    )
+    _raise_goal_decision(result)
+    run = svc.get_run(run_id) or result.get("data")
+    if result.get("status") == "verified" and run is not None:
+        try:
+            svc._on_terminal(run)
+        except Exception:  # noqa: BLE001 — terminal side effects are best effort
+            logger.warning("goal run %s: terminal side effects failed", run_id)
+    result_data = result.get("data") or {}
+    return {
+        "success": True,
+        "run": run,
+        "verification": result_data.get("verification"),
+        "operation_id": result.get("operation_id"),
+        "audit_id": result.get("audit_id"),
+    }
 
 
 # ----------------------------------------------------------------- events

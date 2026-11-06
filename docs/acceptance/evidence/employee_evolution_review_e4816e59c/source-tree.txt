@@ -1,0 +1,11 @@
+executed_source: e4816e59c84041333c7571988ebf5da90f1dc1ce
+product_source: eaba0cb8f551796677a8c516155a4be7399207ff
+accepted_base: 95f7bcac1a0375b4f0465a77e15130f68fc9665d
+branch: codex/oracle01-evolution-review-20261105
+git_status_short:
+git_log:
+e4816e59c test(autodev): cover the tool-mutation decision matrix
+eaba0cb8f feat(autodev): verify tool-mutation review decisions
+31a67163c docs: add the continuous delivery directive
+95f7bcac1 fix(auth): clean stale backup mirrors and guard the 2FA migration
+81ffa811f docs(auth): submit the 2FA boundary repair evidence

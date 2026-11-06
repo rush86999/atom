@@ -1,0 +1,83 @@
+{
+  "schema": "atom-oracle-memory-authority-verification-1",
+  "status": "scoped-memory current-authority repair submitted for independent verification; durable storage/CAS/audit/replay preserved",
+  "candidate": {
+    "branch": "codex/oracle01-memory-write-20261105",
+    "prior_memory_source": "aab2b620d",
+    "prior_memory_product": "4a32ce30b",
+    "prior_memory_evidence": "fa651e165",
+    "executed_repair_source": "88ee1e901",
+    "accepted_admin_base": "9d73552d249ae8ec5b05af77546faf9621bbcd47",
+    "accepted_admin_product": "5fbb377a4e1eef8fdd0013275cd8b1c9b278cd41",
+    "tree_clean_at_execution": true,
+    "runtime": "real scratch SQLite with fresh sessions and two-session authority interleaving; no model/provider/browser"
+  },
+  "checks": {
+    "six_verifier_authority_negatives_pass": true,
+    "store_after_deactivation_refused_no_effect": true,
+    "store_after_tenant_move_refused_no_effect": true,
+    "context_after_deactivation_refused_no_effect": true,
+    "context_after_tenant_move_refused_no_effect": true,
+    "delete_after_deactivation_refused_no_effect": true,
+    "delete_after_tenant_move_refused_no_effect": true,
+    "peer_user_row_preserved": true,
+    "prior_memory_document_or_absence_preserved": true,
+    "zero_losing_audits": true,
+    "no_verified_write_reported_under_stale_authority": true,
+    "deactivated_actor_before_initial_call_refused": true,
+    "moved_actor_before_initial_call_old_scope_untouched": true,
+    "replay_unchanged_authority_already_applied": true,
+    "replay_changed_authority_refused_no_effect": true,
+    "bootstrap_tenantless_scope_stable_default": true,
+    "fresh_session_reads_after_authority_change_empty": true,
+    "original_memory_controls_still_green": true,
+    "original_namespace_isolation_still_green": true,
+    "no_new_table_or_migration": true,
+    "no_live_model_provider_credential_spend_send_download_deployment": true
+  },
+  "results": {
+    "verifier_probes_python314": {"passed": 6, "log": "verifier-probes-314.log"},
+    "focused_python314": {"passed": 87, "log": "focused-314.log"},
+    "focused_python311": {"passed": 87, "log": "focused-311.log"},
+    "affected_python314": {
+      "passed": 678, "skipped": 1, "failed": 7,
+      "baseline_failures": 7, "log": "affected-314.log"
+    },
+    "affected_python311": {
+      "passed": 678, "skipped": 1, "failed": 7,
+      "baseline_failures": 7, "log": "affected-311.log"
+    },
+    "baseline_python314": {
+      "passed": 665, "skipped": 1, "failed": 7, "log": "baseline-314.log"
+    },
+    "baseline_python311": {
+      "passed": 665, "skipped": 1, "failed": 7, "log": "baseline-311.log"
+    }
+  },
+  "focused_breakdown": {
+    "original_memory_controls": 74,
+    "new_authority_controls": 13,
+    "focused_total": 87
+  },
+  "baseline_exclusions": {
+    "unrelated_w79a_6": {
+      "classes": ["TestMiniAppRoutes", "TestOfficeRoutes"],
+      "reason": "pre-existing MiniApp/Office controls; the memory class in the same file is green; identical at the accepted admin base"
+    },
+    "agent_memory_consolidation_1": {
+      "test": "tests/integration/services/test_memory_consolidation_multi_tenant.py::test_memory_consolidation_tenant_isolation",
+      "reason": "pre-existing AgentMemory consolidation control; identical at the accepted admin base"
+    },
+    "order_sensitive_timing": {
+      "test": "tests/test_integration_audit.py::TestLogIntegrationComplete::test_log_integration_complete_with_error",
+      "reason": "known duration>0 order-sensitive baseline flake; excluded from the frozen affected selection and green in the same selection on 3.11"
+    }
+  },
+  "limits": [
+    "Same bounded key/value and session-context family; no new table/migration/authorization engine",
+    "No LanceDB/AgentMemory/ingestion/webhook surfaces",
+    "No live model/provider/credential/spend/send/download/deployment or browser operation",
+    "PostgreSQL runtime/soak, multi-worker serialization and whole-app ORACLE-01 remain open",
+    "Accepted admin/auth-2FA/canvas/feedback/wait/employee/ORCH-01 and submitted tool-mutation review are independent"
+  ]
+}
