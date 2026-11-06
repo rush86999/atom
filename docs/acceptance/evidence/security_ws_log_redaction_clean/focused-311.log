@@ -1,0 +1,345 @@
+
+tests/test_log_redaction_jwt.py::test_websocket_query_and_repeated_values_are_redacted 
+-------------------------------- live log setup --------------------------------
+2026-11-06 13:53:23 [    INFO] EscalationManager initialized
+2026-11-06 13:53:23 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 13:53:23 [    INFO] EscalationManager initialized
+2026-11-06 13:53:23 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 13:53:23 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 13:53:23 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  0%]
+tests/test_log_redaction_jwt.py::test_encoded_sensitive_keys_and_values_are_redacted PASSED [  1%]
+tests/test_log_redaction_jwt.py::test_ordinary_queries_and_paths_are_preserved PASSED [  2%]
+tests/test_log_redaction_jwt.py::test_bearer_and_structured_assignments_are_redacted PASSED [  2%]
+tests/test_log_redaction_jwt.py::test_uvicorn_websocket_logger_filter_redacts_preformatted_args PASSED [  3%]
+tests/test_log_redaction_jwt.py::test_filter_replaces_record_message_before_formatting PASSED [  4%]
+tests/test_log_redaction_jwt.py::test_setup_logging_accepts_the_main_app_format_keyword PASSED [  4%]
+tests/test_covpush_w79_logging.py::TestContextBind::test_bind_sets_all_context_vars PASSED [  5%]
+tests/test_covpush_w79_logging.py::TestContextBind::test_bind_converts_to_str PASSED [  6%]
+tests/test_covpush_w79_logging.py::TestContextBind::test_bind_skips_none_values PASSED [  6%]
+tests/test_covpush_w79_logging.py::TestContextBind::test_get_context_unset_returns_empty_strings PASSED [  7%]
+tests/test_covpush_w79_logging.py::TestContextBind::test_get_context_lookup_error_branch_in_fresh_context PASSED [  8%]
+tests/test_covpush_w79_logging.py::TestContextBind::test_partial_bind_keeps_unset_vars_empty PASSED [  8%]
+tests/test_covpush_w79_logging.py::TestContextBind::test_generate_correlation_id_is_uuid PASSED [  9%]
+tests/test_covpush_w79_logging.py::TestContextBind::test_get_correlation_id_default_empty PASSED [ 10%]
+tests/test_covpush_w79_logging.py::TestColoredFormatter::test_default_format_contains_parts PASSED [ 11%]
+tests/test_covpush_w79_logging.py::TestColoredFormatter::test_level_colored PASSED [ 11%]
+tests/test_covpush_w79_logging.py::TestColoredFormatter::test_debug_and_critical_colors PASSED [ 12%]
+tests/test_covpush_w79_logging.py::TestColoredFormatter::test_colors_disabled PASSED [ 13%]
+tests/test_covpush_w79_logging.py::TestColoredFormatter::test_logger_name_hidden PASSED [ 13%]
+tests/test_covpush_w79_logging.py::TestColoredFormatter::test_context_hidden PASSED [ 14%]
+tests/test_covpush_w79_logging.py::TestColoredFormatter::test_context_shown_with_short_id PASSED [ 15%]
+tests/test_covpush_w79_logging.py::TestColoredFormatter::test_long_correlation_id_truncated_to_last_8 PASSED [ 15%]
+tests/test_covpush_w79_logging.py::TestColoredFormatter::test_user_id_truncated_to_8 PASSED [ 16%]
+tests/test_covpush_w79_logging.py::TestColoredFormatter::test_exception_info_appended PASSED [ 17%]
+tests/test_covpush_w79_logging.py::TestColoredFormatter::test_exception_info_appends_newline_when_needed PASSED [ 17%]
+tests/test_covpush_w79_logging.py::TestSetupLogging::test_default_level_info PASSED [ 18%]
+tests/test_covpush_w79_logging.py::TestSetupLogging::test_explicit_level PASSED [ 19%]
+tests/test_covpush_w79_logging.py::TestSetupLogging::test_env_level PASSED [ 20%]
+tests/test_covpush_w79_logging.py::TestSetupLogging::test_invalid_level_falls_back_to_info PASSED [ 20%]
+tests/test_covpush_w79_logging.py::TestSetupLogging::test_handlers_cleared_between_calls PASSED [ 21%]
+tests/test_covpush_w79_logging.py::TestSetupLogging::test_no_colors_flag PASSED [ 22%]
+tests/test_covpush_w79_logging.py::TestSetupLogging::test_logger_name_flag PASSED [ 22%]
+tests/test_covpush_w79_logging.py::TestSetupLogging::test_log_file_creates_file_with_plain_formatter PASSED [ 23%]
+tests/test_covpush_w79_logging.py::TestSetupLogging::test_log_file_env_var PASSED [ 24%]
+tests/test_covpush_w79_logging.py::TestSetupLogging::test_log_file_writes_records PASSED [ 24%]
+tests/test_covpush_w79_logging.py::TestLibraryLoggers::test_chatty_libraries_set_to_warning PASSED [ 25%]
+tests/test_covpush_w79_logging.py::TestGetLogger::test_returns_named_logger PASSED [ 26%]
+tests/test_covpush_w79_logging.py::TestLoggerContext::test_set_and_restore PASSED [ 26%]
+tests/test_covpush_w79_logging.py::TestLoggerContext::test_restore_on_exception PASSED [ 27%]
+tests/test_covpush_w79_logging.py::TestMiddleware::test_adds_correlation_header_and_state PASSED [ 28%]
+tests/test_covpush_w79_logging.py::TestMiddleware::test_context_bound_during_request PASSED [ 28%]
+tests/test_covpush_w79_logging.py::TestStructuredLogger::test_all_levels_invoke_underlying_logger 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:53:23 [    INFO] i-msg
+2026-11-06 13:53:23 [ WARNING] w-msg
+PASSED                                                                   [ 29%]
+tests/test_covpush_w79_logging.py::TestStructuredLogger::test_error_defaults_exc_info_true 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:53:23 [   ERROR] e-msg
+NoneType: None
+PASSED                                                                   [ 30%]
+tests/test_covpush_w79_logging.py::TestStructuredLogger::test_error_exc_info_false_override 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:53:23 [   ERROR] e-msg2
+PASSED                                                                   [ 31%]
+tests/test_covpush_w79_logging.py::TestStructuredLogger::test_critical_defaults_exc_info_true 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:53:23 [CRITICAL] c-msg
+NoneType: None
+PASSED                                                                   [ 31%]
+tests/test_covpush_w79_logging.py::TestStructuredLogger::test_extra_merged_with_context PASSED [ 32%]
+tests/test_covpush_w79_logging.py::TestStructuredLogger::test_extra_none_uses_context_only PASSED [ 33%]
+tests/test_covpush_w86_structured_logger.py::test_level_from_env PASSED  [ 33%]
+tests/test_covpush_w86_structured_logger.py::test_level_from_env_invalid_falls_back_to_info PASSED [ 34%]
+tests/test_covpush_w86_structured_logger.py::test_explicit_level_wins PASSED [ 35%]
+tests/test_covpush_w86_structured_logger.py::test_no_duplicate_handlers PASSED [ 35%]
+tests/test_covpush_w86_structured_logger.py::test_setup_handlers_with_log_file 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:53:23 [    INFO] file log test
+PASSED                                                                   [ 36%]
+tests/test_covpush_w86_structured_logger.py::test_console_handler_uses_stdout PASSED [ 37%]
+tests/test_covpush_w86_structured_logger.py::test_log_includes_request_id_timestamp_and_logger PASSED [ 37%]
+tests/test_covpush_w86_structured_logger.py::test_log_preserves_explicit_timestamp PASSED [ 38%]
+tests/test_covpush_w86_structured_logger.py::test_log_no_request_id PASSED [ 39%]
+tests/test_covpush_w86_structured_logger.py::test_all_level_methods PASSED [ 40%]
+tests/test_covpush_w86_structured_logger.py::test_exception_inside_except_block PASSED [ 40%]
+tests/test_covpush_w86_structured_logger.py::test_exception_outside_except_block PASSED [ 41%]
+tests/test_covpush_w86_structured_logger.py::test_formatter_outputs_json_with_context PASSED [ 42%]
+tests/test_covpush_w86_structured_logger.py::test_formatter_with_exc_info PASSED [ 42%]
+tests/test_covpush_w86_structured_logger.py::test_formatter_fallback_on_json_failure PASSED [ 43%]
+tests/test_covpush_w86_structured_logger.py::test_get_logger_and_convenience_functions PASSED [ 44%]
+tests/test_covpush_w86_structured_logger.py::test_request_id_context_helpers PASSED [ 44%]
+tests/test_logging_security_bugs.py::TestLoggingSecurityVulnerabilities::test_token_metadata_not_logged PASSED [ 45%]
+tests/test_logging_security_bugs.py::TestLoggingSecurityVulnerabilities::test_logging_includes_tenant_id PASSED [ 46%]
+tests/test_logging_security_bugs.py::TestLoggingSecurityVulnerabilities::test_workflow_logs_token_presence_only PASSED [ 46%]
+tests/test_logging_security_bugs.py::TestLoggingSecurityVulnerabilities::test_logging_has_safe_message_levels PASSED [ 47%]
+tests/test_logging_security_fixes.py::TestLoggingSecurityFixes::test_token_metadata_not_logged PASSED [ 48%]
+tests/test_logging_security_fixes.py::TestLoggingSecurityFixes::test_tenant_id_logging_context_only PASSED [ 48%]
+tests/test_logging_security_fixes.py::TestLoggingSecurityFixes::test_logging_uses_debug_level PASSED [ 49%]
+tests/test_logging_security_fixes.py::TestLoggingSecurityFixes::test_workflow_engine_still_safe PASSED [ 50%]
+tests/test_covpush_w64f_secrets_redactor.py::TestConstructor::test_default_flags PASSED [ 51%]
+tests/test_covpush_w64f_secrets_redactor.py::TestConstructor::test_no_pii PASSED [ 51%]
+tests/test_covpush_w64f_secrets_redactor.py::TestConstructor::test_phone_enabled PASSED [ 52%]
+tests/test_covpush_w64f_secrets_redactor.py::TestConstructor::test_phone_skipped_by_default PASSED [ 53%]
+tests/test_covpush_w64f_secrets_redactor.py::TestConstructor::test_bad_regex_logged_and_skipped 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:53:23 [ WARNING] Failed to compile pattern for BAD_REGEX: missing ), unterminated subpattern at position 0
+PASSED                                                                   [ 53%]
+tests/test_covpush_w64f_secrets_redactor.py::TestRedactEmpty::test_empty_text PASSED [ 54%]
+tests/test_covpush_w64f_secrets_redactor.py::TestRedactEmpty::test_none_text_treated_as_empty PASSED [ 55%]
+tests/test_covpush_w64f_secrets_redactor.py::TestRedactEmpty::test_no_matches PASSED [ 55%]
+tests/test_covpush_w64f_secrets_redactor.py::TestApiKeyPatterns::test_generic_api_key_underscore 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:53:23 [    INFO] Redacted 1 secrets/PII items from text
+PASSED                                                                   [ 56%]
+tests/test_covpush_w64f_secrets_redactor.py::TestApiKeyPatterns::test_generic_api_key_no_separator 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:53:23 [    INFO] Redacted 1 secrets/PII items from text
+PASSED                                                                   [ 57%]
+tests/test_covpush_w64f_secrets_redactor.py::TestApiKeyPatterns::test_openai_key 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:53:23 [    INFO] Redacted 1 secrets/PII items from text
+PASSED                                                                   [ 57%]
+tests/test_covpush_w64f_secrets_redactor.py::TestApiKeyPatterns::test_openai_project_key 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:53:23 [    INFO] Redacted 1 secrets/PII items from text
+PASSED                                                                   [ 58%]
+tests/test_covpush_w64f_secrets_redactor.py::TestApiKeyPatterns::test_aws_access_key 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:53:23 [    INFO] Redacted 1 secrets/PII items from text
+PASSED                                                                   [ 59%]
+tests/test_covpush_w64f_secrets_redactor.py::TestApiKeyPatterns::test_aws_secret_key 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:53:23 [    INFO] Redacted 1 secrets/PII items from text
+PASSED                                                                   [ 60%]
+tests/test_covpush_w64f_secrets_redactor.py::TestApiKeyPatterns::test_google_api_key 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:53:23 [    INFO] Redacted 1 secrets/PII items from text
+PASSED                                                                   [ 60%]
+tests/test_covpush_w64f_secrets_redactor.py::TestApiKeyPatterns::test_github_pat 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:53:23 [    INFO] Redacted 1 secrets/PII items from text
+PASSED                                                                   [ 61%]
+tests/test_covpush_w64f_secrets_redactor.py::TestApiKeyPatterns::test_github_pat_fine_grained 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:53:23 [    INFO] Redacted 1 secrets/PII items from text
+PASSED                                                                   [ 62%]
+tests/test_covpush_w64f_secrets_redactor.py::TestApiKeyPatterns::test_stripe_live 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:53:23 [    INFO] Redacted 1 secrets/PII items from text
+PASSED                                                                   [ 62%]
+tests/test_covpush_w64f_secrets_redactor.py::TestApiKeyPatterns::test_stripe_test 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:53:23 [    INFO] Redacted 1 secrets/PII items from text
+PASSED                                                                   [ 63%]
+tests/test_covpush_w64f_secrets_redactor.py::TestApiKeyPatterns::test_stripe_publishable 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:53:23 [    INFO] Redacted 1 secrets/PII items from text
+PASSED                                                                   [ 64%]
+tests/test_covpush_w64f_secrets_redactor.py::TestApiKeyPatterns::test_slack_token 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:53:23 [    INFO] Redacted 1 secrets/PII items from text
+PASSED                                                                   [ 64%]
+tests/test_covpush_w64f_secrets_redactor.py::TestApiKeyPatterns::test_twilio_key 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:53:23 [    INFO] Redacted 1 secrets/PII items from text
+PASSED                                                                   [ 65%]
+tests/test_covpush_w64f_secrets_redactor.py::TestApiKeyPatterns::test_sendgrid_key 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:53:23 [    INFO] Redacted 1 secrets/PII items from text
+PASSED                                                                   [ 66%]
+tests/test_covpush_w64f_secrets_redactor.py::TestApiKeyPatterns::test_mailchimp_key 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:53:23 [    INFO] Redacted 1 secrets/PII items from text
+PASSED                                                                   [ 66%]
+tests/test_covpush_w64f_secrets_redactor.py::TestApiKeyPatterns::test_secret_key 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:53:23 [    INFO] Redacted 1 secrets/PII items from text
+PASSED                                                                   [ 67%]
+tests/test_covpush_w64f_secrets_redactor.py::TestApiKeyPatterns::test_private_key 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:53:23 [    INFO] Redacted 1 secrets/PII items from text
+PASSED                                                                   [ 68%]
+tests/test_covpush_w64f_secrets_redactor.py::TestApiKeyPatterns::test_access_token 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:53:23 [    INFO] Redacted 1 secrets/PII items from text
+PASSED                                                                   [ 68%]
+tests/test_covpush_w64f_secrets_redactor.py::TestApiKeyPatterns::test_bearer_token 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:53:23 [    INFO] Redacted 1 secrets/PII items from text
+PASSED                                                                   [ 69%]
+tests/test_covpush_w64f_secrets_redactor.py::TestPasswordPatterns::test_password 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:53:23 [    INFO] Redacted 1 secrets/PII items from text
+PASSED                                                                   [ 70%]
+tests/test_covpush_w64f_secrets_redactor.py::TestPasswordPatterns::test_passwd 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:53:23 [    INFO] Redacted 1 secrets/PII items from text
+PASSED                                                                   [ 71%]
+tests/test_covpush_w64f_secrets_redactor.py::TestPasswordPatterns::test_pwd 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:53:23 [    INFO] Redacted 1 secrets/PII items from text
+PASSED                                                                   [ 71%]
+tests/test_covpush_w64f_secrets_redactor.py::TestPasswordPatterns::test_short_password_not_redacted PASSED [ 72%]
+tests/test_covpush_w64f_secrets_redactor.py::TestPiiPatterns::test_ssn_dashed 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:53:23 [    INFO] Redacted 1 secrets/PII items from text
+PASSED                                                                   [ 73%]
+tests/test_covpush_w64f_secrets_redactor.py::TestPiiPatterns::test_ssn_plain_with_context 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:53:23 [    INFO] Redacted 1 secrets/PII items from text
+PASSED                                                                   [ 73%]
+tests/test_covpush_w64f_secrets_redactor.py::TestPiiPatterns::test_credit_card_spaces 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:53:23 [    INFO] Redacted 1 secrets/PII items from text
+PASSED                                                                   [ 74%]
+tests/test_covpush_w64f_secrets_redactor.py::TestPiiPatterns::test_credit_card_dashes 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:53:23 [    INFO] Redacted 1 secrets/PII items from text
+PASSED                                                                   [ 75%]
+tests/test_covpush_w64f_secrets_redactor.py::TestPiiPatterns::test_bank_account 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:53:23 [    INFO] Redacted 1 secrets/PII items from text
+PASSED                                                                   [ 75%]
+tests/test_covpush_w64f_secrets_redactor.py::TestPiiPatterns::test_phone_with_phone_enabled 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:53:23 [    INFO] Redacted 1 secrets/PII items from text
+PASSED                                                                   [ 76%]
+tests/test_covpush_w64f_secrets_redactor.py::TestPiiPatterns::test_phone_ignored_when_disabled PASSED [ 77%]
+tests/test_covpush_w64f_secrets_redactor.py::TestPiiPatterns::test_pii_disabled PASSED [ 77%]
+tests/test_covpush_w64f_secrets_redactor.py::TestPiiPatterns::test_ssn_plain_without_context_not_redacted PASSED [ 78%]
+tests/test_covpush_w64f_secrets_redactor.py::TestConnectionAndKeyBlocks::test_postgres_url 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:53:23 [    INFO] Redacted 1 secrets/PII items from text
+PASSED                                                                   [ 79%]
+tests/test_covpush_w64f_secrets_redactor.py::TestConnectionAndKeyBlocks::test_mongo_url 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:53:23 [    INFO] Redacted 1 secrets/PII items from text
+PASSED                                                                   [ 80%]
+tests/test_covpush_w64f_secrets_redactor.py::TestConnectionAndKeyBlocks::test_connection_string 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:53:23 [    INFO] Redacted 1 secrets/PII items from text
+PASSED                                                                   [ 80%]
+tests/test_covpush_w64f_secrets_redactor.py::TestConnectionAndKeyBlocks::test_private_key_block 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:53:23 [    INFO] Redacted 1 secrets/PII items from text
+PASSED                                                                   [ 81%]
+tests/test_covpush_w64f_secrets_redactor.py::TestConnectionAndKeyBlocks::test_certificate_block 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:53:23 [    INFO] Redacted 1 secrets/PII items from text
+PASSED                                                                   [ 82%]
+tests/test_covpush_w64f_secrets_redactor.py::TestRedactMechanics::test_multiple_non_overlapping_redactions 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:53:23 [    INFO] Redacted 2 secrets/PII items from text
+PASSED                                                                   [ 82%]
+tests/test_covpush_w64f_secrets_redactor.py::TestRedactMechanics::test_overlapping_matches_skip_second 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:53:23 [    INFO] Redacted 1 secrets/PII items from text
+PASSED                                                                   [ 83%]
+tests/test_covpush_w64f_secrets_redactor.py::TestRedactMechanics::test_redaction_metadata 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:53:23 [    INFO] Redacted 1 secrets/PII items from text
+PASSED                                                                   [ 84%]
+tests/test_covpush_w64f_secrets_redactor.py::TestRedactMechanics::test_is_sensitive_true PASSED [ 84%]
+tests/test_covpush_w64f_secrets_redactor.py::TestRedactMechanics::test_is_sensitive_false PASSED [ 85%]
+tests/test_covpush_w64f_secrets_redactor.py::TestRedactMechanics::test_get_sensitive_types PASSED [ 86%]
+tests/test_covpush_w64f_secrets_redactor.py::TestRedactMechanics::test_get_sensitive_types_multiple PASSED [ 86%]
+tests/test_covpush_w64f_secrets_redactor.py::TestRedactMechanics::test_get_sensitive_types_none PASSED [ 87%]
+tests/test_covpush_w64f_secrets_redactor.py::TestModuleFunctions::test_get_secrets_redactor_singleton PASSED [ 88%]
+tests/test_covpush_w64f_secrets_redactor.py::TestModuleFunctions::test_redact_before_storage 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:53:23 [    INFO] Redacted 1 secrets/PII items from text
+PASSED                                                                   [ 88%]
+tests/test_covpush_w64f_secrets_redactor.py::TestModuleFunctions::test_check_for_secrets_found 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:53:23 [    INFO] Redacted 1 secrets/PII items from text
+PASSED                                                                   [ 89%]
+tests/test_covpush_w64f_secrets_redactor.py::TestModuleFunctions::test_check_for_secrets_clean PASSED [ 90%]
+tests/test_covpush_w64f_secrets_redactor.py::TestAnalyzeWithLocalLlm::test_success_path PASSED [ 91%]
+tests/test_covpush_w64f_secrets_redactor.py::TestAnalyzeWithLocalLlm::test_import_error_falls_back_to_patterns 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:53:23 [    INFO] Redacted 1 secrets/PII items from text
+PASSED                                                                   [ 91%]
+tests/test_covpush_w64f_secrets_redactor.py::TestAnalyzeWithLocalLlm::test_import_error_clean_text PASSED [ 92%]
+tests/test_covpush_w64f_secrets_redactor.py::TestAnalyzeWithLocalLlm::test_generic_exception_falls_back_with_error 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:53:23 [   ERROR] Local LLM analysis failed: ollama down
+2026-11-06 13:53:23 [    INFO] Redacted 1 secrets/PII items from text
+PASSED                                                                   [ 93%]
+tests/test_covpush_w64f_secrets_redactor.py::TestRedactWithLlmValidation::test_llm_finds_additional_secrets 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:53:23 [    INFO] Redacted 1 secrets/PII items from text
+2026-11-06 13:53:23 [ WARNING] LLM found 1 potential secrets that patterns missed
+2026-11-06 13:53:23 [ WARNING]   - API_KEY: <redacted> like a key
+PASSED                                                                   [ 93%]
+tests/test_covpush_w64f_secrets_redactor.py::TestRedactWithLlmValidation::test_llm_analysis_method_not_local_llm PASSED [ 94%]
+tests/test_covpush_w64f_secrets_redactor.py::TestRedactWithLlmValidation::test_llm_unavailable_is_optional PASSED [ 95%]
+tests/test_covpush_w64f_secrets_redactor.py::TestCreditCardGuard::test_float_tail_not_redacted PASSED [ 95%]
+tests/test_covpush_w64f_secrets_redactor.py::TestCreditCardGuard::test_price_with_formula_not_redacted PASSED [ 96%]
+tests/test_covpush_w64f_secrets_redactor.py::TestCreditCardGuard::test_luhn_valid_card_redacted 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:53:23 [    INFO] Redacted 1 secrets/PII items from text
+PASSED                                                                   [ 97%]
+tests/test_covpush_w64f_secrets_redactor.py::TestCreditCardGuard::test_spaced_luhn_valid_card_redacted 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:53:23 [    INFO] Redacted 1 secrets/PII items from text
+PASSED                                                                   [ 97%]
+tests/test_covpush_w64f_secrets_redactor.py::TestCreditCardGuard::test_dashed_luhn_valid_card_redacted 
+-------------------------------- live log call ---------------------------------
+2026-11-06 13:53:23 [    INFO] Redacted 1 secrets/PII items from text
+PASSED                                                                   [ 98%]
+tests/test_covpush_w64f_secrets_redactor.py::TestCreditCardGuard::test_luhn_invalid_digit_run_not_redacted PASSED [ 99%]
+tests/test_covpush_w64f_secrets_redactor.py::TestCreditCardGuard::test_long_float_tail_not_redacted PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+tests/test_log_redaction_jwt.py::test_websocket_query_and_repeated_values_are_redacted
+  /private/tmp/atom-jwt-clean/backend/core/graphrag_engine.py:196: DeprecationWarning: invalid escape sequence '\%'
+    """
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 145 passed, 6 warnings in 20.37s =======================

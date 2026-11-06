@@ -58,6 +58,7 @@ _ACTION_UPDATE = "agent_updated"
 _ACTION_PROMOTE = "agent_promoted"
 _ACTION_DELETE = "agent_deleted"
 _ACTION_RUN = "agent_run_admitted"
+_ACTION_REPLACE = "agent_replaced"
 _ACTION_STOP = "agent_stopped"
 
 
@@ -1414,6 +1415,308 @@ def admit_agent_run(
         authority=authority,
         replay_check=_run_target_check(db),
         replay_data=_run_success_data(db))
+
+
+# ---------------------------------------------------------------------------
+# Full replacement decision (PUT)
+# ---------------------------------------------------------------------------
+
+def _replace_config_digest(value: Any) -> str:
+    return _fingerprint("agent-configuration", _canonical(value))
+
+
+def _replace_schedule_digest(value: Any) -> str:
+    return _fingerprint("agent-schedule", _canonical(value))
+
+
+def _replace_state_material(
+    agent: AgentRegistry, values: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    material = {
+        "id": str(agent.id),
+        "tenant_id": (
+            None if agent.tenant_id is None else str(agent.tenant_id)),
+        "workspace_id": (
+            None if agent.workspace_id is None
+            else str(agent.workspace_id)),
+        "name": str(agent.name or ""),
+        "description": (
+            None if agent.description is None else str(agent.description)),
+        "category": str(agent.category or ""),
+        "configuration_digest": _replace_config_digest(agent.configuration),
+        "schedule_digest": _replace_schedule_digest(agent.schedule_config),
+        "status": str(agent.status or ""),
+        "enabled": bool(agent.enabled),
+    }
+    if values:
+        for key in ("name", "description", "category"):
+            if key in values:
+                material[key] = values[key]
+        if "configuration" in values:
+            material["configuration_digest"] = _replace_config_digest(
+                values["configuration"])
+        if "schedule_config" in values:
+            material["schedule_digest"] = _replace_schedule_digest(
+                values["schedule_config"])
+    return material
+
+
+def _load_replace_source(db: Session, agent_id: str):
+    """Load the ORM row and its physical nullable JSON in one snapshot."""
+    with _fresh_session(db) as fresh:
+        raw = fresh.execute(
+            text(
+                "SELECT configuration, schedule_config "
+                "FROM agent_registry WHERE id = :aid"),
+            {"aid": str(agent_id)},
+        ).first()
+        agent = fresh.query(AgentRegistry).filter(
+            AgentRegistry.id == str(agent_id)).populate_existing().first()
+    if raw is None or agent is None:
+        return None, None, None
+    return agent, raw[0], raw[1]
+
+
+def _raw_json_state(
+    db: Session, agent_id: str,
+) -> tuple[Any, Any]:
+    """Return the physical stored JSON text/NULL for the two nullable fields.
+
+    ORM decoding maps both SQL NULL and JSON null to ``None``; the guarded
+    claim must compare the physical value so an unchanged null is not
+    misclassified as a concurrent edit.
+    """
+    with _fresh_session(db) as fresh:
+        row = fresh.execute(
+            text(
+                "SELECT configuration, schedule_config "
+                "FROM agent_registry WHERE id = :aid"),
+            {"aid": str(agent_id)},
+        ).first()
+    if row is None:
+        return None, None
+    return row[0], row[1]
+
+
+def _raw_json_predicate(
+    column_name: str, raw_value: Any, params: Dict[str, Any],
+):
+    column = getattr(AgentRegistry, column_name)
+    if raw_value is None:
+        return column.is_(None)
+    if isinstance(raw_value, str):
+        key = f"raw_{column_name}"
+        params[key] = raw_value
+        return text(
+            f"{AgentRegistry.__tablename__}.{column_name} = :{key}")
+    return column == raw_value
+
+
+def _replace_agent_predicates(
+    agent: AgentRegistry, raw_configuration: Any = None,
+    raw_schedule: Any = None,
+):
+    params: Dict[str, Any] = {}
+    predicates = [
+        AgentRegistry.id == str(agent.id),
+        _exact(AgentRegistry.tenant_id, agent.tenant_id),
+        _exact(AgentRegistry.workspace_id, agent.workspace_id),
+        AgentRegistry.name == str(agent.name or ""),
+        _exact(AgentRegistry.description, agent.description),
+        AgentRegistry.category == str(agent.category or ""),
+        _raw_json_predicate("configuration", raw_configuration, params),
+        _raw_json_predicate("schedule_config", raw_schedule, params),
+        AgentRegistry.status == str(agent.status or ""),
+        AgentRegistry.enabled == bool(agent.enabled),
+    ]
+    return predicates, params
+
+
+def _replace_changes_match(
+    agent: AgentRegistry, changes: Dict[str, Any],
+) -> bool:
+    for key, value in changes.items():
+        current = getattr(agent, key, None)
+        if current != value:
+            return False
+    return True
+
+
+def _replace_target_check(db: Session):
+    def check(expected: Dict[str, Any]) -> bool:
+        current = _load_agent(db, str(expected.get("target_id") or ""))
+        return (
+            current is not None
+            and _state_digest(_replace_state_material(current))
+            == expected["result_digest"])
+
+    return check
+
+
+def _replace_success_data(db: Session):
+    def build(expected: Dict[str, Any]) -> Dict[str, Any]:
+        current = _load_agent(db, str(expected.get("target_id") or ""))
+        return {
+            "agent_id": str(expected.get("target_id") or ""),
+            "name": str(getattr(current, "name", "") or ""),
+            "category": str(getattr(current, "category", "") or ""),
+            "schedule_active": bool(
+                (getattr(current, "schedule_config", None) or {}).get(
+                    "active")),
+        }
+
+    return build
+
+
+def replace_agent(
+    db: Session, *, actor: Any, agent_id: str, changes: Dict[str, Any],
+    operation_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Full PUT replacement with current authority and exact prior material."""
+    actor_snapshot = _resolve_actor(db, actor)
+    if not actor_snapshot.get("ok"):
+        return _actor_refusal(actor_snapshot)
+
+    agent_id = str(agent_id or "").strip()
+    if not agent_id:
+        return _refused(
+            "agent_id must be non-empty", http_status=422,
+            error_code="VALIDATION_ERROR", field="agent_id")
+
+    normalized: Dict[str, Any] = {}
+    if changes.get("name") is not None:
+        normalized["name"] = str(changes["name"])
+    if "description" in changes:
+        normalized["description"] = (
+            None if changes["description"] is None
+            else str(changes["description"]))
+    if changes.get("category") is not None:
+        normalized["category"] = str(changes["category"])
+    if changes.get("configuration") is not None:
+        normalized["configuration"] = dict(changes["configuration"])
+    if changes.get("schedule_config") is not None:
+        normalized["schedule_config"] = dict(changes["schedule_config"])
+    if not normalized.get("name") or not normalized.get("category"):
+        return _refused(
+            "name and category are required", http_status=422,
+            error_code="VALIDATION_ERROR", field="name")
+
+    try:
+        operation_id = _operation_id("replace", operation_id)
+    except ValueError as exc:
+        return _refused(
+            str(exc), http_status=422, error_code="VALIDATION_ERROR",
+            field="operation_id")
+
+    request_material: Dict[str, Any] = {
+        "name": normalized["name"],
+        "description": normalized.get("description"),
+        "category": normalized["category"],
+    }
+    if "configuration" in normalized:
+        request_material["configuration_digest"] = _replace_config_digest(
+            normalized["configuration"])
+    if "schedule_config" in normalized:
+        request_material["schedule_digest"] = _replace_schedule_digest(
+            normalized["schedule_config"])
+    request_digest = _request_digest(
+        _ACTION_REPLACE, agent_id, request_material)
+    expected_base = {
+        "operation_id": operation_id,
+        "schema": REVIEW_SCHEMA,
+        "action": _ACTION_REPLACE,
+        "event_type": AuditEventType.UPDATE.value,
+        "target_id": agent_id,
+        "request_digest": request_digest,
+        "actor_id": actor_snapshot["id"],
+    }
+    replay = _replay(
+        db, operation_id, expected_base, authority=actor_snapshot,
+        target_check=_replace_target_check(db),
+        success_data=_replace_success_data(db))
+    if replay is not None:
+        return replay
+
+    agent, raw_configuration, raw_schedule = _load_replace_source(
+        db, agent_id)
+    if agent is None or not _agent_visible(actor_snapshot, agent):
+        return _refused(
+            f"Agent not found: {agent_id}", http_status=404,
+            error_code="NOT_FOUND")
+    if _replace_changes_match(agent, normalized):
+        return _no_change(
+            {
+                "agent_id": agent_id,
+                "schedule_active": bool(
+                    (normalized.get("schedule_config") or {}).get("active")),
+            },
+            "Agent already matches the requested replacement")
+
+    prior_status = str(agent.status or "")
+    prior_digest = _state_digest(_replace_state_material(agent))
+    result_digest = _state_digest(
+        _replace_state_material(agent, normalized))
+    expected = _audit_expected(
+        operation_id=operation_id, action=_ACTION_REPLACE,
+        event_type=AuditEventType.UPDATE.value, agent=agent,
+        prior_status=prior_status, result_status=prior_status,
+        request_digest=request_digest, prior_digest=prior_digest,
+        result_digest=result_digest, actor=actor_snapshot)
+
+    if not _claim_actor(db, actor_snapshot):
+        db.rollback()
+        return _conflict(
+            "reviewer authority changed; refresh and retry",
+            code="AUTHORITY_CHANGED")
+
+    predicates, predicate_params = _replace_agent_predicates(
+        agent, raw_configuration, raw_schedule)
+    try:
+        updated = db.execute(
+            update(AgentRegistry)
+            .where(*predicates)
+            .values(**normalized),
+            predicate_params)
+        if updated.rowcount != 1:
+            db.rollback()
+            return _conflict(
+                "agent material changed; refresh and retry",
+                code="STALE_TARGET")
+    except IntegrityError:
+        db.rollback()
+        replay = _replay(
+            db, operation_id, expected, authority=actor_snapshot)
+        return replay or _conflict(
+            "agent replacement conflicts with current state",
+            code="STALE_TARGET")
+    except Exception as exc:  # noqa: BLE001 — mutation did not commit
+        db.rollback()
+        logger.error(
+            "agent replace failed before commit: operation_id=%s target=%s "
+            "error_class=%s", operation_id, agent_id,
+            type(exc).__name__)
+        return _not_applied(
+            "The agent replacement could not be applied; no effect was "
+            "committed")
+
+    success_data = {
+        "agent_id": agent_id,
+        "name": normalized["name"],
+        "category": normalized["category"],
+        "schedule_active": bool(
+            (normalized.get("schedule_config") or {}).get("active")),
+    }
+    audit_row = _audit_row(expected=expected, actor=actor_snapshot)
+    return _commit_and_verify(
+        db, expected=expected, audit_row=audit_row,
+        target_check=lambda: (
+            (now := _load_agent(db, agent_id)) is not None
+            and _state_digest(_replace_state_material(now))
+            == result_digest),
+        success_data=success_data,
+        authority=actor_snapshot,
+        replay_check=_replace_target_check(db),
+        replay_data=_replace_success_data(db))
 
 
 # ---------------------------------------------------------------------------

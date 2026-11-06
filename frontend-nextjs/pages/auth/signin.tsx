@@ -16,30 +16,31 @@ export default function SignIn() {
   const router = useRouter();
   const { toast } = useToast();
 
+  // Open-redirect-safe return target (same guard as /login) so users
+  // bounced from a deep link land back where they started. Shared by the
+  // password submit, the social providers and the existing-session redirect.
+  const callbackUrl = typeof router.query.callbackUrl === "string"
+    ? router.query.callbackUrl
+    : "/dashboard";
+  const safeDest = callbackUrl.startsWith("/") && !callbackUrl.startsWith("//")
+    ? callbackUrl
+    : "/dashboard";
+
   useEffect(() => {
       const checkSession = async () => {
         const session = await getSession();
         if (session) {
           localStorage.removeItem('atom_explicit_logout');
-          router.push("/dashboard");
+          router.push(safeDest);
         }
       };
     checkSession();
-  }, [router]);
+  }, [router, safeDest]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
     setError("");
-
-    // Open-redirect-safe return target (same guard as /login) so users
-    // bounced from a deep link land back where they started.
-    const callbackUrl = typeof router.query.callbackUrl === "string"
-      ? router.query.callbackUrl
-      : "/dashboard";
-    const safeDest = callbackUrl.startsWith("/") && !callbackUrl.startsWith("//")
-      ? callbackUrl
-      : "/dashboard";
 
     try {
       const data = await loginWithBackend(email, password, totpCode);
@@ -175,7 +176,7 @@ export default function SignIn() {
             <div className="space-y-3">
               <button
                 type="button"
-                onClick={() => signIn('google', { callbackUrl: '/dashboard' })}
+                onClick={() => signIn('google', { callbackUrl: safeDest })}
                 className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <span className="mr-2">🔍</span>
@@ -184,7 +185,7 @@ export default function SignIn() {
 
               <button
                 type="button"
-                onClick={() => signIn('github', { callbackUrl: '/dashboard' })}
+                onClick={() => signIn('github', { callbackUrl: safeDest })}
                 className="w-full flex items-center justify-center px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-md shadow-sm bg-white dark:bg-gray-900 text-gray-700 dark:text-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
               >
                 <span className="mr-2">⚫</span>

@@ -1,0 +1,22 @@
+provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+LanceDB not initialized, chat history disabled
+status 200
+body {"success":true,"data":{"agent_id":"foreign-agent"},"timestamp":"2026-11-06T16:11:25.503473+00:00","message":"Agent Hijacked replaced successfully"}
+foreign_agent_name Hijacked
+foreign_agent_category hijacked

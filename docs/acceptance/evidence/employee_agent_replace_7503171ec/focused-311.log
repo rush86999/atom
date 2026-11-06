@@ -1,0 +1,375 @@
+
+tests/test_agent_replace_scope_contract.py::test_cross_tenant_and_cross_workspace_replace_is_not_found 
+-------------------------------- live log setup --------------------------------
+2026-11-06 11:02:25 [    INFO] EscalationManager initialized
+2026-11-06 11:02:25 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 11:02:25 [    INFO] EscalationManager initialized
+2026-11-06 11:02:25 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 11:02:25 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 11:02:25 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:02:26 [    INFO] HTTP Request: PUT http://testserver/api/agents/a3 "HTTP/1.1 404 Not Found"
+2026-11-06 11:02:26 [    INFO] HTTP Request: PUT http://testserver/api/agents/a2 "HTTP/1.1 404 Not Found"
+2026-11-06 11:02:26 [    INFO] HTTP Request: PUT http://testserver/api/agents/a1 "HTTP/1.1 403 Forbidden"
+2026-11-06 11:02:26 [    INFO] HTTP Request: PUT http://testserver/api/agents/a2?operation_id=cross-ws "HTTP/1.1 200 OK"
+2026-11-06 11:02:26 [    INFO] HTTP Request: PUT http://testserver/api/agents/a1 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [  1%]
+tests/test_agent_replace_scope_contract.py::test_replace_agent_persists_fields_and_receipt 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:02:26 [    INFO] HTTP Request: PUT http://testserver/api/agents/a1?operation_id=replace-one "HTTP/1.1 200 OK"
+PASSED                                                                   [  2%]
+tests/test_agent_replace_scope_contract.py::test_stale_target_before_claim_refuses 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:02:27 [    INFO] HTTP Request: PUT http://testserver/api/agents/a1?operation_id=stale-replace "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  4%]
+tests/test_agent_replace_scope_contract.py::test_authority_change_before_claim_refuses[deactivate] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:02:28 [    INFO] HTTP Request: PUT http://testserver/api/agents/a1?operation_id=authority-replace "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  5%]
+tests/test_agent_replace_scope_contract.py::test_authority_change_before_claim_refuses[demote] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:02:29 [    INFO] HTTP Request: PUT http://testserver/api/agents/a1?operation_id=authority-replace "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  6%]
+tests/test_agent_replace_scope_contract.py::test_replay_same_operation_and_changed_material 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:02:30 [    INFO] HTTP Request: PUT http://testserver/api/agents/a1?operation_id=replay-replace "HTTP/1.1 200 OK"
+2026-11-06 11:02:30 [    INFO] HTTP Request: PUT http://testserver/api/agents/a1?operation_id=replay-replace "HTTP/1.1 200 OK"
+2026-11-06 11:02:30 [    INFO] HTTP Request: PUT http://testserver/api/agents/a1?operation_id=replay-replace "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  8%]
+tests/test_agent_replace_scope_contract.py::test_audit_rollback_preserves_agent 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:02:31 [    INFO] HTTP Request: PUT http://testserver/api/agents/a1?operation_id=rollback-replace "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  9%]
+tests/test_agent_replace_scope_contract.py::test_readback_failure_is_committed_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:02:32 [    INFO] HTTP Request: PUT http://testserver/api/agents/a1?operation_id=readback-replace "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 11%]
+tests/test_agent_replace_scope_contract.py::test_matching_replacement_is_no_change 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:02:32 [    INFO] HTTP Request: PUT http://testserver/api/agents/a1?operation_id=no-change "HTTP/1.1 200 OK"
+PASSED                                                                   [ 12%]
+tests/test_agent_replace_scope_contract.py::test_missing_agent_is_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:02:33 [    INFO] HTTP Request: PUT http://testserver/api/agents/missing?operation_id=missing-replace "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 13%]
+tests/test_agent_decision_contract.py::test_workspace_admin_updates_own_agent_with_audit 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:02:34 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=update-one "HTTP/1.1 200 OK"
+PASSED                                                                   [ 15%]
+tests/test_agent_decision_contract.py::test_cross_tenant_and_cross_workspace_targets_are_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:02:35 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a2 "HTTP/1.1 404 Not Found"
+2026-11-06 11:02:35 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a3 "HTTP/1.1 404 Not Found"
+2026-11-06 11:02:35 [    INFO] HTTP Request: POST http://testserver/api/agents/a2/promote "HTTP/1.1 404 Not Found"
+2026-11-06 11:02:35 [    INFO] HTTP Request: POST http://testserver/api/agents/a3/promote "HTTP/1.1 404 Not Found"
+2026-11-06 11:02:35 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a2 "HTTP/1.1 200 OK"
+2026-11-06 11:02:35 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a3 "HTTP/1.1 404 Not Found"
+2026-11-06 11:02:35 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a3 "HTTP/1.1 200 OK"
+2026-11-06 11:02:35 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 16%]
+tests/test_agent_decision_contract.py::test_non_manager_roles_cannot_update_or_promote[member-1] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:02:36 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1 "HTTP/1.1 403 Forbidden"
+2026-11-06 11:02:36 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/promote "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 18%]
+tests/test_agent_decision_contract.py::test_non_manager_roles_cannot_update_or_promote[lead-1] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:02:36 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1 "HTTP/1.1 403 Forbidden"
+2026-11-06 11:02:36 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/promote "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 19%]
+tests/test_agent_decision_contract.py::test_empty_and_matching_updates_are_no_change 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:02:37 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1 "HTTP/1.1 200 OK"
+2026-11-06 11:02:37 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 20%]
+tests/test_agent_decision_contract.py::test_stale_peer_edit_before_update_claim_refuses 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:02:38 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=stale-update "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 22%]
+tests/test_agent_decision_contract.py::test_update_replay_changed_material_and_later_revision 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:02:38 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=replay-update "HTTP/1.1 200 OK"
+2026-11-06 11:02:38 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=replay-update "HTTP/1.1 200 OK"
+2026-11-06 11:02:38 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=replay-update "HTTP/1.1 409 Conflict"
+2026-11-06 11:02:38 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=replay-update "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 23%]
+tests/test_agent_decision_contract.py::test_promote_transitions_replay_and_stale 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:02:39 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/promote?operation_id=promote-one "HTTP/1.1 200 OK"
+2026-11-06 11:02:39 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/promote?operation_id=promote-one "HTTP/1.1 200 OK"
+2026-11-06 11:02:39 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/promote?operation_id=promote-two "HTTP/1.1 200 OK"
+2026-11-06 11:02:39 [    INFO] HTTP Request: POST http://testserver/api/agents/a2/promote?operation_id=stale-promote "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 25%]
+tests/test_agent_decision_contract.py::test_authority_change_before_claim_refuses[deactivate-update] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:02:40 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=authority "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 26%]
+tests/test_agent_decision_contract.py::test_authority_change_before_claim_refuses[deactivate-promote] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:02:41 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/promote?operation_id=authority "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 27%]
+tests/test_agent_decision_contract.py::test_authority_change_before_claim_refuses[tenant_move-update] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:02:42 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=authority "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 29%]
+tests/test_agent_decision_contract.py::test_authority_change_before_claim_refuses[tenant_move-promote] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:02:43 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/promote?operation_id=authority "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 30%]
+tests/test_agent_decision_contract.py::test_confirmed_audit_rollback_reports_effect_none[update] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:02:44 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=rollback-update "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 31%]
+tests/test_agent_decision_contract.py::test_confirmed_audit_rollback_reports_effect_none[promote] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:02:44 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/promote?operation_id=rollback-promote "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 33%]
+tests/test_agent_decision_contract.py::test_post_commit_readback_is_committed_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:02:45 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=readback "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 34%]
+tests/test_agent_decision_contract.py::test_lost_confirmation_is_effect_unknown_with_identity 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:02:46 [   ERROR] agent decision outcome unknown: operation_id=agent:update:lost-confirmation target=a1 error_class=RuntimeError
+PASSED                                                                   [ 36%]
+tests/test_agent_decision_contract.py::test_wrong_audit_receipt_is_never_verified[action] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:02:47 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=audit-action "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 37%]
+tests/test_agent_decision_contract.py::test_wrong_audit_receipt_is_never_verified[user_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:02:48 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=audit-user_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 38%]
+tests/test_agent_decision_contract.py::test_wrong_audit_receipt_is_never_verified[tenant_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:02:49 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=audit-tenant_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 40%]
+tests/test_agent_decision_contract.py::test_wrong_audit_receipt_is_never_verified[workspace_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:02:49 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=audit-workspace_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 41%]
+tests/test_agent_decision_contract.py::test_wrong_audit_receipt_is_never_verified[success] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:02:50 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=audit-success "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 43%]
+tests/test_agent_decision_contract.py::test_wrong_audit_receipt_is_never_verified[security_level] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:02:51 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=audit-security_level "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 44%]
+tests/test_agent_decision_contract.py::test_wrong_audit_receipt_is_never_verified[resource] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:02:52 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=audit-resource "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 45%]
+tests/test_agent_decision_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_target_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:02:53 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=audit-metadata_target_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 47%]
+tests/test_agent_decision_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_target_tenant_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:02:54 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=audit-metadata_target_tenant_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 48%]
+tests/test_agent_decision_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_target_workspace_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:02:55 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=audit-metadata_target_workspace_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 50%]
+tests/test_agent_decision_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_actor_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:02:56 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=audit-metadata_actor_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 51%]
+tests/test_agent_decision_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_prior_status] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:02:56 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=audit-metadata_prior_status "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 52%]
+tests/test_agent_decision_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_result_status] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:02:57 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=audit-metadata_result_status "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 54%]
+tests/test_agent_decision_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_request_digest] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:02:58 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=audit-metadata_request_digest "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 55%]
+tests/test_agent_decision_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_prior_digest] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:02:59 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=audit-metadata_prior_digest "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 56%]
+tests/test_agent_decision_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_result_digest] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:02:59 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=audit-metadata_result_digest "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 58%]
+tests/test_agent_decision_contract.py::test_raw_capabilities_are_absent_from_audit_and_logs 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:03:00 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=cap-secret "HTTP/1.1 200 OK"
+PASSED                                                                   [ 59%]
+tests/test_agent_decision_contract.py::test_anonymous_requests_are_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:03:01 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1 "HTTP/1.1 401 Unauthorized"
+2026-11-06 11:03:01 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/promote "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 61%]
+tests/test_agent_delete_scope_contract.py::test_cross_tenant_and_cross_workspace_delete_is_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:03:01 [    INFO] HTTP Request: DELETE http://testserver/api/agents/a3?operation_id=cross-tenant "HTTP/1.1 404 Not Found"
+2026-11-06 11:03:01 [    INFO] HTTP Request: DELETE http://testserver/api/agents/a2?operation_id=cross-ws "HTTP/1.1 404 Not Found"
+2026-11-06 11:03:01 [    INFO] HTTP Request: DELETE http://testserver/api/agents/a1 "HTTP/1.1 403 Forbidden"
+2026-11-06 11:03:01 [    INFO] HTTP Request: DELETE http://testserver/api/agents/a1 "HTTP/1.1 403 Forbidden"
+2026-11-06 11:03:02 [    INFO] HTTP Request: DELETE http://testserver/api/agents/a2?operation_id=own-ws "HTTP/1.1 200 OK"
+2026-11-06 11:03:02 [    INFO] HTTP Request: DELETE http://testserver/api/agents/a-keep?operation_id=cross-ws-admin "HTTP/1.1 200 OK"
+PASSED                                                                   [ 62%]
+tests/test_agent_delete_scope_contract.py::test_admin_delete_cleans_dependents_and_writes_receipt 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:03:03 [    INFO] HTTP Request: DELETE http://testserver/api/agents/a1?operation_id=delete-a1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 63%]
+tests/test_agent_delete_scope_contract.py::test_stale_target_before_claim_refuses 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:03:04 [    INFO] HTTP Request: DELETE http://testserver/api/agents/a1?operation_id=stale-delete "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 65%]
+tests/test_agent_delete_scope_contract.py::test_authority_change_before_claim_refuses[deactivate] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:03:04 [    INFO] HTTP Request: DELETE http://testserver/api/agents/a1?operation_id=authority-delete "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 66%]
+tests/test_agent_delete_scope_contract.py::test_authority_change_before_claim_refuses[demote] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:03:05 [    INFO] HTTP Request: DELETE http://testserver/api/agents/a1?operation_id=authority-delete "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 68%]
+tests/test_agent_delete_scope_contract.py::test_replay_and_changed_target 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:03:06 [    INFO] HTTP Request: DELETE http://testserver/api/agents/a1?operation_id=replay-delete "HTTP/1.1 200 OK"
+2026-11-06 11:03:06 [    INFO] HTTP Request: DELETE http://testserver/api/agents/a1?operation_id=replay-delete "HTTP/1.1 200 OK"
+2026-11-06 11:03:06 [    INFO] HTTP Request: DELETE http://testserver/api/agents/a-keep?operation_id=replay-delete "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 69%]
+tests/test_agent_delete_scope_contract.py::test_audit_rollback_preserves_agent_and_dependents 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:03:07 [    INFO] HTTP Request: DELETE http://testserver/api/agents/a1?operation_id=rollback-delete "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 70%]
+tests/test_agent_delete_scope_contract.py::test_post_commit_readback_is_committed_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:03:08 [    INFO] HTTP Request: DELETE http://testserver/api/agents/a1?operation_id=readback-delete "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 72%]
+tests/test_agent_delete_scope_contract.py::test_lost_confirmation_is_effect_unknown 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:03:09 [   ERROR] agent decision outcome unknown: operation_id=agent:delete:lost-delete target=a1 error_class=RuntimeError
+PASSED                                                                   [ 73%]
+tests/test_agent_delete_scope_contract.py::test_main_agent_and_running_tasks_are_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:03:10 [    INFO] HTTP Request: DELETE http://testserver/api/agents/atom_main?operation_id=main-delete "HTTP/1.1 400 Bad Request"
+2026-11-06 11:03:10 [    INFO] HTTP Request: DELETE http://testserver/api/agents/a1?operation_id=running-delete "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 75%]
+tests/test_agent_delete_scope_contract.py::test_demo_tombstone_is_durable_across_replay 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:03:11 [    INFO] HTTP Request: DELETE http://testserver/api/agents/a-demo?operation_id=demo-delete "HTTP/1.1 200 OK"
+2026-11-06 11:03:11 [    INFO] HTTP Request: DELETE http://testserver/api/agents/a-demo?operation_id=demo-delete "HTTP/1.1 200 OK"
+PASSED                                                                   [ 76%]
+tests/test_agent_delete_scope_contract.py::test_wrong_audit_receipt_never_verifies 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:03:15 [    INFO] HTTP Request: DELETE http://testserver/api/agents/a1?operation_id=tamper-delete "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 77%]
+tests/test_agent_run_admission_contract.py::test_member_admits_own_agent_and_dispatch_completes 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:03:16 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=run-one "HTTP/1.1 200 OK"
+PASSED                                                                   [ 79%]
+tests/test_agent_run_admission_contract.py::test_member_cross_workspace_and_tenant_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:03:16 [    INFO] HTTP Request: POST http://testserver/api/agents/a2/run "HTTP/1.1 404 Not Found"
+2026-11-06 11:03:16 [    INFO] HTTP Request: POST http://testserver/api/agents/a3/run "HTTP/1.1 404 Not Found"
+2026-11-06 11:03:16 [    INFO] HTTP Request: POST http://testserver/api/agents/a2/run?operation_id=cross-ws "HTTP/1.1 200 OK"
+2026-11-06 11:03:17 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 80%]
+tests/test_agent_run_admission_contract.py::test_deprecated_paused_and_running_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:03:17 [    INFO] HTTP Request: POST http://testserver/api/agents/a-deprecated/run "HTTP/1.1 400 Bad Request"
+2026-11-06 11:03:17 [    INFO] HTTP Request: POST http://testserver/api/agents/a-paused/run "HTTP/1.1 400 Bad Request"
+2026-11-06 11:03:17 [    INFO] HTTP Request: POST http://testserver/api/agents/a-running/run "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 81%]
+tests/test_agent_run_admission_contract.py::test_active_job_blocks_second_admission 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:03:18 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=active-job "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 83%]
+tests/test_agent_run_admission_contract.py::test_target_change_before_claim_refuses 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:03:19 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=stale-run "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 84%]
+tests/test_agent_run_admission_contract.py::test_authority_change_before_claim_refuses[deactivate] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:03:20 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=authority-run "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 86%]
+tests/test_agent_run_admission_contract.py::test_authority_change_before_claim_refuses[demote] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:03:20 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=authority-run "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 87%]
+tests/test_agent_run_admission_contract.py::test_replay_same_operation_no_second_dispatch 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:03:22 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=run-replay "HTTP/1.1 200 OK"
+2026-11-06 11:03:22 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=run-replay "HTTP/1.1 200 OK"
+2026-11-06 11:03:22 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=run-replay "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 88%]
+tests/test_agent_run_admission_contract.py::test_audit_rollback_preserves_agent_and_job 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:03:22 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=rollback-run "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 90%]
+tests/test_agent_run_admission_contract.py::test_readback_failure_is_committed_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:03:23 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=readback-run "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 91%]
+tests/test_agent_run_admission_contract.py::test_execution_failure_marks_job_failed_and_restores_status 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:03:24 [   ERROR] Admitted agent run failed: agent=a1 job=73378ac9-5fa3-4300-8912-1e121f66adf9 error_class=RuntimeError
+2026-11-06 11:03:24 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=failed-run "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 93%]
+tests/test_agent_run_admission_contract.py::test_sync_run_returns_stub_result_and_success_job 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:03:25 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=sync-run "HTTP/1.1 200 OK"
+PASSED                                                                   [ 94%]
+tests/api/test_agent_routes.py::test_replace_agent_success 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:03:25 [    INFO] HTTP Request: PUT http://testserver/api/agents/362f6c70-1623-4868-b498-04b56ba6bbd6 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 95%]
+tests/api/test_agent_routes.py::test_replace_agent_missing_required_field 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:03:25 [    INFO] HTTP Request: PUT http://testserver/api/agents/ac2cf58f-2b88-473e-9b66-7ab13908f349 "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 97%]
+tests/api/test_agent_routes.py::test_replace_agent_invalid_name 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:03:25 [    INFO] HTTP Request: PUT http://testserver/api/agents/a16503c1-8eab-4283-af47-762c9d30f590 "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 98%]
+tests/api/test_agent_routes.py::test_replace_agent_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-06 11:03:25 [    INFO] HTTP Request: PUT http://testserver/api/agents/nonexistent-agent "HTTP/1.1 404 Not Found"
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+tests/test_agent_replace_scope_contract.py::test_cross_tenant_and_cross_workspace_replace_is_not_found
+  /private/tmp/atom-agent-replace-v2/backend/core/graphrag_engine.py:196: DeprecationWarning: invalid escape sequence '\%'
+    """
+
+tests/api/test_agent_routes.py::test_replace_agent_success
+tests/api/test_agent_routes.py::test_replace_agent_missing_required_field
+tests/api/test_agent_routes.py::test_replace_agent_invalid_name
+tests/api/test_agent_routes.py::test_replace_agent_not_found
+  /private/tmp/atom-agent-replace-v2/backend/tests/conftest.py:507: SAWarning: Cannot correctly sort tables; there are unresolvable cycles between tables "agent_divisions, agent_registry, canvases, mini_apps", which is usually caused by mutually dependent foreign key constraints.  Foreign key constraints involving these tables will not be considered; this warning may raise an error in a future release.
+    for table in reversed(_all_models_base.metadata.sorted_tables):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================== 72 passed, 10 warnings in 79.86s (0:01:19) ==================

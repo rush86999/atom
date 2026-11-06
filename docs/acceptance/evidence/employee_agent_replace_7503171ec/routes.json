@@ -1,0 +1,37 @@
+{
+  "schema": "atom-oracle-agent-replace-routes-1",
+  "executed_source": "7503171eca9d27915d2911fb2fc0cc961bde9b8b",
+  "base_main": "33b8d6472605b7fbb4c84a9e21286c3d168b7d5c",
+  "prefix": "/api/agents",
+  "route": {
+    "method": "PUT",
+    "path": "/api/agents/{agent_id}",
+    "handler": "api.agent_routes.replace_agent",
+    "service": "core.agent_decision_write_service.replace_agent",
+    "semantics": "full replacement; name/category required; description/config/schedule replace only when supplied"
+  },
+  "authority": {
+    "route": "require_permission(Permission.AGENT_MANAGE) plus get_current_user",
+    "service": "current User re-read; active status; WORKSPACE_ADMIN+; claim is_active/status/role/raw tenant/raw workspace in the replacement transaction",
+    "scope_policy": "foreign tenant/workspace 404; workspace-bound below ADMIN only same/legacy workspace; ADMIN+ may cross workspaces in tenant; unscoped platform actor keeps global-legacy policy",
+    "authority_change": "409 AUTHORITY_CHANGED with effect=none"
+  },
+  "material": {
+    "prior": ["id", "tenant_id", "workspace_id", "name", "description", "category", "configuration", "schedule_config", "status", "enabled"],
+    "request": ["name", "description", "category", "configuration", "schedule_config"],
+    "digests": ["configuration", "schedule", "prior state", "result state", "request"],
+    "sensitive_material": "no raw configuration, schedule or secret in the receipt or logs"
+  },
+  "effect": {
+    "write": "guarded AgentRegistry update on the exact prior material",
+    "receipt": "one AuditLog action=agent_replaced in the same transaction",
+    "readback": "fresh session; current state digest must match the result digest",
+    "scheduler": "only after a verified commit; once; never on replay/no-change",
+    "states": "verified; no_change; already_applied; refused 404/403/422; conflict 409 STALE_TARGET/AUTHORITY_CHANGED/OPERATION_CONFLICT; not_applied 409; committed_unverified 503"
+  },
+  "parallel_writers": {
+    "route": "sole verified PUT replacement writer",
+    "registration/update/promote/delete/run": "same-service exact-material claims detect concurrent changes",
+    "scheduler": "post-commit effect; failure logged after the committed DB effect"
+  }
+}

@@ -83,7 +83,12 @@ export async function middleware(request: NextRequest) {
 
   if (!authToken && !sessionCookie) {
     const signInUrl = new URL('/login', request.url);
-    signInUrl.searchParams.set('callbackUrl', request.url);
+    // The login pages accept only same-app relative return targets
+    // (`/path?query`, never `//host`). Passing the absolute request URL made
+    // every deep-link bounce fall back to /dashboard, so preserve exactly the
+    // path and query here; the open-redirect guard stays on the consumer.
+    const callbackUrl = `${request.nextUrl.pathname}${request.nextUrl.search}`;
+    signInUrl.searchParams.set('callbackUrl', callbackUrl);
     return NextResponse.redirect(signInUrl);
   }
 

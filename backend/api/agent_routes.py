@@ -17,6 +17,7 @@ from core.agent_decision_write_service import (
     admit_agent_run as _admit_agent_run,
     delete_agent as _delete_agent_decision,
     promote_agent as _promote_agent_decision,
+    replace_agent as _replace_agent_decision,
     stop_agent as _stop_agent_decision,
     update_agent as _update_agent_decision,
 )
@@ -1243,44 +1244,53 @@ async def create_custom_agent(
 async def replace_agent(
     agent_id: str,
     req: AgentReplaceRequest,
+    operation_id: Optional[str] = None,
     user: User = Depends(require_permission(Permission.AGENT_MANAGE)),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Replace an entire agent resource (RESTful PUT semantics per RFC 9110).
+    """Replace an entire agent resource (RESTful PUT semantics).
 
-    This endpoint performs a full replacement of the agent resource. All required
-    fields (name, category) must be provided. For partial updates, use PATCH instead.
-
-    Returns 422 if required fields are missing.
-
-    See: docs/testing/PUT_SEMANTICS_DECISION.md
+    The verified decision binds current authority/scope and exact prior agent
+    material, writes one AuditLog receipt, replays idempotently and refuses
+    stale or foreign material. The scheduler is updated only after a verified
+    commit and only once.
     """
-    agent = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
-    if not agent:
-        raise router.not_found_error("Agent", agent_id)
-
-    # Full replacement: update all fields
-    agent.name = req.name
-    agent.description = req.description
-    agent.category = req.category
+    changes = {
+        "name": req.name,
+        "description": req.description,
+        "category": req.category,
+    }
     if req.configuration is not None:
-        agent.configuration = req.configuration
+        changes["configuration"] = req.configuration
     if req.schedule_config is not None:
-        agent.schedule_config = req.schedule_config
-
-    db.commit()
-
-    # Update Scheduler if schedule_config changed
-    if req.schedule_config and req.schedule_config.get("active"):
-        from core.scheduler import AgentScheduler
-        scheduler = AgentScheduler.get_instance()
-        scheduler.schedule_agent(agent.id, req.schedule_config)
-
-    return router.success_response(
-        data={"agent_id": agent.id},
-        message=f"Agent {agent.name} replaced successfully"
+        changes["schedule_config"] = req.schedule_config
+    result = _replace_agent_decision(
+        db,
+        actor=current_user,
+        agent_id=agent_id,
+        changes=changes,
+        operation_id=operation_id,
     )
+    _raise_agent_decision(result)
+    data = dict(result.get("data") or {})
+    data.setdefault("agent_id", agent_id)
+    if result.get("status") == "verified" and data.get("schedule_active"):
+        try:
+            from core.scheduler import AgentScheduler
+            scheduler = AgentScheduler.get_instance()
+            scheduler.schedule_agent(agent_id, req.schedule_config)
+        except Exception as exc:  # noqa: BLE001 — DB replacement committed
+            logger.error(
+                "Agent replacement committed but scheduler update failed: "
+                "agent=%s error_class=%s", agent_id, type(exc).__name__)
+    return router.success_response(
+        data=data,
+        message=f"Agent {req.name} replaced successfully",
+    )
+
+
+
 
 @router.post("/{agent_id}/stop")
 async def stop_agent(
@@ -1308,218 +1318,3 @@ async def stop_agent(
         data=data,
         message=result.get("message") or "Agent stopped",
     )
-
-
-
-
-# ==================== ATOM META-AGENT ENDPOINTS ====================
-
-class AtomExecuteRequest(BaseModel):
-    request: str
-    context: Optional[Dict[str, Any]] = None
-
-class AtomSpawnRequest(BaseModel):
-    template: str  # e.g., "finance_analyst", "sales_assistant", "custom"
-    custom_params: Optional[Dict[str, Any]] = None
-    persist: bool = False
-
-class AtomTriggerRequest(BaseModel):
-    event_type: str
-    data: Dict[str, Any]
-
-@router.post("/atom/execute")
-async def execute_atom(
-    req: AtomExecuteRequest,
-    user: User = Depends(require_permission(Permission.AGENT_RUN)),
-):
-    """
-    Execute the Atom Meta-Agent with a natural language request.
-    Atom will analyze the request and spawn specialty agents as needed.
-    """
-    from core.atom_meta_agent import handle_manual_trigger
-
-    # Determine workspace from user context
-    workspace_id = "default"
-
-    result = await handle_manual_trigger(
-        request=req.request,
-        user=user,
-        workspace_id=workspace_id
-    )
-
-    return router.success_response(
-        data=result,
-        message="Atom meta-agent executed successfully"
-    )
-
-
-@router.post("/spawn")
-async def spawn_agent(
-    req: AtomSpawnRequest,
-    user: User = Depends(require_permission(Permission.AGENT_MANAGE)),
-):
-    """
-    Spawn a specialty agent on-demand from a template.
-    """
-    from core.atom_meta_agent import get_atom_agent
-    
-    atom = get_atom_agent()
-    agent = await atom.spawn_agent(
-        template_name=req.template,
-        custom_params=req.custom_params,
-        persist=req.persist
-    )
-    
-    return router.success_response(
-        data={
-            "agent_id": agent.id,
-            "agent_name": agent.name,
-            "category": agent.category,
-            "persisted": req.persist
-        },
-        message=f"Agent {agent.name} spawned successfully"
-    )
-
-
-@router.post("/atom/trigger")
-async def trigger_atom_with_data(
-    req: AtomTriggerRequest,
-    # This endpoint may not require user auth if called by webhooks/internal systems
-    # For now, require basic auth
-    user: User = Depends(require_permission(Permission.AGENT_RUN)),
-):
-    """
-    Trigger Atom with new data (event-driven execution).
-    Used for webhooks, ingestion events, integration callbacks.
-    """
-    from core.atom_meta_agent import handle_data_event_trigger
-    
-    result = await handle_data_event_trigger(
-        event_type=req.event_type,
-        data=req.data,
-        workspace_id="default"
-    )
-    
-    return router.success_response(
-        data=result,
-        message="Atom triggered with data event successfully"
-    )
-
-class CustomAgentRequest(BaseModel):
-    name: str = Field(min_length=1, max_length=100, description="Agent name (1-100 characters)")
-    description: Optional[str] = "Custom Agent"
-    category: str = Field(min_length=1, max_length=50, description="Agent category (1-50 characters)")
-    configuration: Optional[Dict[str, Any]] = None
-    schedule_config: Optional[Dict[str, Any]] = None
-
-    @field_validator('name', 'category')
-    @classmethod
-    def validate_not_whitespace(cls, v: str) -> str:
-        """Validate that name and category are not empty or whitespace-only."""
-        if not v or not v.strip():
-            raise ValueError('cannot be empty or whitespace-only')
-        return v.strip()
-
-
-class AgentUpdateRequest(BaseModel):
-    """Request model for partial agent updates (Bug #4 fix)."""
-    name: Optional[str] = Field(None, min_length=1, max_length=100, description="Agent name")
-    description: Optional[str] = None
-    category: Optional[str] = Field(None, min_length=1, max_length=50, description="Agent category")
-    configuration: Optional[Dict[str, Any]] = None
-    schedule_config: Optional[Dict[str, Any]] = None
-    # P2: per-agent zero-trust tool scoping. Empty/['*'] = unrestricted (default).
-    capabilities: Optional[List[str]] = None
-
-    @field_validator('name', 'category')
-    @classmethod
-    def validate_not_whitespace(cls, v: Optional[str]) -> Optional[str]:
-        """Validate that name and category are not empty or whitespace-only."""
-        if v is not None:
-            if not v or not v.strip():
-                raise ValueError('cannot be empty or whitespace-only')
-            return v.strip()
-        return v
-
-
-class AgentReplaceRequest(BaseModel):
-    """Request model for PUT /api/agents/{id} - full agent replacement.
-
-    Per RFC 9110 Section 4.3.4 (PUT), this endpoint validates all required fields
-    and performs a full replacement of the agent resource. For partial updates,
-    use PATCH /api/agents/{id} instead.
-
-    Required fields:
-        name: Agent name (1-100 characters, not whitespace-only)
-        category: Agent category (1-50 characters, not whitespace-only)
-
-    Optional fields:
-        description: Agent description
-        configuration: Agent configuration dictionary
-        schedule_config: Agent schedule configuration dictionary
-
-    See: docs/testing/PUT_SEMANTICS_DECISION.md
-    """
-    name: str = Field(min_length=1, max_length=100, description="Agent name (required)")
-    description: Optional[str] = None
-    category: str = Field(min_length=1, max_length=50, description="Agent category (required)")
-    configuration: Optional[Dict[str, Any]] = None
-    schedule_config: Optional[Dict[str, Any]] = None
-
-    @field_validator('name', 'category')
-    @classmethod
-    def validate_not_whitespace(cls, v: str) -> str:
-        """Validate that name and category are not empty or whitespace-only."""
-        if not v or not v.strip():
-            raise ValueError('cannot be empty or whitespace-only')
-        return v.strip()
-
-@router.post("/custom", status_code=201)
-async def create_custom_agent(
-    req: CustomAgentRequest,
-    user: User = Depends(require_permission(Permission.AGENT_MANAGE)),
-    current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Create a fully custom agent with configuration and schedule.
-
-    Returns 201 Created on success (HTTP standard for resource creation).
-    """
-    # 1. Create Agent. The employee's scope is the authenticated user's
-    # effective scope, not NULL: assignment start resolves an agent by
-    # workspace + tenant, so an unscoped hire was visible in the list but
-    # could not be given work on a fresh install.
-    workspace_id = getattr(current_user, "workspace_id", None) or "default"
-    tenant_id = getattr(current_user, "tenant_id", None) or "default"
-    registry_entry = AgentRegistry(
-        name=req.name,
-        description=req.description,
-        category=req.category,
-        configuration=req.configuration,
-        schedule_config=req.schedule_config,
-        module_path="core.generic_agent",
-        class_name="GenericAgent",
-        status=AgentStatus.STUDENT.value,
-        workspace_id=workspace_id,
-        tenant_id=tenant_id,
-        # Round 86: start hires below the INTERN band floor (0.5). The old
-        # 0.5 default put every new employee one graded rehearsal away from
-        # promotion — confidence should reflect demonstrated work, and the
-        # evidence gate (student_training_service) now requires it anyway.
-        confidence_score=NEW_AGENT_CONFIDENCE,
-    )
-    db.add(registry_entry)
-    db.commit()
-    db.refresh(registry_entry)
-    
-    # 2. Schedule if needed
-    if req.schedule_config and req.schedule_config.get("active"):
-        from core.scheduler import AgentScheduler
-        scheduler = AgentScheduler.get_instance()
-        scheduler.schedule_agent(registry_entry.id, req.schedule_config)
-        
-    return router.success_response(
-        data={"agent_id": registry_entry.id},
-        message=f"Custom agent {req.name} created successfully"
-    )
-
