@@ -75,7 +75,7 @@ Execution used exactly the committed bytes at head `bf28b07f3`:
 | `backend/tests/api/test_document_routes_coverage_w52.py` | `c9cb35c0e635cb66df0d10b566bc09beed687b00` |
 
 Verified against `git ls-tree bf28b07f3` at packaging time; `verification.json`
-records the blob identities of the artifacts as committed.
+records uniquely resolving source/log blob prefixes and the exact-byte checks against the executed and packaging refs.
 
 ## Attribution of test kinds (do not over-read)
 
