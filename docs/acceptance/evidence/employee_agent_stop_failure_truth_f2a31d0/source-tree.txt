@@ -1,0 +1,27 @@
+executed_source: f2a31d0e66ba36d015934875130e777d69f06957
+base_main: 248a2329623b433e68104c4d89d2965683d81013
+merged_predecessor: e93982eecaa84778c16570d665cc809c44ff4df0
+predecessor_code: 1faccf71cf00f5a1d421ce67adca3f0f652066d2
+branch: codex/oracle01-stop-failure-truth-20261106
+status_short:
+A  docs/acceptance/evidence/employee_agent_stop_failure_truth_f2a31d0/README.md
+A  docs/acceptance/evidence/employee_agent_stop_failure_truth_f2a31d0/TEST_RESULTS.md
+A  docs/acceptance/evidence/employee_agent_stop_failure_truth_f2a31d0/affected-311.log
+A  docs/acceptance/evidence/employee_agent_stop_failure_truth_f2a31d0/affected-314.log
+A  docs/acceptance/evidence/employee_agent_stop_failure_truth_f2a31d0/agent3_stop_probes.py
+A  docs/acceptance/evidence/employee_agent_stop_failure_truth_f2a31d0/baseline-main-311.log
+A  docs/acceptance/evidence/employee_agent_stop_failure_truth_f2a31d0/baseline-main-314.log
+A  docs/acceptance/evidence/employee_agent_stop_failure_truth_f2a31d0/external-probes-311.log
+A  docs/acceptance/evidence/employee_agent_stop_failure_truth_f2a31d0/external-probes-314.log
+A  docs/acceptance/evidence/employee_agent_stop_failure_truth_f2a31d0/focused-311.log
+A  docs/acceptance/evidence/employee_agent_stop_failure_truth_f2a31d0/focused-314.log
+A  docs/acceptance/evidence/employee_agent_stop_failure_truth_f2a31d0/pre-fix-external-311.log
+A  docs/acceptance/evidence/employee_agent_stop_failure_truth_f2a31d0/pre-fix-external-314.log
+A  docs/acceptance/evidence/employee_agent_stop_failure_truth_f2a31d0/root_registry_fault_probes.py
+A  docs/acceptance/evidence/employee_agent_stop_failure_truth_f2a31d0/source-tree.txt
+A  docs/acceptance/evidence/employee_agent_stop_failure_truth_f2a31d0/verification.json
+log:
+f2a31d0e6 fix(agents): preserve stop truth across registry and receipt failures
+248a23296 Codex/agent4 account return 20261106 (#696)
+e93982eec Agents: bind scope, exact material and a receipt to stop/cancel (#695)
+213e75c43 Agent3: independent review of #689 credential-safe log redaction (#694)
