@@ -197,16 +197,85 @@ def redact_log_text(text: str) -> str:
         return text
 
 
+_FALLBACK_ATTRIBUTE = "_atom_log_redaction_fallback"
+
+
+def _argument_shape(record: logging.LogRecord) -> "tuple[str, int]":
+    """Describe record.args without reproducing its values."""
+    args = record.args
+    if args is None:
+        return "none", 0
+    if isinstance(args, tuple):
+        return "tuple", len(args)
+    if isinstance(args, dict):
+        return "dict", len(args)
+    return type(args).__name__, 1
+
+
+def _safe_fallback_message(
+    record: logging.LogRecord, error: BaseException,
+) -> str:
+    """Context-only line for a record whose own message cannot be produced.
+
+    The original ``msg`` and ``args`` are deliberately excluded: either may
+    contain the credential that made formatting fail. The logger, source
+    location, call stage, argument shape and exception *type* are enough to
+    locate the malformed call without reproducing its payload.
+    """
+    args_type, args_len = _argument_shape(record)
+    return (
+        "[unformattable log record; "
+        f"logger={getattr(record, 'name', '?')!r} "
+        f"level={getattr(record, 'levelname', '?')} "
+        f"path={getattr(record, 'pathname', '?')!r} "
+        f"stage={getattr(record, 'funcName', '?')!r} "
+        f"line={getattr(record, 'lineno', 0)} "
+        f"msg_type={type(getattr(record, 'msg', None)).__name__} "
+        f"args_type={args_type} args_len={args_len} "
+        f"error={type(error).__name__}]"
+    )
+
+
+def _freeze_safe_message(record: logging.LogRecord, message: str) -> None:
+    """Replace a record with a formatter-safe line and remove its payload.
+
+    ``logging.Handler.handleError`` writes ``record.msg`` and ``record.args``
+    to stderr when ``raiseExceptions`` is true, and it also renders
+    ``exc_info``. Clearing all three before any handler formats the record
+    keeps the fallback diagnostic from becoming a second disclosure path.
+    """
+    record.msg = message
+    record.args = ()
+    record.exc_info = None
+    record.exc_text = None
+    setattr(record, _FALLBACK_ATTRIBUTE, True)
+
+
 class LogRedactionFilter(logging.Filter):
-    """Apply :func:`redact_log_text` before handlers format a record."""
+    """Apply :func:`redact_log_text` before handlers format a record.
+
+    A record whose ``msg``/``args`` combination cannot be formatted is frozen
+    to a context-only fallback and stripped of its payload. This matters even
+    when redaction itself is healthy: ``StreamHandler.format`` would otherwise
+    fail, and logging's own error handler would print the unredacted message
+    and arguments to stderr whenever ``logging.raiseExceptions`` is true.
+    """
 
     def filter(self, record: logging.LogRecord) -> bool:
+        if getattr(record, _FALLBACK_ATTRIBUTE, False):
+            return True
         try:
             message = record.getMessage()
+        except Exception as error:  # noqa: BLE001 — malformed record
+            _freeze_safe_message(record, _safe_fallback_message(record, error))
+            return True
+        try:
             redacted = redact_log_text(message)
-            if redacted != message:
-                record.msg = redacted
-                record.args = ()
-        except Exception:  # noqa: BLE001 — never drop a log record
-            pass
+        except Exception:  # noqa: BLE001 — redaction must never leak
+            _freeze_safe_message(
+                record, "[unformattable log record; stage=redaction]")
+            return True
+        if redacted != message:
+            record.msg = redacted
+            record.args = ()
         return True
