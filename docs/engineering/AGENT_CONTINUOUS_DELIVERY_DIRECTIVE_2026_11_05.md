@@ -19,6 +19,8 @@ Success means a user can accomplish the stated task, the durable result is corre
 | ORCH-01 blueprint and durable checkpoint binding | Accepted at source 0fae2d46c, evidence 943fb32d7 | Agent 1 preserves it and continues the fleet queue below |
 | Five-route auth and 2FA | Accepted at source 95f7bcac1, evidence 304e03149; later evidence heads preserve that product source | Agent 2 preserves it; no repeat campaign |
 | Seven-route admin privilege and tenant budget | Accepted at product 5fbb377a4, evidence c4e43f4b9; test successor 9d73552d2 is runtime-identical | Agent 2 preserves the regression contract and proceeds to the next bounded local family |
+| Tool mutation review and sandbox writer | Source6346cad2a closes the original three probes; two caller-transaction data-loss probes still fail | Agent 2 fixes only transaction ownership and preserves the accepted material/freshness improvements |
+| Scoped key/value and session memory | Accepted88ee1e901/evidence97176c41c; original authority finding closed | Agent 2 retains ordinary regression and does not replay this lane |
 | Canvas atomic scope, feedback and shared CAS, wait policy, supported employee episodes | Accepted at their recorded scopes and sources | Both retain attribution and ordinary regression; no unrelated replay |
 
 Agent 1 owns the fleet routing and orchestration consumers. Agent 2 owns the bounded direct mutation families and their verification contracts. The lead owns independent acceptance and combined claim interpretation. Neither implementation agent self-accepts its source or changes the historical denominator.
@@ -64,6 +66,12 @@ Retain the four external failure-first cases and the credential/result-state mat
 Keep confirmed rollback, original-operation acknowledgement, post-commit unverified state and genuinely unknown effects distinct. Use the shared outcome helper for all relevant routes, preserve original identities and safe diagnostics, and do not introduce a new account, credential or approval engine.
 
 The accepted authority claims, role assignment safety, budget partial-update CAS and exact audit comparisons remain part of the contract. If future changes affect these shared consumers, run the relevant focused regression before one affected selection. No new full admin or 2FA replay is required merely to start the next independent family.
+
+### Agent 2 current evolution transaction repair
+
+Memory88ee1e901 is accepted and closed. Evolution6346cad2a closes the original lineage and stale-dispatch findings, but two caller-transaction cases still lose unrelated pending/flushed edits. Follow VERIFIER_EVOLUTION_634_CALLER_TRANSACTION_20261105.md and /private/tmp/test_verifier_evolution634_caller_work.py. Do not repeat the memory campaign or treat the original three evolution probes as still failing.
+
+Fix transaction ownership without inferring a clean transaction from empty ORM dirty/new/deleted collections. Preserve caller-owned work across implicit/explicit flush and do not silently commit it. Pass the two supplied cases and the ownership twins, retain the existing evolution gate, then run one affected selection and freeze evidence. Push coherent runtime and evidence checkpoints without another continue request. Community skill promote/delete at32a31566d stays a separate prepared/submitted family; it is not accepted or merged by association.
 
 ### Agent 2 subsequent local mutation queue
 
@@ -209,6 +217,6 @@ The program is finished only when every authorized finite queue item is closed o
 
 Agent 1: preserve accepted ORCH-01, take the bounded ORCH-07 controlled consumer contract, then the ORCH-02 response-consumption queue. Start with caller tracing and a decisive scratch test, not another planning-only handoff.
 
-Agent 2: preserve the accepted admin credential/result-outcome repair at 5fbb377a4 and proceed to the next bounded local mutation family. Record its routes, authority, decisive twins and ownership, then implement through evidence and remote push on a separate branch. Keep the accepted probes in ordinary regression; do not replay the closed campaign.
+Agent 2: preserve accepted admin5fbb377a4 and memory88ee1e901. Finish the remaining evolution caller-transaction ownership repair and its exact probes, push runtime/evidence checkpoints, then continue the bounded local queue. Original lineage/freshness findings are closed; do not replay accepted lanes or pause between phases.
 
 Both: commit and push between coherent phases, update ownership/status, preserve accepted lanes, and continue until the finite authorized work is done. Do not wait for another “continue” after each phase.
