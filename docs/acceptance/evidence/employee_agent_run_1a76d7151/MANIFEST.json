@@ -1,0 +1,52 @@
+{
+  "schema": "atom-employee-evidence-1",
+  "status": "controlled scoped agent-run admission submitted for independent verification; cross-tenant run gap reproduced and closed",
+  "branch": "codex/oracle01-agent-run-20261106",
+  "executed_source": "1a76d7151105d8e7c845b0f7512a4bbf0e576f52",
+  "stacked_base_673": "46dc253a134104da4426ce8d5f9bf47aa7956372",
+  "underlying_main": "f8706fb48569e77df21801df1cc23a8d7b61ba17",
+  "source_files": {
+    "backend/core/agent_decision_write_service.py": "4995472c204ccb92f55a3f9c09c724f0825e3d4509c7e370906ee8d3e0315b71",
+    "backend/api/agent_routes.py": "68e507f961be40c596e1830b1603ba68de20a2e611b90fceef1b5c13a09167a4",
+    "backend/tests/test_agent_run_admission_contract.py": "1f0eedf3c9c68ffab5d841b027ffa74deb985ea4c38007e67a27916ef923998b",
+    "backend/tests/unit/api/test_agent_routes.py": "9d34605b0d96d70a350145b3f38619d5688eef9fed8f46635cf6d1d2ab79e38b",
+    "backend/tests/test_agent_routes_coverage.py": "efd48f84e9b92d939a43d12097a36efb8b7d7ccd5dd25794f9117ba79a14bdb8",
+    "backend/core/models.py": "4b238c35f6f235d94779f4598040f0c9fcd39599c26705e7016e8b045b51c3ef",
+    "backend/core/security/rbac.py": "48a7ecdb609f7e32267212e85b1993a0045eb84aca903f0152a8a498bcbd405e",
+    "backend/core/personal_scope.py": "f07dd35cf6eedb674ec9afbb06e10776cd4039e64ad7dd0a3427b7e0df31f78f",
+    ".github/workflows/ci.yml": "816843c05a72f4a7b2f0fc1071b12ee0016b6b03b4593b9b98463076e45ee9af"
+  },
+  "artifacts": {
+    "README.md": "d3fd0259a05faa73fa9447f84d9d526afb0e37e5f8b055a6a594230b7dc99a6d",
+    "TEST_RESULTS.md": "1a527d29ef84b67ab48b750ecdaefcf4aabca3cd936f1d3b33d788af3106395e",
+    "affected-311.log": "4a053c7d5a3ce67de07dcdb84355ce9320e17bfd943c35dd32a78b5ceb0897d2",
+    "affected-314.log": "bf72a8b6a713b2431ca79a8dc5593b8859479f21cfc0d52f3f60f943f06f7cd8",
+    "baseline-673-311.log": "695eee9e70aa8959be0ac018c4032e5373f5affdc9ff44ce7c0ac2257ace0712",
+    "baseline-673-314.log": "79130e2c53ccece2841b948ed765146acdfa2293beda102c40d2b503939215eb",
+    "cross-tenant-repro-base.log": "9747747bab86cfd79ae16336b9ed72f13d87824a515465fe6b31204bf0830048",
+    "focused-311.log": "200a445be769250ad7fd9427f7281df0eb83571badb20bc442c9d6f1cdf5cbfb",
+    "focused-314.log": "b2a6b80952226de062f01f67874430bf741e8d96fb89d29d4941876ac83f1ab8",
+    "routes.json": "62234181cba5664f7d1fff0894fa5ca9d3dbc82d67d3a250cd2caaf8034e147c",
+    "source-tree.txt": "7540d34eeb0d75054277bb1411bba332b6478d941e0533780df82629ebe5f7b6",
+    "verification.json": "b73b82f9fc2b456683b4882eb4ad71f1c477600c38dea3176e19b0bc6a5717e1"
+  },
+  "checks": {
+    "focused_314": "67 passed",
+    "focused_311": "67 passed",
+    "affected_314": "358 passed, 3 skipped, 2 baseline failures",
+    "affected_311": "340 passed, 1 baseline failure",
+    "baseline_673_314": "346 passed, 3 skipped, 2 failed",
+    "baseline_673_311": "328 passed, 1 failed",
+    "candidate_new_controls": 12,
+    "candidate_added_failures": 0,
+    "cross_tenant_reproduction_on_base": true,
+    "execution_stubbed_no_live_model_provider": true,
+    "no_test_deleted_skipped_or_xfailed": true
+  },
+  "boundaries": [
+    "real scratch SQLite; execution stubbed; no live model/provider/credential/spend/send/download/deployment",
+    "process death between admission and dispatch leaves a running job/status; stale-job reconciliation is out of scope",
+    "no new table or migration",
+    "no merge or deployment; code-owner review remains required"
+  ]
+}

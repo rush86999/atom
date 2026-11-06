@@ -1,0 +1,71 @@
+{
+  "schema": "atom-oracle-agent-run-verification-1",
+  "status": "controlled scoped agent-run admission submitted for independent verification; cross-tenant run gap reproduced and closed",
+  "candidate": {
+    "branch": "codex/oracle01-agent-run-20261106",
+    "pr": 675,
+    "stacked_base_673": "46dc253a134104da4426ce8d5f9bf47aa7956372",
+    "delete_source_673": "e34de29d53636a5232e126bcba8e5f5aa7af9734",
+    "underlying_main": "f8706fb48569e77df21801df1cc23a8d7b61ba17",
+    "executed_source": "1a76d7151105d8e7c845b0f7512a4bbf0e576f52",
+    "runtime": "real scratch SQLite; execution stubbed; no live model/provider/credential/spend/send/download/deployment"
+  },
+  "contract": {
+    "authority": "current User re-read; active status; MEMBER+; claim is_active/status/role/raw tenant/raw workspace in the admission transaction",
+    "scope": "member same-workspace or legacy; ADMIN+ cross-workspace in tenant; foreign tenant/workspace 404",
+    "material_claim": "guarded AgentRegistry transition to running on exact prior material including configuration and enabled",
+    "durable_effect": "one AgentJob plus one AuditLog receipt in the admission transaction; dispatch only after commit",
+    "job_lifecycle": "job running at dispatch start; success/failed at completion; prior agent status restored when still running",
+    "replay": "same operation/parameters already_applied with no second dispatch; changed parameters OPERATION_CONFLICT",
+    "recovery": "rollback not_applied/effect=none; missing readback committed_unverified",
+    "guards": "deprecated/paused 400; running or active job 409 ALREADY_RUNNING"
+  },
+  "new_controls": {
+    "contract_tests": 12,
+    "cross_tenant_reproduction": "cross-tenant-repro-base.log"
+  },
+  "results": {
+    "focused_314": {"passed": 67, "failed": 0, "log": "focused-314.log"},
+    "focused_311": {"passed": 67, "failed": 0, "log": "focused-311.log"},
+    "affected_314": {"passed": 358, "skipped": 3, "failed": 2, "log": "affected-314.log"},
+    "affected_311": {"passed": 340, "failed": 1, "log": "affected-311.log"},
+    "baseline_673_314": {"passed": 346, "skipped": 3, "failed": 2, "log": "baseline-673-314.log"},
+    "baseline_673_311": {"passed": 328, "failed": 1, "log": "baseline-673-311.log"}
+  },
+  "baseline_failure_identity": {
+    "shared": [
+      "tests/test_covpush_w29_governance.py::TestRegistry::test_register_new_agent",
+      "tests/contract/test_agent_api_contract.py::TestAgentListContract::test_get_agents_invalid_pagination"
+    ],
+    "shared_314_only": [
+      "tests/contract/test_agent_api_contract.py::TestAgentListContract::test_get_agents_invalid_pagination"
+    ],
+    "candidate_added_failures": 0,
+    "candidate_new_controls": 12,
+    "excluded_311_contract_file": "tests/contract/test_agent_api_contract.py requires schemathesis, unavailable on the 3.11 interpreter"
+  },
+  "checks": {
+    "cross_tenant_run_refused": true,
+    "cross_workspace_run_refused": true,
+    "authorized_same_scope_run": true,
+    "admin_cross_workspace_same_tenant_run": true,
+    "exact_prior_material_cas": true,
+    "authority_change_before_claim_effect_none": true,
+    "durable_agent_job_created": true,
+    "audit_receipt_atomic": true,
+    "active_job_conflict": true,
+    "replay_no_second_dispatch": true,
+    "rollback_preserves_agent_and_job": true,
+    "readback_committed_unverified": true,
+    "execution_failure_marks_job_failed": true,
+    "agent_status_restored": true,
+    "no_raw_parameters_in_receipt": true,
+    "execution_stubbed_no_live_model_provider": true
+  },
+  "limits": [
+    "process death between admission and dispatch leaves a running job/status; stale-job reconciliation is out of this slice",
+    "actual execution/model/provider calls/spend and external sends remain held separately",
+    "no new table or migration; PostgreSQL/soak and multi-worker remain unqualified",
+    "no merge or deployment; code-owner review remains required"
+  ]
+}
