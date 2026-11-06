@@ -247,6 +247,25 @@ def test_promote_stale_writer_refuses_without_overwrite(env, monkeypatch):
     assert _rows(env)[0].input_params["skill_name"] == "Peer"
 
 
+def test_delete_requires_team_lead_and_authorized_owner_succeeds(env):
+    """Unauthorized member 403 twin plus the authorized team-lead positive."""
+    db = env.Session()
+    db.add(_skill("d-auth", name="AuthDelete"))
+    db.commit()
+    db.close()
+
+    member = env.client(env.actors["member"])
+    denied = member.delete("/api/skills/d-auth")
+    assert denied.status_code == 403, denied.text
+    assert _rows(env)[0].id == "d-auth"
+
+    lead = env.client(env.actors["lead"])
+    deleted = lead.delete("/api/skills/d-auth")
+    assert deleted.status_code == 200, deleted.text
+    assert deleted.json()["data"]["deleted"] is True
+    assert _rows(env) == []
+
+
 def test_delete_replay_missing_stale_and_cloud_scope(env, monkeypatch):
     db = env.Session()
     db.add_all([
