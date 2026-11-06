@@ -7,7 +7,7 @@ from types import SimpleNamespace
 import pytest
 from fastapi import FastAPI
 from fastapi.testclient import TestClient
-from sqlalchemy import create_engine, update
+from sqlalchemy import create_engine, null, update
 from sqlalchemy.orm import sessionmaker
 
 import core.agent_decision_write_service as service
@@ -197,12 +197,12 @@ def test_replace_agent_persists_fields_and_receipt(env):
 
 
 def test_stale_target_before_claim_refuses(env):
-    original = service._load_agent
+    original = service._load_replace_source
     changed = {"done": False}
 
     def load_then_change(db, agent_id):
         row = original(db, agent_id)
-        if row is not None and agent_id == "a1" and not changed["done"]:
+        if row[0] is not None and agent_id == "a1" and not changed["done"]:
             changed["done"] = True
             peer = env.Session()
             try:
@@ -214,7 +214,8 @@ def test_stale_target_before_claim_refuses(env):
                 peer.close()
         return row
 
-    env.monkeypatch.setattr(service, "_load_agent", load_then_change)
+    env.monkeypatch.setattr(
+        service, "_load_replace_source", load_then_change)
     response = _put(env, "admin-1", "a1", "stale-replace")
     assert response.status_code == 409, response.text
     assert response.json()["detail"]["error"]["code"] == "STALE_TARGET"
@@ -225,12 +226,12 @@ def test_stale_target_before_claim_refuses(env):
 
 @pytest.mark.parametrize("change", ["deactivate", "demote"])
 def test_authority_change_before_claim_refuses(env, change):
-    original = service._load_agent
+    original = service._load_replace_source
     changed = {"done": False}
 
     def load_then_change(db, agent_id):
         row = original(db, agent_id)
-        if row is not None and agent_id == "a1" and not changed["done"]:
+        if row[0] is not None and agent_id == "a1" and not changed["done"]:
             changed["done"] = True
             peer = env.Session()
             try:
@@ -244,7 +245,8 @@ def test_authority_change_before_claim_refuses(env, change):
                 peer.close()
         return row
 
-    env.monkeypatch.setattr(service, "_load_agent", load_then_change)
+    env.monkeypatch.setattr(
+        service, "_load_replace_source", load_then_change)
     response = _put(env, "admin-1", "a1", "authority-replace")
     assert response.status_code in (401, 403, 409), response.text
     assert response.json()["detail"]["verification"]["effect"] == "none"
@@ -322,4 +324,87 @@ def test_matching_replacement_is_no_change(env):
 def test_missing_agent_is_not_found(env):
     response = _put(env, "admin-1", "missing", "missing-replace")
     assert response.status_code == 404, response.text
+    assert _audits(env) == []
+
+
+@pytest.mark.parametrize("fields", [
+    ("configuration",),
+    ("schedule_config",),
+    ("configuration", "schedule_config"),
+])
+@pytest.mark.parametrize("storage", ["json", "sql"])
+def test_unchanged_nullable_material_succeeds(env, fields, storage):
+    """An unchanged nullable source field is not a concurrent target change."""
+    with env.Session() as db:
+        values = {
+            field: (null() if storage == "sql" else None)
+            for field in fields
+        }
+        db.execute(update(AgentRegistry).where(
+            AgentRegistry.id == "a1").values(**values))
+        db.commit()
+    before = _agent(env, "a1")
+    for field in fields:
+        assert getattr(before, field) is None
+
+    operation_id = f"nullable-{storage}-{'-'.join(fields)}"
+    response = _put(
+        env, "admin-1", "a1", operation_id,
+        name="Updated existing agent", category="updated")
+    assert response.status_code == 200, response.text
+    row = _agent(env, "a1")
+    assert row.name == "Updated existing agent"
+    assert row.category == "updated"
+    for field in fields:
+        assert getattr(row, field) is None
+    assert len(_audits(env, f"agent:replace:{operation_id}")) == 1
+    assert env.scheduler_calls == []
+
+
+def test_empty_object_nullable_material_succeeds(env):
+    with env.Session() as db:
+        db.execute(update(AgentRegistry).where(
+            AgentRegistry.id == "a1").values(
+                configuration={}, schedule_config={}))
+        db.commit()
+    response = _put(
+        env, "admin-1", "a1", "empty-object",
+        name="Updated existing agent", category="updated")
+    assert response.status_code == 200, response.text
+    row = _agent(env, "a1")
+    assert row.configuration == {}
+    assert row.schedule_config == {}
+    assert len(_audits(env, "agent:replace:empty-object")) == 1
+    assert env.scheduler_calls == []
+
+
+def test_null_configuration_peer_change_refuses(env):
+    with env.Session() as db:
+        db.execute(update(AgentRegistry).where(
+            AgentRegistry.id == "a1").values(
+                configuration=None, schedule_config=None))
+        db.commit()
+    original = service._load_replace_source
+    changed = {"done": False}
+
+    def load_then_change(db, agent_id):
+        row = original(db, agent_id)
+        if row[0] is not None and not changed["done"]:
+            changed["done"] = True
+            peer = env.Session()
+            try:
+                peer.execute(update(AgentRegistry).where(
+                    AgentRegistry.id == "a1").values(
+                        configuration={"peer": True}))
+                peer.commit()
+            finally:
+                peer.close()
+        return row
+
+    env.monkeypatch.setattr(
+        service, "_load_replace_source", load_then_change)
+    response = _put(env, "admin-1", "a1", "null-peer-change")
+    assert response.status_code == 409, response.text
+    assert response.json()["detail"]["error"]["code"] == "STALE_TARGET"
+    assert _agent(env, "a1").configuration == {"peer": True}
     assert _audits(env) == []

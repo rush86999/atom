@@ -1421,11 +1421,11 @@ def admit_agent_run(
 # ---------------------------------------------------------------------------
 
 def _replace_config_digest(value: Any) -> str:
-    return _fingerprint("agent-configuration", _canonical(value or {}))
+    return _fingerprint("agent-configuration", _canonical(value))
 
 
 def _replace_schedule_digest(value: Any) -> str:
-    return _fingerprint("agent-schedule", _canonical(value or {}))
+    return _fingerprint("agent-schedule", _canonical(value))
 
 
 def _replace_state_material(
@@ -1460,19 +1460,75 @@ def _replace_state_material(
     return material
 
 
-def _replace_agent_predicates(agent: AgentRegistry):
-    return [
+def _load_replace_source(db: Session, agent_id: str):
+    """Load the ORM row and its physical nullable JSON in one snapshot."""
+    with _fresh_session(db) as fresh:
+        raw = fresh.execute(
+            text(
+                "SELECT configuration, schedule_config "
+                "FROM agent_registry WHERE id = :aid"),
+            {"aid": str(agent_id)},
+        ).first()
+        agent = fresh.query(AgentRegistry).filter(
+            AgentRegistry.id == str(agent_id)).populate_existing().first()
+    if raw is None or agent is None:
+        return None, None, None
+    return agent, raw[0], raw[1]
+
+
+def _raw_json_state(
+    db: Session, agent_id: str,
+) -> tuple[Any, Any]:
+    """Return the physical stored JSON text/NULL for the two nullable fields.
+
+    ORM decoding maps both SQL NULL and JSON null to ``None``; the guarded
+    claim must compare the physical value so an unchanged null is not
+    misclassified as a concurrent edit.
+    """
+    with _fresh_session(db) as fresh:
+        row = fresh.execute(
+            text(
+                "SELECT configuration, schedule_config "
+                "FROM agent_registry WHERE id = :aid"),
+            {"aid": str(agent_id)},
+        ).first()
+    if row is None:
+        return None, None
+    return row[0], row[1]
+
+
+def _raw_json_predicate(
+    column_name: str, raw_value: Any, params: Dict[str, Any],
+):
+    column = getattr(AgentRegistry, column_name)
+    if raw_value is None:
+        return column.is_(None)
+    if isinstance(raw_value, str):
+        key = f"raw_{column_name}"
+        params[key] = raw_value
+        return text(
+            f"{AgentRegistry.__tablename__}.{column_name} = :{key}")
+    return column == raw_value
+
+
+def _replace_agent_predicates(
+    agent: AgentRegistry, raw_configuration: Any = None,
+    raw_schedule: Any = None,
+):
+    params: Dict[str, Any] = {}
+    predicates = [
         AgentRegistry.id == str(agent.id),
         _exact(AgentRegistry.tenant_id, agent.tenant_id),
         _exact(AgentRegistry.workspace_id, agent.workspace_id),
         AgentRegistry.name == str(agent.name or ""),
         _exact(AgentRegistry.description, agent.description),
         AgentRegistry.category == str(agent.category or ""),
-        _exact(AgentRegistry.configuration, agent.configuration or {}),
-        _exact(AgentRegistry.schedule_config, agent.schedule_config or {}),
+        _raw_json_predicate("configuration", raw_configuration, params),
+        _raw_json_predicate("schedule_config", raw_schedule, params),
         AgentRegistry.status == str(agent.status or ""),
         AgentRegistry.enabled == bool(agent.enabled),
     ]
+    return predicates, params
 
 
 def _replace_changes_match(
@@ -1480,10 +1536,7 @@ def _replace_changes_match(
 ) -> bool:
     for key, value in changes.items():
         current = getattr(agent, key, None)
-        if key in ("configuration", "schedule_config"):
-            if (current or {}) != (value or {}):
-                return False
-        elif current != value:
+        if current != value:
             return False
     return True
 
@@ -1583,7 +1636,8 @@ def replace_agent(
     if replay is not None:
         return replay
 
-    agent = _load_agent(db, agent_id)
+    agent, raw_configuration, raw_schedule = _load_replace_source(
+        db, agent_id)
     if agent is None or not _agent_visible(actor_snapshot, agent):
         return _refused(
             f"Agent not found: {agent_id}", http_status=404,
@@ -1614,11 +1668,14 @@ def replace_agent(
             "reviewer authority changed; refresh and retry",
             code="AUTHORITY_CHANGED")
 
+    predicates, predicate_params = _replace_agent_predicates(
+        agent, raw_configuration, raw_schedule)
     try:
         updated = db.execute(
             update(AgentRegistry)
-            .where(*_replace_agent_predicates(agent))
-            .values(**normalized))
+            .where(*predicates)
+            .values(**normalized),
+            predicate_params)
         if updated.rowcount != 1:
             db.rollback()
             return _conflict(
