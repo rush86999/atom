@@ -1,6 +1,7 @@
 import asyncio
 import contextvars
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass, field
 from core.asyncio_compat import get_event_loop, iscoroutinefunction
 from datetime import datetime, timezone
 from enum import Enum
@@ -13,7 +14,7 @@ import tempfile
 import threading
 import time
 import uuid
-from typing import Any, AsyncGenerator, Dict, List, Optional, Tuple
+from typing import Any, AsyncGenerator, Dict, List, Optional, Set, Tuple
 
 # Try imports for optional dependencies
 try:
@@ -809,6 +810,42 @@ class _StreamInactivityError(RuntimeError):
     that silence a first-class failed attempt so the next provider/model can
     serve the turn — and, after visible output, ends the stream instead of
     replaying it."""
+
+
+@dataclass
+class _StreamRequestState:
+    """Call-owned retry state shared by every nested streaming path.
+
+    One request may recurse through the ranked-route fallback and the
+    catalogue sweep. Sharing this object means the caller-visible answer and
+    the automatic attempt budget belong to the REQUEST, not to whichever
+    recursive frame happens to be running:
+
+    * ``visible_yielded`` — once true, no later frame may dispatch another
+      generation attempt; the partial answer is returned under the existing
+      interruption contract.
+    * ``attempted_pairs`` — every pair that actually reached transport. The
+      catalogue sweep and ranked fallback skip pairs already tried.
+    * ``sweep_consumed`` — the last-resort catalogue sweep is one-shot per
+      request, even across recursive ranked-route hops.
+    * ``self_heal_used`` / ``paid_retry_used`` — explicitly permitted
+      same-request repairs are bounded separately and never restart the sweep.
+    * ``attempts`` — per-pair dispatch counter for attribution and evidence.
+
+    This is state, not a router: every candidate still passes the existing
+    policy, catalogue, pin, capability and local-only gates.
+    """
+    visible_yielded: bool = False
+    attempted_pairs: Set[Tuple[str, str]] = field(default_factory=set)
+    sweep_consumed: bool = False
+    self_heal_used: Set[Tuple[str, str]] = field(default_factory=set)
+    paid_retry_used: Set[Tuple[str, str]] = field(default_factory=set)
+    attempts: Dict[Tuple[str, str], int] = field(default_factory=dict)
+
+    def mark_attempt(self, provider_id: str, model: str) -> None:
+        pair = (str(provider_id or ""), str(model or ""))
+        self.attempted_pairs.add(pair)
+        self.attempts[pair] = self.attempts.get(pair, 0) + 1
 
 
 def _stream_connect_timeout_seconds() -> float:
@@ -10175,6 +10212,7 @@ class BYOKHandler:
         estimated_tokens: Optional[int] = None,
         explicit_route: Optional[bool] = None,
         _allow_ladder_sweep: bool = True,  # sweep recursion guard (internal)
+        _request_state: Optional["_StreamRequestState"] = None,
     ) -> AsyncGenerator[str, None]:
         """
         Stream LLM responses token-by-token with optional governance tracking.
@@ -10208,6 +10246,14 @@ class BYOKHandler:
         Yields:
             Individual tokens as they arrive from the LLM
         """
+        # One request-owned state is shared by the initial attempt, the paid
+        # retry, the self-heal retry, every ranked-route hop and the
+        # catalogue sweep. A nested frame must never start a second visible
+        # answer or a second sweep budget.
+        state = _request_state if _request_state is not None else _StreamRequestState()
+        if state.visible_yielded:
+            return
+
         self.refresh_credentials_if_changed()
         if not self.async_clients and not self.clients:
             raise ValueError("No available providers. No clients initialized. Streaming unavailable.")
@@ -10361,6 +10407,9 @@ class BYOKHandler:
                 # True once any token has been yielded — a mid-stream failure
                 # must NOT re-issue the request (would duplicate content).
                 _tokens_yielded = False
+                # Defined before any transport call so nested retry failure
+                # feedback can always attribute the partial it actually saw.
+                _stream_content_parts: List[str] = []
                 # Create execution record if agent_id provided (only on first attempt)
                 if agent_execution is None and agent_id and governance_enabled and db:
                     agent_execution = AgentExecution(
@@ -10434,6 +10483,9 @@ class BYOKHandler:
                         attempt_provider_id, model,
                     )
                     continue
+                # This pair actually reaches transport. The request-wide
+                # ledger is what later ranked-route/sweep hops consult.
+                state.mark_attempt(attempt_provider_id, model)
                 try:
                     _connect_s = _stream_connect_timeout_seconds()
                     if _connect_s and _connect_s > 0:
@@ -10479,6 +10531,7 @@ class BYOKHandler:
                                 _stream_content_parts.append(delta.content)
                                 _stream_content_chars += len(delta.content)
                             _tokens_yielded = True
+                            state.visible_yielded = True
                             yield delta.content
                         # Capture the real finish_reason from the final chunk
                         # (OpenAI/compatible APIs populate it on the last choice).
@@ -10684,8 +10737,12 @@ class BYOKHandler:
                 # provider. Heal is only attempted on the initial stream
                 # creation failure (before any tokens were yielded), never
                 # mid-stream.
-                if not heal_attempted_stream:
+                _heal_pair = (attempt_provider_id, model)
+                if (not heal_attempted_stream
+                        and not state.visible_yielded
+                        and _heal_pair not in state.self_heal_used):
                     heal_attempted_stream = True
+                    state.self_heal_used.add(_heal_pair)
                     try:
                         from core.llm.routing.request_healer import get_request_healer
                         healer = get_request_healer()
@@ -10704,6 +10761,7 @@ class BYOKHandler:
                                 f"with patch={heal_result.rule} keys={heal_result.patched_keys}"
                             )
                             try:
+                                state.mark_attempt(attempt_provider_id, model)
                                 stream = await client.chat.completions.create(
                                     **heal_result.patched_kwargs
                                 )
@@ -10731,9 +10789,15 @@ class BYOKHandler:
                                                 _stream_content_parts.append(delta.content)
                                                 _stream_content_chars += len(delta.content)
                                             _tokens_yielded = True
+                                            state.visible_yielded = True
                                             yield delta.content
                                         if getattr(choice, 'finish_reason', None):
                                             _stream_finish_reason = choice.finish_reason
+                                if not _tokens_yielded:
+                                    raise _EmptyCompletionError(
+                                        f"self-heal stream for "
+                                        f"{attempt_provider_id}/{model} "
+                                        f"produced no visible content")
                                 latency_ms = (time.time() - request_start) * 1000
                                 try:
                                     self.health_monitor.record_call(attempt_provider_id, success=True, latency_ms=latency_ms)
@@ -10775,14 +10839,18 @@ class BYOKHandler:
                 # fallback model before falling back to the next provider.
                 # Only when the failure happened BEFORE any token was
                 # yielded — a mid-stream error must not duplicate content.
+                _paid_pair = (attempt_provider_id, model)
                 if (
                     not _tokens_yielded
+                    and not state.visible_yielded
+                    and _paid_pair not in state.paid_retry_used
                     and attempt_provider_id == "opencode-go"
                     and _is_opencode_free_model(model)
                     and _is_insufficient_balance_error(e)
                 ):
                     paid_model = _opencode_paid_fallback_model(model)
                     if paid_model and paid_model != model:
+                        state.paid_retry_used.add(_paid_pair)
                         try:
                             retry_kwargs: Dict[str, Any] = {
                                 "model": paid_model,
@@ -10796,6 +10864,7 @@ class BYOKHandler:
                                 retry_kwargs.update(
                                     {k: v for k, v in extra_kwargs.items() if v is not None}
                                 )
+                            state.mark_attempt(attempt_provider_id, paid_model)
                             stream = await client.chat.completions.create(**retry_kwargs)
                             logger.info(
                                 f"OpenCode Go free-model stream retry started on paid model "
@@ -10815,9 +10884,16 @@ class BYOKHandler:
                                         if _stream_content_chars < _STREAM_CONTENT_CAP:
                                             _stream_content_parts.append(delta.content)
                                             _stream_content_chars += len(delta.content)
+                                        _tokens_yielded = True
+                                        state.visible_yielded = True
                                         yield delta.content
                                     if getattr(choice, 'finish_reason', None):
                                         _stream_finish_reason = choice.finish_reason
+                            if not _tokens_yielded:
+                                raise _EmptyCompletionError(
+                                    f"paid retry stream for "
+                                    f"{attempt_provider_id}/{paid_model} "
+                                    f"produced no visible content")
                             latency_ms = (time.time() - request_start) * 1000
                             try:
                                 self.health_monitor.record_call(attempt_provider_id, success=True, latency_ms=latency_ms)
@@ -10845,6 +10921,25 @@ class BYOKHandler:
                                 f"{paid_model}: {retry_err}"
                             )
                             last_error = retry_err
+                            # The paid attempt ran; attribute its failure to the
+                            # paid route, not to the free route that failed
+                            # before it. A visible partial is preserved by the
+                            # request-owned state below.
+                            try:
+                                await self._record_outcome_feedback(
+                                    model=paid_model,
+                                    provider_id=attempt_provider_id,
+                                    task_type=task_type,
+                                    content="".join(_stream_content_parts),
+                                    finish_reason=None,
+                                    success=False, cost=None, latency_ms=0.0,
+                                    exception=retry_err,
+                                    routing_result_id=stream_decision_id,
+                                )
+                            except Exception as _paid_fb_err:  # noqa: BLE001
+                                logger.debug(
+                                    f"paid-retry failure feedback skipped: "
+                                    f"{_paid_fb_err}")
 
                 # Learning-router outcome observation (streaming failure).
                 await self._record_outcome_feedback(
@@ -10854,6 +10949,17 @@ class BYOKHandler:
                     exception=e,
                     routing_result_id=stream_decision_id,
                 )
+
+                # A nested retry (self-heal or paid sibling) may have put
+                # visible text on the wire before failing. The caller already
+                # has that partial answer; no later provider or route may
+                # append another completion to it.
+                if state.visible_yielded:
+                    logger.warning(
+                        "visible partial already delivered for "
+                        "%s/%s — stopping the request without replay",
+                        attempt_provider_id, model)
+                    break
 
                 # If this is not the last provider, try the next one
                 if attempt_provider_id != provider_order[-1]:
@@ -10874,6 +10980,9 @@ class BYOKHandler:
         # provider A, which is why "provider fallback" could walk three
         # independent providers and fail on all of them: none of them was
         # asked for a model it serves.
+        if state.visible_yielded:
+            return
+
         _next_routes = list(fallback_routes or [])
         if not _next_routes and fallback_models:
             # Legacy shape: names only. The provider that serves them is not
@@ -10886,6 +10995,12 @@ class BYOKHandler:
                 _route = self._route_for_model(_name)
                 if _route:
                     _next_routes.append(_route)
+        # The request-wide ledger, not just this frame's inputs: a ranked
+        # route already attempted in an outer hop must not be re-issued.
+        _next_routes = [
+            (p, m) for p, m in _next_routes
+            if (p, m) not in state.attempted_pairs
+        ]
         if _next_routes:
             _next_provider, _next_model = _next_routes[0]
             logger.warning(
@@ -10904,6 +11019,8 @@ class BYOKHandler:
                 extra_kwargs=extra_kwargs,
                 reasoning_sink=reasoning_sink,
                 fallback_routes=_next_routes[1:],
+                _allow_ladder_sweep=_allow_ladder_sweep,
+                _request_state=state,
             ):
                 yield _fb_tok
             return
@@ -10933,8 +11050,11 @@ class BYOKHandler:
 
                 _catalog = get_provider_model_catalog()
                 _sweep: List[tuple] = []
-                for p in (self.clients.keys()
-                          if _allow_ladder_sweep else ()):
+                # One sweep per request, not one per recursive frame.
+                _sweep_allowed = _allow_ladder_sweep and not state.sweep_consumed
+                if _sweep_allowed:
+                    state.sweep_consumed = True
+                for p in (self.clients.keys() if _sweep_allowed else ()):
                     if self._provider_cooldown_active(p):
                         continue
                     # A provider in provider_order may still be untried for
@@ -10949,9 +11069,9 @@ class BYOKHandler:
                     if not _served:
                         _served = self._provider_models_cached(p)
                     for m in _served[:2]:
-                        # Never re-issue the exact pair that just failed —
-                        # that is the route the caller already exhausted.
-                        if (p, m) == (provider_id, model):
+                        # The request-wide ledger: never re-issue any pair
+                        # that already reached transport in this request.
+                        if (p, m) in state.attempted_pairs:
                             continue
                         # Sweep candidates are AUTOMATIC — the same gate as
                         # every other automatic candidate. The narrow
@@ -10983,6 +11103,7 @@ class BYOKHandler:
                     reasoning_sink=reasoning_sink,
                     fallback_routes=_sweep[1:],
                     _allow_ladder_sweep=False,
+                    _request_state=state,
                 ):
                     yield _fb_tok
                 return
