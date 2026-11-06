@@ -74,15 +74,58 @@ def client(db, user):
     app = FastAPI()
     app.include_router(router)
 
+    from core.database import get_db
     from core.security_dependencies import get_current_user
 
     def _get_current_user():
         return user
 
+    def _get_db():
+        return db
+
     app.dependency_overrides[get_current_user] = _get_current_user
+    app.dependency_overrides[get_db] = _get_db
     c = TestClient(app, raise_server_exceptions=False)
     yield c
     app.dependency_overrides.clear()
+
+
+class _DeleteHandler:
+    """Stateful handler for the verified-delete route tests."""
+
+    def __init__(self):
+        self.rows = {}
+
+    def get_document_by_id(self, table_name, doc_id):
+        return self.rows.get(doc_id)
+
+    def get_document_ids_by_prefix(self, table_name, prefix):
+        return [i for i in list(self.rows) if i.startswith(prefix)]
+
+    def count_document_rows_by_id(self, table_name, doc_id):
+        return 1 if doc_id in self.rows else 0
+
+    def count_document_rows_by_prefix(self, table_name, prefix):
+        return sum(1 for i in self.rows if i.startswith(prefix))
+
+    def delete_documents_by_id(self, table_name, doc_id):
+        self.rows.pop(doc_id, None)
+        return True
+
+    def delete_documents_by_prefix(self, table_name, prefix):
+        for row_id in list(self.rows):
+            if row_id.startswith(prefix):
+                del self.rows[row_id]
+        return True
+
+
+@pytest.fixture
+def delete_handler():
+    h = _DeleteHandler()
+    with patch("api.document_routes.get_lancedb_handler",
+               return_value=h) as glh:
+        h.get_handler = glh
+        yield h
 
 
 @pytest.fixture
@@ -291,17 +334,26 @@ class TestGetDocument:
 
 
 class TestDeleteDocument:
-    def test_delete_user_initiated_success(self, client, handler):
+    def test_delete_user_initiated_success(self, client, delete_handler):
+        delete_handler.rows["doc-1"] = {
+            "id": "doc-1", "text": "x", "metadata": {}}
         response = client.delete("/api/documents/doc-1")
         assert response.status_code == 200
-        assert "deletion scheduled" in response.json()["message"]
+        body = response.json()
+        assert "deletion verified" in body["message"]
+        assert body["metadata"]["verification"]["status"] == "verified"
+        assert body["metadata"]["operation_id"]
+        assert "doc-1" not in delete_handler.rows
 
-    def test_delete_with_agent_id_governance(self, client, db, handler):
+    def test_delete_with_agent_id_governance(self, client, db, delete_handler):
+        delete_handler.rows["doc-1"] = {
+            "id": "doc-1", "text": "x", "metadata": {}}
         with patch("core.api_governance.perform_governance_check",
                    new=AsyncMock()) as gov:
             response = client.delete("/api/documents/doc-1?agent_id=agent-1")
         gov.assert_awaited_once()
         assert response.status_code == 200
+        assert "doc-1" not in delete_handler.rows
 
     def test_delete_handler_missing_500(self, client):
         with patch("api.document_routes.get_lancedb_handler", return_value=None):
@@ -371,13 +423,13 @@ class TestWorkspaceBranches:
         assert response.status_code == 200
         assert glh.call_args.args == (ws_id,)
 
-    def test_delete_workspace_branch(self, client, db, user, handler):
+    def test_delete_workspace_branch(self, client, db, user, delete_handler):
         ws_id = self._attach_workspace(db, user)
-        with patch("api.document_routes.get_lancedb_handler",
-                   return_value=handler) as glh:
-            response = client.delete("/api/documents/doc-1")
+        delete_handler.rows["doc-1"] = {
+            "id": "doc-1", "text": "x", "metadata": {}}
+        response = client.delete("/api/documents/doc-1")
         assert response.status_code == 200
-        assert glh.call_args.args == (ws_id,)
+        assert delete_handler.get_handler.call_args.args == (ws_id,)
 
     def test_list_workspace_branch(self, client, db, user, handler):
         ws_id = self._attach_workspace(db, user)
