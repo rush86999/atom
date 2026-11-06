@@ -1,0 +1,14 @@
+executed_source: 5ab9c0a37f0f80fe99f29175bfa726d6ecfcd3fa
+product_source: f751fd80f265b2de44231a040cd85dac35a37d8f
+prior_skill_tests: 5eb3cf62644e0350e0f487a58dfddc4b00dabbc0
+prior_skill_evidence: 5efb59b75a121525149addd521b7d2991f8a602a
+accepted_admin_base: 9d73552d249ae8ec5b05af77546faf9621bbcd47
+branch: codex/oracle01-skill-review-20261105
+git_status_short:
+git_log:
+5ab9c0a37 test(skills): cover reviewer authority changes before the claim
+f751fd80f fix(skills): bind current reviewer authority to the decision
+5efb59b75 docs(skills): submit the community-skill decision evidence
+5eb3cf626 test(skills): cover the community-skill decision matrix
+f8477493c feat(skills): verify TEAM_LEAD+ community-skill decisions
+e198ab703 docs: add the continuous delivery directive

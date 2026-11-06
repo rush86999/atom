@@ -1,0 +1,275 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-05 18:59:46 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+
+tests/test_skill_review_write_contract.py::test_team_lead_promote_verifies_and_audits 
+-------------------------------- live log setup --------------------------------
+2026-11-05 18:59:46 [    INFO] EscalationManager initialized
+2026-11-05 18:59:46 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:59:46 [    INFO] EscalationManager initialized
+2026-11-05 18:59:46 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 18:59:46 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 18:59:46 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:59:47 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=promote-one "HTTP/1.1 200 OK"
+PASSED                                                                   [  2%]
+tests/test_skill_review_write_contract.py::test_admin_can_promote 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:59:48 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=admin-promote "HTTP/1.1 200 OK"
+PASSED                                                                   [  4%]
+tests/test_skill_review_write_contract.py::test_non_review_roles_cannot_promote_or_delete[member-1] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:59:49 [ WARNING] Access denied: user member-1 has role member (level 3), required team_lead (level 4)
+2026-11-05 18:59:49 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=role-promote "HTTP/1.1 403 Forbidden"
+2026-11-05 18:59:49 [ WARNING] Access denied: user member-1 has role member (level 3), required team_lead (level 4)
+2026-11-05 18:59:49 [    INFO] HTTP Request: DELETE http://testserver/api/skills/s-untrusted?operation_id=role-delete "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [  6%]
+tests/test_skill_review_write_contract.py::test_non_review_roles_cannot_promote_or_delete[viewer-1] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:59:49 [ WARNING] Access denied: user viewer-1 has role viewer (level 2), required team_lead (level 4)
+2026-11-05 18:59:49 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=role-promote "HTTP/1.1 403 Forbidden"
+2026-11-05 18:59:49 [ WARNING] Access denied: user viewer-1 has role viewer (level 2), required team_lead (level 4)
+2026-11-05 18:59:49 [    INFO] HTTP Request: DELETE http://testserver/api/skills/s-untrusted?operation_id=role-delete "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [  8%]
+tests/test_skill_review_write_contract.py::test_non_review_roles_cannot_promote_or_delete[guest-1] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:59:50 [ WARNING] Access denied: user guest-1 has role guest (level 1), required team_lead (level 4)
+2026-11-05 18:59:50 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=role-promote "HTTP/1.1 403 Forbidden"
+2026-11-05 18:59:50 [ WARNING] Access denied: user guest-1 has role guest (level 1), required team_lead (level 4)
+2026-11-05 18:59:50 [    INFO] HTTP Request: DELETE http://testserver/api/skills/s-untrusted?operation_id=role-delete "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 10%]
+tests/test_skill_review_write_contract.py::test_anonymous_cannot_promote_or_delete 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:59:51 [    INFO] HTTP Request: POST http://testserver/api/skills/promote "HTTP/1.1 401 Unauthorized"
+2026-11-05 18:59:51 [    INFO] HTTP Request: DELETE http://testserver/api/skills/s-untrusted "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 13%]
+tests/test_skill_review_write_contract.py::test_missing_and_cloud_targets_are_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:59:52 [    INFO] HTTP Request: POST http://testserver/api/skills/promote "HTTP/1.1 404 Not Found"
+2026-11-05 18:59:52 [    INFO] HTTP Request: DELETE http://testserver/api/skills/missing "HTTP/1.1 404 Not Found"
+2026-11-05 18:59:52 [    INFO] HTTP Request: POST http://testserver/api/skills/promote "HTTP/1.1 404 Not Found"
+2026-11-05 18:59:52 [    INFO] HTTP Request: DELETE http://testserver/api/skills/s-cloud "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 15%]
+tests/test_skill_review_write_contract.py::test_already_active_new_operation_is_no_change 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:59:53 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=already-active "HTTP/1.1 200 OK"
+PASSED                                                                   [ 17%]
+tests/test_skill_review_write_contract.py::test_unsupported_status_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:59:54 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=unsupported "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 19%]
+tests/test_skill_review_write_contract.py::test_promote_replay_changed_material_and_later_revision 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:59:54 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=replay-promote "HTTP/1.1 200 OK"
+2026-11-05 18:59:54 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=replay-promote "HTTP/1.1 200 OK"
+2026-11-05 18:59:54 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=replay-promote "HTTP/1.1 503 Service Unavailable"
+2026-11-05 18:59:54 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=replay-promote "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 21%]
+tests/test_skill_review_write_contract.py::test_authority_change_before_claim_refuses[deactivate-promote] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:59:55 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=authority-change "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 23%]
+tests/test_skill_review_write_contract.py::test_authority_change_before_claim_refuses[deactivate-delete] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:59:56 [    INFO] HTTP Request: DELETE http://testserver/api/skills/s-untrusted?operation_id=authority-change "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 26%]
+tests/test_skill_review_write_contract.py::test_authority_change_before_claim_refuses[tenant_move-promote] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:59:57 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=authority-change "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 28%]
+tests/test_skill_review_write_contract.py::test_authority_change_before_claim_refuses[tenant_move-delete] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:59:58 [    INFO] HTTP Request: DELETE http://testserver/api/skills/s-untrusted?operation_id=authority-change "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 30%]
+tests/test_skill_review_write_contract.py::test_stale_material_before_promote_claim_refuses 
+-------------------------------- live log call ---------------------------------
+2026-11-05 18:59:59 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=stale-promote "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 32%]
+tests/test_skill_review_write_contract.py::test_delete_untrusted_active_replay_and_missing 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:00:00 [    INFO] HTTP Request: DELETE http://testserver/api/skills/s-untrusted?operation_id=del-one "HTTP/1.1 200 OK"
+2026-11-05 19:00:00 [    INFO] HTTP Request: DELETE http://testserver/api/skills/s-untrusted?operation_id=del-one "HTTP/1.1 200 OK"
+2026-11-05 19:00:00 [    INFO] HTTP Request: DELETE http://testserver/api/skills/s-untrusted?operation_id=del-two "HTTP/1.1 404 Not Found"
+2026-11-05 19:00:00 [    INFO] HTTP Request: DELETE http://testserver/api/skills/s-active?operation_id=del-active "HTTP/1.1 200 OK"
+PASSED                                                                   [ 34%]
+tests/test_skill_review_write_contract.py::test_stale_material_before_delete_refuses 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:00:01 [    INFO] HTTP Request: DELETE http://testserver/api/skills/s-untrusted?operation_id=stale-delete "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 36%]
+tests/test_skill_review_write_contract.py::test_promote_then_delete_then_promote_replay_is_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:00:02 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=p-then-d "HTTP/1.1 200 OK"
+2026-11-05 19:00:02 [    INFO] HTTP Request: DELETE http://testserver/api/skills/s-untrusted?operation_id=delete-after-promote "HTTP/1.1 200 OK"
+2026-11-05 19:00:02 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=p-then-d "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 39%]
+tests/test_skill_review_write_contract.py::test_confirmed_audit_rollback_reports_effect_none[promote] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:00:02 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=rollback-promote "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 41%]
+tests/test_skill_review_write_contract.py::test_confirmed_audit_rollback_reports_effect_none[delete] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:00:03 [    INFO] HTTP Request: DELETE http://testserver/api/skills/s-other?operation_id=rollback-delete "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 43%]
+tests/test_skill_review_write_contract.py::test_post_commit_readback_is_committed_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:00:04 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=readback "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 45%]
+tests/test_skill_review_write_contract.py::test_lost_confirmation_is_effect_unknown_with_identity 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:00:05 [   ERROR] community-skill decision outcome unknown: operation_id=skill:promote:lost-confirmation target=s-untrusted error_class=RuntimeError
+PASSED                                                                   [ 47%]
+tests/test_skill_review_write_contract.py::test_wrong_audit_receipt_is_never_verified[action] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:00:05 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=audit-action "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 50%]
+tests/test_skill_review_write_contract.py::test_wrong_audit_receipt_is_never_verified[user_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:00:06 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=audit-user_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 52%]
+tests/test_skill_review_write_contract.py::test_wrong_audit_receipt_is_never_verified[tenant_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:00:07 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=audit-tenant_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 54%]
+tests/test_skill_review_write_contract.py::test_wrong_audit_receipt_is_never_verified[workspace_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:00:08 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=audit-workspace_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 56%]
+tests/test_skill_review_write_contract.py::test_wrong_audit_receipt_is_never_verified[success] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:00:09 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=audit-success "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 58%]
+tests/test_skill_review_write_contract.py::test_wrong_audit_receipt_is_never_verified[security_level] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:00:10 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=audit-security_level "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 60%]
+tests/test_skill_review_write_contract.py::test_wrong_audit_receipt_is_never_verified[resource] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:00:10 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=audit-resource "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 63%]
+tests/test_skill_review_write_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_target_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:00:11 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=audit-metadata_target_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 65%]
+tests/test_skill_review_write_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_target_tenant_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:00:12 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=audit-metadata_target_tenant_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 67%]
+tests/test_skill_review_write_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_actor_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:00:13 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=audit-metadata_actor_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 69%]
+tests/test_skill_review_write_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_prior_status] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:00:13 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=audit-metadata_prior_status "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 71%]
+tests/test_skill_review_write_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_result_status] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:00:14 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=audit-metadata_result_status "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 73%]
+tests/test_skill_review_write_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_request_digest] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:00:15 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=audit-metadata_request_digest "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 76%]
+tests/test_skill_review_write_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_prior_digest] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:00:16 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=audit-metadata_prior_digest "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 78%]
+tests/test_skill_review_write_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_result_digest] 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:00:17 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=audit-metadata_result_digest "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 80%]
+tests/test_skill_review_write_contract.py::test_raw_skill_material_is_absent_from_audit_and_logs 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:00:18 [    INFO] HTTP Request: POST http://testserver/api/skills/promote?operation_id=secret-promote "HTTP/1.1 200 OK"
+PASSED                                                                   [ 82%]
+tests/test_covpush_w104_gaps_b.py::TestSkillRoutes::test_import_success_and_errors 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:00:18 [    INFO] HTTP Request: POST http://testserver/api/skills/import "HTTP/1.1 200 OK"
+2026-11-05 19:00:18 [   ERROR] Import validation error: v
+2026-11-05 19:00:18 [    INFO] HTTP Request: POST http://testserver/api/skills/import "HTTP/1.1 400 Bad Request"
+2026-11-05 19:00:18 [   ERROR] Import failed: e
+2026-11-05 19:00:18 [    INFO] HTTP Request: POST http://testserver/api/skills/import "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 84%]
+tests/test_covpush_w104_gaps_b.py::TestSkillRoutes::test_list_skills 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:00:18 [    INFO] HTTP Request: GET http://testserver/api/skills/list?status=Active&skill_type=prompt_only&limit=5 "HTTP/1.1 200 OK"
+2026-11-05 19:00:18 [    INFO] HTTP Request: GET http://testserver/api/skills/list?skill_status=Active "HTTP/1.1 200 OK"
+2026-11-05 19:00:18 [   ERROR] Failed to list skills: e
+2026-11-05 19:00:18 [    INFO] HTTP Request: GET http://testserver/api/skills/list "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 86%]
+tests/test_covpush_w104_gaps_b.py::TestSkillRoutes::test_get_skill 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:00:18 [    INFO] HTTP Request: GET http://testserver/api/skills/s1 "HTTP/1.1 200 OK"
+2026-11-05 19:00:18 [    INFO] HTTP Request: GET http://testserver/api/skills/missing "HTTP/1.1 404 Not Found"
+2026-11-05 19:00:18 [   ERROR] Failed to get skill: e
+2026-11-05 19:00:18 [    INFO] HTTP Request: GET http://testserver/api/skills/s1 "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 89%]
+tests/test_covpush_w104_gaps_b.py::TestSkillRoutes::test_execute_skill 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:00:18 [    INFO] HTTP Request: POST http://testserver/api/skills/execute "HTTP/1.1 200 OK"
+2026-11-05 19:00:18 [    INFO] HTTP Request: POST http://testserver/api/skills/execute "HTTP/1.1 200 OK"
+2026-11-05 19:00:18 [   ERROR] Execution validation error: v
+2026-11-05 19:00:18 [    INFO] HTTP Request: POST http://testserver/api/skills/execute "HTTP/1.1 400 Bad Request"
+2026-11-05 19:00:18 [   ERROR] Execution failed: e
+2026-11-05 19:00:18 [    INFO] HTTP Request: POST http://testserver/api/skills/execute "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 91%]
+tests/test_covpush_w104_gaps_b.py::TestSkillRoutes::test_promote_skill 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:00:18 [    INFO] HTTP Request: POST http://testserver/api/skills/promote "HTTP/1.1 200 OK"
+2026-11-05 19:00:18 [    INFO] HTTP Request: POST http://testserver/api/skills/promote "HTTP/1.1 404 Not Found"
+2026-11-05 19:00:18 [    INFO] HTTP Request: POST http://testserver/api/skills/promote "HTTP/1.1 503 Service Unavailable"
+2026-11-05 19:00:18 [    INFO] HTTP Request: POST http://testserver/api/skills/promote "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 93%]
+tests/test_covpush_w104_gaps_b.py::TestSkillRoutes::test_delete_skill 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:00:18 [    INFO] HTTP Request: DELETE http://testserver/api/skills/s1 "HTTP/1.1 200 OK"
+2026-11-05 19:00:18 [    INFO] HTTP Request: DELETE http://testserver/api/skills/s1 "HTTP/1.1 404 Not Found"
+2026-11-05 19:00:18 [    INFO] HTTP Request: DELETE http://testserver/api/skills/s1 "HTTP/1.1 503 Service Unavailable"
+2026-11-05 19:00:18 [    INFO] HTTP Request: DELETE http://testserver/api/skills/s1 "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 95%]
+tests/test_covpush_w104_gaps_b.py::TestSkillRoutes::test_episodes 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:00:18 [    INFO] HTTP Request: GET http://testserver/api/skills/s1/episodes?agent_id=a1&limit=5 "HTTP/1.1 200 OK"
+2026-11-05 19:00:18 [   ERROR] Failed to get skill episodes: e
+2026-11-05 19:00:18 [    INFO] HTTP Request: GET http://testserver/api/skills/s1/episodes?agent_id=a1 "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 97%]
+tests/test_covpush_w104_gaps_b.py::TestSkillRoutes::test_learning_progress 
+-------------------------------- live log call ---------------------------------
+2026-11-05 19:00:18 [    INFO] HTTP Request: GET http://testserver/api/skills/s1/learning-progress?agent_id=a1 "HTTP/1.1 200 OK"
+2026-11-05 19:00:18 [    INFO] HTTP Request: GET http://testserver/api/skills/s1/learning-progress?agent_id=a1 "HTTP/1.1 200 OK"
+2026-11-05 19:00:18 [    INFO] HTTP Request: GET http://testserver/api/skills/s1/learning-progress?agent_id=a1 "HTTP/1.1 200 OK"
+2026-11-05 19:00:18 [   ERROR] Failed to get learning progress: e
+2026-11-05 19:00:18 [    INFO] HTTP Request: GET http://testserver/api/skills/s1/learning-progress?agent_id=a1 "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+tests/test_skill_review_write_contract.py::test_team_lead_promote_verifies_and_audits
+  /private/tmp/atom-skill-review/backend/core/graphrag_engine.py:196: DeprecationWarning: invalid escape sequence '\%'
+    """
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 46 passed, 6 warnings in 48.14s ========================

@@ -1,0 +1,70 @@
+{
+  "schema": "atom-oracle-community-skill-authority-routes-1",
+  "executed_source": "5ab9c0a37f0f80fe99f29175bfa726d6ecfcd3fa",
+  "product_source": "f751fd80f265b2de44231a040cd85dac35a37d8f",
+  "prior_tests_source": "5eb3cf62644e0350e0f487a58dfddc4b00dabbc0",
+  "prior_evidence": "5efb59b75a121525149addd521b7d2991f8a602a",
+  "accepted_admin_base": "9d73552d249ae8ec5b05af77546faf9621bbcd47",
+  "prefix": "/api/skills",
+  "target": {
+    "model": "SkillExecution",
+    "source": "community",
+    "row_scope": "tenant_id='system', agent_id='system', workspace_id='default'",
+    "statuses": ["Untrusted", "Active"],
+    "cloud_rows": "skill_source!='community' is not visible"
+  },
+  "authority": {
+    "route": "mandatory get_current_user plus require_role(UserRole.TEAM_LEAD)",
+    "service": "reads the authoritative User row, freezes current status/is_active/role/raw tenant and the effective personal tenant, then conditionally claims that exact material in the decision transaction",
+    "zero_match": "401/403/409 effect=none; target/audit rollback; peer preserved",
+    "scope": "global/system community registry; audit attributed to the acting reviewer's current tenant/user"
+  },
+  "routes": [
+    {
+      "method": "POST",
+      "path": "/api/skills/promote",
+      "handler": "api.skill_routes.promote_skill",
+      "service": "core.skill_review_write_service.promote_community_skill",
+      "effect": "guarded UPDATE status Untrusted -> Active plus one AuditLog receipt",
+      "transitions": "Untrusted -> Active; already Active new operation -> no_change/effect=none; same-operation replay -> already_applied; unsupported -> 409",
+      "material": ["id", "prior status", "skill_source", "target skill_id", "row tenant/agent/workspace", "input_params", "security_scan_result", "sandbox_enabled"]
+    },
+    {
+      "method": "DELETE",
+      "path": "/api/skills/{skill_id}",
+      "handler": "api.skill_routes.delete_skill",
+      "service": "core.skill_review_write_service.delete_community_skill",
+      "effect": "guarded community-row DELETE plus one AuditLog tombstone",
+      "transitions": "missing -> 404; same-operation tombstone -> already_applied; stale/competing -> 409 peer preserved",
+      "material": ["id", "prior status", "skill_source", "target skill_id", "row tenant/agent/workspace", "input_params", "security_scan_result", "sandbox_enabled"]
+    }
+  ],
+  "durable_ledger": {
+    "table": "saas_audit_logs",
+    "operation_identity": "AuditLog.id is the server-owned operation id skill:<promote|delete>:<supplied-or-generated>",
+    "metadata": ["schema", "operation_id", "action", "event_type", "target_id", "target_skill_id", "target_tenant_id", "row_agent_id", "row_workspace_id", "skill_name", "prior_status", "result_status", "request_digest", "prior_digest", "result_digest", "actor_id", "actor_role", "tenant_id"],
+    "sensitive_material": "no raw skill body, generated code, package list, scan payload, secret, SQL parameter or exception text in the receipt or logs",
+    "readback": "fresh session; audit fields and target state/material digest must match"
+  },
+  "result_states": {
+    "verified": "success plus additive verification/operation_id/audit_id; effect=committed",
+    "already_applied": "same operation/material; one receipt; replay=do_not_repeat",
+    "no_change": "already-Active promote with a new operation id; 200 effect=none; no audit",
+    "conflict": "409 ALREADY_PROMOTED/STALE_TARGET/UNSUPPORTED_STATUS; effect=none",
+    "not_applied": "409 confirmed rollback; effect=none; SKILL_TRANSACTION_ROLLED_BACK",
+    "committed_unverified": "503 effect=committed; original identity; replay=do_not_repeat",
+    "effect_unknown": "503 effect=unknown; original identity; replay=do_not_repeat; no exception text"
+  },
+  "parallel_writers": {
+    "routes": "sole verified writers for community skill status/delete",
+    "SkillRegistryService": "promote_skill/delete_skill retained for internal/test callers; routes no longer use them",
+    "cloud_rows": "unrelated execution records; invisible",
+    "audit": "existing AuditLog; additive safe receipt"
+  },
+  "not_covered": [
+    "skill import/execute/list/get/episodes/learning-progress",
+    "live code sandbox/Docker/model/provider",
+    "PostgreSQL runtime/soak and multi-worker serialization",
+    "whole-app ORACLE-01"
+  ]
+}
