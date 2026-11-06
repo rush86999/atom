@@ -83,6 +83,15 @@ Command (from `backend/`):
 - Target route coverage file: delete tests now use a stateful handler and a
   scratch DB; the stale “deletion scheduled” assertion was corrected.
 
+Test-kind attribution: the contract suite (`test_document_delete_truth.py`)
+invokes the delete route **function** with dependency-overridden identity
+(the raw log shows `Governance check skipped for delete_document` during those
+calls); the w52 route-coverage file uses the in-process Starlette TestClient
+with overridden identity dependencies. Neither is a public-HTTP,
+governance or ordinary-login/authorization test. Lead-run mounted-HTTP twins
+(503 partial) and baseline counterexamples were run independently under
+controlled auth; see the raw evidence package below for exact attribution.
+
 ### Baseline vs. after
 
 | Suite | Before change | After change |
@@ -103,6 +112,21 @@ run alone: `tests/core/test_same_file_freshness.py` (3 pre-existing freshness
 failures) and `tests/unit/test_lancedb_handler.py` (9 pre-existing
 embedding/create-table state failures). Neither touches the deletion route and
 neither failure changed after the added readback counters.
+
+## Raw evidence package
+
+The inspectable raw focused-run evidence is committed at
+`docs/acceptance/evidence/document_delete_truth_20261106/`:
+
+- `focused-delete-truth-314.log` — verbatim stdout+stderr of the command
+  above, re-executed on exact head `bf28b07f3` (raw outcome: 3 failed, 48
+  passed; the 3 failures are the pre-existing ones listed above, unchanged
+  and numbered).
+- `README.md` — command/environment/source identity, failure identities, and
+  the explicit test-kind attribution (function-call controls ≠ public
+  HTTP/governance tests; lead-run HTTP twins and baseline counterexamples are
+  referenced, not re-run or certified here).
+- `verification.json` — artifact/source blob-identity manifest.
 
 ## Non-claims
 
