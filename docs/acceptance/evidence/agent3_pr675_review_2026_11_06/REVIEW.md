@@ -23,13 +23,20 @@ conflict/refusal envelopes that leave no partial state.
 | Owner merge (squash) | `93e19ed78bf42cd3696c208ff203d2f90056c54c` | in main |
 | Current main | `33b8d6472605b7fbb4c84a9e21286c3d168b7d5c` | reviewed here |
 
-All 9 manifest-declared source files hash identically (sha256) at all four
-refs — including `backend/core/agent_decision_write_service.py`
-(`4995472c…`), `backend/api/agent_routes.py` (`68e507f9…`) and
-`backend/tests/test_agent_run_admission_contract.py` (`1f0eedf3…`). The
-reviewed code on current main is exactly the executed code. Only
-`.github/workflows/ci.yml` drifted after the merge (unrelated test-suite
-additions from later PRs; manifest pin describes the executed state).
+**Correction (lead disposition 2026-11-06, supersedes the original summary
+below):** the original text claimed "all 9 manifest-declared source files
+hash identically at all four refs", which contradicts its own ci.yml
+sentence. The accurate statement is: **eight** runtime/test/policy files
+(`agent_decision_write_service.py` `4995472c…`, `agent_routes.py`
+`68e507f9…`, `test_agent_run_admission_contract.py` `1f0eedf3…`,
+`tests/unit/api/test_agent_routes.py` `9d34605b…`,
+`tests/test_agent_routes_coverage.py` `efd48f84…`, `core/models.py`
+`4b238c35…`, `core/security/rbac.py` `48a7ecdb…`, `core/personal_scope.py`
+`f07dd35c…`) are identical across executed source, PR head, merge and
+reviewed main. The **ninth** file, `.github/workflows/ci.yml`, differs
+across refs; all nine match the manifest **at the declared executed source
+only**. The reviewed runtime code on current main is exactly the executed
+code either way.
 
 Local checkout note: the conversation-local `main` (`ec69e24f4`) does NOT
 contain the merged #675; current main with this work is `origin/main`
@@ -40,19 +47,27 @@ contain the merged #675; current main with this work is `origin/main`
 Committed and sha256-verified against `MANIFEST.json`: `README.md`,
 `TEST_RESULTS.md`, `routes.json`, `verification.json` — all match.
 
-**Missing from Git (reported separately from hash mismatches):** 8 declared
-artifacts exist only as hashes of never-committed local files —
-`focused-311.log`, `focused-314.log`, `affected-311.log`, `affected-314.log`,
-`baseline-673-311.log`, `baseline-673-314.log`,
-`cross-tenant-repro-base.log`, `source-tree.txt`. The decisive run logs are
-author-local-only; the committed summaries are the Git-verifiable record.
+**Missing from Git at review time (reported separately from hash
+mismatches):** 8 declared artifacts existed only as hashes of never-committed
+local files — `focused-311.log`, `focused-314.log`, `affected-311.log`,
+`affected-314.log`, `baseline-673-311.log`, `baseline-673-314.log`,
+`cross-tenant-repro-base.log`, `source-tree.txt`. The committed summaries
+were the only Git-verifiable record; the original bundle was therefore
+**delivery-incomplete**.
 
-Shared engineering cause identified: `.gitignore:621` carries a blanket
-`*.log` rule, so every `*.log` artifact the manifest declares is structurally
-uncommittable — the manifest binds hashes to files Git excludes by policy.
-This review's own bundle demonstrates the deliberate exception: its combined
-run log is force-added (secret-free pytest output), which is the convention
-the lead would need to either adopt or formally reject for future bundles.
+Shared engineering cause: `.gitignore:621` carries a blanket `*.log` rule
+(and `*.txt` is likewise ignored), which explains the omission.
+
+**Correction (lead disposition 2026-11-06):** ignore rules explain the
+omission but do not make files uncommittable — deliberate tracking after a
+secrets check is an established delivery requirement, not a new convention
+requiring approval (this bundle's force-added clean log demonstrates the
+mechanics). An incomplete original bundle must not be classified as
+checkout-verifiable. Subsequent state, recorded without a rerun: the PR675
+evidence artifacts were restored and are now hash-verified in Git (root
+verified 9 sources + 12 artifacts at `7e9150e40`; PR686 owner-merged as
+`3925cf359`). The missing-artifact finding is historical; the
+current bundle on main is complete.
 
 ## 4. Independent execution (Python 3.11.16, fastapi 0.128.8, sqlalchemy 2.0.23, pytest 8.4.2)
 
@@ -94,7 +109,11 @@ Added by Agent 3 probes (the matrix items the submitted suite lacked):
 2. **Concurrent winner between load and claim** → loser 409
    `ALREADY_RUNNING`, winner `running` preserved, loser emits zero job/audit/
    dispatch (zero losing admissions; the guarded UPDATE is the CAS — not a
-   bare `SELECT FOR UPDATE`).
+   bare `SELECT FOR UPDATE`). **Correction (lead disposition):** this is a
+   *controlled interleaving* (peer mutation at the documented `_load_agent`
+   seam under SQLite single-writer semantics), **not** proof of two
+   simultaneous full worker admissions; multi-worker serialization remains
+   unqualified.
 3. **Replay after lifecycle completion** → `already_applied` with
    `replay=do_not_repeat`; one job; one audit; no redispatch; durable job
    receipt carries only `operation_id` + `parameters_digest` (no raw
@@ -137,10 +156,13 @@ exclusions intact.
 
 Non-blocking findings for the acceptance record:
 
-1. **Evidence packaging gap**: 8 manifest artifacts (all run logs +
-   `source-tree.txt`) are not in Git; their content is unverifiable from the
-   bundle. Recommend requiring log commitment (or an accepted
-   evidence-ref-only convention) for future bundles — the lead decides.
+1. **Evidence packaging gap (historical, resolved)**: 8 manifest artifacts
+   (all run logs + `source-tree.txt`) were absent from Git at review time.
+   Corrected classification per lead disposition: the bundle was
+   delivery-incomplete; blanket ignore rules explain but do not excuse the
+   omission, and deliberate tracking after a secrets check is an established
+   delivery requirement. The artifacts have since been restored and
+   hash-verified in Git via PR686 (`3925cf359`); no rerun performed.
 2. `ci.yml` manifest pin reflects the executed source, not post-merge main;
    informational only.
 3. Harness incident during this review (missing scratch dir) was Agent 3
