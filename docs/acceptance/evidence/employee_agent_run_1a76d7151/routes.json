@@ -1,0 +1,37 @@
+{
+  "schema": "atom-oracle-agent-run-routes-1",
+  "executed_source": "1a76d7151105d8e7c845b0f7512a4bbf0e576f52",
+  "stacked_base_673": "46dc253a134104da4426ce8d5f9bf47aa7956372",
+  "underlying_main": "f8706fb48569e77df21801df1cc23a8d7b61ba17",
+  "prefix": "/api/agents",
+  "route": {
+    "method": "POST",
+    "path": "/api/agents/{agent_id}/run",
+    "handler": "api.agent_routes.run_agent",
+    "service": "core.agent_decision_write_service.admit_agent_run"
+  },
+  "authority": {
+    "route": "require_permission(Permission.AGENT_RUN) plus get_current_user",
+    "service": "current User re-read; active status; MEMBER+; claim is_active/status/role/raw tenant/raw workspace in the admission transaction",
+    "scope_policy": "member same-workspace or legacy workspace-less; ADMIN+ cross-workspace in tenant; foreign tenant/workspace 404; unscoped platform actor keeps global-legacy policy",
+    "authority_change": "409 AUTHORITY_CHANGED with effect=none"
+  },
+  "effect": {
+    "claim": "guarded AgentRegistry status -> running on exact id, tenant, workspace, name, description, capabilities, promotion floor, status, configuration and enabled",
+    "job": "AgentJob(id, tenant, agent_id, status=running, operation_id + parameters digest)",
+    "receipt": "one AuditLog action=agent_run_admitted in the same transaction",
+    "dispatch": "existing execute_agent_task only after commit, wrapped by a job lifecycle that marks running/success/failed and restores the prior agent status",
+    "readback": "job exists with the same operation id",
+    "states": "verified; already_applied; refused (404/400/403); conflict (409 STALE_TARGET/AUTHORITY_CHANGED/ALREADY_RUNNING/OPERATION_CONFLICT); not_applied (409); committed_unverified (503)"
+  },
+  "material": {
+    "parameters": "keyed digest only; raw parameters never enter the receipt or logs",
+    "protected": ["deprecated", "paused", "running", "active AgentJob"],
+    "replay": "same operation/parameters -> already_applied; changed parameters -> OPERATION_CONFLICT"
+  },
+  "limits": [
+    "process death between admission and dispatch leaves a running job/status; stale-job reconciliation is out of this slice",
+    "actual execution, model/provider calls, spend and external sends remain held separately",
+    "no new table or migration; PostgreSQL/soak and multi-worker remain unqualified"
+  ]
+}

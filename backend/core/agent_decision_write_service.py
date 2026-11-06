@@ -36,6 +36,8 @@ from sqlalchemy.orm import Session
 
 from core.auth import SECRET_KEY
 from core.models import (
+    AgentJob,
+    AgentJobStatus,
     AgentRegistry,
     AgentStatus,
     AuditEventType,
@@ -55,6 +57,7 @@ _SAFE_OPERATION_RE = re.compile(r"^[A-Za-z0-9:_-]{1,180}$")
 _ACTION_UPDATE = "agent_updated"
 _ACTION_PROMOTE = "agent_promoted"
 _ACTION_DELETE = "agent_deleted"
+_ACTION_RUN = "agent_run_admitted"
 
 
 # ---------------------------------------------------------------------------
@@ -213,7 +216,11 @@ def _actor_refusal(actor: Dict[str, Any]) -> Dict[str, Any]:
     )
 
 
-def _resolve_actor(db: Session, actor: Any) -> Dict[str, Any]:
+def _resolve_actor(
+    db: Session, actor: Any, *,
+    minimum_role: UserRole = UserRole.WORKSPACE_ADMIN,
+    authority_label: str = "AGENT_MANAGE",
+) -> Dict[str, Any]:
     actor_id = str(getattr(actor, "id", "") or "")
     if not actor_id:
         return {
@@ -238,11 +245,12 @@ def _resolve_actor(db: Session, actor: Any) -> Dict[str, Any]:
                         "This account is not active; refresh and sign in "
                         "again"),
                 }
-            if role_level(row.role) < role_level(UserRole.WORKSPACE_ADMIN):
+            if role_level(row.role) < role_level(minimum_role):
                 return {
                     "ok": False, "http_status": 403,
                     "error_code": "AUTHORITY_REQUIRED",
-                    "message": "AGENT_MANAGE authority is required",
+                    "message": (
+                        f"{authority_label} authority is required"),
                 }
             return {
                 "ok": True,
@@ -678,6 +686,9 @@ def _commit_and_verify(
     db: Session, *, expected: Dict[str, Any], audit_row: AuditLog,
     target_check: Callable[[], bool], success_data: Dict[str, Any],
     authority: Dict[str, Any],
+    replay_check: Optional[Callable[[Dict[str, Any]], bool]] = None,
+    replay_data: Optional[
+        Callable[[Dict[str, Any]], Dict[str, Any]]] = None,
 ) -> Dict[str, Any]:
     operation_id = expected["operation_id"]
     target_id = expected["target_id"]
@@ -687,7 +698,8 @@ def _commit_and_verify(
     except IntegrityError:
         db.rollback()
         replay = _replay(
-            db, operation_id, expected, authority=authority)
+            db, operation_id, expected, authority=authority,
+            target_check=replay_check, success_data=replay_data)
         if replay is not None:
             return replay
         return _not_applied(
@@ -1176,4 +1188,228 @@ def delete_agent(
         db, expected=expected, audit_row=audit_row,
         target_check=lambda: _delete_target_check(db)(expected),
         success_data=_delete_success_data(expected),
-        authority=actor_snapshot)
+        authority=actor_snapshot,
+        replay_check=_delete_target_check(db),
+        replay_data=_delete_success_data)
+
+
+# ---------------------------------------------------------------------------
+# Run admission decision
+# ---------------------------------------------------------------------------
+
+_RUN_ACTIVE_STATUSES = (
+    AgentJobStatus.PENDING.value,
+    AgentJobStatus.RUNNING.value,
+)
+
+
+def _run_agent_predicates(agent: AgentRegistry, prior_status: str):
+    return list(_agent_predicates(agent, prior_status)) + [
+        _exact(AgentRegistry.configuration, agent.configuration),
+        AgentRegistry.enabled == bool(agent.enabled),
+    ]
+
+
+def _load_job(db: Session, job_id: str) -> Optional[AgentJob]:
+    with _fresh_session(db) as fresh:
+        return fresh.query(AgentJob).filter(
+            AgentJob.id == str(job_id)).populate_existing().first()
+
+
+def _active_job(db: Session, agent_id: str) -> Optional[AgentJob]:
+    with _fresh_session(db) as fresh:
+        return fresh.query(AgentJob).filter(
+            AgentJob.agent_id == str(agent_id),
+            AgentJob.status.in_(_RUN_ACTIVE_STATUSES),
+        ).order_by(AgentJob.start_time.desc()).first()
+
+
+def _job_operation_id(job: Optional[AgentJob]) -> str:
+    if job is None:
+        return ""
+    try:
+        payload = json.loads(job.result_summary or "{}")
+    except (TypeError, ValueError):
+        return ""
+    if not isinstance(payload, dict):
+        return ""
+    return str(payload.get("operation_id") or "")
+
+
+def _run_target_check(db: Session):
+    def check(expected: Dict[str, Any]) -> bool:
+        extra = expected.get("extra") or {}
+        job = _load_job(db, extra.get("job_id") or "")
+        if job is None:
+            return False
+        return _job_operation_id(job) == str(
+            expected.get("operation_id") or "")
+    return check
+
+
+def _run_success_data(db: Session):
+    def build(expected: Dict[str, Any]) -> Dict[str, Any]:
+        extra = expected.get("extra") or {}
+        job = _load_job(db, extra.get("job_id") or "")
+        return {
+            "agent_id": str(expected.get("target_id") or ""),
+            "job_id": str(extra.get("job_id") or ""),
+            "job_status": (
+                str(job.status) if job is not None
+                else str(extra.get("job_status") or "running")),
+            "prior_status": str(expected.get("prior_status") or ""),
+        }
+    return build
+
+
+def admit_agent_run(
+    db: Session, *, actor: Any, agent_id: str,
+    parameters: Optional[Dict[str, Any]] = None,
+    operation_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Admit one agent run before dispatch.
+
+    The admission binds the current actor, exact agent material, a durable
+    ``AgentJob`` row and one audit receipt. It does not execute the agent;
+    the route dispatches the existing task only after this transaction
+    commits.
+    """
+    authority = _resolve_actor(
+        db, actor, minimum_role=UserRole.MEMBER,
+        authority_label="AGENT_RUN")
+    if not authority.get("ok"):
+        return _actor_refusal(authority)
+
+    agent_id = str(agent_id or "").strip()
+    if not agent_id:
+        return _refused(
+            "agent_id must be non-empty", http_status=422,
+            error_code="VALIDATION_ERROR", field="agent_id")
+    try:
+        operation_id = _operation_id("run", operation_id)
+    except ValueError as exc:
+        return _refused(
+            str(exc), http_status=422, error_code="VALIDATION_ERROR",
+            field="operation_id")
+
+    parameters = dict(parameters or {})
+    parameters_digest = _fingerprint(
+        "agent-run-parameters", _canonical(parameters))
+    request_digest = _fingerprint(
+        "agent-run-request", agent_id, parameters_digest)
+    expected_base = {
+        "operation_id": operation_id,
+        "schema": REVIEW_SCHEMA,
+        "action": _ACTION_RUN,
+        "event_type": AuditEventType.UPDATE.value,
+        "target_id": agent_id,
+        "request_digest": request_digest,
+        "actor_id": authority["id"],
+    }
+    replay = _replay(
+        db, operation_id, expected_base, authority=authority,
+        target_check=_run_target_check(db),
+        success_data=_run_success_data(db))
+    if replay is not None:
+        return replay
+
+    agent = _load_agent(db, agent_id)
+    if agent is None or not _agent_visible(authority, agent):
+        return _refused(
+            f"Agent not found: {agent_id}", http_status=404,
+            error_code="NOT_FOUND")
+
+    prior_status = str(agent.status or "")
+    if prior_status in (
+        AgentStatus.DEPRECATED.value, AgentStatus.PAUSED.value,
+    ):
+        return _refused(
+            f"Agent is {prior_status}", http_status=400,
+            error_code="AGENT_INVALID_STATE", field="status")
+    if prior_status == "running":
+        return _conflict(
+            "Agent is already running", code="ALREADY_RUNNING")
+    active = _active_job(db, agent_id)
+    if active is not None:
+        return _conflict(
+            "Agent is already running", code="ALREADY_RUNNING")
+
+    prior_digest = _state_digest(_state_material(agent))
+
+    if not _claim_actor(db, authority):
+        db.rollback()
+        return _conflict(
+            "run authority changed; refresh and retry",
+            code="AUTHORITY_CHANGED")
+
+    try:
+        claimed = db.execute(
+            update(AgentRegistry)
+            .where(*_run_agent_predicates(agent, prior_status))
+            .values(status="running"))
+        if claimed.rowcount != 1:
+            db.rollback()
+            now = _load_agent(db, agent_id)
+            if now is not None and str(now.status or "") == "running":
+                return _conflict(
+                    "Agent is already running", code="ALREADY_RUNNING")
+            return _conflict(
+                "agent material changed; refresh and retry",
+                code="STALE_TARGET")
+    except IntegrityError:
+        db.rollback()
+        return _conflict(
+            "agent run admission conflicts with current state",
+            code="STALE_TARGET")
+    except Exception as exc:  # noqa: BLE001 — mutation did not commit
+        db.rollback()
+        logger.error(
+            "agent run claim failed before commit: operation_id=%s "
+            "target=%s error_class=%s", operation_id, agent_id,
+            type(exc).__name__)
+        return _not_applied(
+            "The agent run could not be admitted; no effect was committed")
+
+    job_id = str(uuid.uuid4())
+    job = AgentJob(
+        id=job_id,
+        tenant_id=(
+            agent.tenant_id
+            if agent.tenant_id is not None
+            else authority["raw_tenant_id"]),
+        agent_id=agent_id,
+        status=AgentJobStatus.RUNNING.value,
+        result_summary=json.dumps({
+            "operation_id": operation_id,
+            "parameters_digest": parameters_digest,
+        }, sort_keys=True),
+    )
+    db.add(job)
+
+    expected = _audit_expected(
+        operation_id=operation_id, action=_ACTION_RUN,
+        event_type=AuditEventType.UPDATE.value, agent=agent,
+        prior_status=prior_status, result_status="running",
+        request_digest=request_digest, prior_digest=prior_digest,
+        result_digest=_fingerprint(
+            "agent-run", agent_id, prior_digest, job_id,
+            parameters_digest),
+        actor=authority,
+        extra={
+            "job_id": job_id,
+            "parameters_digest": parameters_digest,
+            "job_status": AgentJobStatus.RUNNING.value,
+        })
+    audit_row = _audit_row(expected=expected, actor=authority)
+    return _commit_and_verify(
+        db, expected=expected, audit_row=audit_row,
+        target_check=lambda: _run_target_check(db)(expected),
+        success_data={
+            "agent_id": agent_id,
+            "job_id": job_id,
+            "job_status": AgentJobStatus.RUNNING.value,
+            "prior_status": prior_status,
+        },
+        authority=authority,
+        replay_check=_run_target_check(db),
+        replay_data=_run_success_data(db))
