@@ -1,0 +1,97 @@
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+________ test_paid_retry_partial_failure_never_dispatches_another_route ________
+
+handler = <core.llm.byok_handler.BYOKHandler object at 0x134a23210>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x134a23250>
+tmp_path = PosixPath('/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-4897/test_paid_retry_partial_failur0')
+
+    @pytest.mark.asyncio
+    async def test_paid_retry_partial_failure_never_dispatches_another_route(handler,monkeypatch,tmp_path):
+        install_route_catalog(monkeypatch,tmp_path,{'opencode-go':['deepseek-v4-flash-free','deepseek-v4-flash'],'openai':['gpt-4o']})
+        calls=[]
+        def create(**kwargs):
+            calls.append(kwargs['model'])
+            if len(calls)==1:raise _insufficient_balance_error()
+            if len(calls)==2:return _AsyncChunks([_StreamChunk('PAID PARTIAL',None)],fail_after=1)
+            return _AsyncChunks([_StreamChunk('DUPLICATE FALLBACK','stop')])
+        client=Mock();client.chat.completions.create=AsyncMock(side_effect=create)
+        handler.clients={'opencode-go':client,'openai':client};handler.async_clients={'opencode-go':client,'openai':client}
+        tokens=await collect(handler,model='deepseek-v4-flash-free',fallback_routes=[('openai','gpt-4o')],_allow_ladder_sweep=False)
+>       assert ''.join(tokens).startswith('PAID PARTIAL') and 'DUPLICATE FALLBACK' not in ''.join(tokens) and len(calls)==2,(tokens,calls)
+E       AssertionError: (['PAID PARTIAL', 'DUPLICATE FALLBACK'], ['deepseek-v4-flash-free', 'deepseek-v4-flash', 'gpt-4o'])
+E       assert (True and 'DUPLICATE FALLBACK' not in 'PAID PARTIA...ATE FALLBACK'
+E        +  where True = <built-in method startswith of str object at 0x150346fb0>('PAID PARTIAL')
+E        +    where <built-in method startswith of str object at 0x150346fb0> = 'PAID PARTIALDUPLICATE FALLBACK'.startswith
+E        +      where 'PAID PARTIALDUPLICATE FALLBACK' = <built-in method join of str object at 0x10b10c790>(['PAID PARTIAL', 'DUPLICATE FALLBACK'])
+E        +        where <built-in method join of str object at 0x10b10c790> = ''.join
+E         
+E         'DUPLICATE FALLBACK' is contained here:
+E           PAID PARTIALDUPLICATE FALLBACK)
+
+../../test_verifier_pr664_stream_boundaries.py:39: AssertionError
+------------------------------ Captured log setup ------------------------------
+WARNING  core.llm.byok_handler:byok_handler.py:1691 Could not create database session for tier service: __enter__
+WARNING  core.llm.byok_handler:byok_handler.py:2203 Failed to refresh excluded models cache: 'Mock' object does not support the context manager protocol
+----------------------------- Captured stdout call -----------------------------
+{"level": "INFO", "message": "LocalOnlyGuard initialized", "timestamp": "2026-11-06T03:33:05.773117+00:00", "logger": "core.privsec.local_only_guard", "module": "structured_logger", "function": "_log", "line": 118, "extra": {"local_only_enabled": false, "blocked_services": 23, "local_allowed_services": 18}}
+------------------------------ Captured log call -------------------------------
+INFO     core.privsec.local_only_guard:structured_logger.py:118 LocalOnlyGuard initialized
+WARNING  core.llm.byok_handler:byok_handler.py:10581 Streaming failed for opencode-go/deepseek-v4-flash-free: Error code: 402 - {'type': 'CreditsError', 'message': 'Insufficient balance. The free usage of this model has been exhausted. Subscribe or switch to a paid model.'}
+WARNING  core.llm.byok_handler:byok_handler.py:2884 attempt opencode-go/deepseek-v4-flash-free failed: cause=quota_exhausted status=402 detail=Error code: 402 - {'type': 'CreditsError', 'message': 'Insufficient balance. The free usage of this model has been exhausted. Subscribe or switch to a paid model.'}
+WARNING  core.llm.byok_handler:byok_handler.py:10843 OpenCode Go free-model stream retry FAILED on paid model deepseek-v4-flash: stream cut mid-way
+WARNING  core.llm.byok_handler:byok_handler.py:10891 all 2 provider(s) failed for opencode-go/deepseek-v4-flash-free — falling back to ranked route openai/gpt-4o
+_____________ test_sweep_budget_survives_ranked_fallback_recursion _____________
+
+handler = <core.llm.byok_handler.BYOKHandler object at 0x150315690>
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1455190d0>
+tmp_path = PosixPath('/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-4897/test_sweep_budget_survives_ran0')
+
+    @pytest.mark.asyncio
+    async def test_sweep_budget_survives_ranked_fallback_recursion(handler,monkeypatch,tmp_path):
+        models=['model-a','model-b','model-z']
+        install_route_catalog(monkeypatch,tmp_path,{'opencode-go':models})
+        calls=[]
+        class StopProbe(BaseException):pass
+        def create(**kwargs):
+            calls.append(kwargs['model'])
+            if len(calls)>12:raise StopProbe('controlled probe bound')
+            raise RuntimeError('controlled model failure')
+        client=Mock();client.chat.completions.create=AsyncMock(side_effect=create)
+        handler.clients={'opencode-go':client};handler.async_clients={'opencode-go':client}
+        bounded=False
+        try:await asyncio.wait_for(collect(handler,model='model-z'),timeout=4)
+        except (StopProbe,asyncio.TimeoutError):bounded=True
+>       assert not bounded and set(calls)==set(models) and max(Counter(calls).values())==1,(bounded,calls)
+E       AssertionError: (False, ['model-z', 'model-a', 'model-b', 'model-a'])
+E       assert (not False and {'model-a', '...b', 'model-z'} == {'model-a', '...b', 'model-z'}
+E         
+E         Use -v to get more diff and 2 == 1)
+E        +  where 2 = max(dict_values([1, 2, 1]))
+E        +    where dict_values([1, 2, 1]) = <built-in method values of Counter object at 0x1503d92b0>()
+E        +      where <built-in method values of Counter object at 0x1503d92b0> = Counter({'model-a': 2, 'model-z': 1, 'model-b': 1}).values
+E        +        where Counter({'model-a': 2, 'model-z': 1, 'model-b': 1}) = Counter(['model-z', 'model-a', 'model-b', 'model-a'])
+
+../../test_verifier_pr664_stream_boundaries.py:56: AssertionError
+------------------------------ Captured log setup ------------------------------
+WARNING  core.llm.byok_handler:byok_handler.py:1691 Could not create database session for tier service: __enter__
+WARNING  core.llm.byok_handler:byok_handler.py:2203 Failed to refresh excluded models cache: 'Mock' object does not support the context manager protocol
+------------------------------ Captured log call -------------------------------
+WARNING  core.llm.byok_handler:byok_handler.py:10581 Streaming failed for opencode-go/model-z: controlled model failure
+WARNING  core.llm.byok_handler:byok_handler.py:2884 attempt opencode-go/model-z failed: cause=unknown status=None detail=controlled model failure
+ERROR    core.llm.byok_handler:byok_handler.py:10915 All 1 providers failed for model-z. Last error: controlled model failure
+WARNING  core.llm.byok_handler:byok_handler.py:10969 stream ladder exhausted the caller's fallbacks — one catalog-driven sweep over untried healthy providers: opencode-go/model-a, opencode-go/model-b
+WARNING  core.llm.byok_handler:byok_handler.py:10581 Streaming failed for opencode-go/model-a: controlled model failure
+WARNING  core.llm.byok_handler:byok_handler.py:2884 attempt opencode-go/model-a failed: cause=unknown status=None detail=controlled model failure
+WARNING  core.llm.byok_handler:byok_handler.py:10891 all 1 provider(s) failed for opencode-go/model-a — falling back to ranked route opencode-go/model-b
+WARNING  core.llm.byok_handler:byok_handler.py:10581 Streaming failed for opencode-go/model-b: controlled model failure
+WARNING  core.llm.byok_handler:byok_handler.py:2884 attempt opencode-go/model-b failed: cause=unknown status=None detail=controlled model failure
+ERROR    core.llm.byok_handler:byok_handler.py:10915 All 1 providers failed for model-b. Last error: controlled model failure
+WARNING  core.llm.byok_handler:byok_handler.py:10969 stream ladder exhausted the caller's fallbacks — one catalog-driven sweep over untried healthy providers: opencode-go/model-a
+WARNING  core.llm.byok_handler:byok_handler.py:10581 Streaming failed for opencode-go/model-a: controlled model failure
+WARNING  core.llm.byok_handler:byok_handler.py:2884 attempt opencode-go/model-a failed: cause=unknown status=None detail=controlled model failure
+ERROR    core.llm.byok_handler:byok_handler.py:10915 All 1 providers failed for model-a. Last error: controlled model failure
+=========================== short test summary info ============================
+FAILED ../../test_verifier_pr664_stream_boundaries.py::test_paid_retry_partial_failure_never_dispatches_another_route
+FAILED ../../test_verifier_pr664_stream_boundaries.py::test_sweep_budget_survives_ranked_fallback_recursion
+2 failed in 13.85s

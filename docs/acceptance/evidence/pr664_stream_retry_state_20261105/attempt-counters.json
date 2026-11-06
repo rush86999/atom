@@ -1,0 +1,362 @@
+[
+  {
+    "id": "initial-zero-single",
+    "failure_location": "initial",
+    "content_stage": "zero",
+    "exhaustion": "single",
+    "expected_calls": [
+      [
+        "opencode-go",
+        "model-a"
+      ]
+    ],
+    "attempt_counts": {
+      "opencode-go/model-a": 1
+    },
+    "expect_error": true
+  },
+  {
+    "id": "initial-reasoning-single",
+    "failure_location": "initial",
+    "content_stage": "reasoning",
+    "exhaustion": "single",
+    "expected_calls": [
+      [
+        "opencode-go",
+        "model-a"
+      ]
+    ],
+    "attempt_counts": {
+      "opencode-go/model-a": 1
+    },
+    "expect_error": true
+  },
+  {
+    "id": "initial-visible-single",
+    "failure_location": "initial",
+    "content_stage": "partial",
+    "exhaustion": "single",
+    "expected_calls": [
+      [
+        "opencode-go",
+        "model-a"
+      ]
+    ],
+    "attempt_counts": {
+      "opencode-go/model-a": 1
+    },
+    "expect_error": false
+  },
+  {
+    "id": "paid-zero-two",
+    "failure_location": "paid_retry",
+    "content_stage": "zero",
+    "exhaustion": "two",
+    "expected_calls": [
+      [
+        "opencode-go",
+        "deepseek-v4-flash-free"
+      ],
+      [
+        "opencode-go",
+        "deepseek-v4-flash"
+      ]
+    ],
+    "attempt_counts": {
+      "opencode-go/deepseek-v4-flash": 1,
+      "opencode-go/deepseek-v4-flash-free": 1
+    },
+    "expect_error": true
+  },
+  {
+    "id": "paid-reasoning-two",
+    "failure_location": "paid_retry",
+    "content_stage": "reasoning",
+    "exhaustion": "two",
+    "expected_calls": [
+      [
+        "opencode-go",
+        "deepseek-v4-flash-free"
+      ],
+      [
+        "opencode-go",
+        "deepseek-v4-flash"
+      ]
+    ],
+    "attempt_counts": {
+      "opencode-go/deepseek-v4-flash": 1,
+      "opencode-go/deepseek-v4-flash-free": 1
+    },
+    "expect_error": true
+  },
+  {
+    "id": "paid-visible-two",
+    "failure_location": "paid_retry",
+    "content_stage": "partial",
+    "exhaustion": "two",
+    "expected_calls": [
+      [
+        "opencode-go",
+        "deepseek-v4-flash-free"
+      ],
+      [
+        "opencode-go",
+        "deepseek-v4-flash"
+      ]
+    ],
+    "attempt_counts": {
+      "opencode-go/deepseek-v4-flash": 1,
+      "opencode-go/deepseek-v4-flash-free": 1
+    },
+    "expect_error": false
+  },
+  {
+    "id": "heal-zero-two",
+    "failure_location": "self_heal",
+    "content_stage": "zero",
+    "exhaustion": "two",
+    "expected_calls": [
+      [
+        "openai",
+        "gpt-4o"
+      ],
+      [
+        "openai",
+        "gpt-4o"
+      ]
+    ],
+    "attempt_counts": {
+      "openai/gpt-4o": 2
+    },
+    "expect_error": true
+  },
+  {
+    "id": "heal-reasoning-two",
+    "failure_location": "self_heal",
+    "content_stage": "reasoning",
+    "exhaustion": "two",
+    "expected_calls": [
+      [
+        "openai",
+        "gpt-4o"
+      ],
+      [
+        "openai",
+        "gpt-4o"
+      ]
+    ],
+    "attempt_counts": {
+      "openai/gpt-4o": 2
+    },
+    "expect_error": true
+  },
+  {
+    "id": "heal-visible-two",
+    "failure_location": "self_heal",
+    "content_stage": "partial",
+    "exhaustion": "two",
+    "expected_calls": [
+      [
+        "openai",
+        "gpt-4o"
+      ],
+      [
+        "openai",
+        "gpt-4o"
+      ]
+    ],
+    "attempt_counts": {
+      "openai/gpt-4o": 2
+    },
+    "expect_error": false
+  },
+  {
+    "id": "provider-zero-two",
+    "failure_location": "provider_fallback",
+    "content_stage": "zero",
+    "exhaustion": "two",
+    "expected_calls": [
+      [
+        "openai",
+        "shared-model"
+      ],
+      [
+        "deepseek",
+        "shared-model"
+      ]
+    ],
+    "attempt_counts": {
+      "deepseek/shared-model": 1,
+      "openai/shared-model": 1
+    },
+    "expect_error": false
+  },
+  {
+    "id": "provider-reasoning-two",
+    "failure_location": "provider_fallback",
+    "content_stage": "reasoning",
+    "exhaustion": "two",
+    "expected_calls": [
+      [
+        "openai",
+        "shared-model"
+      ],
+      [
+        "deepseek",
+        "shared-model"
+      ]
+    ],
+    "attempt_counts": {
+      "deepseek/shared-model": 1,
+      "openai/shared-model": 1
+    },
+    "expect_error": false
+  },
+  {
+    "id": "provider-visible-single",
+    "failure_location": "provider_fallback",
+    "content_stage": "partial",
+    "exhaustion": "single",
+    "expected_calls": [
+      [
+        "openai",
+        "shared-model"
+      ]
+    ],
+    "attempt_counts": {
+      "openai/shared-model": 1
+    },
+    "expect_error": false
+  },
+  {
+    "id": "ranked-zero-two",
+    "failure_location": "ranked_fallback",
+    "content_stage": "zero",
+    "exhaustion": "two",
+    "expected_calls": [
+      [
+        "openai",
+        "gpt-4o"
+      ],
+      [
+        "deepseek",
+        "deepseek-chat"
+      ]
+    ],
+    "attempt_counts": {
+      "deepseek/deepseek-chat": 1,
+      "openai/gpt-4o": 1
+    },
+    "expect_error": false
+  },
+  {
+    "id": "ranked-reasoning-two",
+    "failure_location": "ranked_fallback",
+    "content_stage": "reasoning",
+    "exhaustion": "two",
+    "expected_calls": [
+      [
+        "openai",
+        "gpt-4o"
+      ],
+      [
+        "deepseek",
+        "deepseek-chat"
+      ]
+    ],
+    "attempt_counts": {
+      "deepseek/deepseek-chat": 1,
+      "openai/gpt-4o": 1
+    },
+    "expect_error": false
+  },
+  {
+    "id": "ranked-visible-single",
+    "failure_location": "ranked_fallback",
+    "content_stage": "partial",
+    "exhaustion": "single",
+    "expected_calls": [
+      [
+        "openai",
+        "gpt-4o"
+      ]
+    ],
+    "attempt_counts": {
+      "openai/gpt-4o": 1
+    },
+    "expect_error": false
+  },
+  {
+    "id": "sweep-zero-three",
+    "failure_location": "catalogue_sweep",
+    "content_stage": "zero",
+    "exhaustion": "three",
+    "expected_calls": [
+      [
+        "opencode-go",
+        "model-z"
+      ],
+      [
+        "opencode-go",
+        "model-a"
+      ],
+      [
+        "opencode-go",
+        "model-b"
+      ]
+    ],
+    "attempt_counts": {
+      "opencode-go/model-a": 1,
+      "opencode-go/model-b": 1,
+      "opencode-go/model-z": 1
+    },
+    "expect_error": true
+  },
+  {
+    "id": "sweep-reasoning-three",
+    "failure_location": "catalogue_sweep",
+    "content_stage": "reasoning",
+    "exhaustion": "three",
+    "expected_calls": [
+      [
+        "opencode-go",
+        "model-z"
+      ],
+      [
+        "opencode-go",
+        "model-a"
+      ],
+      [
+        "opencode-go",
+        "model-b"
+      ]
+    ],
+    "attempt_counts": {
+      "opencode-go/model-a": 1,
+      "opencode-go/model-b": 1,
+      "opencode-go/model-z": 1
+    },
+    "expect_error": false
+  },
+  {
+    "id": "sweep-visible-two",
+    "failure_location": "catalogue_sweep",
+    "content_stage": "partial",
+    "exhaustion": "two",
+    "expected_calls": [
+      [
+        "opencode-go",
+        "model-z"
+      ],
+      [
+        "opencode-go",
+        "model-a"
+      ]
+    ],
+    "attempt_counts": {
+      "opencode-go/model-a": 1,
+      "opencode-go/model-z": 1
+    },
+    "expect_error": false
+  }
+]

@@ -1,0 +1,8 @@
+LanceDB not initialized, chat history disabled
+{
+  "recall": 1.0,
+  "recall_keyword": 1.0,
+  "recall_paraphrase": 1.0,
+  "total": 7,
+  "missed": []
+}

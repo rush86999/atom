@@ -1,0 +1,91 @@
+{
+  "task": "PR664 streaming retry-state repair",
+  "branch": "codex/pr659-backend-ci-fix-20261105",
+  "base_main": "71f9e22b41f7feea7ea55c7d32d6efeacc704081",
+  "prior_pr664_head": "929b7c6e681b2eda4f9d14b3c1f077f3f3ae22d6",
+  "code_checkpoint": "10e0826b3e10d21fe29fa685b1c926fabea9e514",
+  "external_probes": {
+    "file": "/private/tmp/test_verifier_pr664_stream_boundaries.py",
+    "before_python_3_11": "2 failed",
+    "after_python_3_11": "2 passed",
+    "after_python_3_14": "2 passed",
+    "logs": [
+      "probes-before-311.log",
+      "probes-after-311.log",
+      "matrix-and-probes-311.log",
+      "matrix-and-probes-314.log"
+    ]
+  },
+  "matrix": {
+    "file": "backend/tests/test_stream_retry_state_contract.py",
+    "generated_cases": 18,
+    "named_regressions": 2,
+    "negative_controls": 2,
+    "python_3_11": "24 passed (matrix + 2 external probes)",
+    "python_3_14": "24 passed (matrix + 2 external probes)",
+    "attempt_counters": "attempt-counters.json"
+  },
+  "ci_selection": {
+    "files": 31,
+    "python_3_11": "583 passed, 1 skipped, 0 failed",
+    "python_3_14": "583 passed, 1 skipped, 0 failed",
+    "logs": [
+      "ci-selection-311.log",
+      "ci-selection-314.log"
+    ]
+  },
+  "memory_gate": {
+    "result": {
+      "recall": 1.0,
+      "recall_keyword": 1.0,
+      "recall_paraphrase": 1.0,
+      "total": 7,
+      "missed": []
+    },
+    "log": "memory-gate-311.log"
+  },
+  "accepted_fleet": {
+    "result": "19 passed",
+    "log": "fleet-probes-311.log"
+  },
+  "streaming_neighborhood": {
+    "before": "98 failed, 505 passed, 6 skipped",
+    "after": "98 failed, 505 passed, 6 skipped",
+    "failed_set_diff": "identical",
+    "note": "Pre-existing baseline debt outside the CI selection.",
+    "log": "neighborhood-before-after.txt"
+  },
+  "git_hashes": {
+    "backend/core/llm/byok_handler.py": {
+      "git_blob": "2d6d08a6155ad1053437884c28b150bfe1712e65",
+      "sha256": "cad7a8a22ae0111690c7e38c0cd33ba838c1f9f2c722ac057a07f9d8e9483a80"
+    },
+    "backend/tests/test_stream_retry_state_contract.py": {
+      "git_blob": "f01e41c3755ea2adca212e6cf60493c8549f9c0d",
+      "sha256": "5ac243a519eefc55b6d9e2f023c0891111b720ac29169b5816d9471b22e0e296"
+    },
+    ".github/workflows/ci.yml": {
+      "git_blob": "1202681bd5a16de3fee438efe9a4e97ce71aa4d8",
+      "sha256": "5523145a904b7f27793df2b899a8f2b42b4c86d91e20981b649ab6b9d81c7a77"
+    }
+  },
+  "artifact_sha256": {
+    "README.md": "aca58d2dc09b5c9113919e4a4565fd41ff63ecef27eec514094dc6fd81129981",
+    "attempt-counters.json": "f482a7044636791666cc2bc7ac648a6250dcee45ef8f77744261d5e5319219d0",
+    "ci-selection-311.log": "ff77f5a9efa1f1127885b1294667c15aabdfd9199d3c540f47a821fd287db1c5",
+    "ci-selection-314.log": "b795de75d0502e121abc0216ceff7236bba86ddf442c464c3416c164af2b76cc",
+    "fleet-probes-311.log": "48bfdcaee3fd6d05001feb3760b08de173e6e042d4ca4109a8ced5ea65fdc6a3",
+    "matrix-and-probes-311.log": "85035b64fc7effae7ed56557eb109376025a15926a78629108562d1101a284d5",
+    "matrix-and-probes-314.log": "208250c07f3e4be2569496b0effd4213b17acdf101f750e574f889b122e6bfc7",
+    "memory-gate-311.log": "a4d5e6919118c87c9449808af33d6762720925b4c50c3e45a6b840731f4c07b9",
+    "neighborhood-before-after.txt": "a8af2321737a1fcee5cfc88b7a6a910ba0224cd467553b7aec3982c27a7ba36b",
+    "probes-after-311.log": "6e126a793126c1ea73a9b4e04e7917db0d7d348e093189d17a258f8209cfe3cb",
+    "probes-before-311.log": "1ff6a138918980011191b2235aa7132608f541f0d637ed4c2607f3e3c699cafa"
+  },
+  "preserved": [
+    "production evaluate_route still refuses an undiscovered catalogue",
+    "local-only still refuses a cloud route",
+    "strict pins, credentials, tenant/workspace scope and capability floors unchanged",
+    "no live model/provider/browser/sandbox/credential/spend/send/download/deployment"
+  ]
+}
