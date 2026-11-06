@@ -2,7 +2,7 @@
 
 Branch: `codex/document-delete-truth-20261106`
 Base: `9d6a09d52` (pushed audit; `248a23296` on `origin/main`)
-Code commit: `d6f9cbd43`
+Code commits: `d6f9cbd43`, follow-up `8add04906`
 
 ## Authorized scope
 
@@ -48,7 +48,7 @@ Chunks remained retrievable in LanceDB.
 | File | Git blob |
 |---|---|
 | `backend/api/document_routes.py` | `2474f6e58936c9e146ff13c9fdd79f9b085b4f48` |
-| `backend/core/document_delete_service.py` | `120de59baaab99587e0024e8d6900b306361a96e` |
+| `backend/core/document_delete_service.py` | `87847e4b6f56eb825fef3a7f909ab8778b8ba8ae` |
 | `backend/core/lancedb_handler.py` | `52847d508fdde3b1b106a2c7b2664209c072d539` |
 | `backend/tests/test_document_delete_truth.py` | `3c18be340575a8b29cbf09ef6efab9f58756c3d1` |
 | `backend/tests/test_document_vector_family_cleanup.py` | `6cf5b84e5cf2061d7a5c094fcb114da4c95ea36b` |
