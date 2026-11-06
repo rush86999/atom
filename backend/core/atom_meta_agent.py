@@ -629,6 +629,33 @@ class AtomMetaAgent:
         except Exception:
             return None, None
 
+    async def _execute_fleet_specialists(
+        self,
+        *,
+        chain_id: Optional[str],
+        roster: list,
+        request: str,
+        user_id: str,
+        tenant_id: Optional[str],
+        workspace_id: Optional[str],
+        context: Optional[Dict[str, Any]],
+    ) -> Dict[str, Any]:
+        """Run the recruited roster through the shared GenericAgent path."""
+        from core.fleet_admiral import FleetAdmiral
+
+        with SessionLocal() as db:
+            admiral = FleetAdmiral(db, self.llm)
+            return await admiral.execute_recruited_specialists(
+                task=request,
+                user_id=user_id,
+                chain_id=str(chain_id or ""),
+                roster=roster or [],
+                tenant_id=tenant_id,
+                workspace_id=workspace_id,
+                context=context or {},
+                cancel_check=(context or {}).get("fleet_cancel_check"),
+            )
+
     async def execute_unaudited(self, request: str, context: Dict[str, Any] = None,
                                 trigger_mode: AgentTriggerMode = AgentTriggerMode.MANUAL,
                                 step_callback: Optional[callable] = None,
@@ -1052,11 +1079,43 @@ class AtomMetaAgent:
                         })
 
                     if _fleet_enforced:
-                        # The current enforced path returns the recruitment
-                        # summary directly; it does not execute specialists.
-                        # Join that truthful outcome now instead of bypassing
-                        # finalization entirely. A future ORCH-02 execution
-                        # path must replace this with its real served outcome.
+                        # ORCH-02: the enforced response must consume the
+                        # recruited specialists' work, not just return the
+                        # recruitment list. Execute the roster through the
+                        # existing GenericAgent/BYOK path, then join the exact
+                        # outcome to this decision row.
+                        try:
+                            _fleet_execution = await self._execute_fleet_specialists(
+                                chain_id=(
+                                    _fleet_result.get("chain_id")
+                                    if isinstance(_fleet_result, dict) else None),
+                                roster=_fleet_roster,
+                                request=request,
+                                user_id=_fleet_user_id,
+                                tenant_id=tenant_id,
+                                workspace_id=getattr(self, "workspace_id", None) or (context or {}).get("workspace_id"),
+                                context=context,
+                            )
+                        except Exception as _fleet_exec_err:
+                            _fleet_execution = {
+                                "success": False,
+                                "status": "specialists_failed",
+                                "error": type(_fleet_exec_err).__name__,
+                                "final_output": (
+                                    "The recruited specialists could not be "
+                                    "executed for this task."),
+                                "specialist_results": [],
+                                "specialists_count": _fleet_count,
+                                "executed_count": 0,
+                                "cancelled": False,
+                                "chain_id": (
+                                    _fleet_result.get("chain_id")
+                                    if isinstance(_fleet_result, dict) else None),
+                            }
+                        _fleet_success = bool(
+                            _fleet_execution.get("success"))
+                        _fleet_exec_error = _fleet_execution.get("error")
+                        _fleet_model, _fleet_provider = self._fleet_actual_route()
                         try:
                             from core.fleet_orchestration.fleet_routing_stats import (
                                 record_fleet_execution_outcome,
@@ -1064,24 +1123,53 @@ class AtomMetaAgent:
 
                             record_fleet_execution_outcome(
                                 execution_id=execution_id,
-                                success=False,
-                                error_message=(
-                                    _fleet_error
-                                    or "fleet recruitment summary returned "
-                                       "without specialist execution"
-                                ),
-                                actual_model=None,
-                                actual_provider=None,
+                                success=_fleet_success,
+                                error_message=_fleet_exec_error,
+                                actual_model=_fleet_model,
+                                actual_provider=_fleet_provider,
                                 audit_id=_fleet_audit_id,
                                 tenant_id=tenant_id,
                                 workspace_id=getattr(self, "workspace_id", None) or (context or {}).get("workspace_id"),
                             )
                         except Exception:
                             pass
+                        _fleet_status = _fleet_execution.get(
+                            "status", "fleet_executed")
+                        _fleet_failure_reason = None
+                        if not _fleet_success:
+                            _fleet_failure_reason = (
+                                "fleet_cancelled"
+                                if _fleet_status == "cancelled"
+                                else "fleet_no_suitable_specialist"
+                                if _fleet_status == "no_suitable_specialists"
+                                else "fleet_specialists_failed"
+                            )
                         return {
                             "execution_id": execution_id,
-                            **_fleet_result,
-                            "status": _fleet_result.get("status", "fleet_recruited"),
+                            "route": "TASK",
+                            "handler": "FleetAdmiral",
+                            "status": _fleet_status,
+                            "final_output": _fleet_execution.get(
+                                "final_output"),
+                            "response": _fleet_execution.get(
+                                "final_output"),
+                            "specialist_results": _fleet_execution.get(
+                                "specialist_results", []),
+                            "specialists_count": _fleet_execution.get(
+                                "specialists_count", _fleet_count),
+                            "chain_id": (
+                                _fleet_execution.get("chain_id")
+                                or (_fleet_result.get("chain_id")
+                                    if isinstance(_fleet_result, dict)
+                                    else None)),
+                            "success": _fleet_success,
+                            "error": _fleet_exec_error,
+                            "failure_reason": _fleet_failure_reason,
+                            "failure_mode": (
+                                None if _fleet_success
+                                else "fleet_specialist_execution"),
+                            "enforced": True,
+                            "result": _fleet_execution,
                         }
                     # Shadow mode: fall through to Queen→ReAct (telemetry only).
             # --- end P1a -----------------------------------------------------

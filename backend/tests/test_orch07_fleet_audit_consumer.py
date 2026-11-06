@@ -132,7 +132,7 @@ def env(tmp_path, monkeypatch):
     agent.queen = MagicMock()
     agent.queen.generate_blueprint = AsyncMock(return_value={"nodes": []})
 
-    def run(*, enforced=False, summary=None, served=True):
+    def run(*, enforced=False, summary=None, served=True, context=None):
         monkeypatch.setattr(
             automation, "resolved_fleet_enforce",
             lambda db=None: bool(enforced))
@@ -144,7 +144,7 @@ def env(tmp_path, monkeypatch):
         import asyncio
 
         return asyncio.run(agent.execute(
-            REQUEST, trigger_mode=AgentTriggerMode.MANUAL))
+            REQUEST, context=context, trigger_mode=AgentTriggerMode.MANUAL))
 
     def rows():
         db = Session()
@@ -208,17 +208,6 @@ def test_shadow_consumer_writes_scoped_decision_and_exact_outcome(env):
         assert fresh.execution_id == execution_id
     finally:
         db.close()
-
-
-def test_enforced_recruitment_summary_is_not_a_fleet_win(env):
-    result = env.run(enforced=True)
-    assert result["route"] == "TASK"
-    assert result["status"] in ("task_routed", "fleet_recruited")
-    row = env.row_for(result["execution_id"])
-    assert row.enforced is True
-    assert row.success is False
-    assert "without specialist execution" in (row.error or "")
-    assert row.actual_model is None and row.actual_provider is None
 
 
 def test_outcome_join_is_exact_idempotent_and_stale_refused(env):
