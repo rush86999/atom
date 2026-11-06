@@ -332,7 +332,16 @@ class TestConcreteModelVisibility:
             async def generate_response(self, **kwargs):
                 return "Hello world"
 
-        service._get_handler = lambda workspace_id=None, tenant_id=None: FakeHandler()
+        # generate_completion must acquire its handler with the explicit
+        # tenant/workspace scope kwargs — handler acquisition is tenant-aware,
+        # so silently dropping either kwarg would collapse tenant isolation.
+        captured_scope = {}
+
+        def _get_handler(**kwargs):
+            captured_scope.update(kwargs)
+            return FakeHandler()
+
+        service._get_handler = _get_handler
         service._resolve_governance_model = lambda ws, model, **kw: model
 
         # asyncio.run() instead of get_event_loop().run_until_complete(): the
@@ -348,6 +357,10 @@ class TestConcreteModelVisibility:
             f"Expected concrete model, got '{result['model']}' — badge would lie"
         )
         assert result["provider"] == "openai"
+        assert captured_scope == {"workspace_id": None, "tenant_id": None}, (
+            f"generate_completion must pass explicit scope kwargs to "
+            f"_get_handler, got {captured_scope}"
+        )
 
 
 class TestRerankRoutingResultId:
