@@ -1,0 +1,1071 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-05 20:52:05 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-05 20:52:05 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+
+tests/test_agent_marketplace_goal_runs.py::TestPackaging::test_listing_carries_the_verified_record 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:52:05 [    INFO] EscalationManager initialized
+2026-11-05 20:52:05 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:05 [    INFO] EscalationManager initialized
+2026-11-05 20:52:05 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:05 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-05 20:52:05 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:05 [    INFO] packaged agent agent-quota as template bd57418a-b16f-4bf8-acea-bff060676c2a (achieved=2, steps=8)
+PASSED                                                                   [  0%]
+tests/test_agent_marketplace_goal_runs.py::TestPackaging::test_guidance_and_playbooks_ride_along 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:05 [    INFO] packaged agent agent-quota as template 9748c3e8-9249-40ad-9597-16befbe9b255 (achieved=2, steps=8)
+PASSED                                                                   [  0%]
+tests/test_agent_marketplace_goal_runs.py::TestPackaging::test_entity_names_and_pii_never_ship 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:05 [    INFO] packaged agent agent-quota as template 618d67d0-dc82-4e4b-be50-17881caa09a8 (achieved=2, steps=8)
+PASSED                                                                   [  1%]
+tests/test_agent_marketplace_goal_runs.py::TestPackaging::test_paid_listing_needs_a_verified_achieved_run 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:05 [    INFO] packaged agent agent-quota as template 69e7583d-9ea2-42af-93ef-6de255f92a2b (achieved=2, steps=8)
+2026-11-05 20:52:05 [    INFO] packaged agent agent-fresh as template 07914091-3915-487b-8e01-ad83bed39816 (achieved=0, steps=0)
+PASSED                                                                   [  1%]
+tests/test_agent_marketplace_goal_runs.py::TestPackaging::test_managed_installs_cannot_be_republished PASSED [  2%]
+tests/test_agent_marketplace_goal_runs.py::TestPackaging::test_sale_readiness_is_advisory PASSED [  2%]
+tests/test_agent_marketplace_goal_runs.py::TestEvidenceHonestInstall::test_local_install_seeds_from_the_record 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:05 [    INFO] packaged agent agent-quota as template b0818405-9d80-458e-a38e-92542d0e444d (achieved=2, steps=8)
+2026-11-05 20:52:05 [    INFO] Successfully installed marketplace agent b0818405-9d80-458e-a38e-92542d0e444d as managed agent a2b92de9-6276-4158-b2bb-e659dadc03dd
+2026-11-05 20:52:05 [    INFO] Successfully installed marketplace agent b0818405-9d80-458e-a38e-92542d0e444d as managed agent 6a20e81d-de97-48a7-a0fa-4a007df31a16
+PASSED                                                                   [  3%]
+tests/test_agent_marketplace_goal_runs.py::TestRunOutcomesFeedTheListing::test_terminal_run_reports_usage_for_managed_agents PASSED [  3%]
+tests/test_agent_marketplace_goal_runs.py::TestRoutes::test_owner_publishes_and_listing_is_buyer_safe 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:05 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-05 20:52:05 [    INFO] HTTP Request: GET http://testserver/api/agent-marketplace/agents/agent-quota/sale-readiness "HTTP/1.1 200 OK"
+2026-11-05 20:52:05 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-05 20:52:05 [    INFO] packaged agent agent-quota as template 7d27c42e-d15c-4971-9a9b-a336dc573a71 (achieved=2, steps=8)
+2026-11-05 20:52:05 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish "HTTP/1.1 200 OK"
+2026-11-05 20:52:05 [    INFO] HTTP Request: GET http://testserver/api/agent-marketplace/templates/7d27c42e-d15c-4971-9a9b-a336dc573a71 "HTTP/1.1 200 OK"
+PASSED                                                                   [  4%]
+tests/test_agent_marketplace_goal_runs.py::TestRoutes::test_non_owner_cannot_publish 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:05 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [  4%]
+tests/test_agent_marketplace_goal_runs.py::TestRoutes::test_paid_gate_maps_to_409 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:05 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-05 20:52:05 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-fresh/publish "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  5%]
+tests/test_agent_marketplace_goal_runs.py::TestPushListingToSaas::test_push_sends_the_packaged_listing 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:05 [    INFO] packaged agent agent-quota as template f471e16a-2180-41af-a97b-53a2d9804e0f (achieved=2, steps=8)
+PASSED                                                                   [  5%]
+tests/test_agent_marketplace_goal_runs.py::TestPushListingToSaas::test_push_requires_a_packaged_template PASSED [  5%]
+tests/test_agent_marketplace_goal_runs.py::TestPushListingToSaas::test_second_push_is_idempotent_by_default 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:05 [    INFO] packaged agent agent-quota as template ed49296b-73fa-47eb-8451-9f4b2979ba58 (achieved=2, steps=8)
+PASSED                                                                   [  6%]
+tests/test_agent_marketplace_goal_runs.py::TestPushListingToSaas::test_push_marker_is_recorded_on_the_template 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:05 [    INFO] packaged agent agent-quota as template d362fe53-27e5-4a47-bfae-da4c0e6241a6 (achieved=2, steps=8)
+PASSED                                                                   [  6%]
+tests/test_agent_marketplace_goal_runs.py::TestPushAndInstallRoutes::test_publisher_pushes_and_non_publisher_is_denied 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:05 [    INFO] packaged agent agent-quota as template f34c9012-1523-42db-8710-64ed06cdb968 (achieved=2, steps=8)
+2026-11-05 20:52:05 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/templates/f34c9012-1523-42db-8710-64ed06cdb968/push "HTTP/1.1 200 OK"
+2026-11-05 20:52:05 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/templates/f34c9012-1523-42db-8710-64ed06cdb968/push "HTTP/1.1 200 OK"
+2026-11-05 20:52:05 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/templates/f34c9012-1523-42db-8710-64ed06cdb968/push "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [  7%]
+tests/test_agent_marketplace_goal_runs.py::TestPushAndInstallRoutes::test_install_remote_paid_needs_the_override 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:05 [    INFO] packaged agent agent-quota as template e7334df5-8f1d-40c7-a003-8bfb259ad923 (achieved=2, steps=8)
+2026-11-05 20:52:05 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/install-remote "HTTP/1.1 409 Conflict"
+2026-11-05 20:52:05 [    INFO] Successfully installed marketplace agent e7334df5-8f1d-40c7-a003-8bfb259ad923 as managed agent 1b0653ae-90f2-4208-9209-ec5bb96d5bb9
+2026-11-05 20:52:05 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/install-remote "HTTP/1.1 200 OK"
+PASSED                                                                   [  7%]
+tests/test_agent_marketplace_goal_runs.py::TestPushAndInstallRoutes::test_install_remote_free_listing_needs_no_override 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:05 [    INFO] packaged agent agent-quota as template 7158ac83-6769-4afc-8cbc-902648d18e94 (achieved=2, steps=8)
+2026-11-05 20:52:05 [    INFO] Successfully installed marketplace agent 7158ac83-6769-4afc-8cbc-902648d18e94 as managed agent 0a455166-9f74-40b8-87f4-d510fb831f50
+2026-11-05 20:52:05 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/install-remote "HTTP/1.1 200 OK"
+PASSED                                                                   [  8%]
+tests/test_agent_marketplace_service.py::TestMarketplaceSync::test_marketplace_service_initialization PASSED [  8%]
+tests/test_agent_marketplace_service.py::TestMarketplaceSync::test_browse_agents_fetches_from_saas 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:05 [    INFO] Browsing marketplace agents: query=analytics, category=Analytics
+PASSED                                                                   [  9%]
+tests/test_agent_marketplace_service.py::TestMarketplaceSync::test_browse_agents_handles_pagination 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:05 [    INFO] Browsing marketplace agents: query=, category=None
+PASSED                                                                   [  9%]
+tests/test_agent_marketplace_service.py::TestMarketplaceSync::test_browse_agents_handles_saas_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:05 [    INFO] Browsing marketplace agents: query=, category=None
+2026-11-05 20:52:05 [   ERROR] Failed to fetch agents from Atom SaaS: Network error
+PASSED                                                                   [ 10%]
+tests/test_agent_marketplace_service.py::TestMarketplaceSync::test_get_template_details_fetches_from_saas PASSED [ 10%]
+tests/test_agent_marketplace_service.py::TestMarketplaceSync::test_get_template_details_handles_missing_template PASSED [ 10%]
+tests/test_agent_marketplace_service.py::TestSkillInstallation::test_install_agent_creates_agent_registry 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:05 [    INFO] Successfully installed marketplace agent template-001 as managed agent agent-001
+PASSED                                                                   [ 11%]
+tests/test_agent_marketplace_service.py::TestSkillInstallation::test_install_agent_sets_correct_fields 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:05 [    INFO] Successfully installed marketplace agent template-001 as managed agent agent-001
+PASSED                                                                   [ 11%]
+tests/test_agent_marketplace_service.py::TestSkillInstallation::test_install_agent_never_preloads_memory 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:05 [    INFO] Successfully installed marketplace agent template-001 as managed agent <MagicMock name='AgentRegistry().id' id='4925876144'>
+PASSED                                                                   [ 12%]
+tests/test_agent_marketplace_service.py::TestSkillInstallation::test_install_agent_connects_skills 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:05 [    INFO] Successfully installed marketplace agent template-001 as managed agent agent-001
+PASSED                                                                   [ 12%]
+tests/test_agent_marketplace_service.py::TestSkillInstallation::test_install_agent_creates_installation_record 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:05 [    INFO] Successfully installed marketplace agent template-001 as managed agent <MagicMock name='AgentRegistry().id' id='4934622512'>
+PASSED                                                                   [ 13%]
+tests/test_agent_marketplace_service.py::TestSkillInstallation::test_install_agent_notifies_saas 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:05 [    INFO] Successfully installed marketplace agent template-001 as managed agent <MagicMock name='AgentRegistry().id' id='4934201232'>
+PASSED                                                                   [ 13%]
+tests/test_agent_marketplace_service.py::TestSkillInstallation::test_install_agent_tracks_usage 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:05 [    INFO] Successfully installed marketplace agent template-001 as managed agent <MagicMock name='AgentRegistry().id' id='4935057488'>
+PASSED                                                                   [ 14%]
+tests/test_agent_marketplace_service.py::TestSkillInstallation::test_install_agent_handles_template_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:05 [   ERROR] Failed to install marketplace agent nonexistent-template: int() argument must be a string, a bytes-like object or a real number, not 'Mock'
+FAILED                                                                   [ 14%]
+tests/test_agent_marketplace_service.py::TestAgentUninstallation::test_uninstall_agent_removes_installation_record SKIPPED [ 15%]
+tests/test_agent_marketplace_service.py::TestAgentUninstallation::test_uninstall_agent_cleanup_linked_memory SKIPPED [ 15%]
+tests/test_agent_marketplace_service.py::TestAgentUninstallation::test_uninstall_agent_cleanup_skills SKIPPED [ 15%]
+tests/test_agent_marketplace_service.py::TestAgentUninstallation::test_uninstall_agent_removes_agent_registry SKIPPED [ 16%]
+tests/test_agent_marketplace_service.py::TestAgentUninstallation::test_uninstall_agent_handles_missing_installation SKIPPED [ 16%]
+tests/test_agent_marketplace_service.py::TestErrorHandling::test_install_agent_rolls_back_on_exception SKIPPED [ 17%]
+tests/test_agent_marketplace_service.py::TestErrorHandling::test_uninstall_agent_rolls_back_on_exception 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:05 [   ERROR] Failed to uninstall agent agent-001: Query failed
+PASSED                                                                   [ 17%]
+tests/test_agent_marketplace_service.py::TestErrorHandling::test_install_agent_handles_missing_capabilities 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:05 [    INFO] Successfully installed marketplace agent template-001 as managed agent <MagicMock name='AgentRegistry().id' id='4924245728'>
+PASSED                                                                   [ 18%]
+tests/test_marketplace_packaging_redaction.py::TestSecretShapeRedaction::test_known_key_shapes_are_redacted[Use sk-proj-4f8aBcDeFgHiJkLmNoPqRsTuVwXyZ987654321 for the sandbox account] PASSED [ 18%]
+tests/test_marketplace_packaging_redaction.py::TestSecretShapeRedaction::test_known_key_shapes_are_redacted[the PAT is ghp_a1B2c3D4e5F6g7H8i9J0k1L2m3N4o5P6q7R8s9T0u, rotate it monthly] PASSED [ 19%]
+tests/test_marketplace_packaging_redaction.py::TestSecretShapeRedaction::test_known_key_shapes_are_redacted[AWS key AKIAIOSFODNN7EXAMPLE plus the secret below] PASSED [ 19%]
+tests/test_marketplace_packaging_redaction.py::TestSecretShapeRedaction::test_known_key_shapes_are_redacted[slack bot xoxb-ZZfakeZZfixtureZZtokenZZnotZZaZZrealZZcredential posts to #ops] PASSED [ 20%]
+tests/test_marketplace_packaging_redaction.py::TestSecretShapeRedaction::test_known_key_shapes_are_redacted[Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.SflKxwRJSMeKKF2QT4fwpMeJf36POk6yJV] PASSED [ 20%]
+tests/test_marketplace_packaging_redaction.py::TestSecretShapeRedaction::test_known_key_shapes_are_redacted[config: api_key: "AbCdEfGhIjKlMnOpQrStUvWxYz0123456789AbCdEfGh" \u2014 do not commit] PASSED [ 21%]
+tests/test_marketplace_packaging_redaction.py::TestSecretShapeRedaction::test_redact_pii_includes_secret_layer PASSED [ 21%]
+tests/test_marketplace_packaging_redaction.py::TestSecretShapeRedaction::test_ordinary_prose_is_not_nuked[Please keep the secret of the trade in mind when quoting] PASSED [ 21%]
+tests/test_marketplace_packaging_redaction.py::TestSecretShapeRedaction::test_ordinary_prose_is_not_nuked[The token economy is a long game] PASSED [ 22%]
+tests/test_marketplace_packaging_redaction.py::TestSecretShapeRedaction::test_ordinary_prose_is_not_nuked[our keyword strategy for Q4] PASSED [ 22%]
+tests/test_marketplace_packaging_redaction.py::TestSecretShapeRedaction::test_ordinary_prose_is_not_nuked[the secret ingredient is patience] PASSED [ 23%]
+tests/test_marketplace_packaging_redaction.py::TestSecretShapeRedaction::test_ordinary_prose_is_not_nuked[set the timeout to 30 token intervals] PASSED [ 23%]
+tests/test_marketplace_packaging_redaction.py::TestSecretShapeRedaction::test_short_values_after_cue_words_survive PASSED [ 24%]
+tests/test_marketplace_packaging_redaction.py::TestPackagingRedactsSecrets::test_no_key_shape_reaches_the_listing 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:06 [    INFO] packaged agent agent-leaky as template 7f41a650-42f3-4d66-ac4d-b9ec5a50ab40 (achieved=1, steps=0)
+PASSED                                                                   [ 24%]
+tests/test_marketplace_packaging_redaction.py::TestPackagingRedactsSecrets::test_prose_in_the_prompt_survives 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:06 [    INFO] packaged agent agent-leaky as template 89cf7968-335a-46ff-b8fa-13858d6f548b (achieved=1, steps=0)
+PASSED                                                                   [ 25%]
+tests/test_marketplace_packaging_redaction.py::TestPlaybookWorkspaceScoping::test_only_the_agents_workspace_playbooks_ship 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:06 [    INFO] packaged agent agent-leaky as template 5fb7e09d-4f66-4b61-a287-53523922e2e7 (achieved=1, steps=0)
+PASSED                                                                   [ 25%]
+tests/test_marketplace_packaging_redaction.py::TestPlaybookWorkspaceScoping::test_workspace_less_agent_keeps_tenant_scope 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:06 [    INFO] packaged agent agent-legacy as template a4c341eb-807d-4484-b801-e1145d2d98ba (achieved=0, steps=0)
+PASSED                                                                   [ 26%]
+tests/core/test_marketplace_runtime.py::TestResolution::test_non_managed_agent_returns_none PASSED [ 26%]
+tests/core/test_marketplace_runtime.py::TestResolution::test_local_manifest_resolves_to_overrides PASSED [ 26%]
+tests/core/test_marketplace_runtime.py::TestResolution::test_missing_template_degrades_gracefully 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:06 [ WARNING] Managed agent agent-9: no local manifest for template tpl-1; running with default prompt
+PASSED                                                                   [ 27%]
+tests/core/test_marketplace_runtime.py::TestResolution::test_deactivated_template_blocks PASSED [ 27%]
+tests/core/test_marketplace_runtime.py::TestResolution::test_inactive_installation_blocks PASSED [ 28%]
+tests/core/test_marketplace_runtime.py::TestResolution::test_lazy_version_sync PASSED [ 28%]
+tests/core/test_marketplace_runtime.py::TestGuidanceRendering::test_render_contains_playbook_and_sequences PASSED [ 29%]
+tests/core/test_marketplace_runtime.py::TestGuidanceRendering::test_render_empty_when_no_guidance PASSED [ 29%]
+tests/test_covpush_w69_marketplace.py::TestEngineInit::test_default_templates_materialized PASSED [ 30%]
+tests/test_covpush_w69_marketplace.py::TestEngineInit::test_advanced_templates_materialized PASSED [ 30%]
+tests/test_covpush_w69_marketplace.py::TestEngineInit::test_industry_templates_materialized PASSED [ 31%]
+tests/test_covpush_w69_marketplace.py::TestEngineInit::test_init_skips_existing_templates PASSED [ 31%]
+tests/test_covpush_w69_marketplace.py::TestEngineInit::test_init_creates_directory_scaffolding PASSED [ 31%]
+tests/test_covpush_w69_marketplace.py::TestListTemplates::test_lists_all_local_types PASSED [ 32%]
+tests/test_covpush_w69_marketplace.py::TestListTemplates::test_category_filter PASSED [ 32%]
+tests/test_covpush_w69_marketplace.py::TestListTemplates::test_template_type_filter PASSED [ 33%]
+tests/test_covpush_w69_marketplace.py::TestListTemplates::test_tags_filter PASSED [ 33%]
+tests/test_covpush_w69_marketplace.py::TestListTemplates::test_saas_merge_dedup PASSED [ 34%]
+tests/test_covpush_w69_marketplace.py::TestListTemplates::test_saas_exception_tolerated 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:06 [   ERROR] Error fetching templates from SaaS: boom
+PASSED                                                                   [ 34%]
+tests/test_covpush_w69_marketplace.py::TestListTemplates::test_legacy_loader_tolerates_corrupt_and_non_json 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:06 [   ERROR] Error loading legacy template broken.json: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+PASSED                                                                   [ 35%]
+tests/test_covpush_w69_marketplace.py::TestListTemplates::test_legacy_loader_category_filter PASSED [ 35%]
+tests/test_covpush_w69_marketplace.py::TestListTemplates::test_advanced_loader_conversion_and_filters PASSED [ 36%]
+tests/test_covpush_w69_marketplace.py::TestListTemplates::test_advanced_loader_fallback_direct PASSED [ 36%]
+tests/test_covpush_w69_marketplace.py::TestListTemplates::test_advanced_loader_category_filter PASSED [ 36%]
+tests/test_covpush_w69_marketplace.py::TestListTemplates::test_advanced_loader_corrupt_tolerated 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:06 [   ERROR] Error loading advanced template corrupt_adv.json: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+PASSED                                                                   [ 37%]
+tests/test_covpush_w69_marketplace.py::TestListTemplates::test_industry_loader_conversion_and_filters PASSED [ 37%]
+tests/test_covpush_w69_marketplace.py::TestListTemplates::test_industry_loader_fallback_and_corrupt 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:06 [   ERROR] Error loading industry template corrupt_ind.json: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+PASSED                                                                   [ 38%]
+tests/test_covpush_w69_marketplace.py::TestGetTemplate::test_legacy_hit_increments_downloads PASSED [ 38%]
+tests/test_covpush_w69_marketplace.py::TestGetTemplate::test_corrupt_legacy_falls_through_to_advanced 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:06 [   ERROR] Error loading legacy template /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-4819/test_corrupt_legacy_falls_thro0/templates/bad_legacy.json: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+PASSED                                                                   [ 39%]
+tests/test_covpush_w69_marketplace.py::TestGetTemplate::test_industry_hit PASSED [ 39%]
+tests/test_covpush_w69_marketplace.py::TestGetTemplate::test_get_template_advanced_fallback_direct PASSED [ 40%]
+tests/test_covpush_w69_marketplace.py::TestGetTemplate::test_get_template_industry_fallback_direct PASSED [ 40%]
+tests/test_covpush_w69_marketplace.py::TestGetTemplate::test_get_template_corrupt_advanced_and_industry 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:06 [   ERROR] Error loading advanced template /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-4819/test_get_template_corrupt_adva0/templates/advanced/bad_adv.json: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+2026-11-05 20:52:06 [   ERROR] Error loading industry template /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-4819/test_get_template_corrupt_adva0/templates/industry/bad_ind.json: Expecting property name enclosed in double quotes: line 1 column 2 (char 1)
+PASSED                                                                   [ 41%]
+tests/test_covpush_w69_marketplace.py::TestGetTemplate::test_saas_fallback_hit PASSED [ 41%]
+tests/test_covpush_w69_marketplace.py::TestGetTemplate::test_saas_returns_none PASSED [ 42%]
+tests/test_covpush_w69_marketplace.py::TestGetTemplate::test_saas_raises 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:06 [   ERROR] Error fetching template missing_1 from SaaS: down
+PASSED                                                                   [ 42%]
+tests/test_covpush_w69_marketplace.py::TestWorkflowImportExport::test_import_workflow_valid PASSED [ 42%]
+tests/test_covpush_w69_marketplace.py::TestWorkflowImportExport::test_import_workflow_missing_structure PASSED [ 43%]
+tests/test_covpush_w69_marketplace.py::TestWorkflowImportExport::test_export_workflow_valid PASSED [ 43%]
+tests/test_covpush_w69_marketplace.py::TestWorkflowImportExport::test_export_workflow_missing_structure PASSED [ 44%]
+tests/test_covpush_w69_marketplace.py::TestAdvancedTemplateCreation::test_create_advanced_template_with_steps PASSED [ 44%]
+tests/test_covpush_w69_marketplace.py::TestAdvancedTemplateCreation::test_create_advanced_template_generated_id_no_steps PASSED [ 45%]
+tests/test_covpush_w69_marketplace.py::TestAdvancedTemplateCreation::test_create_workflow_from_advanced_template PASSED [ 45%]
+tests/test_covpush_w69_marketplace.py::TestAdvancedTemplateCreation::test_create_workflow_missing_template PASSED [ 46%]
+tests/test_covpush_w69_marketplace.py::TestMarketplaceRouter::test_get_templates_passthrough 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:06 [    INFO] HTTP Request: GET http://testserver/api/marketplace/templates?category=Sales&tags=saas "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [ 46%]
+tests/test_covpush_w69_marketplace.py::TestMarketplaceRouter::test_get_template_types 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:06 [    INFO] HTTP Request: GET http://testserver/api/marketplace/templates/types "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [ 47%]
+tests/test_covpush_w69_marketplace.py::TestMarketplaceRouter::test_get_featured_empty 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:06 [    INFO] HTTP Request: GET http://testserver/api/marketplace/templates/featured "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [ 47%]
+tests/test_covpush_w69_marketplace.py::TestMarketplaceRouter::test_get_featured_sorted_and_limited 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:06 [    INFO] HTTP Request: GET http://testserver/api/marketplace/templates/featured?limit=1 "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [ 47%]
+tests/test_covpush_w69_marketplace.py::TestMarketplaceRouter::test_get_template_details_found 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:06 [    INFO] HTTP Request: GET http://testserver/api/marketplace/templates/tmpl_y "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [ 48%]
+tests/test_covpush_w69_marketplace.py::TestMarketplaceRouter::test_get_template_details_404 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:06 [    INFO] HTTP Request: GET http://testserver/api/marketplace/templates/nope "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [ 48%]
+tests/test_covpush_w69_marketplace.py::TestMarketplaceRouter::test_import_template_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:06 [    INFO] HTTP Request: POST http://testserver/api/marketplace/templates/tmpl_z/import "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [ 49%]
+tests/test_covpush_w69_marketplace.py::TestMarketplaceRouter::test_import_template_not_found_is_404_not_500 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:06 [    INFO] HTTP Request: POST http://testserver/api/marketplace/templates/missing/import "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [ 49%]
+tests/test_covpush_w69_marketplace.py::TestMarketplaceRouter::test_import_template_engine_error_is_500 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:06 [    INFO] HTTP Request: POST http://testserver/api/marketplace/templates/tmpl_z/import "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [ 50%]
+tests/test_covpush_w69_marketplace.py::TestMarketplaceRouter::test_create_advanced_template_endpoint 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:06 [    INFO] HTTP Request: POST http://testserver/api/marketplace/templates/advanced "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [ 50%]
+tests/test_covpush_w69_marketplace.py::TestMarketplaceRouter::test_create_advanced_template_error_400 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:06 [    INFO] HTTP Request: POST http://testserver/api/marketplace/templates/advanced "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [ 51%]
+tests/test_covpush_w69_marketplace.py::TestMarketplaceRouter::test_create_workflow_endpoint_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:06 [    INFO] HTTP Request: POST http://testserver/api/marketplace/templates/advanced_etl_pipeline/create-workflow?workflow_name=My+ETL "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [ 51%]
+tests/test_covpush_w69_marketplace.py::TestMarketplaceRouter::test_create_workflow_endpoint_404 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:06 [    INFO] HTTP Request: POST http://testserver/api/marketplace/templates/missing/create-workflow?workflow_name=w "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [ 52%]
+tests/test_covpush_w69_marketplace.py::TestMarketplaceRouter::test_create_workflow_endpoint_400 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:06 [    INFO] HTTP Request: POST http://testserver/api/marketplace/templates/advanced_x/create-workflow?workflow_name=w "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [ 52%]
+tests/test_covpush_w69_marketplace.py::TestMarketplaceRouter::test_upload_import_valid_json 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:06 [    INFO] HTTP Request: POST http://testserver/api/marketplace/import "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [ 52%]
+tests/test_covpush_w69_marketplace.py::TestMarketplaceRouter::test_upload_import_invalid_json 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:06 [    INFO] HTTP Request: POST http://testserver/api/marketplace/import "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [ 53%]
+tests/test_covpush_w69_marketplace.py::TestMarketplaceRouter::test_upload_import_value_error_400 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:06 [    INFO] HTTP Request: POST http://testserver/api/marketplace/import "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [ 53%]
+tests/test_covpush_w69_marketplace.py::TestMarketplaceRouter::test_upload_import_other_error_500 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:06 [    INFO] HTTP Request: POST http://testserver/api/marketplace/import "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [ 54%]
+tests/test_covpush_w69_marketplace.py::TestMarketplaceRouter::test_export_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:06 [    INFO] HTTP Request: POST http://testserver/api/marketplace/export "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [ 54%]
+tests/test_covpush_w69_marketplace.py::TestMarketplaceRouter::test_export_value_error_400 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:06 [    INFO] HTTP Request: POST http://testserver/api/marketplace/export "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [ 55%]
+tests/test_covpush_w69_marketplace.py::TestMarketplaceRouter::test_export_other_error_500 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:06 [    INFO] HTTP Request: POST http://testserver/api/marketplace/export "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [ 55%]
+tests/test_covpush_w69_marketplace.py::TestMarketplaceRouter::test_statistics_empty 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:06 [    INFO] HTTP Request: GET http://testserver/api/marketplace/templates/statistics "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [ 56%]
+tests/test_covpush_w69_marketplace.py::TestMarketplaceRouter::test_statistics_populated 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:06 [    INFO] HTTP Request: GET http://testserver/api/marketplace/templates/statistics "HTTP/1.1 401 Unauthorized"
+FAILED                                                                   [ 56%]
+tests/test_covpush_w69_marketplace.py::TestModels::test_workflow_template_defaults PASSED [ 57%]
+tests/test_covpush_w69_marketplace.py::TestModels::test_advanced_template_defaults PASSED [ 57%]
+tests/test_covpush_w69_skill_marketplace.py::TestInit::test_injected_saas_client_and_registry 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:06 [    INFO] EscalationManager initialized
+2026-11-05 20:52:06 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:06 [    INFO] EscalationManager initialized
+2026-11-05 20:52:06 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 57%]
+tests/test_covpush_w69_skill_marketplace.py::TestInit::test_auto_registration_when_analytics_enabled 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:06 [    INFO] EscalationManager initialized
+2026-11-05 20:52:06 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:06 [    INFO] EscalationManager initialized
+2026-11-05 20:52:06 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 58%]
+tests/test_covpush_w69_skill_marketplace.py::TestInit::test_auto_registration_skips_when_instance_exists 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:06 [    INFO] EscalationManager initialized
+2026-11-05 20:52:06 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:06 [    INFO] EscalationManager initialized
+2026-11-05 20:52:06 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 58%]
+tests/test_covpush_w69_skill_marketplace.py::TestInit::test_auto_registration_exception_tolerated 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:06 [    INFO] EscalationManager initialized
+2026-11-05 20:52:06 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:06 [    INFO] EscalationManager initialized
+2026-11-05 20:52:06 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:06 [   ERROR] Marketplace auto-registration failed: reg failed
+PASSED                                                                   [ 59%]
+tests/test_covpush_w69_skill_marketplace.py::TestSearchSkills::test_saas_first_success 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:52:07 [    INFO] EscalationManager initialized
+2026-11-05 20:52:07 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:07 [    INFO] EscalationManager initialized
+2026-11-05 20:52:07 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:07 [    INFO] Searching Atom Agent OS marketplace: query=q, category=c
+PASSED                                                                   [ 59%]
+tests/test_covpush_w69_skill_marketplace.py::TestSearchSkills::test_local_fallback_basic 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:52:07 [    INFO] EscalationManager initialized
+2026-11-05 20:52:07 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:07 [    INFO] EscalationManager initialized
+2026-11-05 20:52:07 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:07 [    INFO] Searching Atom Agent OS marketplace: query=triage, category=None
+2026-11-05 20:52:07 [ WARNING] Failed to fetch from Atom Agent OS, falling back to local: SaaS unavailable (mocked)
+PASSED                                                                   [ 60%]
+tests/test_covpush_w69_skill_marketplace.py::TestSearchSkills::test_local_fallback_trims_query 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:52:07 [    INFO] EscalationManager initialized
+2026-11-05 20:52:07 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:07 [    INFO] EscalationManager initialized
+2026-11-05 20:52:07 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:07 [    INFO] Searching Atom Agent OS marketplace: query=   triage   , category=None
+2026-11-05 20:52:07 [ WARNING] Failed to fetch from Atom Agent OS, falling back to local: SaaS unavailable (mocked)
+PASSED                                                                   [ 60%]
+tests/test_covpush_w69_skill_marketplace.py::TestSearchSkills::test_local_fallback_category_and_type_filters 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:52:07 [    INFO] EscalationManager initialized
+2026-11-05 20:52:07 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:07 [    INFO] EscalationManager initialized
+2026-11-05 20:52:07 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 61%]
+tests/test_covpush_w69_skill_marketplace.py::TestSearchSkills::test_local_fallback_sort_variants 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:52:07 [    INFO] EscalationManager initialized
+2026-11-05 20:52:07 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:07 [    INFO] EscalationManager initialized
+2026-11-05 20:52:07 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 61%]
+tests/test_covpush_w69_skill_marketplace.py::TestSearchSkills::test_local_fallback_pagination 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:52:07 [    INFO] EscalationManager initialized
+2026-11-05 20:52:07 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:07 [    INFO] EscalationManager initialized
+2026-11-05 20:52:07 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 62%]
+tests/test_covpush_w69_skill_marketplace.py::TestSearchSkills::test_local_fallback_invalid_page_size 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:52:07 [    INFO] EscalationManager initialized
+2026-11-05 20:52:07 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:07 [    INFO] EscalationManager initialized
+2026-11-05 20:52:07 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 62%]
+tests/test_covpush_w69_skill_marketplace.py::TestGetSkillById::test_saas_hit 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:52:08 [    INFO] EscalationManager initialized
+2026-11-05 20:52:08 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:08 [    INFO] EscalationManager initialized
+2026-11-05 20:52:08 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 63%]
+tests/test_covpush_w69_skill_marketplace.py::TestGetSkillById::test_local_fallback_with_ratings 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:52:08 [    INFO] EscalationManager initialized
+2026-11-05 20:52:08 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:08 [    INFO] EscalationManager initialized
+2026-11-05 20:52:08 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:08 [ WARNING] Failed to fetch skill sk-1 from marketplace: SaaS unavailable (mocked)
+PASSED                                                                   [ 63%]
+tests/test_covpush_w69_skill_marketplace.py::TestGetSkillById::test_not_found_returns_none 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:52:08 [    INFO] EscalationManager initialized
+2026-11-05 20:52:08 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:08 [    INFO] EscalationManager initialized
+2026-11-05 20:52:08 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:08 [ WARNING] Failed to fetch skill missing from marketplace: SaaS unavailable (mocked)
+PASSED                                                                   [ 63%]
+tests/test_covpush_w69_skill_marketplace.py::TestGetCategories::test_saas_hit 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:52:08 [    INFO] EscalationManager initialized
+2026-11-05 20:52:08 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:08 [    INFO] EscalationManager initialized
+2026-11-05 20:52:08 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 64%]
+tests/test_covpush_w69_skill_marketplace.py::TestGetCategories::test_saas_empty_then_local 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:52:08 [    INFO] EscalationManager initialized
+2026-11-05 20:52:08 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:08 [    INFO] EscalationManager initialized
+2026-11-05 20:52:08 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:08 [ WARNING] Failed to fetch categories from marketplace: down
+PASSED                                                                   [ 64%]
+tests/test_covpush_w69_skill_marketplace.py::TestRateSkill::test_invalid_rating 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:52:08 [    INFO] EscalationManager initialized
+2026-11-05 20:52:08 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:08 [    INFO] EscalationManager initialized
+2026-11-05 20:52:08 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 65%]
+tests/test_covpush_w69_skill_marketplace.py::TestRateSkill::test_saas_success_returned 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:52:09 [    INFO] EscalationManager initialized
+2026-11-05 20:52:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:09 [    INFO] EscalationManager initialized
+2026-11-05 20:52:09 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:09 [    INFO] Rating submitted to Atom Agent OS marketplace: {'success': True, 'remote': 'ok'}
+PASSED                                                                   [ 65%]
+tests/test_covpush_w69_skill_marketplace.py::TestRateSkill::test_local_create_on_saas_failure 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:52:09 [    INFO] EscalationManager initialized
+2026-11-05 20:52:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:09 [    INFO] EscalationManager initialized
+2026-11-05 20:52:09 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:09 [ WARNING] Failed to submit rating to marketplace: SaaS unavailable (mocked)
+PASSED                                                                   [ 66%]
+tests/test_covpush_w69_skill_marketplace.py::TestRateSkill::test_update_existing_rating 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:52:09 [    INFO] EscalationManager initialized
+2026-11-05 20:52:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:09 [    INFO] EscalationManager initialized
+2026-11-05 20:52:09 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:09 [ WARNING] Failed to submit rating to marketplace: SaaS unavailable (mocked)
+PASSED                                                                   [ 66%]
+tests/test_covpush_w69_skill_marketplace.py::TestRateSkill::test_skill_not_found 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:52:09 [    INFO] EscalationManager initialized
+2026-11-05 20:52:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:09 [    INFO] EscalationManager initialized
+2026-11-05 20:52:09 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:09 [ WARNING] Failed to submit rating to marketplace: SaaS unavailable (mocked)
+PASSED                                                                   [ 67%]
+tests/test_covpush_w69_skill_marketplace.py::TestInstallSkill::test_saas_success 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:52:09 [    INFO] EscalationManager initialized
+2026-11-05 20:52:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:09 [    INFO] EscalationManager initialized
+2026-11-05 20:52:09 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:09 [    INFO] Installing skill sk-1 from Atom Agent OS marketplace for agent agent-1
+2026-11-05 20:52:09 [    INFO] Installing skill sk-1 for agent agent-1
+PASSED                                                                   [ 67%]
+tests/test_covpush_w69_skill_marketplace.py::TestInstallSkill::test_saas_not_success_falls_through 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:52:09 [    INFO] EscalationManager initialized
+2026-11-05 20:52:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:09 [    INFO] EscalationManager initialized
+2026-11-05 20:52:09 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:09 [    INFO] Installing skill sk-1 from Atom Agent OS marketplace for agent agent-1
+2026-11-05 20:52:09 [ WARNING] Marketplace installation failed: nope
+2026-11-05 20:52:09 [    INFO] Installing skill sk-1 for agent agent-1
+PASSED                                                                   [ 68%]
+tests/test_covpush_w69_skill_marketplace.py::TestInstallSkill::test_saas_exception_tolerated 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:52:09 [    INFO] EscalationManager initialized
+2026-11-05 20:52:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:09 [    INFO] EscalationManager initialized
+2026-11-05 20:52:09 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:09 [    INFO] Installing skill sk-1 from Atom Agent OS marketplace for agent agent-1
+2026-11-05 20:52:09 [ WARNING] Failed to install via marketplace, trying local: SaaS unavailable (mocked)
+2026-11-05 20:52:09 [    INFO] Installing skill sk-1 for agent agent-1
+PASSED                                                                   [ 68%]
+tests/test_covpush_w69_skill_marketplace.py::TestInstallSkill::test_skill_not_found 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:52:09 [    INFO] EscalationManager initialized
+2026-11-05 20:52:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:09 [    INFO] EscalationManager initialized
+2026-11-05 20:52:09 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:09 [    INFO] Installing skill missing from Atom Agent OS marketplace for agent agent-1
+2026-11-05 20:52:09 [ WARNING] Failed to install via marketplace, trying local: SaaS unavailable (mocked)
+PASSED                                                                   [ 68%]
+tests/test_covpush_w69_skill_marketplace.py::TestUninstallSkill::test_saas_success 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:52:10 [    INFO] EscalationManager initialized
+2026-11-05 20:52:10 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:10 [    INFO] EscalationManager initialized
+2026-11-05 20:52:10 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:10 [    INFO] Uninstalling skill sk-1 from Atom Agent OS marketplace for agent agent-1
+2026-11-05 20:52:10 [    INFO] Uninstalling skill sk-1 from agent agent-1
+PASSED                                                                   [ 69%]
+tests/test_covpush_w69_skill_marketplace.py::TestUninstallSkill::test_saas_not_success_and_exception 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:52:10 [    INFO] EscalationManager initialized
+2026-11-05 20:52:10 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:10 [    INFO] EscalationManager initialized
+2026-11-05 20:52:10 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:10 [    INFO] Uninstalling skill sk-1 from Atom Agent OS marketplace for agent agent-1
+2026-11-05 20:52:10 [ WARNING] Marketplace uninstall failed: no
+2026-11-05 20:52:10 [    INFO] Uninstalling skill sk-1 from agent agent-1
+2026-11-05 20:52:10 [    INFO] Uninstalling skill sk-1 from Atom Agent OS marketplace for agent agent-1
+2026-11-05 20:52:10 [ WARNING] Failed to uninstall via marketplace, trying local: down
+2026-11-05 20:52:10 [    INFO] Uninstalling skill sk-1 from agent agent-1
+PASSED                                                                   [ 69%]
+tests/test_covpush_w69_skill_marketplace.py::TestUninstallSkill::test_local_miss 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:52:10 [    INFO] EscalationManager initialized
+2026-11-05 20:52:10 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:10 [    INFO] EscalationManager initialized
+2026-11-05 20:52:10 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:10 [    INFO] Uninstalling skill missing from Atom Agent OS marketplace for agent agent-1
+2026-11-05 20:52:10 [ WARNING] Failed to uninstall via marketplace, trying local: SaaS unavailable (mocked)
+PASSED                                                                   [ 70%]
+tests/test_covpush_w69_skill_marketplace.py::TestUninstallSkill::test_success_model_without_install_count 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:52:10 [    INFO] EscalationManager initialized
+2026-11-05 20:52:10 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:10 [    INFO] EscalationManager initialized
+2026-11-05 20:52:10 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:10 [    INFO] Uninstalling skill sk-1 from Atom Agent OS marketplace for agent agent-1
+2026-11-05 20:52:10 [ WARNING] Failed to uninstall via marketplace, trying local: SaaS unavailable (mocked)
+2026-11-05 20:52:10 [    INFO] Uninstalling skill sk-1 from agent agent-1
+PASSED                                                                   [ 70%]
+tests/test_covpush_w69_skill_marketplace.py::TestUninstallSkill::test_decrement_install_count_with_fake_row 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:52:10 [    INFO] EscalationManager initialized
+2026-11-05 20:52:10 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:10 [    INFO] EscalationManager initialized
+2026-11-05 20:52:10 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:10 [    INFO] Uninstalling skill sk-9 from Atom Agent OS marketplace for agent agent-1
+2026-11-05 20:52:10 [ WARNING] Failed to uninstall via marketplace, trying local: SaaS unavailable (mocked)
+2026-11-05 20:52:10 [    INFO] Uninstalling skill sk-9 from agent agent-1
+PASSED                                                                   [ 71%]
+tests/test_covpush_w69_skill_marketplace.py::TestUninstallSkill::test_decrement_floors_at_zero 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:52:10 [    INFO] EscalationManager initialized
+2026-11-05 20:52:10 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:10 [    INFO] EscalationManager initialized
+2026-11-05 20:52:10 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:10 [    INFO] Uninstalling skill sk-9 from Atom Agent OS marketplace for agent agent-1
+2026-11-05 20:52:10 [ WARNING] Failed to uninstall via marketplace, trying local: SaaS unavailable (mocked)
+2026-11-05 20:52:10 [    INFO] Uninstalling skill sk-9 from agent agent-1
+PASSED                                                                   [ 71%]
+tests/test_covpush_w69_skill_marketplace.py::TestUninstallSkill::test_commit_exception_rolls_back 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:52:10 [    INFO] EscalationManager initialized
+2026-11-05 20:52:10 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:10 [    INFO] EscalationManager initialized
+2026-11-05 20:52:10 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:10 [    INFO] Uninstalling skill sk-9 from Atom Agent OS marketplace for agent agent-1
+2026-11-05 20:52:10 [ WARNING] Failed to uninstall via marketplace, trying local: SaaS unavailable (mocked)
+2026-11-05 20:52:10 [    INFO] Uninstalling skill sk-9 from agent agent-1
+2026-11-05 20:52:10 [   ERROR] Failed to uninstall skill sk-9: '>' not supported between instances of 'MagicMock' and 'int'
+PASSED                                                                   [ 72%]
+tests/test_covpush_w69_skill_marketplace.py::TestHelpers::test_skill_to_dict_populated 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:52:11 [    INFO] EscalationManager initialized
+2026-11-05 20:52:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:11 [    INFO] EscalationManager initialized
+2026-11-05 20:52:11 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 72%]
+tests/test_covpush_w69_skill_marketplace.py::TestHelpers::test_skill_to_dict_none_input_params 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:52:11 [    INFO] EscalationManager initialized
+2026-11-05 20:52:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:11 [    INFO] EscalationManager initialized
+2026-11-05 20:52:11 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 73%]
+tests/test_covpush_w69_skill_marketplace.py::TestHelpers::test_average_rating_hit_and_empty 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:52:11 [    INFO] EscalationManager initialized
+2026-11-05 20:52:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:11 [    INFO] EscalationManager initialized
+2026-11-05 20:52:11 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 73%]
+tests/test_covpush_w69_skill_marketplace.py::TestHelpers::test_get_skill_ratings 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:52:11 [    INFO] EscalationManager initialized
+2026-11-05 20:52:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:11 [    INFO] EscalationManager initialized
+2026-11-05 20:52:11 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 73%]
+tests/test_covpush_w69_skill_marketplace.py::TestAsyncStubs::test_sync_with_marketplace 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:52:11 [    INFO] EscalationManager initialized
+2026-11-05 20:52:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:11 [    INFO] EscalationManager initialized
+2026-11-05 20:52:11 [    INFO] CognitiveTierService initialized for workspace: default
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:11 [    INFO] Marketplace sync not yet implemented - using local database only
+PASSED                                                                   [ 74%]
+tests/test_covpush_w69_skill_marketplace.py::TestAsyncStubs::test_cache_skills 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:52:11 [    INFO] EscalationManager initialized
+2026-11-05 20:52:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:11 [    INFO] EscalationManager initialized
+2026-11-05 20:52:11 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 74%]
+tests/test_covpush_w69_skill_marketplace.py::TestAsyncStubs::test_cache_categories 
+-------------------------------- live log setup --------------------------------
+2026-11-05 20:52:11 [    INFO] EscalationManager initialized
+2026-11-05 20:52:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-05 20:52:11 [    INFO] EscalationManager initialized
+2026-11-05 20:52:11 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 75%]
+tests/test_marketplace_satellite.py::TestMarketplaceConfig::test_marketplace_config_defaults PASSED [ 75%]
+tests/test_marketplace_satellite.py::TestMarketplaceConfig::test_marketplace_config_from_env PASSED [ 76%]
+tests/test_marketplace_satellite.py::TestMarketplaceConfig::test_marketplace_config_validate_disabled PASSED [ 76%]
+tests/test_marketplace_satellite.py::TestMarketplaceConfig::test_marketplace_config_validate_no_token PASSED [ 77%]
+tests/test_marketplace_satellite.py::TestMarketplaceConfig::test_marketplace_config_validate_short_token PASSED [ 77%]
+tests/test_marketplace_satellite.py::TestMarketplaceConfig::test_marketplace_config_is_configured PASSED [ 78%]
+tests/test_marketplace_satellite.py::TestAtomSaasClient::test_client_initialization_with_config PASSED [ 78%]
+tests/test_marketplace_satellite.py::TestAtomSaasClient::test_client_load_config_from_env 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:11 [ WARNING] ATOM_SAAS_INSTANCE_ID not set - derived a placeholder instance id; federation-authenticated SaaS calls will be rejected until the registered instance id is configured
+PASSED                                                                   [ 78%]
+tests/test_marketplace_satellite.py::TestAtomSaasClient::test_fetch_components_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:11 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+PASSED                                                                   [ 79%]
+tests/test_marketplace_satellite.py::TestAtomSaasClient::test_fetch_components_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:11 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-05 20:52:11 [   ERROR] Failed to fetch components: Connection error
+PASSED                                                                   [ 79%]
+tests/test_marketplace_satellite.py::TestAtomSaasClient::test_health_check_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:11 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+PASSED                                                                   [ 80%]
+tests/test_marketplace_satellite.py::TestAtomSaasClient::test_health_check_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:11 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-05 20:52:11 [   ERROR] Health check failed: Connection failed
+PASSED                                                                   [ 80%]
+tests/test_marketplace_satellite.py::TestCanvasMarketplaceService::test_browse_components_success PASSED [ 81%]
+tests/test_marketplace_satellite.py::TestCanvasMarketplaceService::test_install_component_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:11 [    INFO] Installed marketplace component comp1 for canvas canvas1
+PASSED                                                                   [ 81%]
+tests/test_marketplace_satellite.py::TestCanvasMarketplaceService::test_install_component_not_found PASSED [ 82%]
+tests/test_marketplace_satellite.py::TestDomainMarketplaceService::test_browse_domains_success PASSED [ 82%]
+tests/test_marketplace_satellite.py::TestDomainMarketplaceService::test_install_domain_success 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:11 [    INFO] Installed domain template domain1 for tenant tenant1
+PASSED                                                                   [ 83%]
+tests/test_marketplace_satellite.py::TestDomainMarketplaceService::test_install_domain_not_found PASSED [ 83%]
+tests/test_marketplace_satellite.py::TestMarketplaceIntegration::test_marketplace_requires_api_token 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:11 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-05 20:52:42 [   ERROR] Health check failed: 
+PASSED                                                                   [ 84%]
+tests/test_marketplace_satellite.py::TestMarketplaceIntegration::test_marketplace_rejects_invalid_token PASSED [ 84%]
+tests/test_marketplace_satellite.py::TestMarketplaceIntegration::test_marketplace_connection_with_valid_token SKIPPED [ 84%]
+tests/test_covpush_w109_marketplace_usage.py::TestTrackUsage::test_new_row_success PASSED [ 85%]
+tests/test_covpush_w109_marketplace_usage.py::TestTrackUsage::test_new_row_failure PASSED [ 85%]
+tests/test_covpush_w109_marketplace_usage.py::TestTrackUsage::test_existing_row_increments PASSED [ 86%]
+tests/test_covpush_w109_marketplace_usage.py::TestTrackUsage::test_existing_row_failure_not_counted PASSED [ 86%]
+tests/test_covpush_w109_marketplace_usage.py::TestTrackUsage::test_db_exception_swallowed 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:42 [   ERROR] Failed to track marketplace usage: db down
+PASSED                                                                   [ 87%]
+tests/test_covpush_w109_marketplace_usage.py::TestGetPendingReports::test_no_reports PASSED [ 87%]
+tests/test_covpush_w109_marketplace_usage.py::TestGetPendingReports::test_report_shape_and_reset PASSED [ 88%]
+tests/test_covpush_w109_marketplace_usage.py::TestGetPendingReports::test_report_uses_last_reported_at PASSED [ 88%]
+tests/test_covpush_w109_marketplace_usage.py::TestGetPendingReports::test_zero_duration_safe PASSED [ 89%]
+tests/test_covpush_w109_marketplace_usage.py::TestGetPendingReports::test_db_exception_swallowed_returns_empty 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:42 [   ERROR] Failed to get marketplace reports: db down
+PASSED                                                                   [ 89%]
+tests/test_audit_logger.py::TestIntegrationAuditLog::test_audit_log_creates_with_required_fields PASSED [ 89%]
+tests/test_audit_logger.py::TestIntegrationAuditLog::test_audit_log_to_dict_is_structured PASSED [ 90%]
+tests/test_audit_logger.py::TestIntegrationAuditLog::test_audit_log_includes_timestamp PASSED [ 90%]
+tests/test_audit_logger.py::TestIntegrationAuditLog::test_audit_log_sanitizes_sensitive_params PASSED [ 91%]
+tests/test_audit_logger.py::TestIntegrationAuditLog::test_audit_log_sanitizes_nested_sensitive_params PASSED [ 91%]
+tests/test_audit_logger.py::TestLogIntegrationCall::test_log_integration_call_creates_audit_log 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:42 [    INFO] Integration call: gmail.send_email
+PASSED                                                                   [ 92%]
+tests/test_audit_logger.py::TestLogIntegrationCall::test_log_integration_call_captures_metadata 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:42 [    INFO] Integration call: jira.get_issue
+PASSED                                                                   [ 92%]
+tests/test_audit_logger.py::TestLogIntegrationError::test_log_integration_error_creates_audit_log 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:42 [   ERROR] Integration error: slack.send_message: API rate limit exceeded
+NoneType: None
+PASSED                                                                   [ 93%]
+tests/test_audit_logger.py::TestLogIntegrationError::test_log_integration_error_captures_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:42 [   ERROR] Integration error: jira.create_issue: Invalid credentials
+NoneType: None
+PASSED                                                                   [ 93%]
+tests/test_audit_logger.py::TestLogIntegrationTiming::test_log_integration_attempt_creates_context PASSED [ 94%]
+tests/test_audit_logger.py::TestLogIntegrationTiming::test_log_integration_complete_calculates_duration 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:42 [    INFO] Integration call: slack.send_message
+PASSED                                                                   [ 94%]
+tests/test_audit_logger.py::TestLogIntegrationTiming::test_log_integration_complete_handles_error 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:42 [   ERROR] Integration error: jira.get_issue: Issue not found
+NoneType: None
+PASSED                                                                   [ 94%]
+tests/test_audit_logger.py::TestAuditLogFormatting::test_audit_log_format_is_structured PASSED [ 95%]
+tests/test_audit_logger.py::TestAuditLogFormatting::test_multiple_audit_logs_have_unique_timestamps PASSED [ 95%]
+tests/test_covpush_w103_audit_logger.py::TestRotateAuditLogsDeterministic::test_same_day_utc_mtime_no_rotation 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:42 [    INFO] AuditLogger initialized
+PASSED                                                                   [ 96%]
+tests/test_covpush_w103_audit_logger.py::TestRotateAuditLogsDeterministic::test_yesterday_utc_mtime_rotates 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:42 [    INFO] AuditLogger initialized
+2026-11-05 20:52:42 [    INFO] Audit log rotated and compressed
+PASSED                                                                   [ 96%]
+tests/test_covpush_w103_audit_logger.py::TestRotateAuditLogsDeterministic::test_two_day_old_mtime_rotates 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:42 [    INFO] AuditLogger initialized
+2026-11-05 20:52:42 [    INFO] Audit log rotated and compressed
+PASSED                                                                   [ 97%]
+tests/test_covpush_w103_audit_logger.py::TestRotateAuditLogsDeterministic::test_missing_log_file_noop 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:42 [    INFO] AuditLogger initialized
+PASSED                                                                   [ 97%]
+tests/test_covpush_w103_audit_logger.py::TestRotateAuditLogsDeterministic::test_rotated_filename_uses_utc_date 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:42 [    INFO] AuditLogger initialized
+2026-11-05 20:52:42 [    INFO] Audit log rotated and compressed
+PASSED                                                                   [ 98%]
+tests/test_covpush_w103_audit_logger.py::TestRotateAuditLogsDeterministic::test_writes_after_rotation_land_in_fresh_log 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:42 [    INFO] AuditLogger initialized
+2026-11-05 20:52:42 [    INFO] Audit log rotated and compressed
+PASSED                                                                   [ 98%]
+tests/test_covpush_w103_audit_logger.py::TestCleanupOldAuditLogsDeterministic::test_removes_old_rotated_logs_keeps_fresh 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:42 [    INFO] AuditLogger initialized
+2026-11-05 20:52:42 [    INFO] Old audit log removed
+2026-11-05 20:52:42 [    INFO] Old audit log removed
+2026-11-05 20:52:42 [    INFO] Audit log cleanup complete
+PASSED                                                                   [ 99%]
+tests/test_covpush_w103_audit_logger.py::TestCleanupOldAuditLogsDeterministic::test_keeps_logs_within_retention 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:42 [    INFO] AuditLogger initialized
+PASSED                                                                   [ 99%]
+tests/test_covpush_w103_audit_logger.py::TestCleanupOldAuditLogsDeterministic::test_cleanup_unreadable_file_logs_error_not_raise 
+-------------------------------- live log call ---------------------------------
+2026-11-05 20:52:42 [    INFO] AuditLogger initialized
+2026-11-05 20:52:42 [   ERROR] Failed to remove old audit log
+PASSED                                                                   [100%]
+
+=================================== FAILURES ===================================
+_____ TestSkillInstallation.test_install_agent_handles_template_not_found ______
+tests/test_agent_marketplace_service.py:364: in test_install_agent_handles_template_not_found
+    assert "not found" in result["error"]
+E   assert 'not found' in "int() argument must be a string, a bytes-like object or a real number, not 'Mock'"
+------------------------------ Captured log call -------------------------------
+ERROR    core.agent_marketplace_service:agent_marketplace_service.py:740 Failed to install marketplace agent nonexistent-template: int() argument must be a string, a bytes-like object or a real number, not 'Mock'
+_____________ TestMarketplaceRouter.test_get_templates_passthrough _____________
+tests/test_covpush_w69_marketplace.py:463: in test_get_templates_passthrough
+    assert resp.status_code == 200
+E   assert 401 == 200
+E    +  where 401 = <Response [401 Unauthorized]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/api/marketplace/templates?category=Sales&tags=saas "HTTP/1.1 401 Unauthorized"
+________________ TestMarketplaceRouter.test_get_template_types _________________
+tests/test_covpush_w69_marketplace.py:470: in test_get_template_types
+    assert resp.status_code == 200
+E   assert 401 == 200
+E    +  where 401 = <Response [401 Unauthorized]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/api/marketplace/templates/types "HTTP/1.1 401 Unauthorized"
+________________ TestMarketplaceRouter.test_get_featured_empty _________________
+tests/test_covpush_w69_marketplace.py:478: in test_get_featured_empty
+    assert resp.status_code == 200
+E   assert 401 == 200
+E    +  where 401 = <Response [401 Unauthorized]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/api/marketplace/templates/featured "HTTP/1.1 401 Unauthorized"
+__________ TestMarketplaceRouter.test_get_featured_sorted_and_limited __________
+tests/test_covpush_w69_marketplace.py:489: in test_get_featured_sorted_and_limited
+    assert resp.status_code == 200
+E   assert 401 == 200
+E    +  where 401 = <Response [401 Unauthorized]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/api/marketplace/templates/featured?limit=1 "HTTP/1.1 401 Unauthorized"
+____________ TestMarketplaceRouter.test_get_template_details_found _____________
+tests/test_covpush_w69_marketplace.py:498: in test_get_template_details_found
+    assert resp.status_code == 200
+E   assert 401 == 200
+E    +  where 401 = <Response [401 Unauthorized]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/api/marketplace/templates/tmpl_y "HTTP/1.1 401 Unauthorized"
+_____________ TestMarketplaceRouter.test_get_template_details_404 ______________
+tests/test_covpush_w69_marketplace.py:505: in test_get_template_details_404
+    assert resp.status_code == 404
+E   assert 401 == 404
+E    +  where 401 = <Response [401 Unauthorized]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/api/marketplace/templates/nope "HTTP/1.1 401 Unauthorized"
+______________ TestMarketplaceRouter.test_import_template_success ______________
+tests/test_covpush_w69_marketplace.py:512: in test_import_template_success
+    assert resp.status_code == 200
+E   assert 401 == 200
+E    +  where 401 = <Response [401 Unauthorized]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/marketplace/templates/tmpl_z/import "HTTP/1.1 401 Unauthorized"
+_____ TestMarketplaceRouter.test_import_template_not_found_is_404_not_500 ______
+tests/test_covpush_w69_marketplace.py:521: in test_import_template_not_found_is_404_not_500
+    assert resp.status_code == 404
+E   assert 401 == 404
+E    +  where 401 = <Response [401 Unauthorized]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/marketplace/templates/missing/import "HTTP/1.1 401 Unauthorized"
+________ TestMarketplaceRouter.test_import_template_engine_error_is_500 ________
+tests/test_covpush_w69_marketplace.py:527: in test_import_template_engine_error_is_500
+    assert resp.status_code == 500
+E   assert 401 == 500
+E    +  where 401 = <Response [401 Unauthorized]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/marketplace/templates/tmpl_z/import "HTTP/1.1 401 Unauthorized"
+_________ TestMarketplaceRouter.test_create_advanced_template_endpoint _________
+tests/test_covpush_w69_marketplace.py:535: in test_create_advanced_template_endpoint
+    assert resp.status_code == 200
+E   assert 401 == 200
+E    +  where 401 = <Response [401 Unauthorized]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/marketplace/templates/advanced "HTTP/1.1 401 Unauthorized"
+________ TestMarketplaceRouter.test_create_advanced_template_error_400 _________
+tests/test_covpush_w69_marketplace.py:542: in test_create_advanced_template_error_400
+    assert resp.status_code == 400
+E   assert 401 == 400
+E    +  where 401 = <Response [401 Unauthorized]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/marketplace/templates/advanced "HTTP/1.1 401 Unauthorized"
+_________ TestMarketplaceRouter.test_create_workflow_endpoint_success __________
+tests/test_covpush_w69_marketplace.py:552: in test_create_workflow_endpoint_success
+    assert resp.status_code == 200
+E   assert 401 == 200
+E    +  where 401 = <Response [401 Unauthorized]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/marketplace/templates/advanced_etl_pipeline/create-workflow?workflow_name=My+ETL "HTTP/1.1 401 Unauthorized"
+___________ TestMarketplaceRouter.test_create_workflow_endpoint_404 ____________
+tests/test_covpush_w69_marketplace.py:563: in test_create_workflow_endpoint_404
+    assert resp.status_code == 404
+E   assert 401 == 404
+E    +  where 401 = <Response [401 Unauthorized]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/marketplace/templates/missing/create-workflow?workflow_name=w "HTTP/1.1 401 Unauthorized"
+___________ TestMarketplaceRouter.test_create_workflow_endpoint_400 ____________
+tests/test_covpush_w69_marketplace.py:572: in test_create_workflow_endpoint_400
+    assert resp.status_code == 400
+E   assert 401 == 400
+E    +  where 401 = <Response [401 Unauthorized]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/marketplace/templates/advanced_x/create-workflow?workflow_name=w "HTTP/1.1 401 Unauthorized"
+_____________ TestMarketplaceRouter.test_upload_import_valid_json ______________
+tests/test_covpush_w69_marketplace.py:581: in test_upload_import_valid_json
+    assert resp.status_code == 200
+E   assert 401 == 200
+E    +  where 401 = <Response [401 Unauthorized]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/marketplace/import "HTTP/1.1 401 Unauthorized"
+____________ TestMarketplaceRouter.test_upload_import_invalid_json _____________
+tests/test_covpush_w69_marketplace.py:589: in test_upload_import_invalid_json
+    assert resp.status_code == 400
+E   assert 401 == 400
+E    +  where 401 = <Response [401 Unauthorized]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/marketplace/import "HTTP/1.1 401 Unauthorized"
+___________ TestMarketplaceRouter.test_upload_import_value_error_400 ___________
+tests/test_covpush_w69_marketplace.py:598: in test_upload_import_value_error_400
+    assert resp.status_code == 400
+E   assert 401 == 400
+E    +  where 401 = <Response [401 Unauthorized]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/marketplace/import "HTTP/1.1 401 Unauthorized"
+___________ TestMarketplaceRouter.test_upload_import_other_error_500 ___________
+tests/test_covpush_w69_marketplace.py:607: in test_upload_import_other_error_500
+    assert resp.status_code == 500
+E   assert 401 == 500
+E    +  where 401 = <Response [401 Unauthorized]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/marketplace/import "HTTP/1.1 401 Unauthorized"
+__________________ TestMarketplaceRouter.test_export_success ___________________
+tests/test_covpush_w69_marketplace.py:613: in test_export_success
+    assert resp.status_code == 200
+E   assert 401 == 200
+E    +  where 401 = <Response [401 Unauthorized]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/marketplace/export "HTTP/1.1 401 Unauthorized"
+______________ TestMarketplaceRouter.test_export_value_error_400 _______________
+tests/test_covpush_w69_marketplace.py:620: in test_export_value_error_400
+    assert resp.status_code == 400
+E   assert 401 == 400
+E    +  where 401 = <Response [401 Unauthorized]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/marketplace/export "HTTP/1.1 401 Unauthorized"
+______________ TestMarketplaceRouter.test_export_other_error_500 _______________
+tests/test_covpush_w69_marketplace.py:626: in test_export_other_error_500
+    assert resp.status_code == 500
+E   assert 401 == 500
+E    +  where 401 = <Response [401 Unauthorized]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/marketplace/export "HTTP/1.1 401 Unauthorized"
+_________________ TestMarketplaceRouter.test_statistics_empty __________________
+tests/test_covpush_w69_marketplace.py:632: in test_statistics_empty
+    assert resp.status_code == 200
+E   assert 401 == 200
+E    +  where 401 = <Response [401 Unauthorized]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/api/marketplace/templates/statistics "HTTP/1.1 401 Unauthorized"
+_______________ TestMarketplaceRouter.test_statistics_populated ________________
+tests/test_covpush_w69_marketplace.py:650: in test_statistics_populated
+    assert stats["total_templates"] == 3
+           ^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'total_templates'
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/api/marketplace/templates/statistics "HTTP/1.1 401 Unauthorized"
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 438 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_agent_marketplace_goal_runs.py::TestPackaging::test_listing_carries_the_verified_record
+  /private/tmp/atom-memory-base/backend/core/graphrag_engine.py:203: SyntaxWarning: "\%" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\%"? A raw string is also an option.
+    Escaped pattern where % and _ are escaped to \%
+
+tests/test_agent_marketplace_goal_runs.py: 18 warnings
+tests/test_marketplace_packaging_redaction.py: 17 warnings
+tests/test_marketplace_satellite.py: 6 warnings
+  /private/tmp/atom-memory-base/backend/tests/conftest.py:507: SAWarning: Cannot correctly sort tables; there are unresolvable cycles between tables "agent_divisions, agent_registry, canvases, mini_apps", which is usually caused by mutually dependent foreign key constraints.  Foreign key constraints involving these tables will not be considered; this warning may raise an error in a future release.
+    for table in reversed(_all_models_base.metadata.sorted_tables):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_agent_marketplace_service.py::TestSkillInstallation::test_install_agent_handles_template_not_found
+FAILED tests/test_covpush_w69_marketplace.py::TestMarketplaceRouter::test_get_templates_passthrough
+FAILED tests/test_covpush_w69_marketplace.py::TestMarketplaceRouter::test_get_template_types
+FAILED tests/test_covpush_w69_marketplace.py::TestMarketplaceRouter::test_get_featured_empty
+FAILED tests/test_covpush_w69_marketplace.py::TestMarketplaceRouter::test_get_featured_sorted_and_limited
+FAILED tests/test_covpush_w69_marketplace.py::TestMarketplaceRouter::test_get_template_details_found
+FAILED tests/test_covpush_w69_marketplace.py::TestMarketplaceRouter::test_get_template_details_404
+FAILED tests/test_covpush_w69_marketplace.py::TestMarketplaceRouter::test_import_template_success
+FAILED tests/test_covpush_w69_marketplace.py::TestMarketplaceRouter::test_import_template_not_found_is_404_not_500
+FAILED tests/test_covpush_w69_marketplace.py::TestMarketplaceRouter::test_import_template_engine_error_is_500
+FAILED tests/test_covpush_w69_marketplace.py::TestMarketplaceRouter::test_create_advanced_template_endpoint
+FAILED tests/test_covpush_w69_marketplace.py::TestMarketplaceRouter::test_create_advanced_template_error_400
+FAILED tests/test_covpush_w69_marketplace.py::TestMarketplaceRouter::test_create_workflow_endpoint_success
+FAILED tests/test_covpush_w69_marketplace.py::TestMarketplaceRouter::test_create_workflow_endpoint_404
+FAILED tests/test_covpush_w69_marketplace.py::TestMarketplaceRouter::test_create_workflow_endpoint_400
+FAILED tests/test_covpush_w69_marketplace.py::TestMarketplaceRouter::test_upload_import_valid_json
+FAILED tests/test_covpush_w69_marketplace.py::TestMarketplaceRouter::test_upload_import_invalid_json
+FAILED tests/test_covpush_w69_marketplace.py::TestMarketplaceRouter::test_upload_import_value_error_400
+FAILED tests/test_covpush_w69_marketplace.py::TestMarketplaceRouter::test_upload_import_other_error_500
+FAILED tests/test_covpush_w69_marketplace.py::TestMarketplaceRouter::test_export_success
+FAILED tests/test_covpush_w69_marketplace.py::TestMarketplaceRouter::test_export_value_error_400
+FAILED tests/test_covpush_w69_marketplace.py::TestMarketplaceRouter::test_export_other_error_500
+FAILED tests/test_covpush_w69_marketplace.py::TestMarketplaceRouter::test_statistics_empty
+FAILED tests/test_covpush_w69_marketplace.py::TestMarketplaceRouter::test_statistics_populated
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========== 24 failed, 188 passed, 7 skipped, 487 warnings in 51.63s ===========

@@ -1,0 +1,83 @@
+{
+  "schema": "atom-oracle-agent-marketplace-publish-verification-1",
+  "status": "verified local agent-listing publication submitted for independent verification; remote push/install and live operation remain open",
+  "candidate": {
+    "branch": "codex/oracle01-marketplace-20261105",
+    "accepted_admin_base": "9d73552d249ae8ec5b05af77546faf9621bbcd47",
+    "accepted_admin_product": "5fbb377a4e1eef8fdd0013275cd8b1c9b278cd41",
+    "product_source": "fb5091069f7ce55882bfb85c23dac2d26a6730eb",
+    "executed_source": "7530ce554af4dc8ae3695ab016650e0bcf6479f4",
+    "tree_clean_at_execution": true,
+    "runtime": "real scratch SQLite; no external SaaS/network/model/provider call"
+  },
+  "checks": {
+    "owner_member_publishes": true,
+    "admin_publishes_owned_agent": true,
+    "non_owner_member_refused": true,
+    "anonymous_refused": true,
+    "listing_inherits_source_tenant": true,
+    "listing_author_price_and_flags": true,
+    "verified_record_and_playbooks_packaged": true,
+    "credentials_stripped_and_pii_redacted": true,
+    "raw_prompt_configuration_absent_from_receipts_logs": true,
+    "missing_agent_404": true,
+    "marketplace_managed_agent_refused": true,
+    "paid_gate_refused_with_explanation": true,
+    "paid_listing_with_achieved_run_succeeds": true,
+    "free_listing_always_succeeds": true,
+    "exact_source_agent_material_cas": true,
+    "stale_source_refused_peer_preserved": true,
+    "authority_deactivation_or_demotion_refused_effect_none": true,
+    "same_operation_replay_already_applied": true,
+    "changed_material_conflict": true,
+    "missing_listing_committed_unverified": true,
+    "audit_receipt_in_publication_transaction": true,
+    "audit_rollback_effect_none_no_listing": true,
+    "post_commit_readback_committed_unverified": true,
+    "lost_confirmation_effect_unknown_with_identity": true,
+    "audit_tampering_never_certified": true,
+    "no_new_table_or_migration": true,
+    "no_remote_saas_network_credential_operation": true,
+    "submitted_review_memory_skill_agent_goal_document_workflow_template_branches_independent": true
+  },
+  "results": {
+    "focused_python314": {"passed": 23, "log": "focused-314.log"},
+    "focused_python311": {"passed": 23, "log": "focused-311.log"},
+    "affected_python314": {
+      "passed": 211, "skipped": 7, "failed": 24,
+      "baseline_failures": 24,
+      "baseline_failure_list_identical": true,
+      "log": "affected-314.log", "baseline_log": "baseline-314.log"
+    },
+    "affected_python311": {
+      "passed": 211, "skipped": 7, "failed": 24,
+      "baseline_failures": 24,
+      "baseline_failure_list_identical": true,
+      "log": "affected-311.log", "baseline_log": "baseline-311.log"
+    },
+    "baseline_python314": {"passed": 188, "skipped": 7, "failed": 24, "log": "baseline-314.log"},
+    "baseline_python311": {"passed": 188, "skipped": 7, "failed": 24, "log": "baseline-311.log"}
+  },
+  "focused_breakdown": {
+    "new_decision_controls": 23,
+    "focused_total": 23
+  },
+  "baseline_exclusions": {
+    "w69_workflow_marketplace_routes": {
+      "file": "tests/test_covpush_w69_marketplace.py",
+      "count": 23,
+      "reason": "pre-existing workflow-marketplace router fixture/API drift on the accepted base; unrelated to agent-marketplace publish"
+    },
+    "install_template_not_found": {
+      "test": "tests/test_agent_marketplace_service.py::TestSkillInstallation::test_install_agent_handles_template_not_found",
+      "reason": "pre-existing int(Mock) template-not-found path; identical on base"
+    }
+  },
+  "limits": [
+    "One local publication route; remote push/install and listing reads remain out of scope",
+    "No external SaaS/network/model/provider/credential/spend/send/download/deployment operation",
+    "No new table, migration or second marketplace/approval engine",
+    "PostgreSQL runtime/soak, multi-worker serialization and whole-app ORACLE-01 remain open",
+    "Submitted review/memory/skill/agent/goal/document/workflow-template branches independent and not merged"
+  ]
+}
