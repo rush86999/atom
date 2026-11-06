@@ -1,0 +1,68 @@
+{
+  "schema": "atom-oracle-agent-decision-routes-1",
+  "executed_source": "5bebaaba96e728d6f4d0c66652095c1375c48b42",
+  "product_source": "af511bef0823051accefa415a48f065b9dffc3bf",
+  "accepted_admin_base": "9d73552d249ae8ec5b05af77546faf9621bbcd47",
+  "accepted_admin_product": "5fbb377a4e1eef8fdd0013275cd8b1c9b278cd41",
+  "prefix": "/api/agents",
+  "target": {
+    "model": "AgentRegistry",
+    "scope": "tenant_id + workspace_id with a bounded legacy/global policy",
+    "cloud_or_live_agents": "not executed"
+  },
+  "authority": {
+    "route": "require_permission(Permission.AGENT_MANAGE) plus get_current_user",
+    "roles": ["workspace_admin", "admin", "owner", "super_admin"],
+    "service": "re-reads the current User row; requires active and WORKSPACE_ADMIN+; binds status/is_active/role/raw tenant/raw workspace in a guarded no-op User UPDATE in the decision transaction",
+    "target_scope": "real foreign tenant 404; workspace-bound below ADMIN limited to same workspace or legacy workspace-less rows; ADMIN+ cross-workspace within tenant; unscoped/platform keeps global-legacy policy"
+  },
+  "routes": [
+    {
+      "method": "PATCH",
+      "path": "/api/agents/{agent_id}",
+      "handler": "api.agent_routes.update_agent",
+      "service": "core.agent_decision_write_service.update_agent",
+      "effect": "guarded UPDATE of name/description/capabilities/promotion_episode_floor plus one AuditLog receipt",
+      "transitions": "empty or matching request -> no_change/effect=none; changed material -> verified; stale/competing -> 409; same-operation replay -> already_applied",
+      "material": ["id", "tenant", "workspace", "prior name", "description", "capabilities", "promotion_episode_floor", "status"]
+    },
+    {
+      "method": "POST",
+      "path": "/api/agents/{agent_id}/promote",
+      "handler": "api.agent_routes.promote_agent",
+      "service": "core.agent_decision_write_service.promote_agent",
+      "effect": "guarded UPDATE status -> autonomous plus one AuditLog receipt",
+      "transitions": "non-autonomous -> autonomous; already autonomous new operation -> no_change/effect=none; same-operation replay -> already_applied; stale -> 409",
+      "material": ["id", "tenant", "workspace", "prior name", "description", "capabilities", "promotion_episode_floor", "prior status"]
+    }
+  ],
+  "durable_ledger": {
+    "table": "saas_audit_logs",
+    "operation_identity": "AuditLog.id is the server-owned operation id agent:<update|promote>:<supplied-or-generated>",
+    "metadata": ["schema", "operation_id", "action", "event_type", "target_id", "target_tenant_id", "target_workspace_id", "agent_name", "prior_status", "result_status", "request_digest", "prior_digest", "result_digest", "actor_id", "actor_role", "tenant_id"],
+    "sensitive_material": "no raw configuration, capability list, secret, SQL parameter or exception text in the receipt or logs",
+    "readback": "fresh session; audit fields and target state/material digest must match"
+  },
+  "result_states": {
+    "verified": "success plus additive verification/operation_id/audit_id; effect=committed",
+    "already_applied": "same operation/material; one receipt; replay=do_not_repeat",
+    "no_change": "empty/matching update or already-autonomous promote; 200 effect=none; no audit",
+    "conflict": "409 STALE_TARGET/OPERATION_CONFLICT/AUTHORITY_CHANGED; effect=none",
+    "not_applied": "409 confirmed rollback; effect=none; AGENT_TRANSACTION_ROLLED_BACK",
+    "committed_unverified": "503 effect=committed; original identity; replay=do_not_repeat",
+    "effect_unknown": "503 effect=unknown; original identity; replay=do_not_repeat; no exception text"
+  },
+  "parallel_writers": {
+    "routes": "verified decision writers",
+    "AgentGovernanceService": "registration/name/status writer; CAS detects concurrent changes to bound fields",
+    "graduation/confidence": "unrelated fields; promote binds prior status",
+    "delete_agent": "out of scope; dependent-row cleanup",
+    "audit": "existing AuditLog; additive safe receipt"
+  },
+  "not_covered": [
+    "delete/run/teach/feedback/replace",
+    "live agent execution/model/provider",
+    "PostgreSQL runtime/soak and multi-worker serialization",
+    "whole-app ORACLE-01"
+  ]
+}

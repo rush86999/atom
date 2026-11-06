@@ -1,0 +1,12 @@
+executed_source: 5bebaaba96e728d6f4d0c66652095c1375c48b42
+product_source: af511bef0823051accefa415a48f065b9dffc3bf
+accepted_admin_base: 9d73552d249ae8ec5b05af77546faf9621bbcd47
+accepted_admin_product: 5fbb377a4e1eef8fdd0013275cd8b1c9b278cd41
+branch: codex/oracle01-agent-decision-20261105
+git_status_short:
+git_log:
+5bebaaba9 test(agents): cover the verified update/promote matrix
+af511bef0 feat(agents): verify update and promote decisions
+8704cef96 docs: add the continuous delivery directive
+9d73552d2 test(admin): assert the real hashed credential in W79C create
+c4e43f4b9 docs(admin): submit the credential-proof and rollback evidence
