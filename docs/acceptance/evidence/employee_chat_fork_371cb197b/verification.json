@@ -1,0 +1,72 @@
+{
+  "schema": "atom-oracle-chat-fork-verification-1",
+  "status": "verified chat-session fork with current authority, exact source snapshot and durable receipt submitted for independent verification",
+  "candidate": {
+    "branch": "codex/oracle01-chat-fork-20261106",
+    "pr": 670,
+    "base_main": "d860072a787e6460d83260e9cb629cfa5d5ea14b",
+    "executed_source": "371cb197b9f5b69e6b1ef3b75580b501b1f7f575",
+    "prepared_branch": "codex/oracle01-chat-20261105",
+    "prepared_tip": "eede11a8f700ded74767a45a015d77e02951b452",
+    "main_changed_chat_files_since_prepared_base": false,
+    "runtime": "real scratch SQLite with fresh sessions and committed two-session interleaving; no live model/provider"
+  },
+  "contract": {
+    "authority_resolution": "current User row in a fresh session; active status required",
+    "authority_claim": "guarded no-op UPDATE User matching id, is_active, status, role and raw tenant inside the fork transaction",
+    "source_claim": "guarded no-op UPDATE ChatSession matching id, user, title, metadata and message count",
+    "snapshot_recheck": "ordered message snapshot re-read after the claim; any digest change returns 409 STALE_SOURCE",
+    "effect": "one new ChatSession, one copied ChatMessage per source row and one AuditLog receipt in one transaction",
+    "replay": "same operation/material already_applied; changed source/prefix/authority conflicts",
+    "recovery": "confirmed rollback effect=none; missing readback committed_unverified; lost confirmation effect_unknown with identity",
+    "legacy_shapes": "empty/unknown source keeps 200 success=false; optional up_to_message_id remains inclusive"
+  },
+  "new_controls": {
+    "contract_tests": 24,
+    "added_repair_during_port": "post-claim message-snapshot digest recheck",
+    "dedicated_twin": "test_stale_message_content_before_claim_refuses"
+  },
+  "results": {
+    "focused_314": {"passed": 38, "failed": 0, "log": "focused-314.log"},
+    "focused_311": {"passed": 38, "failed": 0, "log": "focused-311.log"},
+    "affected_314": {"passed": 314, "failed": 7, "log": "affected-314.log"},
+    "affected_311": {"passed": 314, "failed": 7, "log": "affected-311.log"},
+    "baseline_main_314": {"passed": 290, "failed": 7, "log": "baseline-main-314.log"},
+    "baseline_main_311": {"passed": 289, "failed": 8, "log": "baseline-main-311.log"}
+  },
+  "baseline_failure_identity": {
+    "shared_failures": 7,
+    "candidate_added_failures": 0,
+    "candidate_new_passing_controls": 24,
+    "extra_main_311_failure_not_reproduced": "tests/test_covpush_w115_chat_orchestrator.py::TestGetQwenResponse::test_success_with_history",
+    "shared": [
+      "tests/test_chat_transport.py::test_blank_reply_is_reported_as_unavailable_not_silently_empty",
+      "tests/test_covpush_w109_chat_orchestrator.py::TestProcessMessageEdgePaths::test_lkgp_sticky_hint_exception_swallowed",
+      "tests/test_covpush_w92_chat_routes.py::TestGetChatHistory::test_db_fallback",
+      "tests/test_covpush_w92_chat_routes.py::TestRoutingStats::test_disabled",
+      "tests/test_covpush_w92_chat_routes.py::TestRoutingStats::test_enabled_no_router",
+      "tests/test_covpush_w92_chat_routes.py::TestRoutingStats::test_stats_error",
+      "tests/test_covpush_w92_chat_routes.py::TestRoutingStats::test_stats_success"
+    ]
+  },
+  "checks": {
+    "current_actor_resolved_before_effect": true,
+    "authority_claimed_in_effect_transaction": true,
+    "source_session_claimed": true,
+    "message_snapshot_rechecked_after_claim": true,
+    "foreign_owner_zero_effect": true,
+    "stale_source_zero_effect": true,
+    "rollback_removes_fork_and_copies": true,
+    "replay_is_idempotent": true,
+    "no_raw_message_content_in_receipts_or_logs": true,
+    "no_new_table_or_migration": true,
+    "no_test_deleted_skipped_or_xfailed": true,
+    "no_live_model_provider_credential_spend_send_download_deployment": true
+  },
+  "limits": [
+    "real scratch SQLite only; no PostgreSQL/soak or multi-worker qualification",
+    "rename/delete/send/cancel/feedback/history and LanceDB storage remain out of scope",
+    "no merge or deployment; code-owner review remains required",
+    "7 affected failures are pre-existing main baseline identities, not repaired here"
+  ]
+}
