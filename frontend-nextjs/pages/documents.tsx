@@ -7,9 +7,12 @@ import { Input } from '../components/ui/input';
 import { Upload, FileText, CheckCircle, AlertCircle, Search, RefreshCw, File } from 'lucide-react';
 import { toast } from 'sonner';
 import api from '../lib/api';
+import { useProductProfile } from '../lib/product-profile';
 
 export default function DocumentsPage() {
     const router = useRouter();
+    const { isCapabilityEnabled } = useProductProfile();
+    const searchEnabled = isCapabilityEnabled('search');
     const [isUploading, setIsUploading] = useState(false);
     const [dragActive, setDragActive] = useState(false);
     const [uploadStatus, setUploadStatus] = useState<{ type: 'success' | 'error', message: string } | null>(null);
@@ -50,7 +53,7 @@ export default function DocumentsPage() {
             if (response.status < 300) {
                 setUploadStatus({
                     type: 'success',
-                    message: `Successfully uploaded "${file.name}". It is now searchable.`
+                    message: `Successfully uploaded "${file.name}". It is now available to your agent.`
                 });
                 toast.success("Document uploaded successfully");
                 fetchDocuments(); // Refresh list
@@ -183,33 +186,62 @@ export default function DocumentsPage() {
                     {/* Quick Actions / Status */}
                     <Card>
                         <CardHeader>
-                            <CardTitle>Search & Verify</CardTitle>
+                            <CardTitle>{searchEnabled ? 'Search & Verify' : 'Search'}</CardTitle>
                             <CardDescription>
-                                Test your uploaded documents immediately.
+                                {searchEnabled
+                                    ? 'Test your uploaded documents immediately.'
+                                    : 'Search is not part of this release.'}
                             </CardDescription>
                         </CardHeader>
                         <CardContent className="space-y-4">
-                            <div className="bg-muted/50 p-4 rounded-lg">
-                                <h4 className="font-medium flex items-center gap-2 mb-2">
-                                    <FileText className="h-4 w-4" />
-                                    How it works
-                                </h4>
-                                <ul className="text-sm text-muted-foreground space-y-2 list-disc pl-5">
-                                    <li>Documents are parsed and split into chunks.</li>
-                                    <li>Chunks are embedded using AI models.</li>
-                                    <li>They are stored in LanceDB for semantic search.</li>
-                                    <li>Agents can access this knowledge immediately.</li>
-                                </ul>
-                            </div>
+                            {searchEnabled ? (
+                                <>
+                                    <div className="bg-muted/50 p-4 rounded-lg">
+                                        <h4 className="font-medium flex items-center gap-2 mb-2">
+                                            <FileText className="h-4 w-4" />
+                                            How it works
+                                        </h4>
+                                        <ul className="text-sm text-muted-foreground space-y-2 list-disc pl-5">
+                                            <li>Documents are parsed and split into chunks.</li>
+                                            <li>Chunks are embedded using AI models.</li>
+                                            <li>They are stored in LanceDB for semantic search.</li>
+                                            <li>Agents can access this knowledge immediately.</li>
+                                        </ul>
+                                    </div>
 
-                            <Button
-                                className="w-full"
-                                variant="outline"
-                                onClick={() => router.push('/search')}
-                            >
-                                <Search className="mr-2 h-4 w-4" />
-                                Go to Search Page
-                            </Button>
+                                    <Button
+                                        className="w-full"
+                                        variant="outline"
+                                        onClick={() => router.push('/search')}
+                                    >
+                                        <Search className="mr-2 h-4 w-4" />
+                                        Go to Search Page
+                                    </Button>
+                                </>
+                            ) : (
+                                <>
+                                    <p className="text-sm text-muted-foreground">
+                                        Cross-surface search is deferred in this release.
+                                        Your uploaded documents remain available to your
+                                        agent in Chat.
+                                    </p>
+                                    <Button
+                                        className="w-full"
+                                        onClick={() => router.push('/chat')}
+                                    >
+                                        <FileText className="mr-2 h-4 w-4" />
+                                        Ask in Chat
+                                    </Button>
+                                    <Button
+                                        className="w-full"
+                                        variant="outline"
+                                        onClick={() => router.push('/agents')}
+                                    >
+                                        <Search className="mr-2 h-4 w-4" />
+                                        Open Agents
+                                    </Button>
+                                </>
+                            )}
                         </CardContent>
                     </Card>
                 </div>

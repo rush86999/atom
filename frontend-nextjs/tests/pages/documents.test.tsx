@@ -8,6 +8,9 @@
 import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import DocumentsPage from "@/pages/documents";
+import { ProductProfileProvider } from "@/lib/product-profile";
+
+const originalFetch = global.fetch;
 
 const mockRouterPush = jest.fn();
 
@@ -76,6 +79,10 @@ describe("DocumentsPage", () => {
     apiImpl(mockPost, () => ({ status: 200, data: { success: true } }));
   });
 
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
   test("renders page header and upload area", async () => {
     render(<DocumentsPage />);
     expect(screen.getByText("Knowledge Base")).toBeInTheDocument();
@@ -107,9 +114,43 @@ describe("DocumentsPage", () => {
     consoleSpy.mockRestore();
   });
 
-  test("go to search page navigates", async () => {
+  test("deferred search profile shows unavailable copy and a supported next action", async () => {
     render(<DocumentsPage />);
     await waitFor(() => expect(screen.getByText("Onboarding Guide")).toBeInTheDocument());
+
+    expect(screen.getByText("Search is not part of this release.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Go to Search Page/ })).not.toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: /Ask in Chat/ }));
+    expect(mockRouterPush).toHaveBeenCalledWith("/chat");
+  });
+
+  test("supported search profile keeps the search card and navigates", async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        profile: "full",
+        version: "test",
+        statement: "Full test profile",
+        capabilities: {
+          documents: { label: "Data", enabled: true },
+          search: { label: "Search", enabled: true },
+        },
+        enabled_capabilities: ["documents", "search"],
+        deferred_capabilities: [],
+        routes: { "/documents": "documents", "/search": "search" },
+      }),
+    }) as any;
+
+    render(
+      <ProductProfileProvider>
+        <DocumentsPage />
+      </ProductProfileProvider>
+    );
+    await waitFor(() =>
+      expect(screen.getByRole("button", { name: /Go to Search Page/ })).toBeInTheDocument()
+    );
+
     fireEvent.click(screen.getByRole("button", { name: /Go to Search Page/ }));
     expect(mockRouterPush).toHaveBeenCalledWith("/search");
   });
