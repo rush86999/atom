@@ -51,17 +51,12 @@ class SourceAuthority:
         self.workspace_id = str(workspace_id)
         self.tenant_id = str(tenant_id)
 
-    def source(
-        self, name: str, payload: Any,
-        *,
+    def _binding(
+        self, path: Path, *,
         resource_id: Optional[str] = None,
-    ) -> Tuple[Dict[str, Any], str]:
-        """Create one real fixture file and its typed controlled binding."""
-        path = (self.root / name).resolve()
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(payload, sort_keys=True))
+    ) -> Dict[str, Any]:
         digest = _sha256_file(path)
-        binding = {
+        return {
             "resource_id": str(resource_id or f"fixture:{path.name}"),
             "dataset_name": None,
             "source": "controlled_fixture",
@@ -88,7 +83,31 @@ class SourceAuthority:
             "tenant_id": self.tenant_id,
             "internal_fixture": True,
         }
-        return binding, str(path)
+
+    def source(
+        self, name: str, payload: Any,
+        *,
+        resource_id: Optional[str] = None,
+    ) -> Tuple[Dict[str, Any], str]:
+        """Create one real fixture file and its typed controlled binding."""
+        path = (self.root / name).resolve()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps(payload, sort_keys=True))
+        return self._binding(path, resource_id=resource_id), str(path)
+
+    def bind_path(
+        self, step: Dict[str, Any], path: Any,
+        *,
+        resource_id: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Bind a read step to an existing real file it will actually read."""
+        path = Path(path).resolve()
+        binding = self._binding(path, resource_id=resource_id)
+        inputs = dict(step.get("inputs") or {})
+        inputs["resource_binding"] = binding
+        inputs["path"] = str(path)
+        step["inputs"] = inputs
+        return step
 
     def bind(self, step: Dict[str, Any], name: str) -> Dict[str, Any]:
         """Bind a pre-applied read to a real file holding its accepted result.
