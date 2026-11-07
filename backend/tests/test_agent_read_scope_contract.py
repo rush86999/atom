@@ -24,6 +24,7 @@ from core.auth import get_current_user
 from core.database import Base, get_db
 from core.models import (
     AgentExecution,
+    AgentJob,
     AgentRegistry,
     Tenant,
     User,
@@ -254,6 +255,30 @@ def test_deactivated_stale_principal_is_refused(world):
     assert response.status_code == 403, response.text
 
 
+def test_stale_role_is_not_trusted_for_the_read(world):
+    # The dependency override still carries the old admin role, so only the
+    # authoritative reload can catch the persisted role change.
+    stale_admin = world.actors["admin-1"]
+    _set_user(world, "admin-1", role="unknown-role")
+
+    response = world.client(stale_admin).get("/api/agents/history")
+    assert response.status_code == 403, response.text
+
+
+def test_unavailable_authority_store_is_not_a_successful_read(world):
+    with world.engine.begin() as connection:
+        connection.execute(text("DROP TABLE users"))
+
+    response = world.client(world.actors["member-1"]).get(
+        "/api/agents/history")
+    assert response.status_code == 503, response.text
+    body = response.json()
+    payload = body.get("detail") or body
+    assert payload.get("success") is False
+    assert payload["error"]["code"] == "AGENT_READ_AUTHORITY_UNAVAILABLE"
+    assert "Traceback" not in response.text
+
+
 def test_agent_list_detail_status_and_graduation_are_workspace_scoped(world):
     member = world.client(world.actors["member-1"])
 
@@ -286,6 +311,7 @@ def test_history_readback_does_not_change_durable_rows(world):
             AgentExecution.id).all()
         before_state = [
             (row.id, row.status, row.result_summary) for row in before]
+        jobs_before = db.query(AgentJob).count()
     finally:
         db.close()
 
@@ -298,9 +324,11 @@ def test_history_readback_does_not_change_durable_rows(world):
             AgentExecution.id).all()
         after_state = [
             (row.id, row.status, row.result_summary) for row in after]
+        jobs_after = db.query(AgentJob).count()
     finally:
         db.close()
     assert after_state == before_state
+    assert jobs_after == jobs_before
 
 
 def test_unavailable_history_store_is_not_a_successful_empty_list(world):
