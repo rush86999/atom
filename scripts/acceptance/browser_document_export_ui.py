@@ -249,6 +249,17 @@ def _query_key_names(url: str) -> List[str]:
     return sorted(parse_qs(urlparse(url).query).keys())
 
 
+FORBIDDEN_EXPORT_QUERY_PARAMS = (
+    "path", "url", "file_path", "locator", "download", "kind",
+    "content_kind", "original",
+)
+
+
+def _has_forbidden_export_query(url: str) -> bool:
+    keys = set(_query_key_names(url))
+    return any(key in keys for key in FORBIDDEN_EXPORT_QUERY_PARAMS)
+
+
 def _fixture_document(run_id: str) -> Tuple[str, str, str]:
     """Build one deterministic synthetic TXT whose tail is past 20k chars."""
     safe = re.sub(r"[^a-z0-9]+", "-", str(run_id).lower()).strip("-")
@@ -2650,11 +2661,9 @@ def _run_execute(args: argparse.Namespace) -> int:
                         "request_format_exact": (
                             _query_param(export_response.url, "format")
                             == export_format),
-                        "request_has_no_client_path_param": not any(
-                            key in _query_key_names(export_response.url)
-                            for key in ("path", "url", "file_path",
-                                        "locator", "download", "kind",
-                                        "content_kind", "original")),
+                        "request_has_no_client_path_param": (
+                            not _has_forbidden_export_query(
+                                export_response.url)),
                         "exactly_one_export_request": request_count == 1,
                         "download_failure_absent": failure is None,
                         "download_saved": save_error is None,

@@ -147,6 +147,10 @@ def test_query_key_names_keeps_forbidden_keys(driver):
     assert driver._query_key_names(
         "http://localhost:1/api/documents/x/export?format=text&path=/tmp"
     ) == ["format", "path"]
+    assert driver._has_forbidden_export_query(
+        "http://localhost:1/api/documents/x/export?format=text&path=/tmp")
+    assert not driver._has_forbidden_export_query(
+        "http://localhost:1/api/documents/x/export?format=text")
 
 
 def test_checkset_rejects_empty_or_false(driver):
