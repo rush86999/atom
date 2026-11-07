@@ -100,3 +100,21 @@ def test_missing_order_line_identity_cannot_borrow_fulfillment_order_line_id(env
     result = _call(_agent(), _fulfillment_args(op, notify_customer=False), _context(op))
     assert len(transport.posts) == 0, 'FO-line id was substituted for missing order-line identity before dispatch'
     assert result.get('success') is not True, result
+
+
+def test_completed_official_line_id_cannot_be_overridden_by_optional_line_item_id(env, monkeypatch):
+    _oracle(monkeypatch)
+    _add_store(env)
+    transport = FakeShopifyTransport()
+    def conflicting_completed_identity(identity, item):
+        item = copy.deepcopy(item)
+        for line in item['line_items']:
+            line['line_item_id'] = line['id']
+            line['id'] = 'foreign-order-line'
+        return item
+    transport.read_override = conflicting_completed_identity
+    _install_transport(monkeypatch, transport)
+    op = 'conflicting-completed-line-' + uuid.uuid4().hex
+    result = _call(_agent(), _fulfillment_args(op, notify_customer=False), _context(op))
+    assert len(transport.posts) == 1
+    assert result.get('oracle_verified') is not True, 'official completed line id was overridden by contradictory optional alias'
