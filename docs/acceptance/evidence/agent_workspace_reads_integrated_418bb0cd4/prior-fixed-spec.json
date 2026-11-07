@@ -1,0 +1,23 @@
+{
+  "executed_source": "469f4df257939d409c4ba733577bc6c45172d403",
+  "native_source": "2a92e7f27 + test successor4aef8e318",
+  "scratch": "/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-agent-read-scope-fixed-kbiwtiph",
+  "command": [
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "tests/test_agent_read_scope_contract.py",
+    "tests/test_phase27_scheduler.py::TestPhase27Scheduler::test_history_endpoint",
+    "tests/test_agent_routes_coverage.py",
+    "tests/test_agent_replace_scope_contract.py",
+    "tests/test_agent_run_admission_contract.py",
+    "/private/tmp/test_lead_agent_history_workspace.py",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-agent-read-scope-fixed-kbiwtiph/pytest",
+    "--junitxml=/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-agent-read-scope-fixed-kbiwtiph/result.xml",
+    "-q",
+    "--tb=short"
+  ],
+  "scope": "public reader/auth/DB boundary plus neighboring route/admission/replace controls; no live model/provider"
+}

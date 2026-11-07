@@ -1,0 +1,22 @@
+{
+  "executed_source": "418bb0cd415f98e93ee9df587533f0a5e0595160",
+  "scratch": "/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-agent-read-integrated-tgcl1210",
+  "command": [
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "tests/test_agent_read_scope_contract.py",
+    "tests/test_phase27_scheduler.py::TestPhase27Scheduler::test_history_endpoint",
+    "tests/test_agent_routes_coverage.py",
+    "tests/test_agent_replace_scope_contract.py",
+    "tests/test_agent_run_admission_contract.py",
+    "/private/tmp/test_lead_agent_history_workspace.py",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-agent-read-integrated-tgcl1210/pytest",
+    "--junitxml=/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-agent-read-integrated-tgcl1210/result.xml",
+    "-q",
+    "--tb=short"
+  ],
+  "scope": "current-main integrated public read routes plus neighboring admission/replace; controlled authentication, no model"
+}

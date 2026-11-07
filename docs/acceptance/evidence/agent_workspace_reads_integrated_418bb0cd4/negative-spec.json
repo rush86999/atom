@@ -1,0 +1,18 @@
+{
+  "executed_source": "dd871b2c6f771466eedea1b7e62866189b0273ee",
+  "scratch": "/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-agent-history-workspace-if4ss8s9",
+  "probe_sha256": "99380255924c4fa65011d3b2d781adbb2900358ca6dca162b67a7d487eeae0c0",
+  "command": [
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "/private/tmp/test_lead_agent_history_workspace.py",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-agent-history-workspace-if4ss8s9/pytest",
+    "--junitxml=/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-agent-history-workspace-if4ss8s9/result.xml",
+    "-q",
+    "--tb=short"
+  ],
+  "scope": "same tenant, two supported workspaces; real public history route and scratch DB, authentication leaf controlled; no model calls"
+}
