@@ -1,0 +1,15 @@
+{
+  "exit_code": 0,
+  "ok": true,
+  "durable_owner_pid_first_process": 45708,
+  "successor_server_pid_reported_by_probe": 45778,
+  "distinct_os_process_pids": true,
+  "job_id": "150fdfbb-2780-4fae-bdec-473ab3f219df",
+  "execution_id": "81d9eab9-726d-428e-b02a-4c236d1c2b25",
+  "correlation_id": "f46126ad-a8e9-48e2-b316-eef51dd42589",
+  "model_calls": 3,
+  "resumed_prompt_has_answer": true,
+  "recovery_after_restart": "agent_recovered=0; waiting rows untouched",
+  "registered_effect": "one board_tasks row, Quarterly close checklist (backlog), oracle_verified=true",
+  "note": "drive.py's final first_pid field actually reports the successor process; the first process PID above comes from the durable execution owner metadata in standalone-process-state.json. The committed process test records and asserts both PIDs directly."
+}
