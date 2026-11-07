@@ -107,6 +107,7 @@ export default function AgentJobWaitPanel({ agentId, jobId, onForget }: Props) {
   const jobRef = useRef<AgentJobReadback | null>(null);
   const loadRef = useRef<(() => Promise<void>) | null>(null);
   const applyRef = useRef<((next: AgentJobReadback | null) => void) | null>(null);
+  const submittingRef = useRef(false);
   const onForgetRef = useRef(onForget);
   useEffect(() => {
     onForgetRef.current = onForget;
@@ -134,6 +135,7 @@ export default function AgentJobWaitPanel({ agentId, jobId, onForget }: Props) {
     setError(null);
     setNotice(null);
     setSubmitting(false);
+    submittingRef.current = false;
     setLoading(Boolean(agentId && jobId));
     if (!agentId || !jobId) {
       loadRef.current = null;
@@ -226,10 +228,19 @@ export default function AgentJobWaitPanel({ agentId, jobId, onForget }: Props) {
     const current = jobRef.current;
     const wait = current?.wait;
     const text = answer.trim();
-    if (!agentId || !jobId || !wait || !wait.can_answer || !text || submitting) {
+    if (
+      !agentId
+      || !jobId
+      || !wait
+      || !wait.can_answer
+      || !text
+      || submitting
+      || submittingRef.current
+    ) {
       return;
     }
     const key = jobKeyRef.current;
+    submittingRef.current = true;
     setSubmitting(true);
     setError(null);
     setNotice(null);
@@ -312,6 +323,7 @@ export default function AgentJobWaitPanel({ agentId, jobId, onForget }: Props) {
         );
       }
     } finally {
+      submittingRef.current = false;
       if (jobKeyRef.current === key) setSubmitting(false);
     }
   }, [agentId, jobId, answer, submitting, apply]);
