@@ -88,9 +88,10 @@ Not allowed / not claimed:
 
 The existing repo precedent for this split is
 `backend/tests/test_agent_generic_information_wait.py`: real routes, real
-lifecycle/registry, real `tasks.create` and default oracle; only the model
-transport is doubled and explicitly labelled. The same rule applies here, but
-through the browser and a live scratch server.
+lifecycle/registry, real `tasks.create` and default oracle; `GenericAgent._react_step`
+is doubled, which is high-level controlled reasoning, not transport-only
+coverage. The proposed loopback provider-shim browser run must separately
+exercise the real structured consumer before it can claim transport-only scope.
 
 ---
 
@@ -135,14 +136,13 @@ process-global pop counter. This is what makes the restart honest. The shim
 capture must show one provider call per reasoning step and no polling while
 waiting.
 
-Fallback if the existing shim's text completion is not accepted by the real
-structured consumer: use the existing process-test pattern from
-`test_agent_generic_information_wait.py` — a scratch launcher that imports the
-app after installing the `LLMService.generate_structured` transport double,
-then serves it. Keep that double inside the scratch harness, label it
-`transport-only / simulated high-level reasoning`, and do not change production
-code or add a runtime flag. The provider-shim route is preferred because it is
-already an established acceptance mechanism.
+If the provider shim's envelope is not accepted by the real structured consumer,
+preserve that failure and fix only the scratch response/protocol fixture after
+inspecting the actual prompt and schema. Do not switch to `_react_step` or
+another higher-level double and keep a transport-only claim. A deliberately
+higher-level UI-only experiment must be labelled separately and cannot satisfy
+the structured-consumer part of this planned acceptance. No such fallback has
+been executed or qualified by this preparation document.
 
 ---
 
@@ -168,10 +168,11 @@ Use the existing acceptance interpreter, not the preparation worktree:
   or the equivalent. Do not start a second Next dev server in the user's
   `frontend-nextjs` tree.
 
-Disk budget: use the existing `storage_policy` refusal before any build. At
-preparation time the workspace had roughly 2.3 GB free. A scratch world with a
-code export, small fixture DB, one run directory and a frontend copy fits the
-stated 300–800 MB envelope; do not build if the guard refuses.
+Disk budget: use the existing `storage_policy` refusal before any build. Re-read actual free space immediately before launch and measure the existing
+export/build sizes. This plan has not measured the final world or frontend build;
+there is no qualified 300–800 MB size estimate. Do not build if the guard refuses.
+Preserve any original databases in checksum-verified cold archives when reclaiming
+completed owned fixtures; record their archive location and restoration method.
 
 ---
 
