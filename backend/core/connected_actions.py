@@ -291,7 +291,7 @@ def is_connected_mutation(action: str) -> bool:
     """True for connected write classes that require a frozen request binding."""
     return str(action or "").endswith(
         ("books.create_bill", "books.create_estimate",
-         "outlook.create_draft"))
+         "outlook.create_draft", "shopify_create_product"))
 
 
 def oracle_request_binding(
@@ -339,6 +339,15 @@ def oracle_request_binding(
             binding.update({
                 "provider": "outlook",
                 "target": str(payload.get("subject") or ""),
+                "payload_sha256": _payload_digest(payload),
+            })
+        elif name.endswith("shopify_create_product"):
+            from core.shopify_mutations import product_payload
+
+            payload = product_payload(args)
+            binding.update({
+                "provider": "shopify",
+                "target": str(payload.get("title") or ""),
                 "payload_sha256": _payload_digest(payload),
             })
     except Exception:  # noqa: BLE001 - malformed arguments stay unbound

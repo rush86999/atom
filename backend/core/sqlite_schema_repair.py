@@ -93,6 +93,7 @@ def repair_known_drift() -> None:
             ExperienceItem,
             GoalRun,
             Playbook,
+            TaskOperationRecord,
         )
 
         with get_db_session() as db:
@@ -109,6 +110,11 @@ def repair_known_drift() -> None:
             # docs/architecture/GOAL_RUN_ORCHESTRATION.md.
             ensure_sqlite_columns(engine, Canvas)
             ensure_sqlite_columns(engine, GoalRun)
+            # task_operation_records.result_json: durable exact provider
+            # identity/material for a confirmed effect, so a replay can re-read
+            # the same resource instead of guessing or permanently downgrading
+            # a known success. Local SQLite files predate this column.
+            ensure_sqlite_columns(engine, TaskOperationRecord)
             # agent_templates.verified_record (goal-run evidence on sellable
             # listings) — see 20260912_agent_verified_record.
             ensure_sqlite_columns(engine, AgentTemplate)
