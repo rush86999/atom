@@ -7,6 +7,8 @@ checkout. A disk-only check can pass while the declared logs are ignored by
 ``.gitignore`` or while a manifest hash was collected from a later working tree.
 This checker reads both sides from Git:
 
+* The manifest itself is read from the selected Git ref (or index), never
+  from an unstaged working-tree copy. Named refs are resolved once per check.
 * ``source_files`` are compared against ``git show <executed_source>:<path>``;
   evidence bundles that call their frozen source ``runtime_source`` are also
   supported;
@@ -70,7 +72,6 @@ def _sha(data: bytes) -> str:
 
 
 def verify(repo: Path, evidence: Path, evidence_ref: str, strict: bool) -> Dict:
-    manifest_path = evidence / "MANIFEST.json"
     result: Dict = {
         "evidence": str(evidence),
         "evidence_ref": evidence_ref,
@@ -80,9 +81,34 @@ def verify(repo: Path, evidence: Path, evidence_ref: str, strict: bool) -> Dict:
         "artifact_total": 0,
         "extra_tracked": [],
         "failures": [],
+        "passed": False,
     }
     try:
-        manifest = json.loads(manifest_path.read_text())
+        evidence_rel = evidence.resolve().relative_to(repo.resolve()).as_posix()
+    except ValueError:
+        result["failures"].append("evidence directory is outside the Git worktree")
+        return result
+    result["evidence_path"] = evidence_rel
+    selected_ref = (
+        evidence_ref if evidence_ref in INDEX_REFS
+        else _resolve_commit(repo, evidence_ref))
+    if not selected_ref:
+        result["failures"].append(f"evidence ref does not resolve: {evidence_ref!r}")
+        return result
+    if evidence_ref not in INDEX_REFS:
+        result["evidence_ref_commit"] = selected_ref
+    manifest_rel = f"{evidence_rel}/MANIFEST.json"
+    try:
+        manifest_bytes = _blob(repo, selected_ref, manifest_rel)
+        if manifest_bytes is None:
+            raise ValueError(f"manifest missing at {evidence_ref}: {manifest_rel}")
+        manifest = json.loads(manifest_bytes)
+        if not isinstance(manifest, dict):
+            raise ValueError("manifest must be a JSON object")
+        for collection in ("source_files", "artifacts"):
+            if manifest.get(collection) is not None and not isinstance(
+                    manifest[collection], dict):
+                raise ValueError(f"manifest {collection} must be an object")
     except Exception as exc:  # noqa: BLE001
         result["failures"].append(f"manifest unreadable: {exc}")
         return result
@@ -115,20 +141,12 @@ def verify(repo: Path, evidence: Path, evidence_ref: str, strict: bool) -> Dict:
             else:
                 result["source_ok"] += 1
 
-    try:
-        evidence_rel = evidence.resolve().relative_to(repo.resolve()).as_posix()
-    except ValueError:
-        result["failures"].append(
-            "evidence directory is outside the Git worktree")
-        evidence_rel = ""
-    result["evidence_path"] = evidence_rel
-
     artifacts = manifest.get("artifacts") or {}
     result["artifact_total"] = len(artifacts)
     if evidence_rel:
         for name, expected in sorted(artifacts.items()):
             rel = f"{evidence_rel}/{Path(name).as_posix()}"
-            data = _blob(repo, evidence_ref, rel)
+            data = _blob(repo, selected_ref, rel)
             if data is None:
                 result["failures"].append(
                     f"artifact missing at {evidence_ref}: {rel}")
@@ -144,7 +162,7 @@ def verify(repo: Path, evidence: Path, evidence_ref: str, strict: bool) -> Dict:
         }
         manifest_rel = f"{evidence_rel}/MANIFEST.json"
         listed.add(manifest_rel)
-        tracked = set(_tracked(repo, evidence_ref, evidence_rel))
+        tracked = set(_tracked(repo, selected_ref, evidence_rel))
         if manifest_rel not in tracked:
             result["failures"].append(
                 f"manifest is not tracked at {evidence_ref}: {manifest_rel}")
