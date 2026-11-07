@@ -1,0 +1,182 @@
+
+tests/test_lead_personal_information_answer.py::test_public_information_answer_uses_effective_personal_workspace[False] 
+-------------------------------- live log setup --------------------------------
+2026-11-07 10:05:50 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-07 10:05:50 [    INFO] EscalationManager initialized
+2026-11-07 10:05:50 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 10:05:50 [    INFO] EscalationManager initialized
+2026-11-07 10:05:50 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 10:05:50 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 10:05:50 [    INFO] AgentTaskRegistry initialized
+2026-11-07 10:05:50 [    INFO] MCP Service initialized
+-------------------------------- live log call ---------------------------------
+2026-11-07 10:05:50 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 10:05:50 [    INFO] EscalationManager initialized
+2026-11-07 10:05:50 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 10:05:50 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 10:05:50 [    INFO] EscalationManager initialized
+2026-11-07 10:05:50 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 10:05:50 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 10:05:50 [    INFO] Executing Agent Agent One with ReAct Loop. Input: prepare the closing task
+2026-11-07 10:05:50 [    INFO] Agent Agent One (a1) starting task: prepare the closing task
+2026-11-07 10:05:50 [    INFO] EscalationManager initialized
+2026-11-07 10:05:50 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 10:05:50 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 10:05:50 [    INFO] LanceDBHandler initialized. ID: 5071297808. LANCEDB_AVAILABLE: True
+2026-11-07 10:05:50 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 10:05:50 [    INFO] Connecting to LanceDB at /private/tmp/atom-source-trigger-lead-review/backend/data/atom_memory with storage_options=None
+2026-11-07 10:05:50 [    INFO] LanceDB connected successfully
+2026-11-07 10:05:50 [    INFO] Recorded outcome for a1: failure
+2026-11-07 10:05:50 [    INFO] EscalationManager initialized
+2026-11-07 10:05:50 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 10:05:50 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-07 10:05:50 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 1}
+2026-11-07 10:05:50 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=readback-title "HTTP/1.1 202 Accepted"
+2026-11-07 10:05:50 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 10:05:50 [    INFO] EscalationManager initialized
+2026-11-07 10:05:50 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 10:05:50 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 10:05:50 [    INFO] EscalationManager initialized
+2026-11-07 10:05:50 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 10:05:50 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 10:05:50 [    INFO] Executing Agent Agent One with ReAct Loop. Input: prepare the closing task
+2026-11-07 10:05:50 [    INFO] Agent Agent One (a1) starting task: prepare the closing task
+2026-11-07 10:05:50 [    INFO] EscalationManager initialized
+2026-11-07 10:05:50 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 10:05:50 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 10:05:50 [    INFO] LanceDBHandler initialized. ID: 5075888208. LANCEDB_AVAILABLE: True
+2026-11-07 10:05:50 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 10:05:50 [    INFO] Connecting to LanceDB at /private/tmp/atom-source-trigger-lead-review/backend/data/atom_memory with storage_options=None
+2026-11-07 10:05:50 [    INFO] LanceDB connected successfully
+2026-11-07 10:05:50 [    INFO] Recorded outcome for a1: success
+2026-11-07 10:05:50 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-07 10:05:50 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 2}
+2026-11-07 10:05:50 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/jobs/b0808075-5b41-408a-88f3-ef12b3366356/answer "HTTP/1.1 200 OK"
+PASSED                                                                   [ 50%]
+tests/test_lead_personal_information_answer.py::test_public_information_answer_uses_effective_personal_workspace[True] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 10:05:51 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 10:05:51 [    INFO] EscalationManager initialized
+2026-11-07 10:05:51 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 10:05:51 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 10:05:51 [    INFO] EscalationManager initialized
+2026-11-07 10:05:51 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 10:05:51 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 10:05:51 [    INFO] Executing Agent Agent One with ReAct Loop. Input: prepare the closing task
+2026-11-07 10:05:51 [    INFO] Agent Agent One (a1) starting task: prepare the closing task
+2026-11-07 10:05:51 [    INFO] EscalationManager initialized
+2026-11-07 10:05:51 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 10:05:51 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 10:05:51 [    INFO] LanceDBHandler initialized. ID: 5075409520. LANCEDB_AVAILABLE: True
+2026-11-07 10:05:51 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 10:05:51 [    INFO] Connecting to LanceDB at /private/tmp/atom-source-trigger-lead-review/backend/data/atom_memory with storage_options=None
+2026-11-07 10:05:51 [    INFO] LanceDB connected successfully
+2026-11-07 10:05:51 [    INFO] Recorded outcome for a1: failure
+2026-11-07 10:05:51 [    INFO] Initialized global governance cache
+2026-11-07 10:05:51 [    INFO] EscalationManager initialized
+2026-11-07 10:05:51 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 10:05:51 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-07 10:05:51 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-07 10:05:51 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 3}
+2026-11-07 10:05:51 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=readback-title "HTTP/1.1 202 Accepted"
+2026-11-07 10:05:51 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/jobs/32a37115-0966-443c-be6a-09c0ef422a3f/answer "HTTP/1.1 404 Not Found"
+FAILED                                                                   [100%]
+
+=================================== FAILURES ===================================
+____ test_public_information_answer_uses_effective_personal_workspace[True] ____
+tests/test_lead_personal_information_answer.py:23: in test_public_information_answer_uses_effective_personal_workspace
+    assert response.status_code in (200,202),response.text
+E   AssertionError: {"detail":"Information wait not found"}
+E   assert 404 in (200, 202)
+E    +  where 404 = <Response [404 Not Found]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     api.agent_routes:agent_routes.py:1175 Starting agent Agent One (ID: a1)...
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+WARNING  core.lancedb_service:lancedb_service.py:39 LanceDBService initialized in stub mode (no-op)
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.embedding_service:embedding_service.py:131 Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+INFO     api.agent_routes:agent_routes.py:1281 Executing Agent Agent One with ReAct Loop. Input: prepare the closing task
+INFO     core.generic_agent:generic_agent.py:250 Agent Agent One (a1) starting task: prepare the closing task
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.embedding_service:embedding_service.py:131 Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+INFO     core.lancedb_handler:lancedb_handler.py:221 LanceDBHandler initialized. ID: 5075409520. LANCEDB_AVAILABLE: True
+INFO     core.lancedb_handler:lancedb_handler.py:229 Lazy loading LanceDB connection...
+INFO     core.lancedb_handler:lancedb_handler.py:326 Connecting to LanceDB at /private/tmp/atom-source-trigger-lead-review/backend/data/atom_memory with storage_options=None
+INFO     core.lancedb_handler:lancedb_handler.py:331 LanceDB connected successfully
+INFO     core.agent_governance_service:agent_governance_service.py:1186 Recorded outcome for a1: failure
+INFO     core.governance_cache:governance_cache.py:542 Initialized global governance cache
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+WARNING  core.websockets:websockets.py:172 [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+WARNING  core.turn_fact_extractor:turn_fact_extractor.py:475 turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+WARNING  core.turn_fact_extractor:turn_fact_extractor.py:814 turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 3}
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=readback-title "HTTP/1.1 202 Accepted"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/agents/a1/jobs/32a37115-0966-443c-be6a-09c0ef422a3f/answer "HTTP/1.1 404 Not Found"
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_lead_personal_information_answer.py::test_public_information_answer_uses_effective_personal_workspace[False]
+tests/test_lead_personal_information_answer.py::test_public_information_answer_uses_effective_personal_workspace[False]
+tests/test_lead_personal_information_answer.py::test_public_information_answer_uses_effective_personal_workspace[True]
+  /private/tmp/atom-source-trigger-lead-review/backend/core/lancedb_handler.py:407: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    names = set(self.db.table_names())
+
+tests/test_lead_personal_information_answer.py::test_public_information_answer_uses_effective_personal_workspace[False]
+tests/test_lead_personal_information_answer.py::test_public_information_answer_uses_effective_personal_workspace[False]
+tests/test_lead_personal_information_answer.py::test_public_information_answer_uses_effective_personal_workspace[False]
+tests/test_lead_personal_information_answer.py::test_public_information_answer_uses_effective_personal_workspace[False]
+tests/test_lead_personal_information_answer.py::test_public_information_answer_uses_effective_personal_workspace[True]
+tests/test_lead_personal_information_answer.py::test_public_information_answer_uses_effective_personal_workspace[True]
+  /Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/asyncio/events.py:94: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    self._context.run(self._callback, *self._args)
+
+tests/test_lead_personal_information_answer.py::test_public_information_answer_uses_effective_personal_workspace[False]
+tests/test_lead_personal_information_answer.py::test_public_information_answer_uses_effective_personal_workspace[False]
+tests/test_lead_personal_information_answer.py::test_public_information_answer_uses_effective_personal_workspace[True]
+  /private/tmp/atom-source-trigger-lead-review/backend/core/lancedb_handler.py:620: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    if table_name in self.db.table_names():
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_lead_personal_information_answer.py::test_public_information_answer_uses_effective_personal_workspace[True]
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================== 1 failed, 1 passed, 23 warnings in 10.93s ===================
