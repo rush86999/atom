@@ -445,6 +445,76 @@ def durable_product_material_conflicts(
     return material_mismatches(expected_material, stored)
 
 
+def blog_payload(arguments: Mapping[str, Any] | None) -> Dict[str, Any]:
+    """The exact provider blog payload derived from accepted arguments.
+
+    Only the registered blog fields (``title`` and optional ``handle``) are
+    forwarded.  If the caller did not authorize a handle, the provider may
+    derive one; that derived value is not fabricated into caller intent.
+    """
+    args = arguments if isinstance(arguments, Mapping) else {}
+    payload: Dict[str, Any] = {"title": _text(args.get("title"))}
+    handle = args.get("handle")
+    if handle not in (None, ""):
+        payload["handle"] = _text(handle).strip()
+    return payload
+
+
+def accepted_blog_material(
+    arguments: Mapping[str, Any] | None,
+) -> Dict[str, Any]:
+    """The business material the caller authorized for the blog."""
+    payload = blog_payload(arguments)
+    material: Dict[str, Any] = {
+        "title": _text(payload.get("title")).strip(),
+    }
+    if "handle" in payload:
+        material["handle"] = _text(payload.get("handle")).strip()
+    return material
+
+
+def observed_blog_material(blog: Mapping[str, Any] | None) -> Dict[str, Any]:
+    """The comparable business material of a provider blog readback."""
+    item = blog if isinstance(blog, Mapping) else {}
+    material: Dict[str, Any] = {
+        "title": _text(item.get("title")).strip(),
+    }
+    if item.get("handle") not in (None, ""):
+        material["handle"] = _text(item.get("handle")).strip()
+    return material
+
+
+def durable_blog_receipt_projection(
+    result: Mapping[str, Any] | None,
+    expected: Mapping[str, Any] | None,
+) -> Dict[str, Any]:
+    """Provider-specific material for a durable Shopify blog claim receipt."""
+    expected = expected if isinstance(expected, Mapping) else {}
+    material = expected.get("_oracle_expected_shopify_blog")
+    return {
+        "authorized_material": (
+            copy.deepcopy(dict(material))
+            if isinstance(material, Mapping) else None),
+    }
+
+
+def durable_blog_material_conflicts(
+    expected: Mapping[str, Any] | None,
+    durable_result: Mapping[str, Any] | None,
+) -> List[str]:
+    """Conflicts between the stored authorized blog material and this request."""
+    expected = expected if isinstance(expected, Mapping) else {}
+    durable_result = (
+        durable_result if isinstance(durable_result, Mapping) else {})
+    expected_material = expected.get("_oracle_expected_shopify_blog")
+    if not isinstance(expected_material, Mapping) or not expected_material:
+        return []
+    stored = durable_result.get("authorized_material")
+    if not isinstance(stored, Mapping) or not stored:
+        return ["authorized_material"]
+    return material_mismatches(expected_material, stored)
+
+
 def _payload_digest(payload: Mapping[str, Any]) -> str:
     from core.task_lifecycle import _approval_payload_hash
 
@@ -665,5 +735,232 @@ async def create_product(
         payload_sha256=digest,
         product_id=product_id,
         product=observed or created,
+        read_receipt=read_receipt,
+    )
+
+
+def _blog_uncertain(
+    *,
+    shop: str,
+    operation_id: str,
+    payload_sha256: str,
+    blog_id: str,
+    blog: Optional[Dict[str, Any]],
+    error_kind: str,
+    message: str,
+    verification: Dict[str, Any],
+    read_receipt: Optional[Dict[str, Any]] = None,
+    evidence: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """An explicit post-dispatch blog ambiguity; never a fabricated success."""
+    return {
+        "status": "uncertain",
+        "success": False,
+        "action_result": "uncertain",
+        "effect_possible": True,
+        "provider": "shopify",
+        "operation": "create_blog",
+        "error_kind": error_kind,
+        "error": message,
+        "retryable": False,
+        "remote_id": blog_id,
+        "payload_sha256": payload_sha256,
+        "provider_receipt": {
+            "provider": "shopify",
+            "operation": "create_blog",
+            "operation_id": operation_id,
+            "payload_sha256": payload_sha256,
+            "remote_id": blog_id,
+            "shop": shop,
+        },
+        "read_receipt": read_receipt,
+        "verification": verification,
+        "blog": blog,
+        "evidence": [evidence] if evidence else [],
+    }
+
+
+def _blog_applied(
+    *,
+    shop: str,
+    operation_id: str,
+    payload_sha256: str,
+    blog_id: str,
+    blog: Dict[str, Any],
+    read_receipt: Dict[str, Any],
+) -> Dict[str, Any]:
+    return {
+        "status": "success",
+        "success": True,
+        "action_result": "applied",
+        "provider": "shopify",
+        "operation": "create_blog",
+        "remote_id": blog_id,
+        "payload_sha256": payload_sha256,
+        "provider_receipt": {
+            "provider": "shopify",
+            "operation": "create_blog",
+            "operation_id": operation_id,
+            "payload_sha256": payload_sha256,
+            "remote_id": blog_id,
+            "shop": shop,
+        },
+        "read_receipt": read_receipt,
+        "verification": {
+            "status": "verified",
+            "missing_fields": [],
+            "mismatches": [],
+        },
+        "blog": blog,
+    }
+
+
+async def create_blog(
+    token: str,
+    shop: str,
+    arguments: Mapping[str, Any] | None,
+    *,
+    operation_id: str = "",
+) -> Dict[str, Any]:
+    """Create one blog, then bind the exact id/shop/material readback.
+
+    Official contract (verified 2026-11-07):
+    ``POST /admin/api/{version}/blogs.json`` and
+    ``GET /admin/api/{version}/blogs/{blog_id}.json``
+    https://shopify.dev/docs/api/admin-rest/2026-07/resources/blog
+    """
+    from integrations.shopify_service import ShopifyService
+
+    payload = blog_payload(arguments)
+    expected_material = accepted_blog_material(arguments)
+    digest = _payload_digest(payload)
+    operation = str(operation_id or "")
+    service = ShopifyService()
+
+    try:
+        created = await service.create_blog(
+            token, shop,
+            title=_text(payload.get("title")),
+            handle=payload.get("handle"))
+    except Exception as exc:  # noqa: BLE001 - provider may have applied it
+        return _blog_uncertain(
+            shop=shop,
+            operation_id=operation,
+            payload_sha256=digest,
+            blog_id="",
+            blog=None,
+            error_kind="provider_error",
+            message=(
+                "Shopify blog creation did not return a confirmation; "
+                f"the effect may have landed ({type(exc).__name__})"),
+            verification={
+                "status": "incomplete",
+                "missing_fields": ["transport_confirmation"],
+                "mismatches": [],
+            },
+            evidence={
+                "kind": "shopify_create_blog_transport_error",
+                "error": f"{type(exc).__name__}: {str(exc)[:300]}",
+            },
+        )
+
+    created = created if isinstance(created, dict) else {}
+    blog_id = str(created.get("id") or "").strip()
+    if not blog_id:
+        return _blog_uncertain(
+            shop=shop,
+            operation_id=operation,
+            payload_sha256=digest,
+            blog_id="",
+            blog=created or None,
+            error_kind="unidentified_effect",
+            message=(
+                "Shopify accepted the blog create request but returned no "
+                "blog id; the effect cannot be identified and is not safe to "
+                "recreate"),
+            verification={
+                "status": "incomplete",
+                "missing_fields": ["remote_id"],
+                "mismatches": [],
+            },
+            evidence={
+                "kind": "shopify_create_blog_missing_id",
+                "returned_keys": sorted(created)[:20],
+            },
+        )
+
+    try:
+        observed = await service.get_blog(token, shop, blog_id)
+    except Exception as exc:  # noqa: BLE001 - absent readback is not success
+        return _blog_uncertain(
+            shop=shop,
+            operation_id=operation,
+            payload_sha256=digest,
+            blog_id=blog_id,
+            blog=created,
+            error_kind="readback_unavailable",
+            message=(
+                "Shopify blog was created but the exact resource could not "
+                f"be read back ({type(exc).__name__})"),
+            verification={
+                "status": "incomplete",
+                "missing_fields": ["readback"],
+                "mismatches": [],
+            },
+            evidence={
+                "kind": "shopify_create_blog_readback_unavailable",
+                "remote_id": blog_id,
+                "error": f"{type(exc).__name__}: {str(exc)[:300]}",
+            },
+        )
+
+    observed = observed if isinstance(observed, dict) else {}
+    observed_material = observed_blog_material(observed)
+    observed_id = str(observed.get("id") or "").strip()
+    mismatches = material_mismatches(expected_material, observed_material)
+    if observed_id != blog_id:
+        mismatches.append("remote_id")
+    read_receipt = {
+        "provider": "shopify",
+        "operation": "get_blog",
+        "resource_id": observed_id,
+        "requested_remote_id": blog_id,
+        "observed_remote_id": observed_id,
+        "coverage": "single",
+        "account_id": shop,
+        "shop": shop,
+        "fields": observed_material,
+    }
+    if mismatches:
+        return _blog_uncertain(
+            shop=shop,
+            operation_id=operation,
+            payload_sha256=digest,
+            blog_id=blog_id,
+            blog=observed or created,
+            error_kind="readback_mismatch",
+            message=(
+                "The Shopify readback did not match the accepted blog "
+                "material: " + ", ".join(mismatches)),
+            verification={
+                "status": "mismatch",
+                "missing_fields": [],
+                "mismatches": mismatches,
+            },
+            read_receipt=read_receipt,
+            evidence={
+                "kind": "shopify_create_blog_readback_mismatch",
+                "remote_id": blog_id,
+                "observed_remote_id": observed_id,
+                "mismatches": mismatches,
+            },
+        )
+
+    return _blog_applied(
+        shop=shop,
+        operation_id=operation,
+        payload_sha256=digest,
+        blog_id=blog_id,
+        blog=observed or created,
         read_receipt=read_receipt,
     )
