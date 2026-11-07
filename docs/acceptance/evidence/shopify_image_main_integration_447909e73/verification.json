@@ -1,0 +1,28 @@
+{
+  "kind": "shopify_image_main_integration_checkpoint",
+  "merge_head": "447909e73ba9f7fd979b4e8a78e096cbf48119cc",
+  "merge_parents": [
+    "b9093b7b64bf775d400c9d1a0104ba5ddad3bf14",
+    "2d251acdfddae2aca27c6b43dc3f0de97654a9cb"
+  ],
+  "tested_source": "6cf37cb7d53e39bc60e11cefe6a4683c06f0cb16",
+  "delivered_evidence_head": "b9093b7b64bf775d400c9d1a0104ba5ddad3bf14",
+  "main_source": "2d251acdfddae2aca27c6b43dc3f0de97654a9cb",
+  "gate_execution_source": "6cf37cb7d53e39bc60e11cefe6a4683c06f0cb16",
+  "gates_rerun": false,
+  "gates_rerun_reason": "runtime bytes identical to tested source; only base/evidence/CI config changed",
+  "runtime_identity": true,
+  "root_independent_result": {
+    "passed": 33,
+    "exit": 0,
+    "source": "b9093b7b6"
+  },
+  "raw_url_only": "OPEN / unverified",
+  "provider_transforms": "unknown / unverified",
+  "live_calls": false,
+  "pr": {
+    "number": 748,
+    "url": "https://github.com/rush86999/atom/pull/748",
+    "base": "main"
+  }
+}
