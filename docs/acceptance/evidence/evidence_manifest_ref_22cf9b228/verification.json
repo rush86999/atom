@@ -1,0 +1,10 @@
+{
+  "executed_source": "22cf9b228443114dad245e7040f61a6bd8f25b79",
+  "negative_source": "fb34b4b0b",
+  "negative_failed": 5,
+  "negative_actual_exit": 1,
+  "fixed_passed": 8,
+  "fixed_actual_exit": 0,
+  "existing_git_packets_passed": 4,
+  "scope": "real scratch Git repos/CLI; verifier tooling only"
+}
