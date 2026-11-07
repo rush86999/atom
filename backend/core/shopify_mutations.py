@@ -46,6 +46,7 @@ from __future__ import annotations
 
 import copy
 import json
+from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, List, Mapping, Optional, Sequence
 
@@ -582,13 +583,70 @@ def accepted_article_material(
     return material
 
 
+def _observed_publication_state(
+    article: Mapping[str, Any] | None,
+) -> tuple[Optional[bool], str]:
+    """Derive publication from the official REST ``published_at`` field.
+
+    ``None`` is an observed draft (unpublished).  A timezone-aware timestamp
+    in the past is observed published; a future timestamp is scheduled and is
+    not yet published.  Missing, malformed, naive, or contradictory fields
+    return ``(None, reason)`` and must never be defaulted to the requested
+    value.
+
+    If a legacy ``published`` boolean is also present, it may only confirm the
+    ``published_at`` state; a disagreement is contradictory and unknown.
+    """
+    item = article if isinstance(article, Mapping) else {}
+    if "published_at" not in item:
+        return None, "missing_published_at"
+    raw = item.get("published_at")
+    if raw is None:
+        state: Optional[bool] = False
+        reason = "draft"
+    elif isinstance(raw, datetime):
+        timestamp = raw
+        state = None
+        reason = "malformed_published_at"
+    elif isinstance(raw, str):
+        text = raw.strip()
+        if not text:
+            return None, "malformed_published_at"
+        try:
+            timestamp = datetime.fromisoformat(text.replace("Z", "+00:00"))
+        except ValueError:
+            return None, "malformed_published_at"
+        state = None
+        reason = "malformed_published_at"
+    else:
+        return None, "malformed_published_at"
+
+    if state is None:
+        if timestamp.tzinfo is None or timestamp.utcoffset() is None:
+            return None, "naive_published_at"
+        if timestamp > datetime.now(timezone.utc):
+            return None, "scheduled"
+        state = True
+        reason = "published"
+
+    if "published" in item:
+        observed_published = item.get("published")
+        if not isinstance(observed_published, bool):
+            return None, "contradictory_published"
+        if observed_published != state:
+            return None, "contradictory_published"
+    return state, reason
+
+
 def observed_article_material(
     article: Mapping[str, Any] | None,
 ) -> Dict[str, Any]:
     """The comparable business material of a provider article readback.
 
-    An absent optional field is omitted, never defaulted to the accepted
-    value: the verifier then reports that field as unproven.
+    Official REST readbacks expose ``published_at`` rather than the
+    request-only ``published`` value.  An absent, malformed, naive, future, or
+    contradictory publication field is omitted, never defaulted to the
+    accepted value: the verifier then reports it as unproven.
     """
     item = article if isinstance(article, Mapping) else {}
     material: Dict[str, Any] = {
@@ -596,8 +654,9 @@ def observed_article_material(
         "title": _text(item.get("title")).strip(),
         "body_html": _normalized_html(item.get("body_html")),
     }
-    if "published" in item and item.get("published") is not None:
-        material["published"] = _normalized_bool(item.get("published"))
+    published, _reason = _observed_publication_state(item)
+    if published is not None:
+        material["published"] = published
     if item.get("author") not in (None, ""):
         material["author"] = _text(item.get("author")).strip()
     if item.get("tags") not in (None, ""):
@@ -1271,6 +1330,10 @@ async def create_article(
 
     observed = observed if isinstance(observed, dict) else {}
     observed_material = observed_article_material(observed)
+    publication_state, publication_reason = _observed_publication_state(observed)
+    observed_published_at = observed.get("published_at")
+    if isinstance(observed_published_at, datetime):
+        observed_published_at = observed_published_at.isoformat()
     observed_id = str(observed.get("id") or "").strip()
     mismatches = material_mismatches(expected_material, observed_material)
     if observed_id != article_id:
@@ -1285,6 +1348,11 @@ async def create_article(
         "account_id": shop,
         "shop": shop,
         "fields": observed_material,
+        "publication": {
+            "published_at": observed_published_at,
+            "state": publication_state,
+            "reason": publication_reason,
+        },
     }
     if mismatches:
         return _article_uncertain(

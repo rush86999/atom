@@ -173,7 +173,12 @@ class FakeShopifyTransport:
         item.setdefault("body_html", "")
         item.setdefault("author", "")
         item.setdefault("tags", "")
-        item.setdefault("published", True)
+        # Official Article REST readbacks expose published_at, not the
+        # request-only published boolean.  A requested draft is an observed
+        # null timestamp; a requested publication is a real past timestamp.
+        requested_published = bool(item.pop("published", True))
+        item["published_at"] = (
+            "2020-01-01T00:00:00Z" if requested_published else None)
         item.setdefault("handle", self._slug(item.get("title")))
         return item
 
@@ -501,18 +506,18 @@ def test_every_authorized_field_must_match_readback(
     assert _claim_row(env, operation_id)[0] == "uncertain_effect"
 
 
-def test_unavailable_published_proof_is_explicitly_unverified(
+def test_unavailable_published_at_proof_is_explicitly_unverified(
         env, monkeypatch):
-    """A provider that omits an authorized field is unverified, not green."""
+    """A provider that omits the official publication field is unverified."""
     _add_store(env)
     transport = FakeShopifyTransport()
 
-    def _omit_published(bid, aid, article):
+    def _omit_published_at(bid, aid, article):
         item = copy.deepcopy(article)
-        item.pop("published", None)
+        item.pop("published_at", None)
         return item
 
-    transport.read_override = _omit_published
+    transport.read_override = _omit_published_at
     _install_transport(monkeypatch, transport)
     operation_id = f"op-article-published-{uuid.uuid4().hex}"
 
