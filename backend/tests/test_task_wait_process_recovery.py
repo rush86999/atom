@@ -88,6 +88,16 @@ def _spawn(scratch: Path, phase: str, *, run_id: str = "",
     checkpoint_payload = None
     if checkpoint.exists():
         checkpoint_payload = json.loads(checkpoint.read_text())
+    observed = payload or checkpoint_payload or {}
+    entry = {
+        "phase": phase,
+        "pid": observed.get("pid"),
+        "exit": proc.returncode,
+        "report": report.name,
+        "checkpoint": checkpoint.name if checkpoint.exists() else None,
+    }
+    with (scratch / "process-log.jsonl").open("a") as log:
+        log.write(json.dumps(entry, sort_keys=True) + "\n")
     return proc, payload, checkpoint_payload
 
 
