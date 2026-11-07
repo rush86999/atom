@@ -1,4 +1,4 @@
-Final verification on source ec9dede00 (branch
+Final verification on source 039a24f4e (branch
 codex/generic-oracle-consumer-20261107).
 
 Environment: TESTING=1; explicit scratch SQLite
