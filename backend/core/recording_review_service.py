@@ -36,17 +36,27 @@ class RecordingReviewService:
     - Pattern recognition for performance insights
     """
 
-    def __init__(self, db: Session, tenant_id: str = "default"):
+    def __init__(
+        self,
+        db: Session,
+        tenant_id: str = "default",
+        workspace_id: str = "default",
+    ):
         self.db = db
         self.tenant_id = tenant_id
+        self.workspace_id = workspace_id
         self._governance = None
 
     @property
     def governance(self) -> AgentGovernanceService:
-        """Lazy-loaded governance service"""
+        """Lazy-loaded governance service in the caller's authoritative scope."""
         if self._governance is None:
             from core.service_factory import ServiceFactory
-            self._governance = ServiceFactory.get_governance_service(self.db)
+            self._governance = ServiceFactory.get_governance_service(
+                self.db,
+                workspace_id=self.workspace_id,
+                tenant_id=self.tenant_id,
+            )
         return self._governance
 
     async def create_review(
@@ -104,7 +114,9 @@ class RecordingReviewService:
                 recording_id=recording_id,
                 agent_id=recording.agent_id,
                 user_id=recording.user_id,
-                tenant_id=self.tenant_id,
+                # The recording's persisted scope is authoritative; never
+                # stamp the caller's default alias onto a real tenant's row.
+                tenant_id=recording.tenant_id or self.tenant_id,
                 review_status=review_status,
                 overall_rating=overall_rating,
                 performance_rating=performance_rating,
@@ -519,7 +531,7 @@ class RecordingReviewService:
 
             audit = CanvasAudit(
                 id=str(uuid.uuid4()),
-                tenant_id="default",
+                tenant_id=review.tenant_id or self.tenant_id,
                 agent_id=review.agent_id,
                 user_id=review.user_id,
                 canvas_id=canvas_id,
@@ -567,10 +579,14 @@ class RecordingReviewService:
 
         cutoff_date = datetime.now(timezone.utc) - timedelta(days=days)
 
-        reviews = self.db.query(CanvasRecordingReview).filter(
+        query = self.db.query(CanvasRecordingReview).filter(
             CanvasRecordingReview.agent_id == agent_id,
-            CanvasRecordingReview.reviewed_at >= cutoff_date
-        ).all()
+            CanvasRecordingReview.reviewed_at >= cutoff_date,
+        )
+        if self.tenant_id:
+            query = query.filter(
+                CanvasRecordingReview.tenant_id == self.tenant_id)
+        reviews = query.all()
 
         total = len(reviews)
         if total == 0:
@@ -618,6 +634,11 @@ class RecordingReviewService:
 
 
 # Singleton helper
-def get_recording_review_service(db: Session, tenant_id: str = "default") -> RecordingReviewService:
-    """Get or create recording review service instance."""
-    return RecordingReviewService(db, tenant_id=tenant_id)
+def get_recording_review_service(
+    db: Session,
+    tenant_id: str = "default",
+    workspace_id: str = "default",
+) -> RecordingReviewService:
+    """Get or create recording review service instance in the caller's scope."""
+    return RecordingReviewService(
+        db, tenant_id=tenant_id, workspace_id=workspace_id)
