@@ -1,0 +1,97 @@
+{
+  "_label": "SIMULATED MODEL DECISIONS / CONTROLLED TRANSPORT. Authored provider completions for the isolated loopback shim. Not served-model output; not a general-judgment claim.",
+  "_protocol": "OpenAI-compatible tool_call envelope consumed by instructor TOOLS mode through LLMService.generate_structured(response_model=ReActStep).",
+  "default": "SIMULATED CONTROL TRANSPORT: no authored ReAct completion matched this request. This text must not be read as a completed job or a served-model decision.",
+  "responses": [
+    {
+      "match": "oracle_verified",
+      "response": {
+        "tool": "ReActStep",
+        "tool_call": {
+          "name": "ReActStep",
+          "arguments": {
+            "thought": "The registered tasks.create result is present in the execution history and the default oracle marked it verified.",
+            "final_answer": "Created the closing task from both authorized facts."
+          }
+        }
+      }
+    },
+    {
+      "match": "authorized information answer for: what priority should the closing task have?] __PRIORITY_ANSWER__",
+      "response": {
+        "tool": "ReActStep",
+        "tool_call": {
+          "name": "ReActStep",
+          "arguments": {
+            "thought": "Both authorized facts are present in the same execution history. Create the task with the registered action.",
+            "action": {
+              "tool": "tasks.create",
+              "params": {
+                "board_id": "__BOARD_ID__",
+                "column_id": "__COLUMN_ID__",
+                "title": "__TITLE_ANSWER__",
+                "priority": "__PRIORITY_ANSWER__",
+                "status": "backlog"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "match": "authorized information answer] __PRIORITY_ANSWER__",
+      "response": {
+        "tool": "ReActStep",
+        "tool_call": {
+          "name": "ReActStep",
+          "arguments": {
+            "thought": "Both authorized facts are present in the same execution history. Create the task with the registered action.",
+            "action": {
+              "tool": "tasks.create",
+              "params": {
+                "board_id": "__BOARD_ID__",
+                "column_id": "__COLUMN_ID__",
+                "title": "__TITLE_ANSWER__",
+                "priority": "__PRIORITY_ANSWER__",
+                "status": "backlog"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "match": "__TITLE_ANSWER__",
+      "response": {
+        "tool": "ReActStep",
+        "tool_call": {
+          "name": "ReActStep",
+          "arguments": {
+            "thought": "The authorized title is present. The priority is still missing, so pause this same run for the single missing fact.",
+            "information_wait": {
+              "question": "What priority should the closing task have?",
+              "missing_fact": "priority",
+              "subject": "closing task"
+            }
+          }
+        }
+      }
+    },
+    {
+      "response": {
+        "tool": "ReActStep",
+        "tool_call": {
+          "name": "ReActStep",
+          "arguments": {
+            "thought": "No authorized fact or verified action result is present yet. Ask for the exact title before creating anything.",
+            "information_wait": {
+              "question": "What title should the closing task have?",
+              "missing_fact": "task title",
+              "subject": "closing task"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

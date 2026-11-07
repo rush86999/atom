@@ -1,0 +1,37 @@
+{
+  "executed_source": "d3f58d81d8ec8c728f331d5511b8710853ef4fe3",
+  "tree_clean_at_run": true,
+  "source_files": {
+    "backend/api/agent_routes.py": "c412ca44e7dc99097e99688342b67ab9eb07251fcaf5275b7dfe5cf92d06a297",
+    "backend/core/generic_agent.py": "432904f89608b6c98b05834957c79023ed82f2ec1162056e3640f8da728f7191",
+    "backend/core/agent_governance_service.py": "676e09a26bf9a38e7682d88ba2cdb39faa1d81fba8b9ffdd2bc32c9e8f9c4535",
+    "backend/core/outbound_operation_claim.py": "4a8ee1e7ca5f98783d6672fd353548bfaa2a04d16941f1d1aef222dbac0c7789",
+    "backend/core/oracle/__init__.py": "70852a61398d0fdcbe4202beaa708dab8045dd49929d77f860c2be357e4614df",
+    "backend/core/personal_scope.py": "fb475dcd302845a2d3fb8ed50da1acd2849f0103fa403a395393d4b52d1e21b3",
+    "frontend-nextjs/pages/agents/index.tsx": "289f0aa163220fff0084e776049bcc3ce26ca0a0ddf1a5abc1a1f2c06dfe2f96",
+    "scripts/acceptance/browser_agent_job_wait.py": "66431e44bc36ce28adace7409b72a291e5fd626ecf1d472364aa33b53333850e",
+    "scripts/acceptance/fixtures/browser_agent_job_wait_shim.json": "d0d169c8eaa4e5c3d753072f808ff8ff822372674e24c029ef440ec25c43c7d5",
+    "scripts/tests/test_browser_agent_job_wait_identity.py": "b8ec5f1a71082e2140833e0a560a3407f837bd0a68207750122faf819d38a037",
+    "backend/tests/test_information_wait_maturity_neutral.py": "1d0ea562827624238ded45f0f1ec534c86eb67804be5ddbdb7d115140efec12f"
+  },
+  "artifacts": {
+    "independent-readback.json": "7e5ca9d5f8413fcb97440ac4d491900c17275857cbc7e7736fa4821b044f94d7",
+    "stack.json": "92bad6f94a29ca9598bd954cc72ba1955df26754fcc2ac0fef2464650eb7af25",
+    "durable.json": "536d980be132997b7a060e18489373e5b1e1237bb69abca504d7f651ad5a312c",
+    "source.json": "5db662b8371200f317123f702fa17b57d4ba1194e941136f67fecc93e48e49bb",
+    "CAPTURE_MANIFEST.json": "c776dead19a81a0aab7813007b92760688abedfed9792e06bc4c5bd562c39bc8",
+    "integrated-controls.log": "3d309676c77d7f88ecb5de14a5cfe9c36b20278345853c8c6316801748dd9401",
+    "README.md": "2bcec07f1be98f11399a156fd127b91e744ee446005367f71171e7c200ded140",
+    "shim_capture.jsonl": "90ca209d3512b32b5853594fa47611879d3b0d72669a40af7ca21d631e4d1542",
+    "scenario.json": "c4319418f83b2550450ad3520dd6f3a6e7ad618388d1b59b172be600fb8893ec",
+    "driver.log": "915936aa57826cdb53817f2475ba9b487cee5c0a59114ca1ea82b320bc023cea",
+    "capture/requests.jsonl": "b80281d676b7f9a3f51d7d780d6bf693bd5cb64b7c19d99b2add7ef9ffe746a7",
+    "screenshots/00_onboarding_completed.png": "a7b494f7a864eaa7ca069f62a75df52eba3cc877ea6926d8ae3393978974a162",
+    "screenshots/00_login.png": "f0ab76a504145e86f494db655bc28a3d7cfb6f45ed79d5c167446f1f77f386b9",
+    "screenshots/05_verified_result.png": "66ee28c4099456f7e5831283dba4d11ba845e6d7c4aabdc53372ea688398bb17",
+    "screenshots/04_reload_same_second_question.png": "9cfe8e04c3ea62490f04483fc06a8070d1f6d21bedeccac4c03f2f1067a2e433",
+    "screenshots/02_after_restart_same_wait.png": "1436866a4b31a092b6faac766f73be831b4c12d27d71c5917ef26042a35ba0eb",
+    "screenshots/03_second_question.png": "14daad8bb0484119a9f024d15e1cf4f1158235af25a66b262e1877d89d64b456",
+    "screenshots/01_first_question.png": "59d1ba078fbde0cab90b39724534512abfd13757d2fd280d51cc60b7e1e8ce8e"
+  }
+}

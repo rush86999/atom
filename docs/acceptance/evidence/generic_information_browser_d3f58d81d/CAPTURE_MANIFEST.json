@@ -1,0 +1,72 @@
+{
+  "kind": "browser_agent_job_wait_evidence_manifest",
+  "generated_at": "2026-11-07T11:05:12-0500",
+  "source_commit": "d3f58d81d8ec8c728f331d5511b8710853ef4fe3",
+  "files": [
+    {
+      "path": "capture/requests.jsonl",
+      "sha256": "b80281d676b7f9a3f51d7d780d6bf693bd5cb64b7c19d99b2add7ef9ffe746a7",
+      "bytes": 39925
+    },
+    {
+      "path": "durable.json",
+      "sha256": "536d980be132997b7a060e18489373e5b1e1237bb69abca504d7f651ad5a312c",
+      "bytes": 1160
+    },
+    {
+      "path": "scenario.json",
+      "sha256": "c4319418f83b2550450ad3520dd6f3a6e7ad618388d1b59b172be600fb8893ec",
+      "bytes": 59659
+    },
+    {
+      "path": "screenshots/00_login.png",
+      "sha256": "f0ab76a504145e86f494db655bc28a3d7cfb6f45ed79d5c167446f1f77f386b9",
+      "bytes": 150387
+    },
+    {
+      "path": "screenshots/00_onboarding_completed.png",
+      "sha256": "a7b494f7a864eaa7ca069f62a75df52eba3cc877ea6926d8ae3393978974a162",
+      "bytes": 148784
+    },
+    {
+      "path": "screenshots/01_first_question.png",
+      "sha256": "59d1ba078fbde0cab90b39724534512abfd13757d2fd280d51cc60b7e1e8ce8e",
+      "bytes": 184361
+    },
+    {
+      "path": "screenshots/02_after_restart_same_wait.png",
+      "sha256": "1436866a4b31a092b6faac766f73be831b4c12d27d71c5917ef26042a35ba0eb",
+      "bytes": 202656
+    },
+    {
+      "path": "screenshots/03_second_question.png",
+      "sha256": "14daad8bb0484119a9f024d15e1cf4f1158235af25a66b262e1877d89d64b456",
+      "bytes": 108029
+    },
+    {
+      "path": "screenshots/04_reload_same_second_question.png",
+      "sha256": "9cfe8e04c3ea62490f04483fc06a8070d1f6d21bedeccac4c03f2f1067a2e433",
+      "bytes": 202652
+    },
+    {
+      "path": "screenshots/05_verified_result.png",
+      "sha256": "66ee28c4099456f7e5831283dba4d11ba845e6d7c4aabdc53372ea688398bb17",
+      "bytes": 111226
+    },
+    {
+      "path": "shim_capture.jsonl",
+      "sha256": "90ca209d3512b32b5853594fa47611879d3b0d72669a40af7ca21d631e4d1542",
+      "bytes": 29726
+    },
+    {
+      "path": "source.json",
+      "sha256": "5db662b8371200f317123f702fa17b57d4ba1194e941136f67fecc93e48e49bb",
+      "bytes": 734
+    },
+    {
+      "path": "stack.json",
+      "sha256": "92bad6f94a29ca9598bd954cc72ba1955df26754fcc2ac0fef2464650eb7af25",
+      "bytes": 36595
+    }
+  ]
+}

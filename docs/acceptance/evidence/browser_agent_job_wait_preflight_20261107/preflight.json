@@ -1,0 +1,213 @@
+{
+  "kind": "browser_agent_job_wait_preflight",
+  "status": "preparation-only",
+  "generated_at": "2026-11-07T09:56:01-0500",
+  "ok": true,
+  "checks": {
+    "scratch_environment": true,
+    "source_head_recorded": true,
+    "source_expected_sha_ok": true,
+    "backend_tree_clean": true,
+    "react_schema_envelopes": true,
+    "provider_shim_index": true,
+    "default_labelled": true
+  },
+  "labels": {
+    "model_decisions": "SIMULATED MODEL DECISIONS: authored provider completions served by the existing loopback provider shim. Not served-model output.",
+    "transport": "CONTROLLED TRANSPORT: only the provider response is substituted; routing, execution, persistence, wait/resume, tasks.create and the default oracle run in production code.",
+    "not_claimed": [
+      "served model or provider quality",
+      "general model judgment or prompt quality",
+      "a second job or a synthetic completed DB row",
+      "any live provider, account, credential, send, spend or download"
+    ]
+  },
+  "driver": {
+    "path": "/private/tmp/atom-cli-mini-host/scripts/acceptance/browser_agent_job_wait.py",
+    "sha256": "fe08f390699de2768cea1e0ef7929621bb870d197e3eafc31e09de02b642d268"
+  },
+  "source": {
+    "repo": "/private/tmp/atom-cli-mini-host",
+    "head": "378a893906bd2b5e1a0f721539d9780a35b19309",
+    "expected_sha": null,
+    "matches_expected": null,
+    "tracked_dirty": [],
+    "tracked_dirty_count": 0,
+    "backend_dirty": [],
+    "backend_dirty_count": 0,
+    "driver_sha256": "fe08f390699de2768cea1e0ef7929621bb870d197e3eafc31e09de02b642d268",
+    "driver_path": "/private/tmp/atom-cli-mini-host/scripts/acceptance/browser_agent_job_wait.py",
+    "runtime_identity": {
+      "source_id": "378a893906bd-dirty.02af2ec0c32b",
+      "revision": "378a893906bd2b5e1a0f721539d9780a35b19309",
+      "dirty": true,
+      "dirty_paths_count": 0,
+      "untracked_paths_count": 42,
+      "error": null
+    }
+  },
+  "environment": {
+    "testing": "1",
+    "database_url": "sqlite:////var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/atom-browser-preflight-final5-xpscqzv8/atom.db",
+    "database_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/atom-browser-preflight-final5-xpscqzv8/atom.db",
+    "database_is_live_dev_db": false,
+    "data_dir": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/atom-browser-preflight-final5-xpscqzv8/data",
+    "office_dir": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/atom-browser-preflight-final5-xpscqzv8/office",
+    "scratch_ok": true
+  },
+  "schema": {
+    "fixture": "/private/tmp/atom-cli-mini-host/scripts/acceptance/fixtures/browser_agent_job_wait_shim.json",
+    "fixture_sha256": "d0d169c8eaa4e5c3d753072f808ff8ff822372674e24c029ef440ec25c43c7d5",
+    "tool_name": "ReActStep",
+    "response_count": 5,
+    "parsed_steps": [
+      {
+        "index": 0,
+        "match": "oracle_verified",
+        "kind": "final_answer",
+        "detail": {
+          "final_answer": "Created the closing task from both authorized facts."
+        }
+      },
+      {
+        "index": 1,
+        "match": "authorized information answer for: what priority should the closing task have?] high",
+        "kind": "action",
+        "detail": {
+          "tool": "tasks.create",
+          "params": {
+            "board_id": "board-preflight",
+            "column_id": "column-preflight",
+            "title": "Quarterly close checklist",
+            "priority": "high",
+            "status": "backlog"
+          }
+        }
+      },
+      {
+        "index": 2,
+        "match": "authorized information answer] high",
+        "kind": "action",
+        "detail": {
+          "tool": "tasks.create",
+          "params": {
+            "board_id": "board-preflight",
+            "column_id": "column-preflight",
+            "title": "Quarterly close checklist",
+            "priority": "high",
+            "status": "backlog"
+          }
+        }
+      },
+      {
+        "index": 3,
+        "match": "Quarterly close checklist",
+        "kind": "information_wait",
+        "detail": {
+          "question": "What priority should the closing task have?",
+          "missing_fact": "priority",
+          "subject": "closing task"
+        }
+      },
+      {
+        "index": 4,
+        "match": null,
+        "kind": "information_wait",
+        "detail": {
+          "question": "What title should the closing task have?",
+          "missing_fact": "task title",
+          "subject": "closing task"
+        }
+      }
+    ],
+    "provider_shim_index_keys": [
+      "('ReActStep', 'oracle_verified')",
+      "('ReActStep', 'authorized information answer for: what priority should the closing task have?] high')",
+      "('ReActStep', 'authorized information answer] high')",
+      "('ReActStep', 'quarterly close checklist')",
+      "ReActStep"
+    ],
+    "provider_shim_bare_fallback": true,
+    "provider_shim_tuple_entries": 4,
+    "default_labelled": true,
+    "validated_against": "core.react_models.ReActStep.model_validate"
+  },
+  "protocol": {
+    "transport": "OpenAI-compatible /v1/chat/completions served only on 127.0.0.1 by backend/scripts/orchestration_acceptance/provider_shim.py",
+    "structured_consumer": "LLMService.generate_structured -> BYOKHandler.generate_structured_response -> instructor TOOLS mode",
+    "response_model": "core.react_models.ReActStep",
+    "tool_name": "ReActStep",
+    "tool_name_source": "response_model.__name__, the tool name instructor's OpenAI TOOLS handler emits; confirmed by source inspection at preparation, not exercised against a live provider here",
+    "envelope": {
+      "message.tool_calls[0].function.name": "ReActStep",
+      "arguments": "a JSON object validated as ReActStep"
+    },
+    "selection_protocol": [
+      "(tool, match) exact entry, script order wins",
+      "bare tool entry (first wait fallback)",
+      "substring entry",
+      "labelled default text"
+    ],
+    "state_selection": "from durable prompt history: no fact -> first wait; authorized title -> second wait; authorized priority block -> tasks.create; oracle_verified observation -> final answer. No process counter.",
+    "server_acceptance_exercised": false,
+    "server_acceptance_note": "The real shim Handler and the real structured consumer are not started by --preflight; root's --execute run exercises them."
+  },
+  "dependencies": {
+    "interpreter": "3.14.7",
+    "interpreter_path": "/usr/local/opt/python@3.14/bin/python3.14",
+    "modules": {
+      "pydantic": true,
+      "httpx": true,
+      "playwright": true,
+      "sqlalchemy": true,
+      "fastapi": true,
+      "uvicorn": true,
+      "instructor": true
+    },
+    "node": "/usr/local/bin/node",
+    "node_version": "v25.2.1",
+    "chrome_app": true,
+    "venv314_python": false,
+    "frontend_node_modules": false
+  },
+  "ports": {
+    "8031": true,
+    "3131": true,
+    "8097": true
+  },
+  "world": {
+    "name": "browser_wait_378a893906",
+    "path": "/private/tmp/atom-cli-mini-host/backend/data/acceptance_worlds/browser_wait_378a893906",
+    "exists": false,
+    "required_fresh": true
+  },
+  "storage_guard": {
+    "guard_invoked": false,
+    "enabled": true,
+    "layout": "local",
+    "worlds_root": "/private/tmp/atom-cli-mini-host/backend/data/acceptance_worlds",
+    "world_exists": false,
+    "execute_will_call": "core.world_storage_guard.require_storage_ready",
+    "reason_not_invoked": "preparation only; --execute calls the guard before build_world and never sets ATOM_WORLD_STORAGE_BYPASS"
+  },
+  "warnings": [
+    "backend/venv314/bin/python is absent in this worktree; --execute needs the prepared acceptance interpreter",
+    "frontend-nextjs/node_modules is absent in this worktree; --execute must run from the installed capture worktree"
+  ],
+  "not_exercised": [
+    "world build / storage guard acceptance",
+    "backend or frontend launch",
+    "Playwright browser or login form",
+    "provider shim process or structured consumer transport",
+    "durable AgentJob/AgentExecution/HITLAction/BoardTask effects",
+    "live provider, model, account, credential, send or spend"
+  ],
+  "remaining_inputs": [
+    "a frozen capture worktree with the prepared Python venv and frontend-nextjs/node_modules",
+    "a unique fresh --world name (the driver refuses an existing one)",
+    "free backend/frontend/shim ports",
+    "an admin password source: --admin-password-file (0600) or --provision-admin-password for the scratch world",
+    "root-owned execution: --execute; this preparation does not run it"
+  ],
+  "exact_preparation_command": "TESTING=1 DATABASE_URL=sqlite:///<fresh>/atom.db ATOM_DATA_DIR=<fresh>/data ATOM_OFFICE_DIR=<fresh>/office python3 scripts/acceptance/browser_agent_job_wait.py --preflight --out <report-dir>"
+}
