@@ -1089,8 +1089,13 @@ def _build_execute_agent(scratch_db, monkeypatch):
         QueryComplexity.SIMPLE)
 
     class _Gov:
-        def __init__(self, db):
+        def __init__(self, db, workspace_id="default", tenant_id=None):
+            # Governance itself is deliberately doubled in this consumer
+            # matrix; retain the real scoped constructor contract so the
+            # actual mutation/read path still executes under test.
             self.db = db
+            self.workspace_id = workspace_id
+            self.tenant_id = tenant_id
 
         async def can_perform_action_async(self, agent_id, tool_name):
             return {"allowed": True, "requires_human_approval": False}
