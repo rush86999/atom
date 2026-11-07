@@ -2518,7 +2518,11 @@ What is your next step?"""
             # 1. Governance Maturity Check
             if not pre_approved:
                 with get_db_session() as db:
-                    gov = AgentGovernanceService(db)
+                    gov = AgentGovernanceService(
+                        db,
+                        workspace_id=getattr(self, "workspace_id", None) or "default",
+                        tenant_id=getattr(self, "tenant_id", None),
+                    )
                     # Async variant: the sync can_perform_action can't await the
                     # budget check inside a running loop (spend-limit bypass).
                     auth_check = await gov.can_perform_action_async(self.id, tool_name)
@@ -2529,7 +2533,9 @@ What is your next step?"""
                             agent_id=self.id,
                             action_type=tool_name,
                             params=authorized,
-                            reason=auth_check["reason"]
+                            reason=auth_check["reason"],
+                            execution_context=context,
+                            user_id=(context or {}).get("user_id"),
                         )
 
                         # R81l P1: shadow trust-calibration assessment for
@@ -2982,7 +2988,11 @@ What is your next step?"""
         # 1. Governance pre-check for the whole batch (all-or-nothing).
         action_ids: List[str] = []
         with get_db_session() as db:
-            gov = AgentGovernanceService(db)
+            gov = AgentGovernanceService(
+                db,
+                workspace_id=getattr(self, "workspace_id", None) or "default",
+                tenant_id=getattr(self, "tenant_id", None),
+            )
             for act in parallel_actions:
                 auth_check = await gov.can_perform_action_async(self.id, act.tool)
                 if auth_check.get("requires_human_approval"):
@@ -2991,6 +3001,8 @@ What is your next step?"""
                         action_type=act.tool,
                         params=act.params,
                         reason=auth_check["reason"],
+                        execution_context=context,
+                        user_id=(context or {}).get("user_id"),
                     )
                     action_ids.append(action_id)
                     if step_callback:

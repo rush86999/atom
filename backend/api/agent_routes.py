@@ -1248,36 +1248,36 @@ def _verified_hitl_wait(
         if str(getattr(row, "agent_id", "") or "") != str(agent_id):
             continue
         row_workspace = getattr(row, "workspace_id", None)
-        if (
-            row_workspace is not None
-            and str(row_workspace) not in (workspace, "default")
-        ):
+        if row_workspace is None or str(row_workspace) != workspace:
             continue
-        # ``default``/NULL workspace rows are the existing unscoped HITL
-        # producer shape (notably AgentGovernanceService(db) inside the
-        # Generic consumer). They are accepted only with exact agent/tenant/
-        # state binding below; a foreign non-default workspace is rejected.
         row_tenant = getattr(row, "tenant_id", None)
-        if row_tenant is not None and tenant is not None:
-            if str(row_tenant) != str(tenant):
-                continue
+        if (None if row_tenant is None else str(row_tenant)) != tenant:
+            continue
         row_user = getattr(row, "user_id", None)
-        if row_user is not None and actor_id is not None:
-            if str(row_user) != str(actor_id):
+        if actor_id is not None:
+            if row_user is None or str(row_user) != str(actor_id):
                 continue
-        # If the review row carries task/execution material, it must name
-        # this exact admitted run. Otherwise agent/workspace is the
-        # supported binding shape for the existing HITL producer.
+        # A new admitted task needs the complete server-owned task/execution
+        # binding; absence is unknown, not proof of ownership. Legacy rows
+        # stay readable/listable but cannot certify this task's wait.
         material = {}
         for field in ("context_snapshot", "params"):
             value = getattr(row, field, None)
             if isinstance(value, dict):
                 material.update(value)
-        for key in ("job_id", "agent_job_id", "execution_id", "run_id"):
-            expected = namespace.get(key)
-            if expected and material.get(key):
-                if str(material.get(key)) != str(expected):
-                    return None
+        material_job = material.get("job_id")
+        material_execution = (
+            material.get("execution_id") or material.get("run_id"))
+        expected_job = namespace.get("job_id")
+        expected_execution = namespace.get("execution_id")
+        if not material_job or not material_execution:
+            continue
+        if not expected_job or not expected_execution:
+            continue
+        if str(material_job) != str(expected_job):
+            continue
+        if str(material_execution) != str(expected_execution):
+            continue
         return {
             "hitl_action_id": str(row.id),
             "kind": "hitl_review",

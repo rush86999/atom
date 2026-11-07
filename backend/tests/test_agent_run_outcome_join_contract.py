@@ -543,29 +543,37 @@ def test_unscoped_agent_uses_the_scoped_actor_workspace(env):
 
 
 def test_backed_wait_is_non_terminal_and_does_not_consume_the_slot(env):
-    session = env.SessionLocal()
-    try:
-        session.add(HITLAction(
-            id="act-wait-42",
-            workspace_id="ws1",
-            tenant_id="t1",
-            agent_id="a1",
-            action_type="customer_lookup",
-            platform="internal",
-            params={"query": "account id"},
-            status="pending",
-            user_id="member-1",
-        ))
-        session.commit()
-    finally:
-        session.close()
+    def produce(context):
+        review_id = f"real-review-{context['execution_id']}"
+        session = env.SessionLocal()
+        try:
+            session.add(HITLAction(
+                id=review_id,
+                workspace_id=context["workspace_id"],
+                tenant_id=context["tenant_id"],
+                agent_id="a1",
+                action_type="customer_lookup",
+                platform="internal",
+                params={"query": "account id"},
+                status="pending",
+                user_id=context["user_id"],
+                context_snapshot={
+                    "job_id": context["job_id"],
+                    "execution_id": context["execution_id"],
+                    "run_id": context["run_id"],
+                },
+            ))
+            session.commit()
+        finally:
+            session.close()
+        return {
+            "status": "waiting",
+            "waiting_for": "the customer's account id",
+            "hitl_action_id": review_id,
+            "requires_reconciliation": False,
+        }
 
-    env.result = {
-        "status": "waiting",
-        "waiting_for": "the customer's account id",
-        "hitl_action_id": "act-wait-42",
-        "requires_reconciliation": False,
-    }
+    env.behavior = produce
     response = _run(
         env,
         operation_id="wait-op",
@@ -577,7 +585,7 @@ def test_backed_wait_is_non_terminal_and_does_not_consume_the_slot(env):
     assert data["outcome"] == "waiting"
     assert data["next_action"] == "await_information"
     assert data["requires_reconciliation"] is False
-    assert data["wait_receipt"]["hitl_action_id"] == "act-wait-42"
+    assert data["wait_receipt"]["hitl_action_id"].startswith("real-review-")
     assert data["wait_receipt"]["kind"] == "hitl_review"
     assert data["wait_receipt"]["verified"] is True
     assert data["wait_receipt"]["waiting_for"] == (
@@ -587,18 +595,25 @@ def test_backed_wait_is_non_terminal_and_does_not_consume_the_slot(env):
     assert job.status == "waiting"
     assert payload["waiting"] is True
     assert payload["finished"] is False
-    assert payload["wait_receipt"]["hitl_action_id"] == "act-wait-42"
+    assert payload["wait_receipt"]["hitl_action_id"] == (
+        data["wait_receipt"]["hitl_action_id"])
     assert payload["wait_receipt"]["verified"] is True
     assert job.end_time is None
 
     # Read back the actual durable review row the wait owns.
     session = env.SessionLocal()
     try:
-        review = session.get(HITLAction, "act-wait-42")
+        review = session.get(
+            HITLAction, data["wait_receipt"]["hitl_action_id"])
         assert review is not None
         assert review.status == "pending"
         assert review.agent_id == "a1"
         assert review.workspace_id == "ws1"
+        assert review.tenant_id == "t1"
+        assert review.user_id == "member-1"
+        assert review.context_snapshot["job_id"] == data["job_id"]
+        assert review.context_snapshot["execution_id"] == (
+            data["execution_id"])
     finally:
         session.close()
 
@@ -608,8 +623,10 @@ def test_backed_wait_is_non_terminal_and_does_not_consume_the_slot(env):
     assert all(message["status"] == "waiting" for message in messages)
     assert all("result" not in message for message in messages)
     assert all("error" not in message for message in messages)
-    assert all(message["wait_receipt"]["hitl_action_id"] == "act-wait-42"
-               for message in messages)
+    assert all(
+        message["wait_receipt"]["hitl_action_id"]
+        == data["wait_receipt"]["hitl_action_id"]
+        for message in messages)
 
     # A wait does not occupy the single active-run allowance; unrelated new
     # work can still be admitted while the original task stays resumable.
@@ -623,6 +640,7 @@ def test_backed_wait_is_non_terminal_and_does_not_consume_the_slot(env):
     assert len(env.executions) == 1
 
     env.result = {"status": "success", "output": "next work"}
+    env.behavior = None
     second = _run(
         env,
         operation_id="after-wait-op",
@@ -704,7 +722,7 @@ def test_foreign_or_settled_review_is_not_durable_authority(env):
         assert payload.get("wait_receipt") is None
 
 
-def test_unscoped_hitl_producer_shape_is_still_accepted_for_the_same_agent(env):
+def test_legacy_unscoped_hitl_row_cannot_certify_a_scoped_task(env):
     session = env.SessionLocal()
     try:
         session.add(HITLAction(
@@ -725,11 +743,49 @@ def test_unscoped_hitl_producer_shape_is_still_accepted_for_the_same_agent(env):
         operation_id="legacy-wait-op",
         parameters={"sync": True, "task_input": "long task"},
     )
-    assert response.status_code == 202, response.text
-    data = response.json()["data"]
-    assert data["job_status"] == "waiting"
-    assert data["wait_receipt"]["hitl_action_id"] == "legacy-scope-review"
-    assert data["wait_receipt"]["verified"] is True
+    assert response.status_code == 409, response.text
+    body = response.json()
+    assert body["data"]["next_action"] == "review_execution"
+    job, payload = _job_payload(env, body["data"]["job_id"])
+    assert job.status != "waiting"
+    assert payload.get("wait_receipt") is None
+
+
+def test_governance_producer_persists_admitted_scope_and_binding(env):
+    from core.agent_governance_service import AgentGovernanceService
+
+    session = env.SessionLocal()
+    try:
+        service = AgentGovernanceService(
+            session, workspace_id="ws1", tenant_id="t1")
+        action_id = service.request_approval(
+            agent_id="a1",
+            action_type="missing_information",
+            params={"business": "payload"},
+            reason="need the account id",
+            execution_context={
+                "job_id": "job-producer",
+                "execution_id": "exec-producer",
+                "run_id": "exec-producer",
+                "workspace_id": "ws1",
+                "tenant_id": "t1",
+                "actor_id": "member-1",
+                "user_id": "member-1",
+            },
+            user_id="member-1",
+        )
+        row = session.get(HITLAction, action_id)
+        assert row is not None
+        assert row.workspace_id == "ws1"
+        assert row.tenant_id == "t1"
+        assert row.user_id == "member-1"
+        assert row.status == "pending"
+        assert row.params == {"business": "payload"}
+        assert row.context_snapshot["job_id"] == "job-producer"
+        assert row.context_snapshot["execution_id"] == "exec-producer"
+        assert row.context_snapshot["workspace_id"] == "ws1"
+    finally:
+        session.close()
 
 
 def test_foreign_scope_is_refused_before_any_dispatch(env):
