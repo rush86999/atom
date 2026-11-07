@@ -2025,12 +2025,21 @@ def adopt_adaptation(
         observation_digest = hashlib.sha256(
             "\n".join(sorted(observation_ids)).encode("utf-8")
         ).hexdigest()[:16]
+        from core.task_lifecycle import open_unresolved_questions
+
         compile_context = {
             "task_version": int(record.get("task_version") or 0),
             "plan_revision": int(assignment.get("plan_revision") or 1),
             "authorized_actions": list(
                 assignment.get("authorized_actions") or []),
             "action_views": [],
+            # The compiler owns output mechanics, including whether a
+            # whole-objective artifact may be compiled yet. An open
+            # information obligation means the job is still waiting even when
+            # an independent branch produced a verified result.
+            "open_obligations": [
+                dict(item) for item in open_unresolved_questions(record)
+            ],
         }
         try:
             patch = compile_work_request_patch(

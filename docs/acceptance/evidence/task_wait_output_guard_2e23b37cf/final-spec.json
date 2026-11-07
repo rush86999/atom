@@ -1,0 +1,30 @@
+{
+  "source": "2e23b37cf581b80f99ad3788c3a2629d90310d06",
+  "scratch": "/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-wait-artifact-integrated-ink55q7l",
+  "command": [
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-wait-artifact-integrated-ink55q7l/pytest",
+    "tests/test_task_wait_source_trigger_contract.py",
+    "tests/test_task_wait_source_continuation_regressions.py",
+    "tests/test_task_wait_process_recovery.py",
+    "tests/test_task_wait_independent_work.py",
+    "tests/test_task_wait_artifact_content_contract.py",
+    "tests/test_employee_work_requests.py",
+    "tests/test_employee_work_request_matrix.py",
+    "tests/test_employee_durable_wait_g5.py",
+    "tests/test_employee_evidence_change_g5.py",
+    "tests/test_employee_adaptation_contract.py",
+    "tests/test_employee_compiler_question_contract.py",
+    "tests/test_boot_recovery_not_gated_by_scheduler.py",
+    "tests/test_assignment_routes.py",
+    "/private/tmp/test_lead_evidence_recovery_generation.py",
+    "/private/tmp/test_lead_information_wait_budget.py",
+    "--junitxml=/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-wait-artifact-integrated-ink55q7l/result.xml",
+    "-q",
+    "--tb=short"
+  ]
+}

@@ -1,0 +1,11 @@
+# Missing-information waiting does not spend active execution allowance
+
+Executed integration source `419ab9f4497240515f5db046ebc0900c24c0073f`; native idle repaire1b91fa89; currentmain5b9610b56 included.
+
+The source-triggered missing-invoice question was a durable obligation but not an assignment.wait step. The executor opened its idle ledger only for the latter. Under a900second active budget, two controlled hours collecting a fact exhausted the task before the authorized source could be consumed. Root independently reproduced this at223a286a4: **1failed/1passed**, actualexit1. The companion explicit absolute deadline remained enforced. This negative belongs to its original source; previous restart success is not relabeled as long-wait qualification.
+
+Repair uses the existing executor idle boundary for an open information obligation when nothing is ready. The route records its question through that same executor boundary, allowing ready independent work first and opening idle when it is truly waiting. No new wait engine, model polling, budget extension/reset or effect authority.
+
+Frozen nativee1b91fa89 passes **20 controls**, actualexit0, including both independent budget-kind cases. After main integration/conflict resolution source419ab9f44 passes **97 controls**, actualexit0:93normalCI source/continuation/process/startup/public-route cases plus2generation and2budget external probes. The relative-only task automatically continues from the authorized source to exactly one verified140.25 reconciliation after the long interval; paused time is credited and active elapsed stays small. An explicit expired absolute deadline stays unchanged and blocks dependent result/model work. This is controlled-clock evidence plus separately exercised real OS recovery, not production soak or a single served-model/browser episode.
+
+The main merge retained both source/process and budget CI gates, resolving adjacent-line workflow and documentation conflicts only. Portable child interpreter correction227579321 remains. Previous22/94/3process packets remain at their own sources. Full Generic/framework-wide TASK-WAIT-01 and full app acceptance remain open. Scratch SQLite with controlled auth/proposal transport; no live model/provider/credential/send/spend/guest/deployment.

@@ -1,0 +1,20 @@
+{
+  "runtime_source": "784a2eb14240ded7c4244b1a1199ce16756b4273",
+  "test_only_added": "backend/tests/test_task_wait_independent_work.py",
+  "test_source": "c85788d66",
+  "test_hash": "0a515511675a23d6eb6bbbb10c70dfc578b1c5c25e5d7a95bd63a47689187497",
+  "runtime_tracked_clean": true,
+  "scratch": "/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-artifact-before-guard-7mbben_t",
+  "command": [
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-artifact-before-guard-7mbben_t/pytest",
+    "/private/tmp/test_lead_wait_artifact_content.py",
+    "--junitxml=/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-artifact-before-guard-7mbben_t/result.xml",
+    "-q",
+    "--tb=short"
+  ]
+}

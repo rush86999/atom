@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="2.862" timestamp="2026-11-07T04:31:42.740071-05:00" hostname="MacBook-Pro.local"><testcase classname="test_lead_wait_artifact_content" name="test_wait_holds_physical_output_then_publishes_current_verified_results" time="1.976"><failure message="AssertionError: a physical partial report exists before the missing invoice is answered&#10;assert not True&#10; +  where True = exists()&#10; +    where exists = PosixPath('/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-artifact-before-guard-7mbben_t/pytest/test_wa...0/artifacts/ws-1/lead-1/draft-aa5c825a06ef/reconcile-invoice-inv-ind-1-for-po-ind-1-and-prepare-the-quo-b294e946.docx').exists">../../test_lead_wait_artifact_content.py:20: in test_wait_holds_physical_output_then_publishes_current_verified_results
+    case.test_independent_work_does_not_release_a_premature_final_artifact(route_env,tmp_path,monkeypatch)
+tests/test_task_wait_independent_work.py:228: in test_independent_work_does_not_release_a_premature_final_artifact
+    assert _applied_artifacts(working) == [], _steps(working)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../test_lead_wait_artifact_content.py:17: in observe
+    assert not requested.exists(),'a physical partial report exists before the missing invoice is answered'
+E   AssertionError: a physical partial report exists before the missing invoice is answered
+E   assert not True
+E    +  where True = exists()
+E    +    where exists = PosixPath('/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-artifact-before-guard-7mbben_t/pytest/test_wa...0/artifacts/ws-1/lead-1/draft-aa5c825a06ef/reconcile-invoice-inv-ind-1-for-po-ind-1-and-prepare-the-quo-b294e946.docx').exists</failure></testcase></testsuite></testsuites>

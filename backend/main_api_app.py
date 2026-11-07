@@ -674,6 +674,30 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error(f"Failed to run continuation recovery pass: {e}")
 
+    # 5d. ACCEPTED-EVIDENCE ASSIGNMENT RECOVERY — a source can be durably
+    # accepted/read and its obligation settled just before the process dies,
+    # leaving applied evidence that the adaptation consumer never saw. The
+    # executor's existing `recover_ready_assignments` owner now hands that
+    # evidence to the SAME consumer used by the source route/advance; this
+    # boot pass just invokes that owner across active workspace scopes. It is
+    # outside the scheduler gate for the same reason as 5/5b: a restarted
+    # process owes the accepted input exactly one continuation whether or not
+    # it happens to run schedulers. It is a bounded one-shot pass, not a
+    # polling daemon; a genuinely missing prerequisite has an open obligation
+    # and is left asleep.
+    try:
+        from core.assignment_recovery import (
+            recover_active_assignments_at_startup,
+        )
+
+        _spawn_background_task(
+            recover_active_assignments_at_startup())
+        logger.info(
+            "Accepted-evidence assignment recovery started (outside the "
+            "scheduler gate)")
+    except Exception as e:  # noqa: BLE001 — lifespan must not fail
+        logger.error(f"Failed to start assignment recovery: {e}")
+
     if os.getenv("ENABLE_SCHEDULER", "true").lower() == "true" and not is_test_mode:
         # Startup Coordinator: Ensure registration tasks run only once per day
         qstash_init_skip = False

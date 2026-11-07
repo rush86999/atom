@@ -1,0 +1,26 @@
+{
+  "final_source": "227579321b2c56873df072962eae06f4d0add674",
+  "runtime_test_predecessor": "be92e7ee353d1fe46aa8842d266ea69a932b08e9",
+  "negative": {
+    "source": "c0d85d7dc246c56fe202d03558443089cff83a07",
+    "failed": 1,
+    "passed": 1
+  },
+  "frozen_native": {
+    "source": "223a286a4038c7a7c22efb68fd42e92943f121dc",
+    "passed": 22,
+    "actual_exit_code": 0
+  },
+  "integrated": {
+    "source": "be92e7ee353d1fe46aa8842d266ea69a932b08e9",
+    "passed": 94,
+    "actual_exit_code": 0
+  },
+  "portable_affected": {
+    "source": "227579321b2c56873df072962eae06f4d0add674",
+    "passed": 3,
+    "actual_exit_code": 0
+  },
+  "ci_deduplicated_selection": 92,
+  "process_report_cases": 3
+}

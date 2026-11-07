@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="3" time="0.344" timestamp="2026-11-07T04:25:51.209358-05:00" hostname="MacBook-Pro.local"><testcase classname="test_lead_open_question_projection" name="test_adaptation_uses_the_authoritative_question_set[resolved]" time="0.018" /><testcase classname="test_lead_open_question_projection" name="test_adaptation_uses_the_authoritative_question_set[None]" time="0.001"><failure message="AssertionError: legacy/history rows must not become a new blocking obligation&#10;assert [{'question_i...arification'}] == []&#10;  &#10;  Left contains one more item: {'question_id': 'history-row', 'question': 'Earlier clarification'}&#10;  Use -v to get more diff">../../test_lead_open_question_projection.py:23: in test_adaptation_uses_the_authoritative_question_set
+    assert captured['open_obligations']==open_unresolved_questions(record),'legacy/history rows must not become a new blocking obligation'
+E   AssertionError: legacy/history rows must not become a new blocking obligation
+E   assert [{'question_i...arification'}] == []
+E     
+E     Left contains one more item: {'question_id': 'history-row', 'question': 'Earlier clarification'}
+E     Use -v to get more diff</failure></testcase><testcase classname="test_lead_open_question_projection" name="test_adaptation_uses_the_authoritative_question_set[open]" time="0.001" /></testsuite></testsuites>

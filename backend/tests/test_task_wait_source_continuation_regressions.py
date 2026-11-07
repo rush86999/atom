@@ -11,7 +11,13 @@ All transport is controlled through the existing proposal monkeypatches; no
 provider, spend, account, send or deployment action occurs. Public assignment
 routes, the real compiler/executor and scratch durable records are exercised.
 """
+import asyncio
+import copy
 import json
+import os
+import socket
+import subprocess
+import time
 
 import pytest
 
@@ -26,6 +32,7 @@ from core.employee_work_requests import InvoiceReconciliationRequest
 from core.task_lifecycle import (
     add_unresolved_questions,
     open_unresolved_questions,
+    resolve_unresolved_questions,
 )
 
 PO = "PO-TRIGGER-63"
@@ -121,19 +128,20 @@ def _install_controlled_transport(monkeypatch, calls):
     return calls
 
 
-def _start_missing_invoice(client, tmp_path):
+def _start_missing_invoice(client, tmp_path, *, budget=None):
+    payload = {
+        "objective": f"Reconcile invoice {INVOICE} for {PO}",
+        "sources": [
+            {"path": str(tmp_path / "po.json")},
+            {"path": str(tmp_path / "receiving.json")},
+        ],
+        "authorized_actions": ["retrieve", "calculate"],
+        "use_model": True,
+    }
+    if budget is not None:
+        payload["budget"] = budget
     answer = client.post(
-        "/api/assignments/from-objective",
-        json={
-            "objective": f"Reconcile invoice {INVOICE} for {PO}",
-            "sources": [
-                {"path": str(tmp_path / "po.json")},
-                {"path": str(tmp_path / "receiving.json")},
-            ],
-            "authorized_actions": ["retrieve", "calculate"],
-            "use_model": True,
-        },
-    )
+        "/api/assignments/from-objective", json=payload)
     assert answer.status_code == 200, answer.text
     return answer.json()["run_id"]
 
@@ -473,3 +481,522 @@ def test_absolute_deadline_is_not_extended_by_source_arrival(
     assert final["budget"]["deadline"] == past
     assert _reconciliations(lifecycle, run_id) == []
     assert len(calls) == before
+
+
+def test_prolonged_information_wait_does_not_consume_active_wall_budget(
+        route_env, tmp_path, monkeypatch):
+    """A missing-fact wait is idle, not active execution allowance.
+
+    The source-triggered missing-invoice wait is represented by an open
+    unresolved prerequisite, not by an ``assignment.wait`` step. A two-hour
+    controlled-clock advance must therefore be credited as an idle interval:
+    the authorized invoice still resumes the same task and produces its one
+    verified reconciliation under a 15-minute active wall budget.
+    """
+    _write_facts(tmp_path)
+    calls = _install_controlled_transport(monkeypatch, calls=[])
+    client = route_env["client"]
+    lifecycle = route_env["lifecycle"]
+    run_id = _start_missing_invoice(
+        client, tmp_path, budget={"max_wall_seconds": 900.0})
+    before = lifecycle.get_assignment(run_id)
+    assert open_unresolved_questions(lifecycle.get_task(run_id))
+    assert _reconciliations(lifecycle, run_id) == []
+    assert before["status"] != "completed"
+    assert before["budget"]["idle_open"], (
+        "the information wait must be recorded as an idle interval")
+    calls_before = len(calls)
+
+    forward = time.time() + 7200.0
+    with monkeypatch.context() as clock:
+        clock.setattr(
+            "core.assignment_executor.time.time", lambda: forward)
+        answer = _add_invoice(client, run_id, tmp_path)
+    assert answer.status_code == 200, answer.text
+
+    final = lifecycle.get_assignment(run_id)
+    assert final["status"] == "completed", final["status"]
+    reconciliations = _reconciliations(lifecycle, run_id)
+    assert len(reconciliations) == 1
+    assert reconciliations[0]["result"]["value"] == EXPECTED_TOTAL
+    assert len(calls) == calls_before + 1
+    assert final["budget"]["idle_intervals"], (
+        "the completed wait must be recorded in the idle ledger")
+    assert final["budget"]["paused_seconds"] >= 7000.0, (
+        final["budget"]["paused_seconds"])
+    assert final["budget"]["elapsed_seconds"] < 60.0, (
+        final["budget"]["elapsed_seconds"])
+
+
+def test_restart_owner_does_not_poll_a_missing_or_unsuitable_obligation(
+        route_env, tmp_path, monkeypatch):
+    """No accepted evidence means no model call, no advance and no success.
+
+    This is the startup-owner counterpart of the route's no-suitable negative:
+    a genuine missing-invoice obligation is open, so ordinary recovery may
+    resume other ready work but must not ask the model to invent business
+    work from absence.
+    """
+    _write_facts(tmp_path)
+    calls = _install_controlled_transport(monkeypatch, calls=[])
+    run_id = _start_missing_invoice(route_env["client"], tmp_path)
+    before = len(calls)
+
+    restarted = _rebuilt_executor(route_env)
+    asyncio.run(restarted.recover_ready_assignments(limit=20))
+
+    final = route_env["lifecycle"].get_assignment(run_id)
+    assert len(calls) == before, "absence must not be model-polled"
+    assert _reconciliations(route_env["lifecycle"], run_id) == []
+    assert final["status"] != "completed"
+    assert open_unresolved_questions(route_env["lifecycle"].get_task(run_id))
+
+
+def test_recovery_claim_makes_second_successor_and_repeat_inert(
+        route_env, tmp_path, monkeypatch):
+    """A bounded claim is the concurrent-wake authority for this seam.
+
+    The first successor claims the accepted evidence; a second successor
+    (the concurrent wake) sees the fresh claim and makes no model call. After
+    the first attempt is recorded, a later boot is one-shot inert for the same
+    evidence set instead of polling forever.
+    """
+    import api.assignment_routes as assignment_routes
+    from core.employee_job_runner import evidence_observations
+
+    _write_facts(tmp_path)
+    calls = _install_controlled_transport(monkeypatch, calls=[])
+    client = route_env["client"]
+    lifecycle = route_env["lifecycle"]
+    run_id = _start_missing_invoice(client, tmp_path)
+
+    real_advance = assignment_routes._advance_employee_work
+
+    async def interrupted(*args, **kwargs):
+        raise RuntimeError("simulated interruption before adaptation")
+
+    monkeypatch.setattr(
+        "api.assignment_routes._advance_employee_work", interrupted)
+    first = _add_invoice(client, run_id, tmp_path)
+    assert first.status_code == 200, first.text
+    monkeypatch.setattr(
+        "api.assignment_routes._advance_employee_work", real_advance)
+
+    record = lifecycle.get_task(run_id)
+    assert open_unresolved_questions(record) == []
+    assert evidence_observations(record), "accepted evidence must remain"
+    first_successor = _rebuilt_executor(route_env)
+    second_successor = _rebuilt_executor(route_env)
+    plan = first_successor._evidence_recovery_plan(record)
+    assert plan is not None
+    first_claim = first_successor._claim_evidence_recovery(
+        run_id, plan["key"])
+    assert first_claim is not None
+    assert first_claim.get("claim_token"), first_claim
+    assert first_successor.lifecycle.get_assignment(run_id)[
+        "evidence_recovery"]["claim_token"] == first_claim["claim_token"]
+
+    before = len(calls)
+    asyncio.run(second_successor.recover_ready_assignments(limit=20))
+    assert len(calls) == before, "the concurrent successor must stay inert"
+
+    first_successor._finish_evidence_recovery(
+        run_id, plan["key"], "attempted",
+        claim_token=first_claim["claim_token"])
+    asyncio.run(second_successor.recover_ready_assignments(limit=20))
+    assert len(calls) == before, "a repeat boot must not re-poll the same set"
+    assert _reconciliations(lifecycle, run_id) == []
+    assert lifecycle.get_assignment(run_id)["status"] != "completed"
+
+    # Clear only the test's synthetic one-shot marker: a real successor then
+    # performs the single dependent operation once.
+    def clear_marker(record, assignment):
+        import copy as _copy
+
+        updated = _copy.deepcopy(assignment)
+        updated.pop("evidence_recovery", None)
+        return updated, {}
+
+    lifecycle.mutate_assignment(
+        run_id, clear_marker, rationale="test: clear synthetic claim marker")
+    asyncio.run(second_successor.recover_ready_assignments(limit=20))
+    assert len(calls) == before + 1
+    reconciliations = _reconciliations(lifecycle, run_id)
+    assert len(reconciliations) == 1
+    assert reconciliations[0]["result"]["value"] == EXPECTED_TOTAL
+    assert lifecycle.get_assignment(run_id)["status"] == "completed"
+
+
+def test_concurrent_recovery_successors_adapt_accepted_evidence_once(
+        route_env, tmp_path, monkeypatch):
+    """Two successors starting together: exactly one model call and result."""
+    import api.assignment_routes as assignment_routes
+
+    _write_facts(tmp_path)
+    calls = _install_controlled_transport(monkeypatch, calls=[])
+    client = route_env["client"]
+    lifecycle = route_env["lifecycle"]
+    run_id = _start_missing_invoice(client, tmp_path)
+
+    real_advance = assignment_routes._advance_employee_work
+
+    async def interrupted(*args, **kwargs):
+        raise RuntimeError("simulated interruption before adaptation")
+
+    monkeypatch.setattr(
+        "api.assignment_routes._advance_employee_work", interrupted)
+    first = _add_invoice(client, run_id, tmp_path)
+    assert first.status_code == 200, first.text
+
+    async def slow_advance(*args, **kwargs):
+        # Yield so the second successor reaches the claim while the first is
+        # in flight; it must lose the CAS and make no model call.
+        await asyncio.sleep(0.2)
+        return await real_advance(*args, **kwargs)
+
+    monkeypatch.setattr(
+        "api.assignment_routes._advance_employee_work", slow_advance)
+    first_successor = _rebuilt_executor(route_env)
+    second_successor = _rebuilt_executor(route_env)
+    before = len(calls)
+
+    async def run_both():
+        return await asyncio.gather(
+            first_successor.recover_ready_assignments(limit=20),
+            second_successor.recover_ready_assignments(limit=20))
+
+    asyncio.run(run_both())
+    assert len(calls) == before + 1, calls
+    reconciliations = _reconciliations(lifecycle, run_id)
+    assert len(reconciliations) == 1
+    assert reconciliations[0]["result"]["value"] == EXPECTED_TOTAL
+    assert lifecycle.get_assignment(run_id)["status"] == "completed"
+
+
+def test_open_second_prerequisite_blocks_recovery_until_it_is_resolved(
+        route_env, tmp_path, monkeypatch):
+    """One settled prerequisite is not enough: a second open obligation sleeps.
+
+    The accepted invoice evidence is durable, but recovery must not adapt
+    around another open material prerequisite. Resolving it lets the same
+    successor recover the accepted source exactly once.
+    """
+    import api.assignment_routes as assignment_routes
+
+    _write_facts(tmp_path)
+    calls = _install_controlled_transport(monkeypatch, calls=[])
+    client = route_env["client"]
+    lifecycle = route_env["lifecycle"]
+    run_id = _start_missing_invoice(client, tmp_path)
+
+    real_advance = assignment_routes._advance_employee_work
+
+    async def interrupted(*args, **kwargs):
+        raise RuntimeError("simulated interruption before adaptation")
+
+    monkeypatch.setattr(
+        "api.assignment_routes._advance_employee_work", interrupted)
+    first = _add_invoice(client, run_id, tmp_path)
+    assert first.status_code == 200, first.text
+    monkeypatch.setattr(
+        "api.assignment_routes._advance_employee_work", real_advance)
+    assert open_unresolved_questions(lifecycle.get_task(run_id)) == []
+
+    add_unresolved_questions(lifecycle, run_id, [{
+        "kind": "missing_evidence",
+        "item": "invoice approval",
+        "question": f"Is invoice {INVOICE} approved for {PO}?",
+        "concept": "invoice_reconciliation",
+        "operation": "invoice_reconciliation",
+        "next_action": "Authorize the approval record.",
+        "inputs": {
+            "operation": "invoice_reconciliation",
+            "missing": ["approval"],
+            "known_identities": {"purchase_order.po_id": PO},
+        },
+    }])
+    second = [
+        item for item in open_unresolved_questions(
+            lifecycle.get_task(run_id))
+        if str(item.get("item") or "") == "invoice approval"]
+    assert len(second) == 1
+
+    before = len(calls)
+    asyncio.run(_rebuilt_executor(route_env).recover_ready_assignments(
+        limit=20))
+    assert len(calls) == before, "an open second obligation must sleep"
+    assert _reconciliations(lifecycle, run_id) == []
+    assert lifecycle.get_assignment(run_id)["status"] != "completed"
+
+    resolve_unresolved_questions(
+        lifecycle, run_id,
+        question_ids=[second[0]["question_id"]],
+        resolution="approval record accepted")
+    asyncio.run(_rebuilt_executor(route_env).recover_ready_assignments(
+        limit=20))
+    assert len(calls) == before + 1
+    reconciliations = _reconciliations(lifecycle, run_id)
+    assert len(reconciliations) == 1
+    assert reconciliations[0]["result"]["value"] == EXPECTED_TOTAL
+    assert lifecycle.get_assignment(run_id)["status"] == "completed"
+
+
+def test_restart_owner_does_not_revive_expired_or_cancelled_work(
+        route_env, tmp_path, monkeypatch):
+    """An absolute deadline and cancellation still beat a restart wake."""
+    import api.assignment_routes as assignment_routes
+    from datetime import datetime, timezone
+
+    _write_facts(tmp_path)
+    calls = _install_controlled_transport(monkeypatch, calls=[])
+    client = route_env["client"]
+    lifecycle = route_env["lifecycle"]
+    run_id = _start_missing_invoice(client, tmp_path)
+
+    real_advance = assignment_routes._advance_employee_work
+
+    async def interrupted(*args, **kwargs):
+        raise RuntimeError("simulated interruption before adaptation")
+
+    monkeypatch.setattr(
+        "api.assignment_routes._advance_employee_work", interrupted)
+    first = _add_invoice(client, run_id, tmp_path)
+    assert first.status_code == 200, first.text
+    monkeypatch.setattr(
+        "api.assignment_routes._advance_employee_work", real_advance)
+
+    past = datetime(2020, 1, 1, tzinfo=timezone.utc).isoformat()
+
+    def expire(record, assignment):
+        assignment["budget"]["deadline"] = past
+        return assignment, {}
+
+    lifecycle.mutate_assignment(
+        run_id, expire, rationale="test: explicit absolute deadline")
+    before = len(calls)
+    asyncio.run(_rebuilt_executor(route_env).recover_ready_assignments(
+        limit=20))
+    assert len(calls) == before, "an expired task must not wake the model"
+    assert _reconciliations(lifecycle, run_id) == []
+    assert lifecycle.get_assignment(run_id)["budget"]["deadline"] == past
+
+    client.post(f"/api/assignments/{run_id}/cancel", json={"reason": "owner"})
+    asyncio.run(_rebuilt_executor(route_env).recover_ready_assignments(
+        limit=20))
+    assert len(calls) == before
+    assert _reconciliations(lifecycle, run_id) == []
+    assert lifecycle.get_assignment(run_id)["status"] == "cancelled"
+
+
+def _accepted_evidence_with_interrupted_advance(
+        route_env, tmp_path, monkeypatch):
+    """Durably accept evidence, then interrupt before adaptation."""
+    import api.assignment_routes as assignment_routes
+
+    _write_facts(tmp_path)
+    calls = _install_controlled_transport(monkeypatch, calls=[])
+    run_id = _start_missing_invoice(route_env["client"], tmp_path)
+    real_advance = assignment_routes._advance_employee_work
+
+    async def interrupted(*args, **kwargs):
+        raise RuntimeError("controlled source consumer interruption")
+
+    monkeypatch.setattr(
+        "api.assignment_routes._advance_employee_work", interrupted)
+    answer = _add_invoice(route_env["client"], run_id, tmp_path)
+    assert answer.status_code == 200, answer.text
+    monkeypatch.setattr(
+        "api.assignment_routes._advance_employee_work", real_advance)
+    return run_id, calls
+
+
+@pytest.mark.parametrize("expired_old_claim", [False, True])
+def test_recovery_finish_is_bound_to_the_claim_generation(
+        route_env, tmp_path, monkeypatch, expired_old_claim):
+    """A stale claim's late finish must not consume a successor's claim.
+
+    This is the permanent in-repo form of the independent root probe: after
+    claim A's lease elapses and claim B takes the SAME evidence key, A's
+    ``attempted`` outcome would otherwise overwrite B's ``claimed`` marker and
+    the next boot would treat unconsumed accepted input as already attempted.
+    """
+    run_id, _calls = _accepted_evidence_with_interrupted_advance(
+        route_env, tmp_path, monkeypatch)
+    lifecycle = route_env["lifecycle"]
+    executor = _rebuilt_executor(route_env)
+    plan = executor._evidence_recovery_plan(lifecycle.get_task(run_id))
+    assert plan is not None
+    first = executor._claim_evidence_recovery(run_id, plan["key"])
+    assert first is not None
+    first_marker = copy.deepcopy(
+        lifecycle.get_assignment(run_id)["evidence_recovery"])
+    assert first_marker["claim_token"] == first["claim_token"]
+
+    if expired_old_claim:
+        def expire(record, assignment):
+            out = copy.deepcopy(assignment)
+            out["evidence_recovery"]["at"] -= 10000
+            return out, {"status": "test clock advanced beyond lease"}
+
+        lifecycle.mutate_assignment(
+            run_id, expire, rationale="controlled elapsed claim lease")
+        second = executor._claim_evidence_recovery(run_id, plan["key"])
+        assert second is not None
+        assert second["claim_token"] != first["claim_token"]
+
+    before = copy.deepcopy(
+        lifecycle.get_assignment(run_id)["evidence_recovery"])
+    executor._finish_evidence_recovery(
+        run_id, plan["key"], "attempted",
+        claim_token=first_marker["claim_token"])
+    after = lifecycle.get_assignment(run_id)["evidence_recovery"]
+    if expired_old_claim:
+        assert after == before, (
+            "old completion overwrote the successor claim; the next boot now "
+            "treats unconsumed work as already attempted")
+    else:
+        assert after["status"] == "attempted"
+
+
+def test_recovery_finish_and_retain_require_the_claim_token(
+        route_env, tmp_path, monkeypatch):
+    """Key-only authority is refused; the exact generation may retain/finish."""
+    run_id, _calls = _accepted_evidence_with_interrupted_advance(
+        route_env, tmp_path, monkeypatch)
+    lifecycle = route_env["lifecycle"]
+    executor = _rebuilt_executor(route_env)
+    plan = executor._evidence_recovery_plan(lifecycle.get_task(run_id))
+    assert plan is not None
+    claim = executor._claim_evidence_recovery(run_id, plan["key"])
+    assert claim is not None
+    token = claim["claim_token"]
+    marker = copy.deepcopy(
+        lifecycle.get_assignment(run_id)["evidence_recovery"])
+    assert marker["ttl"] == 120.0, "the base lease stays the documented TTL"
+
+    # A key-only finish (no token) is not ownership, and omitting the token is
+    # a caller error rather than an implicit alias.
+    with pytest.raises(TypeError):
+        executor._finish_evidence_recovery(run_id, plan["key"], "attempted")
+    executor._finish_evidence_recovery(
+        run_id, plan["key"], "attempted", claim_token=None)
+    assert lifecycle.get_assignment(run_id)["evidence_recovery"] == marker
+
+    # A stale retain cannot extend the live claim.
+    assert executor._retain_evidence_recovery(
+        run_id, plan["key"], "wrong-generation", seconds=9999) is False
+    assert lifecycle.get_assignment(run_id)["evidence_recovery"] == marker
+
+    # A live adaptation may outlive the 120s claim TTL (the consumer deadline
+    # is 180s): its own generation retains the exact lease explicitly.
+    assert executor._retain_evidence_recovery(
+        run_id, plan["key"], token, seconds=240) is True
+    retained = lifecycle.get_assignment(run_id)["evidence_recovery"]
+    assert retained["ttl"] >= 240
+    assert executor._evidence_recovery_plan(
+        lifecycle.get_task(run_id)) is None, (
+        "a live retained claim must not be re-entered")
+
+    executor._finish_evidence_recovery(
+        run_id, plan["key"], "attempted", claim_token=token)
+    finished = copy.deepcopy(
+        lifecycle.get_assignment(run_id)["evidence_recovery"])
+    assert finished["status"] == "attempted"
+    # A duplicate finish must not rewrite a completed outcome.
+    executor._finish_evidence_recovery(
+        run_id, plan["key"], "completed", claim_token=token)
+    assert lifecycle.get_assignment(run_id)["evidence_recovery"] == finished
+
+
+def test_live_owner_survives_lease_expiry_and_late_cleanup_is_generation_bound(
+        route_env, tmp_path, monkeypatch):
+    """TTL bounds takeover; it never proves the owner/provider stopped.
+
+    A real live child process owns the claim past its lease (the adaptation
+    deadline can exceed the claim TTL). A successor must not take over. When
+    the owner is confirmed gone, takeover becomes ready at the bounded lease,
+    and the dead generation's late finish still cannot touch the new claim.
+    """
+    import sys
+
+    run_id, _calls = _accepted_evidence_with_interrupted_advance(
+        route_env, tmp_path, monkeypatch)
+    lifecycle = route_env["lifecycle"]
+    executor = _rebuilt_executor(route_env)
+    plan = executor._evidence_recovery_plan(lifecycle.get_task(run_id))
+    assert plan is not None
+    claim_a = executor._claim_evidence_recovery(run_id, plan["key"])
+    assert claim_a is not None
+    token_a = claim_a["claim_token"]
+
+    child = subprocess.Popen(
+        [sys.executable, "-c", "import time; time.sleep(60)"])
+    try:
+        assert child.poll() is None
+
+        def live_owner(record, assignment):
+            out = copy.deepcopy(assignment)
+            marker = out["evidence_recovery"]
+            marker["owner"] = f"pid:{child.pid}"
+            marker["owner_process"] = {
+                "pid": child.pid,
+                "token": "independent-live-owner",
+                "host": socket.gethostname(),
+            }
+            marker["at"] -= 10000
+            return out, {"status": "test clock advanced beyond lease"}
+
+        lifecycle.mutate_assignment(
+            run_id, live_owner, rationale="controlled live owner past lease")
+        assert executor._evidence_recovery_plan(
+            lifecycle.get_task(run_id)) is None, (
+            "an expired lease is not permission to displace a live owner")
+        assert executor._evidence_recovery_deferral(
+            lifecycle.get_task(run_id)) is None, (
+            "a live owner must not trigger a takeover wake")
+        assert executor._claim_evidence_recovery(run_id, plan["key"]) is None
+
+        # The live generation still owns its cleanup and may retain past TTL.
+        assert executor._retain_evidence_recovery(
+            run_id, plan["key"], token_a, seconds=240) is True
+        executor._finish_evidence_recovery(
+            run_id, plan["key"], "attempted", claim_token=token_a)
+        assert lifecycle.get_assignment(run_id)[
+            "evidence_recovery"]["status"] == "attempted"
+    finally:
+        child.terminate()
+        child.wait(timeout=15)
+
+    # Re-arm the same dead owner's claimed marker; now takeover is bounded by
+    # the lease and a new generation wins.
+    def dead_owner(record, assignment):
+        out = copy.deepcopy(assignment)
+        out["evidence_recovery"] = {
+            "key": plan["key"],
+            "status": "claimed",
+            "owner": f"pid:{child.pid}",
+            "owner_process": {
+                "pid": child.pid,
+                "token": "independent-live-owner",
+                "host": socket.gethostname(),
+            },
+            "claim_token": token_a,
+            "at": time.time() - 10000,
+            "ttl": 120,
+            "observation_ids": plan["observation_ids"][:20],
+        }
+        return out, {"status": "test re-armed dead claim"}
+
+    lifecycle.mutate_assignment(
+        run_id, dead_owner, rationale="controlled dead owner past lease")
+    assert executor._evidence_recovery_plan(
+        lifecycle.get_task(run_id)) is not None
+    claim_b = executor._claim_evidence_recovery(run_id, plan["key"])
+    assert claim_b is not None
+    assert claim_b["claim_token"] != token_a
+    before = copy.deepcopy(
+        lifecycle.get_assignment(run_id)["evidence_recovery"])
+    executor._finish_evidence_recovery(
+        run_id, plan["key"], "attempted", claim_token=token_a)
+    assert lifecycle.get_assignment(run_id)["evidence_recovery"] == before, (
+        "the dead generation's late cleanup overwrote the successor claim")
