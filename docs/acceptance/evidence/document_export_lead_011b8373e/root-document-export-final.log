@@ -1,0 +1,603 @@
+
+tests/test_document_export.py::test_export_requires_authentication 
+-------------------------------- live log setup --------------------------------
+2026-11-07 15:44:04 [    INFO] EscalationManager initialized
+2026-11-07 15:44:04 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:44:04 [    INFO] EscalationManager initialized
+2026-11-07 15:44:04 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:44:04 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 15:44:04 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:44:04 [    INFO] HTTP Request: GET http://testserver/api/documents/anything/export "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [  2%]
+tests/test_document_export.py::test_normal_upload_open_export_matches_current_stored_content[text] 
+-------------------------------- live log setup --------------------------------
+2026-11-07 15:44:04 [    INFO] EscalationManager initialized
+2026-11-07 15:44:04 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:44:04 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 15:44:04 [    INFO] LanceDBHandler initialized. ID: 4955959248. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:44:04 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 15:44:04 [    INFO] Connecting to LanceDB at /private/tmp/root-wait-source-final-review-cs9htdz8/lancedb with storage_options=None
+2026-11-07 15:44:04 [    INFO] LanceDB connected successfully
+2026-11-07 15:44:04 [    INFO] Table 'documents' created successfully
+2026-11-07 15:44:04 [    INFO] Document added to 'documents': doc_7a2861a4b4a926277fce9588
+2026-11-07 15:44:04 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+2026-11-07 15:44:04 [    INFO] HTTP Request: GET http://testserver/api/documents/doc_7a2861a4b4a926277fce9588 "HTTP/1.1 200 OK"
+2026-11-07 15:44:04 [    INFO] HTTP Request: GET http://testserver/api/documents/doc_7a2861a4b4a926277fce9588/export?format=text "HTTP/1.1 200 OK"
+PASSED                                                                   [  5%]
+tests/test_document_export.py::test_normal_upload_open_export_matches_current_stored_content[markdown] 
+-------------------------------- live log setup --------------------------------
+2026-11-07 15:44:04 [    INFO] EscalationManager initialized
+2026-11-07 15:44:04 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:44:04 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 15:44:04 [    INFO] LanceDBHandler initialized. ID: 4955953488. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:44:04 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 15:44:04 [    INFO] Connecting to LanceDB at /private/tmp/root-wait-source-final-review-cs9htdz8/lancedb with storage_options=None
+2026-11-07 15:44:04 [    INFO] LanceDB connected successfully
+2026-11-07 15:44:04 [    INFO] Document added to 'documents': doc_666d52fe49cccb3f95dca7eb
+2026-11-07 15:44:04 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+2026-11-07 15:44:04 [    INFO] HTTP Request: GET http://testserver/api/documents/doc_666d52fe49cccb3f95dca7eb "HTTP/1.1 200 OK"
+2026-11-07 15:44:04 [    INFO] HTTP Request: GET http://testserver/api/documents/doc_666d52fe49cccb3f95dca7eb/export?format=markdown "HTTP/1.1 200 OK"
+PASSED                                                                   [  8%]
+tests/test_document_export.py::test_normal_upload_open_export_matches_current_stored_content[json] 
+-------------------------------- live log setup --------------------------------
+2026-11-07 15:44:04 [    INFO] EscalationManager initialized
+2026-11-07 15:44:04 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:44:04 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 15:44:04 [    INFO] LanceDBHandler initialized. ID: 4940362288. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:44:04 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 15:44:04 [    INFO] Connecting to LanceDB at /private/tmp/root-wait-source-final-review-cs9htdz8/lancedb with storage_options=None
+2026-11-07 15:44:04 [    INFO] LanceDB connected successfully
+2026-11-07 15:44:04 [    INFO] Document added to 'documents': doc_a51f1dbe3f16b26502406886
+2026-11-07 15:44:04 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+2026-11-07 15:44:04 [    INFO] HTTP Request: GET http://testserver/api/documents/doc_a51f1dbe3f16b26502406886 "HTTP/1.1 200 OK"
+2026-11-07 15:44:04 [    INFO] HTTP Request: GET http://testserver/api/documents/doc_a51f1dbe3f16b26502406886/export?format=json "HTTP/1.1 200 OK"
+PASSED                                                                   [ 10%]
+tests/test_document_export.py::test_document_ingestion_upload_uses_opaque_revision_and_canonical_id 
+-------------------------------- live log setup --------------------------------
+2026-11-07 15:44:04 [    INFO] EscalationManager initialized
+2026-11-07 15:44:04 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:44:04 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 15:44:04 [    INFO] LanceDBHandler initialized. ID: 4940358640. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:44:04 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 15:44:04 [    INFO] Connecting to LanceDB at /private/tmp/root-wait-source-final-review-cs9htdz8/lancedb with storage_options=None
+2026-11-07 15:44:04 [    INFO] LanceDB connected successfully
+2026-11-07 15:44:04 [    INFO] Document added to 'documents': ec5eb2c8-cd7a-4354-b06e-9400ad92f532
+2026-11-07 15:44:04 [    INFO] HTTP Request: POST http://testserver/api/document-ingestion/upload "HTTP/1.1 200 OK"
+2026-11-07 15:44:04 [    INFO] HTTP Request: GET http://testserver/api/documents/ec5eb2c8-cd7a-4354-b06e-9400ad92f532 "HTTP/1.1 200 OK"
+2026-11-07 15:44:04 [    INFO] HTTP Request: GET http://testserver/api/documents/ec5eb2c8-cd7a-4354-b06e-9400ad92f532/export?format=json "HTTP/1.1 200 OK"
+PASSED                                                                   [ 13%]
+tests/test_document_export.py::test_full_stored_content_over_model_reader_20k_is_not_truncated 
+-------------------------------- live log setup --------------------------------
+2026-11-07 15:44:04 [    INFO] EscalationManager initialized
+2026-11-07 15:44:04 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:44:04 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 15:44:04 [    INFO] LanceDBHandler initialized. ID: 4957149744. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:44:04 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 15:44:04 [    INFO] Connecting to LanceDB at /private/tmp/root-wait-source-final-review-cs9htdz8/lancedb with storage_options=None
+2026-11-07 15:44:04 [    INFO] LanceDB connected successfully
+2026-11-07 15:44:04 [    INFO] Document added to 'documents': doc_afed149491c833838630149f
+2026-11-07 15:44:04 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+2026-11-07 15:44:04 [    INFO] HTTP Request: GET http://testserver/api/documents/doc_afed149491c833838630149f "HTTP/1.1 200 OK"
+2026-11-07 15:44:04 [    INFO] HTTP Request: GET http://testserver/api/documents/doc_afed149491c833838630149f/export?format=text "HTTP/1.1 200 OK"
+2026-11-07 15:44:04 [    INFO] HTTP Request: GET http://testserver/api/documents/doc_afed149491c833838630149f/export?format=json "HTTP/1.1 200 OK"
+PASSED                                                                   [ 16%]
+tests/test_document_export.py::test_non_txt_stored_document_exports_current_text 
+-------------------------------- live log setup --------------------------------
+2026-11-07 15:44:04 [    INFO] EscalationManager initialized
+2026-11-07 15:44:04 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:44:04 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 15:44:04 [    INFO] LanceDBHandler initialized. ID: 4957175280. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:44:04 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 15:44:04 [    INFO] Connecting to LanceDB at /private/tmp/root-wait-source-final-review-cs9htdz8/lancedb with storage_options=None
+2026-11-07 15:44:04 [    INFO] LanceDB connected successfully
+2026-11-07 15:44:04 [    INFO] Document added to 'documents': doc_749a0f05006cd4ab5f11f537
+2026-11-07 15:44:04 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+2026-11-07 15:44:04 [    INFO] HTTP Request: GET http://testserver/api/documents/doc_749a0f05006cd4ab5f11f537 "HTTP/1.1 200 OK"
+2026-11-07 15:44:04 [    INFO] HTTP Request: GET http://testserver/api/documents/doc_749a0f05006cd4ab5f11f537/export?format=markdown "HTTP/1.1 200 OK"
+PASSED                                                                   [ 18%]
+tests/test_document_export.py::test_manual_opaque_identity_matches_exactly 
+-------------------------------- live log setup --------------------------------
+2026-11-07 15:44:04 [    INFO] EscalationManager initialized
+2026-11-07 15:44:04 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:44:04 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 15:44:04 [    INFO] LanceDBHandler initialized. ID: 4957174736. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:44:04 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 15:44:04 [    INFO] Connecting to LanceDB at /private/tmp/root-wait-source-final-review-cs9htdz8/lancedb with storage_options=None
+2026-11-07 15:44:04 [    INFO] LanceDB connected successfully
+2026-11-07 15:44:04 [    INFO] Document added to 'documents': manual-013467593608
+2026-11-07 15:44:04 [    INFO] HTTP Request: GET http://testserver/api/documents/manual-013467593608/export?format=json "HTTP/1.1 200 OK"
+PASSED                                                                   [ 21%]
+tests/test_document_export.py::test_vector_only_manual_legacy_is_explicit_snapshot_only 
+-------------------------------- live log setup --------------------------------
+2026-11-07 15:44:04 [    INFO] EscalationManager initialized
+2026-11-07 15:44:04 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:44:04 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 15:44:04 [    INFO] LanceDBHandler initialized. ID: 4957474384. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:44:04 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 15:44:04 [    INFO] Connecting to LanceDB at /private/tmp/root-wait-source-final-review-cs9htdz8/lancedb with storage_options=None
+2026-11-07 15:44:04 [    INFO] LanceDB connected successfully
+2026-11-07 15:44:04 [    INFO] Document added to 'documents': doc-22bffdf612b049aa
+2026-11-07 15:44:04 [    INFO] HTTP Request: GET http://testserver/api/documents/doc-22bffdf612b049aa/export?format=json "HTTP/1.1 200 OK"
+PASSED                                                                   [ 24%]
+tests/test_document_export.py::test_manual_sql_row_with_missing_version_is_snapshot_only 
+-------------------------------- live log setup --------------------------------
+2026-11-07 15:44:04 [    INFO] EscalationManager initialized
+2026-11-07 15:44:04 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:44:04 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 15:44:04 [    INFO] LanceDBHandler initialized. ID: 4957475664. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:44:04 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 15:44:04 [    INFO] Connecting to LanceDB at /private/tmp/root-wait-source-final-review-cs9htdz8/lancedb with storage_options=None
+2026-11-07 15:44:04 [    INFO] LanceDB connected successfully
+2026-11-07 15:44:04 [    INFO] Document added to 'documents': manual-sql-7941bb24a505
+2026-11-07 15:44:04 [    INFO] HTTP Request: GET http://testserver/api/documents/manual-sql-7941bb24a505/export?format=json "HTTP/1.1 200 OK"
+PASSED                                                                   [ 27%]
+tests/test_document_export.py::test_automated_sql_row_with_missing_version_refuses 
+-------------------------------- live log setup --------------------------------
+2026-11-07 15:44:04 [    INFO] EscalationManager initialized
+2026-11-07 15:44:04 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:44:04 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 15:44:04 [    INFO] LanceDBHandler initialized. ID: 4956457152. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:44:04 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 15:44:04 [    INFO] Connecting to LanceDB at /private/tmp/root-wait-source-final-review-cs9htdz8/lancedb with storage_options=None
+2026-11-07 15:44:04 [    INFO] LanceDB connected successfully
+2026-11-07 15:44:04 [    INFO] Document added to 'documents': auto-sql-193cc7f7f2da
+2026-11-07 15:44:04 [ WARNING] API Error: DOCUMENT_IDENTITY_UNVERIFIABLE - This document's source revision cannot be verified. Re-index or re-upload it before exporting.
+2026-11-07 15:44:04 [    INFO] HTTP Request: GET http://testserver/api/documents/auto-sql-193cc7f7f2da/export?format=text "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 29%]
+tests/test_document_export.py::test_known_indexed_binding_without_sql_row_refuses 
+-------------------------------- live log setup --------------------------------
+2026-11-07 15:44:04 [    INFO] EscalationManager initialized
+2026-11-07 15:44:04 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:44:04 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 15:44:04 [    INFO] LanceDBHandler initialized. ID: 4956462432. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:44:04 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 15:44:04 [    INFO] Connecting to LanceDB at /private/tmp/root-wait-source-final-review-cs9htdz8/lancedb with storage_options=None
+2026-11-07 15:44:04 [    INFO] LanceDB connected successfully
+2026-11-07 15:44:04 [    INFO] Document added to 'documents': indexed-cf6cfe9891e7
+2026-11-07 15:44:04 [ WARNING] API Error: DOCUMENT_IDENTITY_UNVERIFIABLE - This document has a known index or SQL binding but no matching source revision on both sides. Re-index or re-upload it before exporting.
+2026-11-07 15:44:04 [    INFO] HTTP Request: GET http://testserver/api/documents/indexed-cf6cfe9891e7/export?format=text "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 32%]
+tests/test_document_export.py::test_known_indexed_binding_without_index_version_refuses 
+-------------------------------- live log setup --------------------------------
+2026-11-07 15:44:04 [    INFO] EscalationManager initialized
+2026-11-07 15:44:04 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:44:04 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 15:44:04 [    INFO] LanceDBHandler initialized. ID: 4940143696. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:44:04 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 15:44:04 [    INFO] Connecting to LanceDB at /private/tmp/root-wait-source-final-review-cs9htdz8/lancedb with storage_options=None
+2026-11-07 15:44:04 [    INFO] LanceDB connected successfully
+2026-11-07 15:44:04 [    INFO] Document added to 'documents': sqlonly-9a950ce0065c
+2026-11-07 15:44:04 [ WARNING] API Error: DOCUMENT_IDENTITY_UNVERIFIABLE - This document has a known index or SQL binding but no matching source revision on both sides. Re-index or re-upload it before exporting.
+2026-11-07 15:44:04 [    INFO] HTTP Request: GET http://testserver/api/documents/sqlonly-9a950ce0065c/export?format=text "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 35%]
+tests/test_document_export.py::test_wrong_indexed_identity_refuses 
+-------------------------------- live log setup --------------------------------
+2026-11-07 15:44:04 [    INFO] EscalationManager initialized
+2026-11-07 15:44:04 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:44:04 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 15:44:04 [    INFO] LanceDBHandler initialized. ID: 4957077104. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:44:04 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 15:44:04 [    INFO] Connecting to LanceDB at /private/tmp/root-wait-source-final-review-cs9htdz8/lancedb with storage_options=None
+2026-11-07 15:44:04 [    INFO] LanceDB connected successfully
+2026-11-07 15:44:04 [    INFO] Document added to 'documents': wrongid-4b299b3a8d60
+2026-11-07 15:44:04 [ WARNING] API Error: DOCUMENT_IDENTITY_MISMATCH - The indexed extraction belongs to a different document.
+2026-11-07 15:44:04 [    INFO] HTTP Request: GET http://testserver/api/documents/wrongid-4b299b3a8d60/export?format=text "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 37%]
+tests/test_document_export.py::test_contradictory_versions_refuse 
+-------------------------------- live log setup --------------------------------
+2026-11-07 15:44:04 [    INFO] EscalationManager initialized
+2026-11-07 15:44:04 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:44:04 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 15:44:04 [    INFO] LanceDBHandler initialized. ID: 4955945056. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:44:04 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 15:44:04 [    INFO] Connecting to LanceDB at /private/tmp/root-wait-source-final-review-cs9htdz8/lancedb with storage_options=None
+2026-11-07 15:44:04 [    INFO] LanceDB connected successfully
+2026-11-07 15:44:04 [    INFO] Document added to 'documents': contradict-55aa4b3908d2
+2026-11-07 15:44:04 [ WARNING] API Error: DOCUMENT_REVISION_INVALID - The stored document revision is missing, stale, or does not match its authoritative record. Re-index or re-upload it before exporting.
+2026-11-07 15:44:04 [    INFO] HTTP Request: GET http://testserver/api/documents/contradict-55aa4b3908d2/export?format=json "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 40%]
+tests/test_document_export.py::test_old_extractor_version_refuses 
+-------------------------------- live log setup --------------------------------
+2026-11-07 15:44:04 [    INFO] EscalationManager initialized
+2026-11-07 15:44:04 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:44:04 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 15:44:04 [    INFO] LanceDBHandler initialized. ID: 4960295760. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:44:04 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 15:44:04 [    INFO] Connecting to LanceDB at /private/tmp/root-wait-source-final-review-cs9htdz8/lancedb with storage_options=None
+2026-11-07 15:44:04 [    INFO] LanceDB connected successfully
+2026-11-07 15:44:04 [    INFO] Document added to 'documents': oldext-635fa78ec905
+2026-11-07 15:44:04 [ WARNING] API Error: DOCUMENT_REVISION_INVALID - The stored document revision is missing, stale, or does not match its authoritative record. Re-index or re-upload it before exporting.
+2026-11-07 15:44:04 [    INFO] HTTP Request: GET http://testserver/api/documents/oldext-635fa78ec905/export?format=text "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 43%]
+tests/test_document_export.py::test_explicit_non_fresh_authority_refuses[stale-409-DOCUMENT_NOT_CURRENT] 
+-------------------------------- live log setup --------------------------------
+2026-11-07 15:44:04 [    INFO] EscalationManager initialized
+2026-11-07 15:44:04 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:44:04 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 15:44:04 [    INFO] LanceDBHandler initialized. ID: 4960296528. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:44:04 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 15:44:04 [    INFO] Connecting to LanceDB at /private/tmp/root-wait-source-final-review-cs9htdz8/lancedb with storage_options=None
+2026-11-07 15:44:04 [    INFO] LanceDB connected successfully
+2026-11-07 15:44:04 [    INFO] Document added to 'documents': fresh-cdeff2a6a271
+2026-11-07 15:44:04 [ WARNING] API Error: DOCUMENT_NOT_CURRENT - The authoritative document is not current; refresh or re-ingest it before exporting.
+2026-11-07 15:44:04 [    INFO] HTTP Request: GET http://testserver/api/documents/fresh-cdeff2a6a271/export?format=text "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 45%]
+tests/test_document_export.py::test_explicit_non_fresh_authority_refuses[outdated-409-DOCUMENT_NOT_CURRENT] 
+-------------------------------- live log setup --------------------------------
+2026-11-07 15:44:04 [    INFO] EscalationManager initialized
+2026-11-07 15:44:04 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:44:04 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 15:44:04 [    INFO] LanceDBHandler initialized. ID: 4960265584. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:44:04 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 15:44:04 [    INFO] Connecting to LanceDB at /private/tmp/root-wait-source-final-review-cs9htdz8/lancedb with storage_options=None
+2026-11-07 15:44:04 [    INFO] LanceDB connected successfully
+2026-11-07 15:44:04 [    INFO] Document added to 'documents': fresh-b50edce42d01
+2026-11-07 15:44:04 [ WARNING] API Error: DOCUMENT_NOT_CURRENT - The authoritative document is not current; refresh or re-ingest it before exporting.
+2026-11-07 15:44:04 [    INFO] HTTP Request: GET http://testserver/api/documents/fresh-b50edce42d01/export?format=text "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 48%]
+tests/test_document_export.py::test_explicit_non_fresh_authority_refuses[superseded-409-DOCUMENT_NOT_CURRENT] 
+-------------------------------- live log setup --------------------------------
+2026-11-07 15:44:04 [    INFO] EscalationManager initialized
+2026-11-07 15:44:04 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:44:04 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 15:44:04 [    INFO] LanceDBHandler initialized. ID: 4960261888. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:44:04 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 15:44:04 [    INFO] Connecting to LanceDB at /private/tmp/root-wait-source-final-review-cs9htdz8/lancedb with storage_options=None
+2026-11-07 15:44:04 [    INFO] LanceDB connected successfully
+2026-11-07 15:44:04 [    INFO] Document added to 'documents': fresh-a7d6640c6208
+2026-11-07 15:44:04 [ WARNING] API Error: DOCUMENT_NOT_CURRENT - The authoritative document is not current; refresh or re-ingest it before exporting.
+2026-11-07 15:44:04 [    INFO] HTTP Request: GET http://testserver/api/documents/fresh-a7d6640c6208/export?format=text "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 51%]
+tests/test_document_export.py::test_explicit_non_fresh_authority_refuses[removed-404-NOT_FOUND] 
+-------------------------------- live log setup --------------------------------
+2026-11-07 15:44:04 [    INFO] EscalationManager initialized
+2026-11-07 15:44:04 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:44:04 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 15:44:04 [    INFO] LanceDBHandler initialized. ID: 4960631248. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:44:04 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 15:44:04 [    INFO] Connecting to LanceDB at /private/tmp/root-wait-source-final-review-cs9htdz8/lancedb with storage_options=None
+2026-11-07 15:44:04 [    INFO] LanceDB connected successfully
+2026-11-07 15:44:04 [    INFO] Document added to 'documents': fresh-bf087d3e3d48
+2026-11-07 15:44:04 [ WARNING] API Error: NOT_FOUND - Document not found: fresh-bf087d3e3d48
+2026-11-07 15:44:04 [    INFO] HTTP Request: GET http://testserver/api/documents/fresh-bf087d3e3d48/export?format=text "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 54%]
+tests/test_document_export.py::test_unrecognized_or_revoked_freshness_is_never_authoritative[] 
+-------------------------------- live log setup --------------------------------
+2026-11-07 15:44:04 [    INFO] EscalationManager initialized
+2026-11-07 15:44:04 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:44:04 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 15:44:04 [    INFO] LanceDBHandler initialized. ID: 4961576720. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:44:04 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 15:44:04 [    INFO] Connecting to LanceDB at /private/tmp/root-wait-source-final-review-cs9htdz8/lancedb with storage_options=None
+2026-11-07 15:44:04 [    INFO] LanceDB connected successfully
+2026-11-07 15:44:04 [    INFO] Document added to 'documents': unknownfresh-45f9cdfd5c17
+2026-11-07 15:44:04 [ WARNING] API Error: DOCUMENT_NOT_CURRENT - The authoritative document is not current; refresh or re-ingest it before exporting.
+2026-11-07 15:44:04 [    INFO] HTTP Request: GET http://testserver/api/documents/unknownfresh-45f9cdfd5c17/export?format=json "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 56%]
+tests/test_document_export.py::test_unrecognized_or_revoked_freshness_is_never_authoritative[unknown] 
+-------------------------------- live log setup --------------------------------
+2026-11-07 15:44:04 [    INFO] EscalationManager initialized
+2026-11-07 15:44:04 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:44:04 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 15:44:04 [    INFO] LanceDBHandler initialized. ID: 4961577360. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:44:04 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 15:44:04 [    INFO] Connecting to LanceDB at /private/tmp/root-wait-source-final-review-cs9htdz8/lancedb with storage_options=None
+2026-11-07 15:44:04 [    INFO] LanceDB connected successfully
+2026-11-07 15:44:04 [    INFO] Document added to 'documents': unknownfresh-8ce32542a782
+2026-11-07 15:44:04 [ WARNING] API Error: DOCUMENT_NOT_CURRENT - The authoritative document is not current; refresh or re-ingest it before exporting.
+2026-11-07 15:44:04 [    INFO] HTTP Request: GET http://testserver/api/documents/unknownfresh-8ce32542a782/export?format=json "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 59%]
+tests/test_document_export.py::test_unrecognized_or_revoked_freshness_is_never_authoritative[revoked] 
+-------------------------------- live log setup --------------------------------
+2026-11-07 15:44:04 [    INFO] EscalationManager initialized
+2026-11-07 15:44:04 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:44:04 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 15:44:04 [    INFO] LanceDBHandler initialized. ID: 4961579280. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:44:04 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 15:44:04 [    INFO] Connecting to LanceDB at /private/tmp/root-wait-source-final-review-cs9htdz8/lancedb with storage_options=None
+2026-11-07 15:44:04 [    INFO] LanceDB connected successfully
+2026-11-07 15:44:04 [    INFO] Document added to 'documents': unknownfresh-964a5eb6552c
+2026-11-07 15:44:04 [ WARNING] API Error: DOCUMENT_NOT_CURRENT - The authoritative document is not current; refresh or re-ingest it before exporting.
+2026-11-07 15:44:04 [    INFO] HTTP Request: GET http://testserver/api/documents/unknownfresh-964a5eb6552c/export?format=json "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 62%]
+tests/test_document_export.py::test_unrecognized_or_revoked_freshness_is_never_authoritative[pending] 
+-------------------------------- live log setup --------------------------------
+2026-11-07 15:44:04 [    INFO] EscalationManager initialized
+2026-11-07 15:44:04 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:44:04 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 15:44:04 [    INFO] LanceDBHandler initialized. ID: 4960991376. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:44:04 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 15:44:04 [    INFO] Connecting to LanceDB at /private/tmp/root-wait-source-final-review-cs9htdz8/lancedb with storage_options=None
+2026-11-07 15:44:04 [    INFO] LanceDB connected successfully
+2026-11-07 15:44:04 [    INFO] Document added to 'documents': unknownfresh-efbdbe46cfba
+2026-11-07 15:44:04 [ WARNING] API Error: DOCUMENT_NOT_CURRENT - The authoritative document is not current; refresh or re-ingest it before exporting.
+2026-11-07 15:44:04 [    INFO] HTTP Request: GET http://testserver/api/documents/unknownfresh-efbdbe46cfba/export?format=json "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 64%]
+tests/test_document_export.py::test_foreign_workspace_and_unknown_document_are_not_found 
+-------------------------------- live log setup --------------------------------
+2026-11-07 15:44:04 [    INFO] EscalationManager initialized
+2026-11-07 15:44:04 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:44:04 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 15:44:04 [    INFO] LanceDBHandler initialized. ID: 4961577840. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:44:04 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 15:44:04 [    INFO] Connecting to LanceDB at /private/tmp/root-wait-source-final-review-cs9htdz8/lancedb with storage_options=None
+2026-11-07 15:44:04 [    INFO] LanceDB connected successfully
+2026-11-07 15:44:04 [    INFO] Document added to 'documents': foreign-89b334de1f6a
+2026-11-07 15:44:04 [ WARNING] API Error: NOT_FOUND - Document not found: foreign-89b334de1f6a
+2026-11-07 15:44:04 [    INFO] HTTP Request: GET http://testserver/api/documents/foreign-89b334de1f6a/export?format=text "HTTP/1.1 404 Not Found"
+2026-11-07 15:44:04 [ WARNING] API Error: NOT_FOUND - Document not found: unknown-next03
+2026-11-07 15:44:04 [    INFO] HTTP Request: GET http://testserver/api/documents/unknown-next03/export?format=text "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 67%]
+tests/test_document_export.py::test_empty_content_and_unsupported_formats_refuse 
+-------------------------------- live log setup --------------------------------
+2026-11-07 15:44:04 [    INFO] EscalationManager initialized
+2026-11-07 15:44:04 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:44:04 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 15:44:04 [    INFO] LanceDBHandler initialized. ID: 4962500144. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:44:04 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 15:44:04 [    INFO] Connecting to LanceDB at /private/tmp/root-wait-source-final-review-cs9htdz8/lancedb with storage_options=None
+2026-11-07 15:44:04 [    INFO] LanceDB connected successfully
+2026-11-07 15:44:04 [    INFO] Document added to 'documents': doc_6f5bdab22640a322baf1c082
+2026-11-07 15:44:04 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+2026-11-07 15:44:04 [ WARNING] API Error: DOCUMENT_EMPTY - The selected document has no stored text to export.
+2026-11-07 15:44:04 [    INFO] HTTP Request: GET http://testserver/api/documents/doc_6f5bdab22640a322baf1c082/export?format=text "HTTP/1.1 422 Unprocessable Entity"
+2026-11-07 15:44:04 [    INFO] Document added to 'documents': doc_947a1733b84639b7949754c8
+2026-11-07 15:44:04 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+2026-11-07 15:44:04 [ WARNING] API Error: UNSUPPORTED_EXPORT_FORMAT - Unsupported export format. Supported formats are text, markdown and json.
+2026-11-07 15:44:04 [    INFO] HTTP Request: GET http://testserver/api/documents/doc_947a1733b84639b7949754c8/export?format=html "HTTP/1.1 422 Unprocessable Entity"
+2026-11-07 15:44:04 [ WARNING] API Error: UNSUPPORTED_EXPORT_FORMAT - Unsupported export format. Supported formats are text, markdown and json.
+2026-11-07 15:44:04 [    INFO] HTTP Request: GET http://testserver/api/documents/doc_947a1733b84639b7949754c8/export?format=pdf "HTTP/1.1 422 Unprocessable Entity"
+2026-11-07 15:44:04 [ WARNING] API Error: UNSUPPORTED_EXPORT_FORMAT - Unsupported export format. Supported formats are text, markdown and json.
+2026-11-07 15:44:04 [    INFO] HTTP Request: GET http://testserver/api/documents/doc_947a1733b84639b7949754c8/export?format=docx "HTTP/1.1 422 Unprocessable Entity"
+2026-11-07 15:44:04 [ WARNING] API Error: UNSUPPORTED_EXPORT_FORMAT - Unsupported export format. Supported formats are text, markdown and json.
+2026-11-07 15:44:04 [    INFO] HTTP Request: GET http://testserver/api/documents/doc_947a1733b84639b7949754c8/export?format=original "HTTP/1.1 422 Unprocessable Entity"
+2026-11-07 15:44:04 [ WARNING] API Error: UNSUPPORTED_EXPORT_FORMAT - Unsupported export format. Supported formats are text, markdown and json.
+2026-11-07 15:44:04 [    INFO] HTTP Request: GET http://testserver/api/documents/doc_947a1733b84639b7949754c8/export?format=binary "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 70%]
+tests/test_document_export.py::test_client_path_url_and_original_parameters_refuse 
+-------------------------------- live log setup --------------------------------
+2026-11-07 15:44:04 [    INFO] EscalationManager initialized
+2026-11-07 15:44:04 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:44:04 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 15:44:04 [    INFO] LanceDBHandler initialized. ID: 4962236880. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:44:04 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 15:44:04 [    INFO] Connecting to LanceDB at /private/tmp/root-wait-source-final-review-cs9htdz8/lancedb with storage_options=None
+2026-11-07 15:44:04 [    INFO] LanceDB connected successfully
+2026-11-07 15:44:04 [    INFO] Document added to 'documents': doc_322144a3e8cfe575ad3ea56d
+2026-11-07 15:44:04 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+2026-11-07 15:44:04 [ WARNING] API Error: CLIENT_PATH_NOT_ALLOWED - Export accepts only a document id and a supported format; client paths, URLs and original-binary modes are not accepted.
+2026-11-07 15:44:04 [    INFO] HTTP Request: GET http://testserver/api/documents/doc_322144a3e8cfe575ad3ea56d/export?format=text&path=%2Fetc%2Fpasswd "HTTP/1.1 422 Unprocessable Entity"
+2026-11-07 15:44:04 [ WARNING] API Error: CLIENT_PATH_NOT_ALLOWED - Export accepts only a document id and a supported format; client paths, URLs and original-binary modes are not accepted.
+2026-11-07 15:44:04 [    INFO] HTTP Request: GET http://testserver/api/documents/doc_322144a3e8cfe575ad3ea56d/export?format=text&url=https%3A%2F%2Fexample.com%2Ffile "HTTP/1.1 422 Unprocessable Entity"
+2026-11-07 15:44:04 [ WARNING] API Error: CLIENT_PATH_NOT_ALLOWED - Export accepts only a document id and a supported format; client paths, URLs and original-binary modes are not accepted.
+2026-11-07 15:44:04 [    INFO] HTTP Request: GET http://testserver/api/documents/doc_322144a3e8cfe575ad3ea56d/export?format=text&file_path=%2Fetc%2Fpasswd "HTTP/1.1 422 Unprocessable Entity"
+2026-11-07 15:44:04 [ WARNING] API Error: CLIENT_PATH_NOT_ALLOWED - Export accepts only a document id and a supported format; client paths, URLs and original-binary modes are not accepted.
+2026-11-07 15:44:04 [    INFO] HTTP Request: GET http://testserver/api/documents/doc_322144a3e8cfe575ad3ea56d/export?format=text&locator=remote "HTTP/1.1 422 Unprocessable Entity"
+2026-11-07 15:44:04 [ WARNING] API Error: CLIENT_PATH_NOT_ALLOWED - Export accepts only a document id and a supported format; client paths, URLs and original-binary modes are not accepted.
+2026-11-07 15:44:04 [    INFO] HTTP Request: GET http://testserver/api/documents/doc_322144a3e8cfe575ad3ea56d/export?format=text&download=original "HTTP/1.1 422 Unprocessable Entity"
+2026-11-07 15:44:04 [ WARNING] API Error: CLIENT_PATH_NOT_ALLOWED - Export accepts only a document id and a supported format; client paths, URLs and original-binary modes are not accepted.
+2026-11-07 15:44:04 [    INFO] HTTP Request: GET http://testserver/api/documents/doc_322144a3e8cfe575ad3ea56d/export?format=text&original=true "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 72%]
+tests/test_document_export.py::test_unicode_and_header_injection_names_are_safe 
+-------------------------------- live log setup --------------------------------
+2026-11-07 15:44:04 [    INFO] EscalationManager initialized
+2026-11-07 15:44:04 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:44:04 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 15:44:04 [    INFO] LanceDBHandler initialized. ID: 4962236720. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:44:04 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 15:44:04 [    INFO] Connecting to LanceDB at /private/tmp/root-wait-source-final-review-cs9htdz8/lancedb with storage_options=None
+2026-11-07 15:44:04 [    INFO] LanceDB connected successfully
+2026-11-07 15:44:04 [    INFO] Document added to 'documents': name-23d62255c342
+2026-11-07 15:44:04 [    INFO] HTTP Request: GET http://testserver/api/documents/name-23d62255c342/export?format=text "HTTP/1.1 200 OK"
+2026-11-07 15:44:04 [    INFO] HTTP Request: GET http://testserver/api/documents/name-23d62255c342/export?format=json "HTTP/1.1 200 OK"
+PASSED                                                                   [ 75%]
+tests/test_document_export.py::test_source_version_header_is_not_injectable 
+-------------------------------- live log setup --------------------------------
+2026-11-07 15:44:05 [    INFO] EscalationManager initialized
+2026-11-07 15:44:05 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:44:05 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 15:44:05 [    INFO] LanceDBHandler initialized. ID: 4963013392. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:44:05 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 15:44:05 [    INFO] Connecting to LanceDB at /private/tmp/root-wait-source-final-review-cs9htdz8/lancedb with storage_options=None
+2026-11-07 15:44:05 [    INFO] LanceDB connected successfully
+2026-11-07 15:44:05 [    INFO] Document added to 'documents': vname-06c93c8d2108
+2026-11-07 15:44:05 [    INFO] HTTP Request: GET http://testserver/api/documents/vname-06c93c8d2108/export?format=text "HTTP/1.1 200 OK"
+PASSED                                                                   [ 78%]
+tests/test_document_export.py::test_large_stored_text_refuses_without_truncation 
+-------------------------------- live log setup --------------------------------
+2026-11-07 15:44:05 [    INFO] EscalationManager initialized
+2026-11-07 15:44:05 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:44:05 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 15:44:05 [    INFO] LanceDBHandler initialized. ID: 4963015152. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:44:05 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 15:44:05 [    INFO] Connecting to LanceDB at /private/tmp/root-wait-source-final-review-cs9htdz8/lancedb with storage_options=None
+2026-11-07 15:44:05 [    INFO] LanceDB connected successfully
+2026-11-07 15:44:05 [    INFO] Document added to 'documents': doc-3bb40a38a12a49d1
+2026-11-07 15:44:05 [ WARNING] API Error: EXPORT_TOO_LARGE - The stored document text exceeds the bounded export size; select a smaller document.
+2026-11-07 15:44:05 [    INFO] HTTP Request: GET http://testserver/api/documents/doc-3bb40a38a12a49d1/export?format=text "HTTP/1.1 413 Request Entity Too Large"
+PASSED                                                                   [ 81%]
+tests/test_lead_document_export_authority.py::test_export_rejects_contradictory_extraction_scope_and_unknown_freshness[matching] 
+-------------------------------- live log setup --------------------------------
+2026-11-07 15:44:05 [    INFO] EscalationManager initialized
+2026-11-07 15:44:05 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:44:05 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 15:44:05 [    INFO] LanceDBHandler initialized. ID: 4963200816. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:44:05 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 15:44:05 [    INFO] Connecting to LanceDB at /private/tmp/root-wait-source-final-review-cs9htdz8/lancedb with storage_options=None
+2026-11-07 15:44:05 [    INFO] LanceDB connected successfully
+2026-11-07 15:44:05 [    INFO] Document added to 'documents': lead-export-matching
+2026-11-07 15:44:05 [    INFO] HTTP Request: GET http://testserver/api/documents/lead-export-matching/export?format=json "HTTP/1.1 200 OK"
+PASSED                                                                   [ 83%]
+tests/test_lead_document_export_authority.py::test_export_rejects_contradictory_extraction_scope_and_unknown_freshness[indexed_workspace] 
+-------------------------------- live log setup --------------------------------
+2026-11-07 15:44:05 [    INFO] EscalationManager initialized
+2026-11-07 15:44:05 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:44:05 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 15:44:05 [    INFO] LanceDBHandler initialized. ID: 4963363376. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:44:05 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 15:44:05 [    INFO] Connecting to LanceDB at /private/tmp/root-wait-source-final-review-cs9htdz8/lancedb with storage_options=None
+2026-11-07 15:44:05 [    INFO] LanceDB connected successfully
+2026-11-07 15:44:05 [    INFO] Document added to 'documents': lead-export-indexed_workspace
+2026-11-07 15:44:05 [ WARNING] API Error: NOT_FOUND - Document not found: lead-export-indexed_workspace
+2026-11-07 15:44:05 [    INFO] HTTP Request: GET http://testserver/api/documents/lead-export-indexed_workspace/export?format=json "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 86%]
+tests/test_lead_document_export_authority.py::test_export_rejects_contradictory_extraction_scope_and_unknown_freshness[indexed_tenant] 
+-------------------------------- live log setup --------------------------------
+2026-11-07 15:44:05 [    INFO] EscalationManager initialized
+2026-11-07 15:44:05 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:44:05 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 15:44:05 [    INFO] LanceDBHandler initialized. ID: 4963490768. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:44:05 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 15:44:05 [    INFO] Connecting to LanceDB at /private/tmp/root-wait-source-final-review-cs9htdz8/lancedb with storage_options=None
+2026-11-07 15:44:05 [    INFO] LanceDB connected successfully
+2026-11-07 15:44:05 [    INFO] Document added to 'documents': lead-export-indexed_tenant
+2026-11-07 15:44:05 [ WARNING] API Error: DOCUMENT_SCOPE_MISMATCH - The indexed extraction tenant does not match the authenticated scope.
+2026-11-07 15:44:05 [    INFO] HTTP Request: GET http://testserver/api/documents/lead-export-indexed_tenant/export?format=json "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 89%]
+tests/test_lead_document_export_authority.py::test_export_rejects_contradictory_extraction_scope_and_unknown_freshness[unknown_freshness] 
+-------------------------------- live log setup --------------------------------
+2026-11-07 15:44:05 [    INFO] EscalationManager initialized
+2026-11-07 15:44:05 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:44:05 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 15:44:05 [    INFO] LanceDBHandler initialized. ID: 4963745008. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:44:05 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 15:44:05 [    INFO] Connecting to LanceDB at /private/tmp/root-wait-source-final-review-cs9htdz8/lancedb with storage_options=None
+2026-11-07 15:44:05 [    INFO] LanceDB connected successfully
+2026-11-07 15:44:05 [    INFO] Document added to 'documents': lead-export-unknown_freshness
+2026-11-07 15:44:05 [ WARNING] API Error: DOCUMENT_NOT_CURRENT - The authoritative document is not current; refresh or re-ingest it before exporting.
+2026-11-07 15:44:05 [    INFO] HTTP Request: GET http://testserver/api/documents/lead-export-unknown_freshness/export?format=json "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 91%]
+tests/test_lead_document_export_nullable_scope.py::test_present_index_scope_must_match_request_even_when_sql_legacy_scope_missing[None-foreign-409] 
+-------------------------------- live log setup --------------------------------
+2026-11-07 15:44:05 [    INFO] EscalationManager initialized
+2026-11-07 15:44:05 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:44:05 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 15:44:05 [    INFO] LanceDBHandler initialized. ID: 4962938352. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:44:05 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 15:44:05 [    INFO] Connecting to LanceDB at /private/tmp/root-wait-source-final-review-cs9htdz8/lancedb with storage_options=None
+2026-11-07 15:44:05 [    INFO] LanceDB connected successfully
+2026-11-07 15:44:05 [    INFO] Document added to 'documents': nullable-export-scope-00072b8f09a040a3a11ea3bdeb16c869
+2026-11-07 15:44:05 [ WARNING] API Error: DOCUMENT_SCOPE_MISMATCH - The indexed extraction tenant does not match the authenticated scope.
+2026-11-07 15:44:05 [    INFO] HTTP Request: GET http://testserver/api/documents/nullable-export-scope-00072b8f09a040a3a11ea3bdeb16c869/export?format=json "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 94%]
+tests/test_lead_document_export_nullable_scope.py::test_present_index_scope_must_match_request_even_when_sql_legacy_scope_missing[-foreign-409] 
+-------------------------------- live log setup --------------------------------
+2026-11-07 15:44:05 [    INFO] EscalationManager initialized
+2026-11-07 15:44:05 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:44:05 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 15:44:05 [    INFO] LanceDBHandler initialized. ID: 4964234928. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:44:05 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 15:44:05 [    INFO] Connecting to LanceDB at /private/tmp/root-wait-source-final-review-cs9htdz8/lancedb with storage_options=None
+2026-11-07 15:44:05 [    INFO] LanceDB connected successfully
+2026-11-07 15:44:05 [    INFO] Document added to 'documents': nullable-export-scope-5fa15dc7de624c6989bc26d5487b1d13
+2026-11-07 15:44:05 [ WARNING] API Error: DOCUMENT_SCOPE_MISMATCH - The indexed extraction tenant does not match the authenticated scope.
+2026-11-07 15:44:05 [    INFO] HTTP Request: GET http://testserver/api/documents/nullable-export-scope-5fa15dc7de624c6989bc26d5487b1d13/export?format=json "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 97%]
+tests/test_lead_document_export_nullable_scope.py::test_present_index_scope_must_match_request_even_when_sql_legacy_scope_missing[None-t1-200] 
+-------------------------------- live log setup --------------------------------
+2026-11-07 15:44:05 [    INFO] EscalationManager initialized
+2026-11-07 15:44:05 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:44:05 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 15:44:05 [    INFO] LanceDBHandler initialized. ID: 4964231248. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:44:05 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 15:44:05 [    INFO] Connecting to LanceDB at /private/tmp/root-wait-source-final-review-cs9htdz8/lancedb with storage_options=None
+2026-11-07 15:44:05 [    INFO] LanceDB connected successfully
+2026-11-07 15:44:05 [    INFO] Document added to 'documents': nullable-export-scope-2376bca5135e4bf2aa7593ce858b509e
+2026-11-07 15:44:05 [    INFO] HTTP Request: GET http://testserver/api/documents/nullable-export-scope-2376bca5135e4bf2aa7593ce858b509e/export?format=json "HTTP/1.1 200 OK"
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 74 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_document_export.py: 29 warnings
+tests/test_lead_document_export_authority.py: 4 warnings
+tests/test_lead_document_export_nullable_scope.py: 3 warnings
+  /private/tmp/atom-document-stored-export-20261107/backend/core/lancedb_handler.py:407: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    names = set(self.db.table_names())
+
+tests/test_document_export.py: 33 warnings
+tests/test_lead_document_export_authority.py: 4 warnings
+tests/test_lead_document_export_nullable_scope.py: 3 warnings
+  /Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/asyncio/events.py:94: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    self._context.run(self._callback, *self._args)
+
+tests/test_document_export.py::test_normal_upload_open_export_matches_current_stored_content[text]
+tests/test_document_export.py::test_normal_upload_open_export_matches_current_stored_content[text]
+tests/test_document_export.py::test_normal_upload_open_export_matches_current_stored_content[text]
+tests/test_document_export.py::test_normal_upload_open_export_matches_current_stored_content[text]
+  /private/tmp/atom-document-stored-export-20261107/backend/core/lancedb_handler.py:620: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    if table_name in self.db.table_names():
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+====================== 37 passed, 161 warnings in 11.96s =======================
