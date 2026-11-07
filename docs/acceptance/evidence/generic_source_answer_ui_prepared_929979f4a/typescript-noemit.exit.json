@@ -1,0 +1,20 @@
+{
+  "kind": "frontend_typescript_noemit_gate",
+  "source_head": "929979f4a4a279668020118b613d4f2eaafe0dd2",
+  "source_clean": true,
+  "command": [
+    "/private/tmp/atom-task-wait-01-reconciliation-20261107/frontend-nextjs/node_modules/.bin/tsc",
+    "--noEmit",
+    "-p",
+    "tsconfig.json"
+  ],
+  "cwd": "/private/tmp/atom-task-wait-01-reconciliation-20261107/frontend-nextjs",
+  "tsc_version": "Version 5.9.3",
+  "started_utc": "2026-11-07T19:31:25.966036+00:00",
+  "ended_utc": "2026-11-07T19:31:32.284584+00:00",
+  "raw_exit": 0,
+  "log": "/private/tmp/typescript-noemit-929979f4a4.log",
+  "log_sha256": "76de6b2341894f1ab0b6ce5b88ca8ee8b50b3f80330ae7a286939d4d0e3c8ad6",
+  "dependency_install": false,
+  "npx_fetch": false
+}
