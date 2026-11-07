@@ -1,0 +1,29 @@
+{
+  "source": "3ad595693",
+  "native_runtime": "60d3b71de",
+  "native_evidence": "dc126be5d",
+  "root_correction": "ba852d86d",
+  "initial_review": {
+    "passed": 271,
+    "failed": 2,
+    "actual_exit_code": 1
+  },
+  "final_joint": {
+    "passed": 361,
+    "failed": 0,
+    "skipped": 0,
+    "actual_exit_code": 0
+  },
+  "scope": "controlled registry consumers, real scratch SQLite effects/readback, explicit governance bypass in decisive probes; no ordinary UI/model/guest/provider/PostgreSQL/multi-worker qualification",
+  "provenance": "Original worker packet and two independent failing probes preserved; final source merges the reviewed joint foundation and adds the root repair plus permanent controls. No assertion, negative, or accepted source contract removed.",
+  "log_scan": {
+    "final-joint.log": {
+      "synthetic_revision_digest_count": 0,
+      "jwt_like_count": 0
+    },
+    "initial-review.log": {
+      "synthetic_revision_digest_count": 0,
+      "jwt_like_count": 0
+    }
+  }
+}

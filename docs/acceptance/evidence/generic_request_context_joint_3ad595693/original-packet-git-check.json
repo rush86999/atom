@@ -1,0 +1,51 @@
+{
+  "ref": "dc126be5d",
+  "checks": [
+    {
+      "path": "backend/core/oracle/request_expectations.py",
+      "group": "source_files",
+      "match": true
+    },
+    {
+      "path": "backend/core/generic_agent.py",
+      "group": "source_files",
+      "match": true
+    },
+    {
+      "path": "backend/core/assignment_executor.py",
+      "group": "source_files",
+      "match": true
+    },
+    {
+      "path": "backend/tests/test_generic_request_expectations.py",
+      "group": "source_files",
+      "match": true
+    },
+    {
+      "path": "docs/acceptance/evidence/generic_request_binding_20261107/README.md",
+      "group": "artifacts",
+      "match": true
+    },
+    {
+      "path": "docs/acceptance/evidence/generic_request_binding_20261107/final-gate.log",
+      "group": "artifacts",
+      "match": true
+    },
+    {
+      "path": "docs/acceptance/evidence/generic_request_binding_20261107/known-preexisting-failure.log",
+      "group": "artifacts",
+      "match": true
+    },
+    {
+      "path": "docs/acceptance/evidence/generic_request_binding_20261107/run-spec.json",
+      "group": "artifacts",
+      "match": true
+    },
+    {
+      "path": "docs/acceptance/evidence/generic_request_binding_20261107/probe/test_lead_generic_mini_request_binding.py",
+      "group": "artifacts",
+      "match": true
+    }
+  ],
+  "failures": []
+}
