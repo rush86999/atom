@@ -100,3 +100,35 @@ def test_budget_scope_uses_existing_personal_account_resolution(host, case):
             else:
                 assert result["enforcement_mode"] == "hard_stop", result
                 assert result["current_spend_usd"] == 2, result
+
+
+@pytest.mark.parametrize("mode,allowed,review", [
+    ("hard_stop", False, False),
+    ("soft_stop", False, False),
+    ("approval", False, True),
+    ("alert_only", True, False),
+])
+def test_only_configured_approval_mode_proposes_budget_review(host, mode, allowed, review):
+    from core.agent_governance_service import AgentGovernanceService
+    with host.Session() as db:
+        db.add(Tenant(id=TENANT, name="Operator", subdomain="budget-modes"))
+        db.add(Workspace(id=WORKSPACE, name="Operator workspace", tenant_id=TENANT))
+        db.add(AgentRegistry(
+            id="budget-agent", name="Budget actor", category="Operations",
+            module_path="core.generic_agent", class_name="GenericAgent",
+            user_id=USER, workspace_id=WORKSPACE, tenant_id=TENANT,
+            status="autonomous", confidence_score=0.99))
+        db.add(TenantSetting(
+            tenant_id=TENANT, setting_key="billing",
+            setting_value=json.dumps({"budget_limit_usd":1,
+                "enforcement":{"mode":mode}})))
+        db.add(TokenUsage(
+            agent_id="budget-agent", workspace_id=WORKSPACE,
+            tenant_id=TENANT, model_name="controlled-no-provider",
+            cost_usd=2, timestamp=datetime.now()))
+        db.commit()
+        service = AgentGovernanceService(db, workspace_id=WORKSPACE, tenant_id=TENANT)
+        result = asyncio.run(service.can_perform_action_async(
+            "budget-agent", "mini_app_scaffold"))
+        assert result["allowed"] is allowed, result
+        assert bool(result.get("requires_human_approval")) is review, result
