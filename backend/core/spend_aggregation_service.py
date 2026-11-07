@@ -124,8 +124,15 @@ class SpendAggregationService:
             logger.warning(f"[SpendAggregationService] Error calculating fleet spend for chain {chain_id}: {e}")
             return 0.0
 
-    def update_tenant_spend(self, tenant_id: str) -> Dict[str, Any]:
-        """Update tenant's current_spend_usd and total_spend_usd with aggregated spend."""
+    def update_tenant_spend(
+        self, tenant_id: str, *, persist: bool = True,
+    ) -> Dict[str, Any]:
+        """Compute spend, optionally persisting the existing cached rollup.
+
+        Budget preflight uses persist=False: it must neither commit nor roll
+        back business edits owned by the caller. Existing rollup writers keep
+        their historical persistence by default.
+        """
         try:
             tenant = self.db.query(Tenant).filter(Tenant.id == tenant_id).first()
             if not tenant: return {"error": f"Tenant {tenant_id} not found"}
@@ -142,7 +149,7 @@ class SpendAggregationService:
 
             if "error" in spend_data: return spend_data
 
-            tenant.current_spend_usd = spend_data["total_spend_usd"]
+            current_spend_usd = spend_data["total_spend_usd"]
             
             # Lifetime spend (since creation).
             # NOTE (W104-2): created_at is UTC (func.now()) while `today` is
@@ -153,9 +160,12 @@ class SpendAggregationService:
             if lifetime_start > today:
                 lifetime_start = today
             lifetime_spend = self.get_total_spend(tenant_id=tenant_id, start_date=lifetime_start, end_date=today)
-            tenant.total_spend_usd = lifetime_spend["total_spend_usd"]
+            total_spend_usd = lifetime_spend["total_spend_usd"]
 
-            self.db.commit()
+            if persist:
+                tenant.current_spend_usd = current_spend_usd
+                tenant.total_spend_usd = total_spend_usd
+                self.db.commit()
 
             # Budget limit: prefer the persisted Tenant attribute; fall back to
             # the admin-configured limit in TenantSetting['billing'] (set via
@@ -165,16 +175,17 @@ class SpendAggregationService:
             if not budget_limit:
                 budget_limit = self._budget_limit_from_setting(tenant_id)
             budget_limit = float(budget_limit or 0.0)
-            utilization_percent = (tenant.current_spend_usd / budget_limit * 100) if budget_limit > 0 else 0.0
+            utilization_percent = (current_spend_usd / budget_limit * 100) if budget_limit > 0 else 0.0
 
             return {
                 "tenant_id": tenant_id,
-                "current_spend_usd": round(tenant.current_spend_usd, 4),
-                "total_spend_usd": round(tenant.total_spend_usd, 4),
+                "current_spend_usd": round(current_spend_usd, 4),
+                "total_spend_usd": round(total_spend_usd, 4),
                 "budget_limit_usd": budget_limit,
                 "utilization_percent": round(utilization_percent, 2)
             }
         except Exception as e:
             logger.error(f"[SpendAggregationService] Error updating spend: {str(e)}")
-            self.db.rollback()
+            if persist:
+                self.db.rollback()
             return {"error": str(e)}

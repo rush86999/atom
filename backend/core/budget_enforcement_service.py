@@ -109,7 +109,8 @@ class BudgetEnforcementService:
         """
         try:
             # Get current spend from SpendAggregationService
-            spend_result = self.spend_service.update_tenant_spend(tenant_id)
+            spend_result = self.spend_service.update_tenant_spend(
+                tenant_id, persist=False)
 
             if "error" in spend_result:
                 # Fail-open: allow action if spend check fails

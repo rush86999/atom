@@ -713,14 +713,14 @@ class AgentGovernanceService:
         from core.models import Workspace
         from core.personal_scope import resolve_tenant_id
 
-        query = self.db.query(AgentRegistry).filter(AgentRegistry.id == agent_id)
+        conditions = [AgentRegistry.id == agent_id]
         # Legacy governance utilities may not carry request scope. Resolving
         # an account budget is an additional restriction, not a grant of
         # actor/target authority: use the actual agent's account in that case.
         # Explicit request bindings still require their exact workspace.
         if self.tenant_id is not None or self.workspace_id not in (None, "default"):
-            query = query.filter(self._workspace_scope_condition())
-        agent = query.first()
+            conditions.append(self._workspace_scope_condition())
+        agent = self.db.query(AgentRegistry).filter(*conditions).first()
         if agent is None:
             return {
                 "allowed": False,
