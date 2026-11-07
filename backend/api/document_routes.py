@@ -290,10 +290,19 @@ def _document_export_provenance(
             "DOCUMENT_SCOPE_MISMATCH",
             "The authoritative document record belongs to a different tenant.",
         )
+    if indexed_tenant and tenant_id and indexed_tenant != str(tenant_id):
+        # A legacy SQL NULL does not erase explicit indexed/request scope.
+        # Check each known authority independently rather than selecting the
+        # SQL row as the only comparison and skipping its absent value.
+        raise _export_identity_failure(
+            "DOCUMENT_SCOPE_MISMATCH",
+            "The indexed extraction tenant does not match the authenticated "
+            "scope.",
+        )
     if indexed_tenant:
-        # When a SQL row exists, its tenant is the authoritative comparison.
-        # A NULL/legacy tenant is absent, not a contradictory value; only a
-        # vector-only row falls back to the request's Personal-Edition tenant.
+        # When a SQL row exists, its tenant is another independent comparison.
+        # A NULL/legacy tenant supplies no additional evidence; the indexed
+        # tenant must still have matched authenticated Personal-Edition scope.
         reference_tenant = (
             str(row.tenant_id or "") if row is not None
             else str(tenant_id or ""))
