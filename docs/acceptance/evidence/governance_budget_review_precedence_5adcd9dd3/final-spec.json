@@ -1,0 +1,20 @@
+{
+  "source": "5adcd9dd392e228844434099ac3e8b27ab3780fc",
+  "scratch": "/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-budget-review-final-k4v7zcbe",
+  "command": [
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-budget-review-final-k4v7zcbe/pytest",
+    "tests/test_generic_real_mcp_budget_contract.py",
+    "tests/test_budget_caller_transaction_contract.py",
+    "tests/test_budget_control.py",
+    "tests/test_governance_budget_decision_matrix.py",
+    "--junitxml=/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-budget-review-final-k4v7zcbe/result.xml",
+    "-q",
+    "--tb=short"
+  ],
+  "started": 1794039746.9289222
+}

@@ -1,0 +1,33 @@
+{
+  "executed_source": "5adcd9dd392e228844434099ac3e8b27ab3780fc",
+  "source_files": {
+    "backend/core/agent_governance_service.py": "676e09a26bf9a38e7682d88ba2cdb39faa1d81fba8b9ffdd2bc32c9e8f9c4535",
+    "backend/core/budget_enforcement_service.py": "17495d4454c25c4dc161a40970ba896a7f9b8ac8849ff6dccd6dfecbd2648dc4",
+    "backend/core/spend_aggregation_service.py": "884992ce9d211ddfcf06c28fc5d56e81424c241a6f9f5aa0a91d67af405243b3",
+    "backend/core/personal_scope.py": "fb475dcd302845a2d3fb8ed50da1acd2849f0103fa403a395393d4b52d1e21b3",
+    "backend/core/generic_agent.py": "fbb0c7c4662226b0e7daeb7c3ef3efcccc1c477b06917046daa1ce295c8367b2",
+    "backend/integrations/mcp_service.py": "235c89f416b862c217284d73f9d4f2d8b20ae752b8cbf7ce60a47ddb5527dc10",
+    "backend/core/action_registry.py": "16cfc4c9e6bc31d350b78ba5300e35f1a6d1944c98f1cf6a8efed261c1aad44a",
+    "backend/tests/test_generic_real_mcp_budget_contract.py": "4c94730d119f37f981d66ea328ad454bd40feec40271c2b3b5c82ff8720ad467",
+    "backend/tests/test_budget_caller_transaction_contract.py": "e762cb9b6a334e4a7ca1633d4d09eaa9bcfdbc1d54d7fe08d2949833a7d6d7bc",
+    "backend/tests/test_budget_control.py": "1d7ff9891fbc88f2eaaeff0614fab10bdc8769bd46a6adeec37b8980cab9d9f1",
+    "backend/tests/test_governance_budget_decision_matrix.py": "d1c0970c55e3840a964306d2310dc8e38e2f566372a51be1d9f6412d13010abb",
+    ".github/workflows/ci.yml": "0daaabe9ce2cb1c8d3526147d6978bb99830f1e858fc61ca5a97dfe81bbbb880"
+  },
+  "artifacts": {
+    "README.md": "a01b847d92463d365895fe559ab6eb3b191cad5426dadfcb9204d3d9fd7e185a",
+    "existing-exit.json": "f8aaf4c84b54a5dbf9cf5eb5a8d37765297da99ad43250c878bb2a44563b4606",
+    "existing-spec.json": "cb5afd0ee49b1e8d3b690fda978a6427d5b7f88a2d83d9f4fe2557da231dc394",
+    "existing.log": "6297b4cf7ab3911e788278137238f406bfdb7a53f450e3f6d1286957592fd617",
+    "existing.xml": "f0845612bc9507d94741724d73c9268b944eaf61a02859bbf36b9ecafc9a4443",
+    "final-exit.json": "2064325dc632819453d6f393f63fcf2847b166a77b9e3289db93123cd591300f",
+    "final-spec.json": "69f5737890f6190a336584eb6d9eeecb7c91aeaf7fd7e6ff61e4b423a2b6fb52",
+    "final.log": "d91c596532ca69f373bcedfbd65d5e8a8ee6e57d93dcbf8051130019bce18832",
+    "final.xml": "052c8ac3e1da434c68c68a90d6de8d8bda614ffb58fe5ff74a084f60802751ae",
+    "negative-exit.json": "e4538b7fd99f372721cc707394405a95866ef9e73473e01d5ca8eeb7359ea67b",
+    "negative-probe.py": "d1c0970c55e3840a964306d2310dc8e38e2f566372a51be1d9f6412d13010abb",
+    "negative.log": "34831bfec2ec13f715e11532ed1430b9577ac8ae7afb57d2b723199c72c0e98d",
+    "negative.xml": "3be8ab2bbd64deb9ddd7e86073bc943d9c29b4373143df365cd915c81629c1d0",
+    "verification.json": "48388a06736d866a2be85aa5ce4453a5e07502f2ebb4a3a903e436d51f1d573c"
+  }
+}
