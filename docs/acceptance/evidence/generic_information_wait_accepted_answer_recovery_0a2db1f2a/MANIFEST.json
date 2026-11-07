@@ -1,0 +1,33 @@
+{
+  "artifacts": {
+    "README.md": "727e8502670074cfa6a570367982f70f11fe524b6d866c7a3ca0bd9fa090f775",
+    "concurrency-after-fix-run1.log": "998909dfacfad3a6cd36898318f07dafc50665fb1a9de694f69e6782cc45ed2d",
+    "concurrency-race-before-fix-junit.xml": "712cd7aadf387c10498bca3b9b8a13089326c8efe40a6e39447675775c6ebb7e",
+    "concurrency-race-before-fix.log": "39e04a021dc3f73176c993592de228c6a9e18f441738fc5649832bbaae948dfd",
+    "gate-exit.json": "82a2ad216fc5d18536bc848650615180107b03640bc5b7ce80a41f18610a36af",
+    "gate-junit.xml": "e1b40b50eef12d53c6f54b847855b394fe5283f2521f05e7c31bfcfbb2116558",
+    "gate-spec.json": "d983c896bd996dc94507e26019fd2a0920d4ea87f7ab83410d8ade94322677bc",
+    "gate.log": "c6fadcc562f50dd853833af9d38da766dd1fe38338bb2ca84efc1203524ea8b8",
+    "verification.json": "d0262b9e8b8679f5b079a504a5af8eddea2de60f0316d12cfe1aa8f10897b90c"
+  },
+  "base_source": "d922601050546364560474a2e6d0388a34c2a974",
+  "executed_source": "0a2db1f2af142273c59f29e754c12ae67b13b73a",
+  "prior_test_checkpoint": "e1ffc9743f9085d7cd1f965216107f5d2f5e0ae7",
+  "source_files": {
+    "backend/api/agent_routes.py": "f5c031767cd90defcf74e9cfdcd1230678c378f4615e3c75ac77643c3dde9a36",
+    "backend/core/execution_ownership.py": "77c648ce0448e983c840953f89f3b13f1835c3d64afb4789e0a12b85d230dc19",
+    "backend/core/generic_agent.py": "8c3bd61447d2f600c1153ab3c8b84597097fad342add3809c9a79c40bb5dee8b",
+    "backend/core/hitl_resume.py": "1a5b018e815b6e8371f09d54e47623d26a6697d9b9e591be3588b5a494374eaf",
+    "backend/core/information_wait.py": "d71ee771c94c4f221a11a4fe8626618f5e82c0aa81454861c7a0ee11a0e4ce08",
+    "backend/core/react_models.py": "9c9b18bbec1ac8020aadaddc10aacfbf954a7a6181baca413201d0a8b9ccdaed",
+    "backend/main_api_app.py": "b291f161bbe113dbb36b08f95aaf04e8a7cc846aee54f0ddb13f73cabc914ea1",
+    "backend/tests/process_support/generic_information_wait_process_worker.py": "559ca09716db974839e7b4d5ad6c30f83d5481418526d065a7221e78e6c4dc22",
+    "backend/tests/test_agent_generic_information_wait.py": "30dea4516cdf332bf211c19c591c8e6716664a481329880c34d58abc4b4e0102",
+    "backend/tests/test_agent_generic_information_wait_process.py": "a69c7b489076fcfb36346a27ed3a667b1f46eb7832d93e1110cbd06d5d073105",
+    "backend/tests/test_boot_recovery_not_gated_by_scheduler.py": "ee9227546ae3fb7579f639c7a847a38c1d91e9ab07d2f9986313ff9fc548938d",
+    "backend/tests/test_generic_information_exact_event_contract.py": "afed948c3b3af40847b14ee201eb3fc2381170a70d487ed9f04f8bd11b9af155",
+    "backend/tests/test_generic_information_resume_namespace_contract.py": "c898ac7c8a0295f423a908fceb1e9232830a960d0a452929a6898528db1accc4",
+    "backend/tests/test_generic_information_wait_recovery.py": "c4c9fb0d1123947fc9ce4e996a182cb5645bcfcbd926311c7d739ecf5a07e451",
+    "backend/tests/test_hitl_resume.py": "b1fff7d57ac17d12345b47481faa9b991b23954346b64f5d0b54399043c267e0"
+  }
+}

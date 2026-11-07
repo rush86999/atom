@@ -1,0 +1,39 @@
+{
+  "executed_source": "0a2db1f2af142273c59f29e754c12ae67b13b73a",
+  "base_source": "d922601050546364560474a2e6d0388a34c2a974",
+  "gate": {
+    "passed": 46,
+    "failed": 0,
+    "actual_exit_code": 0
+  },
+  "real_process_cases": {
+    "wait_restart_answer": "passed",
+    "accepted_answer_crash_before_claim_resumes_once": "passed",
+    "concurrent_startup_wakes_once": "passed",
+    "twenty_completed_history_plus_ready_target": "passed",
+    "post_claim_crash_marked_uncertain_no_resend": "passed",
+    "second_restart_inert": "passed"
+  },
+  "selection_controls": {
+    "unbound_or_unapproved_or_foreign_never_dispatch": "passed",
+    "old_wait_not_current_receipt": "passed",
+    "missing_snapshot_scope_no_row_fallback": "passed",
+    "unavailable_actor": "passed",
+    "terminal_job_not_examined": "passed",
+    "live_or_unknown_claim_owner_left_alone": "passed",
+    "twenty_terminal_waits_do_not_starve_21st": "passed"
+  },
+  "startup_wiring": {
+    "structural_boot_test_includes_recover_accepted_information_waits": "passed",
+    "negative_control_sees_re_nested_call": "passed",
+    "full_main_api_app_lifespan_execution_claimed": false
+  },
+  "first_failed_attempt": {
+    "artifact": "concurrency-race-before-fix.log",
+    "failure": "a concurrent successor treated a peer's live resume claim as dead and recorded uncertain==1",
+    "root_cause": "the claim did not identify its owner; recovery fell back to the original execution owner stamp",
+    "resolution": "record claim_owner/OS-start at claim time and judge the claim owner first",
+    "product_negative_preserved": true
+  },
+  "scope": "actual-process helper/consumer proof plus AST startup wiring; no full app boot, live model/provider, UI/browser, A2 assignment recovery or whole-app TASK-WAIT-01 claim"
+}
