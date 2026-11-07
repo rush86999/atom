@@ -1,0 +1,21 @@
+{
+  "source": "475b664271473cf62fc9545e1384fba65d37c90b",
+  "scratch": "/private/tmp/root-goal-ci-sync-milw0vb2",
+  "command": [
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-source-executor-ci753-20261107/frontend-nextjs",
+    "--profile",
+    "bounded",
+    "--",
+    "/usr/local/bin/node",
+    "node_modules/jest/bin/jest.js",
+    "--runInBand",
+    "--watchman=false",
+    "--no-cache",
+    "--runTestsByPath",
+    "tests/pages/goal-runs/detail.test.tsx",
+    "tests/pages/goal-runs/index.test.tsx"
+  ],
+  "seam": "existing installed node_modules; no Watchman; UI service doubles unchanged"
+}
