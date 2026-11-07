@@ -1,0 +1,9 @@
+{
+  "executed_source": "a8cb0cba608a81c9b21afc70588ebd056a721ad7",
+  "main": "f3b32005a6997e35f820c0510d42801d4946b12b",
+  "passed": 22,
+  "actual_exit": 0,
+  "runtime_change": false,
+  "normal_continuation_ci_addition": "test_task_wait_source_revocation.py",
+  "scope": "new permanent grant-revocation test and current-main reader/sequential/isolation guards; high-level reasoning/auth controlled; no app model/browser"
+}

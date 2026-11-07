@@ -1,0 +1,23 @@
+{
+  "executed_source": "a83437fa3ad1f82dffd703c679de339093007ab5",
+  "source_files": {
+    ".github/workflows/ci.yml": "ca6cfa57b3edcb4d78a702d635ea7223e5c073b9fd6e1dab225f7ebe60b6f342",
+    "backend/api/agent_routes.py": "2013c031ca4c665d84aa5c4c79ed579b8eecccb5ddd3bb8b5a8d4eb9759d29e8",
+    "backend/api/assignment_routes.py": "cd89d63992ca9753d67c7e1fdcf8be7789a7adcdfeec0f1c50438ebc1494a788",
+    "backend/core/information_wait.py": "e8bbfacf9b7bef069691bb0756993c785945b9e87b9f21107c4c3819d646290e",
+    "backend/core/employee_adaptation.py": "f0214906347ba4ad961b604707dede957d2d3f3a82fbe04a236b5f02fe39e715",
+    "backend/core/employee_job_runner.py": "17c2980a1cb8332389cec0f713bb4aae8175e7221bfb27f66a290db632d246a2",
+    "backend/tests/test_agent_read_scope_contract.py": "2d9c4d52a8ba30609120dc83635b15037f2d4419700612b578c7a727153a17ba",
+    "backend/tests/test_task_wait_two_job_isolation.py": "3f1520203c1786fa900d942372582d8248ee948a4573feb13ea6c674de3085da",
+    "backend/tests/test_task_wait_two_fact_events.py": "70b52996e14fa06a50a4fc19e41c9edf57f5449964d7d2411b39d0a19bb997d9",
+    "backend/tests/test_agent_generic_information_wait_process.py": "977db076f348ed3fad4219f73f5f45d44032f55024b850bf1728855629accfeb"
+  },
+  "artifacts": {
+    "combined.xml": "878933395900a813b3de6a518ee5e66e24fb0265eafd26035563b1f663ac1e86",
+    "combined-spec.json": "c14df5cf6415c33f36899d2d64c5ff212c8051ed560a609ff8f53b822bb0c058",
+    "combined-exit.json": "d8d3657e0ffbb999c94d423e6b693b628583c9f07e70f275844d8ddc5031b97b",
+    "README.md": "535221988825ce23ab0b00d8a044f1e46f49149e4209c61891c67d457c488c72",
+    "combined.log": "44c6fa5a8b780b9b391887453f95dceb31a2e96639dd175ac1a3c8d9f3380270",
+    "verification.json": "6486b91350dc8efaabf20cadfe7b5f17d1476f3a6c5b5d7334122dac8ec01bee"
+  }
+}

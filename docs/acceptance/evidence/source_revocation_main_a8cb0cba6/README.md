@@ -1,0 +1,7 @@
+# Current-main revoked-source regression
+
+The clean main-based test-only successor a8cb0cba6 passes22 focused controls, actualexit0, including source-grant revocation, two-job isolation, sequential prerequisites, no-false-completion and current public reader scopes. The permanent revocation control is added to the existing continuation CI step; no application runtime, schema, provider or authority behavior changes.
+
+A revoked existing local grant makes the real public source-answer route refuse403 before any read, quote or new reasoning. The exact question remains open. Restoring the same fixture grant allows the identical answer to complete the original task with one verified37.50 quote. Grant transitions are controlled scratch setup; discovery/adaptation and auth are high-level doubles. No live provider, actual user grant-setting UI, post-read revocation, browser or general judgment claim is made.
+
+The independent11-control revocation proof at ebe4cbd9b and57-control prospective combined-main proof at a83437fa3 are retained unchanged. merge-readback.json records that actual PR730 mergef3b32005a equals the tested candidate tree. Hosted148 continuation and364 shared controls belonged to unchanged PRhead750; new post-merge CI is observed separately. The known accepted-answer recovery actor-workspace counterexample remains Agent1's active repair and is not closed by these22 passes. Full TASK-WAIT-01 and whole-app acceptance remain open.
