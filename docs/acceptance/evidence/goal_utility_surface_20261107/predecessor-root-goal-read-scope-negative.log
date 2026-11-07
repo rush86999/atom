@@ -1,0 +1,39 @@
+F..F                                                                     [100%]
+=================================== FAILURES ===================================
+____ test_goal_direct_reads_match_workspace_visibility[peer-workspace-404-] ____
+../../../../test_lead_goal_reads_workspace_scope.py:25: in test_goal_direct_reads_match_workspace_visibility
+    assert response.status_code==expected,(workspace,suffix,response.status_code,response.text)
+E   AssertionError: ('peer-workspace', '', 200, '{"id":"g-1","title":"Goal g-1","description":null,"status":"active","progress":0.0,"crite...ull,"parent_goal_id":null,"source":"api","utility_target":null,"target_date":null,"created_at":"2026-11-07T19:14:17"}')
+E   assert 200 == 404
+E    +  where 200 = <Response [200 OK]>.status_code
+_ test_goal_direct_reads_match_workspace_visibility[peer-workspace-404-/utility] _
+../../../../test_lead_goal_reads_workspace_scope.py:25: in test_goal_direct_reads_match_workspace_visibility
+    assert response.status_code==expected,(workspace,suffix,response.status_code,response.text)
+E   AssertionError: ('peer-workspace', '/utility', 200, '{"goal_id":"g-1","target":null,"ranking":[],"winner":null,"eligible_count":0}')
+E   assert 200 == 404
+E    +  where 200 = <Response [200 OK]>.status_code
+=============================== warnings summary ===============================
+../../../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED ../../../../test_lead_goal_reads_workspace_scope.py::test_goal_direct_reads_match_workspace_visibility[peer-workspace-404-]
+FAILED ../../../../test_lead_goal_reads_workspace_scope.py::test_goal_direct_reads_match_workspace_visibility[peer-workspace-404-/utility]
+2 failed, 2 passed, 10 warnings in 1.31s

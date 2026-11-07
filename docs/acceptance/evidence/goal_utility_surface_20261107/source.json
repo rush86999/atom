@@ -1,0 +1,15 @@
+{
+  "schema": "atom-goal-utility-surface-source-1",
+  "branch": "codex/goal-utility-surface-20261107",
+  "source_commit": "37d1b820064611216562e6e633fde24638234102",
+  "base_commit": "6a597bf31f002a2e76ad7940ba483b698b553b61",
+  "merged_main_source": "cf5e981917bc31809ca9e8824a2363bdbc9c8f68",
+  "source_blobs": {
+    "backend/core/goals/goal_service.py": "64581cc066dc9e98d391b1076d34d2cb91c892bd",
+    "backend/tests/test_goal_utility_target.py": "b76f7bb675a59d7b3b6382b7114f04a1457da149",
+    "backend/tests/test_lead_goal_reads_workspace_scope.py": "382317599d93b5bd44c65d1487e6b6b6cfa22a25",
+    "frontend-nextjs/lib/goal-run-api.ts": "035164cebb0c3ec1abd30cc7993a3b7363ebb32c",
+    "frontend-nextjs/pages/goal-runs/[id].tsx": "a34e0459f1ff062ba02a6bb803dac972c31bbfe4",
+    "frontend-nextjs/tests/pages/goal-runs/detail.test.tsx": "c7d47b9f0d131d44e0d7704e6d80a820fd504443"
+  }
+}

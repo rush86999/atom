@@ -1,0 +1,67 @@
+{
+  "schema": "atom-goal-utility-surface-manifest-1",
+  "source_commit": "37d1b820064611216562e6e633fde24638234102",
+  "branch": "codex/goal-utility-surface-20261107",
+  "source_blobs": {
+    "backend/core/goals/goal_service.py": "64581cc066dc9e98d391b1076d34d2cb91c892bd",
+    "backend/tests/test_goal_utility_target.py": "b76f7bb675a59d7b3b6382b7114f04a1457da149",
+    "backend/tests/test_lead_goal_reads_workspace_scope.py": "382317599d93b5bd44c65d1487e6b6b6cfa22a25",
+    "frontend-nextjs/lib/goal-run-api.ts": "035164cebb0c3ec1abd30cc7993a3b7363ebb32c",
+    "frontend-nextjs/pages/goal-runs/[id].tsx": "a34e0459f1ff062ba02a6bb803dac972c31bbfe4",
+    "frontend-nextjs/tests/pages/goal-runs/detail.test.tsx": "c7d47b9f0d131d44e0d7704e6d80a820fd504443"
+  },
+  "artifacts": {
+    "README.md": {
+      "sha256": "eb478f8a36a4dba5f250b8f2f2e24668db955accfd3a14b2325e97a72d634341",
+      "bytes": 4494
+    },
+    "backend-consumers.exit.txt": {
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    "backend-consumers.log": {
+      "sha256": "4f974541b7f7560c77d631e4db891ae83844e4953e785a92fcf67fc18885fcc6",
+      "bytes": 29231
+    },
+    "backend-goal-scope-and-writes.exit.txt": {
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    "backend-goal-scope-and-writes.log": {
+      "sha256": "bdbe016cf7d5b76f4cc4bc76b0fc1a9afbaa9b7ad4b74b1968c1b55c1f1d2580",
+      "bytes": 33018
+    },
+    "frontend-detail.exit.txt": {
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    "frontend-detail.log": {
+      "sha256": "aeffd4e9bb213fc8d0b2819986bd4159af8625715b239094049f7196caaf9e6c",
+      "bytes": 2456
+    },
+    "predecessor-root-goal-read-scope-negative.exit.json": {
+      "sha256": "941cd777d3ea5b7b8eff76f97c92d040f0b6ee6a91f3dcaa8127e0e87da833ae",
+      "bytes": 269
+    },
+    "predecessor-root-goal-read-scope-negative.log": {
+      "sha256": "8df20d789a0e07763f24c4b3d2c91d70a46d9f11aa6f786862aac19634642285",
+      "bytes": 3998
+    },
+    "source.json": {
+      "sha256": "4f7d3bfd0684b5368f4a4f011af046760742b49e04aeeb09c0077afe53084457",
+      "bytes": 888
+    },
+    "typescript.exit.txt": {
+      "sha256": "9a271f2a916b0b6ee6cecb2426f0b3206ef074578be55d9bc94f6f3fe3ab86aa",
+      "bytes": 2
+    },
+    "typescript.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "verification.json": {
+      "sha256": "c9ee67ddff516b76ed32406314194d3702b5d0085a82238345279c6204a5af08",
+      "bytes": 3799
+    }
+  }
+}
