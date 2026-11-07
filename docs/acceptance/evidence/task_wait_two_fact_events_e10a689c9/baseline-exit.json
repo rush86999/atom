@@ -1,0 +1,16 @@
+{
+  "actual_exit_code": 1,
+  "argv": [
+    "python3",
+    "-m",
+    "pytest",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/e1-two-facts/baseline-run/pytest2",
+    "tests/two_fact_failure_probe.py",
+    "--junitxml=/private/tmp/atom-agent-job-baseline/docs/acceptance/evidence/task_wait_two_fact_events_e10a689c9/baseline.xml",
+    "-q",
+    "--tb=short"
+  ],
+  "cwd": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/e1-two-facts/baseline/backend"
+}

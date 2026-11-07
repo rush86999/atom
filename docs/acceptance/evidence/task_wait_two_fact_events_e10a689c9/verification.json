@@ -1,0 +1,43 @@
+{
+  "source": "e10a689c9c62f1e9b8bdce05b689ccd4c56d5682",
+  "baseline": {
+    "runtime_source": "dff775b8fe1a3910652831540e2c0f3977a51d2e",
+    "runtime_tracked_clean": true,
+    "test_only_added": "backend/tests/two_fact_failure_probe.py",
+    "test_only_hash": "00c9091ba76e2e11a66bc29dcddedc1babdd7547809e6ac83275306462311c69",
+    "test_schema": "pre-repair untyped clarification",
+    "failed": 1,
+    "passed": 0,
+    "actual_exit_code": 1,
+    "observed": "first durable obligation stored inputs.missing=['invoice','receiving'] even though the controlled model asked only for the invoice"
+  },
+  "final": {
+    "passed": 252,
+    "failed": 0,
+    "actual_exit_code": 0,
+    "duration_seconds": 202.62,
+    "includes": [
+      "E1 two-sequential-fact public-route probe plus wrong-subject negative",
+      "source-trigger and process-recovery regressions",
+      "independent work and physical artifact content guard",
+      "typed work request, adaptation, compiler question and durable-wait suites",
+      "assignment route and executor suites"
+    ]
+  },
+  "e1_claim": {
+    "entrypoint": "POST /api/assignments/from-objective then POST /api/assignments/{run_id}/sources",
+    "facts": ["invoice", "receiving"],
+    "distinct_obligations": true,
+    "second_fact_requested_by_same_task": true,
+    "manual_advance_or_second_objective": false,
+    "verified_result": "one invoice.reconcile applied with 130.00",
+    "requested_output": "one DOCX only after both facts; sha256 matches recorded bytes; document.xml contains 130.00 and the purchase order; artifact requires the verified reconciliation receipt",
+    "negative": "a wrong-PO invoice can neither settle the invoice question nor advance the task"
+  },
+  "scope": "Controlled proposal/auth transport over public assignment routes, real compiler/executor, scratch SQLite and a requested DOCX. This is not served-model/LLM quality, general branch discovery, PostgreSQL/multi-worker/soak, app-wide TASK-WAIT-01, E2 cross-job isolation or E3 revocation acceptance.",
+  "notes": [
+    "The baseline probe is intentionally untyped and cannot run against the repaired schema; its exact bytes/hash are disclosed rather than reattributing the committed test bytes to the baseline.",
+    "The committed E1 test uses typed clarification.missing_roles, which is the repaired contract.",
+    "No live model, provider, credential, send, spend, guest or deployment action occurred."
+  ]
+}

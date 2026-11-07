@@ -1,0 +1,24 @@
+{
+  "runtime_source": "dff775b8fe1a3910652831540e2c0f3977a51d2e",
+  "runtime_checkout": "frozen git archive (no .git, so runtime identity logs unknown)",
+  "runtime_tracked_clean": true,
+  "test_only_added": "backend/tests/two_fact_failure_probe.py",
+  "test_only_hash": "00c9091ba76e2e11a66bc29dcddedc1babdd7547809e6ac83275306462311c69",
+  "test_schema": "pre-repair: intentionally untyped clarification (no missing_roles field)",
+  "scratch": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/e1-two-facts/baseline",
+  "command": [
+    "python3",
+    "-m",
+    "pytest",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/e1-two-facts/baseline-run/pytest2",
+    "tests/two_fact_failure_probe.py",
+    "--junitxml=docs/acceptance/evidence/task_wait_two_fact_events_e10a689c9/baseline.xml",
+    "-q",
+    "--tb=short"
+  ],
+  "cwd": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/e1-two-facts/baseline/backend",
+  "interpreter": "/usr/local/opt/python@3.14/bin/python3.14",
+  "result": "1 failed, actual exit 1"
+}

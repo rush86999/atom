@@ -1,0 +1,42 @@
+{
+  "source": "e10a689c9c62f1e9b8bdce05b689ccd4c56d5682",
+  "scratch": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/e1-two-facts",
+  "command": [
+    "python3",
+    "-m",
+    "pytest",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/e1-two-facts/pytest-final",
+    "tests/test_task_wait_two_fact_events.py",
+    "tests/test_task_wait_source_trigger_contract.py",
+    "tests/test_task_wait_source_continuation_regressions.py",
+    "tests/test_task_wait_process_recovery.py",
+    "tests/test_task_wait_independent_work.py",
+    "tests/test_task_wait_artifact_content_contract.py",
+    "tests/test_employee_prerequisite_eligibility.py",
+    "tests/test_employee_adaptation_contract.py",
+    "tests/test_employee_work_requests.py",
+    "tests/test_employee_work_request_matrix.py",
+    "tests/test_employee_compiler_question_contract.py",
+    "tests/test_employee_durable_wait_g5.py",
+    "tests/test_employee_evidence_change_g5.py",
+    "tests/test_boot_recovery_not_gated_by_scheduler.py",
+    "tests/test_assignment_routes.py",
+    "tests/test_assignment_executor.py",
+    "--junitxml=docs/acceptance/evidence/task_wait_two_fact_events_e10a689c9/final.xml",
+    "-q",
+    "--tb=short"
+  ],
+  "cwd": "/private/tmp/atom-agent-job-baseline/backend",
+  "interpreter": "/usr/local/opt/python@3.14/bin/python3.14",
+  "environment": {
+    "TESTING": "1",
+    "SECRET_KEY": "explicit synthetic value (not a real credential)",
+    "DATABASE_URL": "fresh scratch SQLite under the owned scratch root",
+    "ATOM_DATA_DIR": "fresh owned scratch root",
+    "ATOM_LANCEDB_PATH": "fresh owned scratch root",
+    "ATOM_OFFICE_DIR": "fresh owned scratch root"
+  },
+  "result": "252 passed, actual exit 0"
+}

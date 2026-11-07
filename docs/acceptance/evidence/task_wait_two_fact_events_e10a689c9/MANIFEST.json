@@ -1,0 +1,25 @@
+{
+  "executed_source": "e10a689c9c62f1e9b8bdce05b689ccd4c56d5682",
+  "source_files": {
+    "backend/api/assignment_routes.py": "cd89d63992ca9753d67c7e1fdcf8be7789a7adcdfeec0f1c50438ebc1494a788",
+    "backend/core/employee_adaptation.py": "f0214906347ba4ad961b604707dede957d2d3f3a82fbe04a236b5f02fe39e715",
+    "backend/core/employee_job_runner.py": "17c2980a1cb8332389cec0f713bb4aae8175e7221bfb27f66a290db632d246a2",
+    "backend/core/employee_proposal.py": "aa6ebcf459f05951fd1acdf36a7cdb8704fca48fe22752cd1fa65b7f391ab4a5",
+    "backend/tests/test_employee_prerequisite_eligibility.py": "36e5f0813eced5af793f8db81719b87e0e978382c7b0aafabed5590e425faae1",
+    "backend/tests/test_task_wait_two_fact_events.py": "70b52996e14fa06a50a4fc19e41c9edf57f5449964d7d2411b39d0a19bb997d9"
+  },
+  "artifacts": {
+    "README.md": "b9fe67a5b9b78174812b6c2ced00daf229ad0f701bd20cbdb6886a97b47ff9df",
+    "baseline-exit.json": "82c96cbf7909f43c675d0904cba86110ca2dcf65618a5b117252c18e59b222eb",
+    "baseline-spec.json": "00c859ddc54d80d93844f962be2726ae58f7ea3a2a689fdb523c2104a78445cd",
+    "baseline.log": "3aab0876847f0758a5543facba2108f42fd4cb9a7ee4a0d9d37b90f2288f84ec",
+    "baseline.xml": "0176d6bb6039d733bafc4a8244f66edf23c2401ed1ca1d56c5333d884573368b",
+    "final-exit.json": "3d0b6b66856c5e39c5d5db882ffda8d91b5c6579aada01b6a4a65124ee731f62",
+    "final-spec.json": "d8d4e588474c03eedcfe1f15b572580280f1faf46ae86930dc88f195ff923366",
+    "final.log": "af0cf03bf6e6c21e657a524fbeeb391c45fce5ab71c185154343d334d28aec0c",
+    "final.xml": "537432bba923f4d2374ebe9be5484d0431f5ee48e72de8dd87bf7281abef6641",
+    "run_and_capture.py": "397ce3c8b6ce21ccdbb4db883c8873e9b5183d428e6b56993e9b628ead63b9eb",
+    "two_fact_failure_probe.py": "00c9091ba76e2e11a66bc29dcddedc1babdd7547809e6ac83275306462311c69",
+    "verification.json": "42a989d6bbb78092b6b02425125a58e4747534c8d0201cd7fb593b57951d0660"
+  }
+}

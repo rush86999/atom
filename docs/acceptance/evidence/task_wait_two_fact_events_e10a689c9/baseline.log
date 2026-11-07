@@ -1,0 +1,72 @@
+
+tests/two_fact_failure_probe.py::test_first_question_is_scoped_to_the_requested_invoice_role 
+-------------------------------- live log setup --------------------------------
+2026-11-07 06:20:10 [    INFO] EscalationManager initialized
+2026-11-07 06:20:10 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 06:20:10 [    INFO] EscalationManager initialized
+2026-11-07 06:20:10 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 06:20:10 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 06:20:10 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-07 06:20:11 [    INFO] runtime identity: source_id=unknown revision=unknown dirty=False (0 modified, 0 untracked)
+2026-11-07 06:20:11 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+FAILED                                                                   [100%]
+
+=================================== FAILURES ===================================
+_________ test_first_question_is_scoped_to_the_requested_invoice_role __________
+tests/two_fact_failure_probe.py:137: in test_first_question_is_scoped_to_the_requested_invoice_role
+    assert open_questions[0]["inputs"]["missing"] == ["invoice"], (
+E   AssertionError: {'known_identities': {'purchase_order.po_id': 'PO-TWO-1', 'purchase_order.vendor_id': 'V-1'}, 'missing': ['invoice', 'receiving'], 'operation': 'invoice_reconciliation'}
+E   assert ['invoice', 'receiving'] == ['invoice']
+E     
+E     Left contains one more item: 'receiving'
+E     
+E     Full diff:
+E       [
+E           'invoice',
+E     +     'receiving',
+E       ]
+------------------------------ Captured log setup ------------------------------
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.embedding_service:embedding_service.py:131 Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+INFO     core.agent_task_registry:agent_task_registry.py:64 AgentTaskRegistry initialized
+------------------------------ Captured log call -------------------------------
+INFO     core.runtime_identity:runtime_identity.py:199 runtime identity: source_id=unknown revision=unknown dirty=False (0 modified, 0 untracked)
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+=============================== warnings summary ===============================
+../../../../../../../../../../usr/local/lib/python3.14/site-packages/_pytest/config/__init__.py:852
+  /usr/local/lib/python3.14/site-packages/_pytest/config/__init__.py:852: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../../../../../../../usr/local/lib/python3.14/site-packages/langchain_core/_api/deprecation.py:25
+  /usr/local/lib/python3.14/site-packages/langchain_core/_api/deprecation.py:25: UserWarning: Core Pydantic V1 functionality isn't compatible with Python 3.14 or greater.
+    from pydantic.v1.fields import FieldInfo as FieldInfoV1
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /private/tmp/atom-agent-job-baseline/docs/acceptance/evidence/task_wait_two_fact_events_e10a689c9/baseline.xml -
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/two_fact_failure_probe.py::test_first_question_is_scoped_to_the_requested_invoice_role
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 1 failed, 6 warnings in 19.86s ========================

@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="1" time="3.708" timestamp="2026-11-07T06:20:08.199548-05:00" hostname="MacBook-Pro.local"><testcase classname="tests.two_fact_failure_probe" name="test_first_question_is_scoped_to_the_requested_invoice_role" time="2.374"><failure message="AssertionError: {'known_identities': {'purchase_order.po_id': 'PO-TWO-1', 'purchase_order.vendor_id': 'V-1'}, 'missing': ['invoice', 'receiving'], 'operation': 'invoice_reconciliation'}&#10;assert ['invoice', 'receiving'] == ['invoice']&#10;  &#10;  Left contains one more item: 'receiving'&#10;  &#10;  Full diff:&#10;    [&#10;        'invoice',&#10;  +     'receiving',&#10;    ]">tests/two_fact_failure_probe.py:137: in test_first_question_is_scoped_to_the_requested_invoice_role
+    assert open_questions[0]["inputs"]["missing"] == ["invoice"], (
+E   AssertionError: {'known_identities': {'purchase_order.po_id': 'PO-TWO-1', 'purchase_order.vendor_id': 'V-1'}, 'missing': ['invoice', 'receiving'], 'operation': 'invoice_reconciliation'}
+E   assert ['invoice', 'receiving'] == ['invoice']
+E     
+E     Left contains one more item: 'receiving'
+E     
+E     Full diff:
+E       [
+E           'invoice',
+E     +     'receiving',
+E       ]</failure></testcase></testsuite></testsuites>
