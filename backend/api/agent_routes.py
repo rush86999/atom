@@ -816,6 +816,54 @@ async def decide_hitl_action(
         HITLActionStatus.REJECTED.value,
     )
     if already_resolved:
+        _is_info_wait = str(action.action_type or "") in (
+            _INFORMATION_WAIT_ACTIONS)
+        if _is_info_wait:
+            if (
+                action.status == HITLActionStatus.APPROVED.value
+                and action.user_feedback is not None
+                and req.feedback is not None
+                and str(action.user_feedback).strip()
+                != str(req.feedback).strip()
+            ):
+                raise router.error_response(
+                    "INFORMATION_ANSWER_CONFLICT",
+                    "A different answer was already accepted for this wait.",
+                    status_code=409,
+                )
+            # Idempotent replay: resume only if the SAME job is still waiting
+            # for this exact receipt. A completed/cancelled job is untouched.
+            resume = {"handled": True, "resumed": False,
+                      "reason": "already_decided"}
+            if action.status == HITLActionStatus.APPROVED.value:
+                try:
+                    from core.hitl_resume import resume_after_hitl_decision
+
+                    review_guidance = (
+                        req.feedback
+                        if req.feedback is not None
+                        else action.user_feedback)
+                    resume = await resume_after_hitl_decision(
+                        action_id,
+                        approved=True,
+                        reviewer_id=str(user.id),
+                        guidance=review_guidance,
+                    )
+                except Exception as resume_err:  # noqa: BLE001
+                    logger.exception(
+                        "HITL %s replay resume failed: %s",
+                        action_id, resume_err)
+                    resume = {"handled": True, "resumed": False,
+                              "error": str(resume_err)}
+            return router.success_response(
+                data={
+                    "decision": action.status,
+                    "action_id": action_id,
+                    "already_resolved": True,
+                    "resume": resume,
+                },
+                message=f"Action {action_id} already resolved as {action.status}",
+            )
         return router.success_response(
             data={"decision": action.status, "action_id": action_id, "already_resolved": True},
             message=f"Action {action_id} already resolved as {action.status}"
@@ -880,6 +928,32 @@ async def decide_hitl_action(
     except Exception as resume_err:  # noqa: BLE001 — decision already committed
         logger.exception("HITL %s decided but resume bridge failed: %s", action_id, resume_err)
         resume = {"handled": True, "resumed": False, "error": str(resume_err)}
+
+    # An information answer that cannot resume (late after cancellation, or a
+    # stale/foreign job binding) is not a successful decision outcome.
+    if (
+        req.decision.lower() == "approved"
+        and str(action.action_type or "") in _INFORMATION_WAIT_ACTIONS
+        and not resume.get("resumed")
+    ):
+        _snapshot = (
+            action.context_snapshot
+            if isinstance(action.context_snapshot, dict) else {})
+        _job_id = str(_snapshot.get("job_id") or "")
+        _current = (
+            _job_outcome_projection(_job_id, db.get_bind())
+            if _job_id else None)
+        if (
+            _current is None
+            or _current["job_status"] != AgentJobStatus.SUCCESS.value
+        ):
+            raise router.error_response(
+                "INFORMATION_WAIT_NOT_RESUMED",
+                "The information wait could not resume its original job "
+                "(it was cancelled, superseded, or is no longer waiting).",
+                details={"resume": resume},
+                status_code=409,
+            )
 
     # Broadcast update to UI via WebSocket
     await ws_manager.broadcast("workspace:default", {
@@ -1162,6 +1236,9 @@ _JOB_WAITING_STATUSES = frozenset({
     "awaiting_approval",
 })
 _RESULT_RECONCILIATION_STATUSES = frozenset({"uncertain"})
+from core.information_wait import (  # noqa: E402 — shared wait vocabulary
+    INFORMATION_WAIT_ACTION_TYPES as _INFORMATION_WAIT_ACTIONS,
+)
 
 # Namespace keys the admission owns. Business parameters keep every other
 # key, but these can never be supplied (or overridden) by the request body.
@@ -1184,6 +1261,15 @@ _TRUSTED_CONTEXT_KEYS = (
     "proposal_id",
     "goal_id",
     "trigger",
+    # Missing-information continuation material is also server-owned. The
+    # same reservation strips it from initial business parameters and their
+    # durable replay snapshot; actual resume loads it from trusted rows.
+    "information_answer",
+    "answered_wait",
+    "resume_history",
+    "resume_steps",
+    "information_wait_resume",
+    "reviewer_id",
 )
 
 
@@ -1304,16 +1390,45 @@ def _verified_hitl_wait(
             and str(snapshot_agent) != str(agent_id)
         ):
             continue
-        return {
+        _action_type = str(getattr(row, "action_type", "") or "")
+        _receipt = {
             "hitl_action_id": str(row.id),
             "kind": "hitl_review",
             "status": str(row.status),
             "action_type": _safe_outcome_token(
-                getattr(row, "action_type", ""), default="review"),
+                _action_type, default="review"),
             "required_role": _safe_outcome_token(
                 getattr(row, "required_role", ""), default=""),
             "verified": True,
         }
+        # A missing-information wait is NOT an effect approval.  Keep it
+        # distinguishable so an approval review cannot be relabelled as a
+        # fact wait (and vice versa).
+        if _action_type in _INFORMATION_WAIT_ACTIONS:
+            _params = getattr(row, "params", None)
+            _params = _params if isinstance(_params, dict) else {}
+            _snapshot = snapshot
+            _receipt.update({
+                "kind": "information_request",
+                "question": str(
+                    _snapshot.get("question")
+                    or _params.get("question") or "")[:400] or None,
+                "missing_fact": (
+                    str(_params.get("missing_fact") or "")[:200] or None),
+                "correlation_id": str(
+                    _snapshot.get("correlation_id")
+                    or _params.get("correlation_id") or "")[:120] or None,
+                "channel": str(
+                    _snapshot.get("channel")
+                    or _params.get("channel") or "")[:200] or None,
+                "subject": dict(
+                    _snapshot.get("subject")
+                    if isinstance(_snapshot.get("subject"), dict)
+                    else (_params.get("subject")
+                          if isinstance(_params.get("subject"), dict)
+                          else {})),
+            })
+        return _receipt
     return None
 
 
@@ -1931,12 +2046,15 @@ def _begin_job(
     *,
     agent_id: str,
     execution_id: str,
+    parameters: Optional[Dict[str, Any]] = None,
 ) -> bool:
     """CAS the admitted job into its run slot.
 
     Returns ``True`` only for the dispatch that won the conditional write.
     A replay, a peer-terminal job, or a racing dispatcher returns ``False``
-    and must not execute the agent a second time.
+    and must not execute the agent a second time.  The admitted business
+    parameters are retained explicitly so the SAME job can be resumed after
+    an information wait without inventing a new request.
     """
     session = Session(bind=bind)
     try:
@@ -1958,6 +2076,24 @@ def _begin_job(
         current_summary = job.result_summary
         payload["dispatch_execution_id"] = execution_id
         payload["dispatch_started"] = True
+        if parameters is not None:
+            try:
+                # Retain only BUSINESS parameters. Server-owned namespace
+                # (job/execution/actor/scope and oracle expectations) is
+                # re-derived from the durable admission on every pass; it is
+                # never copied from the request body into the job record.
+                _business_parameters = {
+                    key: value
+                    for key, value in dict(parameters).items()
+                    if key not in _TRUSTED_CONTEXT_KEYS
+                    and not str(key).startswith("_oracle_expected_")
+                }
+                _resume_parameters = json.loads(json.dumps(
+                    _business_parameters, sort_keys=True, default=str))
+                if len(json.dumps(_resume_parameters)) <= 65536:
+                    payload["resume_parameters"] = _resume_parameters
+            except Exception:  # noqa: BLE001 — retain the executed request only
+                payload.pop("resume_parameters", None)
         new_summary = json.dumps(payload, sort_keys=True)
         conditions = [
             AgentJob.id == job_id,
@@ -2092,6 +2228,7 @@ async def _dispatch_admitted_run(
     execution_id = str(uuid.uuid4())
     if not _begin_job(
         job_id, bind, agent_id=agent_id, execution_id=execution_id,
+        parameters=parameters,
     ):
         logger.warning(
             "Admitted agent run not dispatched (already claimed or "
@@ -2204,6 +2341,372 @@ async def _dispatch_admitted_run(
         raise
     finally:
         _restore_agent_status(agent_id, prior_status, bind)
+
+
+def _wait_receipt_action_id(payload: Dict[str, Any]) -> str:
+    receipt = payload.get("wait_receipt")
+    if not isinstance(receipt, dict):
+        return ""
+    return str(
+        receipt.get("hitl_action_id")
+        or receipt.get("id") or "").strip()
+
+
+def _claim_waiting_job_for_resume(
+    job_id: str,
+    bind,
+    *,
+    agent_id: str,
+    execution_id: str,
+    action_id: str,
+) -> bool:
+    """CAS the SAME waiting job into a resumed run slot.
+
+    Exactly one answer/replay wins.  A late reply after cancellation, a
+    foreign execution id, or a wait receipt that is not the job's current
+    receipt is refused before any model work.
+    """
+    session = Session(bind=bind)
+    try:
+        job = session.get(AgentJob, job_id)
+        if job is None or str(job.agent_id or "") != str(agent_id):
+            return False
+        if str(job.status or "") not in _JOB_WAITING_STATUSES:
+            return False
+        try:
+            payload = json.loads(job.result_summary or "{}")
+        except (TypeError, ValueError):
+            payload = {}
+        if not isinstance(payload, dict):
+            payload = {}
+        claimed_execution = str(
+            payload.get("execution_id")
+            or payload.get("dispatch_execution_id") or "")
+        if not claimed_execution or claimed_execution != str(execution_id):
+            return False
+        if _wait_receipt_action_id(payload) != str(action_id):
+            return False
+        current_summary = job.result_summary
+        payload["waiting"] = False
+        payload["finished"] = False
+        payload["status"] = AgentJobStatus.RUNNING.value
+        payload["resume_claim"] = {
+            "action_id": str(action_id),
+            "execution_id": str(execution_id),
+        }
+        new_summary = json.dumps(payload, sort_keys=True)
+        conditions = [
+            AgentJob.id == job_id,
+            AgentJob.agent_id == agent_id,
+            AgentJob.status.in_(tuple(_JOB_WAITING_STATUSES)),
+        ]
+        if current_summary is None:
+            conditions.append(AgentJob.result_summary.is_(None))
+        else:
+            conditions.append(AgentJob.result_summary == current_summary)
+        claimed = session.execute(
+            update(AgentJob)
+            .where(*conditions)
+            .values(
+                status=AgentJobStatus.RUNNING.value,
+                result_summary=new_summary,
+            ))
+        session.commit()
+        return claimed.rowcount == 1
+    finally:
+        session.close()
+
+
+def _finish_waiting_job(
+    job_id: str,
+    outcome: Dict[str, Any],
+    bind,
+    *,
+    execution_id: str,
+    action_id: str,
+) -> Optional[str]:
+    """Terminally refuse one waiting job (e.g. rejected/cancelled answer)."""
+    session = Session(bind=bind)
+    try:
+        job = session.get(AgentJob, job_id)
+        if job is None or str(job.status or "") not in _JOB_WAITING_STATUSES:
+            return None
+        try:
+            payload = json.loads(job.result_summary or "{}")
+        except (TypeError, ValueError):
+            payload = {}
+        if not isinstance(payload, dict):
+            payload = {}
+        claimed_execution = str(
+            payload.get("execution_id")
+            or payload.get("dispatch_execution_id") or "")
+        if claimed_execution != str(execution_id):
+            return None
+        if _wait_receipt_action_id(payload) != str(action_id):
+            return None
+        payload.update({
+            "finished": True,
+            "waiting": False,
+            "status": outcome["job_status"],
+            "outcome": outcome["outcome"],
+            "reason": outcome["reason"],
+            "next_action": outcome["next_action"],
+            "requires_reconciliation": bool(
+                outcome.get("requires_reconciliation")),
+        })
+        current_summary = job.result_summary
+        conditions = [
+            AgentJob.id == job_id,
+            AgentJob.status.in_(tuple(_JOB_WAITING_STATUSES)),
+        ]
+        if current_summary is None:
+            conditions.append(AgentJob.result_summary.is_(None))
+        else:
+            conditions.append(AgentJob.result_summary == current_summary)
+        finished = session.execute(
+            update(AgentJob)
+            .where(*conditions)
+            .values(
+                status=outcome["job_status"],
+                result_summary=json.dumps(payload, sort_keys=True),
+                end_time=datetime.datetime.now(timezone.utc),
+            ))
+        session.commit()
+        return outcome["job_status"] if finished.rowcount == 1 else None
+    finally:
+        session.close()
+
+
+def _resume_state_for_execution(bind, execution_id: str) -> Dict[str, Any]:
+    """Load useful prior work retained on the SAME AgentExecution row."""
+    from core.models import AgentExecution
+
+    session = Session(bind=bind)
+    try:
+        row = session.get(AgentExecution, str(execution_id))
+        if row is None:
+            return {}
+        metadata = row.metadata_json
+        if not isinstance(metadata, dict):
+            return {}
+        state = metadata.get("resume_state")
+        if not isinstance(state, dict):
+            return {}
+        history = str(state.get("history") or "")[:20000]
+        raw_steps = state.get("steps")
+        steps = [
+            dict(step) for step in (raw_steps or [])[-20:]
+            if isinstance(step, dict)
+        ] if isinstance(raw_steps, list) else []
+        return {"history": history, "steps": steps}
+    finally:
+        session.close()
+
+
+async def resume_information_wait_action(
+    action_id: str,
+    *,
+    approved: bool,
+    answer: Optional[str] = None,
+    reviewer_id: Optional[str] = None,
+    bind=None,
+    correlation_id: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Answer one durable information wait and continue the SAME job.
+
+    A fact answer is not effect approval: the resumed run still goes through
+    the normal governance/claim/oracle path for any later action.  The job,
+    execution, agent, wait row, subject and correlation are all rechecked
+    from the server-owned snapshot before dispatch.
+    """
+    from core.information_wait import is_information_wait_action
+
+    if bind is None:
+        return {"handled": False, "reason": "wait store unavailable"}
+    session = Session(bind=bind)
+    try:
+        action = session.get(HITLAction, str(action_id))
+        if action is None:
+            return {"handled": False, "reason": "wait not found"}
+        action_type = str(getattr(action, "action_type", "") or "")
+        if not is_information_wait_action(action_type):
+            return {"handled": False, "reason": "not an information wait"}
+        snapshot = getattr(action, "context_snapshot", None)
+        snapshot = dict(snapshot) if isinstance(snapshot, dict) else {}
+        params = getattr(action, "params", None)
+        params = dict(params) if isinstance(params, dict) else {}
+        job_id = str(snapshot.get("job_id") or "")
+        execution_id = str(
+            snapshot.get("execution_id") or snapshot.get("run_id") or "")
+        agent_id = str(snapshot.get("agent_id") or "")
+        actor_id = str(
+            snapshot.get("actor_id") or snapshot.get("user_id") or "")
+        expected_correlation = str(
+            snapshot.get("correlation_id")
+            or params.get("correlation_id") or "")
+        if correlation_id is not None:
+            if not expected_correlation or str(
+                    correlation_id) != expected_correlation:
+                return {
+                    "handled": True,
+                    "resumed": False,
+                    "reason": "wrong_correlation",
+                    "status": "refused",
+                }
+        if not (job_id and execution_id and agent_id):
+            return {
+                "handled": True,
+                "resumed": False,
+                "reason": "wait_binding_incomplete",
+                "status": "refused",
+            }
+        effective_answer = str(
+            answer
+            if answer is not None
+            else (getattr(action, "user_feedback", None) or "")).strip()
+        if not approved:
+            outcome = _execution_outcome({"status": "failed"})
+            outcome["reason"] = "information_wait_rejected"
+            outcome["next_action"] = "review_failure"
+            _finish_waiting_job(
+                job_id, outcome, bind,
+                execution_id=execution_id, action_id=action_id)
+            return {
+                "handled": True,
+                "resumed": False,
+                "status": "rejected",
+                "job_id": job_id,
+                "execution_id": execution_id,
+                "outcome": outcome,
+            }
+        if not effective_answer:
+            return {
+                "handled": True,
+                "resumed": False,
+                "reason": "information_answer_missing",
+                "status": "refused",
+            }
+
+        # The original admitted actor remains the execution authority; an
+        # authorized answerer does not replace it.
+        if not _claim_waiting_job_for_resume(
+            job_id, bind,
+            agent_id=agent_id,
+            execution_id=execution_id,
+            action_id=action_id,
+        ):
+            current = _job_outcome_projection(job_id, bind)
+            return {
+                "handled": True,
+                "resumed": False,
+                "reason": "job_not_waiting_for_this_answer",
+                "status": "refused",
+                "job": current,
+            }
+
+        trusted = _trusted_execution_context(
+            bind,
+            agent_id=agent_id,
+            job_id=job_id,
+            actor_id=actor_id or None,
+            execution_id=execution_id,
+        )
+        if trusted is None:
+            outcome = _execution_outcome({
+                "status": "failed",
+                "requires_reconciliation": True,
+            })
+            outcome["reason"] = "execution_authority_unavailable"
+            outcome["next_action"] = "refresh_required_state"
+            _finish_job(
+                job_id, outcome, bind,
+                execution_id=execution_id, agent_id=agent_id)
+            return {
+                "handled": True,
+                "resumed": False,
+                "status": "authority_unavailable",
+                "job_id": job_id,
+                "execution_id": execution_id,
+            }
+
+        job = _safe_get(bind, AgentJob, job_id)
+        try:
+            payload = json.loads(
+                (job.result_summary if job is not None else "") or "{}")
+        except (TypeError, ValueError):
+            payload = {}
+        if not isinstance(payload, dict):
+            payload = {}
+        parameters = payload.get("resume_parameters")
+        if not isinstance(parameters, dict):
+            parameters = {}
+        prior = _resume_state_for_execution(bind, execution_id)
+        trusted.update({
+            "information_answer": effective_answer[:8000],
+            "answered_wait": {
+                "action_id": str(action_id),
+                "question": str(
+                    snapshot.get("question")
+                    or params.get("question") or "")[:400] or None,
+                "correlation_id": expected_correlation or None,
+                "subject": (
+                    snapshot.get("subject")
+                    if isinstance(snapshot.get("subject"), dict)
+                    else {}),
+            },
+            "resume_history": prior.get("history") or "",
+            "resume_steps": prior.get("steps") or [],
+            "information_wait_resume": True,
+            "reviewer_id": None if reviewer_id is None else str(reviewer_id),
+        })
+
+        result = await execute_agent_task(
+            agent_id, parameters, execution_context=trusted)
+        outcome = _execution_outcome(
+            result,
+            bind=bind,
+            agent_id=agent_id,
+            namespace=trusted,
+            actor_id=actor_id or None,
+        )
+        durable_status = _finish_job(
+            job_id, outcome, bind,
+            execution_id=execution_id, agent_id=agent_id)
+        effective = outcome
+        if durable_status is None:
+            effective = _execution_outcome({
+                "status": "failed",
+                "requires_reconciliation": True,
+            })
+            effective["reason"] = "execution_durable_state_unavailable"
+            effective["next_action"] = "refresh_required_state"
+        elif durable_status != outcome["job_status"]:
+            effective = _execution_outcome({"status": durable_status})
+        await _broadcast_agent_outcome(
+            agent_id, effective,
+            _execution_namespace(None, trusted), result)
+        return {
+            "handled": True,
+            "resumed": True,
+            "status": "resumed",
+            "job_id": job_id,
+            "execution_id": execution_id,
+            "job_status": durable_status or effective["job_status"],
+            "outcome": effective,
+            "result": result,
+        }
+    except Exception as exc:  # noqa: BLE001 — answer already durable
+        logger.error(
+            "Information wait resume failed: wait=%s error_class=%s",
+            action_id, type(exc).__name__)
+        return {
+            "handled": True,
+            "resumed": False,
+            "status": "resume_failed",
+            "error": type(exc).__name__,
+        }
+    finally:
+        session.close()
 
 
 # ==================== ATOM META-AGENT ENDPOINTS ====================
@@ -2494,4 +2997,209 @@ async def stop_agent(
     return router.success_response(
         data=data,
         message=result.get("message") or "Agent stopped",
+    )
+
+
+class AgentInformationAnswer(BaseModel):
+    answer: str = Field(..., min_length=1)
+    # Server-owned wait identity. A job id alone is not enough once a job can
+    # wait more than once: an omitted correlation would otherwise answer
+    # whichever prerequisite happens to be current, including a NEW one that
+    # the same caller has never seen. The job-scoped answer route has no
+    # legacy ambiguity obligation; the shared HITL/approvals surface already
+    # names its exact action in the path.
+    correlation_id: str = Field(..., min_length=1)
+
+
+@router.post("/{agent_id}/jobs/{job_id}/answer")
+async def answer_agent_job_information_wait(
+    agent_id: str,
+    job_id: str,
+    body: AgentInformationAnswer,
+    user: User = Depends(require_permission(Permission.AGENT_RUN)),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Answer one information wait and continue the SAME admitted job.
+
+    The normal HITL approval surface also resumes these waits; this route is
+    the actor-scoped input path (members have AGENT_RUN, not AGENT_MANAGE).
+    The answer is a fact, never effect approval.
+    """
+    from core.information_wait import is_information_wait_action
+
+    job = db.get(AgentJob, str(job_id))
+    if job is None or str(job.agent_id or "") != str(agent_id):
+        raise HTTPException(status_code=404, detail="Agent job not found")
+    try:
+        payload = json.loads(job.result_summary or "{}")
+    except (TypeError, ValueError):
+        payload = {}
+    if not isinstance(payload, dict):
+        payload = {}
+    action_id = _wait_receipt_action_id(payload)
+    if not action_id:
+        raise HTTPException(
+            status_code=409,
+            detail="This agent job is not waiting for information")
+    action = db.query(HITLAction).filter(
+        HITLAction.id == action_id).first()
+    if action is None or not is_information_wait_action(action.action_type):
+        raise HTTPException(status_code=404, detail="Information wait not found")
+    snapshot = action.context_snapshot if isinstance(
+        action.context_snapshot, dict) else {}
+    if (
+        str(snapshot.get("job_id") or "") != str(job_id)
+        or str(snapshot.get("agent_id") or "") != str(agent_id)
+        or str(snapshot.get("execution_id")
+               or snapshot.get("run_id") or "")
+        != str(payload.get("execution_id")
+               or payload.get("dispatch_execution_id") or "")
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail="The answer does not match this job's current wait")
+    if action.workspace_id != getattr(current_user, "workspace_id", None):
+        raise HTTPException(status_code=404, detail="Information wait not found")
+    if (
+        action.tenant_id is not None
+        and getattr(current_user, "tenant_id", None) is not None
+        and str(action.tenant_id) != str(current_user.tenant_id)
+    ):
+        raise HTTPException(status_code=404, detail="Information wait not found")
+    wait_actor = str(
+        snapshot.get("actor_id") or snapshot.get("user_id")
+        or action.user_id or "")
+    if wait_actor and wait_actor != str(current_user.id):
+        from core.models import UserRole
+        from core.security.rbac import user_meets_role
+
+        if not user_meets_role(current_user, UserRole.ADMIN):
+            raise HTTPException(
+                status_code=403,
+                detail="Only the waiting actor or an admin may answer this wait")
+    expected_correlation = str(
+        snapshot.get("correlation_id")
+        or (action.params or {}).get("correlation_id") or "")
+    if body.correlation_id is not None and (
+        not expected_correlation
+        or str(body.correlation_id) != expected_correlation
+    ):
+        raise HTTPException(
+            status_code=409,
+            detail="The answer correlation does not match this wait")
+
+    if str(action.status or "") == HITLActionStatus.REJECTED.value:
+        raise HTTPException(status_code=409, detail="This information wait was rejected")
+    if str(action.status or "") == HITLActionStatus.APPROVED.value:
+        prior_answer = str(action.user_feedback or "")
+        if prior_answer and prior_answer.strip() != body.answer.strip():
+            raise HTTPException(
+                status_code=409,
+                detail="A different answer was already accepted for this wait")
+    else:
+        claimed = db.execute(
+            update(HITLAction)
+            .where(
+                HITLAction.id == action_id,
+                HITLAction.status == HITLActionStatus.PENDING.value,
+            )
+            .values(
+                status=HITLActionStatus.APPROVED.value,
+                user_feedback=body.answer.strip(),
+                reviewed_by=str(current_user.id),
+                reviewed_at=datetime.datetime.now(),
+            ))
+        if claimed.rowcount != 1:
+            db.rollback()
+            current = db.query(HITLAction).filter(
+                HITLAction.id == action_id).first()
+            if current is None or str(current.status or "") not in (
+                HITLActionStatus.APPROVED.value,
+            ):
+                raise HTTPException(
+                    status_code=409,
+                    detail="This information wait was already decided")
+            if str(current.user_feedback or "").strip() != body.answer.strip():
+                raise HTTPException(
+                    status_code=409,
+                    detail="A different answer was already accepted for this wait")
+        else:
+            db.commit()
+
+    resume = await resume_information_wait_action(
+        action_id,
+        approved=True,
+        answer=body.answer,
+        reviewer_id=str(current_user.id),
+        bind=db.get_bind(),
+        correlation_id=body.correlation_id,
+    )
+    if not resume.get("resumed"):
+        if resume.get("reason") == "wrong_correlation":
+            raise HTTPException(
+                status_code=409,
+                detail="The answer correlation does not match this wait")
+        current = _job_outcome_projection(job_id, db.get_bind())
+        if (
+            current is not None
+            and current["job_status"] == AgentJobStatus.SUCCESS.value
+        ):
+            return router.success_response(
+                data={
+                    "agent_id": agent_id,
+                    "job_id": job_id,
+                    "execution_id": current.get("execution_id"),
+                    "job_status": current["job_status"],
+                    "already_resumed": True,
+                },
+                message="This information wait was already resumed",
+            )
+        raise HTTPException(
+            status_code=409,
+            detail=(
+                resume.get("reason")
+                or resume.get("status")
+                or "The job is no longer waiting for this answer"),
+        )
+
+    current = _job_outcome_projection(job_id, db.get_bind()) or {}
+    data = {
+        "agent_id": agent_id,
+        "job_id": job_id,
+        "execution_id": current.get("execution_id")
+        or resume.get("execution_id"),
+        "job_status": current.get("job_status")
+        or resume.get("job_status"),
+        "outcome": current.get("outcome"),
+        "reason": current.get("reason"),
+        "next_action": current.get("next_action"),
+        "requires_reconciliation": current.get(
+            "requires_reconciliation", False),
+        "resumed": True,
+    }
+    if current.get("wait_receipt") is not None:
+        data["wait_receipt"] = current["wait_receipt"]
+    if data["job_status"] in _JOB_WAITING_STATUSES:
+        return JSONResponse(
+            status_code=202,
+            content=router.success_response(
+                data=data,
+                message="The agent is waiting for another required fact"),
+        )
+    if data["job_status"] == AgentJobStatus.SUCCESS.value:
+        data["result"] = _public_execution_result(
+            resume.get("result"))
+        return router.success_response(
+            data=data, message="Agent execution completed")
+    return _execution_error_response(
+        status_code=(
+            503 if data["requires_reconciliation"] else 409),
+        code=(
+            "AGENT_EXECUTION_UNCERTAIN"
+            if data["requires_reconciliation"]
+            else "AGENT_EXECUTION_NOT_SUCCESSFUL"),
+        message=_public_outcome_message(current) if current else (
+            "The resumed agent run did not succeed"),
+        data=data,
     )

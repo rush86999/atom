@@ -1,0 +1,18 @@
+{
+  "source": "5ac22d727216408157e8ac109527f0c38778c6b6",
+  "scratch": "/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-generic-resume-fixed-2chm7850",
+  "command": [
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-generic-resume-fixed-2chm7850/pytest",
+    "tests/test_generic_information_resume_namespace_contract.py",
+    "tests/test_generic_information_exact_event_contract.py",
+    "tests/test_agent_generic_information_wait.py",
+    "--junitxml=/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-generic-resume-fixed-2chm7850/result.xml",
+    "-q",
+    "--tb=short"
+  ]
+}

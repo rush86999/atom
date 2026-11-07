@@ -25,6 +25,8 @@ logger = logging.getLogger(__name__)
 _GOAL_RUN_ACTIONS = {"goal_run_decision", "goal_run_checkpoint"}
 _ASSIGNMENT_ACTIONS = {"assignment_approval"}
 _CHAT_OBLIGATION_ACTIONS = {"chat_request_obligation"}
+_AGENT_INFORMATION_ACTIONS = {
+    "agent_information_request", "agent_missing_information"}
 
 
 def _load_action(action_id: str) -> Optional[Dict[str, Any]]:
@@ -43,6 +45,7 @@ def _load_action(action_id: str) -> Optional[Dict[str, Any]]:
             "params": dict(action.params or {}),
             "reason": action.reason,
             "status": action.status,
+            "bind": db.get_bind(),
         }
 
 
@@ -476,6 +479,16 @@ async def resume_after_hitl_decision(
     try:
         if action["action_type"] in _GOAL_RUN_ACTIONS:
             result = await _resume_goal_run(action, approved, reviewer_id, guidance)
+        elif action["action_type"] in _AGENT_INFORMATION_ACTIONS:
+            from api.agent_routes import resume_information_wait_action
+
+            result = await resume_information_wait_action(
+                action_id,
+                approved=approved,
+                answer=guidance,
+                reviewer_id=reviewer_id,
+                bind=action.get("bind"),
+            )
         elif action["action_type"] in _ASSIGNMENT_ACTIONS:
             result = await _resume_assignment(
                 action, approved, reviewer_id, guidance)
