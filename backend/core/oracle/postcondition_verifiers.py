@@ -786,6 +786,160 @@ async def _verify_shopify_create_article(
         f"(payload {expected_digest[:12]})")
 
 
+@register_durable_receipt_projector("radio.send_message")
+def _radio_message_durable_receipt_projection(
+    result: Dict[str, Any], expected: Dict[str, Any],
+) -> Dict[str, Any]:
+    from core.agent_radio.radio_mutations import (
+        durable_radio_receipt_projection,
+    )
+
+    return durable_radio_receipt_projection(result, expected)
+
+
+@register_durable_receipt_matcher("radio.send_message")
+def _radio_message_durable_receipt_conflicts(
+    expected: Dict[str, Any], durable_result: Dict[str, Any],
+) -> Iterable[str]:
+    from core.agent_radio.radio_mutations import (
+        durable_radio_material_conflicts,
+    )
+
+    return durable_radio_material_conflicts(expected, durable_result)
+
+
+@register_postcondition("radio.send_message")
+async def _verify_radio_send_message(
+    ctx: Dict[str, Any],
+) -> OracleResult:
+    """Verify one radio message by exact id/material from a fresh session.
+
+    The durable row locates the message; it does not supply authority.  The
+    verifier re-reads the exact ``LateralMessage`` and its ``AgentThread`` in a
+    fresh session and compares the server-owned sender, thread, content,
+    mention set, response flag and tenant scope with the frozen request.
+    """
+    from core.agent_radio.radio_mutations import (
+        observed_message_material,
+        radio_material_mismatches,
+        read_message,
+        read_thread,
+    )
+
+    action = "radio.send_message"
+    if str(ctx.get("action_result") or "").strip().lower() != "applied":
+        return OracleResult(
+            action, False,
+            f"action_result == {ctx.get('action_result')!r}, not applied")
+
+    remote_id = str(ctx.get("remote_id") or "").strip()
+    if not remote_id:
+        return OracleResult(
+            action, False,
+            "no exact message id in the result; an unidentifiable effect is "
+            "uncertain, not safe to recreate")
+
+    expected_operation = str(
+        ctx.get("_oracle_expected_operation_id") or "").strip()
+    if not expected_operation:
+        return OracleResult(action, False, "no frozen operation identity")
+
+    expected_digest = _digest(
+        ctx.get("_oracle_expected_payload_sha256"))
+    if not _valid_digest(expected_digest):
+        return OracleResult(
+            action, False, "no valid frozen request payload digest")
+    result_digest = _digest(ctx.get("payload_sha256"))
+    if not _valid_digest(result_digest):
+        return OracleResult(
+            action, False, "result carries no valid payload digest")
+    if result_digest != expected_digest:
+        return OracleResult(
+            action, False,
+            "returned payload digest does not match the expected request")
+
+    receipt = ctx.get("provider_receipt")
+    if not isinstance(receipt, dict) or not receipt:
+        return OracleResult(action, False, "no provider receipt")
+    if str(receipt.get("operation_id") or "") != expected_operation:
+        return OracleResult(
+            action, False,
+            "returned operation id does not match the expected operation")
+    if _digest(receipt.get("payload_sha256")) != expected_digest:
+        return OracleResult(
+            action, False,
+            "provider receipt payload digest does not match the request")
+
+    expected_material = ctx.get("_oracle_expected_radio_message")
+    if not isinstance(expected_material, dict) or not expected_material:
+        return OracleResult(
+            action, False, "no frozen accepted radio message material")
+    expected_thread_id = str(
+        expected_material.get("thread_id") or "").strip()
+    if not expected_thread_id:
+        return OracleResult(action, False, "no frozen radio thread id")
+
+    read_receipt = ctx.get("read_receipt")
+    if not isinstance(read_receipt, dict) or not read_receipt:
+        return OracleResult(action, False, "no authoritative read_receipt")
+    if str(read_receipt.get("resource_id") or "") != remote_id:
+        return OracleResult(
+            action, False,
+            "read_receipt.resource_id does not match the message id")
+    coverage = str(read_receipt.get("coverage") or "").lower()
+    if coverage not in {"single", "complete"}:
+        return OracleResult(
+            action, False, f"read_receipt.coverage == {coverage!r}")
+    receipt_material = read_receipt.get("fields")
+    if not isinstance(receipt_material, dict) or not receipt_material:
+        return OracleResult(
+            action, False,
+            "read_receipt carries no complete material mapping")
+    receipt_mismatches = radio_material_mismatches(
+        expected_material, receipt_material)
+    if receipt_mismatches:
+        return OracleResult(
+            action, False,
+            "producer readback does not match the accepted material: "
+            + ", ".join(receipt_mismatches))
+
+    def _read(session):
+        return (
+            read_message(session, remote_id),
+            read_thread(session, expected_thread_id),
+        )
+
+    try:
+        # A fresh session is mandatory: the caller's identity map could
+        # otherwise certify an uncommitted/expired row.
+        message, thread = _fresh_read_with_db(ctx, _read)
+    except Exception as exc:  # noqa: BLE001 - unreadable is not verified
+        return OracleResult(
+            action, False,
+            "radio readback failed: "
+            f"{type(exc).__name__}: {str(exc)[:200]}")
+    if message is None or thread is None:
+        return OracleResult(
+            action, False,
+            "radio message/thread absent in the authoritative store")
+    observed_id = str(getattr(message, "id", "") or "").strip()
+    if observed_id != remote_id:
+        return OracleResult(
+            action, False,
+            "independent radio readback returned a different message id")
+    observed = observed_message_material(message, thread)
+    mismatches = radio_material_mismatches(expected_material, observed)
+    if mismatches:
+        return OracleResult(
+            action, False,
+            "independent radio readback contradicts the accepted material: "
+            + ", ".join(mismatches))
+    return OracleResult(
+        action, True,
+        f"radio message {remote_id} re-read in thread {expected_thread_id}; "
+        f"authorized material matches (payload {expected_digest[:12]})")
+
+
 @register_postcondition("mini_app_set_tests")
 async def _verify_mini_app_set_tests(ctx: Dict[str, Any]) -> OracleResult:
     """Independent readback for a mini-app manifest write.

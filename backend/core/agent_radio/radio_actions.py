@@ -31,12 +31,7 @@ from typing import Any, Dict, List, Optional
 
 from core.action_registry import register_action
 from core.agent_radio import radio_config, radio_service, radio_server
-from core.agent_radio.radio_service import (
-    RadioAccessError,
-    RadioBudgetExceeded,
-    RadioError,
-    RadioPolicyError,
-)
+from core.agent_radio.radio_service import RadioError
 
 logger = logging.getLogger(__name__)
 
@@ -63,16 +58,34 @@ def _context_agent_id(context: Dict[str, Any]) -> Optional[str]:
     return (context or {}).get("agent_id")
 
 
-def _disabled_note() -> Dict[str, Any]:
-    """Kill-switch response: graceful, never an exception."""
+def _pre_effect_error(
+    error: str,
+    *,
+    error_kind: Optional[str] = None,
+    message: Optional[str] = None,
+) -> Dict[str, Any]:
+    """Explicit no-effect refusal shared by the radio write actions."""
     return {
         "success": False,
-        "error": "radio_disabled",
-        "message": (
+        "status": "failed_before_effect",
+        "action_result": "proven_not_applied",
+        "effect_possible": False,
+        "error": error,
+        "error_kind": error_kind or error,
+        "message": message or error,
+        "retryable": False,
+    }
+
+
+def _disabled_note() -> Dict[str, Any]:
+    """Kill-switch response: graceful, never an exception."""
+    return _pre_effect_error(
+        "radio_disabled",
+        message=(
             "AgentRadio is disabled (ATOM_RADIO_ENABLED=false). "
             "Set the flag to true to enable lateral coordination."
         ),
-    }
+    )
 
 
 # --------------------------------------------------------------------------- #
@@ -215,57 +228,27 @@ async def radio_send_message(args: Dict[str, Any], context: Dict[str, Any]) -> D
         return _disabled_note()
     tier_err = _require_tier(context, "intern")
     if tier_err:
-        return {"success": False, "error": tier_err}
+        return _pre_effect_error(tier_err, error_kind="maturity_floor")
     agent_id = _context_agent_id(context)
     if not agent_id:
-        return {"success": False, "error": "Context agent_id is required to send a message."}
-
+        return _pre_effect_error(
+            "Context agent_id is required to send a message.",
+            error_kind="agent_id_required",
+        )
     thread_id = (args.get("thread_id") or "").strip()
-    content = args.get("content")
-    mentions = [m for m in (args.get("mention_agent_ids") or []) if m]
-    to_agent_id = args.get("to_agent_id")
-    requires_response = bool(args.get("requires_response"))
     if not thread_id:
-        return {"success": False, "error": "thread_id is required"}
+        return _pre_effect_error(
+            "thread_id is required", error_kind="invalid_request")
 
-    meta: Dict[str, Any] = {}
-    if requires_response:
-        meta["is_response"] = False  # this msg *requests* a response → interrupt-worthy
-        meta["priority"] = "high"
+    from core.agent_radio.radio_mutations import send_message
 
-    try:
-        from core.database import get_db_session
-
-        with get_db_session() as db:
-            message = radio_service.send_message(
-                db,
-                thread_id=thread_id,
-                from_agent_id=agent_id,
-                content=content,
-                mention_agent_ids=mentions,
-                to_agent_id=to_agent_id,
-                metadata_json=meta or None,
-            )
-        # Fire-and-forget wakeup for any mentioned agent currently blocking.
-        await radio_server.get_radio_server().publish(message)
-        return {
-            "success": True,
-            "message_id": message.id,
-            "thread_id": message.thread_id,
-            "mentions": message.mentions or [],
-            "message": "Message sent.",
-        }
-    except RadioPolicyError as e:
-        return {"success": False, "error": "policy_error", "message": str(e)}
-    except RadioAccessError as e:
-        return {"success": False, "error": "access_error", "message": str(e)}
-    except RadioBudgetExceeded as e:
-        return {"success": False, "error": "budget_exceeded", "message": str(e)}
-    except RadioError as e:
-        return {"success": False, "error": "radio_error", "message": str(e)}
-    except Exception as e:  # pragma: no cover - defensive
-        logger.warning(f"radio.send_message failed: {e}")
-        return {"success": False, "error": "internal_error", "message": "Could not send message."}
+    return await send_message(
+        args,
+        context,
+        operation_id=str(
+            (context or {}).get("operation_id")
+            or (args or {}).get("operation_id") or ""),
+    )
 
 
 @register_action(

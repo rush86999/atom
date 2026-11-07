@@ -1,0 +1,19 @@
+{
+  "command": [
+    "/usr/local/opt/python@3.14/bin/python3.14",
+    "-m",
+    "pytest",
+    "tests/test_lead_radio_readback_identity.py",
+    "tests/test_oracle_radio_send.py::test_known_committed_id_survives_readback_failure",
+    "tests/test_oracle_radio_send.py::test_replay_after_readback_failure_does_not_resend",
+    "-q",
+    "--disable-warnings",
+    "--junitxml=/private/tmp/atom-agent-job-baseline/docs/acceptance/evidence/oracle_radio_readback_repair_3d69ddc44/failure-first.xml"
+  ],
+  "cwd": "/private/tmp/atom-agent-job-baseline/backend",
+  "exit_code": 1,
+  "stdout_sha256": "de41b68ffbfaf4412bffd010fafa0e10a6d4de85ca5f52d1f45e1715b0730917",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "junitxml": "failure-first.xml",
+  "process_spawned": true
+}
