@@ -1,0 +1,30 @@
+{
+  "source": "0bb9318313bf5dbae8753c3a20e82bd46c30929c",
+  "scenario_overall_status": "fail",
+  "failed_check": "single_run_post",
+  "business_step": "source_answer_verified",
+  "business_checks": {
+    "http_200": true,
+    "job_status_success": true,
+    "outcome_success": true,
+    "same_execution_id": true,
+    "result_output": true,
+    "tasks_create_step": true,
+    "oracle_verified": true,
+    "single_answer_post": true,
+    "single_run_post": false,
+    "no_advance_path": true
+  },
+  "job_id": "c262a73e-df9f-4cf2-9840-9203a92aa978",
+  "execution_id": "15e48c9d-759d-4d67-9fcd-cd7ba40338ef",
+  "task_id": "4e192bf5-cc76-4d2a-bdb1-30e11e6e3219",
+  "one_job_status_success": true,
+  "one_task": true,
+  "root_readonly_db_confirmation": true,
+  "provider_shim_calls": 3,
+  "final_ui_idempotence_controls_reached": false,
+  "completed_business_step_milestone_observed": true,
+  "not_a_product_resend_or_model_failure": true,
+  "not_a_full_ui_pass": true,
+  "note": "Root readonly DB confirmed exactly one job (status success) and one task; the IDs are retained from the frozen scenario. The old packet stays FAIL; the 307 transport accounting is the only failing check."
+}

@@ -1,0 +1,10 @@
+rc=0
+elapsed=1.1s
+head=fcf91bdd518a39a579ff64f041782572a0cea7ce
+cmd=["/private/tmp/atom-goal-utility-surface-20261107/backend/venv314/bin/python", "scripts/acceptance/browser_goal_utility_ui.py", "--preflight", "--out", "/private/tmp/atom-run-fix-final-pre-3o5bt_4o/goal-out", "--expect-source-sha", "fcf91bdd518a39a579ff64f041782572a0cea7ce", "--world", "goal_utility_ui_final_1794086642", "--backend-port", "18052", "--frontend-port", "13252"]
+
+[preflight] ok=True report=/private/tmp/atom-run-fix-final-pre-3o5bt_4o/goal-out/preflight.json
+[preflight] source=fcf91bdd518a39a579ff64f041782572a0cea7ce files=13 fixture_winner=eligible-low eligible=2
+[preflight] fixtures=55/55 launcher=3/3
+
+--- stderr ---

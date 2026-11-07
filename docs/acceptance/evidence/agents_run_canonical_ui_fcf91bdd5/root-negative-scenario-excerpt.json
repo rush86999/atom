@@ -1,0 +1,97 @@
+{
+  "kind": "root_source_ui_negative_excerpt_1",
+  "source": "0bb9318313bf5dbae8753c3a20e82bd46c30929c",
+  "scenario_overall_status": "fail",
+  "scenario_error": "DriverError: scenario check failed: source_answer_verified",
+  "step_names_reached": [
+    "source_identity",
+    "world_built_once",
+    "initial_backend_source_bound",
+    "backend_identity",
+    "fixture_through_public_routes",
+    "provider_shim_started",
+    "frontend_cwd_isolated",
+    "ordinary_ui_login",
+    "ordinary_onboarding_completed",
+    "enabled_agent_card",
+    "run_admitted",
+    "first_source_question",
+    "job_read_is_pure",
+    "wait_authority_not_in_prompt",
+    "ordinary_ui_source_upload",
+    "upload_alone_inert",
+    "source_picker_binds_catalog",
+    "restart_ports_freed",
+    "frontend_restarted_isolated",
+    "backend_restarted_same_world",
+    "restarted_backend_source_bound",
+    "same_source_after_restart",
+    "source_answer_verified"
+  ],
+  "source_answer_verified": {
+    "name": "source_answer_verified",
+    "status": "FAIL",
+    "checks": {
+      "http_200": true,
+      "job_status_success": true,
+      "outcome_success": true,
+      "same_execution_id": true,
+      "result_output": true,
+      "tasks_create_step": true,
+      "oracle_verified": true,
+      "single_answer_post": true,
+      "single_run_post": false,
+      "no_advance_path": true
+    },
+    "details": {
+      "result_steps": [
+        {
+          "action_tool": null,
+          "oracle_verified": null,
+          "task_id": null
+        },
+        {
+          "action_tool": "tasks.create",
+          "oracle_verified": true,
+          "task_id": "4e192bf5-cc76-4d2a-bdb1-30e11e6e3219"
+        },
+        {
+          "action_tool": null,
+          "oracle_verified": null,
+          "task_id": null
+        }
+      ],
+      "response": {
+        "agent_id": "189fb255-47a8-4022-ab88-d2392f3cf0ee",
+        "job_id": "c262a73e-df9f-4cf2-9840-9203a92aa978",
+        "execution_id": "15e48c9d-759d-4d67-9fcd-cd7ba40338ef",
+        "job_status": "success",
+        "outcome": "success",
+        "reason": "execution_succeeded",
+        "next_action": "none",
+        "requires_reconciliation": false,
+        "wait": null,
+        "result": {
+          "status": "success",
+          "output": "Created the closing task from the authorized source."
+        }
+      },
+      "answer_posts": [
+        {
+          "path": "/api/agents/189fb255-47a8-4022-ab88-d2392f3cf0ee/jobs/c262a73e-df9f-4cf2-9840-9203a92aa978/answer"
+        }
+      ],
+      "run_posts": [
+        {
+          "path": "/api/agents/189fb255-47a8-4022-ab88-d2392f3cf0ee/run/"
+        },
+        {
+          "path": "/api/agents/189fb255-47a8-4022-ab88-d2392f3cf0ee/run"
+        }
+      ]
+    },
+    "at": "2026-11-07T16:14:44-0500"
+  },
+  "final_ui_idempotence_controls_reached": false,
+  "note": "The retained scenario remains overall FAIL. Only single_run_post failed; all other source_answer_verified business checks passed. The run stopped before the final UI/idempotence steps."
+}
