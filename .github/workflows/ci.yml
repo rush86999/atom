@@ -228,6 +228,7 @@ jobs:
             tests/test_agent_read_scope_contract.py \
             tests/test_agent_job_readback.py \
             tests/test_lead_job_readback_material_scope.py \
+            tests/test_lead_personal_information_answer.py \
             tests/test_agent_job_wait_reference_contract.py \
             tests/test_agent_job_wait_execution_contract.py \
             tests/test_agent_job_wait_scope_contract.py \
