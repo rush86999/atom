@@ -2,6 +2,36 @@
 
 This dated checkpoint supersedes operational queue rows in the November6 directive. Re-resolve current remote heads and ownership before acting. It records current progress, not whole-app acceptance. The product is single tenant with supported user/role/workspace safeguards. Historical 111/123, planner 5/5, goal router 1/2 and alignment gap 3.0 remain unchanged.
 
+## Latest execution snapshot — remote main `24c280348`
+
+This is the leading operational snapshot; the recovery-merge snapshot and dated submissions below are preserved history. Re-resolve remote heads, exact CI runs and actual worker handles before acting. No deployment or whole-app acceptance follows from a merge.
+
+| Family | Authoritative checkpoint and bounded evidence |
+|---|---|
+| Generic accepted-answer crash recovery PR729 | Merged `e0430f9ff`; reviewed/main trees matched, and its actual post-merge CI/Docker runs passed. Exact answer/event ownership and no blind resend remain required. Current-actor authority is a separate withheld successor below. |
+| Sequential facts / independent job isolation PR730 | Merged `f3b32005a`; current-main continuation gate148. Independent combined reader/wait/isolation candidate passed57 and its tree matched the merge. Invoice and receiving facts settle separate questions on one task; controlled reasoning choices do not claim general model judgment. |
+| Current-authority workspace readers PR731 | Merged `e1f003242`; independent120 controls, strict7source/13artifact packet. Public history cannot relabel an old execution using the agent's current workspace. Personal Edition compatibility remains. |
+| Prior documentation refresh PR732 | Merged `31346bfb9`; documentation only. Its recovery-merge queue is superseded by this leading snapshot. |
+| Source revocation PR733 | Merged `980ba6e7f`; independent public-route negative/authorized-restoration twin, integrated22 controls, normal continuation149. This proves a fixture grant revoked before the read, not a revocation UI or every post-read revocation order. |
+| Git evidence manifest reader PR734 | Merged `24c280348`; independent8 controls. Manifest and artifacts now come from the same pinned Git ref/index rather than a dirty working-tree manifest. Four historical packet readbacks passed. Verifier-tooling repair, not app runtime qualification. |
+| Generic question UI PR735 | Submitted at `17b80d0de`, runtime `8202c0173`; independent118 backend,53 UI (original35 preserved),23 adjacent component tests, TypeScript0; strict6source/10artifact packet. The three public wait-scope disclosure negatives are retained and fixed. Fresh exact-head CI is pending; ordinary login/browser/restart acceptance is OPEN. Earlier head greens cannot certify this head. |
+
+### Current owners and finite acceptance blockers
+
+- **Agent1:** current original-actor authority for Generic information continuation/recovery. Native `5dfb58a85` / evidence `c17e50b2a` fixes the original moved-workspace registered-effect negative but is **withheld**. Independent tests found the supported empty personal-workspace claim refuses (1fail/14pass matrix) and a missing original actor still resumes with an administrator reviewer (1fail). Correct both through the shared authority/claim consumer; preserve the predecessor and negatives. Accepted input is not perpetual authority; an answerer is not a replacement execution principal.
+- **Agent2:** exact remote-identity replay for the registered Shopify product create, controlled transport only. Source `6ed0fc82e` moves domain projection out of GenericAgent and passes11 independent strict-JSON checks. Full provider-consumer review remains pending. Its new migration revision has35characters against the installed Alembic32-character version field; the independent schema ABI negative must be corrected and actual existing-database upgrade checked. SQLite is not PostgreSQL runtime qualification. Other registered creates remain queued, not implicitly closed by one product result.
+- **Root:** independent source/consumer review, exact-head CI/normal merge, integration and the normal browser acceptance. Reuse the accepted API/process/mechanism scopes; verify the actual UI boundary separately. Support CLI work prepares the browser plan; it must not present simulated reasoning as a served-model pass.
+
+### Engineering and product rules for the next deliveries
+
+TASK-WAIT-01 remains OPEN across the app: missing information must create a durable actionable pause, and relevant authorized information must trigger continuation of the same task without a second objective or manual advance. Long waits/restarts, repeated questions, independent useful work, exact relevance/scope, revoked access, duplicate/concurrent events, cancellation/deadlines and verified usable output are acceptance requirements. Information arrival alone never proves completion. Preserve active-work versus idle budget semantics and explicit absolute deadlines.
+
+Continue implementation while a model-free script observes CI. Push coherent source/tests before evidence; read the current short work order before each freeze. The root must inspect a real process handle before restarting: observation timeout/quiet is not death, and process exit0 without a deliverable is not task completion. Keep transport/schema success, grounding, validated decisions and satisfied business outcomes separate. Use existing receipt/CAS/lifecycle/router/permission mechanisms; do not add a parallel engine or provider-specific branch to shared execution.
+
+Scratch storage must remain isolated from the live dev DB. On disk pressure, archive only completed inactive owned fixtures, verify every retained file checksum before removing the uncompressed copy, and retain source-bound logs/spec/results. Record whether raw DB copies were removed or archived. Preserve original negative, actual-process and browser evidence; never claim a deleted fixture remains available. Do not move storage to an unverified external volume or bypass the world-storage guard.
+
+Whole-app ORACLE, broader registered provider writes, guest MiniApp execution, served multi-model comparison/general judgment, live connector breadth, PostgreSQL/multi-worker/soak and full compatibility/operations qualification remain separate unfinished rows. Retain the143-claim denominator and historical111/123, planner5/5, goal-router1/2 and alignment-gap3.0. Do not hide or redefine them to declare completion.
+
 ## Current execution snapshot at recovery merge
 
 Main at this checkpoint is `e0430f9ff` (PR729). Re-resolve remote PR heads before review or merge. Full application completion and the general-app TASK-WAIT-01 goal remain open.
