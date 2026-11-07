@@ -476,7 +476,8 @@ def _backend_source_binding(
     tracked = tracked or {}
     allowlisted = sorted(
         path for path in actual_files
-        if _is_launcher_generated_backend_file(path))
+        if path not in tracked
+        and _is_launcher_generated_backend_file(path))
     missing = sorted(set(tracked) - set(actual_files))
     unexpected = sorted(
         set(actual_files) - set(tracked) - set(allowlisted))
