@@ -63,6 +63,34 @@ ALLOWED_MEMORY_SCHEMES = ("", "file")
 _ROW_COUNT_TABLE_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,62}$")
 _RESTORE_ACTION = "restore"
 
+# Personal Edition's documented tenant fallback (core/personal_scope.py).  It
+# is used ONLY when neither the Canvas row nor the current content audit row
+# carries any scope at all; a present scope is never replaced by this value.
+_PERSONAL_TENANT_ID = "default"
+
+# Non-authority presentation fields the real canvas read/office consumers
+# actually use.  ``read_canvas`` reads title/type_pinned/draft and the body
+# under ``content`` or ``data``; episode/oracle presentation reads
+# canvas_type/component/component_type/component_name.  A restore event is
+# rebuilt from this allow-list, never by copying the historical details dict:
+# historical success/approval/reviewer/receipt/operation keys must not survive
+# under a new restore identity.
+_RESTORE_PRESENTATION_KEYS = (
+    "canvas_type",
+    "component",
+    "component_type",
+    "component_name",
+    "title",
+    "type_pinned",
+    "draft",
+)
+
+# The email read path consumes exactly this draft shape; unknown nested keys
+# are not carried into the restore event.
+_EMAIL_DRAFT_KEYS = (
+    "draft_id", "to_emails", "cc_emails", "subject", "body", "attachments",
+)
+
 # The real flow sets this before calling ``_copy_database``.  It is a
 # contextvar (not a global) so concurrent restores in one process cannot bind
 # each other to the wrong manifest.  ``_copy_database`` also accepts an
@@ -962,6 +990,95 @@ def _rebase_office_payload(
     return changed, unresolved
 
 
+def _restore_scope(canvas_scope: Any, audit_scope: Any, *, canvas_id: str) -> str:
+    """Resolve the exact tenant for a restore-owned audit event.
+
+    Mirrors the app's canvas scope policy for two present values
+    (``tools.canvas_crud_tool._scope_allows``): a real scope admits only an
+    exact match, and a foreign scope is never silently mapped into another.
+    A *missing* scope is not a foreign value: the other present scope remains
+    authoritative (legacy single-tenant NULL/default rows stay restorable).
+    Only when both are missing does Personal Edition's documented tenant
+    fallback apply.  Returned values are the exact stored strings; opaque ids
+    are never lowercased or rewritten.
+    """
+    canvas_raw = "" if canvas_scope is None else str(canvas_scope)
+    audit_raw = "" if audit_scope is None else str(audit_scope)
+    canvas_key = canvas_raw.strip()
+    audit_key = audit_raw.strip()
+    if canvas_key and audit_key and canvas_key != audit_key:
+        raise RestoreRefused(
+            f"canvas {canvas_id}: current content audit scope {audit_raw!r} "
+            f"contradicts canvas scope {canvas_raw!r}; refusing to recertify "
+            "foreign content under another scope")
+    if canvas_key:
+        return canvas_raw
+    if audit_key:
+        return audit_raw
+    return _PERSONAL_TENANT_ID
+
+
+def _restore_event_details(
+    details: Mapping[str, Any], payload_key: str, payload: Dict[str, Any],
+    *, source_audit: Mapping[str, Any], manifest_sha256: str,
+    source_data_dir: str, target_data: Path, restore_event_id: str,
+    canvas_scope: Any, audit_scope: Any,
+) -> Dict[str, Any]:
+    """Build the minimum truthful restore-owned payload.
+
+    The current content body is carried (already rebound to the target) plus
+    only the non-authority presentation fields the real read consumers use.
+    Historical ``operation_id``/``review_status``/verification/approval/
+    reviewer/receipt material is deliberately absent: this event certifies
+    the target binding, not that the old operation or approval was replayed.
+    """
+    event: Dict[str, Any] = {}
+    for key in _RESTORE_PRESENTATION_KEYS:
+        if key not in details:
+            continue
+        value = details[key]
+        if value is None:
+            continue
+        if key == "draft":
+            if not isinstance(value, Mapping):
+                continue
+            value = {name: value[name] for name in _EMAIL_DRAFT_KEYS
+                     if name in value}
+        elif key == "type_pinned":
+            if not isinstance(value, bool):
+                continue
+        elif not isinstance(value, str):
+            # Presentation keys used by the read consumers are strings; a
+            # historical row cannot smuggle an authority object through one.
+            continue
+        event[key] = value
+    event[payload_key] = payload
+    event["restored_from"] = {
+        "audit_id": str(source_audit["id"]),
+        "created_at": source_audit["created_at"],
+        "action_type": source_audit["action_type"],
+        "original_details_sha256": hashlib.sha256(
+            str(source_audit["details_json"]).encode("utf-8")).hexdigest(),
+        "manifest_sha256": manifest_sha256,
+        "source_data_dir": source_data_dir,
+        "target_data_dir": str(target_data),
+        "restore_event_id": restore_event_id,
+        "source_canvas_tenant_id": (
+            None if canvas_scope is None or not str(canvas_scope).strip()
+            else str(canvas_scope)),
+        "source_audit_tenant_id": (
+            None if audit_scope is None or not str(audit_scope).strip()
+            else str(audit_scope)),
+        "binding": "rebased_to_target",
+        "note": (
+            "Restore-appended event. The original audit row, actor, "
+            "operation identity and material are unchanged; this event "
+            "certifies the current target binding only."
+        ),
+    }
+    return event
+
+
 def _rewrite_managed_paths(
     db_path: Path, source_data_dir: str, target_data: Path,
     store_roots: Mapping[str, Any], manifest_sha256: str = "",
@@ -970,10 +1087,15 @@ def _rewrite_managed_paths(
 
     Historical ``CanvasAudit`` rows are byte-for-byte immutable.  When the
     current content-bearing audit row carries a managed office binding, the
-    restore appends a NEW restore-owned audit event with its own id, exact
-    canvas/tenant scope, original-audit + manifest provenance, and the target
-    binding.  ``read_canvas`` then serves the target binding without pretending
-    the old operation was replayed unchanged.
+    restore appends a NEW restore-owned audit event with its own id and the
+    target binding.  The event payload is rebuilt from the current content
+    plus an allow-list of non-authority presentation fields, never copied from
+    the historical details dict.  A present scope contradiction (the content
+    audit's tenant disagrees with the Canvas row's tenant) refuses before
+    publication; a missing scope falls back to the other present scope so
+    legacy single-tenant NULL/default rows remain restorable.
+    ``read_canvas`` then serves the target binding without pretending the old
+    operation, receipt or approval was replayed unchanged.
     """
     mappings = _mapping_list(source_data_dir, target_data, store_roots)
     rewritten: Dict[str, int] = {}
@@ -1089,6 +1211,12 @@ def _rewrite_managed_paths(
                                else None)
                 if payload_key is None:
                     continue
+                # Validate the scope of the current content-bearing audit that
+                # this published world will serve, even when no path rebase is
+                # needed.  A present contradiction is a data-integrity defect
+                # in the backup, not something restore may publish as verified.
+                tenant = _restore_scope(
+                    canvas_tenant, row["tenant_id"], canvas_id=canvas_id)
                 payload = dict(details[payload_key])
                 content_office_scope = bool(
                     "office_file" in payload
@@ -1101,10 +1229,6 @@ def _rewrite_managed_paths(
                         + unresolved_count)
                 if not changed:
                     continue
-                if not can_append_event:
-                    raise RestoreRefused(
-                        "a current canvas audit binding needs rebasing but "
-                        "canvas_audit is unavailable")
                 required = {"id", "canvas_id", "tenant_id", "action_type",
                             "details_json", "created_at"}
                 missing = required.difference(audit_columns)
@@ -1112,33 +1236,17 @@ def _rewrite_managed_paths(
                     raise RestoreRefused(
                         "canvas_audit schema cannot accept a restore event: "
                         + ",".join(sorted(missing)))
-                tenant = str(canvas_tenant or row["tenant_id"] or "")
-                if not tenant:
-                    raise RestoreRefused(
-                        f"cannot append restore event for canvas {canvas_id}: "
-                        "no authoritative tenant")
-                new_details = dict(details)
-                new_details[payload_key] = payload
-                for key in ("operation_id", "evidence_refs", "postconditions",
-                            "review_status"):
-                    new_details.pop(key, None)
-                new_details["restored_from"] = {
-                    "audit_id": str(row["id"]),
-                    "created_at": row["created_at"],
-                    "action_type": row["action_type"],
-                    "original_details_sha256": hashlib.sha256(
-                        str(row["details_json"]).encode("utf-8")).hexdigest(),
-                    "manifest_sha256": manifest_sha256,
-                    "source_data_dir": source_data_dir,
-                    "target_data_dir": str(target_data),
-                    "binding": "rebased_to_target",
-                    "note": (
-                        "Restore-appended event. The original audit row, actor, "
-                        "operation identity and material are unchanged; this "
-                        "event certifies the current target binding only."
-                    ),
-                }
                 new_id = str(uuid.uuid4())
+                new_details = _restore_event_details(
+                    details, payload_key, payload,
+                    source_audit=row,
+                    manifest_sha256=manifest_sha256,
+                    source_data_dir=source_data_dir,
+                    target_data=target_data,
+                    restore_event_id=new_id,
+                    canvas_scope=canvas_tenant,
+                    audit_scope=row["tenant_id"],
+                )
                 created_at = _next_created_at(
                     latest_row["created_at"] if latest_row is not None
                     else row["created_at"])

@@ -704,6 +704,318 @@ def test_restore_appends_truthful_event_and_preserves_all_original_audit_rows(
     engine.dispose()
 
 
+def _ensure_default_tenant(world):
+    con = sqlite3.connect(world["source"] / "atom.db")
+    try:
+        con.execute(
+            "INSERT OR IGNORE INTO tenants "
+            "(id, name, subdomain, edition, is_active, current_spend_usd, "
+            "total_spend_usd) VALUES "
+            "('default', 'Default', 'default', 'personal', 1, 0, 0)")
+        con.commit()
+    finally:
+        con.close()
+
+
+def _set_canvas_audit_scope(world, *, canvas_tenant, audit_tenant,
+                            audit_id="audit-1"):
+    con = sqlite3.connect(world["source"] / "atom.db")
+    try:
+        con.execute("UPDATE canvases SET tenant_id=? WHERE id='canvas-1'",
+                    (canvas_tenant,))
+        con.execute("UPDATE canvas_audit SET tenant_id=? WHERE id=?",
+                    (audit_tenant, audit_id))
+        con.commit()
+    finally:
+        con.close()
+
+
+def _audit_rows(db_path: Path):
+    con = sqlite3.connect(db_path)
+    try:
+        return con.execute(
+            "SELECT id, canvas_id, tenant_id, session_id, action_type, user_id, "
+            "agent_id, episode_id, canvas_type, details_json, created_at "
+            "FROM canvas_audit ORDER BY id").fetchall()
+    finally:
+        con.close()
+
+
+def _canvas_content(db_path: Path, canvas_id: str = "canvas-1"):
+    con = sqlite3.connect(db_path)
+    try:
+        return con.execute(
+            "SELECT content FROM canvases WHERE id=?", (canvas_id,)).fetchone()[0]
+    finally:
+        con.close()
+
+
+@pytest.mark.parametrize(
+    ("canvas_tenant", "audit_tenant", "accepted", "expected_tenant"),
+    [
+        # Correct current scope: the content audit and Canvas agree.
+        ("tenant-1", "tenant-1", True, "tenant-1"),
+        # Missing audit scope is absent provenance, not a contradiction:
+        # the Canvas row remains authoritative.
+        ("tenant-1", "", True, "tenant-1"),
+        # Missing canvas scope is likewise absent; the real audit scope is
+        # preserved rather than replaced with an invented value.
+        ("", "tenant-1", True, "tenant-1"),
+        # Legacy single-tenant Personal NULL/empty stays restorable via the
+        # documented Personal fallback.
+        ("", "", True, "default"),
+        ("default", "default", True, "default"),
+        ("default", "", True, "default"),
+        ("", "default", True, "default"),
+        # Present but different scopes are a contradiction: refuse rather
+        # than fall back in either direction.
+        ("tenant-1", "foreign-tenant", False, None),
+        ("foreign-tenant", "tenant-1", False, None),
+        ("default", "foreign-tenant", False, None),
+        ("foreign-tenant", "default", False, None),
+    ],
+)
+def test_restore_scope_matrix_refuses_only_present_contradictions(
+        tmp_path, canvas_tenant, audit_tenant, accepted, expected_tenant):
+    world = _make_world(tmp_path)
+    if expected_tenant == "default":
+        _ensure_default_tenant(world)
+    _set_canvas_audit_scope(
+        world, canvas_tenant=canvas_tenant, audit_tenant=audit_tenant)
+    original_rows = _audit_rows(world["source"] / "atom.db")
+    root, env, backup = _backup_after_source_mutation(
+        world, tmp_path, f"scope-{canvas_tenant or 'missing'}-"
+                         f"{audit_tenant or 'missing'}")
+    target = tmp_path / "target-scope"
+    if not accepted:
+        with pytest.raises(restore_support.RestoreRefused) as exc:
+            restore_support.restore_backup(
+                backup_arg=str(backup), target_arg=str(target), env=env)
+        assert "scope" in str(exc.value).lower()
+        assert not target.exists()
+    else:
+        result = restore_support.restore_backup(
+            backup_arg=str(backup), target_arg=str(target), env=env)
+        assert result["status"] == "verified", result
+        con = sqlite3.connect(target / "atom.db")
+        try:
+            event = con.execute(
+                "SELECT id, tenant_id, user_id, agent_id, details_json "
+                "FROM canvas_audit WHERE action_type='restore'").fetchall()
+        finally:
+            con.close()
+        assert len(event) == 1, event
+        event_id, event_tenant, user_id, agent_id, details_json = event[0]
+        assert event_tenant == expected_tenant, event
+        assert user_id is None and agent_id is None, event
+        details = json.loads(details_json)
+        assert details["restored_from"]["restore_event_id"] == event_id
+        assert details["restored_from"]["source_canvas_tenant_id"] == (
+            canvas_tenant or None)
+        assert details["restored_from"]["source_audit_tenant_id"] == (
+            audit_tenant or None)
+        # Every original historical row is untouched in the published target.
+        after = {row[0]: row for row in _audit_rows(target / "atom.db")}
+        for row in original_rows:
+            assert after[row[0]] == row
+    # The source is never rewritten or deleted by a restore attempt.
+    assert _audit_rows(world["source"] / "atom.db") == original_rows
+
+
+def test_restore_event_is_minimal_truthful_and_keeps_canvas_readable(
+        tmp_path, monkeypatch):
+    world = _make_world(tmp_path)
+    source_db = world["source"] / "atom.db"
+    office_file = world["office_file"]
+    content = {"office_file": str(office_file), "file_path": str(office_file),
+               "format": "docx"}
+    historical = {
+        "content": content,
+        # Non-authority presentation the real read/office consumers need.
+        "title": "Historical office draft",
+        "canvas_type": "office_word",
+        "component": "office",
+        "component_type": "rich_editor",
+        "component_name": "Office Word",
+        "type_pinned": True,
+        "draft": {
+            "draft_id": "draft-1",
+            "to_emails": ["user@example.invalid"],
+            "body": "draft body",
+            "approved_by": "old-draft-approver",
+        },
+        # Historical authority that must not be re-issued as a new event.
+        "operation_id": "old-operation-1",
+        "review_status": "accepted",
+        "evidence_refs": ["receipt-1"],
+        "postconditions": ["post-1"],
+        "success": True,
+        "verification": {"status": "verified", "verifier": "old-verifier"},
+        "approval": {"approved_by": "old-approver", "status": "approved"},
+        "reviewer": "old-reviewer",
+        "receipt": {"receipt_id": "receipt-1"},
+        "operation": {"operation_id": "old-operation-1", "status": "succeeded"},
+    }
+    con = sqlite3.connect(source_db)
+    try:
+        con.execute("UPDATE canvas_audit SET details_json=? WHERE id='audit-1'",
+                    (json.dumps(historical),))
+        con.execute(
+            "INSERT INTO canvas_audit (id, canvas_id, tenant_id, action_type, "
+            "user_id, agent_id, canvas_type, details_json, created_at) VALUES "
+            "('receipt-1','canvas-1','tenant-1','operation_receipt','user-1',"
+            "'agent-1','office_word',?, '2026-01-01 00:00:00.000000')",
+            (json.dumps({"receipt_id": "receipt-1",
+                         "operation_id": "old-operation-1",
+                         "approved_by": "old-approver"}),),
+        )
+        con.commit()
+    finally:
+        con.close()
+    original_rows = _audit_rows(source_db)
+    canvas_before = _canvas_content(source_db)
+
+    root, env, backup = _backup_after_source_mutation(world, tmp_path, "minimal")
+    target = tmp_path / "target-minimal"
+    result = restore_support.restore_backup(
+        backup_arg=str(backup), target_arg=str(target), env=env)
+    assert result["status"] == "verified", result
+
+    # Source history is not rewritten or deleted.
+    assert _audit_rows(source_db) == original_rows
+    assert _canvas_content(source_db) == canvas_before
+
+    con = sqlite3.connect(target / "atom.db")
+    try:
+        rows = con.execute(
+            "SELECT id, canvas_id, tenant_id, session_id, action_type, user_id, "
+            "agent_id, episode_id, canvas_type, details_json, created_at "
+            "FROM canvas_audit ORDER BY id").fetchall()
+    finally:
+        con.close()
+    by_id = {row[0]: row for row in rows}
+    for row in original_rows:
+        assert by_id[row[0]] == row, (row, by_id[row[0]])
+    new_rows = [row for row in rows if row[0] not in {r[0] for r in original_rows}]
+    assert len(new_rows) == 1, new_rows
+    event = new_rows[0]
+    assert event[4] == "restore" and event[5] is None and event[6] is None
+    details = json.loads(event[9])
+    assert set(details) == {
+        "content", "title", "canvas_type", "component", "component_type",
+        "component_name", "type_pinned", "draft", "restored_from",
+    }, details
+    assert details["draft"] == {
+        "draft_id": "draft-1",
+        "to_emails": ["user@example.invalid"],
+        "body": "draft body",
+    }, details["draft"]
+    assert details["content"]["office_file"].startswith(str(target / "office"))
+    for forbidden in ("operation_id", "review_status", "evidence_refs",
+                      "postconditions", "success", "verification", "approval",
+                      "reviewer", "receipt", "operation"):
+        assert forbidden not in details, (forbidden, details)
+    blob = json.dumps(details)
+    for marker in ("old-operation-1", "old-approver", "old-verifier",
+                   "old-reviewer", "old-draft-approver", "receipt-1"):
+        assert marker not in blob, (marker, details)
+    provenance = details["restored_from"]
+    assert provenance["audit_id"] == "audit-1"
+    assert provenance["original_details_sha256"] == hashlib.sha256(
+        json.dumps(historical).encode("utf-8")).hexdigest()
+    assert provenance["manifest_sha256"] == result["manifest_sha256"]
+    assert provenance["target_data_dir"] == str(target)
+    assert provenance["restore_event_id"] == event[0]
+    assert provenance["source_canvas_tenant_id"] == "tenant-1"
+    assert provenance["source_audit_tenant_id"] == "tenant-1"
+    # The untouched historical receipt keeps its authority material.
+    receipt = json.loads(by_id["receipt-1"][9])
+    assert receipt["operation_id"] == "old-operation-1"
+    assert receipt["approved_by"] == "old-approver"
+
+    # The real read consumer still sees current content and presentation.
+    world["source"].rename(tmp_path / "source-unavailable")
+    engine, Session, session_cm = _target_session_factory(target)
+    import core.database
+    monkeypatch.setattr(core.database, "get_db_session", session_cm)
+    monkeypatch.setattr(core.database, "SessionLocal", Session)
+    monkeypatch.setenv("ATOM_OFFICE_DIR", str(target / "office"))
+    monkeypatch.setenv("ATOM_DATA_DIR", str(target))
+    import asyncio
+    from tools.canvas_crud_tool import read_canvas
+    canvas = asyncio.run(read_canvas("user-1", "canvas-1"))
+    assert canvas["success"] is True, canvas
+    assert canvas["action_type"] == "restore", canvas
+    assert canvas["audit_id"] == event[0], canvas
+    assert canvas["content"]["office_file"].startswith(str(target / "office")), canvas
+    assert Path(canvas["content"]["office_file"]).is_file()
+    assert canvas["title"] == "Historical office draft", canvas
+    assert canvas["canvas_type"] == "office_word", canvas
+    assert canvas["operation_id"] is None, canvas
+    assert canvas["review_status"] == "unknown", canvas
+    engine.dispose()
+
+
+def test_restore_refuses_foreign_current_scope_even_without_path_rebase(
+        tmp_path):
+    # A generic canvas needs no office rebase, but read_canvas would still
+    # serve its current content audit. A foreign scope there must refuse too:
+    # the scope defect is not limited to canvases whose bytes get rewritten.
+    world = _make_world(tmp_path)
+    engine = create_engine(f"sqlite:///{world['source'] / 'atom.db'}")
+    Session = sessionmaker(bind=engine, expire_on_commit=False)
+    with Session() as db:
+        db.add(Canvas(
+            id="canvas-2", tenant_id="tenant-1", workspace_id="ws-1",
+            created_by="user-1", name="Generic", canvas_type="document",
+            content={"text": "generic body"}, status="active",
+        ))
+        db.flush()
+        db.add(CanvasAudit(
+            id="audit-2", canvas_id="canvas-2", tenant_id="foreign-tenant",
+            action_type="update", user_id="user-1", canvas_type="document",
+            details_json={"content": {"text": "foreign generic body"}},
+        ))
+        db.commit()
+    engine.dispose()
+    root, env, backup = _backup_after_source_mutation(
+        world, tmp_path, "no-rebase-foreign")
+    target = tmp_path / "target-no-rebase"
+    with pytest.raises(restore_support.RestoreRefused) as exc:
+        restore_support.restore_backup(
+            backup_arg=str(backup), target_arg=str(target), env=env)
+    assert "scope" in str(exc.value).lower()
+    assert not target.exists()
+
+
+def test_restore_scope_refusal_matches_actual_canvas_write_policy():
+    from tools.canvas_crud_tool import _scope_allows
+    # Two present scopes: the restore decision is exactly the app's canvas
+    # write policy. (A missing principal is handled separately above: absent
+    # provenance is not a foreign value.)
+    pairs = [
+        ("tenant-1", "tenant-1"),
+        ("tenant-1", "tenant-2"),
+        ("tenant-2", "tenant-1"),
+        ("default", "tenant-1"),
+        ("tenant-1", "default"),
+        ("default", "default"),
+        ("opaque-A", "opaque-B"),
+        ("Opaque-A", "opaque-A"),
+        ("default", "DEFAULT"),
+    ]
+    for audit_scope, canvas_scope in pairs:
+        assert _scope_allows(audit_scope, canvas_scope) == (
+            audit_scope == canvas_scope), (audit_scope, canvas_scope)
+        if _scope_allows(audit_scope, canvas_scope):
+            assert restore_support._restore_scope(
+                canvas_scope, audit_scope, canvas_id="canvas-1") == canvas_scope
+        else:
+            with pytest.raises(restore_support.RestoreRefused):
+                restore_support._restore_scope(
+                    canvas_scope, audit_scope, canvas_id="canvas-1")
+
+
 def test_peer_database_update_during_freeze_refused(tmp_path, monkeypatch):
     world, root, env, backup = _backup_world(tmp_path)
 

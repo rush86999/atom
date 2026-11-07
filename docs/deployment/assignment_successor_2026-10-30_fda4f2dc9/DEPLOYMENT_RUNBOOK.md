@@ -352,10 +352,27 @@ Historical `CanvasAudit` rows, receipts, operation identities, actors,
 timestamps and material are byte-for-byte immutable. When the current
 content-bearing audit row carries an office binding that must change, restore
 **appends** a new restore-owned `CanvasAudit` event with a new id, the exact
-canvas/tenant scope, the original audit id and manifest SHA-256 as provenance,
-and the target binding. It does not reuse the old operation id, evidence refs,
-postconditions or review status, so `read_canvas` serves the target without
-pretending the old operation was replayed unchanged.
+resolved scope, the original audit id, the original details SHA-256 and the
+manifest SHA-256 as provenance, and the target binding. The event's own id is
+recorded as `restored_from.restore_event_id`, so the new identity is
+self-describing without reusing the historical one. The event payload is
+rebuilt from the current content plus only the non-authority presentation
+fields the real `read_canvas`/office consumers use (`title`, `canvas_type`,
+`component`, `component_type`, `component_name`, `type_pinned`, the email
+`draft` shape). Historical operation ids, review status, evidence refs,
+postconditions, success/verification, approval, reviewer and receipt material
+are **not** copied into the new identity, so `read_canvas` serves the target
+without pretending the old operation or approval was replayed unchanged.
+
+Scope is resolved by the same rule as the canvas write path
+(`tools.canvas_crud_tool._scope_allows`): two present scopes must match
+exactly, and a present contradiction (for example a `tenant-1` Canvas row whose
+current content audit belongs to `foreign-tenant`) **refuses before
+publication** — a foreign audit is never re-issued under the Canvas tenant, and
+a Canvas tenant is never re-issued under a foreign audit scope. A missing
+scope (legacy NULL/empty) is not a foreign value: the other present scope is
+preserved, and only when both are absent does Personal Edition's documented
+`default` tenant fallback apply. No SaaS gate is added.
 
 Publication is an atomic no-replace rename where the platform supports it
 (`renamex_np`/`RENAME_EXCL` on macOS, `renameat2`/`RENAME_NOREPLACE` on Linux).
