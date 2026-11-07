@@ -1,0 +1,22 @@
+{
+  "executed_source": "1f9649ac290150ba13bffd6dae803176bc4f7a6e",
+  "integrated": {
+    "passed": 337,
+    "actual_exit_code": 0
+  },
+  "event_negative": {
+    "failed": 1,
+    "passed": 7
+  },
+  "event_fixed": {
+    "passed": 41
+  },
+  "namespace_negative": {
+    "failed": 1,
+    "passed": 1
+  },
+  "namespace_fixed": {
+    "passed": 13
+  },
+  "scope": "controlled public-route and real structured-consumer transport double; no live model, UI or actual-process Generic restart qualification"
+}

@@ -1,0 +1,530 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-07 03:55:23 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-07 03:55:23 [    INFO] MCP Service initialized
+
+::test_redelivery_cannot_answer_the_next_wait[False] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:55:25 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 03:55:25 [    INFO] EscalationManager initialized
+2026-11-07 03:55:25 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 03:55:25 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 03:55:25 [    INFO] EscalationManager initialized
+2026-11-07 03:55:25 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 03:55:25 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 03:55:25 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Create a task after obtaining its title and priority
+2026-11-07 03:55:25 [    INFO] Agent Agent One (a1) starting task: Create a task after obtaining its title and priori
+2026-11-07 03:55:25 [    INFO] EscalationManager initialized
+2026-11-07 03:55:25 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 03:55:25 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 03:55:25 [    INFO] LanceDBHandler initialized. ID: 5096023504. LANCEDB_AVAILABLE: True
+2026-11-07 03:55:25 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 03:55:25 [    INFO] Connecting to LanceDB at /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-generic-event-binding-27x335d0/lance with storage_options=None
+2026-11-07 03:55:25 [    INFO] LanceDB connected successfully
+2026-11-07 03:55:25 [ WARNING] get_active_facts_for_prompt failed: (sqlite3.OperationalError) no such table: turn_facts
+[SQL: SELECT turn_facts.id AS turn_facts_id, turn_facts.tenant_id AS turn_facts_tenant_id, turn_facts.workspace_id AS turn_facts_workspace_id, turn_facts.user_id AS turn_facts_user_id, turn_facts.execution_id AS turn_facts_execution_id, turn_facts.reasoning_step_id AS turn_facts_reasoning_step_id, turn_facts.episode_id AS turn_facts_episode_id, turn_facts.session_id AS turn_facts_session_id, turn_facts.extraction_source AS turn_facts_extraction_source, turn_facts.fact_text AS turn_facts_fact_text, turn_facts.category AS turn_facts_category, turn_facts.domain AS turn_facts_domain, turn_facts.tags AS turn_facts_tags, turn_facts.confidence AS turn_facts_confidence, turn_facts.epistemic_type AS turn_facts_epistemic_type, turn_facts.sensitivity AS turn_facts_sensitivity, turn_facts.content_hash AS turn_facts_content_hash, turn_facts.status AS turn_facts_status, turn_facts.superseded_at AS turn_facts_superseded_at, turn_facts.created_at AS turn_facts_created_at, turn_facts.parent_id AS turn_facts_parent_id, turn_facts.commit_message AS turn_facts_commit_message, turn_facts.author_type AS turn_facts_author_type, turn_facts.branch_name AS turn_facts_branch_name, turn_facts.diff_summary AS turn_facts_diff_summary, turn_facts.vector_id AS turn_facts_vector_id 
+FROM turn_facts 
+WHERE turn_facts.workspace_id = ? AND turn_facts.status = ?]
+[parameters: ('ws1', 'active')]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-07 03:55:25 [    INFO] EscalationManager initialized
+2026-11-07 03:55:25 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 03:55:25 [    INFO] EscalationManager initialized
+2026-11-07 03:55:25 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 03:55:25 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 03:55:25 [    INFO] Recorded outcome for a1: failure
+2026-11-07 03:55:25 [    INFO] EscalationManager initialized
+2026-11-07 03:55:25 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 03:55:25 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-07 03:55:25 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 1}
+2026-11-07 03:55:25 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=root-repeated-wait-False "HTTP/1.1 202 Accepted"
+2026-11-07 03:55:25 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 03:55:25 [    INFO] EscalationManager initialized
+2026-11-07 03:55:25 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 03:55:25 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 03:55:25 [    INFO] EscalationManager initialized
+2026-11-07 03:55:25 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 03:55:25 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 03:55:25 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Create a task after obtaining its title and priority
+2026-11-07 03:55:25 [    INFO] Agent Agent One (a1) starting task: Create a task after obtaining its title and priori
+2026-11-07 03:55:25 [    INFO] EscalationManager initialized
+2026-11-07 03:55:25 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 03:55:25 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 03:55:25 [    INFO] LanceDBHandler initialized. ID: 5101417360. LANCEDB_AVAILABLE: True
+2026-11-07 03:55:25 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 03:55:25 [    INFO] Connecting to LanceDB at /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-generic-event-binding-27x335d0/lance with storage_options=None
+2026-11-07 03:55:25 [    INFO] LanceDB connected successfully
+2026-11-07 03:55:25 [ WARNING] get_active_facts_for_prompt failed: (sqlite3.OperationalError) no such table: turn_facts
+[SQL: SELECT turn_facts.id AS turn_facts_id, turn_facts.tenant_id AS turn_facts_tenant_id, turn_facts.workspace_id AS turn_facts_workspace_id, turn_facts.user_id AS turn_facts_user_id, turn_facts.execution_id AS turn_facts_execution_id, turn_facts.reasoning_step_id AS turn_facts_reasoning_step_id, turn_facts.episode_id AS turn_facts_episode_id, turn_facts.session_id AS turn_facts_session_id, turn_facts.extraction_source AS turn_facts_extraction_source, turn_facts.fact_text AS turn_facts_fact_text, turn_facts.category AS turn_facts_category, turn_facts.domain AS turn_facts_domain, turn_facts.tags AS turn_facts_tags, turn_facts.confidence AS turn_facts_confidence, turn_facts.epistemic_type AS turn_facts_epistemic_type, turn_facts.sensitivity AS turn_facts_sensitivity, turn_facts.content_hash AS turn_facts_content_hash, turn_facts.status AS turn_facts_status, turn_facts.superseded_at AS turn_facts_superseded_at, turn_facts.created_at AS turn_facts_created_at, turn_facts.parent_id AS turn_facts_parent_id, turn_facts.commit_message AS turn_facts_commit_message, turn_facts.author_type AS turn_facts_author_type, turn_facts.branch_name AS turn_facts_branch_name, turn_facts.diff_summary AS turn_facts_diff_summary, turn_facts.vector_id AS turn_facts_vector_id 
+FROM turn_facts 
+WHERE turn_facts.workspace_id = ? AND turn_facts.status = ?]
+[parameters: ('ws1', 'active')]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-07 03:55:25 [    INFO] Recorded outcome for a1: failure
+2026-11-07 03:55:25 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-07 03:55:25 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 2}
+2026-11-07 03:55:25 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/jobs/86f693f8-792a-45e1-8f70-92988dc6347a/answer "HTTP/1.1 202 Accepted"
+2026-11-07 03:55:25 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/jobs/86f693f8-792a-45e1-8f70-92988dc6347a/answer "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 12%]
+::test_redelivery_cannot_answer_the_next_wait[True] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:55:26 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 03:55:26 [    INFO] EscalationManager initialized
+2026-11-07 03:55:26 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 03:55:26 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 03:55:26 [    INFO] EscalationManager initialized
+2026-11-07 03:55:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 03:55:26 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 03:55:26 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Create a task after obtaining its title and priority
+2026-11-07 03:55:26 [    INFO] Agent Agent One (a1) starting task: Create a task after obtaining its title and priori
+2026-11-07 03:55:26 [    INFO] EscalationManager initialized
+2026-11-07 03:55:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 03:55:26 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 03:55:26 [    INFO] LanceDBHandler initialized. ID: 5102608176. LANCEDB_AVAILABLE: True
+2026-11-07 03:55:26 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 03:55:26 [    INFO] Connecting to LanceDB at /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-generic-event-binding-27x335d0/lance with storage_options=None
+2026-11-07 03:55:26 [    INFO] LanceDB connected successfully
+2026-11-07 03:55:26 [ WARNING] get_active_facts_for_prompt failed: (sqlite3.OperationalError) no such table: turn_facts
+[SQL: SELECT turn_facts.id AS turn_facts_id, turn_facts.tenant_id AS turn_facts_tenant_id, turn_facts.workspace_id AS turn_facts_workspace_id, turn_facts.user_id AS turn_facts_user_id, turn_facts.execution_id AS turn_facts_execution_id, turn_facts.reasoning_step_id AS turn_facts_reasoning_step_id, turn_facts.episode_id AS turn_facts_episode_id, turn_facts.session_id AS turn_facts_session_id, turn_facts.extraction_source AS turn_facts_extraction_source, turn_facts.fact_text AS turn_facts_fact_text, turn_facts.category AS turn_facts_category, turn_facts.domain AS turn_facts_domain, turn_facts.tags AS turn_facts_tags, turn_facts.confidence AS turn_facts_confidence, turn_facts.epistemic_type AS turn_facts_epistemic_type, turn_facts.sensitivity AS turn_facts_sensitivity, turn_facts.content_hash AS turn_facts_content_hash, turn_facts.status AS turn_facts_status, turn_facts.superseded_at AS turn_facts_superseded_at, turn_facts.created_at AS turn_facts_created_at, turn_facts.parent_id AS turn_facts_parent_id, turn_facts.commit_message AS turn_facts_commit_message, turn_facts.author_type AS turn_facts_author_type, turn_facts.branch_name AS turn_facts_branch_name, turn_facts.diff_summary AS turn_facts_diff_summary, turn_facts.vector_id AS turn_facts_vector_id 
+FROM turn_facts 
+WHERE turn_facts.workspace_id = ? AND turn_facts.status = ?]
+[parameters: ('ws1', 'active')]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-07 03:55:26 [    INFO] Recorded outcome for a1: failure
+2026-11-07 03:55:26 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-07 03:55:26 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 3}
+2026-11-07 03:55:26 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=root-repeated-wait-True "HTTP/1.1 202 Accepted"
+2026-11-07 03:55:26 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 03:55:26 [    INFO] EscalationManager initialized
+2026-11-07 03:55:26 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 03:55:26 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 03:55:26 [    INFO] EscalationManager initialized
+2026-11-07 03:55:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 03:55:26 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 03:55:26 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Create a task after obtaining its title and priority
+2026-11-07 03:55:26 [    INFO] Agent Agent One (a1) starting task: Create a task after obtaining its title and priori
+2026-11-07 03:55:26 [    INFO] EscalationManager initialized
+2026-11-07 03:55:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 03:55:26 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 03:55:26 [    INFO] LanceDBHandler initialized. ID: 5102613952. LANCEDB_AVAILABLE: True
+2026-11-07 03:55:26 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 03:55:26 [    INFO] Connecting to LanceDB at /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-generic-event-binding-27x335d0/lance with storage_options=None
+2026-11-07 03:55:26 [    INFO] LanceDB connected successfully
+2026-11-07 03:55:26 [ WARNING] get_active_facts_for_prompt failed: (sqlite3.OperationalError) no such table: turn_facts
+[SQL: SELECT turn_facts.id AS turn_facts_id, turn_facts.tenant_id AS turn_facts_tenant_id, turn_facts.workspace_id AS turn_facts_workspace_id, turn_facts.user_id AS turn_facts_user_id, turn_facts.execution_id AS turn_facts_execution_id, turn_facts.reasoning_step_id AS turn_facts_reasoning_step_id, turn_facts.episode_id AS turn_facts_episode_id, turn_facts.session_id AS turn_facts_session_id, turn_facts.extraction_source AS turn_facts_extraction_source, turn_facts.fact_text AS turn_facts_fact_text, turn_facts.category AS turn_facts_category, turn_facts.domain AS turn_facts_domain, turn_facts.tags AS turn_facts_tags, turn_facts.confidence AS turn_facts_confidence, turn_facts.epistemic_type AS turn_facts_epistemic_type, turn_facts.sensitivity AS turn_facts_sensitivity, turn_facts.content_hash AS turn_facts_content_hash, turn_facts.status AS turn_facts_status, turn_facts.superseded_at AS turn_facts_superseded_at, turn_facts.created_at AS turn_facts_created_at, turn_facts.parent_id AS turn_facts_parent_id, turn_facts.commit_message AS turn_facts_commit_message, turn_facts.author_type AS turn_facts_author_type, turn_facts.branch_name AS turn_facts_branch_name, turn_facts.diff_summary AS turn_facts_diff_summary, turn_facts.vector_id AS turn_facts_vector_id 
+FROM turn_facts 
+WHERE turn_facts.workspace_id = ? AND turn_facts.status = ?]
+[parameters: ('ws1', 'active')]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-07 03:55:26 [    INFO] Recorded outcome for a1: failure
+2026-11-07 03:55:26 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-07 03:55:26 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 4}
+2026-11-07 03:55:26 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/jobs/80974126-0c14-4b4c-bbc0-c3248cb74217/answer "HTTP/1.1 202 Accepted"
+2026-11-07 03:55:26 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 03:55:26 [    INFO] EscalationManager initialized
+2026-11-07 03:55:26 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 03:55:26 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 03:55:26 [    INFO] EscalationManager initialized
+2026-11-07 03:55:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 03:55:26 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 03:55:26 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Create a task after obtaining its title and priority
+2026-11-07 03:55:26 [    INFO] Agent Agent One (a1) starting task: Create a task after obtaining its title and priori
+2026-11-07 03:55:26 [    INFO] EscalationManager initialized
+2026-11-07 03:55:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 03:55:26 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 03:55:26 [    INFO] LanceDBHandler initialized. ID: 5103905840. LANCEDB_AVAILABLE: True
+2026-11-07 03:55:26 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 03:55:26 [    INFO] Connecting to LanceDB at /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-generic-event-binding-27x335d0/lance with storage_options=None
+2026-11-07 03:55:26 [    INFO] LanceDB connected successfully
+2026-11-07 03:55:26 [ WARNING] get_active_facts_for_prompt failed: (sqlite3.OperationalError) no such table: turn_facts
+[SQL: SELECT turn_facts.id AS turn_facts_id, turn_facts.tenant_id AS turn_facts_tenant_id, turn_facts.workspace_id AS turn_facts_workspace_id, turn_facts.user_id AS turn_facts_user_id, turn_facts.execution_id AS turn_facts_execution_id, turn_facts.reasoning_step_id AS turn_facts_reasoning_step_id, turn_facts.episode_id AS turn_facts_episode_id, turn_facts.session_id AS turn_facts_session_id, turn_facts.extraction_source AS turn_facts_extraction_source, turn_facts.fact_text AS turn_facts_fact_text, turn_facts.category AS turn_facts_category, turn_facts.domain AS turn_facts_domain, turn_facts.tags AS turn_facts_tags, turn_facts.confidence AS turn_facts_confidence, turn_facts.epistemic_type AS turn_facts_epistemic_type, turn_facts.sensitivity AS turn_facts_sensitivity, turn_facts.content_hash AS turn_facts_content_hash, turn_facts.status AS turn_facts_status, turn_facts.superseded_at AS turn_facts_superseded_at, turn_facts.created_at AS turn_facts_created_at, turn_facts.parent_id AS turn_facts_parent_id, turn_facts.commit_message AS turn_facts_commit_message, turn_facts.author_type AS turn_facts_author_type, turn_facts.branch_name AS turn_facts_branch_name, turn_facts.diff_summary AS turn_facts_diff_summary, turn_facts.vector_id AS turn_facts_vector_id 
+FROM turn_facts 
+WHERE turn_facts.workspace_id = ? AND turn_facts.status = ?]
+[parameters: ('ws1', 'active')]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-07 03:55:26 [    INFO] Recorded outcome for a1: success
+2026-11-07 03:55:26 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-07 03:55:26 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 5}
+2026-11-07 03:55:26 [ WARNING] turn_fact circuit breaker OPENED after 5 consecutive failures (cooldown=120s) — extraction skipped
+2026-11-07 03:55:26 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/jobs/80974126-0c14-4b4c-bbc0-c3248cb74217/answer "HTTP/1.1 200 OK"
+FAILED                                                                   [ 25%]
+tests/test_agent_generic_information_wait.py::test_generic_info_wait_resumes_same_job_to_verified_result 
+-------------------------------- live log setup --------------------------------
+2026-11-07 03:55:27 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:55:28 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 03:55:28 [    INFO] EscalationManager initialized
+2026-11-07 03:55:28 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 03:55:28 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 03:55:28 [    INFO] EscalationManager initialized
+2026-11-07 03:55:28 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 03:55:28 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 03:55:28 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Create the closing task
+2026-11-07 03:55:28 [    INFO] Agent Agent One (a1) starting task: Create the closing task
+2026-11-07 03:55:28 [    INFO] EscalationManager initialized
+2026-11-07 03:55:28 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 03:55:28 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 03:55:28 [    INFO] LanceDBHandler initialized. ID: 5106773776. LANCEDB_AVAILABLE: True
+2026-11-07 03:55:28 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 03:55:28 [    INFO] Connecting to LanceDB at /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-generic-event-binding-27x335d0/lance with storage_options=None
+2026-11-07 03:55:28 [    INFO] LanceDB connected successfully
+2026-11-07 03:55:28 [    INFO] Recorded outcome for a1: failure
+2026-11-07 03:55:28 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=generic-info-wait "HTTP/1.1 202 Accepted"
+2026-11-07 03:55:28 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 03:55:28 [    INFO] EscalationManager initialized
+2026-11-07 03:55:28 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 03:55:28 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 03:55:28 [    INFO] EscalationManager initialized
+2026-11-07 03:55:28 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 03:55:28 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 03:55:28 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Create the closing task
+2026-11-07 03:55:28 [    INFO] Agent Agent One (a1) starting task: Create the closing task
+2026-11-07 03:55:28 [    INFO] EscalationManager initialized
+2026-11-07 03:55:28 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 03:55:28 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 03:55:28 [    INFO] LanceDBHandler initialized. ID: 5107996048. LANCEDB_AVAILABLE: True
+2026-11-07 03:55:28 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 03:55:28 [    INFO] Connecting to LanceDB at /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-generic-event-binding-27x335d0/lance with storage_options=None
+2026-11-07 03:55:28 [    INFO] LanceDB connected successfully
+2026-11-07 03:55:28 [ WARNING] can_perform_action() called from a running event loop (agent=a1 action=tasks.create); budget not checked synchronously — use can_perform_action_async() to enforce the budget
+2026-11-07 03:55:28 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant ws1: Tenant ws1 not found
+2026-11-07 03:55:28 [    INFO] Recorded outcome for a1: success
+2026-11-07 03:55:28 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/jobs/821494a1-6266-4c21-8d84-f95a2ca441a5/answer "HTTP/1.1 200 OK"
+PASSED                                                                   [ 37%]
+tests/test_agent_generic_information_wait.py::test_wrong_correlation_cannot_resume_the_wait 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:55:29 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 03:55:29 [    INFO] EscalationManager initialized
+2026-11-07 03:55:29 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 03:55:29 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 03:55:29 [    INFO] EscalationManager initialized
+2026-11-07 03:55:29 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 03:55:29 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 03:55:29 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Look up the account
+2026-11-07 03:55:29 [    INFO] Agent Agent One (a1) starting task: Look up the account
+2026-11-07 03:55:29 [    INFO] EscalationManager initialized
+2026-11-07 03:55:29 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 03:55:29 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 03:55:29 [    INFO] LanceDBHandler initialized. ID: 5115203664. LANCEDB_AVAILABLE: True
+2026-11-07 03:55:29 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 03:55:29 [    INFO] Connecting to LanceDB at /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-generic-event-binding-27x335d0/lance with storage_options=None
+2026-11-07 03:55:29 [    INFO] LanceDB connected successfully
+2026-11-07 03:55:29 [    INFO] Recorded outcome for a1: failure
+2026-11-07 03:55:29 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=generic-wrong-correlation "HTTP/1.1 202 Accepted"
+2026-11-07 03:55:29 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/jobs/7cc66c54-e3c2-4a9d-98ba-8e61f49cd73a/answer "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 50%]
+tests/test_agent_generic_information_wait.py::test_duplicate_answer_does_not_dispatch_again 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:55:30 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 03:55:30 [    INFO] EscalationManager initialized
+2026-11-07 03:55:30 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 03:55:30 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 03:55:30 [    INFO] EscalationManager initialized
+2026-11-07 03:55:30 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 03:55:30 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 03:55:30 [    INFO] Executing Agent Agent One with ReAct Loop. Input: create a task
+2026-11-07 03:55:30 [    INFO] Agent Agent One (a1) starting task: create a task
+2026-11-07 03:55:30 [    INFO] EscalationManager initialized
+2026-11-07 03:55:30 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 03:55:30 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 03:55:30 [    INFO] LanceDBHandler initialized. ID: 5115202640. LANCEDB_AVAILABLE: True
+2026-11-07 03:55:30 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 03:55:30 [    INFO] Connecting to LanceDB at /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-generic-event-binding-27x335d0/lance with storage_options=None
+2026-11-07 03:55:30 [    INFO] LanceDB connected successfully
+2026-11-07 03:55:30 [    INFO] Recorded outcome for a1: failure
+2026-11-07 03:55:30 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=generic-duplicate-answer "HTTP/1.1 202 Accepted"
+2026-11-07 03:55:30 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 03:55:30 [    INFO] EscalationManager initialized
+2026-11-07 03:55:30 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 03:55:30 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 03:55:30 [    INFO] EscalationManager initialized
+2026-11-07 03:55:30 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 03:55:30 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 03:55:30 [    INFO] Executing Agent Agent One with ReAct Loop. Input: create a task
+2026-11-07 03:55:30 [    INFO] Agent Agent One (a1) starting task: create a task
+2026-11-07 03:55:30 [    INFO] EscalationManager initialized
+2026-11-07 03:55:30 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 03:55:30 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 03:55:30 [    INFO] LanceDBHandler initialized. ID: 5114316512. LANCEDB_AVAILABLE: True
+2026-11-07 03:55:30 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 03:55:30 [    INFO] Connecting to LanceDB at /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-generic-event-binding-27x335d0/lance with storage_options=None
+2026-11-07 03:55:30 [    INFO] LanceDB connected successfully
+2026-11-07 03:55:30 [ WARNING] can_perform_action() called from a running event loop (agent=a1 action=tasks.create); budget not checked synchronously — use can_perform_action_async() to enforce the budget
+2026-11-07 03:55:30 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant ws1: Tenant ws1 not found
+2026-11-07 03:55:30 [    INFO] Recorded outcome for a1: success
+2026-11-07 03:55:30 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/jobs/02f0b1d7-0ddf-4b8b-b3ed-08d9e2e91132/answer "HTTP/1.1 200 OK"
+2026-11-07 03:55:30 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/jobs/02f0b1d7-0ddf-4b8b-b3ed-08d9e2e91132/answer "HTTP/1.1 200 OK"
+PASSED                                                                   [ 62%]
+tests/test_agent_generic_information_wait.py::test_answer_after_cancellation_cannot_revive_the_job 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:55:31 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 03:55:31 [    INFO] EscalationManager initialized
+2026-11-07 03:55:31 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 03:55:31 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 03:55:31 [    INFO] EscalationManager initialized
+2026-11-07 03:55:31 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 03:55:31 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 03:55:31 [    INFO] Executing Agent Agent One with ReAct Loop. Input: use the code
+2026-11-07 03:55:31 [    INFO] Agent Agent One (a1) starting task: use the code
+2026-11-07 03:55:31 [    INFO] EscalationManager initialized
+2026-11-07 03:55:31 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 03:55:31 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 03:55:31 [    INFO] LanceDBHandler initialized. ID: 5113392224. LANCEDB_AVAILABLE: True
+2026-11-07 03:55:31 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 03:55:31 [    INFO] Connecting to LanceDB at /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-generic-event-binding-27x335d0/lance with storage_options=None
+2026-11-07 03:55:31 [    INFO] LanceDB connected successfully
+2026-11-07 03:55:32 [    INFO] Recorded outcome for a1: failure
+2026-11-07 03:55:32 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=generic-cancelled-wait "HTTP/1.1 202 Accepted"
+2026-11-07 03:55:32 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/jobs/7f5201ba-2dfa-4e02-a8c5-043cbde5a3c8/answer "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 75%]
+tests/test_agent_generic_information_wait.py::test_legacy_approvals_input_surface_resumes_the_same_wait 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:55:33 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 03:55:33 [    INFO] EscalationManager initialized
+2026-11-07 03:55:33 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 03:55:33 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 03:55:33 [    INFO] EscalationManager initialized
+2026-11-07 03:55:33 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 03:55:33 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 03:55:33 [    INFO] Executing Agent Agent One with ReAct Loop. Input: create from approvals
+2026-11-07 03:55:33 [    INFO] Agent Agent One (a1) starting task: create from approvals
+2026-11-07 03:55:33 [    INFO] EscalationManager initialized
+2026-11-07 03:55:33 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 03:55:33 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 03:55:33 [    INFO] LanceDBHandler initialized. ID: 5111168624. LANCEDB_AVAILABLE: True
+2026-11-07 03:55:33 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 03:55:33 [    INFO] Connecting to LanceDB at /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-generic-event-binding-27x335d0/lance with storage_options=None
+2026-11-07 03:55:33 [    INFO] LanceDB connected successfully
+2026-11-07 03:55:33 [    INFO] Recorded outcome for a1: failure
+2026-11-07 03:55:33 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=generic-approvals-input "HTTP/1.1 202 Accepted"
+2026-11-07 03:55:33 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 03:55:33 [    INFO] EscalationManager initialized
+2026-11-07 03:55:33 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 03:55:33 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 03:55:33 [    INFO] EscalationManager initialized
+2026-11-07 03:55:33 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 03:55:33 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 03:55:33 [    INFO] Executing Agent Agent One with ReAct Loop. Input: create from approvals
+2026-11-07 03:55:33 [    INFO] Agent Agent One (a1) starting task: create from approvals
+2026-11-07 03:55:33 [    INFO] EscalationManager initialized
+2026-11-07 03:55:33 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 03:55:33 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 03:55:33 [    INFO] LanceDBHandler initialized. ID: 5125630544. LANCEDB_AVAILABLE: True
+2026-11-07 03:55:33 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 03:55:33 [    INFO] Connecting to LanceDB at /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-generic-event-binding-27x335d0/lance with storage_options=None
+2026-11-07 03:55:33 [    INFO] LanceDB connected successfully
+2026-11-07 03:55:33 [ WARNING] can_perform_action() called from a running event loop (agent=a1 action=tasks.create); budget not checked synchronously — use can_perform_action_async() to enforce the budget
+2026-11-07 03:55:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant ws1: Tenant ws1 not found
+2026-11-07 03:55:33 [    INFO] Recorded outcome for a1: success
+2026-11-07 03:55:33 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/da884278-cf00-45d9-bb5a-8aad43391357 "HTTP/1.1 200 OK"
+2026-11-07 03:55:33 [ WARNING] API Error: INFORMATION_ANSWER_CONFLICT - A different answer was already accepted for this wait.
+2026-11-07 03:55:33 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/da884278-cf00-45d9-bb5a-8aad43391357 "HTTP/1.1 409 Conflict"
+2026-11-07 03:55:33 [ WARNING] HITL da884278-cf00-45d9-bb5a-8aad43391357 decided (approved) but work did not resume: {'handled': True, 'resumed': False, 'reason': 'job_not_waiting_for_this_answer', 'status': 'refused', 'job': {'job_status': 'success', 'outcome': 'success', 'reason': 'execution_succeeded', 'next_action': 'none', 'requires_reconciliation': False, 'execution_id': '5de269c3-69cd-4f28-80b4-50595022e2b9'}}
+2026-11-07 03:55:33 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/da884278-cf00-45d9-bb5a-8aad43391357 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 87%]
+tests/test_agent_generic_information_wait.py::test_second_missing_fact_waits_again_then_completes 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:55:34 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 03:55:34 [    INFO] EscalationManager initialized
+2026-11-07 03:55:34 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 03:55:34 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 03:55:34 [    INFO] EscalationManager initialized
+2026-11-07 03:55:34 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 03:55:34 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 03:55:34 [    INFO] Executing Agent Agent One with ReAct Loop. Input: prepare the task
+2026-11-07 03:55:34 [    INFO] Agent Agent One (a1) starting task: prepare the task
+2026-11-07 03:55:34 [    INFO] EscalationManager initialized
+2026-11-07 03:55:34 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 03:55:34 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 03:55:34 [    INFO] LanceDBHandler initialized. ID: 5127144336. LANCEDB_AVAILABLE: True
+2026-11-07 03:55:34 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 03:55:34 [    INFO] Connecting to LanceDB at /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-generic-event-binding-27x335d0/lance with storage_options=None
+2026-11-07 03:55:34 [    INFO] LanceDB connected successfully
+2026-11-07 03:55:34 [    INFO] Recorded outcome for a1: failure
+2026-11-07 03:55:34 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=generic-second-prerequisite "HTTP/1.1 202 Accepted"
+2026-11-07 03:55:34 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 03:55:34 [    INFO] EscalationManager initialized
+2026-11-07 03:55:34 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 03:55:34 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 03:55:34 [    INFO] EscalationManager initialized
+2026-11-07 03:55:34 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 03:55:34 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 03:55:34 [    INFO] Executing Agent Agent One with ReAct Loop. Input: prepare the task
+2026-11-07 03:55:34 [    INFO] Agent Agent One (a1) starting task: prepare the task
+2026-11-07 03:55:34 [    INFO] EscalationManager initialized
+2026-11-07 03:55:34 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 03:55:34 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 03:55:34 [    INFO] LanceDBHandler initialized. ID: 5127817552. LANCEDB_AVAILABLE: True
+2026-11-07 03:55:34 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 03:55:34 [    INFO] Connecting to LanceDB at /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-generic-event-binding-27x335d0/lance with storage_options=None
+2026-11-07 03:55:34 [    INFO] LanceDB connected successfully
+2026-11-07 03:55:34 [    INFO] Recorded outcome for a1: failure
+2026-11-07 03:55:34 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/jobs/5ba8538b-99bd-4769-bc82-05aea4f1cc83/answer "HTTP/1.1 202 Accepted"
+2026-11-07 03:55:34 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 03:55:34 [    INFO] EscalationManager initialized
+2026-11-07 03:55:34 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 03:55:34 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 03:55:34 [    INFO] EscalationManager initialized
+2026-11-07 03:55:34 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 03:55:34 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 03:55:34 [    INFO] Executing Agent Agent One with ReAct Loop. Input: prepare the task
+2026-11-07 03:55:34 [    INFO] Agent Agent One (a1) starting task: prepare the task
+2026-11-07 03:55:34 [    INFO] EscalationManager initialized
+2026-11-07 03:55:34 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 03:55:34 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 03:55:34 [    INFO] LanceDBHandler initialized. ID: 5128143120. LANCEDB_AVAILABLE: True
+2026-11-07 03:55:34 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 03:55:34 [    INFO] Connecting to LanceDB at /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-generic-event-binding-27x335d0/lance with storage_options=None
+2026-11-07 03:55:34 [    INFO] LanceDB connected successfully
+2026-11-07 03:55:34 [ WARNING] can_perform_action() called from a running event loop (agent=a1 action=tasks.create); budget not checked synchronously — use can_perform_action_async() to enforce the budget
+2026-11-07 03:55:34 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant ws1: Tenant ws1 not found
+2026-11-07 03:55:34 [    INFO] Recorded outcome for a1: success
+2026-11-07 03:55:34 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/jobs/5ba8538b-99bd-4769-bc82-05aea4f1cc83/answer "HTTP/1.1 200 OK"
+PASSED                                                                   [100%]
+
+=================================== FAILURES ===================================
+______________ test_redelivery_cannot_answer_the_next_wait[True] _______________
+../../test_lead_generic_wait_event_binding.py:29: in test_redelivery_cannot_answer_the_next_wait
+    assert row.status=='pending', 'redelivery of the title answer settled the NEW priority question'
+E   AssertionError: redelivery of the title answer settled the NEW priority question
+E   assert 'approved' == 'pending'
+E     
+E     - pending
+E     + approved
+------------------------------ Captured log call -------------------------------
+INFO     api.agent_routes:agent_routes.py:996 Starting agent Agent One (ID: a1)...
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: ws1
+WARNING  core.lancedb_service:lancedb_service.py:39 LanceDBService initialized in stub mode (no-op)
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.embedding_service:embedding_service.py:131 Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+INFO     api.agent_routes:agent_routes.py:1102 Executing Agent Agent One with ReAct Loop. Input: Create a task after obtaining its title and priority
+INFO     core.generic_agent:generic_agent.py:250 Agent Agent One (a1) starting task: Create a task after obtaining its title and priori
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.embedding_service:embedding_service.py:131 Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+INFO     core.lancedb_handler:lancedb_handler.py:221 LanceDBHandler initialized. ID: 5102608176. LANCEDB_AVAILABLE: True
+INFO     core.lancedb_handler:lancedb_handler.py:229 Lazy loading LanceDB connection...
+INFO     core.lancedb_handler:lancedb_handler.py:326 Connecting to LanceDB at /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-generic-event-binding-27x335d0/lance with storage_options=None
+INFO     core.lancedb_handler:lancedb_handler.py:331 LanceDB connected successfully
+WARNING  core.turn_fact_extractor:turn_fact_extractor.py:1025 get_active_facts_for_prompt failed: (sqlite3.OperationalError) no such table: turn_facts
+[SQL: SELECT turn_facts.id AS turn_facts_id, turn_facts.tenant_id AS turn_facts_tenant_id, turn_facts.workspace_id AS turn_facts_workspace_id, turn_facts.user_id AS turn_facts_user_id, turn_facts.execution_id AS turn_facts_execution_id, turn_facts.reasoning_step_id AS turn_facts_reasoning_step_id, turn_facts.episode_id AS turn_facts_episode_id, turn_facts.session_id AS turn_facts_session_id, turn_facts.extraction_source AS turn_facts_extraction_source, turn_facts.fact_text AS turn_facts_fact_text, turn_facts.category AS turn_facts_category, turn_facts.domain AS turn_facts_domain, turn_facts.tags AS turn_facts_tags, turn_facts.confidence AS turn_facts_confidence, turn_facts.epistemic_type AS turn_facts_epistemic_type, turn_facts.sensitivity AS turn_facts_sensitivity, turn_facts.content_hash AS turn_facts_content_hash, turn_facts.status AS turn_facts_status, turn_facts.superseded_at AS turn_facts_superseded_at, turn_facts.created_at AS turn_facts_created_at, turn_facts.parent_id AS turn_facts_parent_id, turn_facts.commit_message AS turn_facts_commit_message, turn_facts.author_type AS turn_facts_author_type, turn_facts.branch_name AS turn_facts_branch_name, turn_facts.diff_summary AS turn_facts_diff_summary, turn_facts.vector_id AS turn_facts_vector_id 
+FROM turn_facts 
+WHERE turn_facts.workspace_id = ? AND turn_facts.status = ?]
+[parameters: ('ws1', 'active')]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+INFO     core.agent_governance_service:agent_governance_service.py:1134 Recorded outcome for a1: failure
+WARNING  core.turn_fact_extractor:turn_fact_extractor.py:475 turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+WARNING  core.turn_fact_extractor:turn_fact_extractor.py:814 turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 3}
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=root-repeated-wait-True "HTTP/1.1 202 Accepted"
+INFO     api.agent_routes:agent_routes.py:996 Starting agent Agent One (ID: a1)...
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: ws1
+WARNING  core.lancedb_service:lancedb_service.py:39 LanceDBService initialized in stub mode (no-op)
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.embedding_service:embedding_service.py:131 Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+INFO     api.agent_routes:agent_routes.py:1102 Executing Agent Agent One with ReAct Loop. Input: Create a task after obtaining its title and priority
+INFO     core.generic_agent:generic_agent.py:250 Agent Agent One (a1) starting task: Create a task after obtaining its title and priori
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.embedding_service:embedding_service.py:131 Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+INFO     core.lancedb_handler:lancedb_handler.py:221 LanceDBHandler initialized. ID: 5102613952. LANCEDB_AVAILABLE: True
+INFO     core.lancedb_handler:lancedb_handler.py:229 Lazy loading LanceDB connection...
+INFO     core.lancedb_handler:lancedb_handler.py:326 Connecting to LanceDB at /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-generic-event-binding-27x335d0/lance with storage_options=None
+INFO     core.lancedb_handler:lancedb_handler.py:331 LanceDB connected successfully
+WARNING  core.turn_fact_extractor:turn_fact_extractor.py:1025 get_active_facts_for_prompt failed: (sqlite3.OperationalError) no such table: turn_facts
+[SQL: SELECT turn_facts.id AS turn_facts_id, turn_facts.tenant_id AS turn_facts_tenant_id, turn_facts.workspace_id AS turn_facts_workspace_id, turn_facts.user_id AS turn_facts_user_id, turn_facts.execution_id AS turn_facts_execution_id, turn_facts.reasoning_step_id AS turn_facts_reasoning_step_id, turn_facts.episode_id AS turn_facts_episode_id, turn_facts.session_id AS turn_facts_session_id, turn_facts.extraction_source AS turn_facts_extraction_source, turn_facts.fact_text AS turn_facts_fact_text, turn_facts.category AS turn_facts_category, turn_facts.domain AS turn_facts_domain, turn_facts.tags AS turn_facts_tags, turn_facts.confidence AS turn_facts_confidence, turn_facts.epistemic_type AS turn_facts_epistemic_type, turn_facts.sensitivity AS turn_facts_sensitivity, turn_facts.content_hash AS turn_facts_content_hash, turn_facts.status AS turn_facts_status, turn_facts.superseded_at AS turn_facts_superseded_at, turn_facts.created_at AS turn_facts_created_at, turn_facts.parent_id AS turn_facts_parent_id, turn_facts.commit_message AS turn_facts_commit_message, turn_facts.author_type AS turn_facts_author_type, turn_facts.branch_name AS turn_facts_branch_name, turn_facts.diff_summary AS turn_facts_diff_summary, turn_facts.vector_id AS turn_facts_vector_id 
+FROM turn_facts 
+WHERE turn_facts.workspace_id = ? AND turn_facts.status = ?]
+[parameters: ('ws1', 'active')]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+INFO     core.agent_governance_service:agent_governance_service.py:1134 Recorded outcome for a1: failure
+WARNING  core.turn_fact_extractor:turn_fact_extractor.py:475 turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+WARNING  core.turn_fact_extractor:turn_fact_extractor.py:814 turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 4}
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/agents/a1/jobs/80974126-0c14-4b4c-bbc0-c3248cb74217/answer "HTTP/1.1 202 Accepted"
+INFO     api.agent_routes:agent_routes.py:996 Starting agent Agent One (ID: a1)...
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: ws1
+WARNING  core.lancedb_service:lancedb_service.py:39 LanceDBService initialized in stub mode (no-op)
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.embedding_service:embedding_service.py:131 Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+INFO     api.agent_routes:agent_routes.py:1102 Executing Agent Agent One with ReAct Loop. Input: Create a task after obtaining its title and priority
+INFO     core.generic_agent:generic_agent.py:250 Agent Agent One (a1) starting task: Create a task after obtaining its title and priori
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.embedding_service:embedding_service.py:131 Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+INFO     core.lancedb_handler:lancedb_handler.py:221 LanceDBHandler initialized. ID: 5103905840. LANCEDB_AVAILABLE: True
+INFO     core.lancedb_handler:lancedb_handler.py:229 Lazy loading LanceDB connection...
+INFO     core.lancedb_handler:lancedb_handler.py:326 Connecting to LanceDB at /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-generic-event-binding-27x335d0/lance with storage_options=None
+INFO     core.lancedb_handler:lancedb_handler.py:331 LanceDB connected successfully
+WARNING  core.turn_fact_extractor:turn_fact_extractor.py:1025 get_active_facts_for_prompt failed: (sqlite3.OperationalError) no such table: turn_facts
+[SQL: SELECT turn_facts.id AS turn_facts_id, turn_facts.tenant_id AS turn_facts_tenant_id, turn_facts.workspace_id AS turn_facts_workspace_id, turn_facts.user_id AS turn_facts_user_id, turn_facts.execution_id AS turn_facts_execution_id, turn_facts.reasoning_step_id AS turn_facts_reasoning_step_id, turn_facts.episode_id AS turn_facts_episode_id, turn_facts.session_id AS turn_facts_session_id, turn_facts.extraction_source AS turn_facts_extraction_source, turn_facts.fact_text AS turn_facts_fact_text, turn_facts.category AS turn_facts_category, turn_facts.domain AS turn_facts_domain, turn_facts.tags AS turn_facts_tags, turn_facts.confidence AS turn_facts_confidence, turn_facts.epistemic_type AS turn_facts_epistemic_type, turn_facts.sensitivity AS turn_facts_sensitivity, turn_facts.content_hash AS turn_facts_content_hash, turn_facts.status AS turn_facts_status, turn_facts.superseded_at AS turn_facts_superseded_at, turn_facts.created_at AS turn_facts_created_at, turn_facts.parent_id AS turn_facts_parent_id, turn_facts.commit_message AS turn_facts_commit_message, turn_facts.author_type AS turn_facts_author_type, turn_facts.branch_name AS turn_facts_branch_name, turn_facts.diff_summary AS turn_facts_diff_summary, turn_facts.vector_id AS turn_facts_vector_id 
+FROM turn_facts 
+WHERE turn_facts.workspace_id = ? AND turn_facts.status = ?]
+[parameters: ('ws1', 'active')]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+INFO     core.agent_governance_service:agent_governance_service.py:1134 Recorded outcome for a1: success
+WARNING  core.turn_fact_extractor:turn_fact_extractor.py:475 turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+WARNING  core.turn_fact_extractor:turn_fact_extractor.py:814 turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 5}
+WARNING  core.turn_fact_extractor:turn_fact_extractor.py:849 turn_fact circuit breaker OPENED after 5 consecutive failures (cooldown=120s) — extraction skipped
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/agents/a1/jobs/80974126-0c14-4b4c-bbc0-c3248cb74217/answer "HTTP/1.1 200 OK"
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 16 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+: 5 warnings
+tests/test_agent_generic_information_wait.py: 11 warnings
+  /private/tmp/atom-source-trigger-lead-review/backend/core/lancedb_handler.py:407: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    names = set(self.db.table_names())
+
+: 10 warnings
+tests/test_agent_generic_information_wait.py: 22 warnings
+  /Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/asyncio/events.py:94: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    self._context.run(self._callback, *self._args)
+
+: 5 warnings
+tests/test_agent_generic_information_wait.py: 11 warnings
+  /private/tmp/atom-source-trigger-lead-review/backend/core/lancedb_handler.py:620: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    if table_name in self.db.table_names():
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-generic-event-binding-27x335d0/result.xml -
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED ::test_redelivery_cannot_answer_the_next_wait[True] - AssertionError: ...
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================== 1 failed, 7 passed, 87 warnings in 22.05s ===================

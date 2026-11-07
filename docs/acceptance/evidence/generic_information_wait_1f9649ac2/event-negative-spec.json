@@ -1,0 +1,17 @@
+{
+  "source": "e6365ad8917d91ce8aaf285c5dfa2ae10c56fbdd",
+  "scratch": "/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-generic-event-binding-27x335d0",
+  "command": [
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-generic-event-binding-27x335d0/pytest",
+    "/private/tmp/test_lead_generic_wait_event_binding.py",
+    "tests/test_agent_generic_information_wait.py",
+    "--junitxml=/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-generic-event-binding-27x335d0/result.xml",
+    "-q",
+    "--tb=short"
+  ]
+}
