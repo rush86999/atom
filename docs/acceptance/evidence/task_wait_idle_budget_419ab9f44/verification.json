@@ -1,0 +1,22 @@
+{
+  "source": "419ab9f4497240515f5db046ebc0900c24c0073f",
+  "native_repair": "e1b91fa891b92ee03f220e5f1a56f254521143ec",
+  "baseline": {
+    "source": "223a286a4038c7a7c22efb68fd42e92943f121dc",
+    "failed": 1,
+    "passed": 1,
+    "actual_exit_code": 1
+  },
+  "fixed_native": {
+    "source": "e1b91fa891b92ee03f220e5f1a56f254521143ec",
+    "passed": 20,
+    "actual_exit_code": 0
+  },
+  "integrated": {
+    "passed": 97,
+    "actual_exit_code": 0,
+    "normal_ci": 93,
+    "external_probes": 4
+  },
+  "main": "5b9610b56b06891bca337cd9bdd23c82f3d568d6"
+}

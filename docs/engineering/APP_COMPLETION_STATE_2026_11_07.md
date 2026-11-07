@@ -148,3 +148,7 @@ The first31-control budget repair exposed sibling sync-in-async skips and caller
 ## Configured budget review-precedence successor
 
 PR722 old head25115124b is independently withheld despite its eight green checks: the valid maturity/budget policy matrix exposed12 failures. Repair171ba856d and real Generic/MCP twin5adcd9dd3 pass142 controls, actualexit0. Existing governance callers pass54 with the same knownw29 baseline failure. New source-bound packet `governance_budget_review_precedence_5adcd9dd3` preserves the negative and current evidence. Only the new pushed head may receive fresh CI acceptance; no old green is inherited. TASK-WAIT-01 and full-app completion remain open.
+
+## Missing-information idle-budget and current-main successor
+
+PR724 successor includes nativee1b91fa89 on main5b9610b56; source419ab9f44 passes97 controls (93normalCI+4independent probes), actualexit0. Root baseline223a286a4 was1fail/1pass: a two-hour information wait exhausted a900second active allowance before its source could be used. Existing idle ledger now covers durable open questions, while explicit absolute expiry remains enforced and unchanged. Separate process-recovery proofs stay at their actual sources. Packet `task_wait_idle_budget_419ab9f44` records this controlled-clock/current-main scope; not production soak, served-model/UI or whole-framework acceptance. Fresh hosted checks required after the new pushed head.

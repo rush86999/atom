@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="1" skipped="0" tests="2" time="3.433" timestamp="2026-11-07T04:01:20.923984-05:00" hostname="MacBook-Pro.local"><testcase classname="test_lead_information_wait_budget" name="test_relevant_arrival_after_long_wait_obeys_both_budget_kinds[False]" time="1.514"><failure message="AssertionError: missing-information idle time exhausted active allowance before the authorized answer could be used&#10;assert 'running' == 'completed'&#10;  &#10;  - completed&#10;  + running">../../test_lead_information_wait_budget.py:29: in test_relevant_arrival_after_long_wait_obeys_both_budget_kinds
+    assert final['status']=='completed','missing-information idle time exhausted active allowance before the authorized answer could be used'
+E   AssertionError: missing-information idle time exhausted active allowance before the authorized answer could be used
+E   assert 'running' == 'completed'
+E     
+E     - completed
+E     + running</failure></testcase><testcase classname="test_lead_information_wait_budget" name="test_relevant_arrival_after_long_wait_obeys_both_budget_kinds[True]" time="0.852" /></testsuite></testsuites>
