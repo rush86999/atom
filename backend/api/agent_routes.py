@@ -2376,9 +2376,9 @@ def _claim_waiting_job_for_resume(
     agent_id: str,
     execution_id: str,
     action_id: str,
-    actor_id: Optional[str] = None,
-    workspace_id: Optional[str] = None,
-    tenant_id: Optional[str] = None,
+    actor_id: Optional[str],
+    workspace_id: Optional[str],
+    tenant_id: Optional[str],
 ) -> bool:
     """CAS the SAME waiting job into a resumed run slot.
 
@@ -2391,6 +2391,11 @@ def _claim_waiting_job_for_resume(
     is therefore observed by the write statement itself; a preceding read is
     never the authority for resuming the run.  A change committed after the
     successful claim is honestly in flight and is not physically cancelled.
+
+    ``actor_id``/``workspace_id``/``tenant_id`` are required: the one
+    production claim site supplies the frozen snapshot, and a missing actor
+    makes the authority predicate unsatisfiable instead of acting as a
+    wildcard.
     """
     session = Session(bind=bind)
     try:

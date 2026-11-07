@@ -268,10 +268,14 @@ def current_actor_authority(
     ``populate_existing`` is deliberate: a cached identity-map User can be
     older than a move/deactivation committed by another writer.
     """
-    actor_id = str(actor_id or "")
+    actor_id = str(actor_id or "").strip()
     if not actor_id:
-        # Legacy waits predate the actor field; do not invent authority.
-        return None, ""
+        # Every admitted information wait is actor-owned: admission requires
+        # the actor, and the snapshot is written from that execution context.
+        # A missing original actor is therefore missing authority, not an
+        # actorless service grant. Legacy rows stay readable, but readability
+        # is not an execution grant.
+        return None, "actor_missing"
     from core.models import User
 
     actor = (
@@ -293,15 +297,19 @@ def actor_authority_conditions(
     job, so a move/deactivation committed before that claim is observed by the
     write statement itself instead of a preceding read.
     """
-    from sqlalchemy import or_
+    from sqlalchemy import false, or_
 
     from core.models import User, UserRole
     from core.personal_scope import PERSONAL_WORKSPACE_ID
     from core.rbac_service import Permission, get_role_permissions
 
-    actor_id = str(actor_id or "")
+    actor_id = str(actor_id or "").strip()
     if not actor_id:
-        return []
+        # Fail closed in the same statement that claims the job. The resume
+        # consumer also refuses earlier with ``actor_missing``; this predicate
+        # keeps any future claim site from turning an absent actor into a
+        # wildcard authority match.
+        return [false()]
     conditions = [
         User.id == actor_id,
         User.status == "active",
@@ -325,9 +333,14 @@ def actor_authority_conditions(
     target_workspace = str(workspace_id or "").strip()
     if target_workspace:
         if target_workspace == PERSONAL_WORKSPACE_ID:
+            # Match ``resolve_workspace_id`` exactly: a Personal Edition actor
+            # may carry NULL, the empty string, or the default id. Missing the
+            # empty-string twin refuses a legitimate personal user at the very
+            # claim UPDATE even though the Python pre-check accepts it.
             conditions.append(or_(
                 User.workspace_id == target_workspace,
                 User.workspace_id.is_(None),
+                User.workspace_id == "",
             ))
         else:
             conditions.append(User.workspace_id == target_workspace)
@@ -374,16 +387,16 @@ def _validate_recovery_target(session, action, binding) -> tuple:
 
     # The admitted actor must still hold the current authority for the frozen
     # target scope. The accepted answer row is history, not a perpetual grant.
-    actor_id = binding.get("actor_id")
-    if actor_id:
-        _actor, authority_reason = current_actor_authority(
-            session,
-            actor_id=actor_id,
-            workspace_id=binding["workspace_id"],
-            tenant_id=binding.get("tenant_id"),
-        )
-        if authority_reason:
-            return None, None, authority_reason
+    # A missing actor is checked too: an actorless binding cannot borrow the
+    # answerer/reviewer or any other principal as execution authority.
+    _actor, authority_reason = current_actor_authority(
+        session,
+        actor_id=binding.get("actor_id"),
+        workspace_id=binding["workspace_id"],
+        tenant_id=binding.get("tenant_id"),
+    )
+    if authority_reason:
+        return None, None, authority_reason
 
     payload = _json_object(getattr(job, "result_summary", None))
     job_execution = str(
