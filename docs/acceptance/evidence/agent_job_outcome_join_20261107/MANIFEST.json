@@ -1,0 +1,49 @@
+{
+  "executed_source": "80b17a4898272d44ec0a7c510b1ef0f930ec6dc2",
+  "source_files": {
+    "backend/api/agent_routes.py": "d57b5c6b2f6bb4301f3e3a9ba41779f2f7d5aa5c258c1fa3e6435bb4bbf35c62",
+    "backend/core/agent_governance_service.py": "3d6aabc04bec24665f2b0aeadbb6471e2908ee17929ef6af8d98e6bbc4add8dd",
+    "backend/core/generic_agent.py": "a52ae8567b2d33051d99f9d0d0961188d1e5b10aba800061b04e4c952d024657",
+    "backend/tests/api/test_agent_routes.py": "511810105174729e57ce94ef6d796c910ddab14c83cce258f8cc31e1f1fbb434",
+    "backend/tests/test_agent_routes_coverage.py": "98c10e581f0d3b6a0ef784691764b02f00c13949343d7527bff36fcfad1bad8d",
+    "backend/tests/test_agent_run_admission_contract.py": "b5f640423850a9f8949c53fde140e7b10cb77242f204baa224cd25c6b9028227",
+    "backend/tests/test_agent_run_outcome_join_contract.py": "a8200b530ede4635c0589c0424375cc6640407ace92b72dd4149737a41844ec2",
+    "backend/tests/test_covpush_w81b_api_routes.py": "20aeda5f611a1f0cec7ade44ecbe7a085bc1c7ccf586b32d2d9c72a2874e0b2c"
+  },
+  "artifacts": {
+    "README.md": "695b6ac2fda18dc33eaa38edcb8ad00f64418f03a80e504ceaa2fc0a6ca7ac1f",
+    "ROOT_INDEPENDENT_REVIEW.json": "48dc65f8072c60ad0be35d3eefdafe59dfdff90b0a22fad6e60e928339d70b1d",
+    "ROOT_INDEPENDENT_REVIEW.md": "d6dd27885ef286da15416e5594e31a2e7bd561236ff77b5276d0505d0f5a977f",
+    "capture-run.log": "0699c6d33ca709095a41d650b514fa0b1992d85f23a93a6bed46e37e422d7366",
+    "consolidated-25-controls.log": "c37303baf54d34a6129bdc985589edd28910da9c5e892407702cd4054f7c9529",
+    "final-affected-failures.txt": "9b0dccaf90ed0ff396b7c576e31d47c7d6cb933beeaa55ada873648865564fab",
+    "final-affected.log": "997a32b8f8b830a99d037b721a2dca4768d7237a468fb8a62b3d3b895485ea37",
+    "final-failure-identity.json": "48a52206eb3c90d6ab68c1e74ba33273d2d46d29b98c883cc4e94e4107df13d3",
+    "final-focused.log": "43e3909b8f0f21650186658a6755b12e8edc9c606253e3bf076b4b9e182cbd8a",
+    "independent_probes/test_lead_agent_job_claim_race.py": "d48173227e0d2c5a2904780d8434882b142740fbcb1a79e4d3984d973db8bffe",
+    "independent_probes/test_lead_agent_job_draft_bindings.py": "26bbbc68c4a8d6430631304562baa84302439b641a1020fdf92e06c621866d96",
+    "independent_probes/test_lead_agent_job_outcome_join.py": "d79c83f331adbc145350cc857d7a8d61c2cfc7264ab98c8f7533287eea07df02",
+    "independent_probes/test_lead_job_wait_authority.py": "28b4f29f2ae16c0b0de1ee52fda02cfc8369c11e5f452354a627aacdffb60548",
+    "independent_probes/test_lead_job_wait_execution_binding.py": "31ebf08f5ade25f3943f71cc6dbc7815652724d22bc44349dfa987fb417fa764",
+    "independent_probes/test_lead_job_wait_metadata_shadow.py": "66ec7d2a037a1fd987e9ddb5c9d051adf07e23cca8ffb39a5b52149c76842872",
+    "independent_probes/test_lead_job_wait_scope_binding.py": "95f2f08d8384aa781b6080eb58efd51638018e1538502fbcbbd5a538e7662a76",
+    "public-capture.json": "5d970998d9ff08214f8a8c55ec8cc37353e805b24dc763467b9fce2e6504951c",
+    "real-consumer-capture.json": "0065d2d5490712872adfb8121d2ab85dd501bbba852efc004abeb0ed3961b8a9",
+    "real-consumer.log": "bfb4056806ae0f0582fe2c38bdca0543fa3b366cef4e0f2919e0c69de2640601",
+    "root-actual-baseline-findings.json": "c435cb0b57608ee96d9b4e0a6e68a062d41dddcbd114c12289e3e9f108a284fe",
+    "root-actual-baseline.log": "7f1de6fa6771d3f78a6131a376e42ab951125aeaae86403de4f099a00dc01caa",
+    "root-independent-67.log": "4de24dd3696da42b21cd8c427255591fd3730435796003125ff0e688ac0fdbea",
+    "root-independent-67.xml": "5842fb54ea7acf4b5933b3187a4a9973ede6e56fcd8165908b059b9065675fa1",
+    "source-hashes.json": "a4bb8513924bd236af7959bebeee67f88e7a61268bef83e5bd3fce6507b618d9",
+    "superseded-invalid-baseline/README.txt": "ec6c53bf8df425d6d67ba122e1c7862b94de3eaf5e3f7471c22721f7d2f8b447",
+    "superseded-invalid-baseline/baseline-affected.log": "1870cbfb949622e9e48379bd625ea965a4566c4e4ec4d658206a6fc6432da5d4",
+    "superseded-invalid-baseline/baseline-failures.txt": "4136827909f55a6c3943e7e91424f4a0f20dbd684a4bcb5f8db54bf3cfe3ac05",
+    "verification.json": "7fc283125bd4292bb96854e90e7fd88a36dab10a1e0bcdefaff23d8f7214cdee"
+  },
+  "provenance": {
+    "root_independent_run": "80b runtime at104941590 checkout;67passed; actualexit0",
+    "original_packet": "104941590",
+    "correction": "original exact ignored consolidated log tracked; no bytes regenerated",
+    "historical_artifacts": "baseline/superseded records retain README attribution, not all at executed_source"
+  }
+}

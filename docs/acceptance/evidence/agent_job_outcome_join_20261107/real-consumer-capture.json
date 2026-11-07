@@ -1,0 +1,44 @@
+{
+  "agent_execution": {
+    "agent_id": "a1",
+    "id": "92f6f7f9-c117-45d0-bda9-238949bfe274",
+    "status": "success",
+    "tenant_id": "t1",
+    "workspace_id": "ws1"
+  },
+  "audit_execution_ids": [
+    "92f6f7f9-c117-45d0-bda9-238949bfe274"
+  ],
+  "audit_row_count": 2,
+  "public_response": {
+    "agent_id": "a1",
+    "execution_id": "92f6f7f9-c117-45d0-bda9-238949bfe274",
+    "job_id": "8a90841e-ca4c-45d8-a59b-aecff748fd43",
+    "job_status": "success",
+    "next_action": "none",
+    "outcome": "success",
+    "reason": "execution_succeeded",
+    "requires_reconciliation": false,
+    "result": {
+      "output": "real done",
+      "requires_reconciliation": false,
+      "status": "success",
+      "steps": [
+        {
+          "action": null,
+          "final_answer": "real done",
+          "output": null,
+          "step": 1,
+          "thought": "plan",
+          "timestamp": "2026-11-07T06:09:45.258659+00:00"
+        }
+      ],
+      "timestamp": "2026-11-07T06:09:45.216687+00:00"
+    },
+    "verification": {
+      "audit_id": "agent:run:real-generic-op",
+      "effect": "committed",
+      "status": "verified"
+    }
+  }
+}

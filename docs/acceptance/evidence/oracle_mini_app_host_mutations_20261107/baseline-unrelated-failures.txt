@@ -1,0 +1,38 @@
+Pre-existing / unrelated failures observed in the 22-file affected-cluster run
+at code/test commit `af97665c7`. These IDs and root causes match the accepted
+predecessor baseline; none of the listed code paths is modified by this
+mini-app host-mutation change.
+
+1. tests/core/test_action_registry_coverage.py::TestDocumentsSearchAction::test_search_legacy_path_flag_off
+   Legacy ILIKE mock returns no results (IndexError); documents.search effect
+   metadata does not execute in this path.
+
+2. tests/test_covpush_w36_oracle_vfs.py::TestTaskVerifier::test_task_exists
+   Stale tasks.create verifier stub (SimpleNamespace without title).
+
+3. tests/test_covpush_w77b_graphrag_oracle.py::TestTaskVerifier::test_missing_ctx
+   Stale expectation vs current tasks.create verifier ("missing task id").
+
+4. tests/test_covpush_w77b_graphrag_oracle.py::TestTaskVerifier::test_task_present
+   Same stale tasks.create stub.
+
+5. tests/test_covpush_w77b_graphrag_oracle.py::TestOracleRegistry::test_validate_task_round_trip
+   Same stale tasks.create verifier stub.
+
+6. tests/test_r79_action_registry_rpc.py::TestRpcRouteAuthenticated::test_list_actions_includes_registered_names
+   Test-order registration expectation; list_actions itself is unchanged.
+
+7. tests/test_write_zero_effect_claims.py::test_an_edit_shaped_planner_failure_reports_the_limitation
+   Chat-orchestrator edit continuation behavior; not touched by this change.
+
+8. tests/test_write_zero_effect_claims.py::test_a_non_edit_turn_may_say_nothing_was_changed_because_nothing_started
+   Same chat-orchestrator path.
+
+9. tests/test_write_zero_effect_claims.py::test_teaching_phrase_with_planner_down_mutates_nothing
+   Same chat-orchestrator path.
+
+The three earlier mock-shape mini_app_set_tests failures reported by root
+(`test_set_tests_paths`, `test_set_tests_success`,
+`test_set_tests_and_run_tests`) are also pre-existing on accepted main. They
+are not part of this 22-file cluster; the accepted set_tests identity/receipt
+code was not changed or weakened to make those old mocks pass.

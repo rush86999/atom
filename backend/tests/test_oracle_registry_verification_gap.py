@@ -646,9 +646,7 @@ def test_registry_declares_effects_and_keeps_uncovered_explicit():
     allowed = {
         "shopify_create_article", "shopify_create_blog",
         "shopify_create_fulfillment", "shopify_create_product",
-        "mini_app_db_write", "mini_app_install", "mini_app_publish",
-        "mini_app_revert_logic", "mini_app_run", "mini_app_scaffold",
-        "mini_app_write_logic",
+        "mini_app_run",
         # Lazy registrations (radio/BPE) are mutations too when loaded.
         "radio.create_thread", "radio.send_message",
         "workspace.commit", "workspace.note",

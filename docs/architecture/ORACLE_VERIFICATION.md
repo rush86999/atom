@@ -31,6 +31,12 @@ Verifiers (system of record, NOT tool claim):
 | `trigger_workflow` | workflow row exists + status active/running/enabled | `Workflow` |
 | `tasks.create` | Kanban task persists | `BoardTask` (`core.models_board`) |
 | `mini_app_set_tests` | `CanvasAudit` receipt + persisted manifest match the frozen tests digest, operation id, actor and scope | `MiniApp`, `CanvasAudit` |
+| `mini_app_scaffold` | scaffold receipt + app/canvas/starter scope, name, dependencies and operation | `MiniApp`, `Canvas`, `CanvasLogic`, `CanvasAudit` |
+| `mini_app_write_logic` | checkpoint receipt + current `CanvasLogic` source digest and request source digest | `CanvasLogic`, `CanvasAudit` |
+| `mini_app_revert_logic` | new checkpoint receipt + target checkpoint/source digest and current head | `CanvasLogic`, `CanvasAudit` |
+| `mini_app_publish` | publish receipt + current app status/version and manifest/blueprint/initial-state digests | `MiniApp`, `Canvas`, `CanvasAudit` |
+| `mini_app_install` | install receipt + new instance canvas, installation row, state seed and published blueprint/version | `Canvas`, `MiniAppInstallation`, `CanvasState`, `CanvasLogic`, `CanvasAudit` |
+| `mini_app_db_write` | record receipt + exact affected record ids, sequences and payload digests (never a page-wide count) | `CanvasRecord`, `CanvasAudit` |
 
 `mini_app_set_tests` writes its manifest with an exact-prior compare-and-swap
 (SQL NULL / JSON null / empty object / full object) plus the app owner, tenant,
@@ -43,6 +49,23 @@ peer's logic/publish/config/scope update; a zero-row CAS is a truthful
 `CanvasAudit` action/tenant/user to agree with the frozen request; copied audit
 details never override an authoritative contradiction. Missing required
 scope/actor evidence is refuted.
+
+The six supported host mutations (`mini_app_scaffold`, `mini_app_write_logic`,
+`mini_app_publish`, `mini_app_install`, `mini_app_db_write`,
+`mini_app_revert_logic`) follow the same pattern without guest execution. Each
+producer appends its `CanvasAudit` receipt in the SAME transaction as the host
+effect (logic checkpoint, publish/install row, or record mutation), bound to the
+executor-owned operation id and frozen request digest. Writers use guarded DML:
+publish binds the prior app manifest/status/version/runtime and scope; logic
+writes bind prior id/canvas/source/language/creator; record updates/deletes bind
+the exact prior payload and sequence. A zero-row match is a truthful
+`proven_not_applied` conflict with no receipt and the peer state intact. The
+verifier re-reads authoritative rows in a fresh session; returned ids only
+locate records and never supply expected scope/material. An install instance may
+legitimately have a different owner from the app creator, so its verifier checks
+the installer/instance scope and the existing public+approved sharing policy
+instead of app-owner-only rules. `mini_app_run` (guest execution) and the four
+Shopify writes remain uncovered here.
 
 ### 1b. Registered-action consumer contract (shared registry)
 

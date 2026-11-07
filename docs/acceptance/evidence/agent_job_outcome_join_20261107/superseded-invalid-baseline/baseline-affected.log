@@ -1,0 +1,764 @@
+F..........FFFFFFFFFFFFFFFFF............................................ [ 10%]
+........................................................................ [ 20%]
+.....................................F....................FF............ [ 30%]
+.....................................F.....F...F.......................F [ 41%]
+............F...............................................F........... [ 51%]
+....................................................................F... [ 61%]
+.........F..................................FFFFFFFFFFFFFFFFF........... [ 72%]
+.......F................................................................ [ 82%]
+.................................F...................................... [ 92%]
+....F..........FF..FFF.............................                      [100%]
+=================================== FAILURES ===================================
+E   AssertionError: assert 'failed' == 'success'
+      
+      - success
+      + failed
+---------------------------- Captured stdout setup -----------------------------
+[2026-11-06 23:58:51] [[92mINFO[0m] [core.agent_task_registry] AgentTaskRegistry initialized
+------------------------------ Captured log setup ------------------------------
+INFO     core.agent_task_registry:agent_task_registry.py:64 AgentTaskRegistry initialized
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:58:51] [[91mERROR[0m] [api.agent_routes] Admitted agent run failed: agent=a1 job=ab2c9cc6-acc5-4094-83eb-0db36d50076c error_class=AssertionError
+------------------------------ Captured log call -------------------------------
+ERROR    api.agent_routes:agent_routes.py:1063 Admitted agent run failed: agent=a1 job=ab2c9cc6-acc5-4094-83eb-0db36d50076c error_class=AssertionError
+/private/tmp/atom-cli-agent-job-join/backend/tests/test_agent_run_admission_contract.py:197: AssertionError: assert 'failed' == 'success'
+E   AssertionError: Internal Server Error
+    assert 500 == 200
+     +  where 500 = <Response [500 Internal Server Error]>.status_code
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:58:58] [[91mERROR[0m] [api.agent_routes] Admitted agent run failed: agent=a1 job=58b88740-6a7b-4ce9-9420-e822d48af36d error_class=AssertionError
+------------------------------ Captured log call -------------------------------
+ERROR    api.agent_routes:agent_routes.py:1063 Admitted agent run failed: agent=a1 job=58b88740-6a7b-4ce9-9420-e822d48af36d error_class=AssertionError
+/private/tmp/atom-cli-agent-job-join/backend/tests/test_agent_run_admission_contract.py:396: AssertionError: Internal Server Error
+E   KeyError: 'job_status'
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:58:58] [[92mINFO[0m] [api.agent_routes] Starting agent Agent One (ID: a1)...
+[2026-11-06 23:58:58] [[92mINFO[0m] [api.agent_routes] Executing Agent Agent One with ReAct Loop. Input: do the work
+------------------------------ Captured log call -------------------------------
+INFO     api.agent_routes:agent_routes.py:796 Starting agent Agent One (ID: a1)...
+INFO     api.agent_routes:agent_routes.py:891 Executing Agent Agent One with ReAct Loop. Input: do the work
+/private/tmp/atom-cli-agent-job-join/backend/tests/test_agent_run_outcome_join_contract.py:247: KeyError: 'job_status'
+E   AssertionError: {"success":true,"data":{"agent_id":"a1","job_id":"6459fc78-f99c-4acd-99d6-d92c78410971","result":{"status":"uncertain","requires_reconciliation":true},"verification":{"status":"verified","effect":"committed","audit_id":"agent:run:matrix-op"}},"timestamp":"2026-11-07T04:58:59.521900+00:00","message":"Agent execution completed"}
+    assert 200 != 200
+     +  where 200 = <Response [200 OK]>.status_code
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:58:59] [[92mINFO[0m] [api.agent_routes] Starting agent Agent One (ID: a1)...
+[2026-11-06 23:58:59] [[92mINFO[0m] [api.agent_routes] Executing Agent Agent One with ReAct Loop. Input: work
+------------------------------ Captured log call -------------------------------
+INFO     api.agent_routes:agent_routes.py:796 Starting agent Agent One (ID: a1)...
+INFO     api.agent_routes:agent_routes.py:891 Executing Agent Agent One with ReAct Loop. Input: work
+/private/tmp/atom-cli-agent-job-join/backend/tests/test_agent_run_outcome_join_contract.py:342: AssertionError: {"success":true,"data":{"agent_id":"a1","job_id":"6459fc78-f99c-4acd-99d6-d92c78410971","result":{"status":"uncertain","requires_reconciliation":true},"verification":{"status":"verified","effect":"committed","audit_id":"agent:run:matrix-op"}},"timestamp":"2026-11-07T04:58:59.521900+00:00","message":"Agent execution completed"}
+E   AssertionError: {"success":true,"data":{"agent_id":"a1","job_id":"1fe74d3d-4dd7-4da1-b925-f72929a19228","result":{"status":"failed","output":"internal detail"},"verification":{"status":"verified","effect":"committed","audit_id":"agent:run:matrix-op"}},"timestamp":"2026-11-07T04:59:00.172336+00:00","message":"Agent execution completed"}
+    assert 200 != 200
+     +  where 200 = <Response [200 OK]>.status_code
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:59:00] [[92mINFO[0m] [api.agent_routes] Starting agent Agent One (ID: a1)...
+[2026-11-06 23:59:00] [[92mINFO[0m] [api.agent_routes] Executing Agent Agent One with ReAct Loop. Input: work
+------------------------------ Captured log call -------------------------------
+INFO     api.agent_routes:agent_routes.py:796 Starting agent Agent One (ID: a1)...
+INFO     api.agent_routes:agent_routes.py:891 Executing Agent Agent One with ReAct Loop. Input: work
+/private/tmp/atom-cli-agent-job-join/backend/tests/test_agent_run_outcome_join_contract.py:342: AssertionError: {"success":true,"data":{"agent_id":"a1","job_id":"1fe74d3d-4dd7-4da1-b925-f72929a19228","result":{"status":"failed","output":"internal detail"},"verification":{"status":"verified","effect":"committed","audit_id":"agent:run:matrix-op"}},"timestamp":"2026-11-07T04:59:00.172336+00:00","message":"Agent execution completed"}
+E   AssertionError: {"success":true,"data":{"agent_id":"a1","job_id":"749a5579-069e-44bc-8256-4abdfedb306e","result":{"status":"blocked"},"verification":{"status":"verified","effect":"committed","audit_id":"agent:run:matrix-op"}},"timestamp":"2026-11-07T04:59:00.798454+00:00","message":"Agent execution completed"}
+    assert 200 != 200
+     +  where 200 = <Response [200 OK]>.status_code
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:59:00] [[92mINFO[0m] [api.agent_routes] Starting agent Agent One (ID: a1)...
+[2026-11-06 23:59:00] [[92mINFO[0m] [api.agent_routes] Executing Agent Agent One with ReAct Loop. Input: work
+------------------------------ Captured log call -------------------------------
+INFO     api.agent_routes:agent_routes.py:796 Starting agent Agent One (ID: a1)...
+INFO     api.agent_routes:agent_routes.py:891 Executing Agent Agent One with ReAct Loop. Input: work
+/private/tmp/atom-cli-agent-job-join/backend/tests/test_agent_run_outcome_join_contract.py:342: AssertionError: {"success":true,"data":{"agent_id":"a1","job_id":"749a5579-069e-44bc-8256-4abdfedb306e","result":{"status":"blocked"},"verification":{"status":"verified","effect":"committed","audit_id":"agent:run:matrix-op"}},"timestamp":"2026-11-07T04:59:00.798454+00:00","message":"Agent execution completed"}
+E   AssertionError: {"success":true,"data":{"agent_id":"a1","job_id":"b1a7c503-07b7-4f4a-bc12-d53d4784b7e9","result":{"status":"cancelled"},"verification":{"status":"verified","effect":"committed","audit_id":"agent:run:matrix-op"}},"timestamp":"2026-11-07T04:59:01.388337+00:00","message":"Agent execution completed"}
+    assert 200 != 200
+     +  where 200 = <Response [200 OK]>.status_code
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:59:01] [[92mINFO[0m] [api.agent_routes] Starting agent Agent One (ID: a1)...
+[2026-11-06 23:59:01] [[92mINFO[0m] [api.agent_routes] Executing Agent Agent One with ReAct Loop. Input: work
+------------------------------ Captured log call -------------------------------
+INFO     api.agent_routes:agent_routes.py:796 Starting agent Agent One (ID: a1)...
+INFO     api.agent_routes:agent_routes.py:891 Executing Agent Agent One with ReAct Loop. Input: work
+/private/tmp/atom-cli-agent-job-join/backend/tests/test_agent_run_outcome_join_contract.py:342: AssertionError: {"success":true,"data":{"agent_id":"a1","job_id":"b1a7c503-07b7-4f4a-bc12-d53d4784b7e9","result":{"status":"cancelled"},"verification":{"status":"verified","effect":"committed","audit_id":"agent:run:matrix-op"}},"timestamp":"2026-11-07T04:59:01.388337+00:00","message":"Agent execution completed"}
+E   AssertionError: {"success":true,"data":{"agent_id":"a1","job_id":"9b594fb5-51f5-47fd-b404-2145ae584c9c","result":{"status":"waiting"},"verification":{"status":"verified","effect":"committed","audit_id":"agent:run:matrix-op"}},"timestamp":"2026-11-07T04:59:02.151279+00:00","message":"Agent execution completed"}
+    assert 200 != 200
+     +  where 200 = <Response [200 OK]>.status_code
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:59:02] [[92mINFO[0m] [api.agent_routes] Starting agent Agent One (ID: a1)...
+[2026-11-06 23:59:02] [[92mINFO[0m] [api.agent_routes] Executing Agent Agent One with ReAct Loop. Input: work
+------------------------------ Captured log call -------------------------------
+INFO     api.agent_routes:agent_routes.py:796 Starting agent Agent One (ID: a1)...
+INFO     api.agent_routes:agent_routes.py:891 Executing Agent Agent One with ReAct Loop. Input: work
+/private/tmp/atom-cli-agent-job-join/backend/tests/test_agent_run_outcome_join_contract.py:342: AssertionError: {"success":true,"data":{"agent_id":"a1","job_id":"9b594fb5-51f5-47fd-b404-2145ae584c9c","result":{"status":"waiting"},"verification":{"status":"verified","effect":"committed","audit_id":"agent:run:matrix-op"}},"timestamp":"2026-11-07T04:59:02.151279+00:00","message":"Agent execution completed"}
+E   AssertionError: {"success":true,"data":{"agent_id":"a1","job_id":"c1fd1880-1166-45ba-8afa-ac0a4eb5336c","result":{"output":"no status"},"verification":{"status":"verified","effect":"committed","audit_id":"agent:run:matrix-op"}},"timestamp":"2026-11-07T04:59:02.824093+00:00","message":"Agent execution completed"}
+    assert 200 != 200
+     +  where 200 = <Response [200 OK]>.status_code
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:59:02] [[92mINFO[0m] [api.agent_routes] Starting agent Agent One (ID: a1)...
+[2026-11-06 23:59:02] [[92mINFO[0m] [api.agent_routes] Executing Agent Agent One with ReAct Loop. Input: work
+------------------------------ Captured log call -------------------------------
+INFO     api.agent_routes:agent_routes.py:796 Starting agent Agent One (ID: a1)...
+INFO     api.agent_routes:agent_routes.py:891 Executing Agent Agent One with ReAct Loop. Input: work
+/private/tmp/atom-cli-agent-job-join/backend/tests/test_agent_run_outcome_join_contract.py:342: AssertionError: {"success":true,"data":{"agent_id":"a1","job_id":"c1fd1880-1166-45ba-8afa-ac0a4eb5336c","result":{"output":"no status"},"verification":{"status":"verified","effect":"committed","audit_id":"agent:run:matrix-op"}},"timestamp":"2026-11-07T04:59:02.824093+00:00","message":"Agent execution completed"}
+E   AssertionError: {"success":true,"data":{"agent_id":"a1","job_id":"ee295a3e-ef02-4c9b-b185-17ccbf7e8f8b","result":{},"verification":{"status":"verified","effect":"committed","audit_id":"agent:run:matrix-op"}},"timestamp":"2026-11-07T04:59:03.401816+00:00","message":"Agent execution completed"}
+    assert 200 != 200
+     +  where 200 = <Response [200 OK]>.status_code
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:59:03] [[92mINFO[0m] [api.agent_routes] Starting agent Agent One (ID: a1)...
+[2026-11-06 23:59:03] [[92mINFO[0m] [api.agent_routes] Executing Agent Agent One with ReAct Loop. Input: work
+------------------------------ Captured log call -------------------------------
+INFO     api.agent_routes:agent_routes.py:796 Starting agent Agent One (ID: a1)...
+INFO     api.agent_routes:agent_routes.py:891 Executing Agent Agent One with ReAct Loop. Input: work
+/private/tmp/atom-cli-agent-job-join/backend/tests/test_agent_run_outcome_join_contract.py:342: AssertionError: {"success":true,"data":{"agent_id":"a1","job_id":"ee295a3e-ef02-4c9b-b185-17ccbf7e8f8b","result":{},"verification":{"status":"verified","effect":"committed","audit_id":"agent:run:matrix-op"}},"timestamp":"2026-11-07T04:59:03.401816+00:00","message":"Agent execution completed"}
+E   AssertionError: {"success":true,"data":{"agent_id":"a1","job_id":"4322465a-2369-4b4b-bc4b-387724e9e45c","result":{"status":"success","success":false},"verification":{"status":"verified","effect":"committed","audit_id":"agent:run:matrix-op"}},"timestamp":"2026-11-07T04:59:04.019947+00:00","message":"Agent execution completed"}
+    assert 200 != 200
+     +  where 200 = <Response [200 OK]>.status_code
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:59:04] [[92mINFO[0m] [api.agent_routes] Starting agent Agent One (ID: a1)...
+[2026-11-06 23:59:04] [[92mINFO[0m] [api.agent_routes] Executing Agent Agent One with ReAct Loop. Input: work
+------------------------------ Captured log call -------------------------------
+INFO     api.agent_routes:agent_routes.py:796 Starting agent Agent One (ID: a1)...
+INFO     api.agent_routes:agent_routes.py:891 Executing Agent Agent One with ReAct Loop. Input: work
+/private/tmp/atom-cli-agent-job-join/backend/tests/test_agent_run_outcome_join_contract.py:342: AssertionError: {"success":true,"data":{"agent_id":"a1","job_id":"4322465a-2369-4b4b-bc4b-387724e9e45c","result":{"status":"success","success":false},"verification":{"status":"verified","effect":"committed","audit_id":"agent:run:matrix-op"}},"timestamp":"2026-11-07T04:59:04.019947+00:00","message":"Agent execution completed"}
+E   AssertionError: {"success":true,"data":{"agent_id":"a1","job_id":"0a433a36-cc58-40ee-8e88-1a2a9e96f76a","result":{"status":"success","requires_reconciliation":true},"verification":{"status":"verified","effect":"committed","audit_id":"agent:run:matrix-op"}},"timestamp":"2026-11-07T04:59:04.614193+00:00","message":"Agent execution completed"}
+    assert 200 != 200
+     +  where 200 = <Response [200 OK]>.status_code
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:59:04] [[92mINFO[0m] [api.agent_routes] Starting agent Agent One (ID: a1)...
+[2026-11-06 23:59:04] [[92mINFO[0m] [api.agent_routes] Executing Agent Agent One with ReAct Loop. Input: work
+------------------------------ Captured log call -------------------------------
+INFO     api.agent_routes:agent_routes.py:796 Starting agent Agent One (ID: a1)...
+INFO     api.agent_routes:agent_routes.py:891 Executing Agent Agent One with ReAct Loop. Input: work
+/private/tmp/atom-cli-agent-job-join/backend/tests/test_agent_run_outcome_join_contract.py:342: AssertionError: {"success":true,"data":{"agent_id":"a1","job_id":"0a433a36-cc58-40ee-8e88-1a2a9e96f76a","result":{"status":"success","requires_reconciliation":true},"verification":{"status":"verified","effect":"committed","audit_id":"agent:run:matrix-op"}},"timestamp":"2026-11-07T04:59:04.614193+00:00","message":"Agent execution completed"}
+E   KeyError: 'execution_id'
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:59:05] [[92mINFO[0m] [api.agent_routes] Starting agent Agent One (ID: a1)...
+[2026-11-06 23:59:05] [[92mINFO[0m] [api.agent_routes] Executing Agent Agent One with ReAct Loop. Input: same
+------------------------------ Captured log call -------------------------------
+INFO     api.agent_routes:agent_routes.py:796 Starting agent Agent One (ID: a1)...
+INFO     api.agent_routes:agent_routes.py:891 Executing Agent Agent One with ReAct Loop. Input: same
+/private/tmp/atom-cli-agent-job-join/backend/tests/test_agent_run_outcome_join_contract.py:377: KeyError: 'execution_id'
+E   AssertionError: assert 'ws2' == 'ws1'
+      
+      - ws1
+      + ws2
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:59:05] [[92mINFO[0m] [api.agent_routes] Starting agent Agent One (ID: a1)...
+[2026-11-06 23:59:05] [[92mINFO[0m] [api.agent_routes] Executing Agent Agent One with ReAct Loop. Input: Execute task with params: {'sync': True, 'workspace_id': 'ws2', 'tenant_id': 't2', 'user_id': 'admin-2'}
+------------------------------ Captured log call -------------------------------
+INFO     api.agent_routes:agent_routes.py:796 Starting agent Agent One (ID: a1)...
+INFO     api.agent_routes:agent_routes.py:891 Executing Agent Agent One with ReAct Loop. Input: Execute task with params: {'sync': True, 'workspace_id': 'ws2', 'tenant_id': 't2', 'user_id': 'admin-2'}
+/private/tmp/atom-cli-agent-job-join/backend/tests/test_agent_run_outcome_join_contract.py:434: AssertionError: assert 'ws2' == 'ws1'
+E   AssertionError: {"success":true,"data":{"agent_id":"a1","job_id":"3afe1f52-a9a7-4f50-8c45-bdb7e0ce9de6","result":null,"verification":{"status":"verified","effect":"committed","audit_id":"agent:run:cancel-race-op"}},"timestamp":"2026-11-07T04:59:06.415646+00:00","message":"Agent execution completed"}
+    assert 200 == 409
+     +  where 200 = <Response [200 OK]>.status_code
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:59:06] [[92mINFO[0m] [api.agent_routes] Starting agent Agent One (ID: a1)...
+[2026-11-06 23:59:06] [[92mINFO[0m] [api.agent_routes] Executing Agent Agent One with ReAct Loop. Input: work
+[2026-11-06 23:59:06] [[91mERROR[0m] [api.agent_routes] Agent a1 logic failed: 'job_id'
+[2026-11-06 23:59:06] [[1;91mCRITICAL[0m] [api.agent_routes] !!! CRITICAL AGENT ERROR !!!
+Agent execution FAILED: 'job_id'
+Traceback (most recent call last):
+  File "/private/tmp/atom-cli-agent-job-join/backend/api/agent_routes.py", line 964, in execute_agent_task
+    raise e
+  File "/private/tmp/atom-cli-agent-job-join/backend/api/agent_routes.py", line 900, in execute_agent_task
+    result_obj = await runner.execute(task_input, context=params, step_callback=streaming_callback)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/atom-cli-agent-job-join/backend/tests/test_agent_run_outcome_join_contract.py", line 58, in execute
+    return behavior(context or {})
+  File "/private/tmp/atom-cli-agent-job-join/backend/tests/test_agent_run_outcome_join_contract.py", line 443, in cancel_then_succeed
+    job = session.get(AgentJob, context["job_id"])
+                                ~~~~~~~^^^^^^^^^^
+KeyError: 'job_id'
+
+[2026-11-06 23:59:06] [[91mERROR[0m] [api.agent_routes] Agent a1 execution wrapper failed: 'job_id'
+------------------------------ Captured log call -------------------------------
+INFO     api.agent_routes:agent_routes.py:796 Starting agent Agent One (ID: a1)...
+INFO     api.agent_routes:agent_routes.py:891 Executing Agent Agent One with ReAct Loop. Input: work
+ERROR    api.agent_routes:agent_routes.py:950 Agent a1 logic failed: 'job_id'
+CRITICAL api.agent_routes:agent_routes.py:970 !!! CRITICAL AGENT ERROR !!!
+Agent execution FAILED: 'job_id'
+Traceback (most recent call last):
+  File "/private/tmp/atom-cli-agent-job-join/backend/api/agent_routes.py", line 964, in execute_agent_task
+    raise e
+  File "/private/tmp/atom-cli-agent-job-join/backend/api/agent_routes.py", line 900, in execute_agent_task
+    result_obj = await runner.execute(task_input, context=params, step_callback=streaming_callback)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/atom-cli-agent-job-join/backend/tests/test_agent_run_outcome_join_contract.py", line 58, in execute
+    return behavior(context or {})
+  File "/private/tmp/atom-cli-agent-job-join/backend/tests/test_agent_run_outcome_join_contract.py", line 443, in cancel_then_succeed
+    job = session.get(AgentJob, context["job_id"])
+                                ~~~~~~~^^^^^^^^^^
+KeyError: 'job_id'
+
+ERROR    api.agent_routes:agent_routes.py:971 Agent a1 execution wrapper failed: 'job_id'
+/private/tmp/atom-cli-agent-job-join/backend/tests/test_agent_run_outcome_join_contract.py:456: AssertionError: {"success":true,"data":{"agent_id":"a1","job_id":"3afe1f52-a9a7-4f50-8c45-bdb7e0ce9de6","result":null,"verification":{"status":"verified","effect":"committed","audit_id":"agent:run:cancel-race-op"}},"timestamp":"2026-11-07T04:59:06.415646+00:00","message":"Agent execution completed"}
+E   AssertionError: assert 2 == 1
+     +  where 2 = len([{'agent_id': 'a1', 'workspace_id': 'default', 'tenant_id': None, 'task_input': 'x', ...}, {'agent_id': 'a1', 'workspace_id': 'default', 'tenant_id': None, 'task_input': 'x', ...}])
+     +    where [{'agent_id': 'a1', 'workspace_id': 'default', 'tenant_id': None, 'task_input': 'x', ...}, {'agent_id': 'a1', 'workspace_id': 'default', 'tenant_id': None, 'task_input': 'x', ...}] = namespace(engine=Engine(sqlite:////private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytes...e), actors={'member-1': <core.models.User object at 0x144e4f790>, 'admin-2': <core.models.User object at 0x144e4f350>}).executions
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:59:06] [[92mINFO[0m] [api.agent_routes] Starting agent Agent One (ID: a1)...
+[2026-11-06 23:59:06] [[92mINFO[0m] [api.agent_routes] Executing Agent Agent One with ReAct Loop. Input: x
+[2026-11-06 23:59:06] [[92mINFO[0m] [api.agent_routes] Starting agent Agent One (ID: a1)...
+[2026-11-06 23:59:06] [[92mINFO[0m] [api.agent_routes] Executing Agent Agent One with ReAct Loop. Input: x
+------------------------------ Captured log call -------------------------------
+INFO     api.agent_routes:agent_routes.py:796 Starting agent Agent One (ID: a1)...
+INFO     api.agent_routes:agent_routes.py:891 Executing Agent Agent One with ReAct Loop. Input: x
+INFO     api.agent_routes:agent_routes.py:796 Starting agent Agent One (ID: a1)...
+INFO     api.agent_routes:agent_routes.py:891 Executing Agent Agent One with ReAct Loop. Input: x
+/private/tmp/atom-cli-agent-job-join/backend/tests/test_agent_run_outcome_join_contract.py:492: AssertionError: assert 2 == 1
+E   AssertionError: {"success":true,"data":{"agent_id":"a1","job_id":"dcc74841-b59c-4675-9947-928af622cc86","result":null,"verification":{"status":"verified","effect":"committed","audit_id":"agent:run:error-op"}},"timestamp":"2026-11-07T04:59:07.640673+00:00","message":"Agent execution completed"}
+    assert 200 == 409
+     +  where 200 = <Response [200 OK]>.status_code
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:59:07] [[92mINFO[0m] [api.agent_routes] Starting agent Agent One (ID: a1)...
+[2026-11-06 23:59:07] [[92mINFO[0m] [api.agent_routes] Executing Agent Agent One with ReAct Loop. Input: work
+[2026-11-06 23:59:07] [[91mERROR[0m] [api.agent_routes] Agent a1 logic failed: provider failed: provider-secret-sk-live-123
+[2026-11-06 23:59:07] [[1;91mCRITICAL[0m] [api.agent_routes] !!! CRITICAL AGENT ERROR !!!
+Agent execution FAILED: provider failed: provider-secret-sk-live-123
+Traceback (most recent call last):
+  File "/private/tmp/atom-cli-agent-job-join/backend/api/agent_routes.py", line 964, in execute_agent_task
+    raise e
+  File "/private/tmp/atom-cli-agent-job-join/backend/api/agent_routes.py", line 900, in execute_agent_task
+    result_obj = await runner.execute(task_input, context=params, step_callback=streaming_callback)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/atom-cli-agent-job-join/backend/tests/test_agent_run_outcome_join_contract.py", line 58, in execute
+    return behavior(context or {})
+  File "/private/tmp/atom-cli-agent-job-join/backend/tests/test_agent_run_outcome_join_contract.py", line 503, in explode
+    raise RuntimeError(f"provider failed: {secret}")
+RuntimeError: provider failed: provider-secret-sk-live-123
+
+[2026-11-06 23:59:07] [[91mERROR[0m] [api.agent_routes] Agent a1 execution wrapper failed: provider failed: provider-secret-sk-live-123
+------------------------------ Captured log call -------------------------------
+INFO     api.agent_routes:agent_routes.py:796 Starting agent Agent One (ID: a1)...
+INFO     api.agent_routes:agent_routes.py:891 Executing Agent Agent One with ReAct Loop. Input: work
+ERROR    api.agent_routes:agent_routes.py:950 Agent a1 logic failed: provider failed: provider-secret-sk-live-123
+CRITICAL api.agent_routes:agent_routes.py:970 !!! CRITICAL AGENT ERROR !!!
+Agent execution FAILED: provider failed: provider-secret-sk-live-123
+Traceback (most recent call last):
+  File "/private/tmp/atom-cli-agent-job-join/backend/api/agent_routes.py", line 964, in execute_agent_task
+    raise e
+  File "/private/tmp/atom-cli-agent-job-join/backend/api/agent_routes.py", line 900, in execute_agent_task
+    result_obj = await runner.execute(task_input, context=params, step_callback=streaming_callback)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/atom-cli-agent-job-join/backend/tests/test_agent_run_outcome_join_contract.py", line 58, in execute
+    return behavior(context or {})
+  File "/private/tmp/atom-cli-agent-job-join/backend/tests/test_agent_run_outcome_join_contract.py", line 503, in explode
+    raise RuntimeError(f"provider failed: {secret}")
+RuntimeError: provider failed: provider-secret-sk-live-123
+
+ERROR    api.agent_routes:agent_routes.py:971 Agent a1 execution wrapper failed: provider failed: provider-secret-sk-live-123
+/private/tmp/atom-cli-agent-job-join/backend/tests/test_agent_run_outcome_join_contract.py:511: AssertionError: {"success":true,"data":{"agent_id":"a1","job_id":"dcc74841-b59c-4675-9947-928af622cc86","result":null,"verification":{"status":"verified","effect":"committed","audit_id":"agent:run:error-op"}},"timestamp":"2026-11-07T04:59:07.640673+00:00","message":"Agent execution completed"}
+E   TypeError: _dispatch_admitted_run() got an unexpected keyword argument 'actor_id'
+/private/tmp/atom-cli-agent-job-join/backend/tests/test_agent_run_outcome_join_contract.py:535: TypeError: _dispatch_admitted_run() got an unexpected keyword argument 'actor_id'
+E   sqlalchemy.orm.exc.ObjectDeletedError: Instance '<AgentRegistry at 0x130c1a250>' has been deleted, or its row is otherwise not present.
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/orm/loading.py:1686: sqlalchemy.orm.exc.ObjectDeletedError: Instance '<AgentRegistry at 0x130c1a250>' has been deleted, or its row is otherwise not present.
+E   assert 200 == 400
+     +  where 200 = <Response [200 OK]>.status_code
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:59:14] [[91mERROR[0m] [api.agent_routes] Agent bc08b30b-7a66-4ddb-9316-caf5ffe3283a not found in background task
+------------------------------ Captured log call -------------------------------
+ERROR    api.agent_routes:agent_routes.py:793 Agent bc08b30b-7a66-4ddb-9316-caf5ffe3283a not found in background task
+/private/tmp/atom-cli-agent-job-join/backend/tests/api/test_agent_routes_coverage_ext.py:710: assert 200 == 400
+E   assert 200 == 400
+     +  where 200 = <Response [200 OK]>.status_code
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:59:14] [[91mERROR[0m] [api.agent_routes] Agent 43325310-827c-413d-a4f7-4cbd64a43035 not found in background task
+------------------------------ Captured log call -------------------------------
+ERROR    api.agent_routes:agent_routes.py:793 Agent 43325310-827c-413d-a4f7-4cbd64a43035 not found in background task
+/private/tmp/atom-cli-agent-job-join/backend/tests/api/test_agent_routes_coverage_ext.py:717: assert 200 == 400
+E   AssertionError: assert 'anthropic' in ('google_flash', 'google_flash_3_5')
+/private/tmp/atom-cli-agent-job-join/backend/tests/test_covpush_w81b_api_routes.py:373: AssertionError: assert 'anthropic' in ('google_flash', 'google_flash_3_5')
+E   assert False is True
+/private/tmp/atom-cli-agent-job-join/backend/tests/test_covpush_w81b_api_routes.py:408: assert False is True
+E   AssertionError: assert False is True
+     +  where False = has_tenant_keys('t-1', db=<MagicMock id='5623828496'>)
+     +    where has_tenant_keys = <api.byok_routes.BYOKManager object at 0x14fba22d0>.has_tenant_keys
+/private/tmp/atom-cli-agent-job-join/backend/tests/test_covpush_w81b_api_routes.py:426: AssertionError: assert False is True
+E   assert 200 == 404
+     +  where 200 = <Response [200 OK]>.status_code
+/private/tmp/atom-cli-agent-job-join/backend/tests/test_covpush_w81b_api_routes.py:583: assert 200 == 404
+E   AssertionError: assert None == 'plaintext-key-in-db'
+/private/tmp/atom-cli-agent-job-join/backend/tests/test_covpush_w81b_api_routes.py:672: AssertionError: assert None == 'plaintext-key-in-db'
+E   assert 400 == 200
+     +  where 400 = <Response [400 Bad Request]>.status_code
+/private/tmp/atom-cli-agent-job-join/backend/tests/test_covpush_w81b_api_routes.py:1144: assert 400 == 200
+E   AssertionError: assert 0 == 1
+     +  where 0 = count()
+     +    where count = <sqlalchemy.orm.query.Query object at 0x14fb92ad0>.count
+     +      where <sqlalchemy.orm.query.Query object at 0x14fb92ad0> = query(<class 'core.models.CanvasAudit'>)
+     +        where query = <sqlalchemy.orm.session.Session object at 0x14ffef8c0>.query
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:59:25] [[93mWARNING[0m] [core.websockets] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:user-1'. type='agent:request'
+[2026-11-06 23:59:25] [[91mERROR[0m] [core.agent_request_manager] Failed to create audit: name 'audit_session_id' is not defined
+[2026-11-06 23:59:25] [[92mINFO[0m] [core.agent_request_manager] Created permission request caa59722-b4e6-4f75-90c5-2e12a9765460 from agent agent-1, user user-1
+------------------------------ Captured log call -------------------------------
+WARNING  core.websockets:websockets.py:172 [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:user-1'. type='agent:request'
+ERROR    core.agent_request_manager:agent_request_manager.py:487 Failed to create audit: name 'audit_session_id' is not defined
+INFO     core.agent_request_manager:agent_request_manager.py:176 Created permission request caa59722-b4e6-4f75-90c5-2e12a9765460 from agent agent-1, user user-1
+/private/tmp/atom-cli-agent-job-join/backend/tests/test_covpush_agents.py:406: AssertionError: assert 0 == 1
+E   AssertionError: assert 0 == 2
+     +  where 0 = count()
+     +    where count = <sqlalchemy.orm.query.Query object at 0x14fd34050>.count
+     +      where <sqlalchemy.orm.query.Query object at 0x14fd34050> = query(<class 'core.models.CanvasAudit'>)
+     +        where query = <sqlalchemy.orm.session.Session object at 0x14ffec980>.query
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:59:32] [[93mWARNING[0m] [core.websockets] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:user-1'. type='agent:request'
+[2026-11-06 23:59:32] [[91mERROR[0m] [core.agent_request_manager] Failed to create audit: name 'audit_session_id' is not defined
+[2026-11-06 23:59:32] [[92mINFO[0m] [core.agent_request_manager] Created permission request d47df9f0-e135-4f2d-8ba0-c88978afeaa1 from agent agent-1, user user-1
+[2026-11-06 23:59:32] [[91mERROR[0m] [core.agent_request_manager] Failed to create audit: name 'audit_session_id' is not defined
+[2026-11-06 23:59:32] [[92mINFO[0m] [core.agent_request_manager] Handled response for request d47df9f0-e135-4f2d-8ba0-c88978afeaa1
+------------------------------ Captured log call -------------------------------
+WARNING  core.websockets:websockets.py:172 [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:user-1'. type='agent:request'
+ERROR    core.agent_request_manager:agent_request_manager.py:487 Failed to create audit: name 'audit_session_id' is not defined
+INFO     core.agent_request_manager:agent_request_manager.py:176 Created permission request d47df9f0-e135-4f2d-8ba0-c88978afeaa1 from agent agent-1, user user-1
+ERROR    core.agent_request_manager:agent_request_manager.py:487 Failed to create audit: name 'audit_session_id' is not defined
+INFO     core.agent_request_manager:agent_request_manager.py:423 Handled response for request d47df9f0-e135-4f2d-8ba0-c88978afeaa1
+/private/tmp/atom-cli-agent-job-join/backend/tests/test_covpush_agents.py:553: AssertionError: assert 0 == 2
+E   AssertionError: assert 'approval_binding_mismatch' == 'failed'
+      
+      - failed
+      + approval_binding_mismatch
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:59:51] [[92mINFO[0m] [core.agent_integration_gateway] Agent executing send_message on meta
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on meta
+/private/tmp/atom-cli-agent-job-join/backend/tests/test_covpush_agents.py:1034: AssertionError: assert 'approval_binding_mismatch' == 'failed'
+E   AssertionError: assert 'approval_binding_mismatch' == 'success'
+      
+      - success
+      + approval_binding_mismatch
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:59:51] [[92mINFO[0m] [core.agent_integration_gateway] Agent executing send_message on meta
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on meta
+/private/tmp/atom-cli-agent-job-join/backend/tests/test_covpush_agents.py:1044: AssertionError: assert 'approval_binding_mismatch' == 'success'
+E   AssertionError: assert 'approval_binding_mismatch' == 'failed'
+      
+      - failed
+      + approval_binding_mismatch
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:59:51] [[92mINFO[0m] [core.agent_integration_gateway] Agent executing send_message on meta
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on meta
+/private/tmp/atom-cli-agent-job-join/backend/tests/test_covpush_agents.py:1053: AssertionError: assert 'approval_binding_mismatch' == 'failed'
+E   AssertionError: assert 'approval_binding_mismatch' == 'success'
+      
+      - success
+      + approval_binding_mismatch
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:59:51] [[92mINFO[0m] [core.agent_integration_gateway] Agent executing send_message on whatsapp
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on whatsapp
+/private/tmp/atom-cli-agent-job-join/backend/tests/test_covpush_agents.py:1063: AssertionError: assert 'approval_binding_mismatch' == 'success'
+E   AssertionError: assert {'status': 'a...atched.', ...} == {'status': 'ok'}
+      
+      Differing items:
+      {'status': 'approval_binding_mismatch'} != {'status': 'ok'}
+      Left contains 4 more items:
+      {'error': <MagicMock name='contact_governance.find_approved_action().get()' id='5638421008'>,
+       'hitl_id': <MagicMock name='contact_governance.find_approved_action().get()' id='5638421008'>,
+       'message': 'The request changed after human review; the approved payload is '...
+      
+      ...Full output truncated (3 lines hidden), use '-vv' to show
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:59:51] [[92mINFO[0m] [core.agent_integration_gateway] Agent executing send_message on agent
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on agent
+/private/tmp/atom-cli-agent-job-join/backend/tests/test_covpush_agents.py:1083: AssertionError: assert {'status': 'a...atched.', ...} == {'status': 'ok'}
+E   AssertionError: assert 'approval_binding_mismatch' == 'success'
+      
+      - success
+      + approval_binding_mismatch
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:59:51] [[92mINFO[0m] [core.agent_integration_gateway] Agent executing send_message on discord
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on discord
+/private/tmp/atom-cli-agent-job-join/backend/tests/test_covpush_agents.py:1094: AssertionError: assert 'approval_binding_mismatch' == 'success'
+E   AssertionError: assert 'approval_binding_mismatch' == 'failed'
+      
+      - failed
+      + approval_binding_mismatch
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:59:51] [[92mINFO[0m] [core.agent_integration_gateway] Agent executing send_message on teams
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on teams
+/private/tmp/atom-cli-agent-job-join/backend/tests/test_covpush_agents.py:1107: AssertionError: assert 'approval_binding_mismatch' == 'failed'
+E   AssertionError: assert 'approval_binding_mismatch' == 'success'
+      
+      - success
+      + approval_binding_mismatch
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:59:51] [[92mINFO[0m] [core.agent_integration_gateway] Agent executing send_message on telegram
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on telegram
+/private/tmp/atom-cli-agent-job-join/backend/tests/test_covpush_agents.py:1120: AssertionError: assert 'approval_binding_mismatch' == 'success'
+E   AssertionError: assert 'approval_binding_mismatch' == 'failed'
+      
+      - failed
+      + approval_binding_mismatch
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:59:51] [[92mINFO[0m] [core.agent_integration_gateway] Agent executing send_message on google_chat
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on google_chat
+/private/tmp/atom-cli-agent-job-join/backend/tests/test_covpush_agents.py:1128: AssertionError: assert 'approval_binding_mismatch' == 'failed'
+E   AssertionError: assert 'approval_binding_mismatch' == 'failed'
+      
+      - failed
+      + approval_binding_mismatch
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:59:51] [[92mINFO[0m] [core.agent_integration_gateway] Agent executing send_message on slack
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on slack
+/private/tmp/atom-cli-agent-job-join/backend/tests/test_covpush_agents.py:1142: AssertionError: assert 'approval_binding_mismatch' == 'failed'
+E   AssertionError: assert 'approval_binding_mismatch' == 'success'
+      
+      - success
+      + approval_binding_mismatch
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:59:51] [[92mINFO[0m] [core.agent_integration_gateway] Agent executing send_message on twilio
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on twilio
+/private/tmp/atom-cli-agent-job-join/backend/tests/test_covpush_agents.py:1164: AssertionError: assert 'approval_binding_mismatch' == 'success'
+E   AssertionError: assert 'approval_binding_mismatch' == 'failed'
+      
+      - failed
+      + approval_binding_mismatch
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:59:51] [[92mINFO[0m] [core.agent_integration_gateway] Agent executing send_message on matrix
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on matrix
+/private/tmp/atom-cli-agent-job-join/backend/tests/test_covpush_agents.py:1172: AssertionError: assert 'approval_binding_mismatch' == 'failed'
+E   AssertionError: assert 'approval_binding_mismatch' == 'success'
+      
+      - success
+      + approval_binding_mismatch
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:59:51] [[92mINFO[0m] [core.agent_integration_gateway] Agent executing send_message on matrix
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on matrix
+/private/tmp/atom-cli-agent-job-join/backend/tests/test_covpush_agents.py:1184: AssertionError: assert 'approval_binding_mismatch' == 'success'
+E   AssertionError: assert 'approval_binding_mismatch' == 'failed'
+      
+      - failed
+      + approval_binding_mismatch
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:59:51] [[92mINFO[0m] [core.agent_integration_gateway] Agent executing send_message on messenger
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on messenger
+/private/tmp/atom-cli-agent-job-join/backend/tests/test_covpush_agents.py:1192: AssertionError: assert 'approval_binding_mismatch' == 'failed'
+E   AssertionError: assert 'approval_binding_mismatch' == 'success'
+      
+      - success
+      + approval_binding_mismatch
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:59:51] [[92mINFO[0m] [core.agent_integration_gateway] Agent executing send_message on line
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on line
+/private/tmp/atom-cli-agent-job-join/backend/tests/test_covpush_agents.py:1203: AssertionError: assert 'approval_binding_mismatch' == 'success'
+E   AssertionError: assert 'approval_binding_mismatch' == 'failed'
+      
+      - failed
+      + approval_binding_mismatch
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:59:51] [[92mINFO[0m] [core.agent_integration_gateway] Agent executing send_message on openclaw
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on openclaw
+/private/tmp/atom-cli-agent-job-join/backend/tests/test_covpush_agents.py:1222: AssertionError: assert 'approval_binding_mismatch' == 'failed'
+E   AssertionError: assert 'approval_binding_mismatch' == 'success'
+      
+      - success
+      + approval_binding_mismatch
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:59:51] [[92mINFO[0m] [core.agent_integration_gateway] Agent executing send_message on carrier_pigeon
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on carrier_pigeon
+/private/tmp/atom-cli-agent-job-join/backend/tests/test_covpush_agents.py:1235: AssertionError: assert 'approval_binding_mismatch' == 'success'
+E   AssertionError: assert 'approval_binding_mismatch' == 'error'
+      
+      - error
+      + approval_binding_mismatch
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:59:51] [[92mINFO[0m] [core.agent_integration_gateway] Agent executing send_message on whatsapp
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on whatsapp
+/private/tmp/atom-cli-agent-job-join/backend/tests/test_covpush_agents.py:1484: AssertionError: assert 'approval_binding_mismatch' == 'error'
+E   AssertionError: assert 0 == 2
+     +  where 0 = count()
+     +    where count = <sqlalchemy.orm.query.Query object at 0x14fd35e10>.count
+     +      where <sqlalchemy.orm.query.Query object at 0x14fd35e10> = query(<class 'core.models.OperationErrorResolution'>)
+     +        where query = <sqlalchemy.orm.session.Session object at 0x150284590>.query
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:59:55] [[92mINFO[0m] [core.agent_marketplace_service] Successfully installed marketplace agent tpl-1 as managed agent 2127e2d8-9bca-4921-90f4-c634ed1ff22b
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_marketplace_service:agent_marketplace_service.py:737 Successfully installed marketplace agent tpl-1 as managed agent 2127e2d8-9bca-4921-90f4-c634ed1ff22b
+/private/tmp/atom-cli-agent-job-join/backend/tests/test_covpush_core_c.py:1598: AssertionError: assert 0 == 2
+E   assert 2 == 1
+/private/tmp/atom-cli-agent-job-join/backend/tests/test_covpush_core_c.py:2463: assert 2 == 1
+E   AssertionError: assert False
+     +  where False = <MagicMock name='GenericAgent' id='5629498032'>.called
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:59:59] [[91mERROR[0m] [api.agent_routes] Agent competitive_intel not found in background task
+------------------------------ Captured log call -------------------------------
+ERROR    api.agent_routes:agent_routes.py:793 Agent competitive_intel not found in background task
+/private/tmp/atom-cli-agent-job-join/backend/tests/test_legacy_react_migration.py:55: AssertionError: assert False
+E   TypeError: 'NoneType' object is not subscriptable
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:59:59] [[91mERROR[0m] [api.agent_routes] Agent payroll_guardian not found in background task
+------------------------------ Captured log call -------------------------------
+ERROR    api.agent_routes:agent_routes.py:793 Agent payroll_guardian not found in background task
+/private/tmp/atom-cli-agent-job-join/backend/tests/test_legacy_react_migration.py:96: TypeError: 'NoneType' object is not subscriptable
+E   AssertionError: 404 != 200
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:59:59] [[92mINFO[0m] [backend.main_api_app] 🚀 [ULTRA LOUD] GET /api/v1/agents/
+[2026-11-07 00:00:00] [[92mINFO[0m] [backend.main_api_app] 🏁 [ULTRA LOUD] GET /api/v1/agents/ -> 404
+------------------------------ Captured log call -------------------------------
+INFO     backend.main_api_app:main_api_app.py:2445 🚀 [ULTRA LOUD] GET /api/v1/agents/
+INFO     backend.main_api_app:main_api_app.py:2450 🏁 [ULTRA LOUD] GET /api/v1/agents/ -> 404
+/Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/unittest/case.py:918: AssertionError: 404 != 200
+E   AssertionError: 404 != 200
+----------------------------- Captured stdout call -----------------------------
+[2026-11-07 00:00:00] [[92mINFO[0m] [backend.main_api_app] 🚀 [ULTRA LOUD] GET /api/v1/agents/
+[2026-11-07 00:00:00] [[92mINFO[0m] [backend.main_api_app] 🏁 [ULTRA LOUD] GET /api/v1/agents/ -> 404
+------------------------------ Captured log call -------------------------------
+INFO     backend.main_api_app:main_api_app.py:2445 🚀 [ULTRA LOUD] GET /api/v1/agents/
+INFO     backend.main_api_app:main_api_app.py:2450 🏁 [ULTRA LOUD] GET /api/v1/agents/ -> 404
+/Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/unittest/case.py:918: AssertionError: 404 != 200
+E   AssertionError: 404 != 403
+----------------------------- Captured stdout call -----------------------------
+[2026-11-07 00:00:00] [[92mINFO[0m] [backend.main_api_app] 🚀 [ULTRA LOUD] POST /api/v1/workflows
+[2026-11-07 00:00:00] [[92mINFO[0m] [backend.main_api_app] 🏁 [ULTRA LOUD] POST /api/v1/workflows -> 404
+------------------------------ Captured log call -------------------------------
+INFO     backend.main_api_app:main_api_app.py:2445 🚀 [ULTRA LOUD] POST /api/v1/workflows
+INFO     backend.main_api_app:main_api_app.py:2450 🏁 [ULTRA LOUD] POST /api/v1/workflows -> 404
+/Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/unittest/case.py:918: AssertionError: 404 != 403
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+core/token_storage.py:17
+  /private/tmp/atom-cli-agent-job-join/backend/core/token_storage.py:17: DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+api/routes/ingestion_crud_routes.py:26
+  /private/tmp/atom-cli-agent-job-join/backend/api/routes/ingestion_crud_routes.py:26: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class DiscoveredEntityResponse(BaseModel):
+
+api/routes/ingestion_crud_routes.py:102
+  /private/tmp/atom-cli-agent-job-join/backend/api/routes/ingestion_crud_routes.py:102: PydanticDeprecatedSince20: `min_items` is deprecated and will be removed, use `min_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    entity_ids: List[UUID] = Field(..., min_items=1, description="List of entity UUIDs to delete")
+
+integrations/whatsapp_fastapi_routes.py:49
+  /private/tmp/atom-cli-agent-job-join/backend/integrations/whatsapp_fastapi_routes.py:49: PydanticDeprecatedSince20: `max_items` is deprecated and will be removed, use `max_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    recipients: List[str] = Field(
+
+api/episode_routes.py:397
+  /private/tmp/atom-cli-agent-job-join/backend/api/episode_routes.py:397: FastAPIDeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    canvas_context_detail: str = Query("summary", regex="^(summary|standard|full)$"),
+
+api/admin_routes.py:202
+  /private/tmp/atom-cli-agent-job-join/backend/api/admin_routes.py:202: PydanticDeprecatedSince20: Using extra keyword arguments on `Field` is deprecated and will be removed. Use `json_schema_extra` instead. (Extra keys: 'unique'). Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    name: str = Field(..., min_length=1, max_length=100, unique=True, description="Role name (must be unique)")
+
+api/admin_routes.py:1017
+  /private/tmp/atom-cli-agent-job-join/backend/api/admin_routes.py:1017: PydanticDeprecatedSince20: `min_items` is deprecated and will be removed, use `min_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    conflict_ids: List[int] = Field(..., min_items=1, max_items=100, description="List of conflict IDs to resolve (max 100)")
+
+api/admin_routes.py:1017
+  /private/tmp/atom-cli-agent-job-join/backend/api/admin_routes.py:1017: PydanticDeprecatedSince20: `max_items` is deprecated and will be removed, use `max_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    conflict_ids: List[int] = Field(..., min_items=1, max_items=100, description="List of conflict IDs to resolve (max 100)")
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 1398 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_agent_routes_coverage.py: 77 warnings
+tests/api/test_agent_routes.py: 63 warnings
+tests/api/test_agent_routes_coverage_ext.py: 41 warnings
+  /private/tmp/atom-cli-agent-job-join/backend/tests/conftest.py:507: SAWarning: Cannot correctly sort tables; there are unresolvable cycles between tables "agent_divisions, agent_registry, canvases, mini_apps", which is usually caused by mutually dependent foreign key constraints.  Foreign key constraints involving these tables will not be considered; this warning may raise an error in a future release.
+    for table in reversed(_all_models_base.metadata.sorted_tables):
+
+tests/test_agent_routes_coverage.py: 75 warnings
+  /private/tmp/atom-cli-agent-job-join/backend/tests/test_agent_routes_coverage.py:53: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    created_at=datetime.utcnow()
+
+tests/test_agent_routes_coverage.py: 54 warnings
+  /private/tmp/atom-cli-agent-job-join/backend/tests/test_agent_routes_coverage.py:95: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    created_at=datetime.utcnow()
+
+tests/test_agent_routes_coverage.py::TestAgentRunOperations::test_run_agent_background
+tests/test_agent_routes_coverage.py::TestAgentRunOperations::test_run_agent_background
+tests/test_agent_routes_coverage.py::TestAgentRunOperations::test_run_agent_sync
+  /private/tmp/atom-cli-agent-job-join/backend/core/lancedb_handler.py:407: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    names = set(self.db.table_names())
+
+tests/test_agent_routes_coverage.py: 21 warnings
+  /Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/asyncio/events.py:94: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    self._context.run(self._callback, *self._args)
+
+tests/test_agent_routes_coverage.py: 12 warnings
+  /private/tmp/atom-cli-agent-job-join/backend/core/lancedb_handler.py:620: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    if table_name in self.db.table_names():
+
+tests/test_agent_routes_coverage.py::TestAgentRunOperations::test_run_agent_background
+tests/test_agent_routes_coverage.py::TestAgentRunOperations::test_run_agent_sync
+tests/test_agent_routes_coverage.py::TestAgentRunOperations::test_run_agent_sync
+  /private/tmp/atom-cli-agent-job-join/backend/core/agent_world_model.py:132: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    if self.table_name not in self.db.db.table_names():
+
+tests/test_agent_routes_coverage.py::TestAgentRunOperations::test_run_agent_background
+tests/test_agent_routes_coverage.py::TestAgentRunOperations::test_run_agent_sync
+tests/test_agent_routes_coverage.py::TestAgentRunOperations::test_run_agent_sync
+  /private/tmp/atom-cli-agent-job-join/backend/core/agent_world_model.py:137: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    if self.facts_table_name not in self.db.db.table_names():
+
+tests/test_agent_routes_coverage.py::TestHITLApprovalEndpoints::test_list_pending_approvals_with_actions
+  /private/tmp/atom-cli-agent-job-join/backend/tests/test_agent_routes_coverage.py:735: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    created_at=datetime.utcnow()
+
+tests/test_agent_routes_coverage.py::TestHITLApprovalEndpoints::test_approve_hitl_action
+  /private/tmp/atom-cli-agent-job-join/backend/tests/test_agent_routes_coverage.py:758: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    created_at=datetime.utcnow()
+
+tests/test_agent_routes_coverage.py::TestHITLApprovalEndpoints::test_reject_hitl_action
+  /private/tmp/atom-cli-agent-job-join/backend/tests/test_agent_routes_coverage.py:788: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    created_at=datetime.utcnow()
+
+tests/api/test_agent_routes.py::test_get_agent_with_last_run
+  /private/tmp/atom-cli-agent-job-join/backend/tests/api/test_agent_routes.py:125: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    start_time=datetime.utcnow(),
+
+tests/api/test_agent_routes.py::test_get_agent_with_last_run
+  /private/tmp/atom-cli-agent-job-join/backend/tests/api/test_agent_routes.py:126: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    end_time=datetime.utcnow()
+
+tests/api/test_agent_routes.py::test_list_agents_with_pagination
+tests/api/test_agent_routes.py::test_list_agents_with_pagination
+tests/api/test_agent_routes.py::test_list_agents_with_pagination
+  /private/tmp/atom-cli-agent-job-join/backend/tests/fixtures/agent_fixtures.py:48: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    created_at=kwargs.get("created_at", datetime.utcnow()),
+
+tests/api/test_agent_routes_coverage_ext.py::test_get_agent_execution_history_with_rows
+  /private/tmp/atom-cli-agent-job-join/backend/tests/api/test_agent_routes_coverage_ext.py:146: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.utcnow()
+
+tests/test_covpush_w105_gaps_b.py::TestUniversalWebhookBridge::test_standardize_platforms
+  tests/test_covpush_w105_gaps_b.py:317: PytestWarning: The test <Function test_standardize_platforms> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove the asyncio mark. If the test is not marked explicitly, check for global marks applied via 'pytestmark'.
+    def test_standardize_platforms(self):
+
+tests/test_covpush_w105_gaps_b.py: 27 warnings
+tests/test_webhook_bridge.py: 8 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pydantic/main.py:263: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    validated_self = self.__pydantic_validator__.validate_python(data, self_instance=self)
+
+tests/test_covpush_w105_gaps_b.py::TestUniversalWebhookBridge::test_agents_command
+  /Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/unittest/mock.py:2259: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    def __init__(self, name, parent):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_covpush_w105_gaps_b.py::TestReasoningChainModule::test_to_mermaid_and_to_dict
+tests/test_covpush_w105_gaps_b.py::TestReasoningChainModule::test_to_mermaid_and_to_dict
+tests/test_covpush_w105_gaps_b.py::TestReasoningChainModule::test_submit_step_feedback_paths
+tests/test_covpush_w105_gaps_b.py::TestReasoningChainModule::test_submit_step_feedback_paths
+tests/test_covpush_w105_gaps_b.py::TestReasoningChainModule::test_apply_feedback_to_agent
+tests/test_covpush_w105_gaps_b.py::TestReasoningChainModule::test_apply_feedback_to_agent
+tests/test_covpush_w105_gaps_b.py::TestReasoningChainModule::test_apply_feedback_to_agent
+tests/test_covpush_w105_gaps_b.py::TestReasoningChainModule::test_apply_feedback_to_agent
+  <string>:12: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+
+tests/test_covpush_agents.py::TestAgentPromotionService::test_get_promotion_suggestions_excludes_autonomous
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/sql/compiler.py:3980: RuntimeWarning: coroutine 'execute_agent_task' was never awaited
+    def bindparam_string(
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_covpush_agents.py::TestAgentPromotionService::test_get_promotion_suggestions_excludes_autonomous
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/sql/compiler.py:3980: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    def bindparam_string(
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_agent_run_admission_contract.py::test_member_admits_own_agent_and_dispatch_completes
+FAILED tests/test_agent_run_admission_contract.py::test_sync_run_returns_stub_result_and_success_job
+FAILED tests/test_agent_run_outcome_join_contract.py::test_success_joins_truth_scope_and_durable_execution_identity
+FAILED tests/test_agent_run_outcome_join_contract.py::test_non_success_matrix_never_completes_a_job[result0-uncertain-AGENT_EXECUTION_UNCERTAIN-reconcile_operation-True]
+FAILED tests/test_agent_run_outcome_join_contract.py::test_non_success_matrix_never_completes_a_job[result1-failed-AGENT_EXECUTION_NOT_SUCCESSFUL-review_failure-False]
+FAILED tests/test_agent_run_outcome_join_contract.py::test_non_success_matrix_never_completes_a_job[result2-blocked-AGENT_EXECUTION_NOT_SUCCESSFUL-resolve_blocker-False]
+FAILED tests/test_agent_run_outcome_join_contract.py::test_non_success_matrix_never_completes_a_job[result3-cancelled-AGENT_EXECUTION_NOT_SUCCESSFUL-none-False]
+FAILED tests/test_agent_run_outcome_join_contract.py::test_non_success_matrix_never_completes_a_job[result4-waiting-AGENT_EXECUTION_NOT_SUCCESSFUL-await_resolution-False]
+FAILED tests/test_agent_run_outcome_join_contract.py::test_non_success_matrix_never_completes_a_job[result5-unknown-AGENT_EXECUTION_NOT_SUCCESSFUL-review_execution-False]
+FAILED tests/test_agent_run_outcome_join_contract.py::test_non_success_matrix_never_completes_a_job[result6-unknown-AGENT_EXECUTION_NOT_SUCCESSFUL-review_execution-False]
+FAILED tests/test_agent_run_outcome_join_contract.py::test_non_success_matrix_never_completes_a_job[result7-contradictory-AGENT_EXECUTION_UNCERTAIN-reconcile_operation-True]
+FAILED tests/test_agent_run_outcome_join_contract.py::test_non_success_matrix_never_completes_a_job[result8-success-AGENT_EXECUTION_UNCERTAIN-reconcile_operation-True]
+FAILED tests/test_agent_run_outcome_join_contract.py::test_replay_and_cold_read_do_not_dispatch_again
+FAILED tests/test_agent_run_outcome_join_contract.py::test_foreign_scope_is_refused_before_any_dispatch
+FAILED tests/test_agent_run_outcome_join_contract.py::test_late_success_cannot_overwrite_peer_cancellation
+FAILED tests/test_agent_run_outcome_join_contract.py::test_duplicate_dispatch_claims_one_run_slot
+FAILED tests/test_agent_run_outcome_join_contract.py::test_execution_exception_is_failed_without_public_leak
+FAILED tests/test_agent_run_outcome_join_contract.py::test_inactive_admission_actor_refuses_dispatch
+FAILED tests/api/test_agent_routes_coverage_ext.py::test_delete_agent_registry_exception_allows_delete
+FAILED tests/api/test_agent_routes_coverage_ext.py::test_run_agent_paused_returns_400
+FAILED tests/api/test_agent_routes_coverage_ext.py::test_run_agent_deprecated_returns_400
+FAILED tests/test_covpush_w81b_api_routes.py::TestOptimalProvider::test_tenant_optimal_provider_uses_tenant_keys
+FAILED tests/test_covpush_w81b_api_routes.py::TestProviderStatus::test_tenant_provider_status_with_db_setting
+FAILED tests/test_covpush_w81b_api_routes.py::TestProviderStatus::test_has_tenant_keys_true_via_db
+FAILED tests/test_covpush_w81b_api_routes.py::TestRoutes::test_delete_key_404
+FAILED tests/test_covpush_w81b_api_routes.py::TestByokGaps::test_get_tenant_key_legacy_plaintext
+FAILED tests/test_covpush_w81b_api_routes.py::TestByokRoutes3::test_pdf_optimize_image_comprehension
+FAILED tests/test_covpush_agents.py::TestAgentRequestManager::test_create_permission_request_success
+FAILED tests/test_covpush_agents.py::TestAgentRequestManager::test_handle_response_success_sets_event
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_meta_unavailable
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_meta_success
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_meta_failed
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_whatsapp
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_agent_route
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_discord
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_teams
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_telegram
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_google_chat
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_slack
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_twilio
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_matrix_import_error
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_matrix_success
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_messenger_import_error
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_line_signal
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_openclaw
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_legacy_fallback
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_gateway_generic_exception
+FAILED tests/test_covpush_core_c.py::TestAgentMarketplaceService::test_install_agent_success
+FAILED tests/test_covpush_core_c.py::TestAPAREngine::test_get_collection_summary
+FAILED tests/test_legacy_react_migration.py::test_legacy_agent_uses_react_loop
+FAILED tests/test_legacy_react_migration.py::test_payroll_agent_defaults - Ty...
+FAILED tests/test_phase21_rbac.py::TestRBACIntegration::test_agent_routes_denial
+FAILED tests/test_phase21_rbac.py::TestRBACIntegration::test_agent_routes_enforcement
+FAILED tests/test_phase21_rbac.py::TestRBACIntegration::test_workflow_routes_enforcement
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html

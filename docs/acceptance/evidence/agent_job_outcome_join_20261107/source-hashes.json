@@ -1,0 +1,34 @@
+{
+  "backend/api/agent_routes.py": {
+    "git_blob": "0067352a7e76af1a38927ffb1bb919cadff4cf25",
+    "sha256": "d57b5c6b2f6bb4301f3e3a9ba41779f2f7d5aa5c258c1fa3e6435bb4bbf35c62"
+  },
+  "backend/core/agent_governance_service.py": {
+    "git_blob": "744280ebb20f3f6d7740aa3d627db5babe931311",
+    "sha256": "3d6aabc04bec24665f2b0aeadbb6471e2908ee17929ef6af8d98e6bbc4add8dd"
+  },
+  "backend/core/generic_agent.py": {
+    "git_blob": "289854612010dd2fd1988a63563e8e31755d7712",
+    "sha256": "a52ae8567b2d33051d99f9d0d0961188d1e5b10aba800061b04e4c952d024657"
+  },
+  "backend/tests/api/test_agent_routes.py": {
+    "git_blob": "e541d33524978d13b1fe63d00135195f562265fe",
+    "sha256": "511810105174729e57ce94ef6d796c910ddab14c83cce258f8cc31e1f1fbb434"
+  },
+  "backend/tests/test_agent_routes_coverage.py": {
+    "git_blob": "2fa02b0d3e80b184267447b96877bbfeabc05b45",
+    "sha256": "98c10e581f0d3b6a0ef784691764b02f00c13949343d7527bff36fcfad1bad8d"
+  },
+  "backend/tests/test_agent_run_admission_contract.py": {
+    "git_blob": "002108e721873378182b8a9ee884f7b13e041464",
+    "sha256": "b5f640423850a9f8949c53fde140e7b10cb77242f204baa224cd25c6b9028227"
+  },
+  "backend/tests/test_agent_run_outcome_join_contract.py": {
+    "git_blob": "1c2110b9b1b3800f34b46ff985e26aad29308ee0",
+    "sha256": "a8200b530ede4635c0589c0424375cc6640407ace92b72dd4149737a41844ec2"
+  },
+  "backend/tests/test_covpush_w81b_api_routes.py": {
+    "git_blob": "2ed1b04a5b21d96f1c77bc64905d87396144cc71",
+    "sha256": "20aeda5f611a1f0cec7ade44ecbe7a085bc1c7ccf586b32d2d9c72a2874e0b2c"
+  }
+}

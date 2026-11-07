@@ -69,7 +69,9 @@ class _FakeRuntime:
 @pytest.fixture
 def patch_runtime(monkeypatch):
     """Patch the mini-app FC runtime + prepare_runtime gate for dev-run/publish."""
-    monkeypatch.setattr("core.mini_app_service.prepare_runtime", lambda app, db: None)
+    monkeypatch.setattr(
+        "core.mini_app_service.prepare_runtime",
+        lambda app, db, commit=True: None)
     monkeypatch.setattr("core.mini_app_service.get_miniapp_runtime", lambda: _FakeRuntime())
 
 

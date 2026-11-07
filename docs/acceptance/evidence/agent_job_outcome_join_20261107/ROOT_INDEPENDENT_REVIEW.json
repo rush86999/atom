@@ -1,0 +1,16 @@
+{
+  "runtime_source": "80b17a4898272d44ec0a7c510b1ef0f930ec6dc2",
+  "checkout_evidence_head_at_execution": "104941590c718a0130ce5b254b2b5c726b5fcbc6",
+  "pytest_exit_code": 0,
+  "passed": 67,
+  "groups": {
+    "owned_outcome_contract": 30,
+    "accepted_admission_contract": 12,
+    "external_independent_cases": 25
+  },
+  "scope": "controlled public-route admission/wrapper, real SQLite persistence and real Generic execution/audit identity twin; no ordinary-login/browser/model/soak claim",
+  "source_state": "tracked runtime/test files matched committed80b; private instruction/probe files untracked; supplement copied after execution",
+  "probe_sources": "seven external files copied unchanged after execution for review; not claimed tracked at execution",
+  "packaging_correction": "consolidated-25-controls.log existed on disk with exact original verification hash but was ignored/untracked at104941590; force-tracked unchanged here",
+  "predecessors": "all earlier commits and original negatives retained; no log regeneration"
+}

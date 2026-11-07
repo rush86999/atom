@@ -1,0 +1,14 @@
+{
+  "superseded_pr": 718,
+  "finding_type": "Generic High Entropy Secret",
+  "historical_findings": 14,
+  "current_log_redactions": 13,
+  "affected_field": "authorization_revision",
+  "classification": "deterministic truncated32hex revision digests, not passwords/API keys/session tokens",
+  "proof": "backend/core/assignment_executor.py::_authorization_revision uses canonical_sha256 over task authorization material then[:32]; all14 flagged values matched32lowercasehex and appeared in synthetic SQL params",
+  "original_packet_ref": "3a81b5e6ba30e40108d94f4af1ecc4073e3a3fe2",
+  "original_raw_sha256": "cb71e0d5994706c661b9a7fc49121d3d2a137b00d160dc1503cd862e5d0007a3",
+  "runtime_and_tests": "identical to9311a4a0e; no retest/relabel claimed",
+  "history_policy": "new single-commit successor frommain4294; original branches/commits retained; no rewrite or waiver",
+  "source_evidence_refs": "original refs in SOURCE_EVIDENCE_REFS.json remain true; new public host manifest identifies derivative artifacts"
+}
