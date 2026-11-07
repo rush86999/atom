@@ -24,15 +24,19 @@ def test_restore_preserves_every_original_canvas_audit_byte(tmp_path):
 def test_backup_database_swap_after_validation_refuses_before_publication(tmp_path,monkeypatch):
     world,root,env,backup=fixtures._backup_world(tmp_path)
     original=rs._copy_database
-    def peer_changes_before_copy(source,stage,counts):
+    reached=[]
+    def peer_changes_before_copy(source,stage,counts,*args,**kwargs):
+        reached.append(True)
         with sqlite3.connect(source) as db:
             db.execute("UPDATE users SET first_name='PEER-UNREVIEWED'");db.commit()
-        return original(source,stage,counts)
+        return original(source,stage,counts,*args,**kwargs)
     monkeypatch.setattr(rs,'_copy_database',peer_changes_before_copy)
     target=tmp_path/'restored'
     try:
         result=rs.restore_backup(backup_arg=str(backup),target_arg=str(target),env=env)
-    except rs.RestoreRefused:
+    except rs.RestoreRefused as exc:
+        assert reached == [True], "peer mutation never ran"
+        assert "TypeError" not in str(exc), "signature mismatch is not tamper detection"
         assert not target.exists()
         return
     with sqlite3.connect(target/'atom.db') as db:observed=db.execute('SELECT first_name FROM users').fetchall()
