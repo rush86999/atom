@@ -67,20 +67,19 @@ def join_env(monkeypatch):
     import core.org_politics_automation as automation
 
     monkeypatch.setenv("ATOM_ALIGNMENT_SWEEP_ENABLED", "true")
-    automation.set_automation_config(mode="approve")
-    automation._last_notified.clear()
-    automation._last_run.clear()
-    automation.invalidate_resolver_cache()
-    automation._automation_task = None
+    # Replace shared containers rather than clearing the prior caller's state.
+    # MonkeyPatch restores the exact original objects/overrides after teardown.
+    monkeypatch.setattr(automation, "_override_mode", "approve")
+    monkeypatch.setattr(automation, "_override_interval", automation._override_interval)
+    monkeypatch.setattr(automation, "_last_notified", {})
+    monkeypatch.setattr(automation, "_last_run", {})
+    monkeypatch.setattr(automation, "_resolver_cache", {})
+    monkeypatch.setattr(automation, "_automation_task", None)
     yield automation
     owned = automation._automation_task
     if owned is not None and not owned.done():
         owned.cancel()
-    automation._automation_task = None
-    automation.set_automation_config(mode="auto")
-    automation._last_notified.clear()
-    automation._last_run.clear()
-    automation.invalidate_resolver_cache()
+    # The monkeypatch fixture restores prior singleton state, not a guessed default.
 
 
 def _seed_eligible(db):
