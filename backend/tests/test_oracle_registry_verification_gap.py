@@ -268,22 +268,34 @@ def test_read_action_without_verifier_still_applies(env):
     assert operation["receipt"]["oracle_verified"] is None
 
 
+@pytest.mark.parametrize("same_owner", [True, False])
 def test_full_executor_real_task_create_is_independently_verified(
-        env, tmp_path, monkeypatch):
+        env, tmp_path, monkeypatch, same_owner):
     """Real covered mutation family: tasks.create through the full executor."""
     from contextlib import contextmanager
 
     import core.database as db_module
-    from core.models import AgentRegistry
+    from core.models import AgentRegistry, User
     from core.models_board import Board, BoardColumn, BoardTask
 
     engine = create_engine(f"sqlite:///{tmp_path}/board.db")
-    for table in (Board.__table__, BoardColumn.__table__,
+    for table in (User.__table__, Board.__table__, BoardColumn.__table__,
                   BoardTask.__table__, AgentRegistry.__table__):
         table.create(engine)
     Session = sessionmaker(bind=engine, expire_on_commit=False)
     with Session() as db:
-        db.add(Board(id="board-1", name="Delivery"))
+        # The real registered producer checks current principal and ownership;
+        # keep both sides of that boundary instead of bypassing the guard.
+        for user_id in ("user-1", "peer-owner"):
+            db.add(User(
+                id=user_id, email=f"{user_id}@example.test",
+                first_name="Scratch", last_name="Owner",
+                hashed_password="not-a-login-secret", role="member",
+                status="active", is_active=True,
+                workspace_id="ws_gap", tenant_id="tenant_gap"))
+        db.add(Board(
+            id="board-1", name="Delivery",
+            owner_user_id="user-1" if same_owner else "peer-owner"))
         db.add(BoardColumn(
             id="column-1", board_id="board-1", name="Backlog", position=0))
         db.commit()
@@ -303,10 +315,18 @@ def test_full_executor_real_task_create_is_independently_verified(
          "column_id": "column-1"},
         effect="local")
     result = asyncio.run(env["executor"].execute(run_id))
-    assert result["assignment"]["status"] == "completed", result
     step = step_by_id(env["lifecycle"].get_assignment(run_id), "act")
-    assert step["status"] == "applied", step
     operation = _operation(env["lifecycle"].get_task(run_id), step)
+    if not same_owner:
+        assert result["assignment"]["status"] == "blocked", result
+        assert step["status"] != "applied", step
+        assert (operation.get("receipt") or {}).get("oracle_verified") is not True
+        with Session() as db:
+            assert db.query(BoardTask).count() == 0
+            assert db.get(Board, "board-1").owner_user_id == "peer-owner"
+        return
+    assert result["assignment"]["status"] == "completed", result
+    assert step["status"] == "applied", step
     assert operation["receipt"]["oracle_verified"] is True
     with Session() as db:
         saved = db.query(BoardTask).filter(

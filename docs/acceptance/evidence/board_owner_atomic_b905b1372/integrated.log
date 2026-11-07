@@ -1,0 +1,323 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-07 03:34:55 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+
+tests/unit/test_board_owner_boundary.py::test_peer_read_and_write_twins_are_denied_without_side_effects 
+-------------------------------- live log setup --------------------------------
+2026-11-07 03:34:56 [    INFO] EscalationManager initialized
+2026-11-07 03:34:56 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 03:34:56 [    INFO] EscalationManager initialized
+2026-11-07 03:34:56 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 03:34:56 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 03:34:56 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:34:56 [    INFO] HTTP Request: GET http://testserver/api/boards/d9670718-92c1-489e-bb43-bb2263bf8bc5 "HTTP/1.1 404 Not Found"
+2026-11-07 03:34:56 [    INFO] HTTP Request: GET http://testserver/api/boards/d9670718-92c1-489e-bb43-bb2263bf8bc5/tasks "HTTP/1.1 404 Not Found"
+2026-11-07 03:34:56 [    INFO] HTTP Request: GET http://testserver/api/boards/d9670718-92c1-489e-bb43-bb2263bf8bc5/tasks/080fee8d-4c72-42ca-91b9-0e2f28d6cc35/canvas "HTTP/1.1 404 Not Found"
+2026-11-07 03:34:56 [    INFO] HTTP Request: GET http://testserver/api/boards/d9670718-92c1-489e-bb43-bb2263bf8bc5/tasks/080fee8d-4c72-42ca-91b9-0e2f28d6cc35/comments "HTTP/1.1 404 Not Found"
+2026-11-07 03:34:56 [    INFO] HTTP Request: GET http://testserver/api/boards/d9670718-92c1-489e-bb43-bb2263bf8bc5/tasks/080fee8d-4c72-42ca-91b9-0e2f28d6cc35/artifact-comments "HTTP/1.1 404 Not Found"
+2026-11-07 03:34:56 [    INFO] HTTP Request: POST http://testserver/api/boards/d9670718-92c1-489e-bb43-bb2263bf8bc5/columns "HTTP/1.1 404 Not Found"
+2026-11-07 03:34:56 [    INFO] HTTP Request: POST http://testserver/api/boards/d9670718-92c1-489e-bb43-bb2263bf8bc5/tasks "HTTP/1.1 404 Not Found"
+2026-11-07 03:34:56 [    INFO] HTTP Request: PATCH http://testserver/api/boards/d9670718-92c1-489e-bb43-bb2263bf8bc5/tasks/080fee8d-4c72-42ca-91b9-0e2f28d6cc35 "HTTP/1.1 404 Not Found"
+2026-11-07 03:34:56 [    INFO] HTTP Request: DELETE http://testserver/api/boards/d9670718-92c1-489e-bb43-bb2263bf8bc5/tasks/080fee8d-4c72-42ca-91b9-0e2f28d6cc35 "HTTP/1.1 404 Not Found"
+2026-11-07 03:34:56 [    INFO] HTTP Request: POST http://testserver/api/boards/d9670718-92c1-489e-bb43-bb2263bf8bc5/rebalance "HTTP/1.1 404 Not Found"
+2026-11-07 03:34:56 [    INFO] HTTP Request: POST http://testserver/api/boards/d9670718-92c1-489e-bb43-bb2263bf8bc5/tasks/080fee8d-4c72-42ca-91b9-0e2f28d6cc35/comments "HTTP/1.1 201 Created"
+2026-11-07 03:34:56 [    INFO] HTTP Request: POST http://testserver/api/boards/d9670718-92c1-489e-bb43-bb2263bf8bc5/tasks/080fee8d-4c72-42ca-91b9-0e2f28d6cc35/comments "HTTP/1.1 404 Not Found"
+2026-11-07 03:34:56 [    INFO] HTTP Request: PATCH http://testserver/api/comments/d72015b3-3650-40f6-92c9-6dbfd4c7ecdd "HTTP/1.1 404 Not Found"
+2026-11-07 03:34:56 [    INFO] HTTP Request: DELETE http://testserver/api/comments/d72015b3-3650-40f6-92c9-6dbfd4c7ecdd "HTTP/1.1 404 Not Found"
+2026-11-07 03:34:56 [    INFO] EscalationManager initialized
+2026-11-07 03:34:56 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 03:34:56 [    INFO] HTTP Request: POST http://testserver/api/boards/d9670718-92c1-489e-bb43-bb2263bf8bc5/tasks/080fee8d-4c72-42ca-91b9-0e2f28d6cc35/decompose "HTTP/1.1 404 Not Found"
+2026-11-07 03:34:56 [    INFO] HTTP Request: POST http://testserver/api/boards/d9670718-92c1-489e-bb43-bb2263bf8bc5/tasks/080fee8d-4c72-42ca-91b9-0e2f28d6cc35/decompose/commit "HTTP/1.1 404 Not Found"
+2026-11-07 03:34:56 [    INFO] HTTP Request: GET http://testserver/api/boards "HTTP/1.1 200 OK"
+PASSED                                                                   [  1%]
+tests/unit/test_board_owner_boundary.py::test_peer_command_router_and_registered_tool_are_denied 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:34:56 [   ERROR] tasks.create failed: 404: Board not found
+PASSED                                                                   [  2%]
+tests/unit/test_board_owner_boundary.py::test_owner_twins_and_fresh_session_readback 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:34:56 [    INFO] HTTP Request: POST http://testserver/api/boards/6e640212-d926-4b94-9a19-645e505268fc/columns "HTTP/1.1 201 Created"
+2026-11-07 03:34:56 [    INFO] HTTP Request: POST http://testserver/api/boards/6e640212-d926-4b94-9a19-645e505268fc/tasks "HTTP/1.1 201 Created"
+2026-11-07 03:34:56 [    INFO] HTTP Request: GET http://testserver/api/boards/6e640212-d926-4b94-9a19-645e505268fc "HTTP/1.1 200 OK"
+2026-11-07 03:34:56 [    INFO] HTTP Request: GET http://testserver/api/boards/6e640212-d926-4b94-9a19-645e505268fc/tasks "HTTP/1.1 200 OK"
+2026-11-07 03:34:56 [    INFO] HTTP Request: PATCH http://testserver/api/boards/6e640212-d926-4b94-9a19-645e505268fc/tasks/ad2a7bf1-9494-4748-a257-523064940c59 "HTTP/1.1 409 Conflict"
+2026-11-07 03:34:56 [    INFO] HTTP Request: PATCH http://testserver/api/boards/6e640212-d926-4b94-9a19-645e505268fc/tasks/ad2a7bf1-9494-4748-a257-523064940c59 "HTTP/1.1 422 Unprocessable Entity"
+2026-11-07 03:34:56 [    INFO] HTTP Request: PATCH http://testserver/api/boards/6e640212-d926-4b94-9a19-645e505268fc/tasks/ad2a7bf1-9494-4748-a257-523064940c59 "HTTP/1.1 200 OK"
+2026-11-07 03:34:56 [    INFO] HTTP Request: DELETE http://testserver/api/boards/6e640212-d926-4b94-9a19-645e505268fc/tasks/ad2a7bf1-9494-4748-a257-523064940c59 "HTTP/1.1 204 No Content"
+PASSED                                                                   [  3%]
+tests/unit/test_board_owner_boundary.py::test_owner_transfer_is_authoritative_at_mutation 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:34:56 [    INFO] HTTP Request: GET http://testserver/api/boards/3242fc79-ed20-4cd6-a723-578f8e0e8fb4 "HTTP/1.1 200 OK"
+2026-11-07 03:34:56 [    INFO] HTTP Request: GET http://testserver/api/boards/3242fc79-ed20-4cd6-a723-578f8e0e8fb4 "HTTP/1.1 404 Not Found"
+2026-11-07 03:34:56 [    INFO] HTTP Request: POST http://testserver/api/boards/3242fc79-ed20-4cd6-a723-578f8e0e8fb4/columns "HTTP/1.1 404 Not Found"
+2026-11-07 03:34:56 [    INFO] HTTP Request: GET http://testserver/api/boards/3242fc79-ed20-4cd6-a723-578f8e0e8fb4 "HTTP/1.1 200 OK"
+2026-11-07 03:34:56 [    INFO] HTTP Request: POST http://testserver/api/boards/3242fc79-ed20-4cd6-a723-578f8e0e8fb4/columns "HTTP/1.1 201 Created"
+PASSED                                                                   [  4%]
+tests/unit/test_board_owner_boundary.py::test_deactivated_actor_has_zero_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:34:56 [    INFO] HTTP Request: POST http://testserver/api/boards/18a10d9d-ade0-4c64-9df4-033a266cf6d7/columns "HTTP/1.1 403 Forbidden"
+2026-11-07 03:34:56 [    INFO] HTTP Request: POST http://testserver/api/boards/18a10d9d-ade0-4c64-9df4-033a266cf6d7/columns "HTTP/1.1 201 Created"
+PASSED                                                                   [  5%]
+tests/unit/test_board_authority_transaction.py::test_column_create_rechecks_authority_in_first_dml[none] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:34:56 [    INFO] HTTP Request: POST http://testserver/api/boards/e2932a7e-e4e1-415f-bbdf-8b82da56c983/columns "HTTP/1.1 201 Created"
+PASSED                                                                   [  6%]
+tests/unit/test_board_authority_transaction.py::test_column_create_rechecks_authority_in_first_dml[owner_transfer] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:34:57 [    INFO] HTTP Request: POST http://testserver/api/boards/a612f025-b619-4360-bfeb-5aa826ed00f0/columns "HTTP/1.1 404 Not Found"
+PASSED                                                                   [  7%]
+tests/unit/test_board_authority_transaction.py::test_column_create_rechecks_authority_in_first_dml[actor_deactivated] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:34:58 [    INFO] HTTP Request: POST http://testserver/api/boards/89b32aa5-61bf-437f-8576-93ee2eb247cc/columns "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [  8%]
+tests/unit/test_board_authority_transaction.py::test_task_create_rechecks_authority_in_first_dml[none] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:34:58 [    INFO] HTTP Request: POST http://testserver/api/boards/9fe971ab-cd2d-40d8-8ca2-17ad4a5908ff/tasks "HTTP/1.1 201 Created"
+PASSED                                                                   [  9%]
+tests/unit/test_board_authority_transaction.py::test_task_create_rechecks_authority_in_first_dml[owner_transfer] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:34:59 [    INFO] HTTP Request: POST http://testserver/api/boards/0ce80369-be3f-48a3-99f4-7632b22e16ab/tasks "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 10%]
+tests/unit/test_board_authority_transaction.py::test_task_create_rechecks_authority_in_first_dml[actor_deactivated] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:34:59 [    INFO] HTTP Request: POST http://testserver/api/boards/c8b827b2-9550-4f92-b7e7-92f5b714ce25/tasks "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 11%]
+tests/unit/test_board_authority_transaction.py::test_task_patch_rechecks_authority_in_first_dml[none] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:35:00 [    INFO] HTTP Request: PATCH http://testserver/api/boards/4ff056b6-63ef-40da-8069-34de65a579fb/tasks/ea468082-0b78-4e3d-a87c-8842d5111edc "HTTP/1.1 200 OK"
+PASSED                                                                   [ 12%]
+tests/unit/test_board_authority_transaction.py::test_task_patch_rechecks_authority_in_first_dml[owner_transfer] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:35:01 [    INFO] HTTP Request: PATCH http://testserver/api/boards/83eb51f0-1af3-4d96-8207-12310176a4ad/tasks/480e4f9c-176f-4b76-b681-5e93afdc306a "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 13%]
+tests/unit/test_board_authority_transaction.py::test_task_patch_rechecks_authority_in_first_dml[actor_deactivated] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:35:01 [    INFO] HTTP Request: PATCH http://testserver/api/boards/86f61eb1-6ed2-4744-bcbd-ff040e475a86/tasks/e407f0f5-a902-44ed-8cad-456548335316 "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 14%]
+tests/unit/test_board_authority_transaction.py::test_task_delete_rechecks_authority_in_first_dml[none] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:35:02 [    INFO] HTTP Request: DELETE http://testserver/api/boards/0e21bae2-a397-4783-9604-6d80c75907f5/tasks/7ee9e50a-310f-4146-b482-c4bfc96874f2 "HTTP/1.1 204 No Content"
+PASSED                                                                   [ 15%]
+tests/unit/test_board_authority_transaction.py::test_task_delete_rechecks_authority_in_first_dml[owner_transfer] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:35:02 [    INFO] HTTP Request: DELETE http://testserver/api/boards/1d3552f5-84c6-4298-89c0-39b39a921ea1/tasks/d441d505-be76-4b0b-b9ff-b97e9da64648 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 16%]
+tests/unit/test_board_authority_transaction.py::test_task_delete_rechecks_authority_in_first_dml[actor_deactivated] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:35:03 [    INFO] HTTP Request: DELETE http://testserver/api/boards/ef5621c6-99cd-472e-840a-daed91aa54d6/tasks/ec951cb5-d69c-4f8d-85dd-c6bf957dfc21 "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 17%]
+tests/unit/test_board_authority_transaction.py::test_rebalance_rechecks_authority_in_first_dml[none] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:35:04 [    INFO] HTTP Request: POST http://testserver/api/boards/3166940b-7c1c-4d51-8d0e-29106bc7a11d/rebalance "HTTP/1.1 200 OK"
+PASSED                                                                   [ 18%]
+tests/unit/test_board_authority_transaction.py::test_rebalance_rechecks_authority_in_first_dml[owner_transfer] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:35:05 [    INFO] HTTP Request: POST http://testserver/api/boards/c561033d-3700-493d-9c38-4cf46af7a6f6/rebalance "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 19%]
+tests/unit/test_board_authority_transaction.py::test_rebalance_rechecks_authority_in_first_dml[actor_deactivated] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:35:05 [    INFO] HTTP Request: POST http://testserver/api/boards/c4956ee2-b440-4c2b-9ba9-6887bccd303b/rebalance "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 20%]
+tests/unit/test_board_authority_transaction.py::test_comment_create_rechecks_authority_in_first_dml[none] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:35:06 [    INFO] HTTP Request: POST http://testserver/api/boards/1a708499-898b-497a-8fb7-60f9e8dbb034/tasks/0baec0a2-4093-4387-92b4-ef6a0d032bed/comments "HTTP/1.1 201 Created"
+PASSED                                                                   [ 21%]
+tests/unit/test_board_authority_transaction.py::test_comment_create_rechecks_authority_in_first_dml[owner_transfer] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:35:07 [    INFO] HTTP Request: POST http://testserver/api/boards/9a53af87-554e-41d1-8564-2c082e5322a7/tasks/6a6fb7b2-0d53-4d82-b4f5-e8222226d51b/comments "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 22%]
+tests/unit/test_board_authority_transaction.py::test_comment_create_rechecks_authority_in_first_dml[actor_deactivated] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:35:08 [    INFO] HTTP Request: POST http://testserver/api/boards/d8527089-2c82-49c5-a432-2d082b1bef01/tasks/2611e9ba-e525-401e-a8e3-74a9ab90d3b8/comments "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 23%]
+tests/unit/test_board_authority_transaction.py::test_comment_patch_rechecks_authority_in_first_dml[none] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:35:08 [    INFO] HTTP Request: PATCH http://testserver/api/comments/84343810-12cd-4734-8db6-51e6f54b6cce "HTTP/1.1 200 OK"
+PASSED                                                                   [ 24%]
+tests/unit/test_board_authority_transaction.py::test_comment_patch_rechecks_authority_in_first_dml[owner_transfer] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:35:09 [    INFO] HTTP Request: PATCH http://testserver/api/comments/3184278d-73f4-4981-bd5b-ac1e5bffd440 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 25%]
+tests/unit/test_board_authority_transaction.py::test_comment_patch_rechecks_authority_in_first_dml[actor_deactivated] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:35:10 [    INFO] HTTP Request: PATCH http://testserver/api/comments/98c83deb-ddec-4956-b27f-2dc7276074b3 "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 26%]
+tests/unit/test_board_authority_transaction.py::test_comment_delete_rechecks_authority_in_first_dml[none] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:35:11 [    INFO] HTTP Request: DELETE http://testserver/api/comments/0b38936f-55a7-4272-9584-d59238f40488 "HTTP/1.1 204 No Content"
+PASSED                                                                   [ 27%]
+tests/unit/test_board_authority_transaction.py::test_comment_delete_rechecks_authority_in_first_dml[owner_transfer] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:35:12 [    INFO] HTTP Request: DELETE http://testserver/api/comments/47e7b806-5320-4e8c-a8b4-3de955cb93b0 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 28%]
+tests/unit/test_board_authority_transaction.py::test_comment_delete_rechecks_authority_in_first_dml[actor_deactivated] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:35:13 [    INFO] HTTP Request: DELETE http://testserver/api/comments/fb172e80-fcaf-4740-a754-d0aa18628c3c "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 29%]
+tests/unit/test_board_authority_transaction.py::test_decompose_commit_rechecks_authority_in_first_dml[none] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:35:14 [    INFO] HTTP Request: POST http://testserver/api/boards/5e92719b-9290-4396-bb68-fca132e407aa/tasks/45bcb3e3-25bd-4866-9820-ca17d8f61a45/decompose/commit "HTTP/1.1 201 Created"
+PASSED                                                                   [ 30%]
+tests/unit/test_board_authority_transaction.py::test_decompose_commit_rechecks_authority_in_first_dml[owner_transfer] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:35:14 [    INFO] HTTP Request: POST http://testserver/api/boards/cf4f750f-a7ae-4734-b1f3-4baa3c81745e/tasks/96a22c4e-e33b-412f-a36b-8ba3df7995aa/decompose/commit "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 31%]
+tests/unit/test_board_authority_transaction.py::test_decompose_commit_rechecks_authority_in_first_dml[actor_deactivated] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:35:15 [    INFO] HTTP Request: POST http://testserver/api/boards/48de3e5b-9286-49f6-96f6-5d9d0f22b76b/tasks/5fa0574d-2db9-497c-812f-10e86c9bad06/decompose/commit "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 32%]
+tests/unit/test_board_authority_transaction.py::test_board_create_claims_actor_in_first_dml 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:35:16 [    INFO] HTTP Request: POST http://testserver/api/boards "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 33%]
+tests/unit/test_board_first_dml_scope_contract.py::test_board_write_rechecks_scope_in_its_actual_claim[none] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:35:16 [    INFO] HTTP Request: POST http://testserver/api/boards/1f6ffe22-7834-40ab-9692-4fce937182d1/columns "HTTP/1.1 201 Created"
+PASSED                                                                   [ 34%]
+tests/unit/test_board_first_dml_scope_contract.py::test_board_write_rechecks_scope_in_its_actual_claim[owner_transfer] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:35:17 [    INFO] HTTP Request: POST http://testserver/api/boards/216c8e38-8840-4199-a146-f2cdf42f001a/columns "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 35%]
+tests/unit/test_board_first_dml_scope_contract.py::test_board_write_rechecks_scope_in_its_actual_claim[actor_deactivated] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:35:18 [    INFO] HTTP Request: POST http://testserver/api/boards/38d5ca8c-bc7a-45e9-b358-a73a9350f9e7/columns "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 36%]
+tests/unit/test_board_public_owner_contract.py::test_column_creation_respects_owner[False] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:35:19 [    INFO] HTTP Request: GET http://testserver/api/boards "HTTP/1.1 200 OK"
+2026-11-07 03:35:19 [    INFO] HTTP Request: POST http://testserver/api/boards/4d9c9028-ca71-4833-9b4d-01ab619cc352/columns "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 37%]
+tests/unit/test_board_public_owner_contract.py::test_column_creation_respects_owner[True] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:35:19 [    INFO] HTTP Request: GET http://testserver/api/boards "HTTP/1.1 200 OK"
+2026-11-07 03:35:19 [    INFO] HTTP Request: POST http://testserver/api/boards/60e9d5d9-4d4d-48bb-9ad6-f3a026b4c7ef/columns "HTTP/1.1 201 Created"
+PASSED                                                                   [ 38%]
+tests/unit/test_board_service.py::TestBoardCRUD::test_create_board_seeds_default_columns PASSED [ 39%]
+tests/unit/test_board_service.py::TestBoardCRUD::test_create_board_without_seeding_columns PASSED [ 40%]
+tests/unit/test_board_service.py::TestBoardCRUD::test_list_boards PASSED [ 41%]
+tests/unit/test_board_service.py::TestBoardCRUD::test_get_board PASSED   [ 42%]
+tests/unit/test_board_service.py::TestTaskCRUD::test_create_task_appends_to_end_of_column PASSED [ 43%]
+tests/unit/test_board_service.py::TestTaskCRUD::test_patch_unknown_status_returns_422 PASSED [ 44%]
+tests/unit/test_board_service.py::TestTaskCRUD::test_patch_illegal_transition_returns_422_with_allowed_set PASSED [ 45%]
+tests/unit/test_board_service.py::TestTaskCRUD::test_patch_legal_transition_moves_status PASSED [ 46%]
+tests/unit/test_board_service.py::TestTaskCRUD::test_patch_with_stale_version_returns_409 PASSED [ 47%]
+tests/unit/test_board_service.py::TestTaskCRUD::test_patch_move_column_updates_sort_order PASSED [ 48%]
+tests/unit/test_board_service.py::TestRebalance::test_rebalance_column_renumbers_monotonically PASSED [ 49%]
+tests/unit/test_board_service.py::TestTaskWorkspace::test_task_create_with_workspace_true_creates_canvas PASSED [ 50%]
+tests/unit/test_board_service.py::TestTaskWorkspace::test_task_create_without_workspace_has_null_canvas PASSED [ 51%]
+tests/unit/test_board_service.py::TestTaskWorkspace::test_patch_workspace_true_idempotently_creates_canvas PASSED [ 52%]
+tests/unit/test_board_service.py::TestTaskWorkspace::test_completing_task_archives_canvas PASSED [ 53%]
+tests/unit/test_board_comment_service.py::TestTaskComments::test_create_and_list_comment PASSED [ 54%]
+tests/unit/test_board_comment_service.py::TestTaskComments::test_create_reply_builds_threaded_tree_in_O_N PASSED [ 55%]
+tests/unit/test_board_comment_service.py::TestTaskComments::test_only_author_can_patch_their_comment PASSED [ 56%]
+tests/unit/test_board_comment_service.py::TestTaskComments::test_only_author_can_delete_their_comment PASSED [ 57%]
+tests/unit/test_board_comment_service.py::TestTaskComments::test_author_invariant_exactly_one_of_user_or_agent PASSED [ 58%]
+tests/unit/test_board_comment_service.py::TestArtifactCommentAggregation::test_artifact_comments_returned_for_task_with_canvas PASSED [ 59%]
+tests/unit/test_board_comment_service.py::TestArtifactCommentAggregation::test_artifact_comments_empty_when_task_has_no_canvas PASSED [ 60%]
+tests/unit/test_board_comment_service.py::TestSlashParser::test_parse_create PASSED [ 61%]
+tests/unit/test_board_comment_service.py::TestSlashParser::test_parse_create_with_column PASSED [ 62%]
+tests/unit/test_board_comment_service.py::TestSlashParser::test_parse_move PASSED [ 63%]
+tests/unit/test_board_comment_service.py::TestSlashParser::test_parse_assign PASSED [ 64%]
+tests/unit/test_board_comment_service.py::TestSlashParser::test_parse_comment PASSED [ 65%]
+tests/unit/test_board_comment_service.py::TestSlashParser::test_parse_list_no_filter PASSED [ 66%]
+tests/unit/test_board_comment_service.py::TestSlashParser::test_parse_list_with_status PASSED [ 67%]
+tests/unit/test_board_comment_service.py::TestSlashParser::test_parse_decompose PASSED [ 68%]
+tests/unit/test_board_comment_service.py::TestSlashParser::test_parse_non_command_returns_none PASSED [ 69%]
+tests/unit/test_board_comment_service.py::TestSlashParser::test_parse_case_insensitive PASSED [ 70%]
+tests/unit/test_board_comment_service.py::TestCommandRouterBehavior::test_unknown_command_returns_friendly_reply PASSED [ 71%]
+tests/unit/test_board_comment_service.py::TestCommandRouterBehavior::test_unknown_task_returns_friendly_reply_not_500 PASSED [ 72%]
+tests/unit/test_board_comment_service.py::TestCommandRouterBehavior::test_move_via_command_uses_state_machine PASSED [ 73%]
+tests/unit/test_board_comment_service.py::TestCommandRouterBehavior::test_legal_move_succeeds PASSED [ 74%]
+tests/unit/test_board_comment_service.py::TestCommandRouterBehavior::test_create_via_command PASSED [ 75%]
+tests/unit/test_board_comment_service.py::TestCommandRouterBehavior::test_list_via_command_returns_bullets PASSED [ 76%]
+tests/unit/test_board_comment_service.py::TestCommandRouterBehavior::test_decompose_stub_returns_phase4_message PASSED [ 77%]
+tests/unit/test_board_decomposer.py::TestPropose::test_propose_returns_subtasks_when_handler_has_key PASSED [ 78%]
+tests/unit/test_board_decomposer.py::TestPropose::test_propose_no_byok_key_returns_424 PASSED [ 79%]
+tests/unit/test_board_decomposer.py::TestPropose::test_propose_malformed_llm_json_returns_502 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:35:20 [ WARNING] Decompose LLM returned malformed JSON: 1 validation error for DecompositionResult
+subtasks.0.title
+  String should have at least 1 character [type=string_too_short, input_value='', input_type=str]
+    For further information visit https://errors.pydantic.dev/2.13/v/string_too_short
+PASSED                                                                   [ 80%]
+tests/unit/test_board_decomposer.py::TestPropose::test_propose_llm_call_exception_returns_502 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:35:20 [ WARNING] Decompose LLM call failed (task=853fa695-4921-4dbb-9dd2-a4636b0f886f): LLM provider timed out
+PASSED                                                                   [ 81%]
+tests/unit/test_board_decomposer.py::TestPropose::test_propose_caps_at_8_subtasks PASSED [ 82%]
+tests/unit/test_board_decomposer.py::TestPropose::test_propose_empty_proposals_rejected PASSED [ 83%]
+tests/unit/test_board_decomposer.py::TestDepthCap::test_decompose_refused_at_depth_cap PASSED [ 84%]
+tests/unit/test_board_decomposer.py::TestDepthCap::test_decompose_allowed_below_cap PASSED [ 85%]
+tests/unit/test_board_decomposer.py::TestCommit::test_commit_creates_subtasks_atomically PASSED [ 86%]
+tests/unit/test_board_decomposer.py::TestCommit::test_commit_hallucinated_column_falls_back_to_backlog PASSED [ 87%]
+tests/unit/test_board_decomposer.py::TestCommit::test_commit_with_spawn_workspaces_creates_canvas_per_subtask PASSED [ 88%]
+tests/unit/test_board_decomposer.py::TestCommit::test_commit_without_spawn_workspaces_leaves_canvas_null PASSED [ 89%]
+tests/unit/test_board_decomposer.py::TestCommit::test_commit_rollbacks_on_failure PASSED [ 90%]
+tests/unit/test_board_dispatcher.py::TestClaimReadyTasks::test_claim_returns_todo_tasks_with_agent_assignee PASSED [ 91%]
+tests/unit/test_board_dispatcher.py::TestClaimReadyTasks::test_claim_excludes_tasks_without_agent_assignee PASSED [ 92%]
+tests/unit/test_board_dispatcher.py::TestClaimReadyTasks::test_claim_excludes_non_todo_statuses PASSED [ 93%]
+tests/unit/test_board_dispatcher.py::TestDispatchOne::test_dispatch_transitions_todo_to_in_progress 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:35:20 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: Tenant default not found
+2026-11-07 03:35:20 [    INFO] Dispatched task d59c81fd-e9fc-46ef-8f8d-28edb5e5407e -> in_progress (agent=4b125fbb-3f3e-42f6-af57-f4dd3e991955, board=3b59867d-bff9-477e-b4b2-1302c3c605fd)
+PASSED                                                                   [ 94%]
+tests/unit/test_board_dispatcher.py::TestDispatchOne::test_dispatch_without_canvas_does_not_create_presence 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:35:20 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: Tenant default not found
+2026-11-07 03:35:20 [    INFO] Dispatched task 219537f1-e4a9-4949-8e28-00ec256a320a -> in_progress (agent=62d0691c-8698-4190-ad8d-cc3c3c8ec3cd, board=ae33e4b4-8859-4af3-b07c-83a3c530c851)
+PASSED                                                                   [ 95%]
+tests/unit/test_board_dispatcher.py::TestDispatchOne::test_dispatch_with_canvas_creates_active_presence_row 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:35:20 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant default: Tenant default not found
+2026-11-07 03:35:20 [    INFO] Dispatched task 34147d08-98ef-4e9f-997b-0ce56b693381 -> in_progress (agent=3a8f551c-057b-4e50-8503-1dfb9179a4b9, board=4a36fc36-0d1d-4c0d-9331-b2ec2883ca60)
+PASSED                                                                   [ 96%]
+tests/unit/test_board_dispatcher.py::TestDispatchOne::test_dispatch_with_canvas_is_idempotent PASSED [ 97%]
+tests/unit/test_board_dispatcher.py::TestStalePresenceReap::test_reap_marks_old_active_presence_as_left PASSED [ 98%]
+tests/unit/test_board_dispatcher.py::TestStalePresenceReap::test_reap_leaves_recent_active_presence_alone PASSED [ 99%]
+tests/unit/test_board_dispatcher.py::TestDispatcherLifecycle::test_start_stop_idempotent 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:35:20 [    INFO] BoardDispatcher started (machine_id=machine-445a68f0)
+2026-11-07 03:35:20 [    INFO] BoardDispatcher stopped
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 200 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-board-integrated-7oefm7wn/result.xml -
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+====================== 100 passed, 207 warnings in 34.89s ======================

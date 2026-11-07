@@ -1,0 +1,17 @@
+{
+  "predecessor": "929b9e77ba627769934a7880e013d4c25c2574ae",
+  "fixture_changed": true,
+  "scratch": "/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-board-consumer-fixture-cvotr0iv",
+  "command": [
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-board-consumer-fixture-cvotr0iv/pytest",
+    "tests/test_oracle_registry_verification_gap.py::test_full_executor_real_task_create_is_independently_verified",
+    "--junitxml=/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-board-consumer-fixture-cvotr0iv/result.xml",
+    "-q",
+    "--tb=short"
+  ]
+}

@@ -583,7 +583,9 @@ async def chat_with_agent(
                 board_id = request.context.get("board_id")
 
             with get_db_session() as db:
-                router = BoardCommandRouter(db)
+                router = BoardCommandRouter(
+                    db, actor_user_id=str(current_user.id)
+                )
                 reply = router.route(
                     action_type=action_type,
                     parameters=params,

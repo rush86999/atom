@@ -1,0 +1,18 @@
+{
+  "source": "9dbc3e325ccdb3f7fac04f3d143236d19dc701bc",
+  "predecessor_head": "929b9e77ba627769934a7880e013d4c25c2574ae",
+  "hosted_predecessor": {
+    "board": 100,
+    "shared_passed": 322,
+    "shared_failed": 1
+  },
+  "fixture_dirty_diagnostic": {
+    "passed": 2,
+    "actual_exit_code": 0
+  },
+  "integrated": {
+    "passed": 424,
+    "actual_exit_code": 0
+  },
+  "main_integrated": "5b9610b56b06891bca337cd9bdd23c82f3d568d6"
+}

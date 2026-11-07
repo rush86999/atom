@@ -116,6 +116,13 @@ def db_session(board_engine):
 
     SessionLocal = sessionmaker(bind=board_engine)
     session = SessionLocal()
+    # Every board in this file is owned by u1; make the actor row real so the
+    # authoritative owner/active-status check has data to resolve.
+    session.add(User(
+        id="u1", email="u1@example.test", first_name="U", last_name="One",
+        role="member", status="active",
+    ))
+    session.commit()
     yield session
     session.close()
     existing = set(sa_inspect(board_engine).get_table_names())
@@ -342,9 +349,9 @@ class TestBoardEvents:
 
 class TestBoardCommentService:
     def _board_and_task(self, db, title="Task A"):
-        board = BoardService(db).create_board(None, BoardCreate(name="B", seed_default_columns=True))
+        board = BoardService(db, actor_user_id="u1").create_board(None, BoardCreate(name="B", seed_default_columns=True))
         col = db.query(BoardColumn).filter(BoardColumn.board_id == board.id).first()
-        task = BoardService(db).create_task(
+        task = BoardService(db, actor_user_id="u1").create_task(
             board.id, None, TaskCreate(title=title, column_id=str(col.id))
         )
         return board, task
@@ -354,13 +361,7 @@ class TestBoardCommentService:
 
     def test_create_comment_user(self, db_session):
         board, task = self._board_and_task(db_session)
-        svc = BoardCommentService(db_session)
-        user = User(
-            id="u1", email="alice@example.com", first_name="Alice", last_name="Smith",
-            role="admin", status="active",
-        )
-        db_session.add(user)
-        db_session.commit()
+        svc = BoardCommentService(db_session, actor_user_id="u1")
         msg = svc.create_comment(str(board.id), str(task.id), "u1", "hello")
         assert msg.conversation_id == f"board_task:{task.id}"
         assert msg.message_type == "board_comment"
@@ -369,7 +370,7 @@ class TestBoardCommentService:
 
     def test_create_comment_agent(self, db_session):
         board, task = self._board_and_task(db_session)
-        svc = BoardCommentService(db_session)
+        svc = BoardCommentService(db_session, actor_user_id="u1")
         msg = svc.create_comment(
             str(board.id), str(task.id), None, "from agent", author_agent_id="ag1"
         )
@@ -378,34 +379,34 @@ class TestBoardCommentService:
 
     def test_create_comment_both_identities_rejected(self, db_session):
         board, task = self._board_and_task(db_session)
-        svc = BoardCommentService(db_session)
+        svc = BoardCommentService(db_session, actor_user_id="u1")
         with pytest.raises(HTTPException) as ei:
             svc.create_comment(str(board.id), str(task.id), "u1", "x", author_agent_id="ag1")
         assert ei.value.status_code == 422
 
     def test_create_comment_no_identity_rejected(self, db_session):
         board, task = self._board_and_task(db_session)
-        svc = BoardCommentService(db_session)
+        svc = BoardCommentService(db_session, actor_user_id="u1")
         with pytest.raises(HTTPException) as ei:
             svc.create_comment(str(board.id), str(task.id), None, "x")
         assert ei.value.status_code == 422
 
     def test_create_comment_task_not_found(self, db_session):
-        svc = BoardCommentService(db_session)
+        svc = BoardCommentService(db_session, actor_user_id="u1")
         with pytest.raises(HTTPException) as ei:
             svc.create_comment("b1", "nope", "u1", "x")
         assert ei.value.status_code == 404
 
     def test_create_comment_wrong_board_scoped(self, db_session):
         board, task = self._board_and_task(db_session)
-        svc = BoardCommentService(db_session)
+        svc = BoardCommentService(db_session, actor_user_id="u1")
         with pytest.raises(HTTPException) as ei:
             svc.create_comment("other-board", str(task.id), "u1", "x")
         assert ei.value.status_code == 404
 
     def test_create_reply(self, db_session):
         board, task = self._board_and_task(db_session)
-        svc = BoardCommentService(db_session)
+        svc = BoardCommentService(db_session, actor_user_id="u1")
         parent = svc.create_comment(str(board.id), str(task.id), None, "parent", author_agent_id="ag1")
         reply = svc.create_comment(
             str(board.id), str(task.id), None, "reply", parent_message_id=str(parent.id),
@@ -415,7 +416,7 @@ class TestBoardCommentService:
 
     def test_create_reply_parent_missing(self, db_session):
         board, task = self._board_and_task(db_session)
-        svc = BoardCommentService(db_session)
+        svc = BoardCommentService(db_session, actor_user_id="u1")
         with pytest.raises(HTTPException) as ei:
             svc.create_comment(
                 str(board.id), str(task.id), None, "reply",
@@ -425,7 +426,7 @@ class TestBoardCommentService:
 
     def test_list_comments_and_before_id(self, db_session):
         board, task = self._board_and_task(db_session)
-        svc = BoardCommentService(db_session)
+        svc = BoardCommentService(db_session, actor_user_id="u1")
         c1 = svc.create_comment(str(board.id), str(task.id), None, "first", author_agent_id="ag1")
         c2 = svc.create_comment(str(board.id), str(task.id), None, "second", author_agent_id="ag1")
         c3 = svc.create_comment(str(board.id), str(task.id), None, "third", author_agent_id="ag1")
@@ -444,7 +445,7 @@ class TestBoardCommentService:
 
     def test_list_comments_limit_clamped(self, db_session):
         board, task = self._board_and_task(db_session)
-        svc = BoardCommentService(db_session)
+        svc = BoardCommentService(db_session, actor_user_id="u1")
         for i in range(5):
             svc.create_comment(str(board.id), str(task.id), None, f"c{i}", author_agent_id="ag1")
         rows = svc.list_comments(str(board.id), str(task.id), limit=2)
@@ -453,24 +454,21 @@ class TestBoardCommentService:
         assert len(rows) == 5
 
     def test_list_comments_task_missing(self, db_session):
-        svc = BoardCommentService(db_session)
+        svc = BoardCommentService(db_session, actor_user_id="u1")
         with pytest.raises(HTTPException) as ei:
             svc.list_comments("b1", "nope")
         assert ei.value.status_code == 404
 
     def test_resolve_author_display_user(self, db_session):
-        db_session.add(
-            User(
-                id="u1", email="alice@example.com", first_name="Alice", last_name="",
-                role="admin", status="active",
-            )
-        )
+        user = db_session.query(User).filter(User.id == "u1").first()
+        user.first_name = "Alice"
+        user.last_name = ""
         db_session.commit()
         msg = AgentMessage(
             tenant_id="default", from_user_id="u1", message_type="board_comment",
             content="x", status="delivered",
         )
-        svc = BoardCommentService(db_session)
+        svc = BoardCommentService(db_session, actor_user_id="u1")
         user_id, agent_id, display = svc._resolve_author_display(msg)
         assert user_id == "u1"
         assert agent_id is None
@@ -481,7 +479,7 @@ class TestBoardCommentService:
             tenant_id="default", from_user_id="ghost", message_type="board_comment",
             content="x", status="delivered",
         )
-        svc = BoardCommentService(db_session)
+        svc = BoardCommentService(db_session, actor_user_id="u1")
         user_id, agent_id, display = svc._resolve_author_display(msg)
         assert display is None
 
@@ -490,7 +488,7 @@ class TestBoardCommentService:
             tenant_id="default", from_agent_id="ag1", message_type="board_comment",
             content="x", status="delivered",
         )
-        svc = BoardCommentService(db_session)
+        svc = BoardCommentService(db_session, actor_user_id="u1")
         user_id, agent_id, display = svc._resolve_author_display(msg)
         assert user_id is None
         assert agent_id == "ag1"
@@ -503,7 +501,7 @@ class TestBoardCommentService:
         )
         db_session.add(msg)
         db_session.flush()
-        out = BoardCommentService(db_session)._serialize(msg)
+        out = BoardCommentService(db_session, actor_user_id="u1")._serialize(msg)
         assert out["id"] == str(msg.id)
         assert out["task_id"] == "t1"
         assert out["content"] == "hello"
@@ -529,7 +527,7 @@ class TestBoardCommentService:
         )
         db_session.add(orphan)
         db_session.flush()
-        roots = BoardCommentService(db_session).build_thread_tree([parent, child, orphan])
+        roots = BoardCommentService(db_session, actor_user_id="u1").build_thread_tree([parent, child, orphan])
         assert len(roots) == 2
         by_id = {r["id"]: r for r in roots}
         assert len(by_id[str(parent.id)]["replies"]) == 1
@@ -537,24 +535,20 @@ class TestBoardCommentService:
 
     def test_patch_comment(self, db_session):
         board, task = self._board_and_task(db_session)
-        svc = BoardCommentService(db_session)
-        db_session.add(
-            User(id="u1", email="a@x.com", first_name="A", last_name="", role="admin", status="active")
-        )
-        db_session.commit()
+        svc = BoardCommentService(db_session, actor_user_id="u1")
         msg = svc.create_comment(str(board.id), str(task.id), "u1", "orig")
         updated = svc.patch_comment(str(msg.id), "u1", "edited")
         assert updated.content == "edited"
 
     def test_patch_comment_missing(self, db_session):
-        svc = BoardCommentService(db_session)
+        svc = BoardCommentService(db_session, actor_user_id="u1")
         with pytest.raises(HTTPException) as ei:
             svc.patch_comment("ghost", "u1", "x")
         assert ei.value.status_code == 404
 
     def test_patch_comment_not_author(self, db_session):
         board, task = self._board_and_task(db_session)
-        svc = BoardCommentService(db_session)
+        svc = BoardCommentService(db_session, actor_user_id="u1")
         msg = svc.create_comment(str(board.id), str(task.id), None, "orig", author_agent_id="ag1")
         with pytest.raises(HTTPException) as ei:
             svc.patch_comment(str(msg.id), "u1", "hijack")
@@ -562,24 +556,20 @@ class TestBoardCommentService:
 
     def test_delete_comment(self, db_session):
         board, task = self._board_and_task(db_session)
-        svc = BoardCommentService(db_session)
-        db_session.add(
-            User(id="u1", email="a@x.com", first_name="A", last_name="", role="admin", status="active")
-        )
-        db_session.commit()
+        svc = BoardCommentService(db_session, actor_user_id="u1")
         msg = svc.create_comment(str(board.id), str(task.id), "u1", "bye")
         svc.delete_comment(str(msg.id), "u1")
         assert db_session.query(AgentMessage).filter(AgentMessage.id == str(msg.id)).first() is None
 
     def test_delete_comment_missing(self, db_session):
-        svc = BoardCommentService(db_session)
+        svc = BoardCommentService(db_session, actor_user_id="u1")
         with pytest.raises(HTTPException) as ei:
             svc.delete_comment("ghost", "u1")
         assert ei.value.status_code == 404
 
     def test_delete_comment_forbidden(self, db_session):
         board, task = self._board_and_task(db_session)
-        svc = BoardCommentService(db_session)
+        svc = BoardCommentService(db_session, actor_user_id="u1")
         msg = svc.create_comment(str(board.id), str(task.id), None, "x", author_agent_id="ag1")
         with pytest.raises(HTTPException) as ei:
             svc.delete_comment(str(msg.id), "u1")
@@ -587,7 +577,7 @@ class TestBoardCommentService:
 
     def test_list_artifact_comments_no_canvas(self, db_session):
         board, task = self._board_and_task(db_session)
-        svc = BoardCommentService(db_session)
+        svc = BoardCommentService(db_session, actor_user_id="u1")
         assert svc.list_artifact_comments_for_task(str(board.id), str(task.id)) == []
 
     def test_list_artifact_comments(self, db_session):
@@ -615,7 +605,7 @@ class TestBoardCommentService:
             )
         )
         db_session.commit()
-        svc = BoardCommentService(db_session)
+        svc = BoardCommentService(db_session, actor_user_id="u1")
         rows = svc.list_artifact_comments_for_task(str(board.id), str(task.id))
         assert len(rows) == 1
         assert rows[0]["content"] == "note"
@@ -629,15 +619,15 @@ class TestBoardCommentService:
 
 class TestBoardService:
     def _svc(self, db):
-        return BoardService(db)
+        return BoardService(db, actor_user_id="u1")
 
     def _board(self, db, seed=True):
-        svc = BoardService(db)
+        svc = BoardService(db, actor_user_id="u1")
         board = svc.create_board("u1", BoardCreate(name="Board", seed_default_columns=seed))
         return board
 
     def _task(self, db, board=None, col=None, title="T", **kw):
-        svc = BoardService(db)
+        svc = BoardService(db, actor_user_id="u1")
         board = board or self._board(db)
         col = col or db.query(BoardColumn).filter(BoardColumn.board_id == board.id).first()
         payload = TaskCreate(title=title, column_id=str(col.id), **kw)
@@ -654,7 +644,7 @@ class TestBoardService:
         assert db_session.query(BoardColumn).filter(BoardColumn.board_id == board.id).count() == 0
 
     def test_list_boards(self, db_session):
-        svc = BoardService(db_session)
+        svc = BoardService(db_session, actor_user_id="u1")
         b1 = self._board(db_session)
         b2 = self._board(db_session)
         assert {b.id for b in svc.list_boards()} == {b1.id, b2.id}
@@ -1052,9 +1042,9 @@ class TestBoardService:
 
 class TestBoardDecomposer:
     def _board_task(self, db):
-        board = BoardService(db).create_board(None, BoardCreate(name="B", seed_default_columns=True))
+        board = BoardService(db, actor_user_id="u1").create_board(None, BoardCreate(name="B", seed_default_columns=True))
         col = db.query(BoardColumn).filter(BoardColumn.board_id == board.id).first()
-        task = BoardService(db).create_task(
+        task = BoardService(db, actor_user_id="u1").create_task(
             str(board.id), None, TaskCreate(title="Parent", column_id=str(col.id))
         )
         return board, task
@@ -1083,9 +1073,9 @@ class TestBoardDecomposer:
         assert r.rationale == ""
 
     def test_root_depth_chain(self, db_session):
-        decomposer = BoardDecomposer(db_session)
+        decomposer = BoardDecomposer(db_session, actor_user_id="u1")
         board, task = self._board_task(db_session)
-        svc = BoardService(db_session)
+        svc = BoardService(db_session, actor_user_id="u1")
         child = svc.create_task(
             str(board.id), None, TaskCreate(title="c", column_id=str(task.column_id),
                                             parent_task_id=str(task.id))
@@ -1095,9 +1085,9 @@ class TestBoardDecomposer:
         assert decomposer._root_depth(child) == 2
 
     def test_check_depth_raises(self, db_session):
-        decomposer = BoardDecomposer(db_session)
+        decomposer = BoardDecomposer(db_session, actor_user_id="u1")
         board, task = self._board_task(db_session)
-        svc = BoardService(db_session)
+        svc = BoardService(db_session, actor_user_id="u1")
         c1 = svc.create_task(
             str(board.id), None, TaskCreate(title="c1", column_id=str(task.column_id),
                                             parent_task_id=str(task.id))
@@ -1113,7 +1103,7 @@ class TestBoardDecomposer:
 
     def test_check_depth_root_ok(self, db_session):
         board, task = self._board_task(db_session)
-        BoardDecomposer(db_session)._check_depth(task)
+        BoardDecomposer(db_session, actor_user_id="u1")._check_depth(task)
 
     def test_check_byok_no_clients(self, db_session):
         handler = MagicMock()
@@ -1141,7 +1131,7 @@ class TestBoardDecomposer:
 
     def test_canvas_artifact_summary_none(self, db_session):
         board, task = self._board_task(db_session)
-        assert BoardDecomposer(db_session)._canvas_artifact_summary(task) == "CANVAS: (none)"
+        assert BoardDecomposer(db_session, actor_user_id="u1")._canvas_artifact_summary(task) == "CANVAS: (none)"
 
     def test_canvas_artifact_summary_no_artifacts(self, db_session):
         db_session.add(Tenant(id="t1", name="T", subdomain="t1"))
@@ -1152,7 +1142,7 @@ class TestBoardDecomposer:
         board, task = self._board_task(db_session)
         task.canvas_id = canvas.id
         db_session.commit()
-        assert BoardDecomposer(db_session)._canvas_artifact_summary(task) == (
+        assert BoardDecomposer(db_session, actor_user_id="u1")._canvas_artifact_summary(task) == (
             "CANVAS: present, no artifacts yet"
         )
 
@@ -1171,14 +1161,14 @@ class TestBoardDecomposer:
         board, task = self._board_task(db_session)
         task.canvas_id = canvas.id
         db_session.commit()
-        summary = BoardDecomposer(db_session)._canvas_artifact_summary(task)
+        summary = BoardDecomposer(db_session, actor_user_id="u1")._canvas_artifact_summary(task)
         assert "spec.md" in summary
 
     @pytest.mark.asyncio
     async def test_propose_success(self, db_session):
         board, task = self._board_task(db_session)
         handler = self._handler({"title": "Subtask one"})
-        decomposer = BoardDecomposer(db_session)
+        decomposer = BoardDecomposer(db_session, actor_user_id="u1")
         result = await decomposer.propose(str(board.id), str(task.id), handler)
         assert result.subtasks[0].title == "Subtask one"
 
@@ -1190,7 +1180,7 @@ class TestBoardDecomposer:
         handler.generate_structured_response = AsyncMock(
             return_value={"rationale": "r", "subtasks": [{"title": "T"}]}
         )
-        result = await BoardDecomposer(db_session).propose(str(board.id), str(task.id), handler)
+        result = await BoardDecomposer(db_session, actor_user_id="u1").propose(str(board.id), str(task.id), handler)
         assert result.subtasks[0].title == "T"
 
     @pytest.mark.asyncio
@@ -1202,7 +1192,7 @@ class TestBoardDecomposer:
             return_value={"rationale": "r", "subtasks": [{"title": ""}]}
         )
         with pytest.raises(HTTPException) as ei:
-            await BoardDecomposer(db_session).propose(str(board.id), str(task.id), handler)
+            await BoardDecomposer(db_session, actor_user_id="u1").propose(str(board.id), str(task.id), handler)
         assert ei.value.status_code == 502
         assert ei.value.detail["error"] == "decompose_llm_malformed"
 
@@ -1213,7 +1203,7 @@ class TestBoardDecomposer:
         handler.clients = {"openai": "k"}
         handler.generate_structured_response = AsyncMock(side_effect=RuntimeError("boom"))
         with pytest.raises(HTTPException) as ei:
-            await BoardDecomposer(db_session).propose(str(board.id), str(task.id), handler)
+            await BoardDecomposer(db_session, actor_user_id="u1").propose(str(board.id), str(task.id), handler)
         assert ei.value.status_code == 502
         assert ei.value.detail["error"] == "decompose_llm_failed"
 
@@ -1224,7 +1214,7 @@ class TestBoardDecomposer:
         handler.clients = {"openai": "k"}
         handler.generate_structured_response = AsyncMock(return_value=None)
         with pytest.raises(HTTPException) as ei:
-            await BoardDecomposer(db_session).propose(str(board.id), str(task.id), handler)
+            await BoardDecomposer(db_session, actor_user_id="u1").propose(str(board.id), str(task.id), handler)
         assert ei.value.status_code == 502
         assert ei.value.detail["error"] == "decompose_llm_no_response"
 
@@ -1237,7 +1227,7 @@ class TestBoardDecomposer:
             return_value=DecompositionResult(rationale="r", subtasks=[])
         )
         with pytest.raises(HTTPException) as ei:
-            await BoardDecomposer(db_session).propose(str(board.id), str(task.id), handler)
+            await BoardDecomposer(db_session, actor_user_id="u1").propose(str(board.id), str(task.id), handler)
         assert ei.value.status_code == 502
         assert ei.value.detail["error"] == "decompose_empty"
 
@@ -1252,14 +1242,14 @@ class TestBoardDecomposer:
                 subtasks=[SubtaskProposal(title=f"s{i}") for i in range(10)],
             )
         )
-        result = await BoardDecomposer(db_session).propose(str(board.id), str(task.id), handler)
+        result = await BoardDecomposer(db_session, actor_user_id="u1").propose(str(board.id), str(task.id), handler)
         assert len(result.subtasks) == 8
 
     @pytest.mark.asyncio
     async def test_propose_task_missing(self, db_session):
         handler = self._handler({"title": "T"})
         with pytest.raises(HTTPException) as ei:
-            await BoardDecomposer(db_session).propose("b1", "nope", handler)
+            await BoardDecomposer(db_session, actor_user_id="u1").propose("b1", "nope", handler)
         assert ei.value.status_code == 404
 
     @pytest.mark.asyncio
@@ -1268,12 +1258,12 @@ class TestBoardDecomposer:
         handler = MagicMock()
         handler.clients = {}
         with pytest.raises(HTTPException) as ei:
-            await BoardDecomposer(db_session).propose(str(board.id), str(task.id), handler)
+            await BoardDecomposer(db_session, actor_user_id="u1").propose(str(board.id), str(task.id), handler)
         assert ei.value.status_code == 424
 
     def test_commit_basic(self, db_session):
         board, task = self._board_task(db_session)
-        decomposer = BoardDecomposer(db_session)
+        decomposer = BoardDecomposer(db_session, actor_user_id="u1")
         created = decomposer.commit(
             str(board.id), str(task.id),
             [SubtaskProposal(title="s1", column_name="To Do"),
@@ -1291,13 +1281,11 @@ class TestBoardDecomposer:
 
     def test_commit_user_tenant(self, db_session):
         db_session.add(Tenant(id="t1", name="T", subdomain="t1"))
-        db_session.add(
-            User(id="u1", email="a@x.com", first_name="A", last_name="", role="admin",
-                 status="active", tenant_id="t1")
-        )
+        user = db_session.query(User).filter(User.id == "u1").first()
+        user.tenant_id = "t1"
         db_session.commit()
         board, task = self._board_task(db_session)
-        created = BoardDecomposer(db_session).commit(
+        created = BoardDecomposer(db_session, actor_user_id="u1").commit(
             str(board.id), str(task.id), [SubtaskProposal(title="s1")], created_by_user_id="u1"
         )
         assert created[0].created_by_user_id == "u1"
@@ -1306,7 +1294,7 @@ class TestBoardDecomposer:
         db_session.add(Tenant(id="t2", name="T2", subdomain="t2"))
         db_session.commit()
         board, task = self._board_task(db_session)
-        created = BoardDecomposer(db_session).commit(
+        created = BoardDecomposer(db_session, actor_user_id="u1").commit(
             str(board.id), str(task.id), [SubtaskProposal(title="s1")], created_by_user_id=None
         )
         assert created[0].id
@@ -1315,7 +1303,7 @@ class TestBoardDecomposer:
         db_session.add(Tenant(id="t1", name="T", subdomain="t1"))
         db_session.commit()
         board, task = self._board_task(db_session)
-        created = BoardDecomposer(db_session).commit(
+        created = BoardDecomposer(db_session, actor_user_id="u1").commit(
             str(board.id), str(task.id), [SubtaskProposal(title="s1")],
             created_by_user_id=None, spawn_workspaces=True,
         )
@@ -1323,12 +1311,7 @@ class TestBoardDecomposer:
 
     def test_commit_rolls_back_on_error(self, db_session):
         board, task = self._board_task(db_session)
-        db_session.add(
-            User(id="u1", email="a@x.com", first_name="A", last_name="", role="admin",
-                 status="active", tenant_id="t1")
-        )
-        db_session.commit()
-        decomposer = BoardDecomposer(db_session)
+        decomposer = BoardDecomposer(db_session, actor_user_id="u1")
         with patch.object(BoardService, "create_task_workspace", side_effect=RuntimeError("x")):
             with pytest.raises(RuntimeError):
                 decomposer.commit(
@@ -1339,12 +1322,12 @@ class TestBoardDecomposer:
 
     def test_commit_parent_missing(self, db_session):
         with pytest.raises(HTTPException) as ei:
-            BoardDecomposer(db_session).commit("b1", "nope", [], None)
+            BoardDecomposer(db_session, actor_user_id="u1").commit("b1", "nope", [], None)
         assert ei.value.status_code == 404
 
     def test_commit_depth_cap(self, db_session):
         board, task = self._board_task(db_session)
-        svc = BoardService(db_session)
+        svc = BoardService(db_session, actor_user_id="u1")
         c1 = svc.create_task(
             str(board.id), None, TaskCreate(title="c1", column_id=str(task.column_id),
                                             parent_task_id=str(task.id))
@@ -1354,7 +1337,7 @@ class TestBoardDecomposer:
                                             parent_task_id=str(c1.id))
         )
         with pytest.raises(HTTPException) as ei:
-            BoardDecomposer(db_session).commit(str(board.id), str(c2.id), [SubtaskProposal(title="x")], None)
+            BoardDecomposer(db_session, actor_user_id="u1").commit(str(board.id), str(c2.id), [SubtaskProposal(title="x")], None)
         assert ei.value.status_code == 422
 
 
@@ -1408,13 +1391,13 @@ class TestParseSlash:
 
 class TestBoardCommandRouter:
     def _setup(self, db):
-        router = BoardCommandRouter(db)
-        board = BoardService(db).create_board("u1", BoardCreate(name="B", seed_default_columns=True))
+        router = BoardCommandRouter(db, actor_user_id="u1")
+        board = BoardService(db, actor_user_id="u1").create_board("u1", BoardCreate(name="B", seed_default_columns=True))
         return router, board
 
     def _task(self, db, board):
         col = db.query(BoardColumn).filter(BoardColumn.board_id == board.id).first()
-        return BoardService(db).create_task(
+        return BoardService(db, actor_user_id="u1").create_task(
             str(board.id), "u1", TaskCreate(title="Task", column_id=str(col.id))
         )
 
@@ -1448,7 +1431,7 @@ class TestBoardCommandRouter:
     def test_resolve_task_ambiguous_short_id(self, db_session):
         router, board = self._setup(db_session)
         task1 = self._task(db_session, board)
-        task2 = BoardService(db_session).create_task(
+        task2 = BoardService(db_session, actor_user_id="u1").create_task(
             str(board.id), "u1", TaskCreate(title="T2", column_id=str(task1.column_id))
         )
         suffix = str(task1.id)[-4:]
@@ -1657,7 +1640,7 @@ class TestBoardCommandRouter:
     def test_cmd_list_filtered(self, db_session):
         router, board = self._setup(db_session)
         task = self._task(db_session, board)
-        BoardService(db_session).patch_task(
+        BoardService(db_session, actor_user_id="u1").patch_task(
             str(board.id), str(task.id), TaskPatch(expected_version=1, status="todo")
         )
         reply = router.route("board_list", {"status": "todo"}, "u1", board_id=str(board.id))
@@ -1782,9 +1765,9 @@ class TestBoardDispatcher:
             assert await d._acquire_lock() is True
 
     def _claim_fixture(self, db, status="todo"):
-        board = BoardService(db).create_board(None, BoardCreate(name="B", seed_default_columns=True))
+        board = BoardService(db, actor_user_id="u1").create_board(None, BoardCreate(name="B", seed_default_columns=True))
         col = db.query(BoardColumn).filter(BoardColumn.board_id == board.id).first()
-        task = BoardService(db).create_task(
+        task = BoardService(db, actor_user_id="u1").create_task(
             str(board.id), None,
             TaskCreate(title="T", column_id=str(col.id), status=status,
                        assignee_agent_id="ag1"),
@@ -2008,7 +1991,7 @@ class TestBoardDispatcher:
     @pytest.mark.asyncio
     async def test_tick_dispatch_error_continues(self, db_session, session_factory):
         board, task1 = self._claim_fixture(db_session)
-        task2 = BoardService(db_session).create_task(
+        task2 = BoardService(db_session, actor_user_id="u1").create_task(
             str(board.id), None,
             TaskCreate(title="T2", column_id=str(task1.column_id),
                        status="todo", assignee_agent_id="ag2"),
@@ -2365,14 +2348,14 @@ class TestAITriggerCoordinator:
 
 class TestCoverageEdgeCases:
     def test_root_depth_cycle_break(self, db_session):
-        board = BoardService(db_session).create_board(None, BoardCreate(name="B", seed_default_columns=True))
+        board = BoardService(db_session, actor_user_id="u1").create_board(None, BoardCreate(name="B", seed_default_columns=True))
         col = db_session.query(BoardColumn).filter(BoardColumn.board_id == board.id).first()
-        task = BoardService(db_session).create_task(
+        task = BoardService(db_session, actor_user_id="u1").create_task(
             str(board.id), None, TaskCreate(title="T", column_id=str(col.id))
         )
         task.parent_task_id = task.id
         db_session.commit()
-        assert BoardDecomposer(db_session)._root_depth(task) == 1
+        assert BoardDecomposer(db_session, actor_user_id="u1")._root_depth(task) == 1
 
     @pytest.mark.asyncio
     async def test_release_lock_no_client(self, session_factory):
@@ -2456,11 +2439,11 @@ class TestCoverageEdgeCases:
         canvas = Canvas(tenant_id="t1", created_by="system", name="ws", canvas_type="kanban")
         db_session.add(canvas)
         db_session.flush()
-        board = BoardService(db_session).create_board(
+        board = BoardService(db_session, actor_user_id="u1").create_board(
             None, BoardCreate(name="B", seed_default_columns=True)
         )
         col = db_session.query(BoardColumn).filter(BoardColumn.board_id == board.id).first()
-        task = BoardService(db_session).create_task(
+        task = BoardService(db_session, actor_user_id="u1").create_task(
             str(board.id), None,
             TaskCreate(title="T", column_id=str(col.id), status="todo",
                        assignee_agent_id="ag1"),

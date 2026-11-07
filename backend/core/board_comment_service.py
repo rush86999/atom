@@ -7,6 +7,7 @@ from fastapi import HTTPException
 from sqlalchemy import desc
 from sqlalchemy.orm import Session
 
+from core.board_access import get_owned_board, require_active_actor
 from core.models import AgentMessage, Artifact, ArtifactComment, Tenant, User
 from core.models_board import Board, BoardTask
 
@@ -22,12 +23,33 @@ def task_conversation_id(task_id: str) -> str:
 class BoardCommentService:
     """Reads + writes task-level comments; reads artifact-level comments (Single-tenant)."""
 
-    def __init__(self, db: Session):
+    def __init__(
+        self,
+        db: Session,
+        *,
+        actor_user_id: Union[str, None] = None,
+    ):
         self.db = db
+        # Every comment read/write is scoped to the authenticated principal.
+        self.actor_user_id = str(actor_user_id) if actor_user_id else None
+
+    def require_active_actor(self) -> str:
+        return require_active_actor(self.db, self.actor_user_id)
 
     def _get_task_scoped(
-        self, board_id: str, task_id: str
+        self,
+        board_id: str,
+        task_id: str,
+        *,
+        for_update: bool = False,
     ) -> BoardTask:
+        # Authorize the owning board first; never resolve a task by id alone.
+        get_owned_board(
+            self.db,
+            board_id,
+            self.actor_user_id,
+            for_update=for_update,
+        )
         task = (
             self.db.query(BoardTask)
             .filter(
@@ -39,6 +61,35 @@ class BoardCommentService:
         if not task:
             raise HTTPException(status_code=404, detail="Task not found")
         return task
+
+    def _get_comment_scoped(
+        self, comment_id: str, *, for_update: bool = False
+    ) -> AgentMessage:
+        """Resolve a board comment only through its task's owning board."""
+        msg = (
+            self.db.query(AgentMessage)
+            .filter(
+                AgentMessage.id == comment_id,
+                AgentMessage.message_type == "board_comment",
+            )
+            .first()
+        )
+        if msg is None or msg.task_id is None:
+            raise HTTPException(status_code=404, detail="Comment not found")
+        task = (
+            self.db.query(BoardTask)
+            .filter(BoardTask.id == str(msg.task_id))
+            .first()
+        )
+        if task is None:
+            raise HTTPException(status_code=404, detail="Comment not found")
+        get_owned_board(
+            self.db,
+            str(task.board_id),
+            self.actor_user_id,
+            for_update=for_update,
+        )
+        return msg
 
     def _resolve_author_display(
         self, msg: AgentMessage
@@ -86,7 +137,16 @@ class BoardCommentService:
                 detail="Exactly one of author_user_id / author_agent_id is required.",
             )
 
-        task = self._get_task_scoped(board_id, task_id)
+        # A human-authored comment must be authored by the authenticated actor;
+        # internal callers cannot attribute a comment to a different user.
+        if author_user_id and self.actor_user_id:
+            if str(author_user_id) != self.actor_user_id:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Cannot post a comment as another user",
+                )
+
+        task = self._get_task_scoped(board_id, task_id, for_update=True)
 
         if parent_message_id is not None:
             parent = (
@@ -171,16 +231,7 @@ class BoardCommentService:
         author_user_id: str,
         new_content: str,
     ) -> AgentMessage:
-        msg = (
-            self.db.query(AgentMessage)
-            .filter(
-                AgentMessage.id == comment_id,
-                AgentMessage.message_type == "board_comment",
-            )
-            .first()
-        )
-        if msg is None:
-            raise HTTPException(status_code=404, detail="Comment not found")
+        msg = self._get_comment_scoped(comment_id, for_update=True)
         if msg.from_user_id is None or str(msg.from_user_id) != str(author_user_id):
             raise HTTPException(status_code=403, detail="Only the comment author can edit")
         msg.content = new_content
@@ -193,16 +244,7 @@ class BoardCommentService:
         comment_id: str,
         author_user_id: str,
     ) -> None:
-        msg = (
-            self.db.query(AgentMessage)
-            .filter(
-                AgentMessage.id == comment_id,
-                AgentMessage.message_type == "board_comment",
-            )
-            .first()
-        )
-        if msg is None:
-            raise HTTPException(status_code=404, detail="Comment not found")
+        msg = self._get_comment_scoped(comment_id, for_update=True)
         if msg.from_user_id is None or str(msg.from_user_id) != str(author_user_id):
             raise HTTPException(status_code=403, detail="Only the comment author can delete")
         self.db.delete(msg)

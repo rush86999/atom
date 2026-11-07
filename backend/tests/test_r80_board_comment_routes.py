@@ -266,11 +266,13 @@ class TestPatchComment:
         assert r.status_code == 200
         assert r.json()["content"] == "fixed"
 
-    def test_patch_foreign_comment_403(self, client):
-        c, holder = client
-        cid = _create_comment(c, content="mine").json()["id"]
-        holder["user_id"] = "user-2"
-        r = c.patch(f"/api/comments/{cid}", json={"content": "hack"})
+    def test_patch_foreign_comment_403(self, client, db_session):
+        c, _ = client
+        _seed_comment(
+            db_session, "task-1", "mine", datetime.now(timezone.utc),
+            "m-foreign", from_user_id="user-2",
+        )
+        r = c.patch("/api/comments/m-foreign", json={"content": "hack"})
         assert r.status_code == 403
 
     def test_patch_missing_comment_404(self, client):
@@ -287,11 +289,13 @@ class TestDeleteComment:
         remaining = db_session.query(AgentMessage).filter(AgentMessage.id == cid).first()
         assert remaining is None
 
-    def test_delete_foreign_comment_403(self, client):
-        c, holder = client
-        cid = _create_comment(c, content="mine").json()["id"]
-        holder["user_id"] = "user-2"
-        assert c.delete(f"/api/comments/{cid}").status_code == 403
+    def test_delete_foreign_comment_403(self, client, db_session):
+        c, _ = client
+        _seed_comment(
+            db_session, "task-1", "mine", datetime.now(timezone.utc),
+            "m-foreign-del", from_user_id="user-2",
+        )
+        assert c.delete("/api/comments/m-foreign-del").status_code == 403
 
     def test_delete_missing_comment_404(self, client):
         c, _ = client
