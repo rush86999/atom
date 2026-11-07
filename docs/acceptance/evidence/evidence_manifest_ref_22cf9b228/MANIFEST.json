@@ -1,0 +1,20 @@
+{
+  "executed_source": "22cf9b228443114dad245e7040f61a6bd8f25b79",
+  "source_files": {
+    "scripts/acceptance/evidence_git_check.py": "c55c544680d1f6c22a2d4e1034d9cc20db137d21226d3d95d4db54514cb93fdc",
+    "backend/tests/test_evidence_git_ref_contract.py": "1656186793a126613059a86ed1a59e31b765b10414517c136a72adf473396ab3",
+    ".github/workflows/ci.yml": "2892a561e33c474c9050371f2c13b4dbcf1322f318f3298ad463342d6c63425d"
+  },
+  "artifacts": {
+    "fixed-exit.json": "562fb8d4449cfe1754c26a30972916bafb91c487afd9ad71a6aebaf09bbb91fe",
+    "fixed-spec.json": "0dfef5c00ecb933156a5b542de6bc6ec3c3162e0cbb0d2751d2a4bf21b4b6815",
+    "negative-spec.json": "dbdc7602f59beb31bc8a3dfbe203b9d0ea43deacf2aa2023a936f6bd6f2870a9",
+    "negative-exit.json": "a26c2d6adbc45fddc674de7a9e1d7e7daf8facb70be7d04275dc0918abb86f98",
+    "compatibility-readback.json": "f24603d64b9e4d9107bbadb7af75fd7a066f087b3d5fcbcfb72f3b169936a982",
+    "fixed.log": "9475874c49f487001a6a7cd4927a90b2f86cc071830ab66f45b1c53ba2972ecc",
+    "negative.log": "6211c5db2c87073b15306e1840393a1b61aea776f0fdbb7edbf6c59facd27f0a",
+    "README.md": "c6eb35a2885254b6299e25c98d911483f84dff2894d8570295a87cab2bb16a3c",
+    "verification.json": "c6e97c229d1d132d9fe55f2fd98d368b4a1b68faa7a1901eaab0d1f7d635c46b",
+    "fixed.xml": "a326eb825cc5debc48c1b82f5f2320fe2ae0328f7881e21440fb9ac727357469"
+  }
+}

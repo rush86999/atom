@@ -1,0 +1,107 @@
+
+tests/test_evidence_git_ref_contract.py::test_dirty_manifest_cannot_turn_committed_hash_mismatch_into_pass 
+-------------------------------- live log setup --------------------------------
+2026-11-07 07:37:40 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-07 07:37:40 [    INFO] EscalationManager initialized
+2026-11-07 07:37:40 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 07:37:40 [    INFO] EscalationManager initialized
+2026-11-07 07:37:40 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 07:37:40 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 07:37:40 [    INFO] AgentTaskRegistry initialized
+FAILED                                                                   [ 20%]
+tests/test_evidence_git_ref_contract.py::test_unstaged_manifest_cannot_refute_valid_committed_packet FAILED [ 40%]
+tests/test_evidence_git_ref_contract.py::test_git_packet_does_not_require_a_working_tree_manifest FAILED [ 60%]
+tests/test_evidence_git_ref_contract.py::test_index_check_uses_staged_manifest_not_later_unstaged_edit FAILED [ 80%]
+tests/test_evidence_git_ref_contract.py::test_missing_manifest_cli_returns_truthful_failure_without_traceback FAILED [100%]
+
+=================================== FAILURES ===================================
+______ test_dirty_manifest_cannot_turn_committed_hash_mismatch_into_pass _______
+tests/test_evidence_git_ref_contract.py:34: in test_dirty_manifest_cannot_turn_committed_hash_mismatch_into_pass
+    assert result["passed"] is False,result
+E   AssertionError: {'evidence': '/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-evidence-ref-negative-f8x1m9sn/pytest/test_dirty_manifest_cannot_tur0/repo/evidence', 'evidence_ref': 'HEAD', 'source_ok': 1, 'source_total': 1, ...}
+E   assert True is False
+------------------------------ Captured log setup ------------------------------
+INFO     core.byok_endpoints:byok_endpoints.py:877 Updated costs for 16 providers from dynamic pricing
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.embedding_service:embedding_service.py:131 Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+INFO     core.agent_task_registry:agent_task_registry.py:64 AgentTaskRegistry initialized
+_________ test_unstaged_manifest_cannot_refute_valid_committed_packet __________
+tests/test_evidence_git_ref_contract.py:41: in test_unstaged_manifest_cannot_refute_valid_committed_packet
+    assert result["passed"] is True,result
+           ^^^^^^^^^^^^^^^^
+E   KeyError: 'passed'
+___________ test_git_packet_does_not_require_a_working_tree_manifest ___________
+tests/test_evidence_git_ref_contract.py:47: in test_git_packet_does_not_require_a_working_tree_manifest
+    assert result["passed"] is True,result
+           ^^^^^^^^^^^^^^^^
+E   KeyError: 'passed'
+________ test_index_check_uses_staged_manifest_not_later_unstaged_edit _________
+tests/test_evidence_git_ref_contract.py:54: in test_index_check_uses_staged_manifest_not_later_unstaged_edit
+    assert result["passed"] is True,result
+           ^^^^^^^^^^^^^^^^
+E   KeyError: 'passed'
+_____ test_missing_manifest_cli_returns_truthful_failure_without_traceback _____
+tests/test_evidence_git_ref_contract.py:58: in test_missing_manifest_cli_returns_truthful_failure_without_traceback
+    exit_code=checker.main([str(repo/"missing"),"--repo",str(repo),"--json"])
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../scripts/acceptance/evidence_git_check.py:202: in main
+    return 0 if result["passed"] else 1
+                ^^^^^^^^^^^^^^^^
+E   KeyError: 'passed'
+----------------------------- Captured stdout call -----------------------------
+{
+ "artifact_ok": 0,
+ "artifact_total": 0,
+ "evidence": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-evidence-ref-negative-f8x1m9sn/pytest/test_missing_manifest_cli_retu0/repo/missing",
+ "evidence_ref": "HEAD",
+ "extra_tracked": [],
+ "failures": [
+  "manifest unreadable: [Errno 2] No such file or directory: '/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-evidence-ref-negative-f8x1m9sn/pytest/test_missing_manifest_cli_retu0/repo/missing/MANIFEST.json'"
+ ],
+ "source_ok": 0,
+ "source_total": 0
+}
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 10 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_evidence_git_ref_contract.py::test_dirty_manifest_cannot_turn_committed_hash_mismatch_into_pass
+FAILED tests/test_evidence_git_ref_contract.py::test_unstaged_manifest_cannot_refute_valid_committed_packet
+FAILED tests/test_evidence_git_ref_contract.py::test_git_packet_does_not_require_a_working_tree_manifest
+FAILED tests/test_evidence_git_ref_contract.py::test_index_check_uses_staged_manifest_not_later_unstaged_edit
+FAILED tests/test_evidence_git_ref_contract.py::test_missing_manifest_cli_returns_truthful_failure_without_traceback
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 5 failed, 16 warnings in 11.18s ========================
