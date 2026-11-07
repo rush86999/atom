@@ -1,0 +1,408 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-07 01:52:40 [    INFO] MCP Service initialized
+
+::test_plain_authorized_host_request_completes_with_real_receipt[generic] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:52:41 [    INFO] Canvas type 'mini_app' auto-registered (generic defaults)
+PASSED                                                                   [  0%]
+::test_plain_authorized_host_request_completes_with_real_receipt[assignment] PASSED [  0%]
+tests/test_generic_request_expectations.py::test_builder_freezes_business_args_and_ignores_model_expected_fields 
+-------------------------------- live log setup --------------------------------
+2026-11-07 01:52:42 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-07 01:52:42 [    INFO] EscalationManager initialized
+2026-11-07 01:52:42 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 01:52:42 [    INFO] EscalationManager initialized
+2026-11-07 01:52:42 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 01:52:42 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 01:52:42 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  1%]
+tests/test_generic_request_expectations.py::test_plain_args_generic_and_assignment_produce_the_same_verified_effect PASSED [  1%]
+tests/test_generic_request_expectations.py::test_plain_args_non_miniapp_presentation_is_verified 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:52:43 [    INFO] Presented markdown content to user user-1
+PASSED                                                                   [  1%]
+tests/test_generic_request_expectations.py::test_model_forged_expected_metadata_is_stripped_before_dispatch PASSED [  2%]
+tests/test_generic_request_expectations.py::test_handler_result_cannot_overwrite_frozen_expectations PASSED [  2%]
+tests/test_generic_request_expectations.py::test_model_forged_expected_metadata_cannot_rescue_wrong_server_scope PASSED [  2%]
+tests/test_generic_request_expectations.py::test_uncertain_operation_reconciles_from_frozen_material_without_resend PASSED [  3%]
+tests/test_generic_request_expectations.py::test_peer_claim_is_not_dispatched_or_stolen PASSED [  3%]
+tests/test_generic_request_expectations.py::test_distinct_sequential_authorized_mutations_still_run PASSED [  4%]
+tests/test_generic_oracle_mutation_contract.py::test_committed_declared_write_without_verifier_is_not_success PASSED [  4%]
+tests/test_generic_oracle_mutation_contract.py::test_unverified_timeout_does_not_invite_retry PASSED [  4%]
+tests/test_generic_oracle_mutation_contract.py::test_explicit_read_stays_usable PASSED [  5%]
+tests/test_generic_oracle_mutation_contract.py::test_broken_verdicts_do_not_manufacture_business_success[refuting] PASSED [  5%]
+tests/test_generic_oracle_mutation_contract.py::test_broken_verdicts_do_not_manufacture_business_success[raising] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:52:48 [ WARNING] [Oracle] postcondition check for test.generic.verdict.827a950c41494a82ac79ec61e4a9e174 failed: verifier transport unavailable
+PASSED                                                                   [  5%]
+tests/test_generic_oracle_mutation_contract.py::test_broken_verdicts_do_not_manufacture_business_success[none] PASSED [  6%]
+tests/test_generic_oracle_mutation_contract.py::test_real_effect_with_independent_readback_is_verified PASSED [  6%]
+tests/test_generic_oracle_mutation_contract.py::test_disabled_oracle_cannot_lend_success[ATOM_ORACLE_VERIFIER_ENABLED] PASSED [  7%]
+tests/test_generic_oracle_mutation_contract.py::test_disabled_oracle_cannot_lend_success[ATOM_ORACLE_ENFORCE] PASSED [  7%]
+tests/test_generic_oracle_mutation_contract.py::test_registered_plan_only_output_stays_usable PASSED [  7%]
+tests/test_generic_oracle_mutation_contract.py::test_returned_payload_cannot_overwrite_frozen_request[False] PASSED [  8%]
+tests/test_generic_oracle_mutation_contract.py::test_returned_payload_cannot_overwrite_frozen_request[True] PASSED [  8%]
+tests/test_generic_oracle_mutation_contract.py::test_handler_arg_mutation_does_not_rewrite_authorized_request[False] PASSED [  8%]
+tests/test_generic_oracle_mutation_contract.py::test_handler_arg_mutation_does_not_rewrite_authorized_request[True] PASSED [  9%]
+tests/test_generic_oracle_mutation_contract.py::test_durable_claim_replays_without_second_dispatch PASSED [  9%]
+tests/test_generic_oracle_mutation_contract.py::test_changed_material_with_same_operation_is_refused PASSED [  9%]
+tests/test_generic_oracle_mutation_contract.py::test_uncertain_timeout_claim_never_resends_on_restart 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:52:52 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='autodev_guidance'
+PASSED                                                                   [ 10%]
+tests/test_generic_oracle_mutation_contract.py::test_replay_with_refuted_fresh_readback_is_not_success PASSED [ 10%]
+tests/test_generic_oracle_mutation_contract.py::test_landed_effect_then_failed_selfreport_is_uncertain PASSED [ 11%]
+tests/test_generic_oracle_mutation_contract.py::test_landed_effect_then_ordinary_exception_is_uncertain PASSED [ 11%]
+tests/test_generic_oracle_mutation_contract.py::test_pre_effect_no_effect_refusal_stays_truthful PASSED [ 11%]
+tests/test_generic_oracle_mutation_contract.py::test_unqualified_registered_effect_metadata_is_conservative PASSED [ 12%]
+tests/test_generic_oracle_mutation_contract.py::test_normal_dispatch_without_operation_id_is_durable PASSED [ 12%]
+tests/test_generic_oracle_mutation_contract.py::test_server_intent_slot_is_not_reminted_by_model_material PASSED [ 12%]
+tests/test_generic_oracle_mutation_contract.py::test_cold_resume_without_explicit_operation_id_reloads_claim 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:52:57 [    INFO] Agent Scratch Agent (scratch-agent) starting task: resume the normal task
+2026-11-07 01:52:57 [    INFO] EscalationManager initialized
+2026-11-07 01:52:57 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 13%]
+tests/test_generic_oracle_mutation_contract.py::test_explicit_operation_without_workspace_is_refused_before_effect PASSED [ 13%]
+tests/test_generic_oracle_mutation_contract.py::test_handler_context_carries_server_operation_identity PASSED [ 14%]
+tests/test_generic_oracle_mutation_contract.py::test_cold_resume_with_unreadable_claim_store_stays_unresolved 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:52:59 [    INFO] Agent Scratch Agent (scratch-agent) starting task: continue original task
+PASSED                                                                   [ 14%]
+tests/test_generic_oracle_mutation_contract.py::test_zero_claim_read_only_execution_stays_success 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:52:59 [    INFO] Agent Scratch Agent (scratch-agent) starting task: answer the question
+PASSED                                                                   [ 14%]
+tests/test_generic_oracle_mutation_contract.py::test_mark_status_expected_status_is_database_cas PASSED [ 15%]
+tests/test_generic_oracle_mutation_contract.py::test_execution_finalization_blocks_unverified_mutation_but_keeps_reads 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:53:00 [    INFO] Agent Scratch Agent (scratch-agent) starting task: do the thing
+2026-11-07 01:53:00 [   ERROR] AUDIT GAP for execution 73dd905d-de3a-402a-8107-1476003107e6: {'complete': False, 'execution_id': '73dd905d-de3a-402a-8107-1476003107e6', 'expected_events': 5, 'actual_events': 4, 'coverage_percentage': 80.0, 'checked_at': '2026-11-07T06:53:00.177174+00:00'}
+2026-11-07 01:53:00 [    INFO] EscalationManager initialized
+2026-11-07 01:53:00 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 01:53:00 [   ERROR] Session sess-final not found
+PASSED                                                                   [ 15%]
+tests/test_generic_oracle_mutation_contract.py::test_execution_finalization_allows_verified_mutation 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:53:00 [    INFO] Agent Scratch Agent (scratch-agent) starting task: do the verified thing
+2026-11-07 01:53:00 [    INFO] EscalationManager initialized
+2026-11-07 01:53:00 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 01:53:00 [   ERROR] Session sess-final not found
+PASSED                                                                   [ 15%]
+tests/test_generic_oracle_mutation_contract.py::test_cold_resumed_execution_reloads_unresolved_claim 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:53:01 [    INFO] Agent Scratch Agent (scratch-agent) starting task: resume the task
+PASSED                                                                   [ 16%]
+tests/test_oracle_mini_app_host_mutations.py::test_supported_host_flow_is_independently_verified 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:53:02 [    INFO] runtime identity: source_id=88469902fb42-dirty.595fa7bbcc72 revision=88469902fb42 dirty=True (0 modified, 7 untracked)
+PASSED                                                                   [ 16%]
+tests/test_oracle_mini_app_host_mutations.py::test_same_operation_is_not_dispatched_twice PASSED [ 16%]
+tests/test_oracle_mini_app_host_mutations.py::test_scaffold_receipt_twins PASSED [ 17%]
+tests/test_oracle_mini_app_host_mutations.py::test_scaffold_stale_or_dirty_state_is_refuted PASSED [ 17%]
+tests/test_oracle_mini_app_host_mutations.py::test_logic_write_receipt_twins PASSED [ 18%]
+tests/test_oracle_mini_app_host_mutations.py::test_logic_write_stale_source_is_refuted PASSED [ 18%]
+tests/test_oracle_mini_app_host_mutations.py::test_publish_receipt_twins PASSED [ 18%]
+tests/test_oracle_mini_app_host_mutations.py::test_publish_stale_version_is_refuted PASSED [ 19%]
+tests/test_oracle_mini_app_host_mutations.py::test_install_receipt_twins PASSED [ 19%]
+tests/test_oracle_mini_app_host_mutations.py::test_install_stale_instance_is_refuted PASSED [ 19%]
+tests/test_oracle_mini_app_host_mutations.py::test_install_allows_different_instance_owner PASSED [ 20%]
+tests/test_oracle_mini_app_host_mutations.py::test_revert_receipt_twins PASSED [ 20%]
+tests/test_oracle_mini_app_host_mutations.py::test_db_write_receipt_twins PASSED [ 21%]
+tests/test_oracle_mini_app_host_mutations.py::test_db_write_missing_receipt_and_wrong_target PASSED [ 21%]
+tests/test_oracle_mini_app_host_mutations.py::test_db_write_update_binds_prior_material PASSED [ 21%]
+tests/test_oracle_mini_app_host_mutations.py::test_stale_publish_is_proven_not_applied_and_writes_no_receipt PASSED [ 22%]
+tests/test_oracle_mini_app_host_mutations.py::test_logic_cas_binds_prior_language[False] PASSED [ 22%]
+tests/test_oracle_mini_app_host_mutations.py::test_logic_cas_binds_prior_language[True] PASSED [ 22%]
+tests/test_oracle_mini_app_host_mutations.py::test_publish_precondition_failure_does_not_commit_preparation[None] PASSED [ 23%]
+tests/test_oracle_mini_app_host_mutations.py::test_publish_precondition_failure_does_not_commit_preparation[retained-rootfs.img] PASSED [ 23%]
+tests/test_oracle_mini_app_host_mutations.py::test_stale_record_write_raises_conflict_and_preserves_peer PASSED [ 23%]
+tests/test_oracle_mini_app_host_mutations.py::test_registered_host_mutations_have_verifiers PASSED [ 24%]
+tests/test_presentation_binding_controls.py::test_concurrent_presentations_bind_their_own_audits PASSED [ 24%]
+tests/test_presentation_binding_controls.py::test_missing_audit_id_is_unverified PASSED [ 25%]
+tests/test_presentation_binding_controls.py::test_forged_result_digest_cannot_rescue_a_wrong_audit PASSED [ 25%]
+tests/test_presentation_binding_controls.py::test_goal_evaluate_without_an_observation_is_refuted PASSED [ 25%]
+tests/test_assignment_executor.py::test_two_materially_different_assignments_same_executor PASSED [ 26%]
+tests/test_assignment_executor.py::test_changed_artifact_invalidates_approval PASSED [ 26%]
+tests/test_assignment_executor.py::test_provider_accepted_then_worker_lost_is_reconciled_not_resent PASSED [ 26%]
+tests/test_assignment_executor.py::test_cancellation_prevents_unstarted_effect PASSED [ 27%]
+tests/test_assignment_executor.py::test_external_reply_matches_exact_correlation_once PASSED [ 27%]
+tests/test_assignment_executor.py::test_action_dispatched_alone_is_not_provider_acceptance PASSED [ 28%]
+tests/test_assignment_executor.py::test_assignment_approval_binding_cannot_be_rebound PASSED [ 28%]
+tests/test_assignment_executor.py::test_stale_task_revision_prevents_dispatch PASSED [ 28%]
+tests/test_assignment_executor.py::test_failed_prerequisite_blocks_downstream_effect PASSED [ 29%]
+tests/test_assignment_executor.py::test_crash_after_wake_before_advance_recovers PASSED [ 29%]
+tests/test_assignment_executor.py::test_approval_after_cancellation_is_refused PASSED [ 29%]
+tests/test_assignment_executor.py::test_ordinary_resume_leaves_healthy_running_operation_intact PASSED [ 30%]
+tests/test_assignment_executor.py::test_recovery_without_worker_proof_does_not_assert_loss PASSED [ 30%]
+tests/test_assignment_executor.py::test_recovery_names_previous_worker_and_marks_uncertain PASSED [ 30%]
+tests/test_assignment_executor.py::test_liveness_probe_true_keeps_running_operation PASSED [ 31%]
+tests/test_assignment_executor.py::test_two_concurrent_resume_requests_dispatch_once PASSED [ 31%]
+tests/test_assignment_executor.py::test_send_prepare_binds_attachment_bytes_not_just_ids PASSED [ 32%]
+tests/test_assignment_executor.py::test_send_prepare_refuses_attachment_ids_without_hashes PASSED [ 32%]
+tests/test_assignment_executor.py::test_restart_after_artifact_creation_does_not_recreate_work PASSED [ 32%]
+tests/test_assignment_executor.py::test_external_research_reads_action_result_as_evidence PASSED [ 33%]
+tests/test_assignment_executor.py::test_external_research_missing_result_is_typed_obligation_and_resumes PASSED [ 33%]
+tests/test_assignment_executor.py::test_external_research_rejects_write_actions PASSED [ 33%]
+tests/test_assignment_executor.py::test_controlled_outbox_applies_taught_email_protocol PASSED [ 34%]
+tests/test_assignment_executor.py::test_external_response_contradicting_source_fact_stays_waiting PASSED [ 34%]
+tests/test_assignment_executor.py::test_external_response_for_genuinely_missing_fact_resumes PASSED [ 35%]
+tests/test_assignment_executor.py::test_blank_currency_value_accepts_authorized_resolution_and_survives_restart PASSED [ 35%]
+tests/test_assignment_executor.py::test_agreeing_currency_response_is_confirmation_not_conflict PASSED [ 35%]
+tests/test_assignment_executor.py::test_mixed_currency_values_require_record_specific_resolution PASSED [ 36%]
+tests/test_assignment_executor.py::test_substring_replies_do_not_confirm_established_values PASSED [ 36%]
+tests/test_assignment_executor.py::test_numeric_substring_reply_is_not_agreement PASSED [ 36%]
+tests/test_assignment_executor.py::test_explicit_typed_value_can_confirm_with_explanatory_text PASSED [ 37%]
+tests/test_assignment_executor.py::test_fact_resolution_uses_only_accepted_rows PASSED [ 37%]
+tests/test_assignment_executor.py::test_unreadable_evidence_is_not_treated_as_missing PASSED [ 38%]
+tests/test_assignment_executor.py::test_incomplete_coverage_does_not_allow_ordinary_resolution PASSED [ 38%]
+tests/test_assignment_executor.py::test_fact_evidence_branch_matrix PASSED [ 38%]
+tests/test_assignment_executor.py::test_bounded_standing_authority_covers_two_sends_without_approval PASSED [ 39%]
+tests/test_assignment_executor.py::test_standing_authority_bound_falls_back_to_approval PASSED [ 39%]
+tests/test_assignment_executor.py::test_recipient_outside_the_grant_requires_approval PASSED [ 39%]
+tests/test_assignment_executor.py::test_expired_standing_authority_requires_approval PASSED [ 40%]
+tests/test_assignment_executor.py::test_cost_budget_stops_before_the_next_step PASSED [ 40%]
+tests/test_assignment_executor.py::test_post_effect_runtime_error_is_uncertain_not_failed_before_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:53:17 [    INFO] Created HITL action cd59b9bf-267d-4784-a581-f8db353a8e66 for agent None
+PASSED                                                                   [ 40%]
+tests/test_assignment_executor.py::test_post_effect_timeout_is_uncertain_and_does_not_resend 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:53:17 [    INFO] Created HITL action 8b9ed81a-50a3-4dc4-93eb-ad77a47f1279 for agent None
+PASSED                                                                   [ 41%]
+tests/test_assignment_executor.py::test_post_effect_parse_error_is_uncertain 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:53:18 [    INFO] Created HITL action 2b5229c2-cc2b-4475-9dc1-6b69afe7a816 for agent None
+PASSED                                                                   [ 41%]
+tests/test_assignment_executor.py::test_post_effect_cancellation_is_uncertain 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:53:18 [    INFO] Created HITL action c64776aa-cda1-4a84-84b6-bfa1abf7204a for agent None
+PASSED                                                                   [ 42%]
+tests/test_assignment_executor.py::test_trusted_before_effect_error_remains_retryable 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:53:18 [    INFO] Created HITL action 911e43ea-8b00-4dcc-a346-aae7a6b95022 for agent None
+PASSED                                                                   [ 42%]
+tests/test_assignment_executor.py::test_hard_cost_budget_refuses_before_dispatch PASSED [ 42%]
+tests/test_assignment_executor.py::test_reserved_cost_blocks_the_next_over_limit_step PASSED [ 43%]
+tests/test_assignment_executor.py::test_soft_cost_limit_is_explicit_and_exposed PASSED [ 43%]
+tests/test_assignment_executor.py::test_cost_bearing_adapter_without_a_bound_is_refused PASSED [ 43%]
+tests/test_assignment_executor.py::test_durable_wait_time_is_excluded_from_the_wall_budget PASSED [ 44%]
+tests/test_assignment_executor.py::test_retry_credits_a_legacy_wait_once_and_keeps_working_time PASSED [ 44%]
+tests/test_assignment_executor.py::test_legacy_already_credited_pause_is_not_extended PASSED [ 45%]
+tests/test_assignment_executor.py::test_each_new_wait_interval_is_credited_once PASSED [ 45%]
+tests/test_assignment_executor.py::test_independent_ready_branch_runs_while_first_branch_waits PASSED [ 45%]
+tests/test_assignment_executor.py::test_idle_budget_unions_overlapping_waits_across_restart PASSED [ 46%]
+tests/test_assignment_executor.py::test_legacy_open_wait_migration_does_not_invent_a_second_credit PASSED [ 46%]
+tests/test_assignment_executor.py::test_absolute_deadline_expires_through_wait_and_restart PASSED [ 46%]
+tests/test_assignment_executor.py::test_concurrent_retries_credit_a_legacy_wait_once PASSED [ 47%]
+tests/test_assignment_executor.py::test_genuine_active_work_exhaustion_is_refused PASSED [ 47%]
+tests/test_assignment_executor.py::test_legacy_open_wait_is_not_subtracted_twice PASSED [ 47%]
+tests/test_assignment_executor.py::test_legacy_credit_clears_matching_active_wait PASSED [ 48%]
+tests/test_assignment_executor.py::test_legacy_retry_keeps_genuine_active_exhaustion PASSED [ 48%]
+tests/test_assignment_executor.py::test_recorded_credit_with_stale_open_wait_is_not_double_subtracted PASSED [ 49%]
+tests/test_assignment_executor.py::test_concurrent_external_responses_credit_the_wait_once PASSED [ 49%]
+tests/test_assignment_executor.py::test_restart_while_waiting_credits_the_interval_once PASSED [ 49%]
+tests/test_assignment_executor.py::test_evidence_backed_quote_plan_end_to_end PASSED [ 50%]
+tests/test_assignment_executor.py::test_service_line_plan_uses_the_same_executor PASSED [ 50%]
+tests/test_assignment_executor.py::test_non_sales_policy_plan_uses_the_same_executor PASSED [ 50%]
+tests/test_assignment_executor.py::test_discount_clarification_is_durable_and_resumes_the_same_work PASSED [ 51%]
+tests/test_assignment_executor.py::test_uncertain_action_envelope_blocks_dependents_until_reconciled 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:53:20 [    INFO] Created HITL action ed0ef508-41f3-400d-b699-0f0d5de294bf for agent None
+2026-11-07 01:53:20 [    INFO] Created HITL action ab53c5aa-35cd-4e0e-8f2e-4402c9470840 for agent None
+PASSED                                                                   [ 51%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result0-effects0-external-uncertain] PASSED [ 52%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result1-effects1-external-failed] PASSED [ 52%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result2-effects2-external-uncertain] PASSED [ 52%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result3-effects3-external-uncertain] PASSED [ 53%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result4-effects4-read_only-unavailable] PASSED [ 53%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result5-effects5-read_only-unavailable] PASSED [ 53%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result6-effects6-external-uncertain] PASSED [ 54%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result7-effects7-external-uncertain] PASSED [ 54%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result8-effects8-external-uncertain] PASSED [ 54%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result9-effects9-read_only-applied] PASSED [ 55%]
+tests/test_assignment_executor.py::test_mutation_exception_after_dispatch_is_uncertain_not_ordinary_failure PASSED [ 55%]
+tests/test_assignment_executor.py::test_trusted_proof_of_no_effect_is_before_effect_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:53:20 [    INFO] Created HITL action 6e3e6dbf-25b0-4762-b219-b4a39218ae12 for agent None
+PASSED                                                                   [ 56%]
+tests/test_assignment_executor.py::test_unavailable_read_is_reported_without_fabricated_data PASSED [ 56%]
+tests/test_assignment_executor.py::test_readback_conflict_preserves_remote_identity_and_blocks_dependents 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:53:20 [    INFO] Created HITL action 7a0d8ead-df08-4c8d-8f06-717e72f7bdd7 for agent None
+PASSED                                                                   [ 56%]
+tests/test_assignment_executor.py::test_plan_shape_output_is_not_a_durable_mutation PASSED [ 57%]
+tests/test_assignment_executor.py::test_verified_receipt_gates_dependent_execution[proof0-verified_proof_missing] PASSED [ 57%]
+tests/test_assignment_executor.py::test_verified_receipt_gates_dependent_execution[proof1-verified_proof_refuted] PASSED [ 57%]
+tests/test_assignment_executor.py::test_verified_receipt_gates_dependent_execution[proof2-verified_proof_missing_fields] PASSED [ 58%]
+tests/test_assignment_executor.py::test_verified_receipt_gates_dependent_execution[proof3-verified_coverage_truncated] PASSED [ 58%]
+tests/test_assignment_executor.py::test_verified_receipt_gates_dependent_execution[proof4-verified_coverage_unknown] PASSED [ 59%]
+tests/test_assignment_executor.py::test_verified_receipt_positive_twin_executes_dependent PASSED [ 59%]
+tests/test_assignment_executor.py::test_provider_acceptance_never_confirms_sent_items_through_executor 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:53:20 [    INFO] Created HITL action b6a2ff3a-7e1d-4b5d-acb0-30fe16d1001a for agent None
+PASSED                                                                   [ 59%]
+tests/test_assignment_executor.py::test_sent_items_minimum_schema_gates_executor[operation_only] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:53:20 [    INFO] Created HITL action 2e5958c8-8a67-44c0-8b2b-abc09a47a222 for agent None
+PASSED                                                                   [ 60%]
+tests/test_assignment_executor.py::test_sent_items_minimum_schema_gates_executor[message_only] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:53:20 [    INFO] Created HITL action 24a1dfce-69b4-4e8f-a5db-a4398b6cd730 for agent None
+PASSED                                                                   [ 60%]
+tests/test_assignment_executor.py::test_explicit_sent_items_readback_confirms_through_executor 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:53:20 [    INFO] Created HITL action bef3bc87-fc88-4328-af93-5786790dc302 for agent None
+PASSED                                                                   [ 60%]
+tests/test_assignment_executor.py::test_business_readiness_blocks_dependent_while_independent_runs PASSED [ 61%]
+tests/test_assignment_executor.py::test_plan_patch_invalidates_only_affected_branch_and_preserves_budget PASSED [ 61%]
+tests/test_assignment_executor.py::test_plan_patch_rewires_invalidated_work_and_refuses_applied_update PASSED [ 61%]
+tests/test_assignment_executor.py::test_plan_patch_rejects_stale_base_and_immutable_effects PASSED [ 62%]
+tests/test_assignment_executor.py::test_plan_patch_duplicate_is_idempotent_and_survives_restart PASSED [ 62%]
+tests/test_assignment_executor.py::test_adaptation_invalidates_only_affected_branch PASSED [ 63%]
+tests/test_assignment_executor.py::test_replayed_observation_does_not_reopen_work_twice PASSED [ 63%]
+tests/test_assignment_executor.py::test_observation_reopens_affected_work_and_reruns_only_that_branch PASSED [ 63%]
+tests/test_assignment_executor.py::test_adaptation_missing_qualification_asks_instead_of_guessing PASSED [ 64%]
+tests/test_assignment_executor.py::test_adaptation_model_choice_is_scoped_and_uncertain_reconciles PASSED [ 64%]
+tests/test_assignment_executor.py::test_plan_patch_validation_refuses_weakening_and_effect_relabel PASSED [ 64%]
+tests/test_assignment_executor.py::test_approval_clears_the_matching_human_input_wait PASSED [ 65%]
+tests/test_oracle_connected_mutations.py::test_every_connected_mutating_action_has_a_postcondition_verifier PASSED [ 65%]
+tests/test_oracle_connected_mutations.py::test_connected_readback_receipt_is_required_for_verification PASSED [ 66%]
+tests/test_oracle_connected_mutations.py::test_action_registry_consumer_downgrades_a_false_oracle_pass PASSED [ 66%]
+tests/test_oracle_connected_mutations.py::test_connected_mutation_binding_matrix PASSED [ 66%]
+tests/test_oracle_connected_mutations.py::test_action_registry_consumer_downgrades_when_verifier_returns_none PASSED [ 67%]
+tests/test_oracle_connected_mutations.py::test_action_registry_consumer_downgrades_when_oracle_raises 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:53:21 [ WARNING] [Oracle] postcondition check for test.oracle.raises.111158bd failed: oracle transport unavailable
+PASSED                                                                   [ 67%]
+tests/test_oracle_connected_mutations.py::test_action_registry_consumer_keeps_read_only_outcome PASSED [ 67%]
+tests/test_oracle_connected_mutations.py::test_request_snapshot_is_frozen_before_handler_mutation[body] PASSED [ 68%]
+tests/test_oracle_connected_mutations.py::test_request_snapshot_is_frozen_before_handler_mutation[nested_recipient] PASSED [ 68%]
+tests/test_oracle_connected_mutations.py::test_request_snapshot_is_frozen_before_handler_mutation[subject] PASSED [ 69%]
+tests/test_oracle_connected_mutations.py::test_request_snapshot_is_frozen_before_handler_mutation[operation_id] PASSED [ 69%]
+tests/test_oracle_connected_mutations.py::test_unchanged_connected_request_still_verifies PASSED [ 69%]
+tests/test_oracle_connected_mutations.py::test_supplied_digest_mismatch_refuses_before_dispatch PASSED [ 70%]
+tests/test_oracle_connected_mutations.py::test_unavailable_binding_refuses_before_dispatch PASSED [ 70%]
+tests/test_oracle_connected_mutations.py::test_connected_estimate_organization_mutation_is_uncertain PASSED [ 70%]
+tests/test_oracle_registry_verification_gap.py::test_declared_mutation_without_verifier_is_uncertain_and_not_reapplied PASSED [ 71%]
+tests/test_oracle_registry_verification_gap.py::test_unusable_verifier_is_uncertain_with_receipt[none] PASSED [ 71%]
+tests/test_oracle_registry_verification_gap.py::test_unusable_verifier_is_uncertain_with_receipt[raise] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:53:21 [ WARNING] [Oracle] postcondition check for test.gap.raise.b69d40f0 failed: readback store unavailable
+PASSED                                                                   [ 71%]
+tests/test_oracle_registry_verification_gap.py::test_unusable_verifier_is_uncertain_with_receipt[refute] PASSED [ 72%]
+tests/test_oracle_registry_verification_gap.py::test_positive_independent_verdict_applies_with_receipt PASSED [ 72%]
+tests/test_oracle_registry_verification_gap.py::test_read_action_without_verifier_still_applies PASSED [ 73%]
+tests/test_oracle_registry_verification_gap.py::test_full_executor_real_task_create_is_independently_verified PASSED [ 73%]
+tests/test_oracle_registry_verification_gap.py::test_full_executor_real_read_action_still_applies PASSED [ 73%]
+tests/test_oracle_registry_verification_gap.py::test_plan_output_is_not_treated_as_a_mutation PASSED [ 74%]
+tests/test_oracle_registry_verification_gap.py::test_changed_request_is_refuted_against_the_frozen_authorized_request PASSED [ 74%]
+tests/test_oracle_registry_verification_gap.py::test_disabled_oracle_never_certifies_applied PASSED [ 74%]
+tests/test_oracle_registry_verification_gap.py::test_lead_probe_declared_write_without_verifier_cannot_claim_applied PASSED [ 75%]
+tests/test_oracle_registry_verification_gap.py::test_readonly_twin_without_verifier_still_applies PASSED [ 75%]
+tests/test_oracle_registry_verification_gap.py::test_unqualified_effect_metadata_is_not_an_implicit_read[effects0] PASSED [ 76%]
+tests/test_oracle_registry_verification_gap.py::test_unqualified_effect_metadata_is_not_an_implicit_read[effects1] PASSED [ 76%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_effect_metadata_cannot_certify_write[read-missing-entry] PASSED [ 76%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_effect_metadata_cannot_certify_write[plan-missing-entry] PASSED [ 77%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_effect_metadata_cannot_certify_write[read-non-mapping-entry] PASSED [ 77%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_effect_metadata_cannot_certify_write[read-blank-name] PASSED [ 77%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_effect_metadata_cannot_certify_write[read-null-name] PASSED [ 78%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_effect_metadata_cannot_certify_write[read-non-string-name] PASSED [ 78%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_effect_metadata_cannot_certify_write[read-unknown-name] PASSED [ 78%]
+tests/test_oracle_registry_verification_gap.py::test_clean_non_mutating_metadata_still_applies[read] PASSED [ 79%]
+tests/test_oracle_registry_verification_gap.py::test_clean_non_mutating_metadata_still_applies[read-only] PASSED [ 79%]
+tests/test_oracle_registry_verification_gap.py::test_clean_non_mutating_metadata_still_applies[plan] PASSED [ 80%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_declaration_is_never_a_read_or_plan_exemption[missing-entry] PASSED [ 80%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_declaration_is_never_a_read_or_plan_exemption[blank-name] PASSED [ 80%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_declaration_is_never_a_read_or_plan_exemption[non-string-name] PASSED [ 81%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_declaration_is_never_a_read_or_plan_exemption[non-mapping-entry] PASSED [ 81%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_declaration_is_never_a_read_or_plan_exemption[plan-missing-entry] PASSED [ 81%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_declaration_is_never_a_read_or_plan_exemption[unknown-name] PASSED [ 82%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_declaration_is_never_a_read_or_plan_exemption[string-container] PASSED [ 82%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_declaration_is_never_a_read_or_plan_exemption[mapping-container] PASSED [ 83%]
+tests/test_oracle_registry_verification_gap.py::test_valid_declaration_semantics_remain_bounded PASSED [ 83%]
+tests/test_oracle_registry_verification_gap.py::test_registry_declares_effects_and_keeps_uncovered_explicit PASSED [ 83%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_manifest_cas_binds_exact_prior_value PASSED [ 84%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_manifest_cas_peer_change_preserves_peer_state PASSED [ 84%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_set_tests_conflict_is_truthful_no_effect PASSED [ 84%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_manifest_cas_scope_change_preserves_peer_state[tenant_id] PASSED [ 85%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_manifest_cas_scope_change_preserves_peer_state[workspace_id] PASSED [ 85%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_manifest_cas_scope_change_preserves_peer_state[created_by] PASSED [ 85%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_set_tests_authoritative_scope_contradiction_refutes[workspace_id] PASSED [ 86%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_set_tests_authoritative_scope_contradiction_refutes[tenant_id] PASSED [ 86%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_set_tests_authoritative_scope_contradiction_refutes[created_by] PASSED [ 87%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_set_tests_authoritative_scope_contradiction_refutes[audit_tenant] PASSED [ 87%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_set_tests_authoritative_scope_contradiction_refutes[audit_actor] PASSED [ 87%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_set_tests_fresh_read_refutes_dirty_request_object PASSED [ 88%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_set_tests_fresh_read_accepts_committed_valid_state PASSED [ 88%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_set_tests_verifier_binds_exact_tests_and_operation PASSED [ 88%]
+tests/test_employee_work_requests.py::test_quote_request_compiles_and_executes_from_full_evidence PASSED [ 89%]
+tests/test_employee_work_requests.py::test_requested_artifact_waits_for_the_open_business_fact PASSED [ 89%]
+tests/test_employee_work_requests.py::test_quote_mapping_rejects_unknown_column_and_bad_terms PASSED [ 90%]
+tests/test_employee_work_requests.py::test_invoice_request_compiles_and_reconciles_full_evidence PASSED [ 90%]
+tests/test_employee_work_requests.py::test_work_request_rejects_model_authored_steps_and_bad_references PASSED [ 90%]
+tests/test_employee_work_requests.py::test_context_previews_are_labeled_and_discovery_is_not_followup PASSED [ 91%]
+tests/test_employee_work_requests.py::test_money_terms_must_resolve_and_match_the_proposed_value PASSED [ 91%]
+tests/test_employee_work_requests.py::test_expired_fact_term_is_not_authority PASSED [ 91%]
+tests/test_employee_work_requests.py::test_quote_money_terms_must_resolve_and_match_accepted_values PASSED [ 92%]
+tests/test_employee_work_requests.py::test_work_request_rejects_unverified_or_skipped_evidence PASSED [ 92%]
+tests/test_employee_work_requests.py::test_invoice_request_can_compile_one_approved_bill_action 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:53:21 [    INFO] Created HITL action cb0a5a32-a2dd-44b4-9f46-d5ff0c369599 for agent None
+PASSED                                                                   [ 92%]
+tests/test_employee_work_requests.py::test_invoice_role_bindings_resolve_from_evidence_shape PASSED [ 93%]
+tests/test_employee_work_requests.py::test_invoice_wrong_purchase_order_identity_is_refused PASSED [ 93%]
+tests/test_employee_work_requests.py::test_quote_mapping_resolves_type_swapped_unfamiliar_headers PASSED [ 94%]
+tests/test_employee_work_requests.py::test_quote_currency_preserves_observed_values_and_refuses_conflicts PASSED [ 94%]
+tests/test_employee_work_requests.py::test_quote_missing_currency_column_inherits_only_explicit_job_default PASSED [ 94%]
+tests/test_employee_work_requests.py::test_executor_refuses_currency_changed_after_compilation PASSED [ 95%]
+tests/test_employee_work_requests.py::test_mapped_unit_cannot_be_defaulted_over_empty_source_value PASSED [ 95%]
+tests/test_employee_work_requests.py::test_valid_cad_twin_executes_without_relabelling PASSED [ 95%]
+tests/test_oracle_canvas_postcondition.py::test_exact_material_and_operation_verifies PASSED [ 96%]
+tests/test_oracle_canvas_postcondition.py::test_missing_audit_row_is_a_refutation_not_a_pass PASSED [ 96%]
+tests/test_oracle_canvas_postcondition.py::test_component_mismatch_is_a_refutation PASSED [ 97%]
+tests/test_oracle_canvas_postcondition.py::test_missing_identity_is_unavailable_not_applied PASSED [ 97%]
+tests/test_oracle_canvas_postcondition.py::test_wrong_content_with_same_title_is_refuted PASSED [ 97%]
+tests/test_oracle_canvas_postcondition.py::test_wrong_chart_values_with_same_count_are_refuted PASSED [ 98%]
+tests/test_oracle_canvas_postcondition.py::test_old_audit_with_identical_content_cannot_certify_new_operation PASSED [ 98%]
+tests/test_oracle_canvas_postcondition.py::test_missing_material_cannot_verify PASSED [ 98%]
+tests/test_oracle_canvas_postcondition.py::test_wrong_workspace_is_refuted PASSED [ 99%]
+tests/test_oracle_canvas_postcondition.py::test_exact_audit_id_wins_over_a_newer_latest_row PASSED [ 99%]
+tests/test_oracle_canvas_postcondition.py::test_chart_positive_binds_all_values PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 542 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+====================== 271 passed, 548 warnings in 57.90s ======================

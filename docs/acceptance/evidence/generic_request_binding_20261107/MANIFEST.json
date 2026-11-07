@@ -1,0 +1,36 @@
+{
+  "schema": "atom-generic-request-binding-manifest-1",
+  "qualified_source": "88469902fb42e45e7bdfc9617164ae804440f196",
+  "base_source": "fbe7a597585c",
+  "source_files": {
+    "backend/core/oracle/request_expectations.py": "28c8c41345bd8ca6d0d0be36b47ee5786935a512",
+    "backend/core/generic_agent.py": "8eb8b8084f014edbd900686e43fdeded795fd0dd",
+    "backend/core/assignment_executor.py": "9dcd6e8f7ab06a7e543c8c971e02993ed624e02f",
+    "backend/tests/test_generic_request_expectations.py": "6aad4aff22447ad77abd66b652e1a33b03c1adc2"
+  },
+  "artifacts": {
+    "docs/acceptance/evidence/generic_request_binding_20261107/README.md": "516f851e4449d7dd37ed462cc91753d3458d2973",
+    "docs/acceptance/evidence/generic_request_binding_20261107/final-gate.log": "7c5313eaabb3e822c5e50b18e427d115657cdac6",
+    "docs/acceptance/evidence/generic_request_binding_20261107/known-preexisting-failure.log": "a63f0c2a992880ea64e9594ccdedbb371955a6d7",
+    "docs/acceptance/evidence/generic_request_binding_20261107/run-spec.json": "c733035b9ae8f9bad3993c31f9db7c193376bda3"
+  },
+  "result": {
+    "final_gate_passed": 271,
+    "final_gate_failed": 0,
+    "final_gate_errors": 0,
+    "supplied_probe_after_fix": "2 passed",
+    "supplied_probe_before_fix": "1 failed (Generic), 1 passed (Assignment)"
+  },
+  "protected_namespace": {
+    "name": "_oracle_expected_*",
+    "model_or_body_args_can_populate": false,
+    "handler_result_can_populate": false,
+    "server_builder": "backend/core/oracle/request_expectations.py::build_request_expectations"
+  },
+  "worktree_at_run": {
+    "tracked_source_clean_after_checkpoint": true,
+    "untracked_work_order_and_lead_notes_present": true,
+    "evidence_files_untracked_at_run": true
+  },
+  "verification": "Compare source_files to qualified_source and artifacts to the containing evidence Git ref. MANIFEST itself is excluded."
+}
