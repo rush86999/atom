@@ -2,6 +2,29 @@
 
 This dated checkpoint supersedes operational queue rows in the November6 directive. Re-resolve current remote heads and ownership before acting. It records current progress, not whole-app acceptance. The product is single tenant with supported user/role/workspace safeguards. Historical 111/123, planner 5/5, goal router 1/2 and alignment gap 3.0 remain unchanged.
 
+## Leading delivery snapshot — 2026-11-07, main `cf351a5b0`
+
+This dated readback supersedes the operational owner rows below. Resolve current remote heads before acting; preserved historical evidence is not a request to replay closed work.
+
+- **Merged PR735 / `010d53ca5`:** Generic question UI plus current wait/readback scope. Independent 118 backend, 53 UI (all original 35 retained), 23 adjacent controls and TypeScript pass. Reviewed and merged trees matched. Ordinary login/restart/answer browser acceptance remains OPEN.
+- **Merged PR737 / `979d91371`:** current original-actor authority repair, including empty/null/default Personal Edition compatibility and missing-original-actor refusal. Independent 118 controls; combined UI/authority 66 passed and tree matched the merge. The earlier withheld authority negatives remain preserved.
+- **Merged PR736 / `cf351a5b0`:** prior guidance and bounded browser plan. Actual post-merge CI 42383816535 and Docker 42383816545 succeeded. Documentation does not qualify new runtime behavior.
+- **PR738 / `0903f9b56`, submitted:** confirmed public information-answer 404 for bootstrap Personal users (null workspace vs default wait) fixed with the existing shared scope resolver. Independent 33 controls; strict 4-source/6-artifact packet. Exact-head required CI is still pending at this readback.
+- **PR739 / `72c73001d`, submitted:** registered Shopify product creation, exact authorized material, strict durable JSON receipt/replay, migration revision compatibility and context-independent monetary formatting. Independent integrated 136 controls; strict 18-source/12-artifact packet. Provider HTTP only doubled; CDN image rewriting remains unverified content, and live/PostgreSQL breadth remains open.
+- **PR741 / `07d11e1ff`, submitted, depends on PR739:** registered blog creation, exact current-store/id/title/handle readback and durable no-resend replay. Independent 81 blog/product/material/replay controls plus one dispatch-proven privacy twin. Strict 7-source/5-artifact packet, with the test-only successor separately attributed. PR740 is closed/superseded after a checksum-only scanner finding; exact decoded checksum and original logs remain unchanged. PR741 targets main so normal CI can run; merge the prerequisite and reconcile main normally before final merge.
+
+### Active finite work
+
+**Agent1 / Flash CLI:** browser-driver source verification. Root independently reproduced a false certification: a self-consistent wrong export and manifest passed against a claimed frozen Git revision. Preserve that negative and directly compare exported tracked backend bytes with frozen Git blobs. No browser episode may be accepted from unknown identity or a self-generated manifest alone. The preceding driver preparation did not launch a world or qualify the UI journey.
+
+**Agent2 / Flash CLI:** next registered Shopify article-create family. Use the existing registry/Generic/Oracle/receipt path, only doubled HTTP, exact authorized fields and durable no-resend recovery. Root owns independent review; no live-provider or universal competence claim.
+
+**Root:** source/consumer verification, ordinary-login TASK-WAIT browser execution after the source-binding repair, exact-head CI and normal merges. A model-free bounded watcher observes CI while implementation continues. Actual worker handles, not a quiet log/state file, determine liveness. Keep all original negative sources and actual runtime/test-successor attribution.
+
+**Storage:** every-three-hour disk monitoring is active. Check space before new worlds; remove only proven inactive disposable files or byte-verified archived completed fixtures. Preserve live databases, active build caches, credentials, original negatives/process/browser evidence and cold archives. No external-drive or storage-guard bypass.
+
+All143 claims and historical scores remain unchanged. TASK-WAIT-01, whole-app ORACLE, broader provider writes, usable image proof, ordinary-browser acceptance, served judgment/model breadth and the separately named operations qualifications remain OPEN. A controlled family pass does not close the app goal.
+
 ## Latest execution snapshot — remote main `24c280348`
 
 This is the leading operational snapshot; the recovery-merge snapshot and dated submissions below are preserved history. Re-resolve remote heads, exact CI runs and actual worker handles before acting. No deployment or whole-app acceptance follows from a merge.
