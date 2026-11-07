@@ -73,7 +73,7 @@ Fresh scratch SQLite and basetemp roots; `TESTING=1`; no live DB, world,
 network, model, provider, VM, credential, install, send or spend.
 
 - Reviewed matrix + all supplied normal-identity/reload/retry probes: **43
-  passed** (`tests/test_generic_oracle_mutation_contract.py`,
+  passed** (exit 0) (`tests/test_generic_oracle_mutation_contract.py`,
   `LEAD_PROBES/test_lead_generic_draft_boundaries.py`,
   `LEAD_PROBES/test_lead_generic_normal_identity.py`,
   `LEAD_PROBES/test_lead_generic_reload_unavailable.py`,

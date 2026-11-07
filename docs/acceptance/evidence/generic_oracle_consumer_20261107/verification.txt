@@ -14,7 +14,8 @@ model, provider, VM, credential, install, send or spend.
      ../LEAD_PROBES/test_lead_generic_reload_unavailable.py \
      ../LEAD_PROBES/test_lead_generic_normal_changed_retry.py \
      ../LEAD_PROBES/test_lead_generic_two_normal_writes.py -q
-   Result: 43 passed.
+   Result: 43 passed. Exit status 0. Full stdout/stderr retained at
+   <scratch>/final_43.log.
    Covered: root negatives/read twin (landed-row version with complete server
    context), missing/None/raising/refuting verdicts, positive independent
    readback, disabled oracle, plan/read twins, frozen request/operation
@@ -33,7 +34,7 @@ model, provider, VM, credential, install, send or spend.
      tests/test_oracle_effect_families.py \
      tests/test_oracle_connected_mutations.py \
      tests/integration/journeys/test_oracle_registry_mutation_journey.py -q
-   Result: 156 passed.
+   Result: 156 passed. Exit status 0. Full log <scratch>/final_156.log.
 
 3. Generic/oracle/fleet focused cluster
    Command:
@@ -49,18 +50,20 @@ model, provider, VM, credential, install, send or spend.
      tests/test_agent_action_audit.py tests/test_assignment_executor.py \
      tests/test_oracle_registry_verification_gap.py \
      tests/integration/journeys/test_oracle_registry_mutation_journey.py -q
-   Result: 341 passed, 4 skipped.
+   Result: 341 passed, 4 skipped. Exit status 0. Full log
+   <scratch>/final_341.log.
 
 4. Action-registry focused run
    Command:
    <python> -m pytest tests/core/test_action_registry_coverage.py \
      tests/test_r79_action_registry_rpc.py tests/test_action_registry.py -q
-   Result: 84 passed, 2 pre-existing failures (listed in
-   baseline-unrelated-failures.txt).
+   Result: 84 passed, 2 pre-existing failures (exit 1; listed in
+   baseline-unrelated-failures.txt). Full log <scratch>/final_reg.log.
 
 5. Original baseline probe
    Command: <python> -m pytest ../LEAD_GENERIC_PROBE.py -q
-   Result: 2 passed, 1 failed.
+   Result: 2 passed, 1 failed (exit 1). Full log
+   <scratch>/final_root_probe.log.
    The failure is the historical timeout negative that supplies an operation id
    but no workspace/execution. The newer confirmed probe requires that path to
    refuse before effect; the tracked version with complete server context
