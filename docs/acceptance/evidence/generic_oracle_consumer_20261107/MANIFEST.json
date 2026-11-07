@@ -1,14 +1,14 @@
 {
-  "code_commit": "ec9dede00",
-  "evidence_commit": "73689ecec",
+  "code_commit": "039a24f4e",
+  "evidence_commit": "c8bcc5a5e",
   "source_base": "8bbad92cb",
   "files": {
-    "backend/core/generic_agent.py": "7252b140d9d101dcd0d13b3187d5af92e537b1aa",
+    "backend/core/generic_agent.py": "23b58cafd8d082be36f7ffc40c81ccdbd3182b7f",
     "backend/core/outbound_operation_claim.py": "c82fdc656364129e42fddc08b821f0c67ef07b10",
     "backend/tests/test_generic_oracle_mutation_contract.py": "7e1c66bda64bcc60a289d9f913408d3ea400f31e",
-    "docs/acceptance/evidence/generic_oracle_consumer_20261107/README.md": "45bbfe9345a99b01781f83f7a86ee4220c176f74",
-    "docs/acceptance/evidence/generic_oracle_consumer_20261107/baseline-unrelated-failures.txt": "71e75a148db4dd740abd0d56f856a6b8641cb575",
-    "docs/acceptance/evidence/generic_oracle_consumer_20261107/verification.txt": "7501680802e0d88d08e654c1dea6e462c4c8fab6"
+    "docs/acceptance/evidence/generic_oracle_consumer_20261107/README.md": "d8da3f50831f810117d4fe0ea02c890af95b9f85",
+    "docs/acceptance/evidence/generic_oracle_consumer_20261107/baseline-unrelated-failures.txt": "25309b8a99e761149c3ed7fa02becf86b119068b",
+    "docs/acceptance/evidence/generic_oracle_consumer_20261107/verification.txt": "29024d5fd29a63cbaa058b38d3ceb654552b199a"
   },
   "hash_object": "git hash-object (SHA-1 blob)",
   "schema": "atom-generic-oracle-consumer-evidence-manifest-1",
