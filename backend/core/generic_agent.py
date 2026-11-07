@@ -2195,6 +2195,9 @@ What is your next step?"""
                     "this attempt did not dispatch again."),
             }
         if status == claims.CLAIMED:
+            evidence = "operation claim is held but not dispatched"
+            self._record_uncertain_operation(
+                context, tool_name, operation_id, evidence)
             return {
                 "success": False,
                 "status": "in_progress",
@@ -2209,6 +2212,11 @@ What is your next step?"""
                     "second dispatch was made."),
             }
         if status == "conflict":
+            evidence = (
+                "same logical operation is bound to different material; the "
+                "prior effect state is unresolved")
+            self._record_uncertain_operation(
+                context, tool_name, operation_id, evidence)
             return {
                 "success": False,
                 "status": "conflict",
@@ -2223,6 +2231,9 @@ What is your next step?"""
                     "The same operation id is bound to different material; "
                     "the changed request was refused before dispatch."),
             }
+        evidence = "the durable operation claim is unavailable"
+        self._record_uncertain_operation(
+            context, tool_name, operation_id, evidence)
         return {
             "success": False,
             "status": "uncertain",
