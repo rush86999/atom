@@ -155,7 +155,7 @@ jobs:
           SECRET_KEY: "ci-test-secret-key"
           ENVIRONMENT: "development"
         run: |
-          python -m pytest tests/test_goal_utility_target.py -q --tb=short --timeout=300 --timeout-method=thread
+          python -m pytest tests/test_lead_goal_reads_workspace_scope.py tests/test_goal_utility_target.py -q --tb=short --timeout=300 --timeout-method=thread
       - name: Run goal-write authority regression controls
         env:
           TESTING: "1"
@@ -511,6 +511,9 @@ jobs:
       - name: Run agent information question UI controls
         working-directory: frontend-nextjs
         run: npx jest components/Agents/__tests__/AgentJobWaitPanel.test.tsx lib/__tests__/agent-job-ref.test.ts tests/pages/agents-index.test.tsx tests/pages/agents-information-job.test.tsx --runInBand --no-coverage
+      - name: Goal utility surface regression tests
+        working-directory: frontend-nextjs
+        run: npx jest tests/pages/goal-runs/detail.test.tsx --runInBand --no-coverage
       - name: Deferred-link regression tests
         # Core profile must not link deferred governance/connector surfaces.
         run: npx jest tests/pages/settings-index.test.tsx tests/components/AssignmentPanel.test.tsx --runInBand --no-coverage

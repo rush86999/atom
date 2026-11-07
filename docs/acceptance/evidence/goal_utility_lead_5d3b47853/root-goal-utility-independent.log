@@ -1,0 +1,586 @@
+
+tests/test_lead_goal_reads_workspace_scope.py::test_goal_direct_reads_match_workspace_visibility[ws-200-] 
+-------------------------------- live log setup --------------------------------
+2026-11-07 14:40:26 [    INFO] EscalationManager initialized
+2026-11-07 14:40:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 14:40:26 [    INFO] EscalationManager initialized
+2026-11-07 14:40:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 14:40:26 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 14:40:26 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:26 [    INFO] HTTP Request: GET http://testserver/api/goals/g-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [  0%]
+tests/test_lead_goal_reads_workspace_scope.py::test_goal_direct_reads_match_workspace_visibility[ws-200-/utility] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:26 [    INFO] HTTP Request: GET http://testserver/api/goals/g-1/utility "HTTP/1.1 200 OK"
+PASSED                                                                   [  1%]
+tests/test_lead_goal_reads_workspace_scope.py::test_goal_direct_reads_match_workspace_visibility[peer-workspace-404-] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:26 [ WARNING] API Error: NOT_FOUND - Goal not found: g-1
+2026-11-07 14:40:26 [    INFO] HTTP Request: GET http://testserver/api/goals/g-1 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [  1%]
+tests/test_lead_goal_reads_workspace_scope.py::test_goal_direct_reads_match_workspace_visibility[peer-workspace-404-/utility] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:26 [ WARNING] API Error: NOT_FOUND - Goal not found: g-1
+2026-11-07 14:40:26 [    INFO] HTTP Request: GET http://testserver/api/goals/g-1/utility "HTTP/1.1 404 Not Found"
+PASSED                                                                   [  2%]
+tests/test_goal_utility_target.py::TestTargetDefinition::test_malformed_target_is_rejected_before_persistence[None] PASSED [  3%]
+tests/test_goal_utility_target.py::TestTargetDefinition::test_malformed_target_is_rejected_before_persistence[bad_target1] PASSED [  3%]
+tests/test_goal_utility_target.py::TestTargetDefinition::test_malformed_target_is_rejected_before_persistence[human_interventions] PASSED [  4%]
+tests/test_goal_utility_target.py::TestTargetDefinition::test_malformed_target_is_rejected_before_persistence[bad_target3] PASSED [  5%]
+tests/test_goal_utility_target.py::TestTargetDefinition::test_malformed_target_is_rejected_before_persistence[bad_target4] PASSED [  5%]
+tests/test_goal_utility_target.py::TestTargetDefinition::test_malformed_target_is_rejected_before_persistence[bad_target5] PASSED [  6%]
+tests/test_goal_utility_target.py::TestTargetDefinition::test_malformed_target_is_rejected_before_persistence[bad_target6] PASSED [  7%]
+tests/test_goal_utility_target.py::TestTargetDefinition::test_malformed_target_is_rejected_before_persistence[bad_target7] PASSED [  7%]
+tests/test_goal_utility_target.py::TestTargetDefinition::test_malformed_target_is_rejected_before_persistence[bad_target8] PASSED [  8%]
+tests/test_goal_utility_target.py::TestTargetDefinition::test_create_goal_persists_explicit_target PASSED [  9%]
+tests/test_goal_utility_target.py::TestTargetDefinition::test_target_survives_fresh_service_engine_and_objective_injection PASSED [  9%]
+tests/test_goal_utility_target.py::TestTargetDefinition::test_clear_removes_the_signal PASSED [ 10%]
+tests/test_goal_utility_target.py::TestDeterministicRanking::test_higher_utility_ranks_higher_when_maximized PASSED [ 11%]
+tests/test_goal_utility_target.py::TestDeterministicRanking::test_higher_utility_ranks_higher_when_minimized PASSED [ 11%]
+tests/test_goal_utility_target.py::TestDeterministicRanking::test_failed_outcome_cannot_win_on_a_better_metric PASSED [ 12%]
+tests/test_goal_utility_target.py::TestDeterministicRanking::test_cancelled_run_cannot_win_even_with_a_better_metric PASSED [ 13%]
+tests/test_goal_utility_target.py::TestDeterministicRanking::test_missing_and_nonfinite_metric_never_earns_a_rank PASSED [ 13%]
+tests/test_goal_utility_target.py::TestDeterministicRanking::test_negative_and_huge_counts_never_earn_a_rank PASSED [ 14%]
+tests/test_goal_utility_target.py::TestDeterministicRanking::test_constraints_gate_is_checked_before_utility PASSED [ 15%]
+tests/test_goal_utility_target.py::TestDeterministicRanking::test_missing_target_means_no_ranking PASSED [ 15%]
+tests/test_goal_utility_target.py::TestDeterministicRanking::test_ranking_is_scoped_to_the_requested_goal_and_workspace PASSED [ 16%]
+tests/test_goal_utility_target.py::TestDeterministicRanking::test_service_reads_are_workspace_scoped_with_explicit_opt_out PASSED [ 17%]
+tests/test_goal_utility_target.py::TestDeterministicRanking::test_complete_coverage_beyond_the_old_hundred_run_cap PASSED [ 17%]
+tests/test_goal_utility_target.py::TestDeterministicRanking::test_invalid_latest_candidate_beyond_cap_cannot_win PASSED [ 18%]
+tests/test_goal_utility_target.py::TestProductionConsumers::test_goal_evaluate_exposes_ranking_without_changing_satisfaction PASSED [ 19%]
+tests/test_goal_utility_target.py::TestProductionConsumers::test_goal_run_loop_and_router_consume_the_durable_ranking PASSED [ 19%]
+tests/test_goal_utility_target.py::TestProductionConsumers::test_ranking_survives_fresh_service_and_engine PASSED [ 20%]
+tests/test_goal_utility_target.py::TestProductionConsumers::test_flag_off_preserves_the_pre_p5_loop PASSED [ 21%]
+tests/test_goal_utility_target.py::TestGoalApiBoundary::test_supervisor_sets_target_and_any_member_reads_ranking 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:27 [    INFO] HTTP Request: PUT http://testserver/api/goals/g-1/utility "HTTP/1.1 200 OK"
+2026-11-07 14:40:27 [    INFO] HTTP Request: GET http://testserver/api/goals/g-1/utility "HTTP/1.1 200 OK"
+PASSED                                                                   [ 21%]
+tests/test_goal_utility_target.py::TestGoalApiBoundary::test_member_cannot_set_or_clear_the_target 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:27 [    INFO] HTTP Request: PUT http://testserver/api/goals/g-1/utility "HTTP/1.1 403 Forbidden"
+2026-11-07 14:40:27 [    INFO] HTTP Request: DELETE http://testserver/api/goals/g-1/utility "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 22%]
+tests/test_goal_utility_target.py::TestGoalApiBoundary::test_create_goal_with_target_is_supervisor_grade 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:27 [    INFO] HTTP Request: POST http://testserver/api/goals "HTTP/1.1 403 Forbidden"
+2026-11-07 14:40:27 [    INFO] HTTP Request: POST http://testserver/api/goals "HTTP/1.1 200 OK"
+PASSED                                                                   [ 23%]
+tests/test_goal_utility_target.py::TestGoalApiBoundary::test_api_rejects_malformed_target_and_reads_absent_target 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:27 [    INFO] HTTP Request: GET http://testserver/api/goals/g-1/utility "HTTP/1.1 200 OK"
+2026-11-07 14:40:27 [    INFO] HTTP Request: PUT http://testserver/api/goals/g-1/utility "HTTP/1.1 422 Unprocessable Entity"
+2026-11-07 14:40:27 [    INFO] HTTP Request: GET http://testserver/api/goals/g-1/utility "HTTP/1.1 200 OK"
+PASSED                                                                   [ 23%]
+tests/test_goal_utility_target.py::TestGoalApiBoundary::test_direct_goal_and_utility_reads_match_workspace_visibility 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:27 [    INFO] HTTP Request: GET http://testserver/api/goals/g-1 "HTTP/1.1 200 OK"
+2026-11-07 14:40:27 [    INFO] HTTP Request: GET http://testserver/api/goals/g-1/utility "HTTP/1.1 200 OK"
+2026-11-07 14:40:27 [ WARNING] API Error: NOT_FOUND - Goal not found: g-1
+2026-11-07 14:40:27 [    INFO] HTTP Request: GET http://testserver/api/goals/g-1 "HTTP/1.1 404 Not Found"
+2026-11-07 14:40:27 [ WARNING] API Error: NOT_FOUND - Goal not found: g-1
+2026-11-07 14:40:27 [    INFO] HTTP Request: GET http://testserver/api/goals/g-1/utility "HTTP/1.1 404 Not Found"
+2026-11-07 14:40:27 [    INFO] HTTP Request: GET http://testserver/api/goals/goal-peer "HTTP/1.1 200 OK"
+PASSED                                                                   [ 24%]
+tests/test_goal_utility_target.py::TestGoalApiBoundary::test_null_workspace_reads_personal_default_goal 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:27 [ WARNING] API Error: NOT_FOUND - Goal not found: g-1
+2026-11-07 14:40:27 [    INFO] HTTP Request: GET http://testserver/api/goals/g-1 "HTTP/1.1 404 Not Found"
+2026-11-07 14:40:27 [    INFO] HTTP Request: GET http://testserver/api/goals/goal-default "HTTP/1.1 200 OK"
+2026-11-07 14:40:27 [    INFO] HTTP Request: PUT http://testserver/api/goals/goal-default/utility "HTTP/1.1 200 OK"
+2026-11-07 14:40:27 [    INFO] HTTP Request: GET http://testserver/api/goals/goal-default/utility "HTTP/1.1 200 OK"
+2026-11-07 14:40:27 [ WARNING] API Error: NOT_FOUND - Goal not found: g-1
+2026-11-07 14:40:27 [    INFO] HTTP Request: GET http://testserver/api/goals/g-1/utility "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 25%]
+tests/test_goal_utility_target.py::TestGoalApiBoundary::test_current_database_role_governs_utility_mutation 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:27 [    INFO] HTTP Request: PUT http://testserver/api/goals/g-1/utility "HTTP/1.1 200 OK"
+2026-11-07 14:40:27 [    INFO] HTTP Request: PUT http://testserver/api/goals/g-1/utility "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 25%]
+tests/test_goal_utility_target.py::TestGoalApiBoundary::test_peer_workspace_supervisor_cannot_mutate_foreign_goal 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:27 [    INFO] HTTP Request: PUT http://testserver/api/goals/g-1/utility "HTTP/1.1 404 Not Found"
+2026-11-07 14:40:27 [    INFO] HTTP Request: DELETE http://testserver/api/goals/g-1/utility "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 26%]
+tests/test_goal_utility_target.py::TestGoalApiBoundary::test_utility_read_does_not_change_status_or_progress 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:27 [    INFO] HTTP Request: PUT http://testserver/api/goals/g-1/utility "HTTP/1.1 200 OK"
+2026-11-07 14:40:27 [    INFO] HTTP Request: GET http://testserver/api/goals/g-1/utility "HTTP/1.1 200 OK"
+PASSED                                                                   [ 26%]
+tests/test_goal_write_authority_contract.py::test_create_member_plain_goal_verified_and_audited 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:27 [    INFO] HTTP Request: POST http://testserver/api/goals?operation_id=create-member "HTTP/1.1 200 OK"
+PASSED                                                                   [ 27%]
+tests/test_goal_write_authority_contract.py::test_create_supervisor_enrichment_and_role_contract 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:27 [    INFO] HTTP Request: POST http://testserver/api/goals "HTTP/1.1 200 OK"
+2026-11-07 14:40:27 [    INFO] HTTP Request: POST http://testserver/api/goals "HTTP/1.1 403 Forbidden"
+2026-11-07 14:40:27 [    INFO] HTTP Request: POST http://testserver/api/goals "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 28%]
+tests/test_goal_write_authority_contract.py::test_utility_roles_and_same_workspace_twins 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:28 [    INFO] HTTP Request: PUT http://testserver/api/goals/goal-1/utility "HTTP/1.1 403 Forbidden"
+2026-11-07 14:40:28 [    INFO] HTTP Request: PUT http://testserver/api/goals/goal-1/utility "HTTP/1.1 403 Forbidden"
+2026-11-07 14:40:28 [    INFO] HTTP Request: DELETE http://testserver/api/goals/goal-1/utility "HTTP/1.1 403 Forbidden"
+2026-11-07 14:40:28 [    INFO] HTTP Request: PUT http://testserver/api/goals/goal-1/utility?operation_id=utility-set-twin "HTTP/1.1 200 OK"
+2026-11-07 14:40:28 [    INFO] HTTP Request: DELETE http://testserver/api/goals/goal-1/utility?operation_id=utility-clear-twin "HTTP/1.1 200 OK"
+2026-11-07 14:40:28 [    INFO] HTTP Request: PUT http://testserver/api/goals/goal-1/utility "HTTP/1.1 404 Not Found"
+2026-11-07 14:40:28 [    INFO] HTTP Request: DELETE http://testserver/api/goals/goal-1/utility "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 28%]
+tests/test_goal_write_authority_contract.py::test_read_paths_stay_open_to_signed_in_viewer 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:28 [    INFO] HTTP Request: GET http://testserver/api/goals "HTTP/1.1 200 OK"
+2026-11-07 14:40:28 [    INFO] HTTP Request: GET http://testserver/api/goals/goal-1 "HTTP/1.1 200 OK"
+2026-11-07 14:40:28 [    INFO] HTTP Request: GET http://testserver/api/goals/goal-1/utility "HTTP/1.1 200 OK"
+PASSED                                                                   [ 29%]
+tests/test_goal_write_authority_contract.py::test_utility_set_refuses_demotion_committed_after_goal_read 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:28 [    INFO] HTTP Request: PUT http://testserver/api/goals/goal-1/utility?operation_id=race-demote "HTTP/1.1 409 Conflict"
+2026-11-07 14:40:28 [    INFO] HTTP Request: PUT http://testserver/api/goals/goal-1/utility "HTTP/1.1 200 OK"
+PASSED                                                                   [ 30%]
+tests/test_goal_write_authority_contract.py::test_utility_clear_refuses_deactivation_committed_after_goal_read 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:28 [    INFO] HTTP Request: DELETE http://testserver/api/goals/goal-1/utility?operation_id=race-deactivate "HTTP/1.1 409 Conflict"
+2026-11-07 14:40:28 [    INFO] HTTP Request: DELETE http://testserver/api/goals/goal-1/utility "HTTP/1.1 200 OK"
+PASSED                                                                   [ 30%]
+tests/test_goal_write_authority_contract.py::test_utility_set_refuses_workspace_move_after_goal_read 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:28 [    INFO] HTTP Request: PUT http://testserver/api/goals/goal-1/utility?operation_id=race-workspace "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 31%]
+tests/test_goal_write_authority_contract.py::test_utility_set_refuses_workspace_move_committed_after_role_gate 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:29 [    INFO] HTTP Request: PUT http://testserver/api/goals/goal-1/utility?operation_id=race-workspace-gate "HTTP/1.1 409 Conflict"
+2026-11-07 14:40:29 [    INFO] HTTP Request: PUT http://testserver/api/goals/goal-1/utility "HTTP/1.1 200 OK"
+PASSED                                                                   [ 32%]
+tests/test_goal_write_authority_contract.py::test_create_refuses_demotion_committed_after_role_gate 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:29 [    INFO] HTTP Request: POST http://testserver/api/goals?operation_id=race-create-demote "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 32%]
+tests/test_goal_write_authority_contract.py::test_create_refuses_deactivation_committed_after_role_gate 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:29 [    INFO] HTTP Request: POST http://testserver/api/goals?operation_id=race-create-deactivate "HTTP/1.1 403 Forbidden"
+2026-11-07 14:40:29 [    INFO] HTTP Request: POST http://testserver/api/goals "HTTP/1.1 200 OK"
+PASSED                                                                   [ 33%]
+tests/test_goal_write_authority_contract.py::test_create_refuses_workspace_move_committed_after_role_gate 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:29 [    INFO] HTTP Request: POST http://testserver/api/goals?operation_id=race-create-workspace "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 34%]
+tests/test_goal_write_authority_contract.py::test_new_request_already_in_current_workspace_can_create 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:29 [    INFO] HTTP Request: POST http://testserver/api/goals?operation_id=new-scope-create "HTTP/1.1 200 OK"
+PASSED                                                                   [ 34%]
+tests/test_goal_write_authority_contract.py::test_utility_set_refuses_stale_metadata_and_preserves_peer 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:30 [    INFO] HTTP Request: PUT http://testserver/api/goals/goal-1/utility?operation_id=stale-metadata "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 35%]
+tests/test_goal_write_authority_contract.py::test_utility_handles_null_and_empty_metadata_distinctly 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:30 [    INFO] HTTP Request: PUT http://testserver/api/goals/goal-null/utility?operation_id=null-material "HTTP/1.1 200 OK"
+2026-11-07 14:40:30 [    INFO] HTTP Request: PUT http://testserver/api/goals/goal-empty/utility?operation_id=empty-material "HTTP/1.1 200 OK"
+2026-11-07 14:40:30 [    INFO] HTTP Request: DELETE http://testserver/api/goals/goal-empty/utility?operation_id=empty-material-clear "HTTP/1.1 200 OK"
+PASSED                                                                   [ 36%]
+tests/test_goal_write_authority_contract.py::test_utility_set_refuses_stale_null_metadata 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:30 [    INFO] HTTP Request: PUT http://testserver/api/goals/goal-null/utility?operation_id=stale-null "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 36%]
+tests/test_goal_write_authority_contract.py::test_utility_accepts_each_nullable_metadata_kind[sql_null] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:30 [    INFO] HTTP Request: PUT http://testserver/api/goals/goal-null/utility?operation_id=nullable-positive-sql_null "HTTP/1.1 200 OK"
+2026-11-07 14:40:30 [    INFO] HTTP Request: PUT http://testserver/api/goals/goal-null/utility?operation_id=nullable-positive-sql_null "HTTP/1.1 200 OK"
+PASSED                                                                   [ 37%]
+tests/test_goal_write_authority_contract.py::test_utility_accepts_each_nullable_metadata_kind[json_null] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:30 [    INFO] HTTP Request: PUT http://testserver/api/goals/goal-json-null/utility?operation_id=nullable-positive-json_null "HTTP/1.1 200 OK"
+2026-11-07 14:40:30 [    INFO] HTTP Request: PUT http://testserver/api/goals/goal-json-null/utility?operation_id=nullable-positive-json_null "HTTP/1.1 200 OK"
+PASSED                                                                   [ 38%]
+tests/test_goal_write_authority_contract.py::test_utility_accepts_each_nullable_metadata_kind[object] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:31 [    INFO] HTTP Request: PUT http://testserver/api/goals/goal-empty/utility?operation_id=nullable-positive-object "HTTP/1.1 200 OK"
+2026-11-07 14:40:31 [    INFO] HTTP Request: PUT http://testserver/api/goals/goal-empty/utility?operation_id=nullable-positive-object "HTTP/1.1 200 OK"
+PASSED                                                                   [ 38%]
+tests/test_goal_write_authority_contract.py::test_nullable_metadata_kinds_have_distinct_prior_digests 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:31 [    INFO] HTTP Request: PUT http://testserver/api/goals/goal-null/utility?operation_id=nullable-digest-sql_null "HTTP/1.1 200 OK"
+2026-11-07 14:40:31 [    INFO] HTTP Request: PUT http://testserver/api/goals/goal-json-null/utility?operation_id=nullable-digest-json_null "HTTP/1.1 200 OK"
+2026-11-07 14:40:31 [    INFO] HTTP Request: PUT http://testserver/api/goals/goal-empty/utility?operation_id=nullable-digest-object "HTTP/1.1 200 OK"
+PASSED                                                                   [ 39%]
+tests/test_goal_write_authority_contract.py::test_utility_refuses_nullable_metadata_transition_after_read[sql_null-sql_null] SKIPPED [ 40%]
+tests/test_goal_write_authority_contract.py::test_utility_refuses_nullable_metadata_transition_after_read[sql_null-json_null] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:31 [    INFO] HTTP Request: PUT http://testserver/api/goals/goal-transition/utility?operation_id=nullable-transition-sql_null-json_null "HTTP/1.1 409 Conflict"
+2026-11-07 14:40:31 [    INFO] HTTP Request: PUT http://testserver/api/goals/goal-transition/utility?operation_id=nullable-transition-twin-sql_null-json_null "HTTP/1.1 200 OK"
+PASSED                                                                   [ 40%]
+tests/test_goal_write_authority_contract.py::test_utility_refuses_nullable_metadata_transition_after_read[sql_null-object] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:31 [    INFO] HTTP Request: PUT http://testserver/api/goals/goal-transition/utility?operation_id=nullable-transition-sql_null-object "HTTP/1.1 409 Conflict"
+2026-11-07 14:40:31 [    INFO] HTTP Request: PUT http://testserver/api/goals/goal-transition/utility?operation_id=nullable-transition-twin-sql_null-object "HTTP/1.1 200 OK"
+PASSED                                                                   [ 41%]
+tests/test_goal_write_authority_contract.py::test_utility_refuses_nullable_metadata_transition_after_read[json_null-sql_null] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:32 [    INFO] HTTP Request: PUT http://testserver/api/goals/goal-transition/utility?operation_id=nullable-transition-json_null-sql_null "HTTP/1.1 409 Conflict"
+2026-11-07 14:40:32 [    INFO] HTTP Request: PUT http://testserver/api/goals/goal-transition/utility?operation_id=nullable-transition-twin-json_null-sql_null "HTTP/1.1 200 OK"
+PASSED                                                                   [ 42%]
+tests/test_goal_write_authority_contract.py::test_utility_refuses_nullable_metadata_transition_after_read[json_null-json_null] SKIPPED [ 42%]
+tests/test_goal_write_authority_contract.py::test_utility_refuses_nullable_metadata_transition_after_read[json_null-object] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:32 [    INFO] HTTP Request: PUT http://testserver/api/goals/goal-transition/utility?operation_id=nullable-transition-json_null-object "HTTP/1.1 409 Conflict"
+2026-11-07 14:40:32 [    INFO] HTTP Request: PUT http://testserver/api/goals/goal-transition/utility?operation_id=nullable-transition-twin-json_null-object "HTTP/1.1 200 OK"
+PASSED                                                                   [ 43%]
+tests/test_goal_write_authority_contract.py::test_utility_refuses_nullable_metadata_transition_after_read[object-sql_null] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:32 [    INFO] HTTP Request: PUT http://testserver/api/goals/goal-transition/utility?operation_id=nullable-transition-object-sql_null "HTTP/1.1 409 Conflict"
+2026-11-07 14:40:32 [    INFO] HTTP Request: PUT http://testserver/api/goals/goal-transition/utility?operation_id=nullable-transition-twin-object-sql_null "HTTP/1.1 200 OK"
+PASSED                                                                   [ 44%]
+tests/test_goal_write_authority_contract.py::test_utility_refuses_nullable_metadata_transition_after_read[object-json_null] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:33 [    INFO] HTTP Request: PUT http://testserver/api/goals/goal-transition/utility?operation_id=nullable-transition-object-json_null "HTTP/1.1 409 Conflict"
+2026-11-07 14:40:33 [    INFO] HTTP Request: PUT http://testserver/api/goals/goal-transition/utility?operation_id=nullable-transition-twin-object-json_null "HTTP/1.1 200 OK"
+PASSED                                                                   [ 44%]
+tests/test_goal_write_authority_contract.py::test_utility_refuses_nullable_metadata_transition_after_read[object-object] SKIPPED [ 45%]
+tests/test_goal_write_authority_contract.py::test_utility_clear_preserves_null_metadata_kind[sql_null] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:33 [    INFO] HTTP Request: DELETE http://testserver/api/goals/goal-null/utility?operation_id=nullable-clear-sql_null "HTTP/1.1 200 OK"
+PASSED                                                                   [ 46%]
+tests/test_goal_write_authority_contract.py::test_utility_clear_preserves_null_metadata_kind[json_null] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:33 [    INFO] HTTP Request: DELETE http://testserver/api/goals/goal-json-null/utility?operation_id=nullable-clear-json_null "HTTP/1.1 200 OK"
+PASSED                                                                   [ 46%]
+tests/test_goal_write_authority_contract.py::test_utility_set_replay_same_and_changed_material 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:33 [    INFO] HTTP Request: PUT http://testserver/api/goals/goal-1/utility?operation_id=replay-util "HTTP/1.1 200 OK"
+2026-11-07 14:40:33 [    INFO] HTTP Request: PUT http://testserver/api/goals/goal-1/utility?operation_id=replay-util "HTTP/1.1 200 OK"
+2026-11-07 14:40:33 [    INFO] HTTP Request: PUT http://testserver/api/goals/goal-1/utility?operation_id=replay-util "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 47%]
+tests/test_goal_write_authority_contract.py::test_utility_clear_replay_same_operation 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:34 [    INFO] HTTP Request: DELETE http://testserver/api/goals/goal-1/utility?operation_id=replay-clear "HTTP/1.1 200 OK"
+2026-11-07 14:40:34 [    INFO] HTTP Request: DELETE http://testserver/api/goals/goal-1/utility?operation_id=replay-clear "HTTP/1.1 200 OK"
+PASSED                                                                   [ 48%]
+tests/test_goal_write_authority_contract.py::test_create_replay_same_and_changed_material 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:34 [    INFO] HTTP Request: POST http://testserver/api/goals?operation_id=replay-create "HTTP/1.1 200 OK"
+2026-11-07 14:40:34 [    INFO] HTTP Request: POST http://testserver/api/goals?operation_id=replay-create "HTTP/1.1 200 OK"
+2026-11-07 14:40:34 [    INFO] HTTP Request: POST http://testserver/api/goals?operation_id=replay-create "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 48%]
+tests/test_goal_write_authority_contract.py::test_receipt_and_target_read_back_after_fresh_engine 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:34 [    INFO] HTTP Request: PUT http://testserver/api/goals/goal-1/utility?operation_id=restart-receipt "HTTP/1.1 200 OK"
+2026-11-07 14:40:34 [    INFO] HTTP Request: GET http://testserver/api/goals/goal-1/utility "HTTP/1.1 200 OK"
+PASSED                                                                   [ 49%]
+tests/test_goal_projection_boundaries.py::test_forged_task_lifecycle_marker_cannot_execute_projection PASSED [ 50%]
+tests/test_goal_projection_boundaries.py::test_forged_marker_cannot_write_operation_projection PASSED [ 50%]
+tests/test_goal_projection_boundaries.py::test_unknown_kind_creates_no_canvas_or_counter PASSED [ 51%]
+tests/test_goal_projection_boundaries.py::test_legacy_and_normalized_canvas_kinds_dispatch PASSED [ 51%]
+tests/test_goal_projection_boundaries.py::test_genuine_assignment_projection_is_readable_and_native_refused PASSED [ 52%]
+tests/test_goal_projection_boundaries.py::test_assignment_parameter_write_bumps_material_revision PASSED [ 53%]
+tests/test_goal_projection_boundaries.py::test_projection_validator_rejects_executable_or_malformed_entries PASSED [ 53%]
+tests/test_goal_run_service.py::TestCreateRun::test_creates_planning_run_with_cursor PASSED [ 54%]
+tests/test_goal_run_service.py::TestCreateRun::test_rejects_unknown_supervision_mode PASSED [ 55%]
+tests/test_goal_run_service.py::TestCreateRun::test_rejects_unknown_goal PASSED [ 55%]
+tests/test_goal_run_service.py::TestStateMachine::test_full_lifecycle PASSED [ 56%]
+tests/test_goal_run_service.py::TestStateMachine::test_illegal_transitions_rejected PASSED [ 57%]
+tests/test_goal_run_service.py::TestStateMachine::test_terminal_states_have_no_exits PASSED [ 57%]
+tests/test_goal_run_service.py::TestStateMachine::test_pause_hitl_round_trip PASSED [ 58%]
+tests/test_goal_run_service.py::TestPersistence::test_run_survives_fresh_service PASSED [ 59%]
+tests/test_goal_run_service.py::TestPersistence::test_decision_log_append_only PASSED [ 59%]
+tests/test_goal_run_service.py::TestWaits::test_set_wait_requires_active PASSED [ 60%]
+tests/test_goal_run_service.py::TestWaits::test_set_wait_requires_event_key PASSED [ 61%]
+tests/test_goal_run_service.py::TestWaits::test_wake_consumed_once PASSED [ 61%]
+tests/test_goal_run_service.py::TestWaits::test_timer_wake_without_constraints PASSED [ 62%]
+tests/test_goal_run_service.py::TestParameters::test_patch_merges_top_level_and_nested PASSED [ 63%]
+tests/test_goal_run_service.py::TestCanvasBackLinks::test_canvas_goal_run_link_persists PASSED [ 63%]
+tests/test_goal_run_service.py::TestHITLHold::test_hold_creates_hitl_row_and_resume_executes PASSED [ 64%]
+tests/test_goal_run_service.py::TestHITLHold::test_reject_override_recorded 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:34 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 14:40:34 [    INFO] EscalationManager initialized
+2026-11-07 14:40:34 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 14:40:34 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 14:40:34 [ WARNING] get_or_create_reflection_pool_table() called on LanceDB stub (no table)
+2026-11-07 14:40:34 [   ERROR] Reflection pool table not available
+PASSED                                                                   [ 65%]
+tests/test_goal_run_service.py::TestHITLHold::test_resume_without_pending_is_noop PASSED [ 65%]
+tests/test_goal_run_loop.py::TestDecisionLoop::test_advance_persists_decision_and_executes_canvas_step PASSED [ 66%]
+tests/test_goal_run_loop.py::TestDecisionLoop::test_parameter_updates_applied_and_logged PASSED [ 67%]
+tests/test_goal_run_loop.py::TestDecisionLoop::test_wait_decision_suspends_run PASSED [ 67%]
+tests/test_goal_run_loop.py::TestDecisionLoop::test_done_requires_criteria_verification PASSED [ 68%]
+tests/test_goal_run_loop.py::TestDecisionLoop::test_training_mode_holds_every_decision PASSED [ 69%]
+tests/test_goal_run_loop.py::TestDecisionLoop::test_training_mode_checkpoint_passes_through_human_checkpoints PASSED [ 69%]
+tests/test_goal_run_loop.py::TestGuardrails::test_replan_budget_forces_ask_human PASSED [ 70%]
+tests/test_goal_run_loop.py::TestGuardrails::test_replan_magnitude_gate_holds_major_replans PASSED [ 71%]
+tests/test_goal_run_loop.py::TestGuardrails::test_minor_replan_applies PASSED [ 71%]
+tests/test_goal_run_loop.py::TestGuardrails::test_stuck_detector_pauses_after_identical_decisions PASSED [ 72%]
+tests/test_goal_run_loop.py::TestExecutors::test_human_checkpoint_step_creates_hitl_and_waits PASSED [ 73%]
+tests/test_goal_run_loop.py::TestExecutors::test_integration_action_via_action_registry PASSED [ 73%]
+tests/test_goal_run_loop.py::TestExecutors::test_unknown_action_is_reported_not_raised PASSED [ 74%]
+tests/test_goal_run_loop.py::TestExecutors::test_branch_new_canvas_creates_linked_canvas PASSED [ 75%]
+tests/test_goal_run_loop.py::TestExecutors::test_skip_advances_cursor PASSED [ 75%]
+tests/test_goal_run_loop.py::TestCanvasCriteria::test_canvas_state_criterion PASSED [ 76%]
+tests/test_goal_run_loop.py::TestCanvasCriteria::test_action_dispatched_criterion PASSED [ 76%]
+tests/test_goal_run_routes.py::test_member_create_requires_role_based_shape 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:35 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 422 Unprocessable Entity"
+2026-11-07 14:40:35 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+2026-11-07 14:40:35 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 77%]
+tests/test_goal_run_routes.py::test_create_run_seeds_plan_and_kickoff 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:35 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+PASSED                                                                   [ 78%]
+tests/test_goal_run_routes.py::test_create_unknown_goal_404 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:35 [ WARNING] API Error: NOT_FOUND - Goal not found: nope
+2026-11-07 14:40:35 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 78%]
+tests/test_goal_run_routes.py::test_list_and_detail 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:35 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+2026-11-07 14:40:35 [    INFO] HTTP Request: GET http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+2026-11-07 14:40:35 [    INFO] HTTP Request: GET http://testserver/api/goal-runs/a9adc73a-4a8d-49da-8c29-55ccd8760511 "HTTP/1.1 200 OK"
+2026-11-07 14:40:35 [ WARNING] API Error: NOT_FOUND - GoalRun not found: does-not-exist
+2026-11-07 14:40:35 [    INFO] HTTP Request: GET http://testserver/api/goal-runs/does-not-exist "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 79%]
+tests/test_goal_run_routes.py::test_advance_and_resume_flow 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:35 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+2026-11-07 14:40:35 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/2f483dbc-067b-4238-ad49-6c24c916a848/resume "HTTP/1.1 403 Forbidden"
+2026-11-07 14:40:35 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/2f483dbc-067b-4238-ad49-6c24c916a848/resume "HTTP/1.1 200 OK"
+PASSED                                                                   [ 80%]
+tests/test_goal_run_routes.py::test_checkpoint_resolution 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:35 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+2026-11-07 14:40:35 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/e6a4d277-044d-4974-96dd-8c9a411238f7/advance "HTTP/1.1 200 OK"
+2026-11-07 14:40:35 [    INFO] HTTP Request: GET http://testserver/api/goal-runs/e6a4d277-044d-4974-96dd-8c9a411238f7 "HTTP/1.1 200 OK"
+2026-11-07 14:40:35 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/e6a4d277-044d-4974-96dd-8c9a411238f7/checkpoints/d22a9f68-13ee-484c-8404-1377e658127b/resolve "HTTP/1.1 200 OK"
+2026-11-07 14:40:35 [    INFO] HTTP Request: GET http://testserver/api/goal-runs/e6a4d277-044d-4974-96dd-8c9a411238f7 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 80%]
+tests/test_goal_run_routes.py::test_event_ingestion_endpoint 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:35 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+2026-11-07 14:40:35 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/events "HTTP/1.1 200 OK"
+PASSED                                                                   [ 81%]
+tests/test_goal_run_routes.py::test_event_ingestion_requires_supervisor 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:35 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/events "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 82%]
+tests/test_goal_run_routes.py::test_mode_change_requires_supervisor 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:35 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+2026-11-07 14:40:35 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/1a1e1a96-7b02-4f9d-a3c3-1e307c0f625c/mode "HTTP/1.1 403 Forbidden"
+2026-11-07 14:40:35 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/1a1e1a96-7b02-4f9d-a3c3-1e307c0f625c/mode "HTTP/1.1 200 OK"
+2026-11-07 14:40:35 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/1a1e1a96-7b02-4f9d-a3c3-1e307c0f625c/mode "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 82%]
+tests/test_goal_run_routes.py::test_distill_route 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:35 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+2026-11-07 14:40:35 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/457a3459-ee94-48cd-800d-614433c44b93/distill "HTTP/1.1 409 Conflict"
+2026-11-07 14:40:35 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/457a3459-ee94-48cd-800d-614433c44b93/distill "HTTP/1.1 200 OK"
+2026-11-07 14:40:35 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/457a3459-ee94-48cd-800d-614433c44b93/distill "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 83%]
+tests/test_goal_run_routes.py::test_promotion_endpoint 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:35 [    INFO] HTTP Request: GET http://testserver/api/goal-runs/promotion/agent-x "HTTP/1.1 200 OK"
+PASSED                                                                   [ 84%]
+tests/test_goal_journey_gaps.py::TestGoalsSurface::test_list_goals_is_any_signed_in 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:35 [    INFO] HTTP Request: GET http://testserver/api/goals "HTTP/1.1 200 OK"
+PASSED                                                                   [ 84%]
+tests/test_goal_journey_gaps.py::TestGoalsSurface::test_member_creates_simple_goal_but_not_criteria 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:35 [    INFO] HTTP Request: POST http://testserver/api/goals "HTTP/1.1 200 OK"
+2026-11-07 14:40:35 [    INFO] HTTP Request: POST http://testserver/api/goals "HTTP/1.1 403 Forbidden"
+2026-11-07 14:40:35 [    INFO] HTTP Request: POST http://testserver/api/goals "HTTP/1.1 403 Forbidden"
+2026-11-07 14:40:35 [    INFO] HTTP Request: POST http://testserver/api/goals "HTTP/1.1 200 OK"
+2026-11-07 14:40:35 [    INFO] HTTP Request: GET http://testserver/api/goals/8ca869de-3010-45c9-9326-bd681840cc14 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 85%]
+tests/test_goal_journey_gaps.py::TestGoalsSurface::test_create_goal_rejects_blank_title 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:35 [    INFO] HTTP Request: POST http://testserver/api/goals "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 86%]
+tests/test_goal_journey_gaps.py::TestGoalsSurface::test_create_run_accepts_inline_new_goal_id 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:35 [    INFO] HTTP Request: POST http://testserver/api/goals "HTTP/1.1 200 OK"
+2026-11-07 14:40:35 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+PASSED                                                                   [ 86%]
+tests/test_goal_journey_gaps.py::TestRoleBasedRunAccess::test_member_starts_own_role_based_run 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:35 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+PASSED                                                                   [ 87%]
+tests/test_goal_journey_gaps.py::TestRoleBasedRunAccess::test_role_derived_from_the_business_agent 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:35 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+PASSED                                                                   [ 88%]
+tests/test_goal_journey_gaps.py::TestRoleBasedRunAccess::test_member_cannot_author_plan_or_self_promote 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:35 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 403 Forbidden"
+2026-11-07 14:40:35 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 88%]
+tests/test_goal_journey_gaps.py::TestRoleBasedRunAccess::test_member_governance_params_stripped 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:36 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+PASSED                                                                   [ 89%]
+tests/test_goal_journey_gaps.py::TestRoleBasedRunAccess::test_member_without_role_or_agent_is_422 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:36 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 90%]
+tests/test_goal_journey_gaps.py::TestRoleBasedRunAccess::test_owner_acts_other_member_refused_supervisor_can 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:36 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+2026-11-07 14:40:36 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/be487df7-fb8a-496e-8597-4dfc8b83e2b9/advance "HTTP/1.1 403 Forbidden"
+2026-11-07 14:40:36 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/be487df7-fb8a-496e-8597-4dfc8b83e2b9/cancel "HTTP/1.1 403 Forbidden"
+2026-11-07 14:40:36 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/be487df7-fb8a-496e-8597-4dfc8b83e2b9/checkpoints/h1/resolve "HTTP/1.1 403 Forbidden"
+2026-11-07 14:40:36 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/be487df7-fb8a-496e-8597-4dfc8b83e2b9/advance "HTTP/1.1 200 OK"
+2026-11-07 14:40:36 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/be487df7-fb8a-496e-8597-4dfc8b83e2b9/advance "HTTP/1.1 200 OK"
+PASSED                                                                   [ 90%]
+tests/test_goal_journey_gaps.py::TestRoleBasedRunAccess::test_owner_resolves_own_held_decision 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:36 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+2026-11-07 14:40:36 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/4507dc2e-40c9-4303-8504-3950aaf28609/resume "HTTP/1.1 403 Forbidden"
+2026-11-07 14:40:36 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/4507dc2e-40c9-4303-8504-3950aaf28609/resume "HTTP/1.1 200 OK"
+PASSED                                                                   [ 91%]
+tests/test_goal_journey_gaps.py::TestRoleBasedRunAccess::test_member_cannot_change_mode_or_distill 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:36 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+2026-11-07 14:40:36 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/86861cb9-ba5b-4cbe-a350-4aa1365a1a3c/mode "HTTP/1.1 403 Forbidden"
+2026-11-07 14:40:36 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/86861cb9-ba5b-4cbe-a350-4aa1365a1a3c/distill "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 92%]
+tests/test_goal_journey_gaps.py::TestRunStartsOnCreate::test_create_kicks_off_first_loop_turn 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:36 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+2026-11-07 14:40:36 [    INFO] HTTP Request: GET http://testserver/api/goal-runs/ae77ab39-5e66-4df6-929a-73661175258a/canvases "HTTP/1.1 200 OK"
+PASSED                                                                   [ 92%]
+tests/test_goal_journey_gaps.py::TestRunStartsOnCreate::test_create_start_false_leaves_run_dormant 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:36 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+PASSED                                                                   [ 93%]
+tests/test_goal_journey_gaps.py::TestRunStartsOnCreate::test_training_mode_kickoff_holds_first_decision 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:36 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+2026-11-07 14:40:36 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/e5d2a805-00bd-4a10-a887-63eceba14404/resume "HTTP/1.1 200 OK"
+PASSED                                                                   [ 94%]
+tests/test_goal_journey_gaps.py::TestTerminalRunIsFinal::test_advance_on_terminal_run_is_409_not_silent_success 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:36 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+2026-11-07 14:40:36 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/91746bb2-88e0-4168-9298-a1d8c600b09e/advance "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 94%]
+tests/test_goal_journey_gaps.py::TestTerminalRunIsFinal::test_distill_allowed_for_failed_and_cancelled 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:36 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+2026-11-07 14:40:36 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/3805a09d-2b3d-498e-8c2f-8e01c7e5ac18/distill "HTTP/1.1 409 Conflict"
+2026-11-07 14:40:36 [    INFO] HTTP Request: POST http://testserver/api/goal-runs "HTTP/1.1 200 OK"
+2026-11-07 14:40:36 [    INFO] HTTP Request: POST http://testserver/api/goal-runs/45037840-a967-42b0-a722-43168edf7b6f/distill "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 95%]
+tests/core/test_agent_objective.py::test_objective_is_satisfied_when_predicate_true PASSED [ 96%]
+tests/core/test_agent_objective.py::test_objective_no_predicate_never_satisfied PASSED [ 96%]
+tests/core/test_agent_objective.py::test_objective_predicate_error_is_safe PASSED [ 97%]
+tests/core/test_agent_objective.py::test_no_objective_when_flag_off PASSED [ 98%]
+tests/core/test_agent_objective.py::test_objective_built_from_context_when_flag_on PASSED [ 98%]
+tests/core/test_agent_objective.py::test_objective_passthrough_instance PASSED [ 99%]
+tests/core/test_agent_objective.py::test_satisfied_objective_terminates_early 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:40:36 [    INFO] MCP Service initialized
+2026-11-07 14:40:36 [    INFO] EscalationManager initialized
+2026-11-07 14:40:36 [    INFO] CognitiveTierService initialized for workspace: ws
+2026-11-07 14:40:36 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 14:40:36 [    INFO] EscalationManager initialized
+2026-11-07 14:40:36 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 14:40:36 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 14:40:36 [    INFO] Agent A (a1) starting task: reach the target
+2026-11-07 14:40:36 [    INFO] EscalationManager initialized
+2026-11-07 14:40:36 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 14:40:36 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 14:40:36 [    INFO] LanceDBHandler initialized. ID: 4979023440. LANCEDB_AVAILABLE: True
+2026-11-07 14:40:36 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 14:40:36 [    INFO] Connecting to LanceDB at /private/tmp/root-wait-source-final-review-r1vjlh7s/lancedb with storage_options=None
+2026-11-07 14:40:36 [    INFO] LanceDB connected successfully
+2026-11-07 14:40:37 [    INFO] EscalationManager initialized
+2026-11-07 14:40:37 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 14:40:37 [    INFO] EscalationManager initialized
+2026-11-07 14:40:37 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 14:40:37 [    INFO] Listed 0 skills (status=Active, type=None)
+2026-11-07 14:40:37 [ WARNING] get_or_create_reflection_pool_table() called on LanceDB stub (no table)
+2026-11-07 14:40:37 [ WARNING] Complexity analysis failed, using fallback: 'coroutine' object has no attribute 'analyze_query_complexity'
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 304 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_goal_run_routes.py: 11 warnings
+tests/test_goal_journey_gaps.py: 17 warnings
+  /private/tmp/atom-goal-utility-surface-20261107/backend/tests/conftest.py:507: SAWarning: Cannot correctly sort tables; there are unresolvable cycles between tables "agent_divisions, agent_registry, canvases, mini_apps", which is usually caused by mutually dependent foreign key constraints.  Foreign key constraints involving these tables will not be considered; this warning may raise an error in a future release.
+    for table in reversed(_all_models_base.metadata.sorted_tables):
+
+tests/core/test_agent_objective.py::test_satisfied_objective_terminates_early
+  /private/tmp/atom-goal-utility-surface-20261107/backend/core/lancedb_handler.py:407: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    names = set(self.db.table_names())
+
+tests/core/test_agent_objective.py::test_satisfied_objective_terminates_early
+tests/core/test_agent_objective.py::test_satisfied_objective_terminates_early
+  /Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/asyncio/events.py:94: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    self._context.run(self._callback, *self._args)
+
+tests/core/test_agent_objective.py::test_satisfied_objective_terminates_early
+  /private/tmp/atom-goal-utility-surface-20261107/backend/core/lancedb_handler.py:620: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    if table_name in self.db.table_names():
+
+tests/core/test_agent_objective.py::test_satisfied_objective_terminates_early
+  /private/tmp/atom-goal-utility-surface-20261107/backend/core/generic_agent.py:1458: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    _complexity = "moderate"
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/core/test_agent_objective.py::test_satisfied_objective_terminates_early
+  /private/tmp/atom-goal-utility-surface-20261107/backend/core/generic_agent.py:1699: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    _audit_llm(structured_result.model_dump())
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/core/test_agent_objective.py::test_satisfied_objective_terminates_early
+  /private/tmp/atom-goal-utility-surface-20261107/backend/core/generic_agent.py:850: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    complexity = QueryComplexity.MODERATE
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/core/test_agent_objective.py::test_satisfied_objective_terminates_early
+  /private/tmp/atom-goal-utility-surface-20261107/backend/tests/core/test_agent_objective.py:113: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    result = {"status": "failed"}
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================ 149 passed, 3 skipped, 347 warnings in 24.08s =================
