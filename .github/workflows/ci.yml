@@ -478,7 +478,7 @@ jobs:
         run: npx jest tests/middleware.test.ts tests/lib/auth-headers.test.ts tests/pages/__tests__/login.test.tsx tests/auth/test-signin.test.tsx --runInBand --no-coverage
       - name: Run agent information question UI controls
         working-directory: frontend-nextjs
-        run: npx jest components/Agents/__tests__/AgentJobWaitPanel.test.tsx lib/__tests__/agent-job-ref.test.ts --runInBand --no-coverage
+        run: npx jest components/Agents/__tests__/AgentJobWaitPanel.test.tsx lib/__tests__/agent-job-ref.test.ts tests/pages/agents-index.test.tsx tests/pages/agents-information-job.test.tsx --runInBand --no-coverage
       - name: Deferred-link regression tests
         # Core profile must not link deferred governance/connector surfaces.
         run: npx jest tests/pages/settings-index.test.tsx tests/components/AssignmentPanel.test.tsx --runInBand --no-coverage
