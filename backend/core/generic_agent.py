@@ -203,7 +203,16 @@ class GenericAgent:
         # previously ran ungated — contradicting P9's default-on contract.
         # Mirrors atom_meta_agent.execute(); setdefault keeps caller-supplied
         # values authoritative.
-        _run_uuid = str(uuid.uuid4())
+        #
+        # The audit bracket and the persisted AgentExecution must share ONE
+        # identity. An admitted caller already supplies a server-owned
+        # execution_id/run_id; minting a fresh _run_uuid here made
+        # bind_audit_context/check_execution_audit_completeness point at a
+        # different id than _record_execution stored. Reuse the canonical id.
+        _run_uuid = str(
+            context.get("execution_id")
+            or context.get("run_id")
+            or uuid.uuid4())
         context.setdefault("run_id", _run_uuid)
         context.setdefault("execution_id", _run_uuid)
         context.setdefault("agent_id", self.id)

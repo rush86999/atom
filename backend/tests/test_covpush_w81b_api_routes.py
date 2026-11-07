@@ -739,7 +739,8 @@ class TestExecuteAgentTask:
         wm.recall_experiences = AsyncMock(return_value=memories or {"experiences": []})
         self.wm.return_value = wm
         runner = AsyncMock()
-        runner.execute.return_value = {"final_output": "done"}
+        runner.execute.return_value = {
+            "status": "success", "final_output": "done"}
         self.fake_generic.return_value = runner
         return await self.ar.execute_agent_task(agent_id, params or {}), runner
 

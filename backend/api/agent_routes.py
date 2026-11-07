@@ -8,6 +8,7 @@ from typing import Any, Dict, List, Optional
 import uuid
 from advanced_workflow_orchestrator import AdvancedWorkflowOrchestrator
 from fastapi import BackgroundTasks, Depends, HTTPException, Query
+from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
 from sqlalchemy import update
 from sqlalchemy.orm import Session
@@ -32,6 +33,7 @@ from core.models import (
     AgentJobStatus,
     AgentRegistry,
     AgentStatus,
+    AuditLog,
     HITLAction,
     HITLActionStatus,
     NEW_AGENT_CONFIDENCE,
@@ -509,6 +511,35 @@ async def run_agent(
     _raise_agent_decision(result)
     data = result.get("data") or {}
     if result.get("status") == "already_applied":
+        # A replay/continued read must expose the existing durable outcome
+        # (including any peer-terminal state) and must not dispatch again.
+        replay_job_id = data.get("job_id")
+        if replay_job_id:
+            durable = _job_outcome_projection(
+                replay_job_id, db.get_bind())
+            if durable is not None:
+                data = dict(data)
+                data.update({
+                    "execution_id": durable.get("execution_id"),
+                    "job_status": durable["job_status"],
+                    "outcome": durable["outcome"],
+                    "reason": durable["reason"],
+                    "next_action": durable["next_action"],
+                    "requires_reconciliation": durable[
+                        "requires_reconciliation"],
+                })
+                if durable.get("wait_receipt") is not None:
+                    data["wait_receipt"] = durable["wait_receipt"]
+                if durable["job_status"] in _JOB_WAITING_STATUSES:
+                    return JSONResponse(
+                        status_code=202,
+                        content=router.success_response(
+                            data=data,
+                            message=(
+                                "Agent run is waiting for required "
+                                "information"),
+                        ),
+                    )
         return router.success_response(
             data=data, message="Agent run already admitted")
     job_id = data.get("job_id")
@@ -528,19 +559,98 @@ async def run_agent(
     if run_req.parameters.get("sync", False):
         execution = await _dispatch_admitted_run(
             agent_id, run_req.parameters, job_id, prior_status,
-            db.get_bind())
-        return router.success_response(
-            data={
-                "agent_id": agent_id,
-                "job_id": job_id,
-                "result": execution,
-                "verification": data.get("verification"),
+            db.get_bind(), actor_id=current_user.id)
+        if execution is None:
+            # The durable claim refused a second dispatch (or the job is no
+            # longer active). Never report a new execution as completed.
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "success": False,
+                    "error": {
+                        "code": "AGENT_RUN_NOT_DISPATCHED",
+                        "message": (
+                            "This run was already dispatched or is no longer "
+                            "active; refresh the job state instead of "
+                            "dispatching it again."),
+                    },
+                    "data": {
+                        "agent_id": agent_id,
+                        "job_id": job_id,
+                    },
+                },
+            )
+        job_outcome = _job_outcome_projection(job_id, db.get_bind())
+        if job_outcome is None:
+            raise HTTPException(
+                status_code=503,
+                detail={
+                    "success": False,
+                    "error": {
+                        "code": "AGENT_EXECUTION_UNCERTAIN",
+                        "message": (
+                            "The execution finished but its durable job "
+                            "state could not be read back. Reconcile the "
+                            "original operation; do not retry blindly."),
+                    },
+                    "data": {
+                        "agent_id": agent_id,
+                        "job_id": job_id,
+                    },
+                },
+            )
+        execution_data = {
+            "agent_id": agent_id,
+            "job_id": job_id,
+            "execution_id": job_outcome.get("execution_id"),
+            "job_status": job_outcome["job_status"],
+            "outcome": job_outcome["outcome"],
+            "reason": job_outcome["reason"],
+            "next_action": job_outcome["next_action"],
+            "requires_reconciliation": job_outcome[
+                "requires_reconciliation"],
+            "verification": data.get("verification"),
+        }
+        if job_outcome["job_status"] in _JOB_WAITING_STATUSES:
+            # A durable wait is neither success nor failure. The same task
+            # retains its question/receipt and resumes through the existing
+            # continuation owner when authorized input arrives.
+            execution_data["wait_receipt"] = job_outcome.get(
+                "wait_receipt")
+            return JSONResponse(
+                status_code=202,
+                content=router.success_response(
+                    data=execution_data,
+                    message=(
+                        "Agent execution is waiting for required "
+                        "information"),
+                ),
+            )
+        if job_outcome["job_status"] == AgentJobStatus.SUCCESS.value:
+            execution_data["result"] = _public_execution_result(execution)
+            return router.success_response(
+                data=execution_data,
+                message="Agent execution completed",
+            )
+        detail = {
+            "success": False,
+            "error": {
+                "code": (
+                    "AGENT_EXECUTION_UNCERTAIN"
+                    if job_outcome["requires_reconciliation"]
+                    else "AGENT_EXECUTION_NOT_SUCCESSFUL"),
+                "message": _public_outcome_message(job_outcome),
             },
-            message="Agent execution completed",
+            "data": execution_data,
+        }
+        raise HTTPException(
+            status_code=(
+                503 if job_outcome["requires_reconciliation"] else 409),
+            detail=detail,
         )
     background_tasks.add_task(
         _dispatch_admitted_run, agent_id, run_req.parameters, job_id,
-        prior_status, db.get_bind())
+        prior_status, db.get_bind(), actor_id=current_user.id)
     return router.success_response(
         data={
             "agent_id": agent_id,
@@ -782,11 +892,25 @@ async def decide_hitl_action(
         message=f"Action {action_id} {action.status} successfully"
     )
 
-async def execute_agent_task(agent_id: str, params: Dict[str, Any]):
-    """Background task to run the agent logic"""
+async def execute_agent_task(
+    agent_id: str,
+    params: Dict[str, Any],
+    execution_context: Optional[Dict[str, Any]] = None,
+):
+    """Background task to run the agent logic.
+
+    ``execution_context`` is the server-owned admission namespace. When it
+    carries a durable ``job_id`` the wrapper is an admitted run: the actual
+    workspace/tenant/actor/job/execution identity comes from the admission
+    record and the ``AgentRegistry`` row, never from the request body. The
+    business parameters remain available under their own keys.
+    """
+    trusted = dict(execution_context or {})
+    admitted = bool(trusted.get("job_id"))
     # Use context manager for background task
     with get_db_session() as db:
         result = None
+        agent = None
         try:
             agent = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
             if not agent:
@@ -795,15 +919,17 @@ async def execute_agent_task(agent_id: str, params: Dict[str, Any]):
 
             logger.info(f"Starting agent {agent.name} (ID: {agent_id})...")
 
+            namespace = _execution_namespace(agent, trusted)
+            scoped_params = _scoped_agent_context(params, trusted, agent)
+            workspace_id = namespace["workspace_id"]
+
             # 1. World Model Retrieval — scope to the agent's own workspace
             # (AgentRegistry carries workspace_id; the bare constructor
             # silently read the "default" workspace's memory).
-            wm_service = WorldModelService(
-                getattr(agent, "workspace_id", None) or "default"
-            )
+            wm_service = WorldModelService(workspace_id)
 
             # Build a context string from params to query memory
-            task_context = f"Execute {agent.name} with params: {str(params)}"
+            task_context = f"Execute {agent.name} with params: {str(scoped_params)}"
             relevant_memories = await wm_service.recall_experiences(agent, task_context)
 
             if isinstance(relevant_memories, dict):
@@ -870,49 +996,50 @@ async def execute_agent_task(agent_id: str, params: Dict[str, Any]):
                         status_code=403,
                     )
 
-                runner = GenericAgent(agent, managed_overrides=managed_overrides)
+                runner = GenericAgent(
+                    agent,
+                    workspace_id=workspace_id,
+                    managed_overrides=managed_overrides,
+                )
+                # GenericAgent persists the execution row with
+                # getattr(self, "tenant_id") or "default". Carry the real
+                # tenant instead of silently landing the run in "default".
+                if namespace.get("tenant_id"):
+                    runner.tenant_id = namespace["tenant_id"]
 
                 # 3. Determine Input
                 # ReAct loop needs a natural language instruction.
-                task_input = params.get("task_input") or params.get("request")
+                task_input = scoped_params.get("task_input") or scoped_params.get("request")
 
                 # If input is missing but we have params, we construct a prompt
                 if not task_input:
                     if agent.id == "competitive_intel":
-                        task_input = f"Track pricing for {params.get('product', 'configured products')} against {params.get('competitors', 'competitors')}."
+                        task_input = f"Track pricing for {scoped_params.get('product', 'configured products')} against {scoped_params.get('competitors', 'competitors')}."
                     elif agent.id == "inventory_reconcile":
-                        task_input = f"Reconcile inventory for {params.get('skus', 'all SKUs')}."
+                        task_input = f"Reconcile inventory for {scoped_params.get('skus', 'all SKUs')}."
                     elif agent.id == "payroll_guardian":
-                        task_input = f"Reconcile payroll for period {params.get('period', 'current')}."
+                        task_input = f"Reconcile payroll for period {scoped_params.get('period', 'current')}."
                     else:
-                         task_input = f"Execute task with params: {params}"
+                         task_input = f"Execute task with params: {scoped_params}"
 
                 # 4. Execute ReAct Loop with step streaming
                 logger.info(f"Executing Agent {agent.name} with ReAct Loop. Input: {task_input}")
 
                 async def streaming_callback(step_record):
-                    await ws_manager.broadcast("workspace:default", {
-                        "type": "agent_step_update",
-                        "agent_id": agent_id,
-                        "step": step_record
-                    })
+                    await _broadcast_agent_step(
+                        agent_id, step_record, namespace)
 
-                result_obj = await runner.execute(task_input, context=params, step_callback=streaming_callback)
+                result_obj = await runner.execute(task_input, context=scoped_params, step_callback=streaming_callback)
 
                 # 5. Process Result
                 result = result_obj
-
-                # Success Notification
-                await ws_manager.broadcast("workspace:default", {
-                    "type": "agent_status_change",
-                    "agent_id": agent_id,
-                    "status": "success",
-                    "result": result
-                })
+                outcome = _execution_outcome(result)
 
                 # --- [NEW] External Bridge Response Routing ---
-                source_platform = params.get("source_platform")
-                recipient_id = params.get("recipient_id") or params.get("channel_id")
+                source_platform = scoped_params.get("source_platform")
+                recipient_id = (
+                    scoped_params.get("recipient_id")
+                    or scoped_params.get("channel_id"))
 
                 if source_platform and recipient_id:
                     try:
@@ -920,20 +1047,32 @@ async def execute_agent_task(agent_id: str, params: Dict[str, Any]):
                             ActionType,
                             agent_integration_gateway,
                         )
-                        final_output = result.get("final_output") if isinstance(result, dict) else str(result)
+                        if outcome["job_status"] == AgentJobStatus.SUCCESS.value:
+                            final_output = (
+                                result.get("final_output")
+                                or result.get("output")
+                                if isinstance(result, dict)
+                                else str(result))
+                            content = (
+                                f"✅ *{agent.name}* finished task:\n{final_output}"
+                                if final_output else None)
+                        else:
+                            content = (
+                                f"⚠️ *{agent.name}* did not complete the task. "
+                                f"{_public_outcome_message(outcome)}")
 
-                        if final_output:
+                        if content:
                             logger.info(f"Routing async agent result back to {source_platform}")
                             routing_params = {
                                 "recipient_id": recipient_id,
-                                "channel": params.get("channel_id") or recipient_id,
-                                "content": f"✅ *{agent.name}* finished task:\n{final_output}",
-                                "thread_ts": params.get("thread_ts")
+                                "channel": scoped_params.get("channel_id") or recipient_id,
+                                "content": content,
+                                "thread_ts": scoped_params.get("thread_ts")
                             }
 
                             # Phase 105: Include original sender for Agent-to-Agent loopback
                             if source_platform == "agent":
-                                routing_params["sender_agent_id"] = params.get("agent_id") or params.get("sender_id")
+                                routing_params["sender_agent_id"] = scoped_params.get("agent_id") or scoped_params.get("sender_id")
 
                             await agent_integration_gateway.execute_action(
                                 ActionType.SEND_MESSAGE,
@@ -945,6 +1084,13 @@ async def execute_agent_task(agent_id: str, params: Dict[str, Any]):
 
                 # 6. Record Experience happens inside GenericAgent.execute() now.
 
+                # Direct (non-admitted) callers have no dispatch wrapper to
+                # emit the terminal event. Admitted runs leave the conditional
+                # terminal job write + event to _dispatch_admitted_run so a
+                # peer cancellation can never be followed by a stale success.
+                if not admitted:
+                    await _broadcast_agent_outcome(
+                        agent_id, outcome, namespace, result)
 
             except Exception as e:
                 logger.error(f"Agent {agent_id} logic failed: {e}")
@@ -954,7 +1100,7 @@ async def execute_agent_task(agent_id: str, params: Dict[str, Any]):
                     id=str(uuid.uuid4()),
                     agent_id=agent.id,
                     task_type=agent.class_name,
-                    input_summary=str(params),
+                    input_summary=str(scoped_params),
                     outcome="Failure",
                     learnings=f"Failed with error: {str(e)}",
                     agent_role=agent.category,
@@ -970,54 +1116,813 @@ async def execute_agent_task(agent_id: str, params: Dict[str, Any]):
             logger.critical(f"!!! CRITICAL AGENT ERROR !!!\n{error_msg}")
             logger.error(f"Agent {agent_id} execution wrapper failed: {e}")
 
-            # Urgent Notification (Phase 34 requirement)
+            # Urgent Notification (Phase 34 requirement) — safe code only;
+            # exception text stays in server logs.
             await notification_manager.send_urgent_notification(
-                message=f"Agent execution FAILED: {str(e)}",
-                workspace_id="default_workspace",
+                message="An agent execution failed. Review the agent run before retrying.",
+                workspace_id=(
+                    locals().get("namespace", {}).get("workspace_id")
+                    or "default"),
                 channel="slack"
             )
 
-            # Notify UI Status
-            await ws_manager.broadcast("workspace:default", {
-                "type": "agent_status_change",
-                "agent_id": agent_id,
-                "status": "failed",
-                "error": str(e),
-                "traceback": traceback.format_exc()
-            })
+            if not admitted:
+                await _broadcast_agent_outcome(
+                    agent_id,
+                    _execution_outcome({"status": "failed"}),
+                    _execution_namespace(agent, trusted),
+                )
 
         return result
 
 
-def _begin_job(job_id: str, bind) -> None:
+_JOB_ACTIVE_STATUSES = (
+    AgentJobStatus.PENDING.value,
+    AgentJobStatus.RUNNING.value,
+)
+
+_RESULT_SUCCESS_STATUSES = frozenset(
+    {"success", "objective_satisfied", "completed"})
+_RESULT_CANCELLED_STATUSES = frozenset(
+    {"cancelled", "canceled", "stopped"})
+_RESULT_WAIT_STATUSES = frozenset({
+    "waiting", "awaiting_information", "awaiting_input",
+    "awaiting_approval", "paused", "pending",
+})
+_JOB_WAITING_STATUSES = frozenset({
+    "waiting", "awaiting_information", "awaiting_input",
+    "awaiting_approval",
+})
+_RESULT_RECONCILIATION_STATUSES = frozenset({"uncertain"})
+_WAIT_RECEIPT_ID_KEYS = (
+    "hitl_action_id",
+    "approval_action_id",
+    "pending_action_id",
+    "question_id",
+    "wait_id",
+    "continuation_id",
+    "waiting_for_id",
+)
+
+# Namespace keys the admission owns. Business parameters keep every other
+# key, but these can never be supplied (or overridden) by the request body.
+_TRUSTED_CONTEXT_KEYS = (
+    "workspace_id",
+    "tenant_id",
+    "user_id",
+    "actor_id",
+    "job_id",
+    "execution_id",
+    "run_id",
+    "operation_id",
+    "operation_slot",
+    "intent_id",
+    "authorization_id",
+    # Execution relationship/provenance fields are also server-owned: a body
+    # cannot attach this run to another chat session/proposal/goal or claim a
+    # different trigger origin.
+    "session_id",
+    "proposal_id",
+    "goal_id",
+    "trigger",
+)
+
+
+def _safe_outcome_token(value: Any, default: str = "unknown") -> str:
+    """Bound an outcome/status token to a safe public code."""
+    token = str(value or "").strip().lower().replace(" ", "_")
+    if not token or len(token) > 64:
+        return default
+    if not all(ch.isalnum() or ch in "_-" for ch in token):
+        return default
+    return token
+
+
+def _safe_wait_receipt(result: Any) -> Optional[Dict[str, Any]]:
+    """Return the durable wait ownership fields, if the result carries one.
+
+    A model/body ``"waiting"`` string is not a durable wait. Only an existing
+    receipt/reference turns the run into a non-terminal wait that must not be
+    failed or completed.
+    """
+    if not isinstance(result, dict):
+        return None
+    receipt: Dict[str, Any] = {}
+    nested = result.get("wait_receipt")
+    if isinstance(nested, dict):
+        for key in (
+            "action_id", "id", "question_id", "continuation_id",
+            "wait_id", "kind", "status", "waiting_for",
+        ):
+            value = nested.get(key)
+            if isinstance(value, (str, int)) and str(value).strip():
+                receipt[key] = str(value)[:400]
+    for key in _WAIT_RECEIPT_ID_KEYS:
+        value = result.get(key)
+        if isinstance(value, (str, int)) and str(value).strip():
+            receipt.setdefault(key, str(value)[:200])
+    waiting_for = result.get("waiting_for")
+    if (
+        receipt
+        and isinstance(waiting_for, str)
+        and waiting_for.strip()
+    ):
+        receipt.setdefault("waiting_for", waiting_for.strip()[:400])
+    return receipt or None
+
+
+def _execution_outcome(result: Any) -> Dict[str, Any]:
+    """Map an execution result to a truthful durable job outcome.
+
+    Result-object presence is not business success. Only an explicit
+    supported success status completes the job; uncertain, failed, blocked,
+    cancelled, waiting, empty, invalid and contradictory outcomes are
+    preserved as a failed aggregate with their exact reason and next action.
+    """
+
+    def failed(outcome, reason, next_action, *, requires=False):
+        return {
+            "job_status": AgentJobStatus.FAILED.value,
+            "outcome": outcome,
+            "reason": reason,
+            "next_action": next_action,
+            "requires_reconciliation": bool(requires),
+        }
+
+    if not isinstance(result, dict):
+        return failed(
+            "invalid_result", "execution_result_missing", "review_execution")
+
+    raw = _safe_outcome_token(result.get("status"), default="")
+    requires_reconciliation = bool(result.get("requires_reconciliation"))
+    contradictory = bool(
+        raw in _RESULT_SUCCESS_STATUSES
+        and (
+            result.get("success") is False
+            or _safe_outcome_token(
+                result.get("action_result"), default="") in {
+                    "failed", "not_applied", "rejected"}))
+    if requires_reconciliation or raw in _RESULT_RECONCILIATION_STATUSES:
+        return failed(
+            raw or "uncertain", "execution_uncertain",
+            "reconcile_operation", requires=True)
+    if contradictory:
+        return failed(
+            "contradictory", "execution_contradictory",
+            "reconcile_operation", requires=True)
+    if raw in _RESULT_SUCCESS_STATUSES:
+        return {
+            "job_status": AgentJobStatus.SUCCESS.value,
+            "outcome": raw,
+            "reason": "execution_succeeded",
+            "next_action": "none",
+            "requires_reconciliation": False,
+        }
+    if not raw:
+        return failed(
+            "unknown", "execution_result_missing", "review_execution")
+    if raw in _RESULT_WAIT_STATUSES:
+        receipt = _safe_wait_receipt(result)
+        if receipt:
+            return {
+                "job_status": "waiting",
+                "outcome": raw,
+                "reason": "execution_waiting",
+                "next_action": "await_information",
+                "requires_reconciliation": False,
+                "wait_receipt": receipt,
+            }
+        # A bare model/body waiting string has no durable owner. Do not
+        # invent a wait or a failure for it.
+        return failed(
+            raw, "execution_waiting_unbacked", "review_execution")
+    if raw in _RESULT_CANCELLED_STATUSES:
+        return failed(raw, "execution_cancelled", "none")
+    if raw == "blocked":
+        return failed(raw, "execution_blocked", "resolve_blocker")
+    if raw in {
+        "failed", "timeout", "stuck", "max_steps_exceeded",
+        "budget_exceeded", "error",
+    }:
+        return failed(raw, "execution_failed", "review_failure")
+    return failed(raw, "execution_not_successful", "review_failure")
+
+
+def _public_outcome_message(outcome: Dict[str, Any]) -> str:
+    """Safe, original-action-preserving public explanation."""
+    reason = str(outcome.get("reason") or "")
+    if reason == "execution_uncertain":
+        return (
+            "The agent run outcome is uncertain. Reconcile the original "
+            "operation before retrying; do not repeat it blindly.")
+    if reason == "execution_contradictory":
+        return (
+            "The agent run returned contradictory success information. "
+            "Reconcile the original operation before retrying.")
+    if reason == "execution_cancelled":
+        return "The agent run was cancelled. No retry was started."
+    if reason == "execution_waiting":
+        return (
+            "The agent run is waiting for required information; the same "
+            "task continues when the authorized input arrives.")
+    if reason == "execution_waiting_unbacked":
+        return (
+            "The agent reported waiting without a durable wait record. "
+            "Review the execution before retrying.")
+    if reason == "execution_blocked":
+        return (
+            "The agent run is blocked by a missing prerequisite. Resolve "
+            "it before retrying.")
+    if reason == "execution_result_missing":
+        return (
+            "The agent run did not report a usable outcome. Review the "
+            "execution before retrying.")
+    return "The agent run failed. Review the execution before retrying."
+
+
+def _execution_namespace(
+    agent: Optional[AgentRegistry],
+    trusted: Optional[Dict[str, Any]],
+) -> Dict[str, Any]:
+    """Resolve the server-owned namespace for a run.
+
+    The admitted namespace wins; the agent row is the fallback for direct
+    callers. Request-body values are never consulted here.
+    """
+    trusted = dict(trusted or {})
+    agent_workspace = (
+        None if agent is None else getattr(agent, "workspace_id", None))
+    agent_tenant = (
+        None if agent is None else getattr(agent, "tenant_id", None))
+    workspace = trusted.get("workspace_id") or agent_workspace or "default"
+    tenant = trusted.get("tenant_id")
+    if tenant is None:
+        tenant = agent_tenant
+    namespace = dict(trusted)
+    namespace["workspace_id"] = str(workspace)
+    namespace["tenant_id"] = None if tenant is None else str(tenant)
+    return namespace
+
+
+def _scoped_agent_context(
+    params: Optional[Dict[str, Any]],
+    trusted: Optional[Dict[str, Any]],
+    agent: Optional[AgentRegistry],
+) -> Dict[str, Any]:
+    """Business params plus the frozen server namespace.
+
+    Without an admission context the legacy direct-call behavior is kept.
+    With one, every namespace key is overwritten (including with ``None``),
+    so a forged body value cannot become execution/authority scope.
+    """
+    context = dict(params or {})
+    if not trusted:
+        return context
+    namespace = _execution_namespace(agent, trusted)
+    for key in _TRUSTED_CONTEXT_KEYS:
+        context[key] = namespace.get(key)
+    return context
+
+
+def _ws_channels(namespace: Dict[str, Any]) -> List[str]:
+    """Channels for a run event.
+
+    The real workspace channel carries the scoped event. The admitted
+    actor's existing authenticated ``user:{id}`` channel is included so the
+    ordinary UI still receives its own updates without spraying private
+    output onto the shared ``workspace:default`` channel. Only an actually
+    default/unscoped principal stays on the default workspace channel.
+    """
+    workspace = str(namespace.get("workspace_id") or "default")
+    channels = [f"workspace:{workspace}"]
+    actor = str(
+        namespace.get("actor_id") or namespace.get("user_id") or "")
+    if actor:
+        channels.append(f"user:{actor}")
+    return channels
+
+
+def _safe_ws_payload(namespace: Dict[str, Any]) -> Dict[str, Any]:
+    payload: Dict[str, Any] = {}
+    for key in (
+        "job_id", "execution_id", "workspace_id", "tenant_id",
+    ):
+        value = namespace.get(key)
+        if value:
+            payload[key] = str(value)
+    return payload
+
+
+async def _broadcast_agent_step(
+    agent_id: str,
+    step_record: Any,
+    namespace: Dict[str, Any],
+) -> None:
+    payload = {
+        "type": "agent_step_update",
+        "agent_id": agent_id,
+        "step": step_record,
+    }
+    payload.update(_safe_ws_payload(namespace))
+    for channel in _ws_channels(namespace):
+        try:
+            await ws_manager.broadcast(channel, payload)
+        except Exception as exc:  # noqa: BLE001 — UI delivery must not kill a run
+            logger.warning(
+                "Agent step broadcast failed: agent=%s channel=%s "
+                "error_class=%s", agent_id, channel, type(exc).__name__)
+
+
+async def _broadcast_agent_outcome(
+    agent_id: str,
+    outcome: Dict[str, Any],
+    namespace: Dict[str, Any],
+    result: Any = None,
+) -> None:
+    """Emit the truthful terminal event for a run (no raw internals)."""
+    payload = {
+        "type": "agent_status_change",
+        "agent_id": agent_id,
+        "status": outcome["job_status"],
+        "job_status": outcome["job_status"],
+        "outcome": outcome["outcome"],
+        "reason": outcome["reason"],
+        "next_action": outcome["next_action"],
+        "requires_reconciliation": bool(
+            outcome.get("requires_reconciliation")),
+    }
+    payload.update(_safe_ws_payload(namespace))
+    if outcome["job_status"] == AgentJobStatus.SUCCESS.value:
+        output = None
+        if isinstance(result, dict):
+            output = result.get("output")
+            if output is None:
+                output = result.get("final_output")
+        if output is not None:
+            payload["result"] = {
+                "status": "success",
+                "output": str(output)[:20000],
+            }
+    elif outcome["job_status"] in _JOB_WAITING_STATUSES:
+        if outcome.get("wait_receipt"):
+            payload["wait_receipt"] = outcome["wait_receipt"]
+        payload["message"] = _public_outcome_message(outcome)
+    else:
+        payload["error"] = _public_outcome_message(outcome)
+
+    for channel in _ws_channels(namespace):
+        try:
+            await ws_manager.broadcast(channel, payload)
+        except Exception as exc:  # noqa: BLE001 — UI delivery must not kill a run
+            logger.warning(
+                "Agent outcome broadcast failed: agent=%s channel=%s "
+                "error_class=%s", agent_id, channel, type(exc).__name__)
+
+
+def _public_execution_result(result: Any) -> Any:
+    """Whitelist the sync run result for public output.
+
+    Internal scores, audit reports and raw uncertainty payloads stay on the
+    server; the user-facing output, trace steps and reconciliation flag are
+    preserved.
+    """
+    if not isinstance(result, dict):
+        return result
+    public: Dict[str, Any] = {}
+    for key in (
+        "output", "final_output", "status", "requires_reconciliation",
+        "timestamp",
+    ):
+        if key in result:
+            public[key] = result[key]
+    if isinstance(result.get("steps"), list):
+        public["steps"] = result["steps"]
+    return public
+
+
+def _safe_get(bind, model, primary_key):
+    """Read one row without letting a missing/unreadable table kill dispatch."""
     session = Session(bind=bind)
     try:
-        job = session.get(AgentJob, job_id)
-        if job is not None:
-            job.status = AgentJobStatus.RUNNING.value
-            session.commit()
+        return session.get(model, primary_key)
+    except Exception:  # noqa: BLE001 — lookup failure is handled by callers
+        return None
     finally:
         session.close()
 
 
-def _finish_job(job_id: str, status: str, bind) -> None:
+def _admission_receipt_metadata(
+    bind,
+    *,
+    job_id: str,
+    agent_id: str,
+    actor_id: Optional[str],
+    operation_id: str,
+) -> Optional[Dict[str, Any]]:
+    """Authenticate the original admission receipt for this job.
+
+    The current AgentRegistry/actor arg alone is not authority for another
+    admitted run: the durable audit receipt must name the same operation,
+    agent, job and (when supplied) admission actor.
+    """
+    if not operation_id:
+        # Legacy/probe jobs predate the receipt payload; the route always
+        # supplies one. Admission authority is still enforced upstream.
+        return {}
+    receipt = _safe_get(bind, AuditLog, operation_id)
+    if receipt is None or getattr(receipt, "success", None) is not True:
+        return None
+    try:
+        metadata = json.loads(getattr(receipt, "metadata_json", "") or "{}")
+    except (TypeError, ValueError):
+        return None
+    if not isinstance(metadata, dict):
+        return None
+    if str(metadata.get("action") or "") != "agent_run_admitted":
+        return None
+    if str(metadata.get("target_id") or "") != str(agent_id):
+        return None
+    extra = metadata.get("extra") or {}
+    if not isinstance(extra, dict):
+        return None
+    if str(extra.get("job_id") or "") != str(job_id):
+        return None
+    receipt_actor = str(metadata.get("actor_id") or "")
+    if str(getattr(receipt, "user_id", "") or "") != receipt_actor:
+        return None
+    if actor_id is not None and receipt_actor != str(actor_id):
+        return None
+    return metadata
+
+
+def _admitted_parameters_match(
+    bind,
+    *,
+    job_id: str,
+    parameters: Dict[str, Any],
+) -> bool:
+    """The dispatch material must match the admitted parameters digest.
+
+    The active job row alone is not authority for newly changed body
+    parameters; compare against the digest frozen at admission.
+    """
+    job = _safe_get(bind, AgentJob, job_id)
+    if job is None:
+        return False
+    try:
+        payload = json.loads(job.result_summary or "{}")
+    except (TypeError, ValueError):
+        payload = {}
+    if not isinstance(payload, dict):
+        payload = {}
+    expected = str(payload.get("parameters_digest") or "")
+    if not expected:
+        return True
+    from core.agent_decision_write_service import (
+        _canonical as _admission_canonical,
+        _fingerprint as _admission_fingerprint,
+    )
+
+    actual = _admission_fingerprint(
+        "agent-run-parameters", _admission_canonical(dict(parameters or {})))
+    return actual == expected
+
+
+def _trusted_execution_context(
+    bind,
+    *,
+    agent_id: str,
+    job_id: str,
+    actor_id: Optional[str],
+    execution_id: str,
+) -> Optional[Dict[str, Any]]:
+    """Build the frozen run namespace from durable server-owned rows."""
+    job = _safe_get(bind, AgentJob, job_id)
+    if job is None or str(job.agent_id or "") != str(agent_id):
+        logger.debug(
+            "trusted context refused: job missing/mismatch job=%s", job_id)
+        return None
+    agent = _safe_get(bind, AgentRegistry, agent_id)
+    actor = _safe_get(bind, User, actor_id) if actor_id else None
+    if actor_id and (
+        actor is None
+        or not bool(getattr(actor, "is_active", False))
+        or str(getattr(actor, "status", "")) != "active"
+    ):
+        logger.debug(
+            "trusted context refused: actor unavailable actor=%s", actor_id)
+        return None
+
+    operation_id = ""
+    try:
+        payload = json.loads(job.result_summary or "{}")
+        if isinstance(payload, dict):
+            operation_id = str(payload.get("operation_id") or "")
+    except (TypeError, ValueError):
+        operation_id = ""
+    receipt = _admission_receipt_metadata(
+        bind,
+        job_id=job_id,
+        agent_id=agent_id,
+        actor_id=actor_id,
+        operation_id=operation_id,
+    )
+    if receipt is None:
+        logger.debug(
+            "trusted context refused: admission receipt invalid job=%s "
+            "operation=%s actor=%s", job_id, operation_id, actor_id)
+        return None
+
+    namespace = _execution_namespace(agent, {
+        "job_id": job_id,
+        "execution_id": execution_id,
+        "run_id": execution_id,
+        "actor_id": actor_id,
+        "user_id": actor_id,
+    })
+    # Freeze the accepted admission scope; never let a moved agent or a
+    # different current owner relabel this already-admitted run.
+    resolved_workspace = None
+    if receipt:
+        receipt_workspace = receipt.get("target_workspace_id")
+        if receipt_workspace is not None:
+            resolved_workspace = str(receipt_workspace)
+        receipt_tenant = (
+            receipt.get("target_tenant_id")
+            if receipt.get("target_tenant_id") is not None
+            else receipt.get("tenant_id"))
+        if receipt_tenant is not None:
+            namespace["tenant_id"] = str(receipt_tenant)
+        receipt_actor_tenant = (
+            None if actor is None else getattr(actor, "tenant_id", None))
+        if (
+            receipt_actor_tenant is not None
+            and receipt.get("tenant_id") is not None
+            and str(receipt_actor_tenant) != str(receipt.get("tenant_id"))
+        ):
+            logger.debug(
+                "trusted context refused: receipt actor tenant "
+                "mismatch job=%s", job_id)
+            return None
+    if resolved_workspace is None and agent is not None:
+        agent_workspace = getattr(agent, "workspace_id", None)
+        if agent_workspace is not None:
+            resolved_workspace = str(agent_workspace)
+    if resolved_workspace is None and actor is not None:
+        actor_workspace = getattr(actor, "workspace_id", None)
+        if actor_workspace is not None:
+            resolved_workspace = str(actor_workspace)
+    namespace["workspace_id"] = resolved_workspace or "default"
+    job_tenant = getattr(job, "tenant_id", None)
+    if job_tenant is not None:
+        if actor is not None and getattr(actor, "tenant_id", None) is not None:
+            if str(actor.tenant_id) != str(job_tenant):
+                logger.debug(
+                    "trusted context refused: job actor tenant mismatch "
+                    "job=%s", job_id)
+                return None
+        if namespace.get("tenant_id") is None:
+            namespace["tenant_id"] = str(job_tenant)
+    if namespace.get("tenant_id") is None and actor is not None:
+        actor_tenant = getattr(actor, "tenant_id", None)
+        namespace["tenant_id"] = (
+            None if actor_tenant is None else str(actor_tenant))
+
+    namespace["operation_id"] = operation_id or None
+    namespace["trigger"] = "agent_run_route"
+    return namespace
+
+
+def _job_outcome_projection(job_id: str, bind) -> Optional[Dict[str, Any]]:
+    """Read the durable job's truthful outcome in a fresh session."""
     session = Session(bind=bind)
     try:
         job = session.get(AgentJob, job_id)
         if job is None:
-            return
-        job.status = status
-        job.end_time = datetime.datetime.now(timezone.utc)
+            return None
+        status = str(job.status or "")
         try:
             payload = json.loads(job.result_summary or "{}")
         except (TypeError, ValueError):
             payload = {}
         if not isinstance(payload, dict):
             payload = {}
-        payload["finished"] = True
-        payload["status"] = status
-        job.result_summary = json.dumps(payload, sort_keys=True)
+        if status in _JOB_WAITING_STATUSES:
+            wait_receipt = payload.get("wait_receipt")
+            projection = {
+                "job_status": status,
+                "outcome": _safe_outcome_token(
+                    payload.get("outcome"), default="waiting"),
+                "reason": "execution_waiting",
+                "next_action": "await_information",
+                "requires_reconciliation": False,
+                "wait_receipt": (
+                    wait_receipt if isinstance(wait_receipt, dict)
+                    else None),
+            }
+            execution_id = (
+                payload.get("execution_id")
+                or payload.get("dispatch_execution_id"))
+            projection["execution_id"] = (
+                None if not execution_id else str(execution_id))
+            return projection
+        if status in _JOB_ACTIVE_STATUSES:
+            # A continued/cold read must preserve the live state, not invent
+            # a failed outcome for work that is still in flight.
+            projection = {
+                "job_status": status,
+                "outcome": "in_progress",
+                "reason": "execution_in_progress",
+                "next_action": "await_completion",
+                "requires_reconciliation": False,
+            }
+            execution_id = (
+                payload.get("execution_id")
+                or payload.get("dispatch_execution_id"))
+            projection["execution_id"] = (
+                None if not execution_id else str(execution_id))
+            return projection
+        projection = _execution_outcome({"status": status})
+        projection["job_status"] = status or projection["job_status"]
+        outcome = _safe_outcome_token(payload.get("outcome"), default="")
+        if outcome:
+            projection["outcome"] = outcome
+        reason = _safe_outcome_token(payload.get("reason"), default="")
+        if reason:
+            projection["reason"] = reason
+        next_action = _safe_outcome_token(
+            payload.get("next_action"), default="")
+        if next_action:
+            projection["next_action"] = next_action
+        if "requires_reconciliation" in payload:
+            projection["requires_reconciliation"] = bool(
+                payload.get("requires_reconciliation"))
+        # Contradictory durable state: never let a status/detail mismatch
+        # turn into a success claim. The exact mismatch is preserved.
+        if (
+            projection["job_status"] == AgentJobStatus.SUCCESS.value
+            and outcome and outcome not in _RESULT_SUCCESS_STATUSES
+        ):
+            projection["job_status"] = AgentJobStatus.FAILED.value
+            projection["reason"] = "execution_contradictory"
+            projection["next_action"] = "reconcile_operation"
+            projection["requires_reconciliation"] = True
+        elif (
+            projection["job_status"] != AgentJobStatus.SUCCESS.value
+            and outcome in _RESULT_SUCCESS_STATUSES
+            and not (
+                projection["requires_reconciliation"]
+                and reason in {
+                    "execution_uncertain",
+                    "execution_contradictory",
+                }
+            )
+        ):
+            projection["outcome"] = "contradictory"
+            projection["reason"] = "execution_contradictory"
+            projection["next_action"] = "reconcile_operation"
+            projection["requires_reconciliation"] = True
+        execution_id = (
+            payload.get("execution_id")
+            or payload.get("dispatch_execution_id"))
+        projection["execution_id"] = (
+            None if not execution_id else str(execution_id))
+        return projection
+    finally:
+        session.close()
+
+
+def _begin_job(
+    job_id: str,
+    bind,
+    *,
+    agent_id: str,
+    execution_id: str,
+) -> bool:
+    """CAS the admitted job into its run slot.
+
+    Returns ``True`` only for the dispatch that won the conditional write.
+    A replay, a peer-terminal job, or a racing dispatcher returns ``False``
+    and must not execute the agent a second time.
+    """
+    session = Session(bind=bind)
+    try:
+        job = session.get(AgentJob, job_id)
+        if job is None or str(job.agent_id or "") != str(agent_id):
+            return False
+        if str(job.status or "") not in _JOB_ACTIVE_STATUSES:
+            return False
+        try:
+            payload = json.loads(job.result_summary or "{}")
+        except (TypeError, ValueError):
+            payload = {}
+        if not isinstance(payload, dict):
+            payload = {}
+        claimed_execution = str(
+            payload.get("dispatch_execution_id") or "")
+        if claimed_execution and claimed_execution != execution_id:
+            return False
+        current_summary = job.result_summary
+        payload["dispatch_execution_id"] = execution_id
+        payload["dispatch_started"] = True
+        new_summary = json.dumps(payload, sort_keys=True)
+        conditions = [
+            AgentJob.id == job_id,
+            AgentJob.agent_id == agent_id,
+            AgentJob.status.in_(_JOB_ACTIVE_STATUSES),
+        ]
+        if current_summary is None:
+            conditions.append(AgentJob.result_summary.is_(None))
+        else:
+            conditions.append(AgentJob.result_summary == current_summary)
+        claimed = session.execute(
+            update(AgentJob)
+            .where(*conditions)
+            .values(
+                status=AgentJobStatus.RUNNING.value,
+                result_summary=new_summary,
+            ))
         session.commit()
+        return claimed.rowcount == 1
+    finally:
+        session.close()
+
+
+def _finish_job(
+    job_id: str,
+    outcome: Dict[str, Any],
+    bind,
+    *,
+    execution_id: Optional[str] = None,
+    agent_id: Optional[str] = None,
+) -> Optional[str]:
+    """Conditionally finish an active job and return the durable status.
+
+    The write is bound to the active expected status, the admitted agent and
+    the exact dispatch execution id. A peer cancellation, a stale dispatcher
+    or a changed material snapshot can never be overwritten by a late
+    success.
+    """
+    session = Session(bind=bind)
+    try:
+        job = session.get(AgentJob, job_id)
+        if job is None:
+            return None
+        if agent_id is not None and str(job.agent_id or "") != str(agent_id):
+            return str(job.status or "") or None
+        try:
+            payload = json.loads(job.result_summary or "{}")
+        except (TypeError, ValueError):
+            payload = {}
+        if not isinstance(payload, dict):
+            payload = {}
+        if execution_id:
+            claimed_execution = str(
+                payload.get("dispatch_execution_id") or "")
+            if claimed_execution != str(execution_id):
+                # Another dispatcher owns this run slot (or the claim was
+                # replaced). Do not certify its work as this execution.
+                return str(job.status or "") or None
+        waiting = outcome["job_status"] in _JOB_WAITING_STATUSES
+        payload["finished"] = not waiting
+        payload["waiting"] = waiting
+        payload["status"] = outcome["job_status"]
+        payload["outcome"] = outcome["outcome"]
+        payload["reason"] = outcome["reason"]
+        payload["next_action"] = outcome["next_action"]
+        payload["requires_reconciliation"] = bool(
+            outcome.get("requires_reconciliation"))
+        if outcome.get("wait_receipt"):
+            payload["wait_receipt"] = outcome["wait_receipt"]
+        if execution_id:
+            payload["execution_id"] = execution_id
+        new_summary = json.dumps(payload, sort_keys=True)
+        conditions = [
+            AgentJob.id == job_id,
+            AgentJob.status.in_(_JOB_ACTIVE_STATUSES),
+        ]
+        if agent_id is not None:
+            conditions.append(AgentJob.agent_id == agent_id)
+        if job.result_summary is None:
+            conditions.append(AgentJob.result_summary.is_(None))
+        else:
+            conditions.append(
+                AgentJob.result_summary == job.result_summary)
+        values: Dict[str, Any] = {
+            "status": outcome["job_status"],
+            "result_summary": new_summary,
+        }
+        if not waiting:
+            values["end_time"] = datetime.datetime.now(timezone.utc)
+        finished = session.execute(
+            update(AgentJob)
+            .where(*conditions)
+            .values(**values))
+        session.commit()
+        if finished.rowcount == 1:
+            return outcome["job_status"]
+        current = session.get(AgentJob, job_id)
+        return None if current is None else str(current.status or "")
     finally:
         session.close()
 
@@ -1043,23 +1948,117 @@ def _restore_agent_status(
 
 async def _dispatch_admitted_run(
     agent_id: str, parameters: Dict[str, Any], job_id: str,
-    prior_status: Optional[str], bind,
+    prior_status: Optional[str], bind, *, actor_id: Optional[str] = None,
 ):
     """Run an admitted job and keep its durable status truthful.
 
     The execution itself is the existing ``execute_agent_task``. Admission,
     the job row and the receipt already committed before this function runs.
+    A second dispatcher is refused by the conditional run-slot claim.
     """
-    _begin_job(job_id, bind)
-    try:
-        result = await execute_agent_task(agent_id, parameters)
+    execution_id = str(uuid.uuid4())
+    if not _begin_job(
+        job_id, bind, agent_id=agent_id, execution_id=execution_id,
+    ):
+        logger.warning(
+            "Admitted agent run not dispatched (already claimed or "
+            "terminal): agent=%s job=%s", agent_id, job_id)
+        return None
+
+    if not _admitted_parameters_match(
+        bind, job_id=job_id, parameters=parameters,
+    ):
+        logger.warning(
+            "Admitted agent run not dispatched (admitted parameters "
+            "changed): agent=%s job=%s", agent_id, job_id)
+        outcome = _execution_outcome({
+            "status": "failed",
+            "requires_reconciliation": True,
+        })
+        outcome["reason"] = "admission_material_changed"
+        outcome["next_action"] = "refresh_required_state"
         _finish_job(
-            job_id,
-            AgentJobStatus.SUCCESS.value if result is not None
-            else AgentJobStatus.FAILED.value, bind)
+            job_id, outcome, bind,
+            execution_id=execution_id, agent_id=agent_id)
+        await _broadcast_agent_outcome(
+            agent_id, outcome,
+            _execution_namespace(
+                _safe_get(bind, AgentRegistry, agent_id),
+                {"job_id": job_id, "execution_id": execution_id,
+                 "actor_id": actor_id, "user_id": actor_id}))
+        _restore_agent_status(agent_id, prior_status, bind)
+        return None
+
+    trusted = _trusted_execution_context(
+        bind,
+        agent_id=agent_id,
+        job_id=job_id,
+        actor_id=actor_id,
+        execution_id=execution_id,
+    )
+    if trusted is None:
+        logger.warning(
+            "Admitted agent run not dispatched (admission receipt or "
+            "authority unavailable): agent=%s job=%s", agent_id, job_id)
+        outcome = _execution_outcome({
+            "status": "failed",
+            "requires_reconciliation": True,
+        })
+        outcome["reason"] = "execution_authority_unavailable"
+        outcome["next_action"] = "refresh_required_state"
+        _finish_job(
+            job_id, outcome, bind,
+            execution_id=execution_id, agent_id=agent_id)
+        await _broadcast_agent_outcome(
+            agent_id, outcome,
+            _execution_namespace(
+                _safe_get(bind, AgentRegistry, agent_id),
+                {"job_id": job_id, "execution_id": execution_id}))
+        _restore_agent_status(agent_id, prior_status, bind)
+        return None
+
+    try:
+        result = await execute_agent_task(
+            agent_id, parameters, execution_context=trusted)
+        outcome = _execution_outcome(result)
+        durable_status = _finish_job(
+            job_id, outcome, bind,
+            execution_id=execution_id, agent_id=agent_id)
+        effective = outcome
+        if durable_status is None:
+            effective = _execution_outcome({
+                "status": "failed",
+                "requires_reconciliation": True,
+            })
+            effective["reason"] = "execution_durable_state_unavailable"
+            effective["next_action"] = "refresh_required_state"
+        elif durable_status != outcome["job_status"]:
+            # A peer made the job terminal first. Report that truth, never
+            # the late result the losing writer wanted to record.
+            effective = _execution_outcome({"status": durable_status})
+        await _broadcast_agent_outcome(
+            agent_id, effective,
+            _execution_namespace(None, trusted), result)
         return result
     except Exception as exc:  # noqa: BLE001 — job status records the failure
-        _finish_job(job_id, AgentJobStatus.FAILED.value, bind)
+        outcome = _execution_outcome({"status": "failed"})
+        outcome["reason"] = "execution_error"
+        durable_status = _finish_job(
+            job_id, outcome, bind,
+            execution_id=execution_id, agent_id=agent_id)
+        effective = outcome
+        if durable_status is None:
+            effective = _execution_outcome({
+                "status": "failed",
+                "requires_reconciliation": True,
+            })
+            effective["reason"] = "execution_durable_state_unavailable"
+            effective["next_action"] = "refresh_required_state"
+        elif durable_status != outcome["job_status"]:
+            effective = _execution_outcome({"status": durable_status})
+        await _broadcast_agent_outcome(
+            agent_id, effective,
+            _execution_namespace(None, trusted))
         logger.error(
             "Admitted agent run failed: agent=%s job=%s error_class=%s",
             agent_id, job_id, type(exc).__name__)
