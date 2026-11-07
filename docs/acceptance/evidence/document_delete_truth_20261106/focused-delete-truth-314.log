@@ -1,0 +1,437 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-06 18:44:55 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+
+tests/test_document_delete_truth.py::test_base_and_chunk_family_verified_with_one_receipt 
+-------------------------------- live log setup --------------------------------
+2026-11-06 18:44:56 [    INFO] EscalationManager initialized
+2026-11-06 18:44:56 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 18:44:56 [    INFO] EscalationManager initialized
+2026-11-06 18:44:56 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 18:44:56 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 18:44:56 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-06 18:44:56 [    INFO] EscalationManager initialized
+2026-11-06 18:44:56 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 18:44:56 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 18:44:56 [    INFO] LanceDBHandler initialized. ID: 4865284752. LANCEDB_AVAILABLE: True
+2026-11-06 18:44:56 [    INFO] Lazy loading LanceDB connection...
+2026-11-06 18:44:56 [    INFO] Connecting to LanceDB at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-26/test_base_and_chunk_family_ver0/ldb-ws-doc with storage_options=None
+2026-11-06 18:44:56 [    INFO] LanceDB connected successfully
+2026-11-06 18:44:56 [    INFO] Table 'documents' created successfully
+2026-11-06 18:44:56 [    INFO] Document added to 'documents': doc-a
+2026-11-06 18:44:56 [    INFO] Document added to 'documents': doc-a::c0
+2026-11-06 18:44:56 [    INFO] Document added to 'documents': doc-a::c1
+2026-11-06 18:44:56 [ WARNING] Governance check skipped for delete_document: missing request or db
+2026-11-06 18:44:56 [ WARNING] Governance check skipped for delete_document: missing request or db
+PASSED                                                                   [  1%]
+tests/test_document_delete_truth.py::test_chunk_only_family_is_deletable_and_verified 
+-------------------------------- live log call ---------------------------------
+2026-11-06 18:44:57 [    INFO] EscalationManager initialized
+2026-11-06 18:44:57 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 18:44:57 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 18:44:57 [    INFO] LanceDBHandler initialized. ID: 5022292944. LANCEDB_AVAILABLE: True
+2026-11-06 18:44:57 [    INFO] Lazy loading LanceDB connection...
+2026-11-06 18:44:57 [    INFO] Connecting to LanceDB at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-26/test_chunk_only_family_is_dele0/ldb-ws-doc with storage_options=None
+2026-11-06 18:44:57 [    INFO] LanceDB connected successfully
+2026-11-06 18:44:57 [    INFO] Table 'documents' created successfully
+2026-11-06 18:44:57 [    INFO] Document added to 'documents': doc-b::c0
+2026-11-06 18:44:57 [    INFO] Document added to 'documents': doc-b::c1
+2026-11-06 18:44:57 [ WARNING] Governance check skipped for delete_document: missing request or db
+PASSED                                                                   [  3%]
+tests/test_document_delete_truth.py::test_prefix_cleanup_failure_is_partial_not_clean_success[raise] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 18:44:58 [    INFO] EscalationManager initialized
+2026-11-06 18:44:58 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 18:44:58 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 18:44:58 [    INFO] LanceDBHandler initialized. ID: 5022996800. LANCEDB_AVAILABLE: True
+2026-11-06 18:44:58 [    INFO] Lazy loading LanceDB connection...
+2026-11-06 18:44:58 [    INFO] Connecting to LanceDB at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-26/test_prefix_cleanup_failure_is0/ldb-ws-doc with storage_options=None
+2026-11-06 18:44:58 [    INFO] LanceDB connected successfully
+2026-11-06 18:44:58 [    INFO] Table 'documents' created successfully
+2026-11-06 18:44:58 [    INFO] Document added to 'documents': doc-c
+2026-11-06 18:44:58 [    INFO] Document added to 'documents': doc-c::c0
+2026-11-06 18:44:58 [    INFO] Document added to 'documents': doc-c::c1
+2026-11-06 18:44:58 [ WARNING] Governance check skipped for delete_document: missing request or db
+2026-11-06 18:44:58 [ WARNING] document chunk-family delete failed: doc=doc-c error_class=RuntimeError
+2026-11-06 18:44:58 [ WARNING] Governance check skipped for delete_document: missing request or db
+PASSED                                                                   [  5%]
+tests/test_document_delete_truth.py::test_prefix_cleanup_failure_is_partial_not_clean_success[false] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 18:44:58 [    INFO] EscalationManager initialized
+2026-11-06 18:44:58 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 18:44:58 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 18:44:58 [    INFO] LanceDBHandler initialized. ID: 5022999232. LANCEDB_AVAILABLE: True
+2026-11-06 18:44:58 [    INFO] Lazy loading LanceDB connection...
+2026-11-06 18:44:58 [    INFO] Connecting to LanceDB at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-26/test_prefix_cleanup_failure_is1/ldb-ws-doc with storage_options=None
+2026-11-06 18:44:58 [    INFO] LanceDB connected successfully
+2026-11-06 18:44:58 [    INFO] Table 'documents' created successfully
+2026-11-06 18:44:58 [    INFO] Document added to 'documents': doc-c
+2026-11-06 18:44:58 [    INFO] Document added to 'documents': doc-c::c0
+2026-11-06 18:44:58 [    INFO] Document added to 'documents': doc-c::c1
+2026-11-06 18:44:58 [ WARNING] Governance check skipped for delete_document: missing request or db
+2026-11-06 18:44:58 [ WARNING] Governance check skipped for delete_document: missing request or db
+PASSED                                                                   [  7%]
+tests/test_document_delete_truth.py::test_unknown_and_foreign_ids_are_404_without_effect_or_receipt 
+-------------------------------- live log call ---------------------------------
+2026-11-06 18:44:59 [    INFO] EscalationManager initialized
+2026-11-06 18:44:59 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 18:44:59 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 18:44:59 [    INFO] LanceDBHandler initialized. ID: 5024484528. LANCEDB_AVAILABLE: True
+2026-11-06 18:44:59 [    INFO] Lazy loading LanceDB connection...
+2026-11-06 18:44:59 [    INFO] Connecting to LanceDB at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-26/test_unknown_and_foreign_ids_a0/ldb-ws-doc with storage_options=None
+2026-11-06 18:44:59 [    INFO] LanceDB connected successfully
+2026-11-06 18:44:59 [    INFO] EscalationManager initialized
+2026-11-06 18:44:59 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 18:44:59 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 18:44:59 [    INFO] LanceDBHandler initialized. ID: 5022886064. LANCEDB_AVAILABLE: True
+2026-11-06 18:44:59 [    INFO] Lazy loading LanceDB connection...
+2026-11-06 18:44:59 [    INFO] Connecting to LanceDB at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-26/test_unknown_and_foreign_ids_a0/ldb-ws-other with storage_options=None
+2026-11-06 18:44:59 [    INFO] LanceDB connected successfully
+2026-11-06 18:44:59 [    INFO] Table 'documents' created successfully
+2026-11-06 18:44:59 [    INFO] Document added to 'documents': doc-foreign
+2026-11-06 18:44:59 [ WARNING] Governance check skipped for delete_document: missing request or db
+2026-11-06 18:44:59 [ WARNING] API Error: NOT_FOUND - Document not found: ghost
+2026-11-06 18:44:59 [ WARNING] Governance check skipped for delete_document: missing request or db
+2026-11-06 18:44:59 [ WARNING] API Error: NOT_FOUND - Document not found: doc-foreign
+PASSED                                                                   [  9%]
+tests/test_document_delete_truth.py::test_same_operation_id_for_a_different_document_conflicts 
+-------------------------------- live log call ---------------------------------
+2026-11-06 18:45:00 [    INFO] EscalationManager initialized
+2026-11-06 18:45:00 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 18:45:00 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 18:45:00 [    INFO] LanceDBHandler initialized. ID: 5021428432. LANCEDB_AVAILABLE: True
+2026-11-06 18:45:00 [    INFO] Lazy loading LanceDB connection...
+2026-11-06 18:45:00 [    INFO] Connecting to LanceDB at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-26/test_same_operation_id_for_a_d0/ldb-ws-doc with storage_options=None
+2026-11-06 18:45:00 [    INFO] LanceDB connected successfully
+2026-11-06 18:45:00 [    INFO] Table 'documents' created successfully
+2026-11-06 18:45:00 [    INFO] Document added to 'documents': doc-d
+2026-11-06 18:45:00 [    INFO] Document added to 'documents': doc-e
+2026-11-06 18:45:00 [ WARNING] Governance check skipped for delete_document: missing request or db
+2026-11-06 18:45:00 [ WARNING] Governance check skipped for delete_document: missing request or db
+PASSED                                                                   [ 11%]
+tests/test_document_delete_truth.py::test_same_operation_id_from_another_actor_conflicts 
+-------------------------------- live log call ---------------------------------
+2026-11-06 18:45:01 [    INFO] EscalationManager initialized
+2026-11-06 18:45:01 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 18:45:01 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 18:45:01 [    INFO] LanceDBHandler initialized. ID: 4865539152. LANCEDB_AVAILABLE: True
+2026-11-06 18:45:01 [    INFO] Lazy loading LanceDB connection...
+2026-11-06 18:45:01 [    INFO] Connecting to LanceDB at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-26/test_same_operation_id_from_an0/ldb-ws-doc with storage_options=None
+2026-11-06 18:45:01 [    INFO] LanceDB connected successfully
+2026-11-06 18:45:01 [    INFO] Table 'documents' created successfully
+2026-11-06 18:45:01 [    INFO] Document added to 'documents': doc-f
+2026-11-06 18:45:01 [    INFO] Document added to 'documents': doc-g
+2026-11-06 18:45:01 [ WARNING] Governance check skipped for delete_document: missing request or db
+2026-11-06 18:45:01 [ WARNING] Governance check skipped for delete_document: missing request or db
+PASSED                                                                   [ 13%]
+tests/test_document_delete_truth.py::test_second_delete_with_new_operation_is_no_change 
+-------------------------------- live log call ---------------------------------
+2026-11-06 18:45:01 [    INFO] EscalationManager initialized
+2026-11-06 18:45:01 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 18:45:01 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 18:45:01 [    INFO] LanceDBHandler initialized. ID: 4865539152. LANCEDB_AVAILABLE: True
+2026-11-06 18:45:01 [    INFO] Lazy loading LanceDB connection...
+2026-11-06 18:45:01 [    INFO] Connecting to LanceDB at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-26/test_second_delete_with_new_op0/ldb-ws-doc with storage_options=None
+2026-11-06 18:45:01 [    INFO] LanceDB connected successfully
+2026-11-06 18:45:01 [    INFO] Table 'documents' created successfully
+2026-11-06 18:45:01 [    INFO] Document added to 'documents': doc-h
+2026-11-06 18:45:01 [ WARNING] Governance check skipped for delete_document: missing request or db
+2026-11-06 18:45:01 [ WARNING] Governance check skipped for delete_document: missing request or db
+PASSED                                                                   [ 15%]
+tests/test_document_delete_truth.py::test_fresh_session_and_restarted_handler_readback_survive 
+-------------------------------- live log call ---------------------------------
+2026-11-06 18:45:02 [    INFO] EscalationManager initialized
+2026-11-06 18:45:02 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 18:45:02 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 18:45:02 [    INFO] LanceDBHandler initialized. ID: 5025308000. LANCEDB_AVAILABLE: True
+2026-11-06 18:45:02 [    INFO] Lazy loading LanceDB connection...
+2026-11-06 18:45:02 [    INFO] Connecting to LanceDB at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-26/test_fresh_session_and_restart0/ldb-ws-doc with storage_options=None
+2026-11-06 18:45:02 [    INFO] LanceDB connected successfully
+2026-11-06 18:45:02 [    INFO] Table 'documents' created successfully
+2026-11-06 18:45:02 [    INFO] Document added to 'documents': doc-i
+2026-11-06 18:45:02 [    INFO] Document added to 'documents': doc-i::c0
+2026-11-06 18:45:02 [ WARNING] Governance check skipped for delete_document: missing request or db
+2026-11-06 18:45:02 [    INFO] EscalationManager initialized
+2026-11-06 18:45:02 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 18:45:02 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 18:45:02 [    INFO] LanceDBHandler initialized. ID: 5025642640. LANCEDB_AVAILABLE: True
+2026-11-06 18:45:02 [    INFO] Lazy loading LanceDB connection...
+2026-11-06 18:45:02 [    INFO] Connecting to LanceDB at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-26/test_fresh_session_and_restart0/ldb-ws-doc with storage_options=None
+2026-11-06 18:45:02 [    INFO] LanceDB connected successfully
+2026-11-06 18:45:02 [ WARNING] Governance check skipped for delete_document: missing request or db
+PASSED                                                                   [ 17%]
+tests/test_document_vector_family_cleanup.py::test_remove_integration_deletes_chunk_family 
+-------------------------------- live log call ---------------------------------
+2026-11-06 18:45:02 [    INFO] Creating isolated LanceDBHandler for workspace: default at ./data/atom_memory/default
+2026-11-06 18:45:02 [    INFO] EscalationManager initialized
+2026-11-06 18:45:02 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 18:45:02 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 18:45:02 [    INFO] LanceDBHandler initialized. ID: 5025493328. LANCEDB_AVAILABLE: True
+2026-11-06 18:45:02 [    INFO] Removed 1 documents from google_drive
+PASSED                                                                   [ 19%]
+tests/test_document_vector_family_cleanup.py::test_remove_integration_leaves_other_integrations_alone 
+-------------------------------- live log call ---------------------------------
+2026-11-06 18:45:02 [    INFO] Removed 1 documents from google_drive
+PASSED                                                                   [ 21%]
+tests/test_document_vector_family_cleanup.py::test_cleanup_failure_is_not_fatal 
+-------------------------------- live log call ---------------------------------
+2026-11-06 18:45:02 [ WARNING] LanceDB delete failed for doc_abc: lancedb down
+2026-11-06 18:45:02 [    INFO] Removed 1 documents from google_drive
+PASSED                                                                   [ 23%]
+tests/test_document_vector_family_cleanup.py::test_delete_route_removes_chunk_family 
+-------------------------------- live log call ---------------------------------
+2026-11-06 18:45:03 [ WARNING] Governance check skipped for delete_document: missing request or db
+PASSED                                                                   [ 25%]
+tests/test_document_vector_family_cleanup.py::test_delete_route_accepts_chunk_only_id 
+-------------------------------- live log call ---------------------------------
+2026-11-06 18:45:04 [ WARNING] Governance check skipped for delete_document: missing request or db
+PASSED                                                                   [ 27%]
+tests/test_document_vector_family_cleanup.py::test_delete_route_404_when_neither_row_nor_family 
+-------------------------------- live log call ---------------------------------
+2026-11-06 18:45:05 [ WARNING] Governance check skipped for delete_document: missing request or db
+2026-11-06 18:45:05 [ WARNING] API Error: NOT_FOUND - Document not found: ghost
+PASSED                                                                   [ 29%]
+tests/test_document_vector_family_cleanup.py::test_delete_route_family_cleanup_failure_is_not_success 
+-------------------------------- live log call ---------------------------------
+2026-11-06 18:45:05 [ WARNING] Governance check skipped for delete_document: missing request or db
+2026-11-06 18:45:05 [ WARNING] document chunk-family delete failed: doc=doc_abc error_class=RuntimeError
+PASSED                                                                   [ 31%]
+tests/api/test_document_routes_coverage_w52.py::TestIngestDocument::test_ingest_success 
+-------------------------------- live log call ---------------------------------
+2026-11-06 18:45:06 [    INFO] HTTP Request: POST http://testserver/api/documents/ingest "HTTP/1.1 200 OK"
+FAILED                                                                   [ 33%]
+tests/api/test_document_routes_coverage_w52.py::TestIngestDocument::test_ingest_empty_content_placeholder 
+-------------------------------- live log call ---------------------------------
+2026-11-06 18:45:06 [    INFO] HTTP Request: POST http://testserver/api/documents/ingest "HTTP/1.1 200 OK"
+FAILED                                                                   [ 35%]
+tests/api/test_document_routes_coverage_w52.py::TestIngestDocument::test_ingest_workspace_resolution 
+-------------------------------- live log call ---------------------------------
+2026-11-06 18:45:06 [    INFO] HTTP Request: POST http://testserver/api/documents/ingest "HTTP/1.1 200 OK"
+PASSED                                                                   [ 37%]
+tests/api/test_document_routes_coverage_w52.py::TestIngestDocument::test_ingest_handler_missing_500 
+-------------------------------- live log call ---------------------------------
+2026-11-06 18:45:06 [ WARNING] API Error: INTERNAL_ERROR - Search database not available
+2026-11-06 18:45:06 [   ERROR] Document ingestion failed: 500: {'success': False, 'error': {'code': 'INTERNAL_ERROR', 'message': 'Search database not available', 'timestamp': '2026-11-06T23:45:06.356921+00:00'}}
+2026-11-06 18:45:06 [ WARNING] API Error: INTERNAL_ERROR - Internal error
+2026-11-06 18:45:06 [    INFO] HTTP Request: POST http://testserver/api/documents/ingest "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 39%]
+tests/api/test_document_routes_coverage_w52.py::TestIngestDocument::test_ingest_add_failure_500 
+-------------------------------- live log call ---------------------------------
+2026-11-06 18:45:06 [   ERROR] Document ingestion failed: LanceDB add_document returned False
+2026-11-06 18:45:06 [ WARNING] API Error: INTERNAL_ERROR - Internal error
+2026-11-06 18:45:06 [    INFO] HTTP Request: POST http://testserver/api/documents/ingest "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 41%]
+tests/api/test_document_routes_coverage_w52.py::TestIngestDocument::test_ingest_exception_500 
+-------------------------------- live log call ---------------------------------
+2026-11-06 18:45:06 [   ERROR] Document ingestion failed: boom
+2026-11-06 18:45:06 [ WARNING] API Error: INTERNAL_ERROR - Internal error
+2026-11-06 18:45:06 [    INFO] HTTP Request: POST http://testserver/api/documents/ingest "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 43%]
+tests/api/test_document_routes_coverage_w52.py::TestUploadDocument::test_upload_success 
+-------------------------------- live log call ---------------------------------
+2026-11-06 18:45:06 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+PASSED                                                                   [ 45%]
+tests/api/test_document_routes_coverage_w52.py::TestUploadDocument::test_upload_declared_too_large_413 
+-------------------------------- live log call ---------------------------------
+2026-11-06 18:45:06 [ WARNING] API Error: FILE_TOO_LARGE - File exceeds the 50 MB upload limit
+2026-11-06 18:45:06 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 413 Request Entity Too Large"
+PASSED                                                                   [ 47%]
+tests/api/test_document_routes_coverage_w52.py::TestUploadDocument::test_upload_unsupported_ext_415 
+-------------------------------- live log call ---------------------------------
+2026-11-06 18:45:06 [ WARNING] API Error: UNSUPPORTED_FILE_TYPE - File type 'exe' is not supported
+2026-11-06 18:45:06 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 415 Unsupported Media Type"
+PASSED                                                                   [ 49%]
+tests/api/test_document_routes_coverage_w52.py::TestUploadDocument::test_upload_empty_parse_placeholder 
+-------------------------------- live log call ---------------------------------
+2026-11-06 18:45:06 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+PASSED                                                                   [ 50%]
+tests/api/test_document_routes_coverage_w52.py::TestUploadDocument::test_upload_add_failure_500 
+-------------------------------- live log call ---------------------------------
+2026-11-06 18:45:06 [   ERROR] File upload failed: LanceDB add_document returned False
+2026-11-06 18:45:06 [ WARNING] API Error: INTERNAL_ERROR - Internal error
+2026-11-06 18:45:06 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 52%]
+tests/api/test_document_routes_coverage_w52.py::TestUploadDocument::test_upload_parse_exception_500 
+-------------------------------- live log call ---------------------------------
+2026-11-06 18:45:06 [   ERROR] File upload failed: parse fail
+2026-11-06 18:45:06 [ WARNING] API Error: INTERNAL_ERROR - Internal error
+2026-11-06 18:45:06 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 54%]
+tests/api/test_document_routes_coverage_w52.py::TestSearchDocuments::test_search_success 
+-------------------------------- live log call ---------------------------------
+2026-11-06 18:45:06 [    INFO] HTTP Request: GET http://testserver/api/documents/search?q=hello "HTTP/1.1 200 OK"
+PASSED                                                                   [ 56%]
+tests/api/test_document_routes_coverage_w52.py::TestSearchDocuments::test_search_string_metadata_parsed 
+-------------------------------- live log call ---------------------------------
+2026-11-06 18:45:06 [    INFO] HTTP Request: GET http://testserver/api/documents/search?q=x "HTTP/1.1 200 OK"
+PASSED                                                                   [ 58%]
+tests/api/test_document_routes_coverage_w52.py::TestSearchDocuments::test_search_bad_json_metadata_empty 
+-------------------------------- live log call ---------------------------------
+2026-11-06 18:45:06 [    INFO] HTTP Request: GET http://testserver/api/documents/search?q=x "HTTP/1.1 200 OK"
+PASSED                                                                   [ 60%]
+tests/api/test_document_routes_coverage_w52.py::TestSearchDocuments::test_search_empty_results 
+-------------------------------- live log call ---------------------------------
+2026-11-06 18:45:06 [    INFO] HTTP Request: GET http://testserver/api/documents/search?q=nothing "HTTP/1.1 200 OK"
+PASSED                                                                   [ 62%]
+tests/api/test_document_routes_coverage_w52.py::TestSearchDocuments::test_search_limit_query_validation 
+-------------------------------- live log call ---------------------------------
+2026-11-06 18:45:06 [    INFO] HTTP Request: GET http://testserver/api/documents/search?q=x&limit=0 "HTTP/1.1 422 Unprocessable Entity"
+2026-11-06 18:45:06 [    INFO] HTTP Request: GET http://testserver/api/documents/search?q=x&limit=500 "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 64%]
+tests/api/test_document_routes_coverage_w52.py::TestSearchDocuments::test_search_handler_missing_500 
+-------------------------------- live log call ---------------------------------
+2026-11-06 18:45:06 [ WARNING] API Error: INTERNAL_ERROR - Search database not available
+2026-11-06 18:45:06 [   ERROR] Document search failed: 500: {'success': False, 'error': {'code': 'INTERNAL_ERROR', 'message': 'Search database not available', 'timestamp': '2026-11-06T23:45:06.483955+00:00'}}
+2026-11-06 18:45:06 [ WARNING] API Error: INTERNAL_ERROR - Internal error
+2026-11-06 18:45:06 [    INFO] HTTP Request: GET http://testserver/api/documents/search?q=x "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 66%]
+tests/api/test_document_routes_coverage_w52.py::TestSearchDocuments::test_search_exception_500 
+-------------------------------- live log call ---------------------------------
+2026-11-06 18:45:06 [   ERROR] Document search failed: search down
+2026-11-06 18:45:06 [ WARNING] API Error: INTERNAL_ERROR - Internal error
+2026-11-06 18:45:06 [    INFO] HTTP Request: GET http://testserver/api/documents/search?q=x "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 68%]
+tests/api/test_document_routes_coverage_w52.py::TestGetDocument::test_get_success 
+-------------------------------- live log call ---------------------------------
+2026-11-06 18:45:06 [    INFO] HTTP Request: GET http://testserver/api/documents/doc-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 70%]
+tests/api/test_document_routes_coverage_w52.py::TestGetDocument::test_get_not_found_404 
+-------------------------------- live log call ---------------------------------
+2026-11-06 18:45:06 [ WARNING] API Error: NOT_FOUND - Document not found: ghost
+2026-11-06 18:45:06 [    INFO] HTTP Request: GET http://testserver/api/documents/ghost "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 72%]
+tests/api/test_document_routes_coverage_w52.py::TestGetDocument::test_get_handler_missing_500 
+-------------------------------- live log call ---------------------------------
+2026-11-06 18:45:06 [ WARNING] API Error: INTERNAL_ERROR - Search database not available
+2026-11-06 18:45:06 [    INFO] HTTP Request: GET http://testserver/api/documents/doc-1 "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 74%]
+tests/api/test_document_routes_coverage_w52.py::TestGetDocument::test_get_exception_500 
+-------------------------------- live log call ---------------------------------
+2026-11-06 18:45:06 [   ERROR] Failed to get document doc-1: boom
+2026-11-06 18:45:06 [ WARNING] API Error: INTERNAL_ERROR - Internal error
+2026-11-06 18:45:06 [    INFO] HTTP Request: GET http://testserver/api/documents/doc-1 "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 76%]
+tests/api/test_document_routes_coverage_w52.py::TestDeleteDocument::test_delete_user_initiated_success 
+-------------------------------- live log call ---------------------------------
+2026-11-06 18:45:06 [    INFO] HTTP Request: DELETE http://testserver/api/documents/doc-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 78%]
+tests/api/test_document_routes_coverage_w52.py::TestDeleteDocument::test_delete_with_agent_id_governance 
+-------------------------------- live log call ---------------------------------
+2026-11-06 18:45:06 [    INFO] HTTP Request: DELETE http://testserver/api/documents/doc-1?agent_id=agent-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 80%]
+tests/api/test_document_routes_coverage_w52.py::TestDeleteDocument::test_delete_handler_missing_500 
+-------------------------------- live log call ---------------------------------
+2026-11-06 18:45:06 [ WARNING] API Error: INTERNAL_ERROR - Search database not available
+2026-11-06 18:45:06 [    INFO] HTTP Request: DELETE http://testserver/api/documents/doc-1 "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 82%]
+tests/api/test_document_routes_coverage_w52.py::TestListDocuments::test_list_success 
+-------------------------------- live log call ---------------------------------
+2026-11-06 18:45:06 [    INFO] HTTP Request: GET http://testserver/api/documents "HTTP/1.1 200 OK"
+PASSED                                                                   [ 84%]
+tests/api/test_document_routes_coverage_w52.py::TestListDocuments::test_list_handler_missing_empty 
+-------------------------------- live log call ---------------------------------
+2026-11-06 18:45:06 [    INFO] HTTP Request: GET http://testserver/api/documents "HTTP/1.1 200 OK"
+PASSED                                                                   [ 86%]
+tests/api/test_document_routes_coverage_w52.py::TestListDocuments::test_list_exception_500 
+-------------------------------- live log call ---------------------------------
+2026-11-06 18:45:06 [   ERROR] Failed to list documents: boom
+2026-11-06 18:45:06 [ WARNING] API Error: INTERNAL_ERROR - Internal error
+2026-11-06 18:45:06 [    INFO] HTTP Request: GET http://testserver/api/documents "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 88%]
+tests/api/test_document_routes_coverage_w52.py::TestWorkspaceBranches::test_upload_workspace_resolution_exception_warned 
+-------------------------------- live log call ---------------------------------
+2026-11-06 18:45:06 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+FAILED                                                                   [ 90%]
+tests/api/test_document_routes_coverage_w52.py::TestWorkspaceBranches::test_search_workspace_branch 
+-------------------------------- live log call ---------------------------------
+2026-11-06 18:45:06 [    INFO] HTTP Request: GET http://testserver/api/documents/search?q=x "HTTP/1.1 200 OK"
+PASSED                                                                   [ 92%]
+tests/api/test_document_routes_coverage_w52.py::TestWorkspaceBranches::test_get_workspace_branch 
+-------------------------------- live log call ---------------------------------
+2026-11-06 18:45:06 [    INFO] HTTP Request: GET http://testserver/api/documents/doc-ws "HTTP/1.1 200 OK"
+PASSED                                                                   [ 94%]
+tests/api/test_document_routes_coverage_w52.py::TestWorkspaceBranches::test_delete_workspace_branch 
+-------------------------------- live log call ---------------------------------
+2026-11-06 18:45:06 [    INFO] HTTP Request: DELETE http://testserver/api/documents/doc-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 96%]
+tests/api/test_document_routes_coverage_w52.py::TestWorkspaceBranches::test_list_workspace_branch 
+-------------------------------- live log call ---------------------------------
+2026-11-06 18:45:06 [    INFO] HTTP Request: GET http://testserver/api/documents "HTTP/1.1 200 OK"
+PASSED                                                                   [ 98%]
+tests/api/test_document_routes_coverage_w52.py::TestUploadHandlerMissing::test_upload_handler_missing_500 
+-------------------------------- live log call ---------------------------------
+2026-11-06 18:45:06 [ WARNING] API Error: INTERNAL_ERROR - Search database not available
+2026-11-06 18:45:06 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [100%]
+
+=================================== FAILURES ===================================
+E   assert 2 == 1
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/documents/ingest "HTTP/1.1 200 OK"
+/private/tmp/atom-cli-agent2/backend/tests/api/test_document_routes_coverage_w52.py:154: assert 2 == 1
+E   AssertionError: assert False
+     +  where False = <built-in method startswith of str object at 0x12ae09630>('Document ')
+     +    where <built-in method startswith of str object at 0x12ae09630> = 'Untitled document'.startswith
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/documents/ingest "HTTP/1.1 200 OK"
+/private/tmp/atom-cli-agent2/backend/tests/api/test_document_routes_coverage_w52.py:165: AssertionError: assert False
+E   KeyError: 'workspace_id'
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+/private/tmp/atom-cli-agent2/backend/tests/api/test_document_routes_coverage_w52.py:406: KeyError: 'workspace_id'
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 102 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_document_delete_truth.py: 11 warnings
+  /private/tmp/atom-cli-agent2/backend/core/lancedb_handler.py:407: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    names = set(self.db.table_names())
+
+tests/test_document_delete_truth.py: 33 warnings
+  /Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/asyncio/events.py:94: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    self._context.run(self._callback, *self._args)
+
+tests/test_document_delete_truth.py: 22 warnings
+  /private/tmp/atom-cli-agent2/backend/core/lancedb_handler.py:620: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    if table_name in self.db.table_names():
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/api/test_document_routes_coverage_w52.py::TestIngestDocument::test_ingest_success
+FAILED tests/api/test_document_routes_coverage_w52.py::TestIngestDocument::test_ingest_empty_content_placeholder
+FAILED tests/api/test_document_routes_coverage_w52.py::TestWorkspaceBranches::test_upload_workspace_resolution_exception_warned
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================= 3 failed, 48 passed, 175 warnings in 20.96s ==================

@@ -65,6 +65,16 @@
       "failed": 1,
       "log": "affected-314.log"
     },
+    "affected_311": {
+      "passed": 346,
+      "failed": 1,
+      "log": "affected-311.log"
+    },
+    "baseline_main_311": {
+      "passed": 343,
+      "failed": 1,
+      "log": "baseline-main-311.log"
+    },
     "formatter_probe_base_314": {
       "normal_stream_contains_secret": false,
       "fallback_stderr_contains_secret": true,
@@ -126,6 +136,8 @@
     ],
     "reason": "assert 0 >= 30; uvicorn is INFO because the merged design preserves the operator-selected level",
     "candidate_added_failures": 0,
+    "affected_314_same_failure_on_base_single_test": true,
+    "affected_311_full_base": "343 passed, 1 failed with the same identity",
     "not_claimed_as_repaired": true
   },
   "checks": {

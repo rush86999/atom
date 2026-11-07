@@ -156,6 +156,7 @@ def mock_agent_task_registry():
     """Mock AgentTaskRegistry."""
     with patch("core.agent_task_registry.agent_task_registry") as mock:
         mock.get_active_tasks = AsyncMock(return_value=[])
+        mock.get_agent_tasks = Mock(return_value=[])
         mock.cancel_agent_tasks = AsyncMock(return_value=0)
         yield mock
 
@@ -899,7 +900,8 @@ class TestAgentStopEndpoint:
         """Test stopping a running agent."""
         agent = test_agent_factory(name="Stop Me")
 
-        # Mock cancelled tasks
+        # Mock running tasks and cancellation
+        mock_agent_task_registry.get_agent_tasks = Mock(return_value=[Mock()])
         mock_agent_task_registry.cancel_agent_tasks = AsyncMock(return_value=3)
 
         response = client.post(f"/api/agents/{agent.id}/stop")

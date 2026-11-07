@@ -64,11 +64,14 @@ redaction) has **0 raw synthetic values**, **3 `<redacted>` markers**, 2
 WebSocket lines, and both accepted/`403` statuses preserved. This confirms the
 repair does not regress normal operation.
 
-The broader 3.14 logging/audit selection is **346 passed, 1 failed**. The one
-failure, `tests/core/test_logging_config_coverage.py::TestLibraryLoggerConfiguration::test_configure_library_loggers`,
-is identical on exact base: it asserts uvicorn `WARNING` while the merged
-design deliberately keeps the operator-selected uvicorn level (`assert 0 >= 30`,
-logger INFO). It is pre-existing and not claimed as repaired.
+The broader logging/audit selection is **346 passed, 1 failed** on both 3.14
+and 3.11. The one failure,
+`tests/core/test_logging_config_coverage.py::TestLibraryLoggerConfiguration::test_configure_library_loggers`,
+is pre-existing: it asserts uvicorn `WARNING` while the merged design
+deliberately keeps the operator-selected uvicorn level (`assert 0 >= 30`,
+logger INFO). The same test fails alone on exact base 3.14, and the full 3.11
+base selection is **343 passed, 1 failed** with the same identity. It is not
+claimed as repaired.
 
 ## Evidence controls
 

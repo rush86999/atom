@@ -1,0 +1,93 @@
+{
+  "checkpoint": "Agent 4 bounded baseline: deep-link return to a NON-DEFAULT protected destination (lead follow-through order 2026-11-06)",
+  "finding": "CONFIRMED LIVE at the user boundary: after sign-out and same-account UI sign-in from the deep-link login page, the user lands on /dashboard and NEVER reaches the intended non-default protected destination. The callbackUrl containing the deep destination is emitted by the middleware but dropped by the login consumer. This upgrades the prior source-diagnosed finding to captured evidence.",
+  "attribution": {
+    "product_source": "f653c790e (worktree /private/tmp/atom-agent4-acctret; branch HEAD 581fbda4a adds ONLY docs/acceptance evidence — 0 non-docs paths in git diff f653c790e..HEAD; backend health reported git_commit 581fbda4a89b from that same worktree)",
+    "world": "NEW isolated scratch world 2: /private/tmp/atom-agent4-acctret-scratch2 (own sqlite DB, ATOM_DATA_DIR, LanceDB, BYOK paths; own SECRET_KEY sha256 recorded in scratch launch_env.txt, value private; credential envs pinned empty; BYPASS_RATE_LIMIT=1)",
+    "ports": { "backend": 18119, "frontend": 18120 },
+    "processes": { "backend_pid": 23037, "frontend_pid": 23041, "stopped_after_capture": true },
+    "python": "3.11.16",
+    "frontend": "Next.js dev server, node v20.19.6",
+    "role": "member (ordinary user)",
+    "no_live_effects": "no provider/model/credential/spend/send/deployment action"
+  },
+  "test_user": {
+    "email": "a4dl-c69a8ec1-1106@example.com (opaque local test identity; password private to scratch)",
+    "user_id": "1876cb0d-743f-4fce-a5e3-48e845d8babc",
+    "workspace_id": "851e4dee-5ab3-4950-a02f-6c7de8d73cbf",
+    "role": "member",
+    "creation": "ordinary UI register form on /login, world-2 stack",
+    "onboarding_prerequisite": "wizard completed through the real UI (Welcome -> Profile -> role/work filled -> Connect skipped via product's own 'Prefer to skip?' -> Start Automating); /api/onboarding/status -> onboarding_completed=true; prereq only, not re-claimed"
+  },
+  "destination": {
+    "chosen": "/settings?a4dl=return20261106",
+    "why_non_default": "not /dashboard; Settings is a member-enabled protected page (sidebar PLATFORM group)",
+    "marker": "harmless query marker a4dl=return20261106 to bind the exact destination string through the redirect chain",
+    "enablement_proof_while_signed_in": "direct visit renders the Settings page (h1 'Settings', Preferences/Data Pipelines/Workspace/Account tabs) at the exact deep URL; screenshot 10_signedin_settings_deep_marker.png; sidebar highlights Settings",
+    "protected_proof": "unauthenticated visit redirects to /login (chain step 2)"
+  },
+  "captured_chain": [
+    {
+      "step": 1,
+      "action": "ordinary UI sign-out from the deep page (sidebar data-testid=dashboard-logout-button)",
+      "result": "landed /auth/signin; auth_token/token removed from localStorage; login form visible"
+    },
+    {
+      "step": 2,
+      "action": "fresh browser context: clear all cookies + localStorage + sessionStorage, close tab, open NEW tab, verify emptiness (cookieNames=[], localStorageKeys=[], sessionStorageKeys=[]) — cleared storage + new tab, NOT a separate browser profile",
+      "result": "verified empty"
+    },
+    {
+      "step": 3,
+      "action": "unauthenticated visit to http://localhost:18120/settings?a4dl=return20261106",
+      "observed_url": "http://localhost:18120/login?callbackUrl=http%3A%2F%2Flocalhost%3A18120%2Fsettings%3Fa4dl%3Dreturn20261106",
+      "note": "PRODUCER side captured live: middleware emits an ABSOLUTE callbackUrl that encodes the deep destination AND its query marker; login form shown; no settings content"
+    },
+    {
+      "step": 4,
+      "action": "same-account UI sign-in on that exact login page (login-email-input / login-password-input / login-submit-button)",
+      "observed_url_samples": [
+        { "t_ms": 0, "url": "http://localhost:18120/login?callbackUrl=http%3A%2F%2Flocalhost%3A18120%2Fsettings%3Fa4dl%3Dreturn20261106" },
+        { "t_ms": 1000, "url": "http://localhost:18120/dashboard" },
+        { "t_ms": 2000, "url": "http://localhost:18120/dashboard" },
+        { "t_ms": 3000, "url": "http://localhost:18120/dashboard" },
+        { "t_ms": 4000, "url": "http://localhost:18120/dashboard" },
+        { "t_ms": 5000, "url": "http://localhost:18120/dashboard" },
+        { "t_ms": 6000, "url": "http://localhost:18120/dashboard" },
+        { "t_ms": 7000, "url": "http://localhost:18120/dashboard" }
+      ],
+      "result": "ACTUAL FINAL LOCATION = /dashboard; the intended /settings?a4dl=return20261106 is never reached; landing stable (no oscillation) across the 8s window",
+      "note": "CONSUMER side captured live: login.tsx reads callbackUrl but accepts only relative paths (must start '/', not '//'), so the absolute callbackUrl falls back to '/dashboard'"
+    }
+  ],
+  "post_landing_readback": {
+    "me": { "id": "1876cb0d-743f-4fce-a5e3-48e845d8babc", "email": "a4dl-c69a8ec1-1106@example.com", "role": "member", "status": "active", "workspace_id": "851e4dee-5ab3-4950-a02f-6c7de8d73cbf" },
+    "onboarding": { "onboarding_completed": true, "onboarding_step": "completed" },
+    "wizard_present_on_landing": false,
+    "screenshot": "11_after_deeplink_login_landed_dashboard.png (sidebar shows the same account)"
+  },
+  "durable_readback_world2_db": {
+    "users": 2,
+    "test_user_rows": 1,
+    "workspaces": 2,
+    "tenants": 2,
+    "user_workspaces": 1,
+    "onboarding": [{ "email": "a4dl-c69a8ec1-1106@example.com", "completed": 1, "step": "completed" }],
+    "note": "no new user/workspace/tenant rows created by the capture"
+  },
+  "artifacts": [
+    { "file": "10_signedin_settings_deep_marker.png", "note": "signed-in direct visit to the deep destination renders Settings — destination enabled; isolates the defect to the post-login return" },
+    { "file": "11_after_deeplink_login_landed_dashboard.png", "note": "final landing after deep-link login = /dashboard with the same account signed in" }
+  ],
+  "scope_and_exclusions": [
+    "One bounded callback check per the work order — NOT another six-assertion auth campaign; the accepted account-return episode (581fbda4a) is preserved untouched",
+    "No claim about external/protocol-relative redirect behavior (untested here; covered by Agent 1's required negative twins)",
+    "No /auth/signin consumer trace beyond the sign-out landing (the captured chain used the /login producer/consumer path)",
+    "Onboarding wizard suppression on landing observed but not re-claimed as onboarding qualification"
+  ],
+  "handoff_to_agent1": {
+    "safe_captured_chain": "step-3 observed_url (producer) + step-4 observed_url_samples (consumer) above — URLs only, no tokens/headers",
+    "root_confirmation": "middleware sets callbackUrl=request.url (absolute); pages/login.tsx safeDest guard accepts only relative '/…' not '//…' at f653c790e",
+    "expected_repair_verification": "when the repair lands, Agent 4 will re-run this exact chain once and expect the final location to be /settings?a4dl=return20261106 (internal path+query preserved), while default login still reaches /dashboard and absolute/protocol-relative targets never escape the app"
+  }
+}

@@ -1,0 +1,112 @@
+{
+  "journey": "Agent 4 first finite assignment: fresh-browser account return / session recovery",
+  "date": "2026-11-06",
+  "owner": "Agent 4 (ordinary-user browser journey verification); final acceptance retained by the lead",
+  "source_identity": {
+    "worktree": "/private/tmp/atom-agent4-acctret",
+    "branch": "codex/agent4-account-return-20261106",
+    "base_commit": "f653c790e549",
+    "base_commit_ref": "origin/main tip at run time = merge of guidance PR #680; local repo main was 1259 commits stale and NOT used",
+    "served_backend_identity": {
+      "health_endpoint_reported": { "pid": 8095, "git_commit": "f653c790e549", "source_id": "f653c790e549", "cwd": "/private/tmp/atom-agent4-acctret/backend" },
+      "python": "3.11.16",
+      "frontend": "Next.js dev server, node v20.19.6"
+    }
+  },
+  "world_identity": {
+    "scratch_root": "/private/tmp/atom-agent4-acctret-scratch",
+    "database": "sqlite:///$SCRATCH/run/atom.db (own file; TESTING not set on served backend; BYPASS_RATE_LIMIT=1 per CI e2e convention)",
+    "isolated_paths": ["ATOM_DATA_DIR", "LANCEDB_URI", "LANCEDB_URI_BASE", "BYOK_CONFIG_FILE", "BYOK_KEYS_FILE", "BYOK_ENC_KEY_FILE all pinned into scratch_root (journey_runtime.ScratchServer isolation pattern)"],
+    "credential_envs": "all 13 provider credential vars pinned to \"\" (dotenv-refill defense)",
+    "no_live_effects": "no provider/model/credential/spend/send/download/deployment action; the only non-local touch is the initial git fetch and package install",
+    "ports": { "backend": 18117, "frontend": 18118 },
+    "secret_handling": "SECRET_KEY generated at launch, value only in process env + scratch launch_env.txt (SHA-256 recorded, never committed); expired token committed only as SHA-256"
+  },
+  "test_user": {
+    "email": "a4ret-58c87249-1106@example.com (opaque local test identity; password never recorded in evidence)",
+    "user_id": "24d65258-d46d-4c72-ac9c-9d23356ac288",
+    "role": "member",
+    "workspace_id": "01da977f-557b-4c81-911d-2c45c63e9be9",
+    "creation": "ordinary UI: /login -> login-toggle-mode -> register form (first/last/email/password/confirm) -> POST /api/auth/register -> auto sign-in per product behavior",
+    "note": "first attempt with a .test email was rejected by the backend's email validation (422 mapped to 'Please enter a valid email address'); example.com is the established local-practice domain"
+  },
+  "prerequisite_not_reclaimed": {
+    "onboarding": "wizard completed through the real UI this session (Welcome -> Profile -> Connect -> Ready -> Start Automating) to establish the PR672/PR674 prerequisite (accepted source 163f6b336 -> merge 27923f324). This run does NOT re-claim onboarding qualification; Connect step was skipped via the product's own documented 'Prefer to skip? Settings -> AI' affordance (no provider/key/config action was authorized).",
+    "durable_state_after_prereq": { "onboarding_completed": 1, "onboarding_step": "completed", "users_total": 2, "workspaces_total": 2, "tenants_total": 2, "user_workspaces_total": 1 }
+  },
+  "assertions": [
+    {
+      "id": "A1_signout_via_ui",
+      "boundary": "browser-UI",
+      "steps": "dashboard sidebar -> data-testid=dashboard-logout-button click",
+      "expected": "signed-out state; protected content gone; actionable sign-in path",
+      "observed": "landed on /auth/signin (Sign In to ATOM page, email/password + Sign In + SSO buttons); localStorage auth_token/token removed; cookies auth_token and next-auth.session-token removed (document.cookie readback)",
+      "evidence": "03_signed_out_auth_signin.png",
+      "result": "pass"
+    },
+    {
+      "id": "A2_fresh_context_auth_requirement",
+      "boundary": "browser-UI + public API",
+      "steps": "clear all cookies (document.cookie expiry) + localStorage.clear() + sessionStorage.clear(); CLOSE the browser tab; open a NEW tab; verify emptiness (cookieNames=[], localStorageKeys=[], sessionStorageKeys=[]) at /login; then visit protected /dashboard",
+      "expected": "authentication requirement, not a stale success page",
+      "observed": "redirect to /login?callbackUrl=http%3A%2F%2Flocalhost%3A18118%2Fdashboard; GET /api/auth/me with credentials:include from the fresh page returned HTTP 401 (proves no hidden/httpOnly session material survived); no protected heading, no wizard",
+      "evidence": "04_fresh_context_protected_route_login.png",
+      "result": "pass"
+    },
+    {
+      "id": "A3_same_account_relogin_identity",
+      "boundary": "browser-UI action + public API readback",
+      "steps": "normal UI sign-in on /login (login-email-input / login-password-input / login-submit-button)",
+      "expected": "same authoritative user/workspace; usable destination; onboarding preserved; wizard not restarted",
+      "observed": "landed on /dashboard; GET /api/auth/me returned the SAME id 24d65258-d46d-4c72-ac9c-9d23356ac288 and SAME workspace_id 01da977f-557b-4c81-911d-2c45c63e9be9, role member; /api/onboarding/status -> onboarding_completed=true; wizard dialog absent; dashboard usable (sidebar identity, workspace cards)",
+      "evidence": "05_relogin_same_account_dashboard_no_wizard.png",
+      "result": "pass"
+    },
+    {
+      "id": "A4_no_new_user_or_workspace",
+      "boundary": "scratch-DB durable readback",
+      "steps": "sqlite read-only counts before prereq / after re-login / after negative case",
+      "expected": "no new user/workspace/tenant rows created by the return path or the negative attempt",
+      "observed": "users=2, workspaces=2, tenants=2, user_workspaces=1 at every checkpoint; exactly one row for the test email",
+      "result": "pass"
+    },
+    {
+      "id": "A5_expired_session_server_rejection",
+      "boundary": "public API (controlled negative injection)",
+      "seam_declaration": "no test-only expiry endpoint, env knob, or TESTING-gated hook exists at this source. Controlled seam used: expired-but-correctly-signed JWT minted by the backend's own core.auth.create_access_token(expires_delta=-60s) with the scratch backend's own SECRET_KEY, for the test user's sub. Injection mirrors the app's own storage shape (localStorage auth_token/token + cookies auth_token, next-auth.session-token, path=/, max-age=86400, JS-set as lib/backendAuth.ts does).",
+      "expected": "server rejects invalid session",
+      "observed": "GET /api/auth/me with the expired token -> HTTP 401 {\"detail\":\"Could not validate credentials\"} on BOTH transports (Authorization: Bearer and Cookie: auth_token)",
+      "result": "pass"
+    },
+    {
+      "id": "A6_browser_recovery_path_no_loop",
+      "boundary": "browser-UI",
+      "steps": "with injected expired session, visit /dashboard; sample location.href + page state every 1s for 10s; then reauthenticate via the normal UI form",
+      "expected": "usable reauthentication path, no endless redirect/retry loop; reauth returns the same account",
+      "observed": "t=0-5s dashboard shell rendered (middleware passes on cookie presence; data APIs failing); t=6s single transition to /login?callbackUrl=...; stable t=6-9s with visible usable login form - NO loop; re-login returned same id/workspace, onboarding completed, no wizard, usable dashboard",
+      "evidence": "06_expired_session_recovered_to_login.png",
+      "result": "pass"
+    }
+  ],
+  "observations_non_blocking": [
+    "Deep link lost on return: middleware emits an ABSOLUTE callbackUrl (http://localhost:18118/dashboard) but pages/login.tsx only honors RELATIVE callbackUrl (must start with '/', not '//'), so post-auth destination always falls back to /dashboard. The user cannot return to the deep-linked page after sign-in. Minor usability gap; suggested repair is one bounded change so the middleware-emitted callbackUrl survives the existing guard (source-bound hint, ownership: Agent 1 user journey / Agent 2 auth-state per directive row 'Setup and ordinary account use').",
+    "Stale-shell window: with an expired cookie present, /dashboard renders its shell for ~6s while its data calls 401 before the interceptor bounces to /login. Single transition, no loop; user sees a briefly broken page. Minor UX polish, not a blocker.",
+    "Sign-out leaves non-auth localStorage metadata (atom_user_role, atom_chat_session_id, nextauth.message, atom_explicit_logout). Auth material is cleared; this is hygiene, not a security gap at the tested boundary.",
+    "Contract facts at this source (context for the lead): ACCESS_TOKEN_EXPIRE_MINUTES is hard-coded 24h (core/auth.py:58-59); POST /api/auth/refresh requires a still-valid token, so an expired session cannot be renewed server-side; the revocation denylist is in-memory per process (restart clears it); main_api_app.py:1653 still documents a stale '15-minute expiry' comment."
+  ],
+  "excluded_claims": [
+    "No onboarding qualification re-claimed (prerequisite only)",
+    "No server-wide JWT revocation claim (logout != revocation; denylist is in-memory)",
+    "No process-restart recovery claim (browser reload/process restart was not exercised; separate declared extension)",
+    "No provider connection, admin-role, password-recovery, or live IdP (SSO buttons visible but untested) claim",
+    "No whole-app readiness claim; historical 111/123 and accepted lanes untouched"
+  ],
+  "artifacts": [
+    { "file": "03_signed_out_auth_signin.png", "sha256": "fbef9e700d2d2f85c65546027fb677b96a9140c987fca6c94274b3369b46e56d" },
+    { "file": "04_fresh_context_protected_route_login.png", "sha256": "96b1b7cc44a33811f788909fa47e1209dfe5b208b44c3f08a5448763bb5d71a4" },
+    { "file": "05_relogin_same_account_dashboard_no_wizard.png", "sha256": "5f47fbe5fcf06f6c7c4f7f8bc89527990a1c64ed42e3168bbdf271d57fd192d6" },
+    { "file": "06_expired_session_recovered_to_login.png", "sha256": "96b1b7cc44a33811f788909fa47e1209dfe5b208b44c3f08a5448763bb5d71a4", "note": "identical hash to 04: both capture the same /login?callbackUrl=... render by design" }
+  ],
+  "recommendation_to_lead": "Accept this batch as qualification of the fresh-browser account-return/session-recovery boundary at source f653c790e: all six assertions passed at the real browser/public-API boundary with durable readback. The only product gap found is the dropped deep-link callbackUrl (minor usability). Recommend routing it to Agent 1/2 as a bounded repair; no urgency. Next ready journey for Agent 4: select from the goal map (e.g. supported source upload/open/reload or tasks/boards primary actions when actually enabled) after checking current ownership.",
+  "raw_scratch_retention": "scratch world + logs retained at /private/tmp/atom-agent4-acctret-scratch (contains the expired token + identity file, mode 600; NOT for commit)"
+}

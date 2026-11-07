@@ -1,0 +1,46 @@
+{
+  "schema": "atom-auth-relative-callback-1",
+  "claim": "Protected deep-link return survives login as a safe relative path+query across password, social and existing-session consumers; default and unsafe-target behavior preserved",
+  "status": "verified at unit/component and hosted frontend-job scope",
+  "base_main": "66e09c5ee",
+  "source_checkpoint": "aa731a9f5",
+  "pr": "https://github.com/rush86999/atom/pull/687",
+  "captured_baseline": {
+    "destination": "/settings?a4dl=return20261106",
+    "runtime": "f653c790e",
+    "evidence": "2557156a1",
+    "observed": "login with absolute callbackUrl -> /dashboard"
+  },
+  "results": {
+    "gated_auth": "59 passed",
+    "full_auth_suite": "179 passed",
+    "typecheck": "clean",
+    "hosted_frontend_job": "128089878538; 59 passed in the four gated suites",
+    "hosted_pr687": "all eight checks pass at aa731a9f5"
+  },
+  "source_git_blob_short": {
+    "frontend-nextjs/middleware.ts": "caddad965600",
+    "frontend-nextjs/lib/auth-headers.ts": "8e816b3a0917",
+    "frontend-nextjs/lib/api.ts": "08aa4af2c945",
+    "frontend-nextjs/pages/auth/signin.tsx": "29c31972ce90",
+    "frontend-nextjs/tests/middleware.test.ts": "39863b87e3ef",
+    "frontend-nextjs/tests/lib/auth-headers.test.ts": "6d4902f05c48",
+    "frontend-nextjs/tests/pages/__tests__/login.test.tsx": "6189142c3368",
+    "frontend-nextjs/tests/auth/test-signin.test.tsx": "529c0cc5998b",
+    ".github/workflows/ci.yml": "a2cbb33a30c3"
+  },
+  "artifact_git_blob_short": {
+    "README.md": "c48a4d428c57",
+    "hosted-frontend-typecheck.log": "5b5fd73c6513",
+    "local-auth-gated.log": "1df07d7bd3e5",
+    "local-auth-suite.log": "742c8e23fe59",
+    "local-typecheck.log": "337f07125b7c"
+  },
+  "scanner_note": "Short Git blob prefixes are recorded; long hex strings are intentionally omitted because the earlier artifact hashes were false-positive content hashes, not credentials.",
+  "boundaries": [
+    "unit/component and hosted frontend-job scope; not a second browser acceptance",
+    "Agent4 captured-chain verification is the user-boundary record; no browser rerun for this packaging-only correction",
+    "open-redirect guard, profile/role gates and auth transport unchanged",
+    "no live provider/model/account/credential/SSO/production-world/deployment"
+  ]
+}
