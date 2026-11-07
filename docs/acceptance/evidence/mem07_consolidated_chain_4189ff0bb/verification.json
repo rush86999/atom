@@ -1,0 +1,66 @@
+{
+  "task": "MEM-07 natural emitted failure event -> pending Memento -> authenticated HTTP review/apply -> fresh-session consumption",
+  "git_branch": "codex/mem07-consolidated-20261107",
+  "git_revision": "4189ff0bb",
+  "base_origin_main": "36fa4ce39",
+  "test_successor": "fe07b615b",
+  "root_natural_probe": "81b94a7e1",
+  "earlier_component_packet": "cb81bd4ca",
+  "runtime_fix_needed": false,
+  "runtime_fix_reason": "Accepted production mechanisms support the natural emitted-event and authenticated HTTP chain; no product runtime change was required.",
+  "controlled_seams": [
+    "synthetic failing custom tool",
+    "Memento model transport returning controlled generated-code text"
+  ],
+  "natural_boundary": {
+    "episode_event": "real EpisodeService.create_episode_from_execution emits event",
+    "consumer": "real registered ReflectionEngine on the existing event bus, fresh sessions, one asyncio loop",
+    "manual_bridge": "none (no EpisodeSegment/TaskEvent/process_failure)"
+  },
+  "authenticated_http": {
+    "router": "api.autodev_review_routes.router mounted in FastAPI TestClient",
+    "auth": "real get_current_user/get_current_tenant from bearer JWT",
+    "authority": "real User/Tenant/workspace role checks; no current_user/tenant override",
+    "db_override": "get_db points at scratch SQLite only",
+    "guards": {
+      "no_token": 401,
+      "viewer_jwt": 403,
+      "workspace_admin_jwt": 200
+    }
+  },
+  "verification": {
+    "nodes": [
+      "tests/test_mem07_consolidated_chain.py",
+      "tests/test_tool_error_memento_lifecycle.py",
+      "tests/test_memento_candidate_review.py",
+      "tests/test_reviewed_improvement_apply.py",
+      "tests/test_reviewed_improvement_boundaries.py",
+      "tests/test_reviewed_skill_agent_consumption.py",
+      "tests/test_tool_error_evolution.py",
+      "tests/test_autodev_review_routes.py"
+    ],
+    "exit_code": 0,
+    "result": "56 passed"
+  },
+  "environment": {
+    "TESTING": "1",
+    "DATABASE_URL": "sqlite:////private/tmp/atom-mem07-evidence/run-final/atom.db",
+    "ATOM_DATA_DIR": "/private/tmp/atom-mem07-evidence/run-final/data",
+    "LANCEDB_URI": "/private/tmp/atom-mem07-evidence/run-final/lancedb",
+    "ATOM_OUTPUT_DIR": "/private/tmp/atom-mem07-evidence/run-final/output",
+    "TMPDIR": "/private/tmp/atom-mem07-evidence/run-final/basetemp",
+    "ATOM_WORKSPACE_SKILLS_ROOT": "/private/tmp/atom-mem07-evidence/run-final/skills",
+    "provider_credentials": "blank"
+  },
+  "preserved_original_pieces": [
+    "c1074f0a9",
+    "952fcbdf8",
+    "5538a654d",
+    "d30130d1f"
+  ],
+  "remaining_scope": [
+    "No OS process restart claimed; fresh-session consumption is the MEM boundary.",
+    "No live model/provider/network/sandbox/account/credential/spend/send/install/deploy.",
+    "This is a finite MEM-07 chain, not whole-app acceptance."
+  ]
+}

@@ -1,0 +1,47 @@
+{
+  "task": "MEM-07 consolidated tool-error -> pending Memento -> authenticated review -> existing apply -> fresh-session consumption",
+  "git_branch": "codex/mem07-consolidated-20261107",
+  "git_revision": "f069a944a",
+  "base_origin_main": "2d251acdf",
+  "changed_files": [
+    "backend/tests/test_mem07_consolidated_chain.py"
+  ],
+  "runtime_fix_needed": false,
+  "runtime_fix_reason": "Current accepted mechanism supports the consolidated chain; no product runtime change was required.",
+  "model_leaf": "Memento model transport doubled with controlled generated-code text; all other lifecycle code real.",
+  "verification": {
+    "nodes": [
+      "tests/test_mem07_consolidated_chain.py",
+      "tests/test_tool_error_memento_lifecycle.py",
+      "tests/test_memento_candidate_review.py",
+      "tests/test_reviewed_improvement_apply.py",
+      "tests/test_reviewed_improvement_boundaries.py",
+      "tests/test_reviewed_skill_agent_consumption.py",
+      "tests/test_tool_error_evolution.py",
+      "tests/test_autodev_review_routes.py"
+    ],
+    "exit_code": 0,
+    "result": "55 passed"
+  },
+  "environment": {
+    "TESTING": "1",
+    "DATABASE_URL": "sqlite:////private/tmp/atom-mem07-evidence/run-final/atom.db",
+    "ATOM_DATA_DIR": "/private/tmp/atom-mem07-evidence/run-final/data",
+    "LANCEDB_URI": "/private/tmp/atom-mem07-evidence/run-final/lancedb",
+    "ATOM_OUTPUT_DIR": "/private/tmp/atom-mem07-evidence/run-final/output",
+    "TMPDIR": "/private/tmp/atom-mem07-evidence/run-final/basetemp",
+    "ATOM_WORKSPACE_SKILLS_ROOT": "/private/tmp/atom-mem07-evidence/run-final/skills",
+    "provider_credentials": "blank"
+  },
+  "preserved_original_pieces": [
+    "c1074f0a9",
+    "952fcbdf8",
+    "5538a654d",
+    "d30130d1f"
+  ],
+  "remaining_scope": [
+    "No OS process restart claimed in this chain; fresh-session consumption covered.",
+    "No live model/provider/network/sandbox/account/credential/spend/send/install/deploy.",
+    "Existing accepted lifecycle packets remain authoritative for their own scopes."
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "packet": "mem07_consolidated_chain_f069a944a",
+  "executed_source": "f069a944a",
+  "source_files": {
+    "backend/tests/test_mem07_consolidated_chain.py": "04851ab52b83c9329ff6813052b148f65cd84a3ece885591506900db6db73e33"
+  },
+  "artifacts": {
+    "PR_BODY.md": "e3af38831d44d173de1973c8a7c8e82ee9aa5f161d29e549147010a7354f19ae",
+    "README.md": "70c8a4b2e8cd7678b735af4968109d984abaa1eb5e34ae6236b005d7db15d1d5",
+    "focused-exit.json": "05e3011b9133394a8cc91e6076579552ef1854d1ce00b2a47f924e4d8ba6f300",
+    "focused.log": "a780a3df2a67009ed1c2b64cfc4593659b1a31f6ff4735e1d70bf31f0a465c66",
+    "focused.xml": "d9b5d3d96ca9967f5e87e99ad70f5d6cff1c6eb4eecbb68c347fd7d5b542d9a7",
+    "run_and_capture.py": "28da740c57a487cdb0874699593843eb800a1b751b8137e326362d2713115180",
+    "verification.json": "42528b06cc69e688a83face280ab2035a747c4c6472e2b0ddfa409ee38fdd277"
+  }
+}
