@@ -29,7 +29,7 @@ from core.agent_objective import Objective, objective_from_context
 from core.goals.goal_run_router import GoalRunRouter
 from core.goals.goal_run_service import GoalRunService
 from core.goals.goal_service import GoalService
-from core.models import GoalObjective, GoalRun, User, UserRole
+from core.models import AuditLog, GoalObjective, GoalRun, User, UserRole
 
 TARGET_MIN_INTERVENTIONS = {
     "metric": "human_interventions",
@@ -43,7 +43,8 @@ TARGET_MIN_INTERVENTIONS = {
 def world(tmp_path):
     db_path = tmp_path / f"goal02_utility_{uuid.uuid4().hex}.db"
     engine = create_engine(f"sqlite:///{db_path}")
-    for table in (GoalObjective.__table__, GoalRun.__table__, User.__table__):
+    for table in (GoalObjective.__table__, GoalRun.__table__, User.__table__,
+                  AuditLog.__table__):
         table.create(engine)
     factory = sessionmaker(bind=engine, expire_on_commit=False)
     return {"path": db_path, "engine": engine, "factory": factory}
@@ -456,10 +457,12 @@ class TestGoalApiBoundary:
         with world["factory"]() as db:
             db.add(User(id="lead", email="lead@example.com",
                         first_name="Lead", last_name="User",
-                        role=UserRole.TEAM_LEAD.value, status="active"))
+                        role=UserRole.TEAM_LEAD.value, status="active",
+                        is_active=True, workspace_id="ws"))
             db.add(User(id="member", email="member@example.com",
                         first_name="Member", last_name="User",
-                        role=UserRole.MEMBER.value, status="active"))
+                        role=UserRole.MEMBER.value, status="active",
+                        is_active=True, workspace_id="ws"))
             db.commit()
         _add_goal(world["factory"])
         _add_run(world["factory"], "run-slow", human_interventions=4)
