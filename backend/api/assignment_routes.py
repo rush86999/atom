@@ -2227,8 +2227,8 @@ async def add_assignment_source(
                         indexes.append(int(step_id.split("-", 1)[1]))
                     except ValueError:
                         pass
-                raw_step = _source_step(
-                    resolved, (max(indexes) if indexes else 0) + 1)
+            raw_step = _source_step(
+                resolved, (max(indexes) if indexes else 0) + 1)
             step = {
                 key: raw_step.get(key) for key in (
                     "step_id", "title", "operation_type", "adapter", "depends_on",

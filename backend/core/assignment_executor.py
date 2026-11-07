@@ -2221,8 +2221,16 @@ class AssignmentExecutor:
                             return step, self._source_gap(
                                 binding, step, code="source_unreadable",
                                 detail="the uploaded document file is unreadable")
-                        pinned_sha = accepted_sha or expected
-                        if pinned_sha and current != pinned_sha:
+                        # Binary file bytes and indexed revisions are
+                        # distinct namespaces. Compare a binary accepted
+                        # sha256 only with file bytes; ev4:/manual opaque
+                        # revisions are validated against the authoritative
+                        # IngestedDocument row above, never hashed as bytes.
+                        binary_pin = (
+                            accepted_sha
+                            if re.fullmatch(r"[0-9a-fA-F]{64}", accepted_sha)
+                            else "")
+                        if binary_pin and current != binary_pin:
                             return step, self._source_gap(
                                 binding, step, code="stale_source_version",
                                 detail="the uploaded document bytes changed after acceptance",
@@ -2243,8 +2251,12 @@ class AssignmentExecutor:
                         return step, self._source_gap(
                             binding, step, code="source_unreadable",
                             detail="the accepted controlled source is unreadable")
-                    pinned_sha = accepted_sha or expected
-                    if pinned_sha and current != pinned_sha:
+                    binary_pin = (
+                        accepted_sha
+                        if re.fullmatch(r"[0-9a-fA-F]{64}", accepted_sha)
+                        else (expected if re.fullmatch(
+                            r"[0-9a-fA-F]{64}", expected) else ""))
+                    if binary_pin and current != binary_pin:
                         return step, self._source_gap(
                             binding, step, code="stale_source_version",
                             detail="the accepted controlled source bytes changed",
@@ -5288,10 +5300,19 @@ class AssignmentExecutor:
             }
             target = mapping.get(status)
             if target and step.get("status") != target:
-                # Never downgrade an applied step to awaiting because an
-                # older operation row was re-read.
-                if not (step.get("status") == "applied"
-                        and target != "applied"):
+                # A current source gap is a live wait, not an older applied
+                # receipt. Keep the immutable operation result for audit but
+                # do not let _sync_assignment overwrite the waiting state on
+                # the next execute loop (that caused a busy loop and stale
+                # completion). A normal applied step still maps to applied.
+                current_source_gap = (
+                    step.get("status") == "waiting"
+                    and bool(step.get("gap_ids"))
+                    and target == "applied")
+                if current_source_gap:
+                    pass
+                elif not (step.get("status") == "applied"
+                          and target != "applied"):
                     step["status"] = target
                     changed = True
             if status == "applied":
