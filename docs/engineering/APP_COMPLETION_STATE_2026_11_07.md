@@ -2,6 +2,8 @@
 
 This dated checkpoint supersedes operational queue rows in the November6 directive. Re-resolve current remote heads and ownership before acting. It records current progress, not whole-app acceptance. The product is single tenant with supported user/role/workspace safeguards. Historical 111/123, planner 5/5, goal router 1/2 and alignment gap 3.0 remain unchanged.
 
+> **Current audit overlay — 2026-11-07:** remote main is `8ded00232c30961a990e675e06ec672ef6a43910` (PR #754). PR #751/#752/#754 are merged; PR #753/#755/#756/#757/#758 are submitted (`REVIEW_REQUIRED`, 0 reviews) and PR #759 is a draft. PR #753 has a frontend-typecheck failure repaired test-only by PR #758; PR #759 still has a frontend failure and does not include #758. The full requirement-by-requirement audit is [APP_COMPLETION_REQUIREMENT_AUDIT_2026_11_07.md](APP_COMPLETION_REQUIREMENT_AUDIT_2026_11_07.md): all 143 claims are accounted for, historical 111/123 is unchanged, and TASK-WAIT-01, whole-app ORACLE, served-model quality, live integration, KVM, PostgreSQL/soak, performance/comparative and profile breadth remain OPEN. Historical sections below are preserved and are not current assignments.
+
 ## Current leading checkpoint — main `2d251acdf`
 
 This checkpoint supersedes every operational queue paragraph below. Re-resolve the remote head, actual worker handle and ownership before acting; historical plans are not new assignments. Full app completion and TASK-WAIT-01 remain OPEN.
