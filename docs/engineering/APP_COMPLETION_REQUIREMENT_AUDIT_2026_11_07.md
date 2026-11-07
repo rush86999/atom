@@ -428,3 +428,15 @@ These are not reframed as local engineering tasks. Each names the unavailable ac
 | Read-only `git fetch`/`git show`/`git rev-parse`; `gh pr view`/`gh pr checks`/`gh run view` | Exact main/PR heads, bases, checks, review states and scope bodies. |
 
 Readback commands were read-only. No test or runtime command was run. Exact heads, check states, source blobs and the main tree (`9d23a5d713c0f84cc1ddecc9402dbfdcf66e30a6`) are recorded in the JSON `remote_readback` and `source_binding` blocks. A changed head invalidates the corresponding readback and requires fresh checks.
+
+## Lead post-cut validation and execution guidance
+
+Root independently matched all143 exact unique IDs to the committed inventory (123functional+20separate) and all six declared input blobs to main8ded. Historical111/123 remains unchanged. This audit preserves historical-source acceptance; it does not freshly execute all119 baseline dispositions.
+
+WO-WAIT-02 integrates the already captured f179 root30-stage/195-assertion source-answer episode (packet12source/20artifact, evidence367daad91, draftPR759). Compare the relevant runtime/UI blobs to a successor before deciding what is affected. A changed commit/base, test, documentation or unrelated file alone does not justify another accepted browser campaign. The older instruction to require a fresh episode at every final source is superseded by this relevance rule. The original0bb failed episode remains failed.
+
+The Goal367 episode passed supervisor set/ranking/reload but failed because the member's late onboarding overlay intercepted a click. Its capture/world remain intact. Harness-only5145 observes authoritative onboarding status, waits for the wizard, uses ordinary UI and verifies durable completion; six controls pass. Root's fresh Goal run is pending, not accepted. Previous exit75 runs were not dispatched. No fixed-delay, force-click, hidden onboarding or role bypass is authorized.
+
+Restore4bae/c795 remains withheld: an actual independent negative showed a foreign historical audit recertified under the current canvas tenant. Root pushed permanent testsabad and original failure packetcd4; A2 repairs scope/provenance. Five effective manifest/history controls pass, while a predecessor wrapper's TypeError-before-tamper cannot count as meaningful peer proof. Public child login/restore/restart remains open.
+
+Normal code-owner review blocks protected merges, not independent repair/audit/preparation. Work orders are dependency-aware rather than a serial idle queue. No self-approval or bypass. Unchanged-head CI remains evidence for that head; changed heads require their own checks. A changed integration base needs prospective-tree review and post-merge verification, without automatically repeating unaffected browser journeys.

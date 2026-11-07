@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "title": "App completion requirement audit — all 143 claims — 2026-11-07",
+  "title": "App completion requirement audit \u2014 all 143 claims \u2014 2026-11-07",
   "generated_at": "2026-11-07",
   "scope": "Read-only requirement/evidence audit. No runtime, test, browser, server, model, installer, dependency download, live DB, account, credential, send, spend, deploy, merge or review-comment action.",
   "historical_invariant": {
@@ -4856,19 +4856,19 @@
       "disposition": "Historical snapshot; superseded by this audit. Do not reuse its queue rows as current assignments."
     },
     {
-      "item": "GOAL_COMPLETION_DELTA §3.10",
+      "item": "GOAL_COMPLETION_DELTA \u00a73.10",
       "assertion": "GOAL-02 utility is only a maturity prompt delta; no two-outcome ranking/persisted target.",
       "current": "PR #707 (4c1bd507d) and PR #754 (8ded00232) contain persisted utility target, deterministic ranking, scoped reads and component UI; see goal02_utility_target_20261106 and goal_utility_surface_20261107.",
       "disposition": "Stale relative to current main; GOAL-02 is accepted-bounded at service/API+component scope, not a historical rescore. Ordinary Goal UI browser still unrun."
     },
     {
-      "item": "GOAL_COMPLETION_DELTA §3.7 / MINI-04 inventory",
+      "item": "GOAL_COMPLETION_DELTA \u00a73.7 / MINI-04 inventory",
       "assertion": "Per-instance record leg requires Firecracker/KVM.",
       "current": "Host-mediated record/install/restart/isolation leg qualified at d84e46a4a/8a577f14a; older assumption contradicted for that leg. Firecracker dev-run/install and MINI-05 remain environment-limited.",
       "disposition": "Assertion narrowed/corrected for the record leg; MINI-05 not promoted."
     },
     {
-      "item": "GOAL_COMPLETION_DELTA §1/§3 and APP_COMPLETION_STATE line 51",
+      "item": "GOAL_COMPLETION_DELTA \u00a71/\u00a73 and APP_COMPLETION_STATE line 51",
       "assertion": "12 open functional claims and historical 111/123.",
       "current": "111/123 historical score and denominator unchanged; several former gaps now have accepted-bounded or submitted evidence, but none is silently promoted to full verification.",
       "disposition": "Preserve the score; use the overlay, not a new denominator."
@@ -4930,9 +4930,9 @@
     },
     {
       "id": "WO-WAIT-02",
-      "title": "Complete TASK-WAIT-01 ordinary source-answer continuation on current main",
+      "title": "Integrate the preserved ordinary source-answer evidence with current main",
       "priority": 1,
-      "outcome": "One ordinary login/upload/restart/source-selection journey automatically resumes the same job/wait with no manual advance, yields one verified task and no duplicate effect; old 0bbe overall failure and d3 29/162 episode remain preserved. PR #759 must integrate #758 and reach a reviewable head.",
+      "outcome": "Integrate the reviewed source-answer runtime and existing root f179 ordinary UI proof without a duplicate campaign solely for a commit/base/test/docs change. The existing 30-stage/195-assertion episode proves one job/wait/execution/task, source version, restart, duplicate inertness and no manual advance at its frozen source; compare relevant runtime/UI blobs with the integration successor. Rerun only affected boundaries when that comparison or a new finding requires it.",
       "dependencies": [
         "WO-LAND-01 (#753/#758)",
         "PR #759 draft 367daad91",
@@ -4940,7 +4940,7 @@
         "UI packet f179c73ce"
       ],
       "decisive_evidence": [
-        "Fresh root ordinary UI episode at final source",
+        "Existing root f179 ordinary UI packet plus relevant runtime/UI blob equality to the final integration tree; fresh affected-boundary verification only for a material change or unresolved finding",
         "Same job/execution/task IDs, source receipt/version, duplicate inert, no manual advance",
         "12 source/20 artifact strict packet at final head",
         "Explicit label that 3 loopback responses are simulated model decisions"
@@ -4948,7 +4948,8 @@
       "do_not": [
         "Do not claim real served-model judgment",
         "Do not relabel 0bbe failure or d3 packet",
-        "Do not add a second task/wait engine or manual-advance fallback"
+        "Do not add a second task/wait engine or manual-advance fallback",
+        "Do not rerun accepted browser episodes for commit, test, documentation or unrelated-file changes alone"
       ],
       "owner": "Agent1/Agent2 implementation; root/Agent4 independent UI"
     },
@@ -4960,8 +4961,8 @@
       "dependencies": [
         "PR #754 merged 8ded00232",
         "WO-LAND-01 PR #758 test sync",
-        "Disk headroom >=4GiB (currently below floor; exit 75 not dispatched)",
-        "Prepared source 353c/efc and fresh unique world"
+        "Shared gate >=4GiB at actual dispatch; retain exit75 as not-dispatched",
+        "Harness-only onboarding successor5145d5eab; root fresh ordinary UI run pending at the post-cut update"
       ],
       "decisive_evidence": [
         "Actual ordinary browser run, screenshots/requests, role-scoped assertions",
@@ -5111,7 +5112,7 @@
   "unknowns_and_assumptions": [
     "Remote state was read on 2026-11-07; PR #759 backend-tests and e2e-journey were still pending at final readback. Its frontend-typecheck log was not available while the run was in progress.",
     "PR #759 does not include PR #758 and retains the pre-fix waitFor(no-target) pattern at frontend-nextjs/tests/pages/goal-runs/detail.test.tsx:560-574. The frontend failure is therefore consistent with the known Goal utility synchronization race, but exact log attribution is provisional until the run completes.",
-    "PR #755 is docs-only at base cf5e981917bc, one main merge behind 8ded00232; merging normally changes its tree and invalidates old-head green.",
+    "PR #755 is docs-only at base cf5e981917bc. Unchanged-head CI remains evidence for that head. A changed PR head needs its own checks; a merge into a changed base requires review of the prospective integration tree and post-merge main verification, not a fictitious inheritance of old green or an automatic duplicate browser campaign.",
     "Historical inventory evidence paths include private temp artifacts; the committed 2026-11-01 claim INDEX/bundle is the authoritative baseline, and historical results were not re-run.",
     "Some current source scopes live in private, source-hash-bound handoffs; this audit cites committed packets/PR heads where available and does not copy private raw evidence.",
     "No runtime/test/browser/server/model/installer/dependency/live DB/account/credential/send/spend/deploy/merge/review-comment action was performed."
@@ -5180,5 +5181,13 @@
       "gh run view --job <job-id> --log (read-only; PR #759 log unavailable while run in progress)"
     ],
     "not_run": "No pytest, browser, server, installer, dependency download, live DB, account, credential, send, spend, deploy, merge, review comment or model inference."
+  },
+  "lead_post_cut_update": {
+    "at": "2026-11-07T22:10:36.908479+00:00",
+    "inventory_validation": "143 exact unique IDs equal canonical inventory; six input blobs match declared main;123functional+20separate; no rescore",
+    "source_ui": "f179 root30stages195assertions passed, evidence367daad91 PR759draft; reuse matching relevant blobs, no commit-only replay",
+    "goal_ui": "367 ordinary run preserved failed: late member onboarding overlay blocked click after target/ranking/reload passed. Harness-only5145 waits authoritative onboarding +realUI+durable status, six controls pass; fresh root run pending. No product/UI completion claim.",
+    "restore": "4bae/c795 withheld: new audit tenant recertification negative failed. Permanent abad tests and cd4 negative packet pushed, A2 scope repair active. Five effective binding/history controls passed, old wrapper TypeError false-pass explained, public child restart still open.",
+    "parallelism": "Owner review blocks protected merge only; continue independent assigned repairs/audit/preparation, no review bypass or self-approval."
   }
 }
