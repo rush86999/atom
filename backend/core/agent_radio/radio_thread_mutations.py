@@ -29,6 +29,7 @@ send-message code or receipt state is duplicated.
 from __future__ import annotations
 
 import copy
+import uuid
 from typing import Any, Dict, List, Mapping, Optional, Sequence
 
 from core.agent_radio import radio_service
@@ -452,6 +453,7 @@ def _failed_before_effect(
         "effect_possible": False,
         "provider": "agent_radio",
         "operation": "create_thread",
+        "operation_id": operation_id,
         "error": error,
         "error_kind": error_kind,
         "message": message,
@@ -488,6 +490,7 @@ def _uncertain(
         "effect_possible": True,
         "provider": "agent_radio",
         "operation": "create_thread",
+        "operation_id": operation_id,
         "error": error,
         "error_kind": error_kind,
         "retryable": False,
@@ -522,6 +525,7 @@ def _applied(
         "action_result": "applied",
         "provider": "agent_radio",
         "operation": "create_thread",
+        "operation_id": operation_id,
         "thread_id": thread_id,
         "remote_id": thread_id,
         "name": observed.get("name"),
@@ -545,6 +549,94 @@ def _applied(
             "mismatches": [],
         },
     }
+
+
+def _replayed(
+    *,
+    operation_id: str,
+    payload_sha256: str,
+    thread_id: str,
+    observed: Dict[str, Any],
+    read_receipt: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Return the original exact thread for a same-operation replay."""
+    payload = _applied(
+        operation_id=operation_id,
+        payload_sha256=payload_sha256,
+        thread_id=thread_id,
+        observed=observed,
+        read_receipt=read_receipt,
+    )
+    payload.update({
+        "replayed": True,
+        "already_applied": True,
+        "idempotent": True,
+        "message": (
+            f"Thread '{observed.get('name')}' already exists for this "
+            "operation; no second thread was created."),
+    })
+    return payload
+
+
+def _replay_conflict(
+    *,
+    operation_id: str,
+    payload_sha256: str,
+    thread_id: str,
+    conflicts: Sequence[str],
+) -> Dict[str, Any]:
+    """Same operation, different material: keep the original, no new write."""
+    payload = _failed_before_effect(
+        operation_id=operation_id,
+        payload_sha256=payload_sha256,
+        error="operation_conflict",
+        message=(
+            "The same operation is bound to different thread material; "
+            "the original thread was preserved and no new thread was created: "
+            + ", ".join(conflicts)),
+        error_kind="operation_conflict",
+        problems=list(conflicts),
+    )
+    payload.update({
+        "replayed": True,
+        "idempotent": True,
+        "original_thread_id": thread_id,
+        "original_operation_id": operation_id,
+        "original_effect_state": "committed",
+        "conflicts": list(conflicts),
+    })
+    return payload
+
+
+def _ambiguous_operation(
+    *,
+    operation_id: str,
+    payload_sha256: str,
+    thread_ids: Sequence[str],
+) -> Dict[str, Any]:
+    """Multiple historical rows for one exact key: fail closed, no new write."""
+    payload = _failed_before_effect(
+        operation_id=operation_id,
+        payload_sha256=payload_sha256,
+        error="ambiguous_operation",
+        message=(
+            "Multiple historical threads are bound to this exact operation; "
+            "refusing a new write so no ambiguous row is selected"),
+        error_kind="ambiguous_operation",
+        problems=[
+            "multiple historical threads for operation "
+            + str(operation_id)
+        ],
+    )
+    payload.update({
+        "original_operation_id": operation_id,
+        "original_thread_ids": list(thread_ids),
+        "original_thread_count": len(thread_ids),
+        "original_effect_state": "ambiguous_committed",
+        "replayed": True,
+        "idempotent": True,
+    })
+    return payload
 
 
 def _read_receipt(thread_id: str, observed: Dict[str, Any]) -> Dict[str, Any]:
@@ -588,10 +680,16 @@ async def create_thread(
         tenant_id=raw_tenant_id,
     )
     digest = _payload_digest(payload)
-    args_map = arguments if isinstance(arguments, Mapping) else {}
-    operation = _text(
-        operation_id or ctx.get("operation_id")
-        or args_map.get("operation_id")).strip()
+    context_operation = _text(ctx.get("operation_id")).strip()
+    server_operation = _text(operation_id).strip()
+    operation = context_operation or server_operation
+    if operation:
+        operation_source = "context" if context_operation else "server_parameter"
+    else:
+        # Missing trusted operation identity: mint a server-owned exact id and
+        # echo/persist it.  Caller-provided business args never supply this.
+        operation = f"radio-create-thread-{uuid.uuid4().hex}"
+        operation_source = "server_generated"
 
     if not creator_id:
         return _failed_before_effect(
@@ -631,9 +729,11 @@ async def create_thread(
             error_kind="invalid_request",
         )
 
-    metadata: Dict[str, Any] = {"scope": payload["scope_hint"]}
-    if operation:
-        metadata["operation_id"] = operation
+    metadata: Dict[str, Any] = {
+        "scope": payload["scope_hint"],
+        "operation_id": operation,
+        "operation_source": operation_source,
+    }
 
     # Read the raw authority snapshot in a short read session.  The write
     # session below starts with conditional UPDATE DML, so a peer authority
@@ -660,13 +760,35 @@ async def create_thread(
             error_kind="authority_unavailable",
         )
     if problems:
-        return _failed_before_effect(
+        refused = _failed_before_effect(
             operation_id=operation, payload_sha256=digest,
             error="authority_refused",
             message="; ".join(problems),
             error_kind="authority_refused",
             problems=problems,
         )
+        # Truthful replay accounting: the original row may still exist even
+        # though current authority no longer permits a new attempt.
+        try:
+            with get_db_session() as lookup_db:
+                existing = find_threads_by_operation(
+                    lookup_db, operation, creator_id)
+            if existing:
+                ids = [str(getattr(row, "id", "")) for row in existing]
+                refused.update({
+                    "original_thread_id": ids[0] if len(ids) == 1 else None,
+                    "original_thread_ids": ids,
+                    "original_thread_count": len(ids),
+                    "original_operation_id": operation,
+                    "original_effect_state": (
+                        "committed_unverified" if len(ids) == 1
+                        else "ambiguous_committed"),
+                    "replayed": True,
+                    "idempotent": True,
+                })
+        except Exception:  # noqa: BLE001 - the refusal is already truthful
+            pass
+        return refused
 
     try:
         with get_db_session() as db:
@@ -684,7 +806,10 @@ async def create_thread(
                     error_kind="authority_unavailable",
                 )
             if conflicts:
-                return _failed_before_effect(
+                db.rollback()
+                existing = find_threads_by_operation(
+                    db, operation, creator_id)
+                refused = _failed_before_effect(
                     operation_id=operation, payload_sha256=digest,
                     error="authority_changed",
                     message=(
@@ -696,6 +821,60 @@ async def create_thread(
                         for agent_id in conflicts
                     ],
                 )
+                if existing:
+                    ids = [str(getattr(row, "id", "")) for row in existing]
+                    refused.update({
+                        "original_thread_id": (
+                            ids[0] if len(ids) == 1 else None),
+                        "original_thread_ids": ids,
+                        "original_thread_count": len(ids),
+                        "original_operation_id": operation,
+                        "original_effect_state": (
+                            "committed_unverified" if len(ids) == 1
+                            else "ambiguous_committed"),
+                        "replayed": True,
+                        "idempotent": True,
+                    })
+                return refused
+
+            # Resolve the exact creator+operation key only AFTER the authority
+            # claim has serialized this writer, and BEFORE any INSERT.  One
+            # exact row is reconciled or refused; multiple historical rows
+            # fail closed with no new write and are never merged/deleted.
+            existing = find_threads_by_operation(db, operation, creator_id)
+            if len(existing) > 1:
+                ids = [str(getattr(row, "id", "")) for row in existing]
+                db.rollback()
+                return _ambiguous_operation(
+                    operation_id=operation,
+                    payload_sha256=digest,
+                    thread_ids=ids,
+                )
+            if existing:
+                row = existing[0]
+                observed = observed_thread_material(row)
+                mismatches = thread_material_mismatches(payload, observed)
+                if mismatches:
+                    db.rollback()
+                    return _replay_conflict(
+                        operation_id=operation,
+                        payload_sha256=digest,
+                        thread_id=str(getattr(row, "id", "")),
+                        conflicts=mismatches,
+                    )
+                read_receipt = _read_receipt(
+                    str(getattr(row, "id", "")), observed)
+                db.rollback()
+                replay = _replayed(
+                    operation_id=operation,
+                    payload_sha256=digest,
+                    thread_id=str(getattr(row, "id", "")),
+                    observed=observed,
+                    read_receipt=read_receipt,
+                )
+                replay["operation_source"] = operation_source
+                return replay
+
             thread = radio_service.create_thread(
                 db,
                 name=payload["name"],
@@ -811,10 +990,12 @@ async def create_thread(
             },
         )
 
-    return _applied(
+    result = _applied(
         operation_id=operation,
         payload_sha256=digest,
         thread_id=thread_id,
         observed=observed,
         read_receipt=read_receipt,
     )
+    result["operation_source"] = operation_source
+    return result

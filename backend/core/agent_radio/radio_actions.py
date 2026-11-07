@@ -183,12 +183,13 @@ async def radio_create_thread(args: Dict[str, Any], context: Dict[str, Any]) -> 
     # pre-effect checks and exact-row readback.
     from core.agent_radio.radio_thread_mutations import create_thread
 
+    # Operation identity is trusted context only.  A model/caller business
+    # argument cannot override it; the producer mints a server-owned exact id
+    # when the context has none.
     return await create_thread(
         args,
         context,
-        operation_id=str(
-            (context or {}).get("operation_id")
-            or (args or {}).get("operation_id") or ""),
+        operation_id=str((context or {}).get("operation_id") or ""),
     )
 
 
