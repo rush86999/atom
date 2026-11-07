@@ -1,0 +1,29 @@
+{
+  "kind": "browser_agent_job_wait_identity_evidence_manifest",
+  "source_commit": "9d282de3f2f0d633e03a051548940ad81ca5afcd",
+  "driver_sha256": "1f6946a37ba278b21eff418bc9d16a3de0dabe80719b49f7746fd7cb2065d27f",
+  "fixture_sha256": "d0d169c8eaa4e5c3d753072f808ff8ff822372674e24c029ef440ec25c43c7d5",
+  "preflight_ok": true,
+  "files": [
+    {
+      "path": "README.md",
+      "sha256": "693cb543ccd14cf257976c69bef697ea16302ceefe863dd2f3f332f9b5b3f999",
+      "bytes": 4405
+    },
+    {
+      "path": "identity-tests.log",
+      "sha256": "1e7a2b94a32f949d284e67d2078d58730be5434f1e92caa42f6fbbb78b1816a2",
+      "bytes": 99
+    },
+    {
+      "path": "personal-answer-tests.log",
+      "sha256": "db2e8eeed284eeb82dbd2078f38e120ce4ce166e3ebebe4f502bb2be0923d4fd",
+      "bytes": 11817
+    },
+    {
+      "path": "preflight.json",
+      "sha256": "b14f5f67b3aba54436a80847d711e787bf98a180f326056c42d405a9ccc09d23",
+      "bytes": 8780
+    }
+  ]
+}
