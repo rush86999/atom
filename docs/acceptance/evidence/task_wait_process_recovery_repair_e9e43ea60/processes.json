@@ -4,22 +4,22 @@
       "checkpoint": null,
       "exit": 0,
       "phase": "start",
-      "pid": 17983,
-      "report": "start-17945-1794037181695890000.json"
+      "pid": 20295,
+      "report": "start-20188-1794038046444452000.json"
     },
     {
       "checkpoint": null,
       "exit": 0,
       "phase": "startup-recover",
-      "pid": 17989,
-      "report": "startup-recover-17945-1794037183489909000.json"
+      "pid": 20341,
+      "report": "startup-recover-20188-1794038048313030000.json"
     },
     {
       "checkpoint": null,
       "exit": 0,
       "phase": "source-complete",
-      "pid": 17995,
-      "report": "source-complete-17945-1794037184861379000.json"
+      "pid": 20342,
+      "report": "source-complete-20188-1794038049661788000.json"
     }
   ],
   "scenario_b_accept_interrupt_then_startup_recover": [
@@ -27,29 +27,29 @@
       "checkpoint": null,
       "exit": 0,
       "phase": "start",
-      "pid": 17998,
-      "report": "start-17945-1794037186424093000.json"
+      "pid": 20345,
+      "report": "start-20188-1794038051244873000.json"
     },
     {
-      "checkpoint": "source-interrupt-17945-1794037188184493000-checkpoint.json",
+      "checkpoint": "source-interrupt-20188-1794038052965595000-checkpoint.json",
       "exit": 17,
       "phase": "source-interrupt",
-      "pid": 18001,
-      "report": "source-interrupt-17945-1794037188184493000.json"
+      "pid": 20352,
+      "report": "source-interrupt-20188-1794038052965595000.json"
     },
     {
       "checkpoint": null,
       "exit": 0,
       "phase": "startup-recover",
-      "pid": 18004,
-      "report": "startup-recover-17945-1794037189199160000.json"
+      "pid": 20355,
+      "report": "startup-recover-20188-1794038053967734000.json"
     },
     {
       "checkpoint": null,
       "exit": 0,
       "phase": "duplicate-source",
-      "pid": 18009,
-      "report": "duplicate-source-17945-1794037190742218000.json"
+      "pid": 20361,
+      "report": "duplicate-source-20188-1794038055495772000.json"
     }
   ]
 }

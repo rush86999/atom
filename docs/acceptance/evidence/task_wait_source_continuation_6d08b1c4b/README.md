@@ -7,7 +7,7 @@ process from durable state, followed by an explicit replay of the source POST.
 relaunches. This packet does **not** prove an actual process restart or
 autonomous startup consumption of already-accepted input. Those are covered
 only by the later successor packet
-`docs/acceptance/evidence/task_wait_process_recovery_repair_c0d85d7dc/`; the
+`docs/acceptance/evidence/task_wait_process_recovery_repair_e9e43ea60/`; the
 original log below is preserved unchanged.
 
 This packet records the repaired delivery for the failure-first checkpoint at

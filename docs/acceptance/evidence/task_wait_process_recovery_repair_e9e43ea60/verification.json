@@ -1,9 +1,9 @@
 {
   "result": "actual_process_accepted_source_recovery_verified",
   "pytest_exit_code": 0,
-  "passed": 199,
+  "passed": 200,
   "failed": 0,
-  "executed_source": "c0d85d7dc246c56fe202d03558443089cff83a07",
+  "executed_source": "e9e43ea6061ac3ab314098283314e0f5d1bd56a4",
   "implementation_source": "1f4001dcb",
   "source_state": "clean tracked worktree; 0 modified, 0 untracked tracked-tree changes",
   "runtime": {
@@ -43,7 +43,7 @@
         "assignment_id_preserved": true,
         "open_questions": 0,
         "invoice_source_status": "applied",
-        "invoice_source_operation_id": "63a137e8-600d-4f77-adba-84e742e6b99d",
+        "invoice_source_operation_id": "adc0e70a-fa2c-40bf-9bf8-02878ae0e02d",
         "invoice_source_version": "3bad6e9388d0efabbcec678dc95c21d6e4721c031ae24374501a2166d3a58d9f",
         "unconsumed_evidence_observations": 3,
         "reconciliations": 0,
@@ -67,21 +67,21 @@
         "final_status": "completed",
         "reconciliations": 1,
         "verified_value": "140.25",
-        "same_reconciliation_operation_id_on_duplicate": "f6c8ff7c-a915-4ad4-a6be-02d726780ff0"
+        "same_reconciliation_operation_id_on_duplicate": "21bc568c-1fd8-468e-a5df-ffd4be40adc4"
       },
       "preserved_receipts": {
         "source-1": {
-          "operation_id": "d6637c4c-b764-4940-9a73-bf4e65de330e",
+          "operation_id": "cc436e89-56d0-4de2-b709-3268e41b59f8",
           "source_version": "c9eff4050eefaa424619c80976beec0b9515aaffdc733933fcab2c5745e3d5a1",
           "status": "applied"
         },
         "source-2": {
-          "operation_id": "adb36a23-280a-4a8c-ac36-67c0d9f8d2ef",
+          "operation_id": "102cf93c-d7b4-4484-8cbc-14b525a7f77a",
           "source_version": "0e0babec0f1797bf8624dbb34653ab0c7b91d3e8ea1c728858b536bfee1e2b81",
           "status": "applied"
         },
         "source-3": {
-          "operation_id": "63a137e8-600d-4f77-adba-84e742e6b99d",
+          "operation_id": "adc0e70a-fa2c-40bf-9bf8-02878ae0e02d",
           "source_version": "3bad6e9388d0efabbcec678dc95c21d6e4721c031ae24374501a2166d3a58d9f",
           "status": "applied",
           "reread_under_new_operation": false
@@ -97,7 +97,7 @@
   },
   "controls": {
     "no_suitable_or_missing_obligation": "no model call, no completion",
-    "concurrent_second_successor": "fresh bounded claim makes it inert",
+    "concurrent_second_successor": "two successors started together; second loses the fresh bounded claim and makes no model call",
     "repeat_boot_same_evidence_set": "one-shot marker makes it inert",
     "second_open_prerequisite": "recovery sleeps until resolved, then completes once",
     "expired_absolute_deadline": "blocked; restart does not wake the model",

@@ -5,11 +5,12 @@ This packet repairs the failure retained at
 corrects the earlier packet's restart wording without rewriting its historical
 log (`task_wait_source_continuation_6d08b1c4b/final.log` is unchanged).
 
-Executed source: `c0d85d7dc` (`test(tasks): record actual child pids and
-exits`), clean tracked worktree, Python 3.14.7, `TESTING=1`, a fresh private
-scratch SQLite/data/Lance root and a new owned pytest basetemp. The tracked
-tree contained the repair implementation from `1f4001dcb` plus the process-log
-capture; all source bytes are hash-pinned in `MANIFEST.json`.
+Executed source: `e9e43ea60` (`test(tasks): prove concurrent recovery
+successors converge on one result`), clean tracked worktree, Python 3.14.7,
+`TESTING=1`, a fresh private scratch SQLite/data/Lance root and a new owned
+pytest basetemp. The tracked tree contained the repair implementation from
+`1f4001dcb`, the process-ledger test and the concurrent control; all source
+bytes are hash-pinned in `MANIFEST.json`.
 
 ## What changed
 
@@ -69,9 +70,11 @@ Actual child pids and exit codes are in `processes.json`.
 
 - No-suitable/absence: the restart owner does not adapt or complete while the
   genuine missing-invoice obligation is open.
-- Concurrent wake / second successor: a fresh bounded claim makes the second
-  successor and a repeat boot inert; the first real successor performs the one
-  dependent operation.
+- Concurrent wake / second successor: two successors are started together
+  against the same accepted evidence; the first holds the claim across a slow
+  adaptation, the second loses it and makes no model call. The first real
+  successor performs the one dependent operation exactly once. A repeat boot
+  on the same evidence set stays inert.
 - Second prerequisite: an open second material obligation blocks recovery;
   resolving it lets the same successor recover the accepted source once.
 - Expired absolute deadline and cancellation: neither is revived by restart
@@ -103,7 +106,7 @@ with `TESTING=1`, a fresh scratch `DATABASE_URL`, `ATOM_DATA_DIR` and
 `ATOM_LANCEDB_PATH`, and a newly owned `--basetemp`. Full stdout/stderr and the
 true pytest exit code are retained unchanged in `final.log`.
 
-Result: `199 passed`, true exit code `0`.
+Result: `200 passed`, true exit code `0`.
 
 Public assignment routes, real compiler/executor and scratch SQLite are real.
 Proposal transport and the authenticated-user dependency use the repository's
