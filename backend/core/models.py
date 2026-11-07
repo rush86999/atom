@@ -1417,6 +1417,12 @@ class TaskOperationRecord(Base):
     operation_id = Column(String, nullable=False, index=True)
     operation_type = Column(String, nullable=False)
     status = Column(String, nullable=False, index=True)
+    #: Durable result/receipt for a confirmed effect.  It carries the exact
+    #: provider resource identity plus the authorized store/material, so a
+    #: later replay can re-read that SAME resource instead of guessing from a
+    #: title or permanently downgrading a known success.  NULL means no
+    #: identity receipt was persisted (honest uncertainty, never a resend).
+    result_json = Column(JSONColumn, nullable=True)
 
 
 class ChatRequestRecord(Base):

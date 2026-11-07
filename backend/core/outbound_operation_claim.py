@@ -30,6 +30,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import math
 import uuid
 from typing import Any, Dict, Optional
 
@@ -70,6 +71,52 @@ def _factory(db_factory=None):
     from core.database import get_db_session
 
     return get_db_session
+
+
+def strict_json_value(value: Any, *, _depth: int = 0) -> bool:
+    """True only when ``value`` round-trips through JSON without conversion.
+
+    Durable claim receipts are proof material: an arbitrary object must never
+    be turned into certifying receipt text.  Only JSON scalars, finite
+    numbers, lists and string-keyed dicts are accepted.  Tuples, sets, bytes,
+    datetimes, Decimal, non-finite floats and non-string dict keys are all
+    rejected rather than silently coerced by ``json.dumps``.
+    """
+    if _depth > 64:  # cyclic/deeply nested proof is not a valid receipt
+        return False
+    if value is None or isinstance(value, bool):
+        return True
+    if isinstance(value, str):
+        return True
+    if isinstance(value, int):
+        return True
+    if isinstance(value, float):
+        return math.isfinite(value)
+    if isinstance(value, list):
+        return all(
+            strict_json_value(item, _depth=_depth + 1) for item in value)
+    if isinstance(value, dict):
+        return all(
+            isinstance(key, str)
+            and strict_json_value(item, _depth=_depth + 1)
+            for key, item in value.items()
+        )
+    return False
+
+
+def strict_json_roundtrip(value: Any) -> Optional[Any]:
+    """Return a detached strict JSON copy, or ``None`` if it is lossy.
+
+    The caller treats ``None`` as "no durable receipt could be committed".
+    There is deliberately no ``default=str`` fallback.
+    """
+    if not strict_json_value(value):
+        return None
+    try:
+        return json.loads(json.dumps(
+            value, allow_nan=False, sort_keys=True, separators=(",", ":")))
+    except (TypeError, ValueError, OverflowError):
+        return None
 
 
 def operation_payload_sha256(
@@ -117,6 +164,7 @@ def _row_dict(row) -> Dict[str, Any]:
         "operation_id": row.operation_id,
         "operation_type": row.operation_type,
         "status": row.status,
+        "result_json": row.result_json,
     }
 
 
@@ -287,6 +335,7 @@ def mark_status(
     *,
     expected_status: Optional[Any] = None,
     expected_payload_sha256: Optional[str] = None,
+    result: Optional[Any] = None,
     db_factory=None,
 ) -> bool:
     """Persist a claim status transition. Never raises.
@@ -299,6 +348,16 @@ def mark_status(
     UPDATE uses ``synchronize_session=False`` so no dirty-flush path can bypass
     the condition.
 
+    ``result`` is the durable result/receipt for a confirmed effect. It is
+    written in the SAME conditional UPDATE as ``status`` so a succeeded claim
+    can never exist without the identity a replay needs, and a peer's result
+    can never be replaced by a stale writer. Passing ``None`` leaves any
+    existing receipt untouched (an ambiguous/lost confirmation is never
+    silently "rolled back" by a status write).  A receipt that is not strict
+    JSON (an object, non-finite number, non-string key, ...) is refused before
+    the write: nothing is persisted and the caller must treat the effect as
+    uncertain rather than commit lossy proof.
+
     Existing callers that pass no expectation keep the historical
     unconditional primary-key update; that path is NOT a CAS.
     """
@@ -310,6 +369,14 @@ def mark_status(
             allowed = {str(expected_status)}
         else:
             allowed = {str(item) for item in expected_status}
+    if result is not None:
+        normalized = strict_json_roundtrip(result)
+        if normalized is None:
+            logger.error(
+                "refusing claim status %s for %s: receipt is not strictly "
+                "JSON-serializable", status, record_id)
+            return False
+        result = normalized
     try:
         with _factory(db_factory)() as db:
             row = db.query(TaskOperationRecord).filter(
@@ -326,17 +393,22 @@ def mark_status(
                     row.payload_sha256 if expected_payload_sha256 is None
                     else expected_payload_sha256)
                 db.expire_all()
+                values = {"status": status}
+                if result is not None:
+                    values["result_json"] = result
                 stmt = update(TaskOperationRecord).where(
                     TaskOperationRecord.id == record_id,
                     TaskOperationRecord.status.in_(allowed),
                     TaskOperationRecord.payload_sha256 == payload_hash,
-                ).values(status=status).execution_options(
+                ).values(**values).execution_options(
                     synchronize_session=False)
-                result = db.execute(stmt)
+                updated = db.execute(stmt)
                 db.expire_all()
                 db.commit()
-                return int(result.rowcount or 0) == 1
+                return int(updated.rowcount or 0) == 1
             row.status = status
+            if result is not None:
+                row.result_json = result
             db.commit()
             return True
     except Exception as exc:  # noqa: BLE001

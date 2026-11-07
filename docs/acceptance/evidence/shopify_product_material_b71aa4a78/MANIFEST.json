@@ -1,0 +1,38 @@
+{
+  "executed_source": "b71aa4a78e59805ce2e099e85df050db675e198d",
+  "tree_clean_at_run": false,
+  "source_files": {
+    "backend/alembic/versions/20261107_task_operation_result_json.py": "5aab9ca5755d774204b0ccdb2dc68645bae98b5601bee0d20a541c8f22f85b6c",
+    "backend/core/action_registry.py": "e91df7866e192d0abc15feef79e8daf7039ae22d8941a485b3d8b82077b25a8d",
+    "backend/core/assignment_executor.py": "cc55b12a4fab8444997f75f5a6b132cef0505702caf7cf11a2aef99d84451fa7",
+    "backend/core/connected_actions.py": "2a28723b2db5b335088eea64f88c72e61706868126aba7af4c55937e79fa894f",
+    "backend/core/generic_agent.py": "d9c8ec428af77d44bc4f70bbcc64ff4c61081c35a689509b178e06ecc0af4964",
+    "backend/core/models.py": "9aec60c9155da8af8652b3209839c658d78896837b1a30d38763007b44e14b59",
+    "backend/core/oracle/__init__.py": "70852a61398d0fdcbe4202beaa708dab8045dd49929d77f860c2be357e4614df",
+    "backend/core/oracle/postcondition_verifiers.py": "d7dfe2d11ed7292bab2c179a118ad567925f8cd257a8761b860772045fa7ef73",
+    "backend/core/oracle/request_expectations.py": "ab6871505f7337e4a96b83363949c36b36cc6caf35585a80fe2d93dc806687a5",
+    "backend/core/outbound_operation_claim.py": "4a8ee1e7ca5f98783d6672fd353548bfaa2a04d16941f1d1aef222dbac0c7789",
+    "backend/core/shopify_mutations.py": "7aea65e7fb12c96e334e6596c9849dfc6c853a63e7d8cdc16f5f778ea4a3c9ed",
+    "backend/core/sqlite_schema_repair.py": "46a2420f2bc9d3a575631214fa515af317bb4425cf98c32490528aea5365b174",
+    "backend/integrations/shopify_service.py": "35175406477cbb5b3d21d340bd2870d17af9aa2b88c412651b42137ec78ee6d2",
+    "backend/tests/test_lead_shopify_authorized_material.py": "9eccf41642e6118a1a38642e949b83633a90465522218fe6e38b8c411e74f92f",
+    "backend/tests/test_oracle_registry_verification_gap.py": "b7865046afe1e521828fc541eff16a7cf6df2a6fd52b8e396fe9299bf1ee5327",
+    "backend/tests/test_oracle_shopify_product_authorized_material.py": "84f915d1eb67ce00840f44dd533bdc3afa1dc84f3a1d93046a4801cdf8a790e6",
+    "backend/tests/test_oracle_shopify_product_create.py": "492bc98bfda5bcdb2e0a24c941d18767072cbf7001fb1596fd9034ea6212eebb",
+    "backend/tests/test_oracle_shopify_product_replay.py": "72fdbf7ec6d5cd097873ac9f0f9f2e3bc00c7df5a7a985489448fdf33818a1d2"
+  },
+  "artifacts": {
+    "root-shopify-decimal-fixed.log": "634380939ccd58cf44ba8c5815e561aa895aa95d7d04700f3ebe13ce83940699",
+    "root-shopify-final-integrated.log": "315e30368b2151e508f7e465adbdc30128f7ea221933fb6ef51b7bc859a0bc63",
+    "README.md": "5b834be1d368ee97146a5b3210fe37387010b2a3793c80d3a15f6119db65cac0",
+    "root-decimal-format-boundaries-valid.log": "18913b462eaf76c4d3fa2f083248bca3058f150de4a22bfe899dae5fa5e98c3b",
+    "root-shopify-decimal-fixed-exit.json": "8c388fc0f3bf48b8b0914dc0b834efa3c2b5e88b2ba709d64f7ccf3859f376d8",
+    "root-shopify-material-successor-exit.json": "7a90e4a448bdbdeac31991c278d96b3840a7ff7dee89e28ae37659425ddc35da",
+    "root-operation-receipt-migration-fixed.log": "27b7632c3462cea1e912a4a4aa53a7ab1da3336d1e0cf14d79b6940f7aed64a6",
+    "root-shopify-material-negative.log": "fc703982d8cecb53bc85aaeb97de4a8ce1044eafae62d7fef1d80be8de6d56e0",
+    "root-shopify-material-successor.log": "d57615bb0b99d49b12bd264488bc44975c1ee8bd4fbd4abaee90bbb676a1803d",
+    "root-shopify-material-negative-exit.json": "062955031cb45bb05ea6f3e781131dbb4f1ec4f4bccf5eb5fe7f06de34d99fed",
+    "root-shopify-final-integrated-spec.json": "fab0b21cafd5487f6753fa29763af21328660cb47b199ded3ee7df3094f0e098",
+    "root-shopify-final-integrated-exit.json": "6f014430347598e2c79893ce8e61e9eb339420be3b184b7628fc1e990ac5d152"
+  }
+}
