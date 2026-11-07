@@ -135,6 +135,26 @@ def test_contradictory_published_and_published_at_is_unknown(
     assert result["verification"]["mismatches"] == ["published"], result
 
 
+def test_requested_published_but_null_readback_is_draft(
+    env, monkeypatch
+):
+    result, transport, operation_id = _run_case(
+        env, monkeypatch, published=True, published_at=None
+    )
+    _assert_unverified(result, transport, operation_id, env)
+    assert result["verification"]["mismatches"] == ["published"], result
+
+
+def test_requested_draft_but_published_readback_is_unexpected(
+    env, monkeypatch
+):
+    result, transport, operation_id = _run_case(
+        env, monkeypatch, published=False, published_at=_PAST
+    )
+    _assert_unverified(result, transport, operation_id, env)
+    assert result["verification"]["mismatches"] == ["published"], result
+
+
 def test_published_only_readback_is_not_official_shape(
     env, monkeypatch
 ):
