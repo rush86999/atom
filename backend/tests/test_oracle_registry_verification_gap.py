@@ -665,7 +665,7 @@ def test_registry_declares_effects_and_keeps_uncovered_explicit():
     # none can claim independently verified applied success.
     allowed = {
         "shopify_create_article", "shopify_create_blog",
-        "shopify_create_fulfillment", "shopify_create_product",
+        "shopify_create_fulfillment",
         "mini_app_run",
         # Lazy registrations (radio/BPE) are mutations too when loaded.
         "radio.create_thread", "radio.send_message",
