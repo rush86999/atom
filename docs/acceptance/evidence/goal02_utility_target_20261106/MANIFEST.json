@@ -1,0 +1,76 @@
+{
+  "claim": "GOAL-02",
+  "title": "Persisted utility target with deterministic trajectory ranking",
+  "status": "submitted_for_independent_review",
+  "branch": "codex/goal02-utility-target-20261106",
+  "source_commit": "e0469141c884bfd37ebd152ade00f1e13b91fe91",
+  "baseline_commit": "248a2329623b433e68104c4d89d2965683d81013",
+  "interpreter": "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+  "world": {
+    "testing_env": "1",
+    "database": "per-test scratch SQLite files",
+    "live_db_touched": false,
+    "model_provider_inference": false
+  },
+  "source_blobs": {
+    "backend/core/goals/utility_target.py": "c6d45de025361072887c37751fbe1c9ead26e56e",
+    "backend/core/agent_objective.py": "246e6529bf6b12b38e7a91d6e9f8f55a21a9f7c2",
+    "backend/core/goals/goal_service.py": "aa4bc59dc05f22ed50b36d0c549d8b8be26a6f5f",
+    "backend/core/goals/goal_run_router.py": "c06b55e5324015be44277b63fcae72ce56875013",
+    "backend/api/goal_routes.py": "5f69c4c1ea8b2dc93c79f0ea68d37238f9b74d0e",
+    "backend/core/action_registry.py": "7d1e1a4cf6c68776f22d1142e6e8dc72370bb72f",
+    "backend/tests/test_goal_utility_target.py": "ae54aabefca7e19e63ba8ed448ab1b8628e94dfc",
+    "docs/architecture/AGENT_ENVIRONMENT.md": "2b326866012b9d77ca07f63d918e349b75336fb1",
+    "CLAUDE.md": "a16ddaff4ce83c95840f39ba445a3e9d1d157c6d"
+  },
+  "results": {
+    "focused": {
+      "command": "python -m pytest tests/test_goal_utility_target.py tests/test_goal_run_service.py tests/test_goal_journey_gaps.py tests/test_goal_run_routes.py tests/core/test_agent_objective.py tests/core/test_agent_environment_harness.py tests/test_goal_run_loop.py -q --tb=short --junitxml=.../focused-junit.xml",
+      "passed": 109,
+      "failed": 0,
+      "skipped": 0,
+      "new_goal02_controls": 29,
+      "existing_baseline_controls": 80,
+      "artifact": "focused-junit.xml"
+    },
+    "unrelated_baseline_comparison": {
+      "file": "tests/test_objective_evidence_flow.py",
+      "changed_tree": {
+        "passed": 41,
+        "failed": 12,
+        "artifact": "changed-objective-evidence-junit.xml"
+      },
+      "baseline_tree": {
+        "passed": 41,
+        "failed": 12,
+        "artifact": "baseline-objective-evidence-junit.xml"
+      },
+      "classification": "same pre-existing failures on both trees; unrelated to GOAL-02"
+    }
+  },
+  "covered_contracts": [
+    "explicit target validation and persistence on GoalObjective.metadata_json",
+    "target survives a fresh engine/service",
+    "higher normalized utility ranks higher for maximize and minimize",
+    "failed/cancelled/completion/constraint gates precede utility",
+    "missing/malformed/non-finite/negative/fractional/overflowing count evidence stays unknown",
+    "goal/workspace scoping of ranked runs",
+    "GoalService.evaluate exposes ranking without changing status/progress",
+    "GoalRunService and GoalRunRouter consume the durable ranking",
+    "flag-off objective loop parity",
+    "supervisor set/clear and member read API boundary"
+  ],
+  "limitations": [
+    "controlled deterministic consumer tests, not served inference",
+    "utility metrics are durable GoalRun counters, not arbitrary business metrics",
+    "lead probe external-path execution was denied in this shell; equivalent in-tree controls cover its huge-int OverflowError and negative-count eligibility defects"
+  ],
+  "artifacts": [
+    "README.md",
+    "TEST_RESULTS.md",
+    "MANIFEST.json",
+    "focused-junit.xml",
+    "changed-objective-evidence-junit.xml",
+    "baseline-objective-evidence-junit.xml"
+  ]
+}
