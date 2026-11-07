@@ -1463,12 +1463,15 @@ def _run_scenario(args: argparse.Namespace) -> int:
                     url = str(request.url)
                     if not url.startswith("http"):
                         return
+                    from urllib.parse import urlparse
+                    parsed = urlparse(url)
                     path = _path_of(url)
                     if "/answer" in path and request.method == "POST":
                         answer_posts.append({"path": path})
                     requests_seen.append({
                         "method": request.method,
                         "origin": _origin(url),
+                        "host": parsed.hostname or "",
                         "path": path,
                     })
                 page.on("request", _on_request)
@@ -1973,9 +1976,14 @@ def _run_scenario(args: argparse.Namespace) -> int:
                 backend_origin_seen = any(
                     f":{args.backend_port}" in entry["origin"]
                     for entry in requests_seen)
+                non_loopback = [
+                    entry for entry in requests_seen
+                    if entry.get("host") not in ("localhost", "127.0.0.1", "::1")
+                ]
                 step("browser_origins_isolated", {
                     "no_forbidden_origin": (
                         not foreign and not forbidden_seen),
+                    "no_non_loopback_origin": not non_loopback,
                     "backend_origin_observed": backend_origin_seen,
                     "frontend_origin_observed": any(
                         f":{args.frontend_port}" in entry["origin"]
@@ -1983,6 +1991,7 @@ def _run_scenario(args: argparse.Namespace) -> int:
                 }, details={
                     "foreign": foreign[:20],
                     "forbidden_seen": forbidden_seen[:20],
+                    "non_loopback": non_loopback[:20],
                     "request_count": len(requests_seen),
                 })
                 context.close()
