@@ -420,7 +420,7 @@ def main() -> int:
         "python_executable": sys.executable,
         "live_calls": False,
         "credentials_used": False,
-        "http_leaf_only_doubled": True,
+        "http_leaf_only_doubled": False,
         "testing": "1",
     }
     (PACKET / "source-binding.json").write_text(

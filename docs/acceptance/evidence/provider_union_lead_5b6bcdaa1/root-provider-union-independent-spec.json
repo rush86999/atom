@@ -1,0 +1,20 @@
+{
+  "source": "5b6bcdaa18fb3229ec74885a9db3328b8dc1c703",
+  "scratch": "/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-provider-union-independent-us7h0ooz",
+  "command": [
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "tests/test_lead_asset_usable_image.py",
+    "tests/test_lead_shopify_fulfillment_rest_shape.py",
+    "tests/test_lead_radio_readback_identity.py",
+    "tests/test_positive_maturity_no_demotion.py",
+    "tests/test_information_wait_maturity_neutral.py",
+    "tests/test_generic_request_expectations.py",
+    "-q",
+    "--tb=short",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-provider-union-independent-us7h0ooz/pytest"
+  ]
+}

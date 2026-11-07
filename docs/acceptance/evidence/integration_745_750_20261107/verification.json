@@ -65,7 +65,8 @@
     "harness": "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
     "testing": "1",
     "scratch_sqlite": true,
-    "only_http_leaf_doubled": true
+    "only_http_leaf_doubled": false,
+    "controlled_seams": "Mixed controlled test scopes: provider endpoint controls double HTTP; radio uses real SQLite; Generic/assignment suites also use controlled reasoning/proposal and caller fixtures. No transport-only claim for all784 controls."
   },
   "disk_interruption": {
     "type": "ENOSPC while saving prior evidence state",
@@ -83,5 +84,9 @@
     "credentials_used": false,
     "send_spend_install_deploy": false,
     "root_acceptance_withheld": true
+  },
+  "scope_correction": {
+    "previous_only_http_leaf_doubled": true,
+    "reason": "HTTP-only applies to provider subfamilies, not every test in the combined suite; raw logs and784 count unchanged"
   }
 }

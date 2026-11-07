@@ -85,7 +85,7 @@ Actual result:
 - **exit 0**
 - executed source `1f1d410ef`
 - `TESTING=1`, fresh scratch SQLite, scratch basetemp
-- only provider HTTP leaf doubled
+- mixed controlled seams: HTTP-only for provider subfamilies; real SQLite radio; controlled reasoning/proposal/caller fixtures in other suites (not a transport-only784-test claim)
 - no live provider/CDN/model/server/browser/account/credential/send/spend/install
   action.
 
