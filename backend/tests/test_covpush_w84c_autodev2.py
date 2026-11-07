@@ -841,14 +841,26 @@ class TestReflectionEngine:
         engine = ReflectionEngine(db=object())
         gate = MagicMock()
         gate.can_use.return_value = True
+        gate.authoritative_workspace_settings.return_value = {}
         with patch("core.auto_dev.capability_gate.AutoDevCapabilityService", return_value=gate):
-            with patch.object(engine, "_get_workspace_settings", return_value={}):
-                assert engine._should_process_agent("agent-1", "t1") is True
+            assert engine._should_process_agent("agent-1", "t1") is True
         gate.can_use.assert_called_once_with(
             agent_id="agent-1",
             capability="auto_dev.memento_skills",
             workspace_settings={},
         )
+
+    def test_should_process_agent_refuses_when_authority_missing(self):
+        """Fail-closed seam twin: missing/inconsistent agent-workspace
+        authority (resolver returns None) must refuse even when the gate's
+        can_use would allow — the tenant-level fallback is not consulted."""
+        engine = ReflectionEngine(db=object())
+        gate = MagicMock()
+        gate.can_use.return_value = True
+        gate.authoritative_workspace_settings.return_value = None
+        with patch("core.auto_dev.capability_gate.AutoDevCapabilityService", return_value=gate):
+            assert engine._should_process_agent("agent-1", "t1") is False
+        gate.can_use.assert_not_called()
 
     def test_should_process_agent_false(self):
         engine = ReflectionEngine(db=object())

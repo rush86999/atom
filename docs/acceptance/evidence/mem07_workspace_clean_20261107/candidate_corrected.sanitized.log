@@ -1,0 +1,1643 @@
+
+tests/test_covpush_w84c_autodev2.py::TestModels::test_tool_mutation_defaults_fire 
+-------------------------------- live log setup --------------------------------
+2026-11-06 19:52:26 [    INFO] EscalationManager initialized
+2026-11-06 19:52:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:26 [    INFO] EscalationManager initialized
+2026-11-06 19:52:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:26 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:26 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  0%]
+tests/test_covpush_w84c_autodev2.py::TestModels::test_tool_mutation_all_fields PASSED [  0%]
+tests/test_covpush_w84c_autodev2.py::TestModels::test_workflow_variant_defaults_fire PASSED [  0%]
+tests/test_covpush_w84c_autodev2.py::TestModels::test_workflow_variant_all_fields PASSED [  1%]
+tests/test_covpush_w84c_autodev2.py::TestModels::test_skill_candidate_defaults_fire PASSED [  1%]
+tests/test_covpush_w84c_autodev2.py::TestModels::test_skill_candidate_all_fields PASSED [  1%]
+tests/test_covpush_w84c_autodev2.py::TestModels::test_hypothesis_tree_record_defaults_fire PASSED [  1%]
+tests/test_covpush_w84c_autodev2.py::TestModels::test_hypothesis_tree_record_all_fields PASSED [  2%]
+tests/test_covpush_w84c_autodev2.py::TestModels::test_table_names PASSED [  2%]
+tests/test_covpush_w84c_autodev2.py::TestBaseLearningEngine::test_init_attributes PASSED [  2%]
+tests/test_covpush_w84c_autodev2.py::TestBaseLearningEngine::test_init_defaults_none PASSED [  2%]
+tests/test_covpush_w84c_autodev2.py::TestBaseLearningEngine::test_abstract_methods_are_abstract PASSED [  3%]
+tests/test_covpush_w84c_autodev2.py::TestBaseLearningEngine::test_sandbox_protocol_is_runtime_checkable PASSED [  3%]
+tests/test_covpush_w84c_autodev2.py::TestBaseLearningEngine::test_concrete_engine_lifecycle PASSED [  3%]
+tests/test_covpush_w84c_autodev2.py::TestBaseLearningEngine::test_get_llm_service_returns_injected PASSED [  4%]
+tests/test_covpush_w84c_autodev2.py::TestBaseLearningEngine::test_get_llm_service_imports_global PASSED [  4%]
+tests/test_covpush_w84c_autodev2.py::TestBaseLearningEngine::test_get_llm_service_fallback_none 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:26 [ WARNING] LLM service unavailable — Auto-Dev features requiring LLM will be skipped: no llm
+PASSED                                                                   [  4%]
+tests/test_covpush_w84c_autodev2.py::TestBaseLearningEngine::test_get_sandbox_returns_injected PASSED [  4%]
+tests/test_covpush_w84c_autodev2.py::TestBaseLearningEngine::test_get_sandbox_constructs_container_sandbox PASSED [  5%]
+tests/test_covpush_w84c_autodev2.py::TestBaseLearningEngine::test_get_sandbox_fallback_none 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:26 [ WARNING] Sandbox unavailable — validation will be skipped: no docker
+PASSED                                                                   [  5%]
+tests/test_covpush_w84c_autodev2.py::TestBaseLearningEngine::test_strip_markdown_fences_python PASSED [  5%]
+tests/test_covpush_w84c_autodev2.py::TestBaseLearningEngine::test_strip_markdown_fences_generic PASSED [  5%]
+tests/test_covpush_w84c_autodev2.py::TestBaseLearningEngine::test_strip_markdown_fences_no_fence PASSED [  6%]
+tests/test_covpush_w84c_autodev2.py::TestBaseLearningEngine::test_strip_markdown_fences_trailing_only PASSED [  6%]
+tests/test_covpush_w84c_autodev2.py::TestEventBus::test_task_event_defaults PASSED [  6%]
+tests/test_covpush_w84c_autodev2.py::TestEventBus::test_skill_execution_event_defaults PASSED [  7%]
+tests/test_covpush_w84c_autodev2.py::TestEventBus::test_emit_with_no_handlers_is_noop PASSED [  7%]
+tests/test_covpush_w84c_autodev2.py::TestEventBus::test_decorators_register_and_return_handler PASSED [  7%]
+tests/test_covpush_w84c_autodev2.py::TestEventBus::test_emit_task_fail_dispatches PASSED [  7%]
+tests/test_covpush_w84c_autodev2.py::TestEventBus::test_emit_task_success_dispatches PASSED [  8%]
+tests/test_covpush_w84c_autodev2.py::TestEventBus::test_emit_skill_execution_dispatches PASSED [  8%]
+tests/test_covpush_w84c_autodev2.py::TestEventBus::test_dispatch_continues_after_handler_error 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:26 [   ERROR] Auto-Dev event handler error in on_task_fail (handler=boom): handler exploded
+Traceback (most recent call last):
+  File "/private/tmp/atom-cli-mem07/backend/core/auto_dev/event_hooks.py", line 118, in _dispatch
+    await handler(event)
+  File "/private/tmp/atom-cli-mem07/backend/tests/test_covpush_w84c_autodev2.py", line 486, in boom
+    raise RuntimeError("handler exploded")
+RuntimeError: handler exploded
+PASSED                                                                   [  8%]
+tests/test_covpush_w84c_autodev2.py::TestEventBus::test_clear_removes_all PASSED [  8%]
+tests/test_covpush_w84c_autodev2.py::TestEventBus::test_singleton_event_bus PASSED [  9%]
+tests/test_covpush_w84c_autodev2.py::TestEventBus::test_register_through_event_bus PASSED [  9%]
+tests/test_covpush_w84c_autodev2.py::TestEvolutionEngine::test_init_and_register 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:26 [    INFO] EvolutionEngine registered on event bus
+PASSED                                                                   [  9%]
+tests/test_covpush_w84c_autodev2.py::TestEvolutionEngine::test_should_optimize_true PASSED [ 10%]
+tests/test_covpush_w84c_autodev2.py::TestEvolutionEngine::test_should_optimize_false PASSED [ 10%]
+tests/test_covpush_w84c_autodev2.py::TestEvolutionEngine::test_should_optimize_exception_returns_false PASSED [ 10%]
+tests/test_covpush_w84c_autodev2.py::TestEvolutionEngine::test_check_optimization_triggers[kwargs0-None] PASSED [ 10%]
+tests/test_covpush_w84c_autodev2.py::TestEvolutionEngine::test_check_optimization_triggers[kwargs1-high_latency (6.0s)] PASSED [ 11%]
+tests/test_covpush_w84c_autodev2.py::TestEvolutionEngine::test_check_optimization_triggers[kwargs2-high_token_usage (6000)] PASSED [ 11%]
+tests/test_covpush_w84c_autodev2.py::TestEvolutionEngine::test_check_optimization_triggers[kwargs3-execution_failure] PASSED [ 11%]
+tests/test_covpush_w84c_autodev2.py::TestEvolutionEngine::test_check_optimization_triggers[kwargs4-high_latency (6.0s), high_token_usage (6000), execution_failure] PASSED [ 11%]
+tests/test_covpush_w84c_autodev2.py::TestEvolutionEngine::test_thresholds_constants PASSED [ 12%]
+tests/test_covpush_w84c_autodev2.py::TestEvolutionEngine::test_process_execution_skipped_when_not_optimize PASSED [ 12%]
+tests/test_covpush_w84c_autodev2.py::TestEvolutionEngine::test_process_execution_skipped_when_no_reason PASSED [ 12%]
+tests/test_covpush_w84c_autodev2.py::TestEvolutionEngine::test_process_execution_triggers_optimization 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:26 [    INFO] EvolutionEngine: Triggering optimization for skill 'my_skill' (agent agent-1). Reason: high_latency
+PASSED                                                                   [ 12%]
+tests/test_covpush_w84c_autodev2.py::TestEvolutionEngine::test_trigger_alpha_evolver_success_passed 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:26 [    INFO] EvolutionEngine: Mutation mut-1 passed sandbox. Queued for review.
+PASSED                                                                   [ 13%]
+tests/test_covpush_w84c_autodev2.py::TestEvolutionEngine::test_trigger_alpha_evolver_success_failed 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:26 [    INFO] EvolutionEngine: Mutation mut-2 failed sandbox. Discarding.
+PASSED                                                                   [ 13%]
+tests/test_covpush_w84c_autodev2.py::TestEvolutionEngine::test_trigger_alpha_evolver_skill_code_missing 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:26 [ WARNING] Cannot optimize skill skill-1: source code not found
+PASSED                                                                   [ 13%]
+tests/test_covpush_w84c_autodev2.py::TestEvolutionEngine::test_trigger_alpha_evolver_exception_logged 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:26 [   ERROR] EvolutionEngine optimization failed: db down
+PASSED                                                                   [ 14%]
+tests/test_covpush_w84c_autodev2.py::TestEvolutionEngine::test_get_skill_code_found PASSED [ 14%]
+tests/test_covpush_w84c_autodev2.py::TestEvolutionEngine::test_get_skill_code_not_found PASSED [ 14%]
+tests/test_covpush_w84c_autodev2.py::TestEvolutionEngine::test_get_skill_code_exception PASSED [ 14%]
+tests/test_covpush_w84c_autodev2.py::TestEvolutionEngine::test_get_workspace_settings_with_metadata PASSED [ 15%]
+tests/test_covpush_w84c_autodev2.py::TestEvolutionEngine::test_get_workspace_settings_no_metadata PASSED [ 15%]
+tests/test_covpush_w84c_autodev2.py::TestEvolutionEngine::test_get_workspace_settings_no_workspace PASSED [ 15%]
+tests/test_covpush_w84c_autodev2.py::TestEvolutionEngine::test_get_workspace_settings_exception PASSED [ 15%]
+tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_init_defaults PASSED [ 16%]
+tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_init_custom_threshold PASSED [ 16%]
+tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_register 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:26 [    INFO] ReflectionEngine registered on event bus
+PASSED                                                                   [ 16%]
+tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_process_failure_skipped_when_not_allowed PASSED [ 17%]
+tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_process_failure_below_threshold FAILED [ 17%]
+tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_process_failure_triggers_and_clears FAILED [ 17%]
+tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_trigger_memento_success FAILED [ 17%]
+tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_trigger_memento_exception FAILED [ 18%]
+tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_should_process_agent_true PASSED [ 18%]
+tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_should_process_agent_refuses_when_authority_missing PASSED [ 18%]
+tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_should_process_agent_false PASSED [ 18%]
+tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_should_process_agent_exception PASSED [ 19%]
+tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_get_workspace_settings_with_metadata FAILED [ 19%]
+tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_get_workspace_settings_none_metadata FAILED [ 19%]
+tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_get_workspace_settings_missing FAILED [ 20%]
+tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_get_workspace_settings_exception FAILED [ 20%]
+tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_find_similar_failures_high_overlap PASSED [ 20%]
+tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_find_similar_failures_low_overlap PASSED [ 20%]
+tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_find_similar_failures_empty_task_words PASSED [ 21%]
+tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_find_similar_failures_unknown_agent PASSED [ 21%]
+tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_clear_pattern_removes_processed PASSED [ 21%]
+tests/test_covpush_w84c_autodev2.py::TestRegressionValidator::test_regression_result_defaults PASSED [ 21%]
+tests/test_covpush_w84c_autodev2.py::TestRegressionValidator::test_regression_detected_property PASSED [ 22%]
+tests/test_covpush_w84c_autodev2.py::TestRegressionValidator::test_to_dict PASSED [ 22%]
+tests/test_covpush_w84c_autodev2.py::TestRegressionValidator::test_to_dict_no_mismatches PASSED [ 22%]
+tests/test_covpush_w84c_autodev2.py::TestRegressionValidator::test_validate_regression_empty_inputs PASSED [ 22%]
+tests/test_covpush_w84c_autodev2.py::TestRegressionValidator::test_validate_regression_match 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:26 [    INFO] [RegressionValidator] passed: 1/1 tests matched
+PASSED                                                                   [ 23%]
+tests/test_covpush_w84c_autodev2.py::TestRegressionValidator::test_validate_regression_mismatch 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:26 [ WARNING] [RegressionValidator] regression detected: 1/1 tests mismatched
+PASSED                                                                   [ 23%]
+tests/test_covpush_w84c_autodev2.py::TestRegressionValidator::test_validate_regression_child_crash 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:26 [ WARNING] [RegressionValidator] regression detected: 1/1 tests mismatched
+PASSED                                                                   [ 23%]
+tests/test_covpush_w84c_autodev2.py::TestRegressionValidator::test_validate_regression_parent_crash_is_improvement 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:26 [    INFO] [RegressionValidator] passed: 1/1 tests matched
+PASSED                                                                   [ 24%]
+tests/test_covpush_w84c_autodev2.py::TestRegressionValidator::test_run_in_sandbox_success PASSED [ 24%]
+tests/test_covpush_w84c_autodev2.py::TestRegressionValidator::test_run_in_sandbox_failure_status PASSED [ 24%]
+tests/test_covpush_w84c_autodev2.py::TestRegressionValidator::test_run_in_sandbox_exception PASSED [ 24%]
+tests/test_covpush_w84c_autodev2.py::TestRegressionValidator::test_outputs_match_exact PASSED [ 25%]
+tests/test_covpush_w84c_autodev2.py::TestRegressionValidator::test_outputs_match_fuzzy PASSED [ 25%]
+tests/test_covpush_w84c_autodev2.py::TestRegressionValidator::test_fuzzy_threshold_boundary PASSED [ 25%]
+tests/test_covpush_w84c_autodev2.py::TestRegressionValidator::test_validate_regression_multiple_inputs_mixed 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:26 [ WARNING] [RegressionValidator] regression detected: 2/3 tests mismatched
+PASSED                                                                   [ 25%]
+tests/test_covpush_w84c_autodev2.py::TestMutationRollbackRegistry::test_snapshot_returns_id_and_stores 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:26 [    INFO] [RollbackRegistry] snapshot for agent agent-1 key=system_prompt source=alpha_evolver → mut_aaec5ba10b8c
+PASSED                                                                   [ 26%]
+tests/test_covpush_w84c_autodev2.py::TestMutationRollbackRegistry::test_snapshot_lru_eviction 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:26 [    INFO] [RollbackRegistry] snapshot for agent a key=k1 source=unknown → mut_6026bb25db71
+2026-11-06 19:52:26 [    INFO] [RollbackRegistry] snapshot for agent a key=k2 source=unknown → mut_895a75b53d51
+2026-11-06 19:52:26 [    INFO] [RollbackRegistry] snapshot for agent a key=k3 source=unknown → mut_14d24d0ef40e
+PASSED                                                                   [ 26%]
+tests/test_covpush_w84c_autodev2.py::TestMutationRollbackRegistry::test_rollback_applies_old_value 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:26 [    INFO] [RollbackRegistry] snapshot for agent agent-1 key=system_prompt source=unknown → mut_662f6ea47735
+2026-11-06 19:52:26 [    INFO] [RollbackRegistry] rolled back mut_662f6ea47735 for agent agent-1: restored system_prompt
+PASSED                                                                   [ 26%]
+tests/test_covpush_w84c_autodev2.py::TestMutationRollbackRegistry::test_rollback_without_config 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:26 [    INFO] [RollbackRegistry] snapshot for agent agent-1 key=k source=unknown → mut_0f5f29a73471
+PASSED                                                                   [ 27%]
+tests/test_covpush_w84c_autodev2.py::TestMutationRollbackRegistry::test_rollback_unknown_id 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:26 [ WARNING] [RollbackRegistry] unknown mutation_id: mut_unknown
+PASSED                                                                   [ 27%]
+tests/test_covpush_w84c_autodev2.py::TestMutationRollbackRegistry::test_rollback_agent_all_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:26 [    INFO] [RollbackRegistry] snapshot for agent agent-1 key=k1 source=unknown → mut_7c32a103c592
+2026-11-06 19:52:26 [    INFO] [RollbackRegistry] snapshot for agent agent-1 key=k2 source=unknown → mut_2fb4e4d24122
+2026-11-06 19:52:26 [    INFO] [RollbackRegistry] snapshot for agent agent-2 key=kx source=unknown → mut_8c270b3e6a88
+2026-11-06 19:52:26 [    INFO] [RollbackRegistry] agent-wide rollback: mut_7c32a103c592 (k1)
+2026-11-06 19:52:26 [    INFO] [RollbackRegistry] agent-wide rollback: mut_2fb4e4d24122 (k2)
+PASSED                                                                   [ 27%]
+tests/test_covpush_w84c_autodev2.py::TestMutationRollbackRegistry::test_rollback_agent_skips_verified 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:26 [    INFO] [RollbackRegistry] snapshot for agent agent-1 key=k1 source=unknown → mut_b8e8860530ba
+2026-11-06 19:52:26 [    INFO] [RollbackRegistry] snapshot for agent agent-1 key=k2 source=unknown → mut_b1f43e0345e4
+2026-11-06 19:52:26 [    INFO] [RollbackRegistry] verified mut_b8e8860530ba
+2026-11-06 19:52:26 [    INFO] [RollbackRegistry] agent-wide rollback: mut_b1f43e0345e4 (k2)
+2026-11-06 19:52:26 [    INFO] [RollbackRegistry] verified mut_b1f43e0345e4
+PASSED                                                                   [ 27%]
+tests/test_covpush_w84c_autodev2.py::TestMutationRollbackRegistry::test_rollback_agent_without_config 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:26 [    INFO] [RollbackRegistry] snapshot for agent agent-1 key=k1 source=unknown → mut_6ffabadaa4c6
+2026-11-06 19:52:26 [    INFO] [RollbackRegistry] agent-wide rollback: mut_6ffabadaa4c6 (k1)
+PASSED                                                                   [ 28%]
+tests/test_covpush_w84c_autodev2.py::TestMutationRollbackRegistry::test_rollback_agent_unknown PASSED [ 28%]
+tests/test_covpush_w84c_autodev2.py::TestMutationRollbackRegistry::test_verify_marks_snapshot 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:26 [    INFO] [RollbackRegistry] snapshot for agent agent-1 key=k source=unknown → mut_cdd306355c15
+2026-11-06 19:52:26 [    INFO] [RollbackRegistry] verified mut_cdd306355c15
+PASSED                                                                   [ 28%]
+tests/test_covpush_w84c_autodev2.py::TestMutationRollbackRegistry::test_verify_unknown PASSED [ 28%]
+tests/test_covpush_w84c_autodev2.py::TestMutationRollbackRegistry::test_get_agent_mutations 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:26 [    INFO] [RollbackRegistry] snapshot for agent agent-1 key=k1 source=unknown → mut_e8abce2299f6
+2026-11-06 19:52:26 [    INFO] [RollbackRegistry] snapshot for agent agent-2 key=k2 source=unknown → mut_eadb437508dc
+PASSED                                                                   [ 29%]
+tests/test_covpush_w84c_autodev2.py::TestMutationRollbackRegistry::test_clear 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:26 [    INFO] [RollbackRegistry] snapshot for agent agent-1 key=k source=unknown → mut_635343c6b460
+PASSED                                                                   [ 29%]
+tests/test_covpush_w84c_autodev2.py::TestMutationRollbackRegistry::test_default_max_snapshots PASSED [ 29%]
+tests/test_covpush_w84c_autodev2.py::TestMutationRollbackRegistry::test_mutation_snapshot_defaults PASSED [ 30%]
+tests/test_covpush_w84c_autodev2.py::TestGetRollbackRegistry::test_singleton PASSED [ 30%]
+tests/test_covpush_w84c_autodev2.py::TestContainerSandboxDockerAvailable::test_docker_available_true PASSED [ 30%]
+tests/test_covpush_w84c_autodev2.py::TestContainerSandboxDockerAvailable::test_docker_available_false_returncode PASSED [ 30%]
+tests/test_covpush_w84c_autodev2.py::TestContainerSandboxDockerAvailable::test_docker_available_file_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:26 [    INFO] Docker not available — ContainerSandbox will use subprocess fallback
+PASSED                                                                   [ 31%]
+tests/test_covpush_w84c_autodev2.py::TestContainerSandboxDockerAvailable::test_docker_available_timeout 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:26 [    INFO] Docker not available — ContainerSandbox will use subprocess fallback
+PASSED                                                                   [ 31%]
+tests/test_covpush_w84c_autodev2.py::TestContainerSandboxDockerAvailable::test_docker_available_cached PASSED [ 31%]
+tests/test_covpush_w84c_autodev2.py::TestContainerSandboxDockerAvailable::test_init_defaults PASSED [ 31%]
+tests/test_covpush_w84c_autodev2.py::TestContainerSandboxDockerAvailable::test_init_custom PASSED [ 32%]
+tests/test_covpush_w84c_autodev2.py::TestContainerSandboxExecution::test_execute_subprocess_success PASSED [ 32%]
+tests/test_covpush_w84c_autodev2.py::TestContainerSandboxExecution::test_execute_subprocess_override_timeout_zero PASSED [ 32%]
+tests/test_covpush_w84c_autodev2.py::TestContainerSandboxExecution::test_execute_subprocess_failure PASSED [ 32%]
+tests/test_covpush_w84c_autodev2.py::TestContainerSandboxExecution::test_execute_subprocess_failure_empty_stderr PASSED [ 33%]
+tests/test_covpush_w84c_autodev2.py::TestContainerSandboxExecution::test_execute_subprocess_timeout PASSED [ 33%]
+tests/test_covpush_w84c_autodev2.py::TestContainerSandboxExecution::test_execute_docker_success PASSED [ 33%]
+tests/test_covpush_w84c_autodev2.py::TestContainerSandboxExecution::test_execute_docker_network_enabled_no_network_flag PASSED [ 34%]
+tests/test_covpush_w84c_autodev2.py::TestContainerSandboxExecution::test_execute_docker_network_disabled_has_flag PASSED [ 34%]
+tests/test_covpush_w84c_autodev2.py::TestContainerSandboxExecution::test_execute_docker_failure PASSED [ 34%]
+tests/test_covpush_w84c_autodev2.py::TestContainerSandboxExecution::test_execute_docker_timeout_kills_container PASSED [ 34%]
+tests/test_covpush_w84c_autodev2.py::TestKillDockerContainer::test_kill_with_cid_file PASSED [ 35%]
+tests/test_covpush_w84c_autodev2.py::TestKillDockerContainer::test_kill_missing_cid_file PASSED [ 35%]
+tests/test_covpush_w84c_autodev2.py::TestKillDockerContainer::test_kill_empty_cid_file PASSED [ 35%]
+tests/test_covpush_w84c_autodev2.py::TestKillDockerContainer::test_kill_exception_logged 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:26 [ WARNING] Failed to kill timed-out sandbox container
+PASSED                                                                   [ 35%]
+tests/test_covpush_w84c_autodev2.py::TestResourceLimits::test_preexec_win32_none PASSED [ 36%]
+tests/test_covpush_w84c_autodev2.py::TestResourceLimits::test_preexec_applies_limits PASSED [ 36%]
+tests/test_covpush_w84c_autodev2.py::TestResourceLimits::test_preexec_ignores_exceptions PASSED [ 36%]
+tests/test_covpush_w84c_autodev2.py::TestBuildExecutionWrapper::test_wrapper_contains_code PASSED [ 37%]
+tests/test_covpush_w84c_autodev2.py::TestBuildExecutionWrapper::test_wrapper_params_round_trip PASSED [ 37%]
+tests/test_covpush_w84c_autodev2.py::TestBuildExecutionWrapper::test_wrapper_empty_params PASSED [ 37%]
+tests/test_covpush_autodev_comms.py::TestBaseEngineCoverage::test_get_llm_service_injected PASSED [ 37%]
+tests/test_covpush_autodev_comms.py::TestBaseEngineCoverage::test_get_llm_service_fallback PASSED [ 38%]
+tests/test_covpush_autodev_comms.py::TestBaseEngineCoverage::test_get_llm_service_unavailable 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:26 [ WARNING] LLM service unavailable — Auto-Dev features requiring LLM will be skipped: import of core.llm_service halted; None in sys.modules
+PASSED                                                                   [ 38%]
+tests/test_covpush_autodev_comms.py::TestBaseEngineCoverage::test_get_sandbox_injected PASSED [ 38%]
+tests/test_covpush_autodev_comms.py::TestBaseEngineCoverage::test_get_sandbox_fallback PASSED [ 38%]
+tests/test_covpush_autodev_comms.py::TestBaseEngineCoverage::test_get_sandbox_unavailable 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:26 [ WARNING] Sandbox unavailable — validation will be skipped: import of core.auto_dev.container_sandbox halted; None in sys.modules
+PASSED                                                                   [ 39%]
+tests/test_covpush_autodev_comms.py::TestBaseEngineCoverage::test_strip_markdown_fences[```python\nprint(1)\n```-print(1)] PASSED [ 39%]
+tests/test_covpush_autodev_comms.py::TestBaseEngineCoverage::test_strip_markdown_fences[```\nprint(1)\n```-print(1)] PASSED [ 39%]
+tests/test_covpush_autodev_comms.py::TestBaseEngineCoverage::test_strip_markdown_fences[print(1)-print(1)] PASSED [ 40%]
+tests/test_covpush_autodev_comms.py::TestBaseEngineCoverage::test_strip_markdown_fences[  ```python\nx = 1\n```  -x = 1] PASSED [ 40%]
+tests/test_covpush_autodev_comms.py::TestBaseEngineCoverage::test_sandbox_protocol_runtime_check PASSED [ 40%]
+tests/test_covpush_autodev_comms.py::TestContainerSandboxCoverage::test_docker_available_cache PASSED [ 40%]
+tests/test_covpush_autodev_comms.py::TestContainerSandboxCoverage::test_docker_unavailable_errors 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:26 [    INFO] Docker not available — ContainerSandbox will use subprocess fallback
+2026-11-06 19:52:26 [    INFO] Docker not available — ContainerSandbox will use subprocess fallback
+PASSED                                                                   [ 41%]
+tests/test_covpush_autodev_comms.py::TestContainerSandboxCoverage::test_docker_available_nonzero PASSED [ 41%]
+tests/test_covpush_autodev_comms.py::TestContainerSandboxCoverage::test_docker_success_path PASSED [ 41%]
+tests/test_covpush_autodev_comms.py::TestContainerSandboxCoverage::test_docker_failure_path PASSED [ 41%]
+tests/test_covpush_autodev_comms.py::TestContainerSandboxCoverage::test_docker_network_enabled_flag PASSED [ 42%]
+tests/test_covpush_autodev_comms.py::TestContainerSandboxCoverage::test_subprocess_success PASSED [ 42%]
+tests/test_covpush_autodev_comms.py::TestContainerSandboxCoverage::test_subprocess_failure PASSED [ 42%]
+tests/test_covpush_autodev_comms.py::TestContainerSandboxCoverage::test_subprocess_timeout PASSED [ 42%]
+tests/test_covpush_autodev_comms.py::TestContainerSandboxCoverage::test_execution_wrapper_uses_base64 PASSED [ 43%]
+tests/test_covpush_autodev_comms.py::TestContainerSandboxCoverage::test_resource_limit_preexec_windows PASSED [ 43%]
+tests/test_covpush_autodev_comms.py::TestEventHooksCoverage::test_decorator_registration_and_emission PASSED [ 43%]
+tests/test_covpush_autodev_comms.py::TestEventHooksCoverage::test_handler_exception_swallowed 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [   ERROR] Auto-Dev event handler error in on_task_fail (handler=bad): handler exploded
+Traceback (most recent call last):
+  File "/private/tmp/atom-cli-mem07/backend/core/auto_dev/event_hooks.py", line 118, in _dispatch
+    await handler(event)
+  File "/private/tmp/atom-cli-mem07/backend/tests/test_covpush_autodev_comms.py", line 294, in bad
+    raise RuntimeError("handler exploded")
+RuntimeError: handler exploded
+PASSED                                                                   [ 44%]
+tests/test_covpush_autodev_comms.py::TestEventHooksCoverage::test_emit_no_handlers PASSED [ 44%]
+tests/test_covpush_autodev_comms.py::TestEventHooksCoverage::test_clear PASSED [ 44%]
+tests/test_covpush_autodev_comms.py::TestEvolutionEngineCoverage::test_register 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EvolutionEngine registered on event bus
+PASSED                                                                   [ 44%]
+tests/test_covpush_autodev_comms.py::TestEvolutionEngineCoverage::test_process_execution_gate_denied PASSED [ 45%]
+tests/test_covpush_autodev_comms.py::TestEvolutionEngineCoverage::test_process_execution_no_trigger PASSED [ 45%]
+tests/test_covpush_autodev_comms.py::TestEvolutionEngineCoverage::test_process_execution_triggers_on_latency 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EvolutionEngine: Triggering optimization for skill 'my_skill' (agent a). Reason: high_latency (9.0s), high_token_usage (99999), execution_failure
+PASSED                                                                   [ 45%]
+tests/test_covpush_autodev_comms.py::TestEvolutionEngineCoverage::test_trigger_alpha_evolver_success_path 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EvolutionEngine: Mutation mut_1 passed sandbox. Queued for review.
+PASSED                                                                   [ 45%]
+tests/test_covpush_autodev_comms.py::TestEvolutionEngineCoverage::test_trigger_alpha_evolver_failed_sandbox 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EvolutionEngine: Mutation mut_2 failed sandbox. Discarding.
+PASSED                                                                   [ 46%]
+tests/test_covpush_autodev_comms.py::TestEvolutionEngineCoverage::test_trigger_alpha_evolver_no_skill_code 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [ WARNING] Cannot optimize skill s: source code not found
+PASSED                                                                   [ 46%]
+tests/test_covpush_autodev_comms.py::TestEvolutionEngineCoverage::test_trigger_alpha_evolver_exception 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [   ERROR] EvolutionEngine optimization failed: import failed
+PASSED                                                                   [ 46%]
+tests/test_covpush_autodev_comms.py::TestEvolutionEngineCoverage::test_should_optimize_gate PASSED [ 47%]
+tests/test_covpush_autodev_comms.py::TestEvolutionEngineCoverage::test_should_optimize_exception_false PASSED [ 47%]
+tests/test_covpush_autodev_comms.py::TestEvolutionEngineCoverage::test_get_skill_code_found PASSED [ 47%]
+tests/test_covpush_autodev_comms.py::TestEvolutionEngineCoverage::test_get_skill_code_not_found PASSED [ 47%]
+tests/test_covpush_autodev_comms.py::TestEvolutionEngineCoverage::test_get_skill_code_exception PASSED [ 48%]
+tests/test_covpush_autodev_comms.py::TestEvolutionEngineCoverage::test_get_workspace_settings PASSED [ 48%]
+tests/test_covpush_autodev_comms.py::TestEvolutionPipelineCoverage::test_governance_rejects PASSED [ 48%]
+tests/test_covpush_autodev_comms.py::TestEvolutionPipelineCoverage::test_governance_exception_blocks 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [ WARNING] Pipeline: governance check failed (gov down); blocking mutation
+PASSED                                                                   [ 48%]
+tests/test_covpush_autodev_comms.py::TestEvolutionPipelineCoverage::test_daily_limit_exception_blocks 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [ WARNING] Pipeline: daily limit check failed (count failed); blocking (fail-closed)
+PASSED                                                                   [ 49%]
+tests/test_covpush_autodev_comms.py::TestEvolutionPipelineCoverage::test_happy_path_no_code_snapshot PASSED [ 49%]
+tests/test_covpush_autodev_comms.py::TestEvolutionPipelineCoverage::test_snapshot_exception_best_effort PASSED [ 49%]
+tests/test_covpush_autodev_comms.py::TestEvolutionPipelineCoverage::test_regression_exception_blocks 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [ WARNING] Pipeline: regression validation failed (sandbox down); blocking (fail-closed)
+PASSED                                                                   [ 50%]
+tests/test_covpush_autodev_comms.py::TestEvolutionPipelineCoverage::test_regression_uses_injected_sandbox 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] [RollbackRegistry] snapshot for agent ag-1 key=system_prompt source=gea → mut_d4c9b6dbcbe1
+PASSED                                                                   [ 50%]
+tests/test_covpush_autodev_comms.py::TestEvolutionPipelineCoverage::test_rollback_and_verify PASSED [ 50%]
+tests/test_covpush_autodev_comms.py::TestEvolutionPipelineCoverage::test_rollback_and_verify_exception 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [   ERROR] Pipeline rollback failed: down
+PASSED                                                                   [ 50%]
+tests/test_covpush_autodev_comms.py::TestEvolutionPipelineCoverage::test_workspace_settings_helper PASSED [ 51%]
+tests/test_covpush_autodev_comms.py::TestMutationRollbackCoverage::test_snapshot_and_rollback 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] [RollbackRegistry] snapshot for agent ag-1 key=system_prompt source=gea → mut_807684247e1e
+2026-11-06 19:52:27 [    INFO] [RollbackRegistry] rolled back mut_807684247e1e for agent ag-1: restored system_prompt
+PASSED                                                                   [ 51%]
+tests/test_covpush_autodev_comms.py::TestMutationRollbackCoverage::test_rollback_unknown 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [ WARNING] [RollbackRegistry] unknown mutation_id: mut_nope
+PASSED                                                                   [ 51%]
+tests/test_covpush_autodev_comms.py::TestMutationRollbackCoverage::test_rollback_agent 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] [RollbackRegistry] snapshot for agent ag-1 key=key1 source=unknown → mut_380047b3193a
+2026-11-06 19:52:27 [    INFO] [RollbackRegistry] snapshot for agent ag-1 key=key2 source=unknown → mut_954890eda154
+2026-11-06 19:52:27 [    INFO] [RollbackRegistry] snapshot for agent ag-2 key=key3 source=unknown → mut_0adf6b763129
+2026-11-06 19:52:27 [    INFO] [RollbackRegistry] verified mut_380047b3193a
+2026-11-06 19:52:27 [    INFO] [RollbackRegistry] agent-wide rollback: mut_954890eda154 (key2)
+2026-11-06 19:52:27 [    INFO] [RollbackRegistry] agent-wide rollback: mut_0adf6b763129 (key3)
+PASSED                                                                   [ 51%]
+tests/test_covpush_autodev_comms.py::TestMutationRollbackCoverage::test_verify_unknown PASSED [ 52%]
+tests/test_covpush_autodev_comms.py::TestMutationRollbackCoverage::test_get_snapshot_and_agent_mutations 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] [RollbackRegistry] snapshot for agent ag-1 key=key1 source=unknown → mut_b139ab499bbc
+PASSED                                                                   [ 52%]
+tests/test_covpush_autodev_comms.py::TestMutationRollbackCoverage::test_lru_eviction 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] [RollbackRegistry] snapshot for agent ag-1 key=k1 source=unknown → mut_ec118cb5f8de
+2026-11-06 19:52:27 [    INFO] [RollbackRegistry] snapshot for agent ag-1 key=k2 source=unknown → mut_60e1b2e74ed0
+2026-11-06 19:52:27 [    INFO] [RollbackRegistry] snapshot for agent ag-1 key=k3 source=unknown → mut_f03de58781c3
+PASSED                                                                   [ 52%]
+tests/test_covpush_autodev_comms.py::TestMutationRollbackCoverage::test_clear_and_singleton 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] [RollbackRegistry] snapshot for agent ag-1 key=k1 source=unknown → mut_4efbc8470d0a
+PASSED                                                                   [ 52%]
+tests/test_covpush_autodev_comms.py::TestReflectionEngineCoverage::test_register 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] ReflectionEngine registered on event bus
+PASSED                                                                   [ 53%]
+tests/test_covpush_autodev_comms.py::TestReflectionEngineCoverage::test_process_failure_gate_denied PASSED [ 53%]
+tests/test_covpush_autodev_comms.py::TestReflectionEngineCoverage::test_process_failure_below_threshold FAILED [ 53%]
+tests/test_covpush_autodev_comms.py::TestReflectionEngineCoverage::test_process_failure_triggers_memento_and_clears FAILED [ 54%]
+tests/test_covpush_autodev_comms.py::TestReflectionEngineCoverage::test_trigger_memento_success FAILED [ 54%]
+tests/test_covpush_autodev_comms.py::TestReflectionEngineCoverage::test_trigger_memento_error FAILED [ 54%]
+tests/test_covpush_autodev_comms.py::TestReflectionEngineCoverage::test_should_process_agent PASSED [ 54%]
+tests/test_covpush_autodev_comms.py::TestReflectionEngineCoverage::test_should_process_agent_refuses_when_authority_missing PASSED [ 55%]
+tests/test_covpush_autodev_comms.py::TestReflectionEngineCoverage::test_should_process_agent_exception PASSED [ 55%]
+tests/test_covpush_autodev_comms.py::TestReflectionEngineCoverage::test_get_workspace_settings FAILED [ 55%]
+tests/test_covpush_autodev_comms.py::TestReflectionEngineCoverage::test_find_similar_failures PASSED [ 55%]
+tests/test_covpush_autodev_comms.py::TestReflectionEngineCoverage::test_clear_pattern PASSED [ 56%]
+tests/test_covpush_autodev_comms.py::TestRegressionValidatorCoverage::test_no_test_inputs PASSED [ 56%]
+tests/test_covpush_autodev_comms.py::TestRegressionValidatorCoverage::test_matching_outputs 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] [RegressionValidator] passed: 1/1 tests matched
+PASSED                                                                   [ 56%]
+tests/test_covpush_autodev_comms.py::TestRegressionValidatorCoverage::test_mismatched_outputs 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [ WARNING] [RegressionValidator] regression detected: 1/1 tests mismatched
+PASSED                                                                   [ 57%]
+tests/test_covpush_autodev_comms.py::TestRegressionValidatorCoverage::test_child_crash 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [ WARNING] [RegressionValidator] regression detected: 1/1 tests mismatched
+PASSED                                                                   [ 57%]
+tests/test_covpush_autodev_comms.py::TestRegressionValidatorCoverage::test_parent_crash_child_ok_is_improvement 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] [RegressionValidator] passed: 1/1 tests matched
+PASSED                                                                   [ 57%]
+tests/test_covpush_autodev_comms.py::TestRegressionValidatorCoverage::test_sandbox_exception 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [ WARNING] [RegressionValidator] regression detected: 1/1 tests mismatched
+PASSED                                                                   [ 57%]
+tests/test_covpush_autodev_comms.py::TestRegressionValidatorCoverage::test_fuzzy_match 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] [RegressionValidator] passed: 1/1 tests matched
+2026-11-06 19:52:27 [ WARNING] [RegressionValidator] regression detected: 1/1 tests mismatched
+PASSED                                                                   [ 58%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_initialize_db_local_path 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4949437456. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [    INFO] Connecting to LanceDB at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-<user>/pytest-53/test_initialize_db_local_path0/mem with storage_options=None
+2026-11-06 19:52:27 [    INFO] LanceDB connected successfully
+PASSED                                                                   [ 58%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_initialize_db_connect_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4949437456. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [    INFO] Connecting to LanceDB at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-<user>/pytest-53/test_initialize_db_connect_fai0/mem with storage_options=None
+2026-11-06 19:52:27 [   ERROR] Failed to initialize LanceDB at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-<user>/pytest-53/test_initialize_db_connect_fai0/mem: connect refused
+PASSED                                                                   [ 58%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_initialize_db_s3_cloud_enabled_r2 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4951820144. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [    INFO] Using R2 endpoint: https://r2.example.com
+2026-11-06 19:52:27 [    INFO] Using R2 credentials (key ends with: ...A123)
+2026-11-06 19:52:27 [    INFO] Connecting to LanceDB at s3://bucket/mem with storage_options=['endpoint', 'aws_access_key_id', 'aws_secret_access_key', 'region']
+2026-11-06 19:52:27 [    INFO] LanceDB connected successfully
+PASSED                                                                   [ 58%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_initialize_db_s3_no_endpoint 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4951820144. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] S3_URI detected but no R2 endpoint configured! Will default to AWS S3 and fail.
+2026-11-06 19:52:27 [   ERROR] R2 credentials (R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY) not found!
+2026-11-06 19:52:27 [    INFO] Connecting to LanceDB at s3://bucket/mem with storage_options=['region']
+2026-11-06 19:52:27 [    INFO] LanceDB connected successfully
+PASSED                                                                   [ 59%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_initialize_db_r2_account_id_autoconstruct 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4951590384. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [    INFO] Using R2 endpoint: https://acct123.r2.cloudflarestorage.com
+2026-11-06 19:52:27 [    INFO] Using R2 credentials (key ends with: ...K)
+2026-11-06 19:52:27 [    INFO] Connecting to LanceDB at s3://bucket/mem with storage_options=['endpoint', 'aws_access_key_id', 'aws_secret_access_key', 'region']
+2026-11-06 19:52:27 [    INFO] LanceDB connected successfully
+PASSED                                                                   [ 59%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_initialize_db_s3_missing_creds 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4949408448. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [    INFO] Using R2 endpoint: https://r2.example.com
+2026-11-06 19:52:27 [   ERROR] R2 credentials (R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY) not found!
+2026-11-06 19:52:27 [    INFO] Connecting to LanceDB at s3://bucket/mem with storage_options=['endpoint', 'region']
+2026-11-06 19:52:27 [    INFO] LanceDB connected successfully
+PASSED                                                                   [ 59%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_initialize_db_s3_cloud_disabled_downgrade 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4949407088. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [ WARNING] LANCEDB_CLOUD_ENABLED=false — downgrading S3 URI to embedded local path /private/tmp/mem07-review-repair-lance
+2026-11-06 19:52:27 [    INFO] Connecting to LanceDB at /private/tmp/mem07-review-repair-lance with storage_options=None
+2026-11-06 19:52:27 [    INFO] LanceDB connected successfully
+PASSED                                                                   [ 60%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_embed_text_no_service 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4950303568. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] EmbeddingService not initialized
+PASSED                                                                   [ 60%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_embed_text_no_loop 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4950303568. LANCEDB_AVAILABLE: True
+PASSED                                                                   [ 60%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_embed_text_async_same_thread 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4949488848. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [ WARNING] embed_text (sync) called from the event-loop thread; returning None. Use async_embed_text or wrap in asyncio.to_thread.
+PASSED                                                                   [ 60%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_embed_text_exception 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4949488848. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] Failed to generate embedding: no embedding
+PASSED                                                                   [ 61%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_async_embed_text 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4949585808. LANCEDB_AVAILABLE: True
+PASSED                                                                   [ 61%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_async_embed_text_no_service 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4949585808. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] EmbeddingService not initialized
+PASSED                                                                   [ 61%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_async_embed_text_exception 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4951653696. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] Failed to generate embedding: boom
+PASSED                                                                   [ 61%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_add_knowledge_edge_no_db 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4949503312. LANCEDB_AVAILABLE: True
+PASSED                                                                   [ 62%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_add_knowledge_edge_success 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4949503312. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [    INFO] Knowledge edge added: a_related_b
+PASSED                                                                   [ 62%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_add_knowledge_edge_create_table_fail 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4951703984. LANCEDB_AVAILABLE: True
+PASSED                                                                   [ 62%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_add_knowledge_edge_embedding_fallback 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4951704160. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] EmbeddingService not initialized
+2026-11-06 19:52:27 [ WARNING] add_knowledge_edge: embed failed, writing 384-dim zero vector (edge unsearchable until re-embedded)
+2026-11-06 19:52:27 [    INFO] Knowledge edge added: a_related_b
+FAILED                                                                   [ 62%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_add_knowledge_edge_exception 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4951707856. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] Failed to add knowledge edge: boom
+PASSED                                                                   [ 63%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_add_document_no_db 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4951708208. LANCEDB_AVAILABLE: True
+PASSED                                                                   [ 63%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_add_document_empty_text 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4951709264. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [ WARNING] Skipping embedding for empty/redacted-to-empty text
+PASSED                                                                   [ 63%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_add_document_embedding_fail 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4951713664. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] EmbeddingService not initialized
+PASSED                                                                   [ 64%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_add_document_creates_table 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4951717184. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [    INFO] Added missing column(s) ['outcome'] to 'documents'
+2026-11-06 19:52:27 [    INFO] Document added to 'documents': doc-1
+PASSED                                                                   [ 64%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_add_document_existing_table_and_redaction 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4951717536. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [ WARNING] Redacted 2 secrets/PII before storage
+2026-11-06 19:52:27 [    INFO] Document added to 'documents': 1794012747.102859
+PASSED                                                                   [ 64%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_add_document_redactor_unavailable 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4951718064. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [ WARNING] Secrets redactor not available, storing text as-is
+2026-11-06 19:52:27 [    INFO] Document added to 'documents': 1794012747.104747
+PASSED                                                                   [ 64%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_add_document_redactor_error 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4951719296. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] Secrets redaction failed: redactor broke, proceeding with caution
+2026-11-06 19:52:27 [    INFO] Document added to 'documents': 1794012747.106685
+PASSED                                                                   [ 65%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_add_document_add_fail 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952015808. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] Failed to add document to LanceDB: schema mismatch
+PASSED                                                                   [ 65%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_add_document_outer_exception 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4951718416. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] Failed to add document to 'documents': lancedb down
+PASSED                                                                   [ 65%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_add_document_with_embedding 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952016512. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [    INFO] Document added to 'documents': 1794012747.111844
+2026-11-06 19:52:27 [    INFO] Document added to 'documents': 1794012747.111904
+PASSED                                                                   [ 65%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_add_document_with_embedding_creates 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952014928. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [    INFO] Table 'documents' already exists — opening it (pass overwrite=True to explicitly reset it)
+2026-11-06 19:52:27 [    INFO] Document added to 'documents': 1794012747.113641
+PASSED                                                                   [ 66%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_add_document_with_embedding_fail 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952016688. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] Failed to add document to 'documents': boom
+PASSED                                                                   [ 66%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_add_documents_batch 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952015808. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [    INFO] Added 1 documents to 'documents'
+PASSED                                                                   [ 66%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_add_documents_batch_skip_embed_fail 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952017392. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] Failed to generate embedding: embedding down
+PASSED                                                                   [ 67%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_add_documents_batch_no_records 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952020208. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] EmbeddingService not initialized
+PASSED                                                                   [ 67%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_add_documents_batch_creates_table 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952021440. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [    INFO] Table 'documents' already exists — opening it (pass overwrite=True to explicitly reset it)
+2026-11-06 19:52:27 [    INFO] Created table 'documents' and added 2 documents
+PASSED                                                                   [ 67%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_add_documents_batch_create_fails 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952020912. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [    INFO] Table 'documents' already exists — opening it (pass overwrite=True to explicitly reset it)
+2026-11-06 19:52:27 [    INFO] Created table 'documents' and added 1 documents
+FAILED                                                                   [ 67%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_add_documents_batch_exception 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952023728. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] Failed to generate embedding: boom
+PASSED                                                                   [ 68%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_add_documents_batch_no_db 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952024256. LANCEDB_AVAILABLE: True
+PASSED                                                                   [ 68%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_search_no_db 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952024608. LANCEDB_AVAILABLE: True
+PASSED                                                                   [ 68%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_search_missing_table 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952020208. LANCEDB_AVAILABLE: True
+PASSED                                                                   [ 68%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_search_embed_fail 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952019328. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] EmbeddingService not initialized
+PASSED                                                                   [ 69%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_search_with_filters 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952016336. LANCEDB_AVAILABLE: True
+PASSED                                                                   [ 69%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_search_freshness_filter 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952021792. LANCEDB_AVAILABLE: True
+PASSED                                                                   [ 69%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_search_result_parse_error 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952016864. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [ WARNING] Error parsing search result: column missing
+PASSED                                                                   [ 70%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_search_exception 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952025664. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] Failed to search in 'documents': boom
+PASSED                                                                   [ 70%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_get_document_by_id 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952026016. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] Failed to get document d1: Got unexpected argument type <class 'unittest.mock.Mock'> for compute function
+FAILED                                                                   [ 70%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_get_document_by_id_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952027072. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] Failed to get document d1: Got unexpected argument type <class 'unittest.mock.Mock'> for compute function
+PASSED                                                                   [ 70%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_get_document_by_id_error 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952027248. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] Failed to get document d1: boom
+PASSED                                                                   [ 71%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_list_documents 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952028656. LANCEDB_AVAILABLE: True
+PASSED                                                                   [ 71%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_list_documents_empty 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952030240. LANCEDB_AVAILABLE: True
+PASSED                                                                   [ 71%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_list_documents_no_created_at 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952030592. LANCEDB_AVAILABLE: True
+PASSED                                                                   [ 71%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_query_knowledge_graph_exclude 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952029184. LANCEDB_AVAILABLE: True
+PASSED                                                                   [ 72%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_seed_mock_data 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952026016. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [    INFO] Added 2 documents to 'documents'
+PASSED                                                                   [ 72%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_add_embedding_success 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952025840. LANCEDB_AVAILABLE: True
+PASSED                                                                   [ 72%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_add_embedding_creates_table 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952030416. LANCEDB_AVAILABLE: True
+PASSED                                                                   [ 72%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_add_embedding_create_fails 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952018448. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] Failed to create table 'episodes'
+PASSED                                                                   [ 73%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_add_embedding_unknown_column 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952081168. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] Validation error: Unknown vector column: 'nope'. Valid options: ['vector', 'vector_fastembed']
+PASSED                                                                   [ 73%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_add_embedding_dim_mismatch 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952082576. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] Validation error: Dimension mismatch for column 'vector': expected 1536, got 10
+PASSED                                                                   [ 73%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_add_embedding_no_db 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952084336. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] LanceDB not initialized
+PASSED                                                                   [ 74%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_similarity_search_success 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952084688. LANCEDB_AVAILABLE: True
+PASSED                                                                   [ 74%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_similarity_search_missing_table 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952084512. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [ WARNING] Table 'episodes' not found
+PASSED                                                                   [ 74%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_similarity_search_unknown_column 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952086624. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] Validation error: Unknown vector column: 'nope'. Valid options: ['vector', 'vector_fastembed']
+PASSED                                                                   [ 74%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_similarity_search_dim_mismatch 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952087680. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] Validation error: Dimension mismatch for column 'vector': expected 1536, got 10
+PASSED                                                                   [ 75%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_similarity_search_no_db 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952087856. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] LanceDB not initialized
+PASSED                                                                   [ 75%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_get_embedding_success 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952085744. LANCEDB_AVAILABLE: True
+PASSED                                                                   [ 75%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_get_embedding_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952082224. LANCEDB_AVAILABLE: True
+PASSED                                                                   [ 75%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_get_embedding_missing_table 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952081168. LANCEDB_AVAILABLE: True
+PASSED                                                                   [ 76%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_get_embedding_error 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952081872. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] Failed to get embedding for ep1: boom
+PASSED                                                                   [ 76%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_test_connection_not_available 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952083280. LANCEDB_AVAILABLE: False
+PASSED                                                                   [ 76%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_test_connection_db_none 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952087328. LANCEDB_AVAILABLE: True
+PASSED                                                                   [ 77%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_test_connection_success 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952090320. LANCEDB_AVAILABLE: True
+PASSED                                                                   [ 77%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_create_table_db_none 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952090496. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] LanceDB not initialized
+PASSED                                                                   [ 77%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_create_table_exception 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952091552. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [    INFO] Table 'documents' already exists — opening it (pass overwrite=True to explicitly reset it)
+FAILED                                                                   [ 77%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_create_table_custom_schema 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952092960. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [    INFO] Table 'custom_table' already exists — opening it (pass overwrite=True to explicitly reset it)
+FAILED                                                                   [ 78%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_get_table_variants 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952095600. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] LanceDB not initialized
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952096128. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952096304. LANCEDB_AVAILABLE: True
+FAILED                                                                   [ 78%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_has_column PASSED [ 78%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_drop_table 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952091552. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] LanceDB not initialized
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952081872. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [    INFO] Table 'x' dropped successfully
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952088912. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952089616. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] Failed to drop table 'x': boom
+PASSED                                                                   [ 78%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_ensure_db_lazy 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952025488. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [    INFO] Lazy loading LanceDB connection...
+PASSED                                                                   [ 79%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_ensure_embedder_deprecated 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952408848. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [    INFO] Lazy loading embedder on first use...
+PASSED                                                                   [ 79%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_chat_manager_ensure_table 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952408496. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] Failed to ensure chat_messages table: argument of type 'Mock' is not a container or iterable
+2026-11-06 19:52:27 [    INFO] Table 'chat_messages' already exists — opening it (pass overwrite=True to explicitly reset it)
+2026-11-06 19:52:27 [    INFO] Created chat_messages table
+FAILED                                                                   [ 79%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_chat_manager_save_message 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952411664. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] Failed to ensure chat_messages table: argument of type 'Mock' is not a container or iterable
+2026-11-06 19:52:27 [    INFO] save_message: Saving user message for session sess-1
+2026-11-06 19:52:27 [    INFO] Document added to 'chat_messages': sess-1_1794012747.215497
+PASSED                                                                   [ 80%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_chat_manager_save_message_no_db 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952094368. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [ WARNING] LanceDB not initialized, chat history disabled
+2026-11-06 19:52:27 [   ERROR] save_message: DB is None
+PASSED                                                                   [ 80%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_chat_manager_save_message_error 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952092784. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] Failed to ensure chat_messages table: argument of type 'Mock' is not a container or iterable
+2026-11-06 19:52:27 [    INFO] save_message: Saving user message for session s
+2026-11-06 19:52:27 [   ERROR] EmbeddingService not initialized
+PASSED                                                                   [ 80%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_escape_like PASSED [ 80%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_get_session_history 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952093840. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] Failed to ensure chat_messages table: argument of type 'Mock' is not a container or iterable
+PASSED                                                                   [ 81%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_get_session_history_empty 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952410960. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] Failed to ensure chat_messages table: argument of type 'Mock' is not a container or iterable
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952411488. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [ WARNING] LanceDB not initialized, chat history disabled
+PASSED                                                                   [ 81%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_get_session_history_parse_error 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952412016. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] Failed to ensure chat_messages table: argument of type 'Mock' is not a container or iterable
+2026-11-06 19:52:27 [ WARNING] Error parsing message: Expecting value: line 1 column 1 (char 0)
+PASSED                                                                   [ 81%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_search_relevant_context 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952411488. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] Failed to ensure chat_messages table: argument of type 'Mock' is not a container or iterable
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952413424. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [ WARNING] LanceDB not initialized, chat history disabled
+PASSED                                                                   [ 81%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_search_relevant_context_post_filter 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952413072. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] Failed to ensure chat_messages table: argument of type 'Mock' is not a container or iterable
+PASSED                                                                   [ 82%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_get_entity_mentions 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952410608. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] Failed to ensure chat_messages table: argument of type 'Mock' is not a container or iterable
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952408672. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [ WARNING] LanceDB not initialized, chat history disabled
+PASSED                                                                   [ 82%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_get_entity_mentions_no_table 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952408848. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] Failed to ensure chat_messages table: argument of type 'Mock' is not a container or iterable
+PASSED                                                                   [ 82%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_get_entity_mentions_parse_error 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952409200. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] Failed to ensure chat_messages table: argument of type 'Mock' is not a container or iterable
+2026-11-06 19:52:27 [ WARNING] Error parsing message: Expecting value: line 1 column 1 (char 0)
+PASSED                                                                   [ 82%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_get_lancedb_handler_caching 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] Creating isolated LanceDBHandler for workspace: ws-1 at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-<user>/pytest-53/test_get_lancedb_handler_cachi0/ws-1
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952413600. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952413776. LANCEDB_AVAILABLE: True
+PASSED                                                                   [ 83%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_module_globals 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] Creating isolated LanceDBHandler for workspace: ws-x at ./data/atom_memory/ws-x
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952412720. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [ WARNING] LanceDB not initialized, chat history disabled
+PASSED                                                                   [ 83%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_embed_documents_batch_unavailable PASSED [ 83%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_embed_documents_batch_error 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [   ERROR] Failed to embed batch texts: model load failed
+PASSED                                                                   [ 84%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_create_memory_schema PASSED [ 84%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_create_memory_schema_with_vector PASSED [ 84%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_mock_embedder PASSED [ 84%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_embed_text_other_thread_loop 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952416416. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [ WARNING] embed_text (sync) called from the event-loop thread; returning None. Use async_embed_text or wrap in asyncio.to_thread.
+FAILED                                                                   [ 85%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_async_embed_text_no_numpy 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952418528. LANCEDB_AVAILABLE: True
+PASSED                                                                   [ 85%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_add_knowledge_edge_zero_vector_no_numpy 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952419056. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] EmbeddingService not initialized
+2026-11-06 19:52:27 [ WARNING] add_knowledge_edge: embed failed, writing 384-dim zero vector (edge unsearchable until re-embedded)
+2026-11-06 19:52:27 [    INFO] Knowledge edge added: a_rel_b
+FAILED                                                                   [ 85%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_add_document_with_embedding_db_none 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952421520. LANCEDB_AVAILABLE: True
+PASSED                                                                   [ 85%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_add_documents_batch_get_table_raises 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952421168. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] Failed to add batch documents to 'documents': boom
+PASSED                                                                   [ 86%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_search_pandas_unavailable 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952419760. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] Pandas not available for search results
+PASSED                                                                   [ 86%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_search_metadata_none 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952413248. LANCEDB_AVAILABLE: True
+PASSED                                                                   [ 86%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_get_document_by_id_no_db 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952412016. LANCEDB_AVAILABLE: True
+PASSED                                                                   [ 87%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_get_document_by_id_no_table 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952419232. LANCEDB_AVAILABLE: True
+PASSED                                                                   [ 87%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_list_documents_no_db 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952416768. LANCEDB_AVAILABLE: True
+PASSED                                                                   [ 87%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_list_documents_no_table 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952421872. LANCEDB_AVAILABLE: True
+PASSED                                                                   [ 87%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_list_documents_metadata_none 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952422752. LANCEDB_AVAILABLE: True
+PASSED                                                                   [ 88%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_list_documents_outer_error 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952423632. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] Failed to list documents: boom
+PASSED                                                                   [ 88%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_query_knowledge_graph_no_exclude 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952703232. LANCEDB_AVAILABLE: True
+PASSED                                                                   [ 88%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_add_embedding_add_raises 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952705520. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] Failed to add embedding: schema mismatch
+PASSED                                                                   [ 88%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_similarity_search_row_error 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952703584. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [ WARNING] Error parsing search result: no col
+PASSED                                                                   [ 89%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_similarity_search_outer_error 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952704288. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] Failed to search 'episodes': boom
+PASSED                                                                   [ 89%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_get_embedding_no_db 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952705696. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] LanceDB not initialized
+PASSED                                                                   [ 89%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_get_embedding_vector_none 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952706752. LANCEDB_AVAILABLE: True
+PASSED                                                                   [ 90%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_chat_manager_save_message_add_document_raises 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952706928. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] Failed to ensure chat_messages table: argument of type 'Mock' is not a container or iterable
+2026-11-06 19:52:27 [    INFO] save_message: Saving user message for session s
+2026-11-06 19:52:27 [   ERROR] Failed to save chat message: boom
+PASSED                                                                   [ 90%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_get_session_history_pandas_missing 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952709040. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] Failed to ensure chat_messages table: argument of type 'Mock' is not a container or iterable
+2026-11-06 19:52:27 [   ERROR] Pandas not available for session history
+PASSED                                                                   [ 90%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_get_session_history_metadata_none 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952708688. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] Failed to ensure chat_messages table: argument of type 'Mock' is not a container or iterable
+PASSED                                                                   [ 90%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_get_session_history_outer_error 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952709568. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] Failed to ensure chat_messages table: argument of type 'Mock' is not a container or iterable
+2026-11-06 19:52:27 [   ERROR] Failed to get session history: boom
+PASSED                                                                   [ 91%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_search_relevant_context_outer_error 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952710800. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] Failed to ensure chat_messages table: argument of type 'Mock' is not a container or iterable
+2026-11-06 19:52:27 [   ERROR] Failed to search relevant context: boom
+PASSED                                                                   [ 91%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_get_entity_mentions_pandas_missing 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952709744. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] Failed to ensure chat_messages table: argument of type 'Mock' is not a container or iterable
+2026-11-06 19:52:27 [   ERROR] Pandas not available for entity mentions
+PASSED                                                                   [ 91%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_get_entity_mentions_outer_error 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952707984. LANCEDB_AVAILABLE: True
+2026-11-06 19:52:27 [   ERROR] Failed to ensure chat_messages table: argument of type 'Mock' is not a container or iterable
+2026-11-06 19:52:27 [   ERROR] Failed to get entity mentions: boom
+PASSED                                                                   [ 91%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_get_chat_context_manager 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] Creating isolated LanceDBHandler for workspace: ws-ccm at /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-<user>/pytest-53/test_get_chat_context_manager0/ws-ccm
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4952414128. LANCEDB_AVAILABLE: True
+PASSED                                                                   [ 92%]
+tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_mock_embedder_without_numpy PASSED [ 92%]
+tests/test_covpush_autodev_comms.py::TestCommunicationAdaptersCoverage::test_facebook_verify_and_normalize 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [   ERROR] Failed to normalize Facebook payload: list index out of range
+Traceback (most recent call last):
+  File "/private/tmp/atom-cli-mem07/backend/core/communication/adapters/facebook.py", line 40, in normalize_payload
+    entry = payload.get("entry", [])[0]
+            ~~~~~~~~~~~~~~~~~~~~~~~~^^^
+IndexError: list index out of range
+PASSED                                                                   [ 92%]
+tests/test_covpush_autodev_comms.py::TestCommunicationAdaptersCoverage::test_facebook_send_message 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] Facebook: Sent message to U1
+2026-11-06 19:52:27 [   ERROR] Failed to send Facebook message: fb error
+PASSED                                                                   [ 92%]
+tests/test_covpush_autodev_comms.py::TestCommunicationAdaptersCoverage::test_google_chat_verify_and_normalize PASSED [ 93%]
+tests/test_covpush_autodev_comms.py::TestCommunicationAdaptersCoverage::test_intercom_verify_signature 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [ WARNING] Intercom client_secret not configured. Skipping verification.
+2026-11-06 19:52:27 [ WARNING] Missing X-Hub-Signature header from Intercom
+2026-11-06 19:52:27 [ WARNING] Invalid signature format from Intercom
+2026-11-06 19:52:27 [ WARNING] Unsupported signature algorithm: md5
+PASSED                                                                   [ 93%]
+tests/test_covpush_autodev_comms.py::TestCommunicationAdaptersCoverage::test_intercom_normalize 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] Ignoring Intercom topic: other
+PASSED                                                                   [ 93%]
+tests/test_covpush_autodev_comms.py::TestCommunicationAdaptersCoverage::test_intercom_send_message 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] Sent Intercom reply to conversation c1
+2026-11-06 19:52:27 [   ERROR] Failed to send Intercom message: 401
+2026-11-06 19:52:27 [   ERROR] Failed to send Intercom message: 500
+PASSED                                                                   [ 94%]
+tests/test_covpush_autodev_comms.py::TestCommunicationAdaptersCoverage::test_line_verify_and_normalize 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [   ERROR] Failed to normalize Line payload: 'NoneType' object has no attribute 'get'
+Traceback (most recent call last):
+  File "/private/tmp/atom-cli-mem07/backend/core/communication/adapters/line.py", line 34, in normalize_payload
+    events = payload.get("events", [])
+             ^^^^^^^^^^^
+AttributeError: 'NoneType' object has no attribute 'get'
+PASSED                                                                   [ 94%]
+tests/test_covpush_autodev_comms.py::TestCommunicationAdaptersCoverage::test_line_send_message 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] Line: Sent message to U1
+2026-11-06 19:52:27 [   ERROR] Failed to send Line message: line error
+PASSED                                                                   [ 94%]
+tests/test_covpush_autodev_comms.py::TestCommunicationAdaptersCoverage::test_matrix_verify_and_normalize PASSED [ 94%]
+tests/test_covpush_autodev_comms.py::TestCommunicationAdaptersCoverage::test_matrix_send_message 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] Matrix: Sent message to !r
+2026-11-06 19:52:27 [   ERROR] Failed to send Matrix message: matrix error
+PASSED                                                                   [ 95%]
+tests/test_covpush_autodev_comms.py::TestCommunicationAdaptersCoverage::test_signal_verify_and_normalize PASSED [ 95%]
+tests/test_covpush_autodev_comms.py::TestCommunicationAdaptersCoverage::test_signal_send_message_success 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] Signal: Sent message to +1
+PASSED                                                                   [ 95%]
+tests/test_covpush_autodev_comms.py::TestCommunicationAdaptersCoverage::test_telegram_verify_request PASSED [ 95%]
+tests/test_covpush_autodev_comms.py::TestCommunicationAdaptersCoverage::test_telegram_send_message 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [   ERROR] Telegram token not set.
+2026-11-06 19:52:27 [   ERROR] Failed to send Telegram message: tg error
+PASSED                                                                   [ 96%]
+tests/test_covpush_autodev_comms.py::TestCommunicationAdaptersCoverage::test_telegram_get_media 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [   ERROR] Telegram media download failed: network down
+PASSED                                                                   [ 96%]
+tests/test_covpush_autodev_comms.py::TestCommunicationAdaptersCoverage::test_telegram_get_updates 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [ WARNING] Telegram get_updates skipped: no bot token configured
+2026-11-06 19:52:27 [   ERROR] Telegram getUpdates failed: api down
+PASSED                                                                   [ 96%]
+tests/test_covpush_autodev_comms.py::TestCommunicationAdaptersCoverage::test_base_adapter_defaults PASSED [ 97%]
+tests/test_covpush_autodev_comms.py::test_module_reimport_fallback_branches_last 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] Creating isolated LanceDBHandler for workspace: default_shared at ./data/atom_memory/default_shared
+2026-11-06 19:52:27 [    INFO] EscalationManager initialized
+2026-11-06 19:52:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:52:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:52:27 [    INFO] LanceDBHandler initialized. ID: 4950669504. LANCEDB_AVAILABLE: False
+2026-11-06 19:52:27 [ WARNING] LanceDB not initialized, chat history disabled
+PASSED                                                                   [ 97%]
+tests/test_auto_dev/test_reflection_engine.py::TestReflectionEngineEventListening::test_subscribes_to_task_fail_events 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] ReflectionEngine registered on event bus
+PASSED                                                                   [ 97%]
+tests/test_auto_dev/test_reflection_engine.py::TestReflectionEngineEventListening::test_tracks_event_metadata PASSED [ 97%]
+tests/test_auto_dev/test_reflection_engine.py::TestReflectionEnginePatternDetection::test_identifies_repeated_failure_patterns 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] ReflectionEngine: 2 similar failures detected for agent agent-001. Triggering Auto-Dev fix.
+2026-11-06 19:52:27 [   ERROR] ReflectionEngine failed to trigger Memento: Episode analysis failed: Episode episode-001 not found
+FAILED                                                                   [ 98%]
+tests/test_auto_dev/test_reflection_engine.py::TestReflectionEnginePatternDetection::test_groups_by_error_type PASSED [ 98%]
+tests/test_auto_dev/test_reflection_engine.py::TestReflectionEngineTriggerThreshold::test_triggers_after_n_failures 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:27 [    INFO] ReflectionEngine: 2 similar failures detected for agent agent-001. Triggering Auto-Dev fix.
+2026-11-06 19:52:28 [    INFO] ReflectionEngine triggered skill candidate: test_skill
+2026-11-06 19:52:28 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='autodev_guidance'
+PASSED                                                                   [ 98%]
+tests/test_auto_dev/test_reflection_engine.py::TestReflectionEngineTriggerThreshold::test_prevents_duplicate_triggers 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:28 [ WARNING] Auto-Dev authority: agent agent-001 has no registry row
+2026-11-06 19:52:28 [ WARNING] Auto-Dev authority: agent agent-001 has no registry row
+2026-11-06 19:52:28 [ WARNING] Auto-Dev authority: agent agent-001 has no registry row
+2026-11-06 19:52:28 [ WARNING] Auto-Dev authority: agent agent-001 has no registry row
+2026-11-06 19:52:28 [ WARNING] Auto-Dev authority: agent agent-001 has no registry row
+PASSED                                                                   [ 98%]
+tests/test_auto_dev/test_reflection_engine.py::TestReflectionEnginePatternTracking::test_stores_pattern_metadata PASSED [ 99%]
+tests/test_auto_dev/test_reflection_engine.py::TestReflectionEngineIntegration::test_reflection_engine_initialization PASSED [ 99%]
+tests/test_memento_candidate_review.py::test_tool_error_candidate_stays_pending_and_review_does_not_mutate_agent 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:28 [    INFO] Generated skill candidate 'repair_outlook_search' from episode episode-tool-error
+PASSED                                                                   [ 99%]
+tests/test_memento_candidate_review.py::test_runtime_tool_failure_trigger_files_the_pending_candidate 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:52:28 [    INFO] ReflectionEngine: 1 similar failures detected for agent memento-agent. Triggering Auto-Dev fix.
+2026-11-06 19:52:28 [    INFO] Generated skill candidate 'auto_look_customer_email' from episode episode-runtime-tool-error
+2026-11-06 19:52:28 [    INFO] ReflectionEngine triggered skill candidate: auto_look_customer_email
+2026-11-06 19:52:28 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='autodev_guidance'
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../..<home>/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  <home>/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../..<home>/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  <home>/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+core/auto_dev/regression_validator.py:28
+  /private/tmp/atom-cli-mem07/backend/core/auto_dev/regression_validator.py:28: PytestCollectionWarning: cannot collect test class 'TestMismatch' because it has a __init__ constructor (from: tests/test_covpush_w84c_autodev2.py)
+    @dataclass
+
+../../../..<home>/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 740 warnings
+  <home>/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_covpush_w84c_autodev2.py::TestContainerSandboxExecution::test_execute_docker_network_enabled_no_network_flag
+  <home>/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/unittest/mock.py:2259: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    def __init__(self, name, parent):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_process_failure_below_threshold
+FAILED tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_process_failure_triggers_and_clears
+FAILED tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_trigger_memento_success
+FAILED tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_trigger_memento_exception
+FAILED tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_get_workspace_settings_with_metadata
+FAILED tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_get_workspace_settings_none_metadata
+FAILED tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_get_workspace_settings_missing
+FAILED tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_get_workspace_settings_exception
+FAILED tests/test_covpush_autodev_comms.py::TestReflectionEngineCoverage::test_process_failure_below_threshold
+FAILED tests/test_covpush_autodev_comms.py::TestReflectionEngineCoverage::test_process_failure_triggers_memento_and_clears
+FAILED tests/test_covpush_autodev_comms.py::TestReflectionEngineCoverage::test_trigger_memento_success
+FAILED tests/test_covpush_autodev_comms.py::TestReflectionEngineCoverage::test_trigger_memento_error
+FAILED tests/test_covpush_autodev_comms.py::TestReflectionEngineCoverage::test_get_workspace_settings
+FAILED tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_add_knowledge_edge_embedding_fallback
+FAILED tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_add_documents_batch_create_fails
+FAILED tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_get_document_by_id
+FAILED tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_create_table_exception
+FAILED tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_create_table_custom_schema
+FAILED tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_get_table_variants
+FAILED tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_chat_manager_ensure_table
+FAILED tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_embed_text_other_thread_loop
+FAILED tests/test_covpush_autodev_comms.py::TestLanceDBHandlerCoverage::test_add_knowledge_edge_zero_vector_no_numpy
+FAILED tests/test_auto_dev/test_reflection_engine.py::TestReflectionEnginePatternDetection::test_identifies_repeated_failure_patterns
+=========================== warnings summary (final) ===========================
+../../../..<home>/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/ast.py:46
+  <home>/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/ast.py:46: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    return compile(source, filename, mode, flags,
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================ 23 failed, 347 passed, 749 warnings in 12.51s =================

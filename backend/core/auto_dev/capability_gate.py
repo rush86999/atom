@@ -229,3 +229,82 @@ class AutoDevCapabilityService:
             return agent.tenant_id if agent else None
         except Exception:
             return None
+
+    def authoritative_workspace_settings(
+        self, agent_id: str, tenant_id: str | None = None,
+    ) -> dict[str, Any] | None:
+        """Settings of the agent's AUTHORITATIVE workspace — gates must not
+        use the first workspace row found by tenant.
+
+        A tenant can hold several workspaces with different Auto-Dev opt-ins,
+        so the gate must read the workspace the agent actually serves
+        (``AgentRegistry.workspace_id``), not whichever row sorts first for
+        the tenant: that wrongly allows when the FIRST workspace is opted in
+        and the agent's own is not, and wrongly refuses the mirror case.
+
+        Returns the workspace's ``metadata_json`` (dict, possibly empty) or
+        **None** when authority is missing or inconsistent — callers must
+        fail closed and refuse. ``None`` covers: missing agent row, missing
+        /blank workspace binding, missing workspace row, or a tenant binding
+        that conflicts with the acting tenant. Legacy personal-world rows
+        with an unset ``tenant_id`` are tolerated when the acting tenant does
+        not contradict them."""
+        try:
+            from core.models import AgentRegistry, Workspace
+
+            agent = (
+                self.db.query(AgentRegistry)
+                .filter(AgentRegistry.id == str(agent_id))
+                .first()
+            )
+            if agent is None:
+                logger.warning(
+                    f"Auto-Dev authority: agent {agent_id} has no registry row"
+                )
+                return None
+            acting_tenant = str(tenant_id) if tenant_id else None
+            if (
+                acting_tenant
+                and agent.tenant_id
+                and str(agent.tenant_id) != acting_tenant
+            ):
+                logger.warning(
+                    f"Auto-Dev authority: agent {agent_id} serves tenant "
+                    f"{agent.tenant_id}, not acting tenant {acting_tenant}"
+                )
+                return None
+            workspace_id = getattr(agent, "workspace_id", None)
+            if not workspace_id:
+                logger.warning(
+                    f"Auto-Dev authority: agent {agent_id} has no workspace "
+                    "binding"
+                )
+                return None
+            workspace = (
+                self.db.query(Workspace)
+                .filter(Workspace.id == workspace_id)
+                .first()
+            )
+            if workspace is None:
+                logger.warning(
+                    f"Auto-Dev authority: workspace {workspace_id} for agent "
+                    f"{agent_id} does not exist"
+                )
+                return None
+            if (
+                acting_tenant
+                and workspace.tenant_id
+                and str(workspace.tenant_id) != acting_tenant
+            ):
+                logger.warning(
+                    f"Auto-Dev authority: workspace {workspace_id} belongs to "
+                    f"tenant {workspace.tenant_id}, not acting tenant "
+                    f"{acting_tenant}"
+                )
+                return None
+            return dict(workspace.metadata_json or {})
+        except Exception as e:
+            # Missing/graph-broken authority data must not silently widen the
+            # gate to a tenant-level default — the caller refuses.
+            logger.warning(f"Auto-Dev authority resolution failed: {e}")
+            return None
