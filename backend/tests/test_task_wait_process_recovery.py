@@ -23,12 +23,12 @@ from pathlib import Path
 
 import pytest
 
-BACKEND = Path(__file__).resolve().parents[2]
+BACKEND = Path(__file__).resolve().parents[1]
 WORKER = Path(__file__).resolve().parent / "process_support" / (
     "task_wait_process_worker.py")
 PROJECT_PYTHON = os.getenv(
     "ATOM_TEST_PYTHON",
-    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python")
+    sys.executable)
 
 PO = "PO-TRIGGER-63"
 INVOICE = "INV-TRIGGER-91"
@@ -107,9 +107,9 @@ def _spawn(scratch: Path, phase: str, *, run_id: str = "",
 
 def _require_python() -> None:
     if not Path(PROJECT_PYTHON).exists():
-        pytest.skip(
-            f"project Python {PROJECT_PYTHON!r} is absent in this sandbox; "
-            "the actual-process acceptance cannot be reproduced here")
+        pytest.fail(
+            f"configured child Python {PROJECT_PYTHON!r} is absent; "
+            "actual-process acceptance requires an executable interpreter")
 
 
 def _reconciliations(payload: dict) -> list:
