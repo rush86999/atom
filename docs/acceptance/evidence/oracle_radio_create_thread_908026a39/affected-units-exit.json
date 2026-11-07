@@ -1,0 +1,8 @@
+{
+  "nodes": [
+    "tests/unit/agents/test_radio_actions.py",
+    "tests/unit/agents/test_agent_radio_tool.py",
+    "tests/test_covpush_w80a_radio.py::TestRadioCreateThread"
+  ],
+  "exit_code": 0
+}

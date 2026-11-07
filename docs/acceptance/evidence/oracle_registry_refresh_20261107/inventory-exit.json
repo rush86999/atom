@@ -7,7 +7,7 @@
   "exit_code": 0,
   "test_env": {
     "TESTING": "1",
-    "DATABASE_URL": "sqlite:////private/tmp/atom-oracle-refresh-evidence/inventory/atom.db",
-    "ATOM_DATA_DIR": "/private/tmp/atom-oracle-refresh-evidence/inventory/data"
+    "DATABASE_URL": "sqlite:////private/tmp/atom-oracle-refresh-evidence/inventory-final/atom.db",
+    "ATOM_DATA_DIR": "/private/tmp/atom-oracle-refresh-evidence/inventory-final/data"
   }
 }

@@ -1,0 +1,155 @@
+
+tests/unit/agents/test_radio_service.py::TestCreateThread::test_creator_is_always_a_member 
+-------------------------------- live log setup --------------------------------
+2026-11-07 14:13:56 [    INFO] EscalationManager initialized
+2026-11-07 14:13:56 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 14:13:56 [    INFO] EscalationManager initialized
+2026-11-07 14:13:56 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 14:13:56 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 14:13:56 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:13:56 [    INFO] radio: thread cf623f3f-481c-49b4-a075-ec8ae5fd4994 created by agent_a
+PASSED                                                                   [  3%]
+tests/unit/agents/test_radio_service.py::TestCreateThread::test_persisted 
+-------------------------------- live log setup --------------------------------
+2026-11-07 14:13:56 [    INFO] radio: thread 2913c391-6333-41f1-ae4e-4372258d6834 created by agent_a
+PASSED                                                                   [  6%]
+tests/unit/agents/test_radio_service.py::TestSendMentionFirst::test_broadcast_rejected 
+-------------------------------- live log setup --------------------------------
+2026-11-07 14:13:56 [    INFO] radio: thread ae8fa7ae-40ed-4b68-88bb-0b194461b481 created by agent_a
+PASSED                                                                   [ 10%]
+tests/unit/agents/test_radio_service.py::TestSendMentionFirst::test_to_agent_implicitly_mentions 
+-------------------------------- live log setup --------------------------------
+2026-11-07 14:13:56 [    INFO] radio: thread 5e292ac9-4d86-4979-867b-eaa7b288fef0 created by agent_a
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:13:56 [    INFO] radio: agent_a -> ['agent_b'] on 5e292ac9-4d86-4979-867b-eaa7b288fef0
+PASSED                                                                   [ 13%]
+tests/unit/agents/test_radio_service.py::TestSendMentionFirst::test_own_mentions_stripped 
+-------------------------------- live log setup --------------------------------
+2026-11-07 14:13:56 [    INFO] radio: thread e489f6a3-e28a-4ae8-9453-dccaec0b05c1 created by agent_a
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:13:56 [    INFO] radio: agent_a -> ['agent_b'] on e489f6a3-e28a-4ae8-9453-dccaec0b05c1
+PASSED                                                                   [ 17%]
+tests/unit/agents/test_radio_service.py::TestSendMentionFirst::test_send_persists 
+-------------------------------- live log setup --------------------------------
+2026-11-07 14:13:56 [    INFO] radio: thread af1cd8fd-492e-4282-94ea-7682a57d03ac created by agent_a
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:13:56 [    INFO] radio: agent_a -> ['agent_b'] on af1cd8fd-492e-4282-94ea-7682a57d03ac
+PASSED                                                                   [ 20%]
+tests/unit/agents/test_radio_service.py::TestPendingMentions::test_pending_only_for_mentioned 
+-------------------------------- live log setup --------------------------------
+2026-11-07 14:13:56 [    INFO] radio: thread 30cea61d-0f16-41ac-a49e-29e303f9ca2c created by agent_a
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:13:56 [    INFO] radio: agent_a -> ['agent_b'] on 30cea61d-0f16-41ac-a49e-29e303f9ca2c
+2026-11-07 14:13:56 [    INFO] radio: agent_a -> ['agent_c'] on 30cea61d-0f16-41ac-a49e-29e303f9ca2c
+PASSED                                                                   [ 24%]
+tests/unit/agents/test_radio_service.py::TestPendingMentions::test_own_messages_not_pending 
+-------------------------------- live log setup --------------------------------
+2026-11-07 14:13:56 [    INFO] radio: thread d0de68e8-fef4-455b-b74f-eda2a9942995 created by agent_a
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:13:56 [    INFO] radio: agent_a -> ['agent_b'] on d0de68e8-fef4-455b-b74f-eda2a9942995
+PASSED                                                                   [ 27%]
+tests/unit/agents/test_radio_service.py::TestPendingMentions::test_mark_read_removes_pending 
+-------------------------------- live log setup --------------------------------
+2026-11-07 14:13:56 [    INFO] radio: thread 9e38925d-ff05-4aa9-aad2-63f5651a3f9f created by agent_a
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:13:56 [    INFO] radio: agent_a -> ['agent_b', 'agent_c'] on 9e38925d-ff05-4aa9-aad2-63f5651a3f9f
+PASSED                                                                   [ 31%]
+tests/unit/agents/test_radio_service.py::TestPendingMentions::test_snapshot_counts_unread 
+-------------------------------- live log setup --------------------------------
+2026-11-07 14:13:56 [    INFO] radio: thread 73c292c6-9797-4561-a399-99c9d151a8fe created by agent_a
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:13:56 [    INFO] radio: agent_a -> ['agent_b'] on 73c292c6-9797-4561-a399-99c9d151a8fe
+PASSED                                                                   [ 34%]
+tests/unit/agents/test_radio_service.py::TestPendingMentions::test_snapshot_missing_thread PASSED [ 37%]
+tests/unit/agents/test_radio_service.py::TestAccessAndBudget::test_non_member_send_denied 
+-------------------------------- live log setup --------------------------------
+2026-11-07 14:13:56 [    INFO] radio: thread c215c9d3-cb7a-439d-8ba2-db6af06b1f84 created by agent_a
+PASSED                                                                   [ 41%]
+tests/unit/agents/test_radio_service.py::TestAccessAndBudget::test_closed_thread_denied 
+-------------------------------- live log setup --------------------------------
+2026-11-07 14:13:56 [    INFO] radio: thread d4f30dbb-e273-4910-8fa4-a3fd1302b88e created by agent_a
+PASSED                                                                   [ 44%]
+tests/unit/agents/test_radio_service.py::TestAccessAndBudget::test_budget_exhaustion 
+-------------------------------- live log setup --------------------------------
+2026-11-07 14:13:56 [    INFO] radio: thread fbeee83a-ea8d-4086-86f5-d6721bb8d6ec created by agent_a
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:13:56 [    INFO] radio: agent_a -> ['agent_b'] on fbeee83a-ea8d-4086-86f5-d6721bb8d6ec
+PASSED                                                                   [ 48%]
+tests/unit/agents/test_radio_service.py::TestAccessAndBudget::test_budget_accumulates_on_thread 
+-------------------------------- live log setup --------------------------------
+2026-11-07 14:13:56 [    INFO] radio: thread 5104416f-0d41-43d9-b1b9-68af4ca762a9 created by agent_a
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:13:56 [    INFO] radio: agent_a -> ['agent_b'] on 5104416f-0d41-43d9-b1b9-68af4ca762a9
+2026-11-07 14:13:56 [    INFO] radio: agent_a -> ['agent_b'] on 5104416f-0d41-43d9-b1b9-68af4ca762a9
+PASSED                                                                   [ 51%]
+tests/unit/agents/test_radio_service.py::TestInboxDrainText::test_drain_injects_mention_lines 
+-------------------------------- live log setup --------------------------------
+2026-11-07 14:13:56 [    INFO] radio: thread 6b8fd556-3302-47b1-80ea-904b3d948bbd created by agent_a
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:13:56 [    INFO] radio: agent_a -> ['agent_b'] on 6b8fd556-3302-47b1-80ea-904b3d948bbd
+PASSED                                                                   [ 55%]
+tests/unit/agents/test_radio_service.py::TestInboxDrainText::test_drain_auto_thread_resolution 
+-------------------------------- live log setup --------------------------------
+2026-11-07 14:13:56 [    INFO] radio: thread 37ff15f4-6c64-4365-8ebd-9bdae397b025 created by agent_a
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:13:56 [    INFO] radio: agent_a -> ['agent_c'] on 37ff15f4-6c64-4365-8ebd-9bdae397b025
+PASSED                                                                   [ 58%]
+tests/unit/agents/test_radio_service.py::TestInboxDrainText::test_drain_never_raises 
+-------------------------------- live log setup --------------------------------
+2026-11-07 14:13:56 [    INFO] radio: thread ce796b42-2026-4ca6-b918-5618bbb0d6c2 created by agent_a
+PASSED                                                                   [ 62%]
+tests/unit/agents/test_radio_adapter.py::TestAttachBreakpointGated::test_bounded_task_no_thread PASSED [ 65%]
+tests/unit/agents/test_radio_adapter.py::TestAttachBreakpointGated::test_breakpoint_task_attaches_thread 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:13:56 [    INFO] radio: thread c7a4b7cd-e8d7-4e65-9cab-4ffff55d7e5e created by atom_main
+2026-11-07 14:13:56 [    INFO] radio: fleet thread c7a4b7cd-e8d7-4e65-9cab-4ffff55d7e5e attached to chain chain-test-1
+PASSED                                                                   [ 68%]
+tests/unit/agents/test_radio_adapter.py::TestAttachBreakpointGated::test_disabled_radio_no_thread PASSED [ 72%]
+tests/unit/agents/test_radio_adapter.py::TestAttachBreakpointGated::test_execution_thread_id_stamped 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:13:57 [    INFO] radio: thread fe44277c-99a8-412d-be56-5042b953d15a created by atom_main
+2026-11-07 14:13:57 [    INFO] radio: fleet thread fe44277c-99a8-412d-be56-5042b953d15a attached to chain chain-test-1
+PASSED                                                                   [ 75%]
+tests/unit/agents/test_radio_adapter.py::TestAttachBreakpointGated::test_execution_thread_id_lookup 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:13:57 [    INFO] radio: thread 55067fb5-d27e-4581-b6d0-e9569ba201b5 created by atom_main
+2026-11-07 14:13:57 [    INFO] radio: fleet thread 55067fb5-d27e-4581-b6d0-e9569ba201b5 attached to chain chain-test-1
+PASSED                                                                   [ 79%]
+tests/unit/agents/test_radio_server.py::TestWaitForMention::test_blocks_until_mention 
+-------------------------------- live log setup --------------------------------
+2026-11-07 14:13:57 [    INFO] radio: thread 5ba1b8bb-2e56-4e15-8ecc-2211ab0f8063 created by agent_a
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:13:57 [    INFO] radio: agent_b -> ['agent_a'] on 5ba1b8bb-2e56-4e15-8ecc-2211ab0f8063
+PASSED                                                                   [ 82%]
+tests/unit/agents/test_radio_server.py::TestWaitForMention::test_times_out_without_mention 
+-------------------------------- live log setup --------------------------------
+2026-11-07 14:13:57 [    INFO] radio: thread 609d8d09-f6dc-43b3-9075-655d711ff8d4 created by agent_a
+PASSED                                                                   [ 86%]
+tests/unit/agents/test_radio_server.py::TestWaitForMention::test_timeout_is_capped_by_config 
+-------------------------------- live log setup --------------------------------
+2026-11-07 14:13:57 [    INFO] radio: thread 50f92483-6730-4766-9996-7462bbe2efea created by agent_a
+PASSED                                                                   [ 89%]
+tests/unit/agents/test_radio_server.py::TestWaitForMention::test_drains_pending_before_waiting 
+-------------------------------- live log setup --------------------------------
+2026-11-07 14:13:58 [    INFO] radio: thread 6de80384-7b69-4135-ab3c-b560c23ebd1c created by agent_a
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:13:58 [    INFO] radio: agent_b -> ['agent_a'] on 6de80384-7b69-4135-ab3c-b560c23ebd1c
+PASSED                                                                   [ 93%]
+tests/unit/agents/test_radio_server.py::TestWaitForMention::test_never_raises PASSED [ 96%]
+tests/unit/agents/test_radio_server.py::TestPublishLifecycles::test_publish_does_not_raise_without_listener 
+-------------------------------- live log setup --------------------------------
+2026-11-07 14:13:58 [    INFO] radio: thread a3fc2add-60c9-4a0b-ad9b-77e5e87baca9 created by agent_a
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:13:58 [    INFO] radio: agent_b -> ['agent_a'] on a3fc2add-60c9-4a0b-ad9b-77e5e87baca9
+PASSED                                                                   [100%]
+
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+======================= 29 passed, 36 warnings in 18.98s =======================
+
+STDERR

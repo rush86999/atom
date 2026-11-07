@@ -1,6 +1,6 @@
 {
   "packet": "oracle_radio_create_thread_trace_20261107",
-  "executed_source": "36fa4ce39dd19a6b53b662699e5ceebede129df1",
+  "executed_source": "36fa4ce39",
   "source_files": {
     "backend/api/rpc_routes.py": "d555cd7fa2f2f85b9d3b335d4a42badaeefc28b44346e65a47ad93fc79fd8e75",
     "backend/core/action_effects.py": "47b9130cf601eb581159c117281febbbf692f9372c1226d621bbc55c5c480e5a",
@@ -20,11 +20,15 @@
     "backend/tools/registry.py": "eaf3b1ada4df8b84f1c53f493a7a1a875ba18986ed40ecdf8183aaaf597c1e5a"
   },
   "artifacts": {
-    "TRACE.md": "1370603284493f79068438beb00f85e571527c28dcfdc080b4d4ea3624d7a2c6",
+    "TRACE.md": "e8564af613567a78c6e2cd5283ae20cc604c1acffb1460b608534f90e620c7dc",
     "gate-state.json": "464594fdd0af7a77b49e79b7671707db3acd948e8a67f899f5abf3a000778c14",
     "probe-exit.json": "ed693d048578382510d7dcf90a2d4fc5829c5c66fe2dce037cada43c51a7a3d3",
+    "probe-failure-first-exit.json": "ed693d048578382510d7dcf90a2d4fc5829c5c66fe2dce037cada43c51a7a3d3",
+    "probe-failure-first.log": "ccf26f4747d33a1f18d2b4651aa9f8a4477daaa6c33bc61475e6c722583d1971",
+    "probe-successor-exit.json": "116a685375666570061b974c348e8992c9211c21ab167b63c2c51eea0d712959",
+    "probe-successor.log": "7805dc51d3642b07000e5581cf8eefabe9537b4f714d3389647fb87ee5713bec",
     "probe.log": "ccf26f4747d33a1f18d2b4651aa9f8a4477daaa6c33bc61475e6c722583d1971",
     "probe_radio_create_thread_gap.py": "4d71fd5900286c5f009d4877bda6c9139c7507e938a230107e002637939c1dcf",
-    "verification.json": "ce3fb5c5c6c99295ac8f5d81d547e94c841ea9d276f434414a8e575b98d45a73"
+    "verification.json": "982f8b16cecc1a3fa3f32375230c08c0f5ad4450b83db84d2bffe9def9befde5"
   }
 }

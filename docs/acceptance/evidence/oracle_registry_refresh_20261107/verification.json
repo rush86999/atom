@@ -1,6 +1,7 @@
 {
   "task": "authoritative enabled-registry-to-verifier refresh",
-  "executed_source": "36fa4ce39dd19a6b53b662699e5ceebede129df1",
+  "executed_source": "908026a39",
+  "historical_discovery_source": "36fa4ce39",
   "inventory_command": [
     "python3",
     "docs/acceptance/evidence/oracle_registry_refresh_20261107/generate_inventory.py"
@@ -15,14 +16,19 @@
     "declared_mutations": 30,
     "mutation_local": 20,
     "mutation_external": 10,
-    "mutation_covered": 24,
-    "mutation_uncovered": 6,
+    "mutation_covered": 25,
+    "mutation_uncovered": 5,
     "read_only": 67,
     "plan_output_validation": 1,
     "undeclared": 0
   },
+  "covered_now": {
+    "radio.create_thread": {
+      "source": "908026a39",
+      "packet": "../oracle_radio_create_thread_908026a39/"
+    }
+  },
   "uncovered": {
-    "radio.create_thread": "selected trace; local durable AgentThread row",
     "radio.send_message": "implemented on codex/oracle-next-20261107; pending merge; not duplicated",
     "workspace.commit": "deferred; in-process BPE state",
     "workspace.note": "deferred; pre-consolidation buffer",
@@ -37,8 +43,7 @@
     ],
     "pending": [
       "shopify_create_fulfillment"
-    ],
-    "historical_snapshot_preserved": true
+    ]
   },
   "scope_note": "Static inventory is discovery evidence, not runtime coverage or acceptance.",
   "not_used": [

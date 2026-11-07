@@ -2,7 +2,7 @@
   "task": "radio.create_thread exact postcondition trace (failure-first)",
   "executed_source": "36fa4ce39dd19a6b53b662699e5ceebede129df1",
   "origin_main": "36fa4ce39dd19a6b53b662699e5ceebede129df1",
-  "result": "failure-first: desired independent verification is absent on this source",
+  "result": "historical failure-first trace; implementation successor now passes",
   "probe": {
     "file": "probe_radio_create_thread_gap.py",
     "command": [
@@ -78,5 +78,17 @@
     "retained": "worktree HEAD 36fa4ce39 and oracle_registry_refresh_20261107",
     "treatment": "environmental negative only; no test verdict inferred"
   },
-  "root_owns": "independent acceptance, CI and merge"
+  "root_owns": "independent acceptance, CI and merge",
+  "successor_packet": "../oracle_radio_create_thread_908026a39/",
+  "successor_source": "908026a39",
+  "successor_probe": {
+    "file": "probe-successor.log",
+    "exit_code": 0,
+    "result": "2 passed"
+  },
+  "original_negative": {
+    "file": "probe-failure-first.log",
+    "exit_code": 1,
+    "result": "2 failed on predecessor 36fa4ce39"
+  }
 }

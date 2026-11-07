@@ -1,7 +1,7 @@
 {
   "schema": "atom-oracle-registry-refresh-2",
-  "generated_at": "2026-11-07T17:57:34.689182+00:00",
-  "executed_source": "36fa4ce39dd19a6b53b662699e5ceebede129df1",
+  "generated_at": "2026-11-07T19:15:37.580059+00:00",
+  "executed_source": "908026a397c92c4c46bc6f7ddf4f04eda7195599",
   "lazy_registration_modules": [
     "core.agent_radio.radio_actions",
     "core.bpe.actions"
@@ -12,15 +12,14 @@
     "declared_mutations": 30,
     "mutation_local": 20,
     "mutation_external": 10,
-    "mutation_covered": 24,
-    "mutation_uncovered": 6,
+    "mutation_covered": 25,
+    "mutation_uncovered": 5,
     "read_only": 67,
     "plan_output_validation": 1,
     "undeclared": 0
   },
   "uncovered_mutations": [
     "mini_app_run",
-    "radio.create_thread",
     "radio.send_message",
     "shopify_create_fulfillment",
     "workspace.commit",
@@ -47,6 +46,7 @@
     "mini_app_scaffold",
     "mini_app_set_tests",
     "mini_app_write_logic",
+    "radio.create_thread",
     "shopify_create_article",
     "shopify_create_blog",
     "shopify_create_product",
@@ -1075,8 +1075,8 @@
           "scope": "local"
         }
       ],
-      "verifier_registered": false,
-      "bucket": "enabled_uncovered_selected_trace",
+      "verifier_registered": true,
+      "bucket": "enabled_covered",
       "description": "Create a lateral (peer-to-peer) coordination thread for a team of agents. Members exchange directed @mentions to self-organize. Additive + reversible: a thread has no effect until "
     },
     {

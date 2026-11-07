@@ -1,8 +1,17 @@
 # ORACLE candidate trace — `radio.create_thread`
 
-Executed source for the probe: `36fa4ce39dd19a6b53b662699e5ceebede129df1`.
-This is a finite trace for one enabled local durable write. It does not claim
-whole-app ORACLE completion.
+Executed source for the original probe:
+`36fa4ce39dd19a6b53b662699e5ceebede129df1`. This is the pre-implementation
+trace for one enabled local durable write. It does not claim whole-app ORACLE
+completion.
+
+**Implementation successor (2026-11-07):** the contract was implemented at
+`908026a39`; its strict packet is
+`../oracle_radio_create_thread_908026a39/`. The original failure-first log is
+preserved here as `probe-failure-first.log` (2 failed, exit 1) and
+`probe.log`/`probe-exit.json` retain the original run. The same probe now
+passes on the successor (`probe-successor.log`, 2 passed) because the trace's
+proposed verifier and pre-effect authority checks exist.
 
 ## Reconciliation
 
@@ -114,3 +123,14 @@ state; root confirmed no surviving process and retained this worktree at
 `36fa4ce39` plus the refresh inventory. The inventory and probe above were
 rerun cleanly after that interruption. The interruption is not treated as a
 test verdict.
+
+
+## Successor note
+
+The plan above was implemented without a new engine/router/store. The
+implementation binds the server-owned operation id in thread metadata, freezes
+the exact material through the shared request-expectation builder, pre-effect
+checks the creator/member AgentRegistry scope in the same transaction as the
+insert, and re-verifies the row plus current authority in a fresh session.
+See `../oracle_radio_create_thread_908026a39/README.md` for the exact tests,
+logs and limits.
