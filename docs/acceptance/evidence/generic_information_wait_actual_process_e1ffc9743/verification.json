@@ -1,0 +1,32 @@
+{
+  "executed_source": "e1ffc9743f9085d7cd1f965216107f5d2f5e0ae7",
+  "base_source": "d922601050546364560474a2e6d0388a34c2a974",
+  "process_gate": {
+    "passed": 14,
+    "failed": 0,
+    "actual_exit_code": 0
+  },
+  "process_single": {
+    "passed": 1,
+    "failed": 0,
+    "actual_exit_code": 0
+  },
+  "standalone_probe": {
+    "actual_exit_code": 0,
+    "ok": true,
+    "model_calls": 3,
+    "same_job_and_execution_after_restart": true,
+    "first_process_durable_owner_pid": 45708,
+    "successor_server_pid": 45778,
+    "distinct_os_process_pids": true,
+    "startup_recovery_agent_recovered": 0,
+    "registered_effect_verified": true
+  },
+  "first_checkpoint_attempt": {
+    "stage": "parent harness before child spawn",
+    "error": "FileNotFoundError opening child log in a not-yet-created fresh scratch directory",
+    "product_seam_failure": false,
+    "resolution": "create the unique owned run directory before opening the log"
+  },
+  "scope": "actual separate-OS-process Generic wait/restart/answer with controlled LLM transport and controlled auth dependency; same startup recovery helper as production lifespan, full main_api_app boot not claimed; no live model/provider/network/credential/spend/send/deploy"
+}

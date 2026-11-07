@@ -1,0 +1,13 @@
+{
+  "executed_source": "d922601050546364560474a2e6d0388a34c2a974",
+  "cwd": "repository root",
+  "command": "<project venv python> .probe/generic_wait_restart/drive.py",
+  "note": "Prepared untracked probe reused for the row; the committed pytest process test is the canonical retained artifact. The probe uses real uvicorn server child processes and the same scratch DB/phase file across a SIGKILL restart.",
+  "environment": {
+    "TESTING": "1",
+    "PYTEST_CURRENT_TEST": "generic-wait-process-probe",
+    "DATABASE_URL": "sqlite:///<probe run>/probe.db",
+    "PROBE_LANCE_URI": "<probe run>/lance",
+    "ATOM_EXECUTION_RECOVERY_ENABLED": "true"
+  }
+}
