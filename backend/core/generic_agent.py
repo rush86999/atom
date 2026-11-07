@@ -338,9 +338,19 @@ class GenericAgent:
         
         timeout_seconds = self.config.get("timeout_seconds", 300) # Default 5 mins
         steps = []
+        # A resumed information wait re-enters the SAME execution with the
+        # useful prior steps/history retained by the durable execution row.
+        # Never let a caller-supplied list become unbounded prompt material.
+        _resume_steps = context.get("resume_steps")
+        if isinstance(_resume_steps, list):
+            steps.extend(
+                step for step in _resume_steps[-20:]
+                if isinstance(step, dict))
         final_answer = None
         status = "success"
         stuck_reason: Optional[str] = None
+        self._information_wait_receipt: Optional[Dict[str, Any]] = None
+        self._information_wait_history: Optional[str] = None
 
         # BPE workspace (plan Phase 2): fresh per-episode consult counters so
         # the consult policy sees per-run rates, not lifetime totals.
@@ -358,7 +368,21 @@ class GenericAgent:
             async def run_loop():
                 nonlocal final_answer, status, stuck_reason
                 current_step = 0
-                execution_history = ""
+                execution_history = str(
+                    context.get("resume_history") or "")[:20000]
+                if context.get("information_answer"):
+                    _answered = context.get("answered_wait") or {}
+                    _question = (
+                        _answered.get("question")
+                        if isinstance(_answered, dict) else None)
+                    execution_history += (
+                        "\n[AUTHORIZED INFORMATION ANSWER"
+                        + (f" for: {_question}" if _question else "")
+                        + f"] {str(context.get('information_answer'))[:8000]}\n")
+                    execution_history += (
+                        "[The fact above was supplied by an authorized answer "
+                        "to the durable wait. Continue the SAME task; this "
+                        "answer grants no action/effect authority.]\n")
 
                 # Workstream G — in-loop parallel tool execution (default ON).
                 try:
@@ -467,6 +491,48 @@ class GenericAgent:
                     # Accumulate history for next turn
                     if thought:
                         execution_history += f"Thought: {thought}\n"
+
+                    # ── Durable information wait (model-selected) ─────────
+                    # The model may choose to pause for one missing fact. The
+                    # server binds job/execution/correlation/subject; a bare
+                    # label or an unadmitted run never becomes a wait.
+                    if react_step.information_wait is not None:
+                        _wait_request = react_step.information_wait
+                        try:
+                            from core.information_wait import (
+                                request_information_wait,
+                            )
+
+                            _receipt = request_information_wait(
+                                context,
+                                question=_wait_request.question,
+                                missing_fact=_wait_request.missing_fact,
+                                requested_subject=_wait_request.subject,
+                            )
+                        except Exception as _wait_err:  # noqa: BLE001
+                            logger.warning(
+                                "Information wait could not be persisted: %s",
+                                _wait_err)
+                            _receipt = None
+                        if _receipt:
+                            self._information_wait_receipt = _receipt
+                            self._information_wait_history = (
+                                execution_history[:20000])
+                            step_record["information_wait"] = _receipt
+                            step_record["output"] = (
+                                "Waiting for required information: "
+                                f"{_receipt.get('question')}")
+                            final_answer = step_record["output"]
+                            status = "waiting"
+                            steps.append(step_record)
+                            break
+                        # No durable authority (e.g. a direct, unadmitted
+                        # call): keep working instead of faking a wait.
+                        execution_history += (
+                            "[WAIT NOT RECORDED] This run has no admitted "
+                            "job/execution binding, so the missing-fact pause "
+                            "could not be made durable. Continue with an "
+                            "available tool or state the blocker.\n")
 
                     if answer:
                         step_record["final_answer"] = answer
@@ -846,6 +912,14 @@ class GenericAgent:
             "uncertain_operations": _uncertain_operations,
             "timestamp": start_time.isoformat()
         }
+        if self._information_wait_receipt is not None:
+            execution_result["wait_receipt"] = self._information_wait_receipt
+            execution_result["waiting_for"] = (
+                self._information_wait_receipt.get("question"))
+            execution_result["resume_state"] = {
+                "history": self._information_wait_history or "",
+                "steps": steps[-20:],
+            }
 
         # BPE workspace episode close-out (plan Phase 2): consolidate notes
         # (success only — failed-run lessons are dropped, evidence-gate
@@ -1414,8 +1488,9 @@ FORMAT: You must respond with structured output containing:
 - action: If you need to use a SINGLE tool, provide {{"tool": "tool_name", "params": {{...}}}}
 - actions: If you need to use MULTIPLE INDEPENDENT tools at once, provide [{{"tool": "tool_name", "params": {{...}}}}, ...]. Only use this when the tools do NOT depend on each other's output — they run in parallel.
 - final_answer: If you have enough information to answer, provide the response
+- information_wait: If one required fact/record is missing and cannot be obtained with an available tool, provide {{"question": "the specific question", "missing_fact": "the one fact you need", "subject": "optional business subject"}}. This durably pauses THIS run and resumes the same work when an authorized answer arrives. Do NOT use this for permission/approval to perform an action; use the normal approval path for that.
 
-Only provide EITHER action OR actions OR final_answer, not multiple.
+Only provide EITHER action OR actions OR final_answer OR information_wait, not multiple.
 
 ORCHESTRATION POWERS:
 - You can discover and call external integrations (Salesforce, Slack, HubSpot, etc.)
@@ -2979,29 +3054,73 @@ What is your next step?"""
         if not _proposal_owned and not (context or {}).get("session_id"):
             try:
                 with get_db_session() as db:
-                    _exec = AgentExecution(
-                        id=(context or {}).get("run_id") or str(uuid.uuid4()),
-                        agent_id=self.id,
-                        workspace_id=getattr(self, "workspace_id", "default"),
-                        tenant_id=getattr(self, "tenant_id", None) or "default",
-                        status=persisted_status,
-                        input_summary=input_text[:200],
-                        output_summary=str(result.get("output", ""))[:500],
-                        triggered_by=(context or {}).get("trigger", "agent_loop"),
-                    )
-                    db.add(_exec)
-                    db.commit()
-                    from core.episode_service import EpisodeService
+                    _execution_id = str(
+                        (context or {}).get("run_id")
+                        or (context or {}).get("execution_id")
+                        or uuid.uuid4())
+                    _existing = db.query(AgentExecution).filter(
+                        AgentExecution.id == _execution_id).first()
+                    _was_waiting = bool(
+                        _existing is not None
+                        and str(_existing.status or "") == "waiting")
+                    _metadata = dict(
+                        (_existing.metadata_json if _existing is not None
+                         else None) or {})
+                    # A wait keeps the SAME execution identity and the useful
+                    # prior work.  A later pass updates that same row instead
+                    # of inserting a duplicate/forged execution.
+                    if persisted_status == "waiting":
+                        _metadata["resume_state"] = dict(
+                            result.get("resume_state") or {})
+                        _metadata["wait_receipt"] = dict(
+                            result.get("wait_receipt") or {})
+                    else:
+                        _metadata.pop("resume_state", None)
+                        _metadata.pop("wait_receipt", None)
 
-                    # R83: must be awaited — this is a coroutine. The bare call
-                    # silently dropped every NON-session execution (scheduler,
-                    # direct runs take this branch) from episodic memory.
-                    await EpisodeService(db).create_episode_from_execution(
-                        execution_id=_exec.id,
-                        task_description=input_text[:200],
-                        outcome=persisted_status,
-                        success=success,
-                    )
+                    if _existing is None:
+                        _exec = AgentExecution(
+                            id=_execution_id,
+                            agent_id=self.id,
+                            workspace_id=getattr(
+                                self, "workspace_id", "default"),
+                            tenant_id=(
+                                getattr(self, "tenant_id", None) or "default"),
+                            status=persisted_status,
+                            input_summary=input_text[:200],
+                            output_summary=str(
+                                result.get("output", ""))[:500],
+                            triggered_by=(
+                                (context or {}).get("trigger")
+                                or "agent_loop"),
+                            metadata_json=_metadata,
+                        )
+                        db.add(_exec)
+                    else:
+                        _exec = _existing
+                        _exec.status = persisted_status
+                        _exec.output_summary = str(
+                            result.get("output", ""))[:500]
+                        _exec.metadata_json = _metadata
+                        if persisted_status == "waiting":
+                            _exec.completed_at = None
+                        else:
+                            _exec.completed_at = datetime.now(timezone.utc)
+                    db.commit()
+                    if persisted_status != "waiting" and (
+                            _existing is None or _was_waiting):
+                        from core.episode_service import EpisodeService
+
+                        # R83: must be awaited — this is a coroutine. The bare
+                        # call silently dropped every NON-session execution
+                        # (scheduler, direct runs) from episodic memory. A
+                        # resumed wait creates one episode, not one per pass.
+                        await EpisodeService(db).create_episode_from_execution(
+                            execution_id=_exec.id,
+                            task_description=input_text[:200],
+                            outcome=persisted_status,
+                            success=success,
+                        )
             except Exception as exec_err:
                 logger.debug(f"execution persistence skipped: {exec_err}")
 
