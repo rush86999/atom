@@ -1,0 +1,24 @@
+{
+  "executed_source": "335c2204a4774c9c6d0cd5b4c776947c14b9d5f3",
+  "source_files": {
+    "backend/api/agent_routes.py": "18aa9f1354ccd3a3958f12631af2bf138f8c9e4532fe27b9b686008609de74f4",
+    "backend/tests/test_agent_job_readback.py": "7a8930ad88651b147f273425b56a93f3b8e6be7c2cb5603a2f3923d3a3b94b83",
+    "frontend-nextjs/components/Agents/AgentJobWaitPanel.tsx": "9696ebe6119dce58efa83c6aa95602e0275a4ebbdbb727d735e8b7ccd9362690",
+    "frontend-nextjs/components/Agents/__tests__/AgentJobWaitPanel.test.tsx": "f525a1a5f21f11e10883ba0f0a33210a01c553c24b33f354d2ed0cb1959e60d9",
+    "frontend-nextjs/lib/agent-job-ref.ts": "7fc67af8b642c79f2a10493284449aa6fadfce0164f3829b371cb9f0266ddf01",
+    "frontend-nextjs/lib/__tests__/agent-job-ref.test.ts": "b9318698ffea57caba2dd7bdb2f6bb2fb464542e4be7f8bf9b8cc2f03ee80444",
+    "frontend-nextjs/pages/agents/index.tsx": "289f0aa163220fff0084e776049bcc3ce26ca0a0ddf1a5abc1a1f2c06dfe2f96"
+  },
+  "artifacts": {
+    "backend.log": "8942f4a4abd06fd02803c7a1cc3bf58ed662732605b191474dbf2eb30fa5b972",
+    "jest.json": "2d309b1cf8e6e6555157384494e2551f7ba6f6d915b5d90abde2630c0583ed95",
+    "jest.log": "88f18571faebbcf6f2197cc78a32d987ce81f11ccbcc94a1638af5e411cba851",
+    "README.md": "bccd06ffffa65387feede23c0838ee2ba09e7654af635a48cd7fa79e0c76f20c",
+    "tsc.json": "5643f6b86b02449b5dd3a6c1e736b1772268ca6288e955fafda603a0fe75e7b8",
+    "backend-spec.json": "91dae376c81ca207c11f19e53e518b0dcc2d24f503274336163f07439d53147f",
+    "verification.json": "03f97b1a0b53c424e21819cfb87a0081b361c3e7642828af1254381940c8c89d",
+    "backend-exit.json": "07e662378721e855ebbe7c1c994af01840075a79afb0f3d5123cd1893f9cc1b3",
+    "tsc.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "backend.xml": "8cafe44a6d2044a77aba5ed1dd7051e56ed4a38d71ea81b7d678afb6be7dc9fb"
+  }
+}

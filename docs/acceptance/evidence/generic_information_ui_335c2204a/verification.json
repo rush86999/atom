@@ -1,0 +1,10 @@
+{
+  "executed_source": "335c2204a4774c9c6d0cd5b4c776947c14b9d5f3",
+  "native_source": "42283c35e",
+  "backend_passed": 113,
+  "frontend_passed": 13,
+  "tsc_actual_exit": 0,
+  "all_actual_exits": 0,
+  "browser_acceptance": "open",
+  "app_completion": "open"
+}

@@ -1,0 +1,26 @@
+{
+  "executed_source": "8202c017328d67c9e87bd45dfcb1cbe798957e9b",
+  "native_fix": "88c38a5b5",
+  "backend": {
+    "passed": 118,
+    "actual_exit": 0
+  },
+  "jest": {
+    "passed": 53,
+    "actual_exit": 0
+  },
+  "shared_handlers_neighborhood": {
+    "passed": 23,
+    "actual_exit": 0
+  },
+  "tsc_actual_exit": 0,
+  "negative": {
+    "runtime": "66447a918",
+    "independent_test_commit": "d3d4e58db",
+    "failed": 3,
+    "actual_exit": 1,
+    "first_wrong_cwd_exit4": "excluded"
+  },
+  "scope": "public readback and controlled reasoning/auth; no browser/model/provider qualification",
+  "ordinary_browser_acceptance": "open"
+}

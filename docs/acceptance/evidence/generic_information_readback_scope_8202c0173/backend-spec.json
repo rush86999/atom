@@ -1,0 +1,21 @@
+{
+  "source": "8202c017328d67c9e87bd45dfcb1cbe798957e9b",
+  "scratch": "/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-ui-scope-fixed-06llwz6t",
+  "command": [
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "tests/test_lead_job_readback_material_scope.py",
+    "tests/test_agent_job_readback.py",
+    "tests/test_agent_read_scope_contract.py",
+    "tests/test_agent_generic_information_wait.py",
+    "tests/test_agent_run_admission_contract.py",
+    "tests/test_agent_routes_coverage.py",
+    "-q",
+    "--tb=short",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-ui-scope-fixed-06llwz6t/pytest"
+  ],
+  "scope": "realpublicroute/readback/admission/Generic; high-level reasoning/authcontrolled, no browser/provider"
+}
