@@ -1,0 +1,26 @@
+{
+  "command": [
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "tests/test_lead_shopify_fulfillment_rest_shape.py",
+    "-q",
+    "--basetemp",
+    "/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/fulfillment-failure-first-ywpvdiqf/basetemp",
+    "-p",
+    "no:cacheprovider",
+    "--junitxml=/private/tmp/atom-shopify-product-lead-review/docs/acceptance/evidence/shopify_fulfillment_lead_repair_20261107/failure-first.xml"
+  ],
+  "counts": {
+    "failed": 5
+  },
+  "cwd": "/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/fulfillment-failure-first-ywpvdiqf/source/backend",
+  "database_url": "sqlite:////var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/fulfillment-failure-first-ywpvdiqf/scratch.db",
+  "exit_code": 1,
+  "finished_utc": "2026-11-07T16:45:20.214599+00:00",
+  "phase": "failure-first",
+  "source_revision": "c001461118cc58737b3d6fe1c58f453b77dfece7",
+  "source_revision_meaning": "handed-off pre-repair source extracted from git",
+  "started_utc": "2026-11-07T16:45:03.166874+00:00",
+  "testing": "1"
+}

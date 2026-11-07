@@ -527,8 +527,12 @@ async def test_sh_write_endpoints(sh):
     _sh_get(sh, {'fulfillment': {'id': 'f'}, 'draft_order': {'id': 'd'},
                  'refund': {'id': 'r'}})
     sh.http.get = AsyncMock(return_value=_resp(
-        {'fulfillment_orders': [{'id': 12, 'status': 'open',
-                                 'assigned_location_id': 'loc'}]}))
+        {'fulfillment_orders': [{
+            'id': 12, 'order_id': 'o1', 'status': 'open',
+            'assigned_location_id': 'loc',
+            'line_items': [{
+                'id': 'foli-12', 'line_item_id': 'line-12',
+                'quantity': 1, 'remaining_quantity': 1}]}]}))
     assert await sh.create_fulfillment(
         't', 'my-shop', 'o1', 'loc', tracking_number='TN',
         tracking_company='UPS') == {'id': 'f'}

@@ -1,0 +1,26 @@
+{
+  "command": [
+    "/usr/local/opt/python@3.14/bin/python3.14",
+    "-m",
+    "pytest",
+    "tests/test_lead_radio_readback_identity.py",
+    "tests/test_oracle_radio_send.py",
+    "tests/unit/agents/test_radio_actions.py",
+    "tests/test_covpush_w80a_radio.py",
+    "tests/unit/agents/test_agent_radio_tool.py",
+    "tests/test_oracle_registry_verification_gap.py",
+    "tests/test_generic_oracle_mutation_contract.py",
+    "tests/test_oracle_connected_mutations.py",
+    "tests/test_oracle_effect_families.py",
+    "tests/test_information_wait_maturity_neutral.py",
+    "-q",
+    "--disable-warnings",
+    "--junitxml=/private/tmp/atom-agent-job-baseline/docs/acceptance/evidence/oracle_radio_readback_repair_3d69ddc44/focused.xml"
+  ],
+  "cwd": "/private/tmp/atom-agent-job-baseline/backend",
+  "exit_code": 0,
+  "stdout_sha256": "d1f18cb76baa8e616b44585f917a15df707bdf665e40c64e7516d79e26d16f1d",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "junitxml": "focused.xml",
+  "process_spawned": true
+}

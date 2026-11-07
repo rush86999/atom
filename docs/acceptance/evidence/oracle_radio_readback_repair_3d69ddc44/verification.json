@@ -1,0 +1,89 @@
+{
+  "task": "radio.send_message known committed identity across readback failure",
+  "git_branch": "codex/oracle-next-20261107",
+  "git_revision": "3d69ddc448bc6cdfa6af1a2eadaa5a5ff3599d32",
+  "parents": [
+    "55224dfb9a85ecf2dff4d7f1abfe3f1b7b1f9ae4",
+    "e39e2af2fed6880219346b7953d9dbe5ddc2cd76"
+  ],
+  "base_origin_main": "e39e2af2f",
+  "root_permanent_test_commit": "9aba74234",
+  "root_negative_log": "/private/tmp/root-radio-known-id-negative.log",
+  "root_negative_exit": "/private/tmp/root-radio-known-id-negative-exit.json",
+  "contract": {
+    "registry": "core/agent_radio/radio_actions.py::radio_send_message",
+    "service": "core/agent_radio/radio_service.py::send_message",
+    "read_primitive": "radio.read_inbox / get_thread_snapshot; exact LateralMessage.id row + AgentThread membership",
+    "protocol": "docs/architecture/AGENT_RADIO.md section Protocol",
+    "http_leaf": "none; local durable DB candidate. No provider HTTP claimed.",
+    "tenant_boundary": "post-effect tenant mismatch only marks the receipt unverified; it is not a pre-effect tenant authorization gate. Current single-tenant contract is open-thread plus thread membership in radio_service.send_message."
+  },
+  "implementation": {
+    "backend/core/agent_radio/radio_mutations.py": "99241d5791dd8ae0db004c41e1719115162fa9daaada8c5622258841e1062cb7"
+  },
+  "tests": {
+    "root_supplied": "backend/tests/test_lead_radio_readback_identity.py",
+    "oracle": "backend/tests/test_oracle_radio_send.py"
+  },
+  "runs": {
+    "failure_first": {
+      "command": [
+        "/usr/local/opt/python@3.14/bin/python3.14",
+        "-m",
+        "pytest",
+        "tests/test_lead_radio_readback_identity.py",
+        "tests/test_oracle_radio_send.py::test_known_committed_id_survives_readback_failure",
+        "tests/test_oracle_radio_send.py::test_replay_after_readback_failure_does_not_resend",
+        "-q",
+        "--disable-warnings",
+        "--junitxml=/private/tmp/atom-agent-job-baseline/docs/acceptance/evidence/oracle_radio_readback_repair_3d69ddc44/failure-first.xml"
+      ],
+      "cwd": "/private/tmp/atom-agent-job-baseline/backend",
+      "exit_code": 1,
+      "stdout_sha256": "de41b68ffbfaf4412bffd010fafa0e10a6d4de85ca5f52d1f45e1715b0730917",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "junitxml": "failure-first.xml",
+      "process_spawned": true
+    },
+    "focused": {
+      "command": [
+        "/usr/local/opt/python@3.14/bin/python3.14",
+        "-m",
+        "pytest",
+        "tests/test_lead_radio_readback_identity.py",
+        "tests/test_oracle_radio_send.py",
+        "tests/unit/agents/test_radio_actions.py",
+        "tests/test_covpush_w80a_radio.py",
+        "tests/unit/agents/test_agent_radio_tool.py",
+        "tests/test_oracle_registry_verification_gap.py",
+        "tests/test_generic_oracle_mutation_contract.py",
+        "tests/test_oracle_connected_mutations.py",
+        "tests/test_oracle_effect_families.py",
+        "tests/test_information_wait_maturity_neutral.py",
+        "-q",
+        "--disable-warnings",
+        "--junitxml=/private/tmp/atom-agent-job-baseline/docs/acceptance/evidence/oracle_radio_readback_repair_3d69ddc44/focused.xml"
+      ],
+      "cwd": "/private/tmp/atom-agent-job-baseline/backend",
+      "exit_code": 0,
+      "stdout_sha256": "d1f18cb76baa8e616b44585f917a15df707bdf665e40c64e7516d79e26d16f1d",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "junitxml": "focused.xml",
+      "process_spawned": true
+    }
+  },
+  "environment": {
+    "TESTING": "1",
+    "DATABASE_URL": "sqlite:////private/tmp/atom-agent-job-baseline/docs/acceptance/evidence/oracle_radio_readback_repair_3d69ddc44/scratch/atom.db",
+    "ATOM_DATA_DIR": "/private/tmp/atom-agent-job-baseline/docs/acceptance/evidence/oracle_radio_readback_repair_3d69ddc44/scratch/data",
+    "LANCEDB_URI": "/private/tmp/atom-agent-job-baseline/docs/acceptance/evidence/oracle_radio_readback_repair_3d69ddc44/scratch/lancedb",
+    "ATOM_OUTPUT_DIR": "/private/tmp/atom-agent-job-baseline/docs/acceptance/evidence/oracle_radio_readback_repair_3d69ddc44/scratch/output",
+    "ATOM_RADIO_ENABLED": "true",
+    "provider_credentials": "blank",
+    "interpreter": "/usr/local/opt/python@3.14/bin/python3.14"
+  },
+  "expectation": {
+    "failure_first_exit_code": 1,
+    "focused_exit_code": 0
+  }
+}

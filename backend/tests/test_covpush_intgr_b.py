@@ -1059,8 +1059,12 @@ class TestShopifyService:
     async def test_write_operations(self):
         svc = self._svc()
         svc.http.get = AsyncMock(return_value=self._resp(
-            {"fulfillment_orders": [{"id": 5, "status": "open",
-                                     "assigned_location_id": "loc1"}]}))
+            {"fulfillment_orders": [{
+                "id": 5, "order_id": "o1", "status": "open",
+                "assigned_location_id": "loc1",
+                "line_items": [{
+                    "id": "foli-5", "line_item_id": "line-5",
+                    "quantity": 1, "remaining_quantity": 1}]}]}))
         svc.http.post = AsyncMock(return_value=self._resp({"fulfillment": {"id": 1}}))
         result = await svc.create_fulfillment("tok", "myshop", "o1", "loc1", "tn1", "ups")
         assert result["id"] == 1

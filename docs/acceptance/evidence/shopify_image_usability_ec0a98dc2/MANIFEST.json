@@ -1,0 +1,60 @@
+{
+  "kind": "shopify_image_usability_manifest",
+  "executed_source": "ec0a98dc2",
+  "base_source": "197f054c8",
+  "prior_withheld_source": "6a89cf5d5",
+  "root_usability_negative_commit": "fc5aff150",
+  "tests": {
+    "usability": {
+      "rc": 0,
+      "passed": 33,
+      "failed": 0,
+      "tests": [
+        "tests/test_lead_asset_usable_image.py",
+        "tests/test_asset_content_receipt.py",
+        "tests/test_lead_shopify_image_content_receipt.py"
+      ]
+    },
+    "product_contract": {
+      "rc": 0,
+      "passed": 57,
+      "failed": 0,
+      "tests": [
+        "tests/test_oracle_shopify_product_authorized_material.py",
+        "tests/test_oracle_shopify_product_create.py",
+        "tests/test_oracle_shopify_product_replay.py"
+      ]
+    },
+    "article_contract": {
+      "rc": 0,
+      "passed": 55,
+      "failed": 0,
+      "tests": [
+        "tests/test_lead_shopify_article_rest_shape.py",
+        "tests/test_oracle_shopify_article_create.py"
+      ]
+    }
+  },
+  "scope": "digest/receipt image-content sub-contract with real decode; raw URL-only OPEN",
+  "raw_url_only": "OPEN / unverified",
+  "provider_transform": "unknown / unverified; another valid image proves digest mismatch",
+  "artifacts": {
+    "IMAGE_USABILITY_LEAD.md": "20252c98f79147b5d6e1a1c87f1f81383e3f9a546fc46f8181f79f553c9ede64",
+    "README.md": "0ad1d30e7bd2c770f27fd1be6964e827fd9f89f3328deca1280f0a9394a7f7b0",
+    "article_contract.log": "bafd56bcb6aac18ab9f3de531382532d1048f5dc59da9f57e0cca34623d7f1fb",
+    "compile-pyflakes.log": "7daaa75d8e60fa1a6add775b261519286bdb90cbca526f1c279690d606fb2e3e",
+    "product_contract.log": "cc44ccc6f92be692d5afa7c5b0da97ca8ac0fe01b9534e2ba76b5d8af9fafab3",
+    "root-usable-image-negative.log": "e82b33abde13a0e07f387853d259b007032ebe0fbda123e3c4cbcaa7936e761c",
+    "usability.log": "3b68a144243e53627e8f739b67ff56ae697d22b017a169680634bf8462618907",
+    "verification.json": "c8b27dd363db2f01a5cecd4183f436670ccbe1c5b3e4e5f29fd734f09516dfbf"
+  },
+  "source_files": {
+    "backend/core/asset_content_receipt.py": "17ade069aa41ad1d210a92bc2241b57ad73721ea6595f6fdeaeaada473b796e2",
+    "backend/core/shopify_mutations.py": "90f653fd08fbc670493ca8cc215e1d84012d21839dda7b8023203f2f6b14e22c",
+    "backend/integrations/shopify_service.py": "c4b51892b01f7638e7e7dace9f6e00434db2d7be03a1388d19aa9fb324dbf6ea",
+    "backend/core/oracle/postcondition_verifiers.py": "90b8f6776e786b3a52844724e2d260b190b249932cca3d1baa5c0b5b2336b711",
+    "backend/tests/test_lead_asset_usable_image.py": "a9cb0fe536936fd26cb6a4741d3f05950318bdfecaedfe60f6aa9cf43930de21",
+    "backend/tests/test_asset_content_receipt.py": "9002a9f050f36648e3ba6b4fcce589cc0ab7646c4c45b71fb63041d04b5fa63a",
+    "backend/tests/test_lead_shopify_image_content_receipt.py": "5d8c4bf1299a5962ceb71f018b7fc7bf4d72cf6534dcc2bd6b4184e61dc1e625"
+  }
+}

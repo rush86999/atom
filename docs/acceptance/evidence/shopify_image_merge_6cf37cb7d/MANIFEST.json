@@ -1,0 +1,74 @@
+{
+  "kind": "shopify_image_merge_checkpoint_manifest",
+  "merge_head": "6cf37cb7d",
+  "merge_parents": [
+    "3801b0da5",
+    "e39e2af2f"
+  ],
+  "merged_origin_main": "e39e2af2f",
+  "base_image_source": "197f054c8",
+  "image_runtime_source": "ec0a98dc2",
+  "prior_withheld_source": "6a89cf5d5",
+  "root_usability_negative_commit": "fc5aff150",
+  "tests": {
+    "usability": {
+      "rc": 0,
+      "passed": 33,
+      "failed": 0,
+      "tests": [
+        "tests/test_lead_asset_usable_image.py",
+        "tests/test_asset_content_receipt.py",
+        "tests/test_lead_shopify_image_content_receipt.py"
+      ]
+    },
+    "product": {
+      "rc": 0,
+      "passed": 57,
+      "failed": 0,
+      "tests": [
+        "tests/test_oracle_shopify_product_authorized_material.py",
+        "tests/test_oracle_shopify_product_create.py",
+        "tests/test_oracle_shopify_product_replay.py"
+      ]
+    },
+    "article": {
+      "rc": 0,
+      "passed": 55,
+      "failed": 0,
+      "tests": [
+        "tests/test_lead_shopify_article_rest_shape.py",
+        "tests/test_oracle_shopify_article_create.py"
+      ]
+    }
+  },
+  "raw_url_only": "OPEN / unverified",
+  "pr746_blog741": "not present in fetched origin/main; branch retains its existing article/blog changes",
+  "artifacts": {
+    "HANDOFF.md": "b314f4fadf02bde2cd458f6e15aa402b4f69853fc5c1c7df9be5065d2e0d1111",
+    "README.md": "99587bc32d7dcb5bfb855514a2cbc418efa2f098f14dc58c8ae22f11aed92d5e",
+    "article.log": "e3c1c152e638a8488602406e5f4de6487f96cf7c504642789a325173ca93dbdb",
+    "compile-pyflakes.log": "d66249d91a5a1089dc543c15fb938dbe1817bbd5fd96f21d16a6019de8c95c47",
+    "product.log": "eeae9589dff11e1bef89acff04e100f3abc19504124f60985a6d5fd342077843",
+    "root-image-usability-verified.log": "e9df3a9ee47a16948100d602ddf3589d8c119093de5d2760ca6bdcade1d51f80",
+    "root-usable-image-negative.log": "e82b33abde13a0e07f387853d259b007032ebe0fbda123e3c4cbcaa7936e761c",
+    "usability.log": "81266c0194a2de6813dffcb9bef4c40f86de2ef97e431ca6eaac8f63ac0f8732",
+    "verification.json": "9aa2105fff8d971164c699b806fb39ec17df383a0709ff903f0f874eab0400c8"
+  },
+  "source_files": {
+    "backend/core/asset_content_receipt.py": "17ade069aa41ad1d210a92bc2241b57ad73721ea6595f6fdeaeaada473b796e2",
+    "backend/core/shopify_mutations.py": "90f653fd08fbc670493ca8cc215e1d84012d21839dda7b8023203f2f6b14e22c",
+    "backend/integrations/shopify_service.py": "c4b51892b01f7638e7e7dace9f6e00434db2d7be03a1388d19aa9fb324dbf6ea",
+    "backend/core/oracle/postcondition_verifiers.py": "90b8f6776e786b3a52844724e2d260b190b249932cca3d1baa5c0b5b2336b711",
+    "backend/core/action_registry.py": "5acd3dda2b071b73f15b39721f6dd900b0067c319f74cfea47efedc77d017f0c",
+    "backend/core/connected_actions.py": "8acfce904f280b5e7529cbf44f3af4aede3831e53293df1e37f6c7643d43423a",
+    "backend/core/oracle/request_expectations.py": "8d56d5934887aa2b443c914c594257cb97b7343680018cedea3d335161522a8d",
+    "backend/tests/test_lead_asset_usable_image.py": "a9cb0fe536936fd26cb6a4741d3f05950318bdfecaedfe60f6aa9cf43930de21",
+    "backend/tests/test_asset_content_receipt.py": "9002a9f050f36648e3ba6b4fcce589cc0ab7646c4c45b71fb63041d04b5fa63a",
+    "backend/tests/test_lead_shopify_image_content_receipt.py": "5d8c4bf1299a5962ceb71f018b7fc7bf4d72cf6534dcc2bd6b4184e61dc1e625"
+  },
+  "pr": {
+    "number": 748,
+    "url": "https://github.com/rush86999/atom/pull/748",
+    "base": "codex/shopify-article-rest-shape-20261107"
+  }
+}

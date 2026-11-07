@@ -1,0 +1,16 @@
+{
+  "executed_source": "2d5c53f17dde357277be9ab29670446f06601680",
+  "source_files": {
+    "backend/core/agent_governance_service.py": "6979252468ab6f6b3e17f1d6f35ddcd2035325e7e607954a07e1df74ca3df53e",
+    "backend/tests/test_positive_maturity_no_demotion.py": "edc0975a998f5ddf6fb70c19d3d0d6847395985496cc3a852b2f0d4fdd6f2046",
+    ".github/workflows/ci.yml": "3669c03ef1a8f5682e7e60d4c6fbaba158e6995b08916e275489e8462e4180da"
+  },
+  "artifacts": {
+    "root-maturity-callers.log": "92033b8760bf01943422fe82c4279a9d205c95ad2ea46acfe7b5e25af5afdbc2",
+    "README.md": "1b66d0fe6d07e6b817f9f6b9bc9358f2d572067fb3422e375a04a40d72d45a20",
+    "verification.json": "9900820acdfbd85b47085f5ce6cdde609b018866bfa4d98dd3cf90669e930b5b",
+    "root-positive-maturity-negative.log": "ad7fb5c33f6ffb4d5eaa10e5fadae68a916bcfeddb3296ed346c7306ebd1e8cb",
+    "root-feedback-confidence.log": "062661e24bcb1a0bb59ff4a261e9e200edd5a7b44a5919659c13d8a84c99ffff",
+    "root-positive-maturity-fixed.log": "b55438bd91d4d5ae8726688029643ff992ffe2f52655234763a91e6f7e52c1b3"
+  }
+}

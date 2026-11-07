@@ -1,0 +1,24 @@
+{
+  "executed_source": "fb5d32e7eb2ad3224d4d4c201a6decfc2e6eee49",
+  "source_files": {
+    "backend/core/agent_radio/radio_actions.py": "53527197a79ba5e256edc364ca7fb3638fbac5de098af1b8e8d07cab2069058e",
+    "backend/core/agent_radio/radio_mutations.py": "99241d5791dd8ae0db004c41e1719115162fa9daaada8c5622258841e1062cb7",
+    "backend/core/agent_radio/radio_service.py": "5fa36db40a25144cc1f7627bb3d31cedd29b0312953dbdd3953ff3ccbe714c29",
+    "backend/core/oracle/postcondition_verifiers.py": "05b71b94308149883de609066a335ae4d7ac50bad5e8b7390ae8a69912b29b41",
+    "backend/core/oracle/request_expectations.py": "b0336a6a5c4ec781b38a14e904889432a4f99af6365302cf8e0e711de27cc974",
+    "backend/core/generic_agent.py": "432904f89608b6c98b05834957c79023ed82f2ec1162056e3640f8da728f7191",
+    "backend/tests/test_oracle_radio_send.py": "ba714bbd6298af583e06bf8cf128510b4eec9dd0f31c7a08c4d8505b03793a69",
+    "backend/tests/test_lead_radio_readback_identity.py": "0f3ae2fa02dd63d0fbffa72671eebb753a846fd7116b563eda89befb72720947",
+    "backend/tests/test_lead_shopify_article_rest_shape.py": "0f728481ae779034742b771e0816931a85b3f2322a0f772fb8c34248075882ae",
+    "backend/tests/test_information_wait_maturity_neutral.py": "1d0ea562827624238ded45f0f1ec534c86eb67804be5ddbdb7d115140efec12f"
+  },
+  "artifacts": {
+    "README.md": "ceb3e4c969753082bd331efb0c56902b1a1686eea036f0b725c23f728b7bc2e6",
+    "root-radio-known-id-negative-exit.json": "36a7648fbfd496c5f2687f6efd7881e8410fb69fcb31241df2cc864f53826d71",
+    "root-radio-known-id-negative.log": "a2e67237b9c8c42385de3278580a5655eddc2860e286915ad25ba875e0dbf6e0",
+    "root-radio-main-final-exit.json": "98786e9bf1c92169749dc597a0edb6a805b5e5d93f3f6f20633ad86038f4861e",
+    "root-radio-main-final-spec.json": "5e998a82bae0fbdcc052447f0d0f652b8d6956cdab3c9e49198ae0296b3ddfdf",
+    "root-radio-main-final.log": "f92aaa88f870207b1ac2e1205b5bd3c51afc82d42ec9790e9faf4500a6d38455",
+    "verification.json": "2ee597f5d1d4a0d4633c9059a6267608f98de7de4f141d8d12fec635d6a6d14a"
+  }
+}
