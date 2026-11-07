@@ -1,14 +1,15 @@
 """Personal Edition scope resolution — single source of truth for tenant/workspace ids.
 
-Personal Edition is **single-tenant**: there is exactly one Tenant (id="default")
-and one Workspace (id="default"). We keep ``tenant_id`` and ``workspace_id`` as
+Personal Edition is **single-tenant**. Its bootstrap uses Tenant and Workspace
+rows both named "default", while existing ordinary-registration records can
+carry distinct opaque ids. We keep ``tenant_id`` and ``workspace_id`` as
 **distinct concepts** (rather than collapsing to a single id) because the schema
 syncs upstream with the multitenant SaaS repo where they ARE distinct. Models
 inherit the dual-column shape from SaaS; collapsing here would create sync
 divergence and silently break any SaaS tooling that assumes the dual shape.
 
-The trade-off is: in Personal Edition the two ids are always equal. Callers must
-still pick the RIGHT one per model:
+Single-tenant deployment does not make those two keys interchangeable.
+Callers must still pick the RIGHT one per model:
 
   - ``AgentExecution``, ``AgentRegistry``, ``ChatSession`` → key on ``workspace_id``
   - ``CanvasAudit``, ``Notification``                         → carry BOTH (FK constraints)

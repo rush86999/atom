@@ -5,9 +5,9 @@ This dated checkpoint supersedes operational queue rows in the November6 directi
 ## Current execution snapshot (resolve remote heads before acting)
 
 - Main is now PR721 merge611b6b6f8; its tree equals the reviewede95b96902. PR720 is preserved ase26b5a332. PR719 foundation8cbc99cc9 post-mergeCI/Docker are green. Older sections below preserve source history rather than active assignments.
-- Merged source-answer PR721 preserves the74-backend/9-component controlled proof and explicitly leaves actualprocess/no-owner-replay recovery open. Its current head must requalify after this main integration; no hosted green is inherited.
+- Merged source-answer PR721 preserves the74-backend/9-component controlled proof and explicitly leaves actualprocess/no-owner-replay recovery open. Its exact current-main head passed all eight checks before merge; the actualprocess/no-owner-replay successor remains separate and unaccepted.
 - Agent1 nativeCLI owns the reproduced board-owner API/service boundary. Agent2 nativeCLI owns actualprocess automatic recovery of accepted information. Both continue without waiting for hostedCI; observers are model-free.
-- Root real MCP/governance probing found a configured hard-stop budget bypass (workspace id used as account id): two valid/denied twins pass and the budget negative fails. The bounded existing-governance repair is sourcea5cabd207;31 final budget-mode/real-MCP controls pass at89c75f061, with the same one known baseline governance failure in the broader comparison. It is not yet merged or a general budget/financial assurance.
+- Root real MCP/governance probing found a configured hard-stop budget bypass (workspace id used as account id): two valid/denied twins pass and the budget negative fails. The final shared-governance repair is sourcecda63def4;45 focused controls pass, with146 broader passes and the same one known baseline governance failure plus a legacy module skip. It is not yet merged or a general budget/financial assurance.
 - Full app completion, general adaptive judgment, actualprocess TASK-WAIT-01 recovery and broader runtime/provider/guest/operations claims remain unproven. Historical scores and accepted evidence identities stay unchanged.
 
 ## Delivered since the older guide
