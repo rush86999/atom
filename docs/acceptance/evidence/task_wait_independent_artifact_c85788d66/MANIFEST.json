@@ -1,0 +1,44 @@
+{
+  "executed_source": "c85788d66",
+  "failure_first_source_basis": "784a2eb14 plus only the new probe",
+  "preceding_packet": "docs/acceptance/evidence/task_wait_long_wait_budget_e1b91fa89/",
+  "source_state": "tracked tree clean at execution; only untracked worker guidance files present and not part of the run",
+  "failure_first": {
+    "result": "1 failed, exit 1",
+    "log": "baseline-probe.log",
+    "defect": "independent quote applied, final artifact applied and job completed while the invoice question was open; a second artifact step was compiled after the answer"
+  },
+  "verification": {
+    "passed": 238,
+    "failed": 0,
+    "actual_exit_code": 0,
+    "elapsed_seconds": 131.98,
+    "log": "final.log"
+  },
+  "source_files": {
+    "backend/core/assignment_executor.py": "7e98705a51fb4d8f1103c58added833aaeb73aded3e2a829306cf30d1a830173",
+    "backend/core/employee_adaptation.py": "2154910314680e5f984cd4eeab2d0c6d9f15976ef7c3754baad282dde6c171a6",
+    "backend/core/employee_work_compiler.py": "675930d98fc70e8b5d43f2db4c0c99f10df9ba27f530249230c63474642937cd",
+    "backend/tests/test_task_wait_independent_work.py": "0a515511675a23d6eb6bbbb10c70dfc578b1c5c25e5d7a95bd63a47689187497",
+    "backend/tests/test_task_wait_source_continuation_regressions.py": "486cd74543e6b5a79fe11836933fed385c5d0b72698e2b65ac0e072aac942d74"
+  },
+  "acceptance_map": {
+    "path": "docs/acceptance/TASK_WAIT_01_ASSIGNMENT_ACCEPTANCE_MAP_2026_11_07.md",
+    "sha256": "cab429d7b51f52100670aa54b67feb88fb6de7c8890379f9bc383caf5b948a0e"
+  },
+  "artifacts": {
+    "README.md": "cc0b0ef9d566de7401f3a8279a589e7b975ae3860b09c13b3d5e8a5a96aa74f1",
+    "baseline-probe.log": "b1cf09e6b97eaf951bf59ad50c295daa123b6fd83c0413531d0709adf8f67d23",
+    "final.log": "6b608d39002505b040a507a264a8ee161cb2a7e21d38f89d8bcdd6e631c42912",
+    "verification.json": "3f31438abbdd68f02df066cc84d64eb538ada2f906b24cc7c6d1201f9076d4e2"
+  },
+  "preserved_prior_packets": [
+    "docs/acceptance/evidence/task_wait_long_wait_budget_e1b91fa89/",
+    "docs/acceptance/evidence/task_wait_recovery_generation_repair_223a286a4/",
+    "docs/acceptance/evidence/task_wait_process_recovery_repair_e9e43ea60/",
+    "docs/acceptance/evidence/task_wait_process_recovery_baseline_a966bca18/",
+    "docs/acceptance/evidence/task_wait_source_continuation_6d08b1c4b/",
+    "docs/acceptance/evidence/task_wait_source_trigger_baseline_bc4970f97/"
+  ],
+  "scope": "assignment entrypoint representation 1; E1/E2/E3 and other entrypoints remain OPEN; controlled transport, no live provider/spend"
+}

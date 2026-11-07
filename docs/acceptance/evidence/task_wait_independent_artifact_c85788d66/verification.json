@@ -1,0 +1,76 @@
+{
+  "result": "independent_work_retained_but_premature_final_artifact_blocked_at_c85788d66",
+  "executed_source": "c85788d66",
+  "failure_first_source_basis": "784a2eb14 plus only the new probe",
+  "preceding_packet": "docs/acceptance/evidence/task_wait_long_wait_budget_e1b91fa89/",
+  "source_state": "tracked tree clean; only untracked worker guidance files present and not part of the run",
+  "runtime": {
+    "python": "3.14.7",
+    "platform": "darwin",
+    "testing": "1",
+    "database": "fresh private scratch SQLite",
+    "data_lancedb": "fresh private scratch roots",
+    "basetemp": "new owned pytest basetemp"
+  },
+  "failure_first_probe": {
+    "test": "tests/test_task_wait_independent_work.py::test_independent_work_does_not_release_a_premature_final_artifact",
+    "result": "1 failed, exit 1",
+    "log": "baseline-probe.log",
+    "observed_defect": {
+      "open_invoice_question": true,
+      "independent_quote_applied": true,
+      "independent_quote_value": "105.00",
+      "final_artifact_applied_while_waiting": true,
+      "job_completed_while_waiting": true,
+      "duplicate_artifact_after_answer": "requested-artifact-2"
+    }
+  },
+  "repair": {
+    "completion_gate": "an open unresolved prerequisite prevents the completed state",
+    "readiness_gate": "declared deliverable steps are not executable while an obligation is open; independent ready branches are",
+    "compiler_context": "adopt_adaptation passes durable open obligations from the task revision",
+    "artifact_compilation": "a whole-objective artifact is not compiled while an obligation is open",
+    "new_authority": false,
+    "new_table": false,
+    "new_daemon": false,
+    "new_task_engine": false,
+    "model_calls_added": 0
+  },
+  "verification": {
+    "passed": 238,
+    "failed": 0,
+    "pytest_exit_code": 0,
+    "elapsed_seconds": 131.98,
+    "log": "final.log",
+    "suites": [
+      "tests/test_task_wait_independent_work.py",
+      "tests/test_task_wait_source_continuation_regressions.py",
+      "tests/test_task_wait_process_recovery.py",
+      "tests/test_employee_work_requests.py",
+      "tests/test_employee_work_request_matrix.py",
+      "tests/test_employee_durable_wait_g5.py",
+      "tests/test_employee_evidence_change_g5.py",
+      "tests/test_employee_adaptation_contract.py",
+      "tests/test_assignment_routes.py",
+      "tests/test_assignment_executor.py",
+      "tests/test_boot_recovery_not_gated_by_scheduler.py"
+    ],
+    "probe_assertions": {
+      "question_open_before_advance": true,
+      "no_reconciliation_before_answer": true,
+      "no_applied_artifact_before_answer": true,
+      "quote_retained_after_advance": true,
+      "quote_value": "105.00",
+      "not_completed_while_waiting": true,
+      "source_route_continues_same_task": true,
+      "reconciliations": 1,
+      "reconciliation_value": "270.00",
+      "applied_artifacts": 1,
+      "duplicate_artifact_step": false,
+      "open_questions_after_completion": 0
+    }
+  },
+  "transport": "controlled proposal fixture; no inference, provider or spend",
+  "authority": "controlled authenticated-user fixture; private scratch SQLite/data/Lance",
+  "scope": "assignment entrypoint representation 1; E1 model-created second pause, E2 cross-run isolation and E3 public-route revocation-after-wait remain OPEN; Generic/GenericAgent, workflow and other entrypoints remain OPEN"
+}

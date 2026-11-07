@@ -6,9 +6,10 @@ Scope: the employee-objective assignment entrypoint
 the real assertion scope of existing evidence; it does not treat a test name
 as acceptance.
 
-Source: `e1b91fa89`, on top of the generation-recovery packets at `223a286a4`
-and `f55f83668`. All evidence below is controlled-transport, scratch
-SQLite/data/Lance; no live model/provider/spend/account/send was used.
+Source: `c85788d66`, on top of `e1b91fa89` (long-wait budget repair) and the
+generation-recovery packets at `223a286a4` / `f55f83668`. All evidence below is
+controlled-transport, scratch SQLite/data/Lance; no live
+model/provider/spend/account/send was used.
 
 ## Two wait representations (do not conflate them)
 
@@ -41,18 +42,28 @@ for representation 1, and this map does not replay it.
 | Cancelled late input: no resurrection | Cancelled assignment refuses late `/sources` and late `/responses`; restart does not revive cancelled work (`test_task_wait_source_continuation_regressions.py`, `test_employee_durable_wait_g5.py`). | Covered |
 | Changed source before consumption: revalidate; stale receipts cannot certify the new result | A real parquet value change invalidates only the dependent quote/artifact; the artifact revision and content change while the unrelated accepted read keeps its operation id (`test_employee_evidence_change_g5.py`). Stale/revoked resource versions are rechecked before the resumed read (`test_assignment_resource_boundary.py`). | Covered at assignment/executor boundary |
 | Repeated pauses and honest completion: a second prerequisite can pause the same task again; later valid input resumes remaining work and retains unrelated receipts | A second open material prerequisite blocks recovery until resolved, then one reconciliation completes and prior accepted reads are retained (`test_task_wait_source_continuation_regressions.py`). Model `retain` after relevant input does not fake completion; irrelevant evidence never completes. The current second-prerequisite twin **injects** the second obligation through the lifecycle; it does not prove the model/consumer creates a second pause after the first answer resumes. | Partially covered; E1 is the missing executable case |
-| Useful independent work and no premature artifact | Compiled-wait evidence: quote work completes while the receiving wait stays open, ready work is visible, and a requested document is not rendered before verified reconciliation (`test_employee_durable_wait_g5.py`). Representation 1 has no independent-branch twin; the new long-wait repair deliberately keeps the existing "ready branch runs first and closes idle" boundary but does not add a scenario. | Covered for representation 2; representation 1 remains E4 |
+| Useful independent work and no premature artifact | Representation 2: quote work completes while the receiving wait stays open, ready work is visible, and a requested document is not rendered before verified reconciliation (`test_employee_durable_wait_g5.py`). Representation 1 was genuinely defective: an independent quote applied, but the requested artifact also applied and the job completed while the invoice question was still open; after the answer a second artifact step was compiled. Repaired at `c85788d66`: the quote is retained, the deliverable stays blocked and non-complete, and exactly one artifact is produced after the verified reconciliation. Evidence: `docs/acceptance/evidence/task_wait_independent_artifact_c85788d66/`. | Covered for both representations after the repair |
 | Final UI/durable task/outcome agree; evidence arrival alone is not completion | The route returns the post-continuation status; completion requires the verified employee-result and artifact criteria. Model retain, wrong/partial/unrelated input and evidence arrival without a verified result stay non-completed. UI rendering itself is not executed here (frontend node_modules absent). | Backend/durable covered; UI execution not claimed |
 
-## Defect found and fixed in this pass
+## Defects found and fixed in this pass
 
-The long-wait row was genuinely unproven and also defective. The failure-first
-probe asserts the durable idle interval before delivering the invoice; it
-failed at `KeyError: 'idle_open'` at the pre-fix source, and the same controlled
-two-hour clock then produced `assignment_budget_exhausted` on the authorized
-read with zero reconciliations. The repair is limited to the existing executor
-idle ledger plus recording the question through that executor boundary; see
-`docs/acceptance/evidence/task_wait_long_wait_budget_e1b91fa89/`.
+1. **Long information wait burned active wall budget.** The failure-first
+   probe asserts the durable idle interval before delivering the invoice; it
+   failed at `KeyError: 'idle_open'` at the pre-fix source, and the same
+   controlled two-hour clock then produced `assignment_budget_exhausted` on the
+   authorized read with zero reconciliations. The repair is limited to the
+   existing executor idle ledger plus recording the question through that
+   executor boundary; see
+   `docs/acceptance/evidence/task_wait_long_wait_budget_e1b91fa89/`.
+2. **Independent work released the final artifact and completed the job while
+   the information wait was open, then duplicated the artifact after the
+   answer.** The public-route probe applies an independent quote under
+   `/advance`; before the repair the requested document was rendered, the job
+   reached `completed`, and a second artifact step was compiled after the
+   invoice arrived. Repaired at `c85788d66` by keeping completion and declared
+   deliverables behind the open obligation while independent branches still
+   run, and by passing the durable obligations into the artifact compiler. See
+   `docs/acceptance/evidence/task_wait_independent_artifact_c85788d66/`.
 
 ## Remaining evidence map (no speculative repair)
 
@@ -78,11 +89,9 @@ would make the owner requirement more true.
   produces a typed `source_access_revoked` wait, no adaptation/effect and no
   completion. Existing boundary tests cover the recheck itself; this case
   covers the automatic-continuation caller.
-- **E4 — independent branch on representation 1.** Start a missing-invoice
-  objective that also has an independently ready authorized calculation;
-  assert that branch applies while the invoice question stays open, no
-  requested artifact is emitted, and the later invoice event completes the
-  remaining work with the independent receipt retained.
+
+E4 (independent branch on representation 1) is now covered by
+`test_task_wait_independent_work.py` and the `c85788d66` packet.
 
 ## Claim boundary
 

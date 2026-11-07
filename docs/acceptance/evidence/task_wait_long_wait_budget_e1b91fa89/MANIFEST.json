@@ -28,7 +28,8 @@
   },
   "acceptance_map": {
     "path": "docs/acceptance/TASK_WAIT_01_ASSIGNMENT_ACCEPTANCE_MAP_2026_11_07.md",
-    "sha256": "ab9bcf1b59f84f0269a06e79b66284d4cc1eaee69eaf2b1e49e5b56410210ee5"
+    "sha256": "cab429d7b51f52100670aa54b67feb88fb6de7c8890379f9bc383caf5b948a0e",
+    "note": "current map (later repair c85788d66); the e1b91fa89 packet's own README/final.log are unchanged"
   },
   "artifacts": {
     "README.md": "9bc4ce97315742077f7327ad72f20e66b8243320dcef766c41b633c184b0bdc1",
