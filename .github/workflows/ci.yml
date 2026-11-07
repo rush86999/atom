@@ -186,6 +186,9 @@ jobs:
           DATABASE_URL: "sqlite:///:memory:"
           SECRET_KEY: "ci-test-secret-key"
           ENVIRONMENT: "development"
+          ATOM_DATA_DIR: "${{ runner.temp }}/mini03-data"
+          LANCEDB_URI: "${{ runner.temp }}/mini03-lance"
+          MINIAPP_ROOTFS_DIR: "${{ runner.temp }}/mini03-rootfs"
         run: |
           python -m pytest \
             tests/integration/journeys/test_mini_app_runtime_boundary_journey.py \
