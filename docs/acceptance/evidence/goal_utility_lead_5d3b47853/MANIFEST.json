@@ -1,0 +1,40 @@
+{
+  "executed_source": "5d3b478534c9071fc8fb89c772428232c3373ffe",
+  "ui_executed_source": "c1306562d1feaa199431d326f038942ae57ecd31",
+  "ui_source_files_identical_to_executed_source": [
+    "frontend-nextjs/lib/goal-run-api.ts",
+    "frontend-nextjs/pages/goal-runs/[id].tsx",
+    "frontend-nextjs/tests/pages/goal-runs/detail.test.tsx"
+  ],
+  "source_files": {
+    "backend/core/goals/goal_service.py": "b75a5473dc242736558085b39746d4040e32374a6b192b99a830c53f7b2f5069",
+    "backend/core/goals/goal_run_service.py": "1fccae15b1e9f5e109f708170dbe9b23880dbb25163ff237bdc14ec7370fa260",
+    "backend/core/goals/goal_run_router.py": "b47009432e4f4b7c956b07e796bf48bb80288b16299b81c7bcb512af69267a63",
+    "backend/core/goals/goal_write_service.py": "d43f0cdc9fdc391ff9a0fb1464fceef5bf232c95a48fa9f5291d46e976d310c4",
+    "backend/core/goals/utility_target.py": "5b47b606fbf99faaba404e46ac6de0639500af9255bacfa3c32b1a2b79d90005",
+    "backend/api/goal_routes.py": "a1cff29eb4d1c4cc2c841bf3bd3f3081c9b40ab526432aaf130841dab178c2b1",
+    "backend/core/agent_objective.py": "409b4fd88abddc884308f680a79cd1e4db7280377d58102c81bc41665744e0f2",
+    "backend/tests/test_lead_goal_reads_workspace_scope.py": "97be2cb764a29957147849c26403cee7bcbed0e176f5b7c57ae1545e377c28ed",
+    "backend/tests/test_goal_utility_target.py": "f5730cb8a6f2afbe2f3ca6139928103bd1993d887a09a7aa545f593d6c8dbd67",
+    "backend/tests/test_goal_write_authority_contract.py": "e9c6b26411c164664cbedac8f04f1fe0a2ab8697078d1013ad4469827b7bdd28",
+    "backend/tests/test_goal_projection_boundaries.py": "509cb18b0ca4f74a2206b00895f40f19abfc7a9d9eaf3924f48b54ae29635f9d",
+    "backend/tests/test_goal_run_service.py": "b580b61cb193464b0e2e9d16aae5dac41c82eb8ec0bf7501411fa783e650ff53",
+    "backend/tests/test_goal_run_loop.py": "fe0e5c1caff1538b006708428c916bc8c70c121aeb7142ba117b50ef57215c6e",
+    "backend/tests/test_goal_run_routes.py": "6b28397b275db4c0f46c1975bbeda3660f83c7fa4a8edbaf2c357e3bf1804394",
+    "backend/tests/test_goal_journey_gaps.py": "e74a7b5685b825be0f3c2deb484b88287051a7e3a7a0d772aa365972d6224459",
+    "backend/tests/core/test_agent_objective.py": "29eac37fd65ed3ddb1e287a337c6b468ef692e8cb33391b59c859daba1a16c7a",
+    "frontend-nextjs/lib/goal-run-api.ts": "2652ca966325cff649f423fbbfc006d8b303d05b1e40eefc0eff64a5126d6fbb",
+    "frontend-nextjs/pages/goal-runs/[id].tsx": "a5463416d1a36e677b8990f0457ab7ab6a1ccce6a09621c38b3c9c74037aa7f9",
+    "frontend-nextjs/tests/pages/goal-runs/detail.test.tsx": "aa2044a5c55e55a2fe5c4ffecd5760f92341a33fc0185712c762b01c4b40a746"
+  },
+  "artifacts": {
+    "root-goal-utility-ui-permitted.exit.json": "70b1b8067dd47faf18eb2b5d4201735064fbf832c950cdc4524c6f0f8f02cf87",
+    "root-goal-utility-ui.log": "66f2c0c95a59aa7581911f8696c9ccf44a7709796193039f3b37b6f2ac0ee90b",
+    "README.md": "ccc2c9cab63453809676e8dfbd461e6fb6ee831119405485c5773cc6825f7ed3",
+    "root-goal-utility-independent.log": "8c04600143ad1de2f8a898204788c1c98e0f0b3923b13e107efa3c92935b98ae",
+    "root-goal-utility-ui.exit.json": "e7b98d8b48ca584bf58fc1caee9fe3265cc78d499997819c6ccbdfa353b9edc3",
+    "root-goal-utility-independent.spec.json": "168ce1859de010e6d81e8f70ff792fd1bd499b887dd3a4212b23949e4ff7d394",
+    "root-goal-utility-independent.exit.json": "ccab9ce74da9beec6c405f30709862a3c7bb60e3c76445c6a5b99f6ac0984774",
+    "root-goal-utility-ui-permitted.log": "8f5c5da848ab02193a9d73a8ea373d0fe3f09f699384b39e51a962e8164c572c"
+  }
+}

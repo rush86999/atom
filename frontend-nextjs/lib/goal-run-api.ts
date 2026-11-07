@@ -15,6 +15,39 @@ export type SupervisionMode = 'training' | 'shadow' | 'autonomous';
 // A GoalObjective — the WHAT a run pursues. Goals had no HTTP surface until
 // 2026-09-10 (creatable only by the agent action `goals.create`), so the
 // run-start journey could not name its own goal.
+export type UtilityMetric =
+  | 'human_interventions'
+  | 'steps_executed'
+  | 'replan_count';
+
+export type UtilityDirection = 'maximize' | 'minimize';
+
+/** The existing GOAL-02 target shape; the backend validates metric/direction/
+ *  source. The UI never sends a caller-supplied or arbitrary metric. */
+export interface UtilityTarget {
+  metric: UtilityMetric;
+  direction: UtilityDirection;
+  source: 'goal_run';
+  description?: string;
+}
+
+export interface UtilityRankingEntry {
+  id: string;
+  utility: number | null;
+  rank: number | null;
+  eligible: boolean;
+  reason: string;
+  evidence?: Record<string, unknown>;
+}
+
+export interface GoalUtility {
+  goal_id: string;
+  target: UtilityTarget | null;
+  ranking: UtilityRankingEntry[];
+  winner: string | null;
+  eligible_count: number;
+}
+
 export interface Goal {
   id: string;
   title: string;
@@ -26,6 +59,7 @@ export interface Goal {
   owner_id?: string | null;
   source?: string | null;
   target_date?: string | null;
+  utility_target?: UtilityTarget | null;
   created_at?: string | null;
 }
 
@@ -218,6 +252,90 @@ export async function getGoal(id: string): Promise<Goal> {
   const res = await fetchJson(`/api/goals/${id}`);
   if (!res.ok) throw new Error(`Failed to load goal (${res.status})`);
   return (await res.json()) as Goal;
+}
+
+/** Read the persisted GOAL-02 target and the deterministic ranking of the
+ *  goal's completed runs. Read-only; does not change goal status/progress. */
+export async function getGoalUtility(goalId: string): Promise<GoalUtility> {
+  const res = await fetchJson(
+    `/api/goals/${encodeURIComponent(goalId)}/utility`,
+  );
+  if (!res.ok) {
+    const error = new Error(await readDetail(
+      res, `Failed to load utility target (${res.status})`,
+    )) as Error & { status?: number };
+    error.status = res.status;
+    throw error;
+  }
+  const body = await res.json();
+  return {
+    goal_id: String(body?.goal_id ?? goalId),
+    target: (body?.target as UtilityTarget | null) ?? null,
+    ranking: Array.isArray(body?.ranking)
+      ? (body.ranking as UtilityRankingEntry[])
+      : [],
+    winner: (body?.winner as string | null) ?? null,
+    eligible_count: Number(body?.eligible_count ?? 0),
+  };
+}
+
+/** Supervisor-only: attach the existing validated utility target. */
+export async function setGoalUtility(
+  goalId: string,
+  target: UtilityTarget,
+  operationId?: string,
+): Promise<{
+  utility_target: UtilityTarget | null;
+  verification?: Record<string, unknown>;
+  operation_id?: string;
+  audit_id?: string;
+}> {
+  const qs = operationId
+    ? `?${new URLSearchParams({ operation_id: operationId }).toString()}`
+    : '';
+  const res = await fetchJson(
+    `/api/goals/${encodeURIComponent(goalId)}/utility${qs}`,
+    {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(target),
+    },
+  );
+  if (!res.ok) {
+    const error = new Error(await readDetail(
+      res, `Failed to set utility target (${res.status})`,
+    )) as Error & { status?: number };
+    error.status = res.status;
+    throw error;
+  }
+  return await res.json();
+}
+
+/** Supervisor-only: clear the persisted target; ranking becomes unavailable. */
+export async function clearGoalUtility(
+  goalId: string,
+  operationId?: string,
+): Promise<{
+  utility_target: UtilityTarget | null;
+  verification?: Record<string, unknown>;
+  operation_id?: string;
+  audit_id?: string;
+}> {
+  const qs = operationId
+    ? `?${new URLSearchParams({ operation_id: operationId }).toString()}`
+    : '';
+  const res = await fetchJson(
+    `/api/goals/${encodeURIComponent(goalId)}/utility${qs}`,
+    { method: 'DELETE' },
+  );
+  if (!res.ok) {
+    const error = new Error(await readDetail(
+      res, `Failed to clear utility target (${res.status})`,
+    )) as Error & { status?: number };
+    error.status = res.status;
+    throw error;
+  }
+  return await res.json();
 }
 
 export async function createGoal(input: CreateGoalInput): Promise<Goal> {

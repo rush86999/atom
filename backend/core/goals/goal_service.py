@@ -91,10 +91,25 @@ class GoalService:
             session.refresh(goal)
             return self._to_dict(goal)
 
-    def get_goal(self, goal_id: str) -> Optional[Dict[str, Any]]:
+    def get_goal(self, goal_id: str, *,
+                 workspace_scoped: bool = True) -> Optional[Dict[str, Any]]:
+        """Load one goal, by default with the same visibility as ``list_goals``.
+
+        ``workspace_scoped=True`` is the public/read contract: a goal outside
+        this service's workspace is indistinguishable from an unknown id, so
+        the HTTP routes return 404 instead of leaking a peer workspace's title,
+        target or metadata. Trusted internal callers that deliberately need an
+        unscoped lookup must opt out explicitly with
+        ``workspace_scoped=False``; no production caller does so today.
+        """
         from core.models import GoalObjective
         with self._sessions()() as session:
-            goal = session.query(GoalObjective).filter(GoalObjective.id == goal_id).first()
+            query = session.query(GoalObjective).filter(
+                GoalObjective.id == goal_id)
+            if workspace_scoped:
+                query = query.filter(
+                    GoalObjective.workspace_id == self.workspace_id)
+            goal = query.first()
             return self._to_dict(goal) if goal else None
 
     def list_goals(self, status: Optional[str] = None, include_terminal: bool = True) -> List[Dict[str, Any]]:
@@ -151,11 +166,13 @@ class GoalService:
             session.refresh(goal)
             return self._to_dict(goal)
 
-    def get_utility_target(self, goal_id: str) -> Optional[Dict[str, Any]]:
-        goal = self.get_goal(goal_id)
+    def get_utility_target(self, goal_id: str, *,
+                           workspace_scoped: bool = True) -> Optional[Dict[str, Any]]:
+        goal = self.get_goal(goal_id, workspace_scoped=workspace_scoped)
         return goal.get("utility_target") if goal else None
 
-    def utility_ranking(self, goal_id: str) -> Optional[Dict[str, Any]]:
+    def utility_ranking(self, goal_id: str, *,
+                        workspace_scoped: bool = True) -> Optional[Dict[str, Any]]:
         """Deterministically rank this goal's terminal runs against its target.
 
         Read-only: no goal status/progress mutation. Uses the existing GoalRun
@@ -166,7 +183,7 @@ class GoalService:
         from core.goals.goal_run_service import GoalRunService
         from core.goals.utility_target import outcome_from_goal_run, rank_trajectories
 
-        goal = self.get_goal(goal_id)
+        goal = self.get_goal(goal_id, workspace_scoped=workspace_scoped)
         if not goal:
             return None
         target = goal.get("utility_target")

@@ -1,0 +1,76 @@
+{
+  "schema": "atom-goal-utility-surface-verification-1",
+  "source_commit": "37d1b820064611216562e6e633fde24638234102",
+  "base_commit": "6a597bf31f002a2e76ad7940ba483b698b553b61",
+  "branch": "codex/goal-utility-surface-20261107",
+  "environment": {
+    "testing": "1",
+    "database": "fresh unique sqlite per run under /private/tmp",
+    "data_dir": "fresh unique scratch data dir",
+    "lancedb": "fresh unique scratch dir",
+    "output_dir": "fresh unique scratch dir",
+    "secret_key": "synthetic test-only value",
+    "live_db_or_provider": false,
+    "model_inference": false,
+    "frontend_install": false,
+    "frontend_deps": "reused existing /private/tmp/atom-browser-capture-frozen-20261107/frontend-nextjs/node_modules via gitignored symlink",
+    "jest": "30.3.0",
+    "typescript": "5.9.3"
+  },
+  "checks": [
+    {
+      "name": "backend root scope + goal utility + write authority + projection",
+      "command": "TESTING=1 DATABASE_URL=sqlite:///<scratch>/atom.db ATOM_DATA_DIR=<scratch>/data LANCEDB_URI=<scratch>/lancedb ATOM_OUTPUT_DIR=<scratch>/output SECRET_KEY=test-synthetic-goal-utility-20261107 /private/tmp/atom-agent-cli/run_bounded_test_gate.py --cwd <backend> --profile bounded -- <venv314>/bin/python -m pytest tests/test_lead_goal_reads_workspace_scope.py tests/test_goal_utility_target.py tests/test_goal_write_authority_contract.py tests/test_goal_projection_boundaries.py -q --tb=short -p no:cacheprovider",
+      "result": "79 passed, 3 skipped",
+      "actual_exit": 0,
+      "artifact": "backend-goal-scope-and-writes.log",
+      "exit_artifact": "backend-goal-scope-and-writes.exit.txt"
+    },
+    {
+      "name": "backend goal-run consumer controls",
+      "command": "same bounded gate; tests/test_goal_run_service.py tests/test_goal_run_loop.py tests/test_goal_run_routes.py tests/test_goal_journey_gaps.py tests/core/test_agent_objective.py",
+      "result": "70 passed",
+      "actual_exit": 0,
+      "artifact": "backend-consumers.log",
+      "exit_artifact": "backend-consumers.exit.txt"
+    },
+    {
+      "name": "frontend Goal Run detail component tests",
+      "command": "node node_modules/jest/bin/jest.js --ci --runInBand --no-cache tests/pages/goal-runs/detail.test.tsx",
+      "result": "25 passed",
+      "actual_exit": 0,
+      "artifact": "frontend-detail.log",
+      "exit_artifact": "frontend-detail.exit.txt"
+    },
+    {
+      "name": "typescript",
+      "command": "node node_modules/typescript/bin/tsc --noEmit --pretty false",
+      "result": "no diagnostics",
+      "actual_exit": 0,
+      "artifact": "typescript.log",
+      "exit_artifact": "typescript.exit.txt"
+    }
+  ],
+  "predecessor_negative": {
+    "source": "8ed44fabe41549455d33f4e9ebfd0ced08ee1f41",
+    "result": "2 failed, 2 passed; actual exit 1",
+    "artifact": "predecessor-root-goal-read-scope-negative.log",
+    "exit_artifact": "predecessor-root-goal-read-scope-negative.exit.json",
+    "meaning": "peer-workspace GET goal/utility returned 200 before the repair"
+  },
+  "skips": {
+    "count": 3,
+    "tests": [
+      "tests/test_goal_write_authority_contract.py::test_utility_refuses_nullable_metadata_transition_after_read[sql_null-sql_null]",
+      "tests/test_goal_write_authority_contract.py::test_utility_refuses_nullable_metadata_transition_after_read[json_null-json_null]",
+      "tests/test_goal_write_authority_contract.py::test_utility_refuses_nullable_metadata_transition_after_read[object-object]"
+    ],
+    "reason": "pre-existing documented redundant nullable-metadata matrix cases; not dropped or suppressed"
+  },
+  "non_claims": [
+    "no live model/provider/browser campaign",
+    "no PostgreSQL/multi-worker/soak qualification",
+    "no new SaaS tenant boundary",
+    "no change to PR707/PR715 backend acceptance or 143-claim score"
+  ]
+}
