@@ -111,6 +111,20 @@ SHIM_DEFAULT_LABEL = (
 )
 WAIT_ACTION_TYPE = "agent_information_request"
 
+# Files the launcher itself may create inside the world export. They are
+# explicitly excluded from the frozen-source coverage check and reported; any
+# other untracked exported backend file is an unexpected source file.
+LAUNCHER_GENERATED_BACKEND_PREFIXES = (
+    "backend/logs/",
+    "backend/data/",
+    "backend/.pytest_cache/",
+)
+LAUNCHER_GENERATED_BACKEND_NAMES = frozenset({
+    "backend/test_integration.db",
+    "backend/dev.db",
+})
+LAUNCHER_GENERATED_BACKEND_SUFFIXES = (".pyc", ".pyo")
+
 LABELS = {
     "model_decisions": (
         "SIMULATED MODEL DECISIONS: authored provider completions served by "
@@ -268,6 +282,166 @@ def _manifest_subset_hash(manifest: Dict[str, str],
     }
 
 
+def _is_launcher_generated_backend_file(path: str) -> bool:
+    if path in LAUNCHER_GENERATED_BACKEND_NAMES:
+        return True
+    if path.startswith(LAUNCHER_GENERATED_BACKEND_PREFIXES):
+        return True
+    if "__pycache__/" in path or path.endswith(
+            LAUNCHER_GENERATED_BACKEND_SUFFIXES):
+        return True
+    return False
+
+
+def _exported_backend_files(export_root: Path) -> Dict[str, Path]:
+    if not export_root.is_dir():
+        return {}
+    return {
+        path.relative_to(export_root).as_posix(): path
+        for path in export_root.rglob("*")
+        if path.is_file() or path.is_symlink()
+    }
+
+
+def _git_tracked_backend_entries(
+    git_repo: Path, frozen_source_sha: str,
+) -> Tuple[Optional[Dict[str, Tuple[str, str]]], str]:
+    """Return {path: (mode, blob_sha)} for tracked backend files at a commit."""
+    if not frozen_source_sha:
+        return None, "frozen_source_sha missing"
+    try:
+        proc = subprocess.run(
+            ["git", "-C", str(git_repo), "ls-tree", "-r", "-z",
+             "--full-tree", str(frozen_source_sha), "--", "backend"],
+            capture_output=True, timeout=120)
+    except Exception as exc:  # noqa: BLE001 - reported, not hidden
+        return None, f"{type(exc).__name__}: {exc}"
+    if proc.returncode != 0:
+        return None, (proc.stderr.decode("utf-8", "replace") or "")[:400]
+    entries: Dict[str, Tuple[str, str]] = {}
+    for record in proc.stdout.split(b"\0"):
+        if not record:
+            continue
+        meta, _, raw_path = record.partition(b"\t")
+        fields = meta.split()
+        if len(fields) < 3:
+            continue
+        mode = fields[0].decode("ascii", "replace")
+        kind = fields[1].decode("ascii", "replace")
+        blob_sha = fields[2].decode("ascii", "replace")
+        path = raw_path.decode("utf-8", "replace")
+        if kind != "blob" or not path.startswith("backend/"):
+            continue
+        entries[path] = (mode, blob_sha)
+    return entries, ""
+
+
+def _git_blob_audit(
+    *,
+    git_repo: Path,
+    entries: Dict[str, Tuple[str, str]],
+    export_root: Path,
+    code_manifest: Dict[str, str],
+    export_tree: Dict[str, str],
+) -> Dict[str, Any]:
+    """Compare each exported tracked backend file to its Git blob bytes.
+
+    The self-generated code_manifest/export_tree are checked against Git too,
+    so two identically wrong manifests cannot certify each other.
+    """
+    byte_mismatches: List[str] = []
+    manifest_mismatches: List[str] = []
+    export_tree_mismatches: List[str] = []
+    missing: List[str] = []
+    unsupported_modes: List[str] = []
+    git_hashes: Dict[str, str] = {}
+    export_hashes: Dict[str, str] = {}
+    read_ok = True
+    error = ""
+    proc = None
+    try:
+        proc = subprocess.Popen(
+            ["git", "-C", str(git_repo), "cat-file", "--batch"],
+            stdin=subprocess.PIPE, stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE)
+        for path in sorted(entries):
+            mode, blob_sha = entries[path]
+            if mode not in ("100644", "100755"):
+                unsupported_modes.append(f"{path} ({mode})")
+            if proc.stdin is None or proc.stdout is None:
+                read_ok = False
+                error = "git cat-file --batch pipes unavailable"
+                break
+            proc.stdin.write(blob_sha.encode("ascii") + b"\n")
+            proc.stdin.flush()
+            header = proc.stdout.readline()
+            fields = header.split()
+            if (len(fields) < 3 or fields[1] != b"blob"):
+                read_ok = False
+                error = f"unexpected cat-file header for {path}: {header[:120]!r}"
+                break
+            try:
+                size = int(fields[2])
+            except ValueError:
+                read_ok = False
+                error = f"invalid cat-file size for {path}: {header[:120]!r}"
+                break
+            blob = proc.stdout.read(size)
+            trailer = proc.stdout.read(1)
+            if len(blob) != size or trailer != b"\n":
+                read_ok = False
+                error = f"short cat-file blob read for {path}"
+                break
+            git_sha = hashlib.sha256(blob).hexdigest()
+            git_hashes[path] = git_sha
+            exported = export_root / path
+            if not exported.is_file() or exported.is_symlink():
+                missing.append(path)
+                continue
+            actual = exported.read_bytes()
+            export_sha = hashlib.sha256(actual).hexdigest()
+            export_hashes[path] = export_sha
+            if actual != blob:
+                byte_mismatches.append(path)
+            if code_manifest.get(path) != git_sha:
+                manifest_mismatches.append(path)
+            if export_tree.get(path) != git_sha:
+                export_tree_mismatches.append(path)
+        if proc.stdin is not None:
+            proc.stdin.close()
+        try:
+            proc.wait(timeout=60)
+        except subprocess.TimeoutExpired:
+            proc.kill()
+            read_ok = False
+            error = "git cat-file --batch did not exit"
+        if proc.returncode not in (0, None):
+            read_ok = False
+            error = (error or (
+                proc.stderr.read().decode("utf-8", "replace")
+                if proc.stderr is not None else "")[:400])
+    except Exception as exc:  # noqa: BLE001 - reported, not hidden
+        read_ok = False
+        error = f"{type(exc).__name__}: {exc}"
+        if proc is not None:
+            try:
+                proc.kill()
+            except Exception:
+                pass
+    return {
+        "read_ok": read_ok,
+        "error": error,
+        "files_checked": len(git_hashes),
+        "byte_mismatches": sorted(byte_mismatches),
+        "manifest_mismatches": sorted(manifest_mismatches),
+        "export_tree_mismatches": sorted(export_tree_mismatches),
+        "missing_exported_files": sorted(missing),
+        "unsupported_modes": sorted(unsupported_modes),
+        "git_backend_export": _manifest_subset_hash(git_hashes, "backend/"),
+        "export_backend_export": _manifest_subset_hash(export_hashes, "backend/"),
+    }
+
+
 def _backend_source_binding(
     *,
     frozen_source_sha: str,
@@ -279,17 +453,50 @@ def _backend_source_binding(
     health_identity: Dict[str, Any],
     descriptor: Dict[str, Any],
     world: Path,
+    git_repo: Optional[Path] = None,
+    export_root: Optional[Path] = None,
 ) -> Dict[str, Any]:
-    """Bind the initial server to the frozen source and its exported files.
+    """Bind the initial server to the frozen Git commit and its exported bytes.
 
-    The world MANIFEST has no source_revision, so absence is recorded but is
-    never allowed to satisfy the check. Certification is the chain:
-    frozen source == preflight source, exported tree == code_manifest, and the
-    running server cwd/export path is exactly this world's backend_root.
+    Matching ``export_tree == code_manifest`` is not sufficient: both are
+    self-generated. Every tracked ``backend/`` file in the exported tree is
+    compared byte-for-byte with the blob at ``frozen_source_sha``, and both
+    generated manifests must carry that Git blob's SHA-256. The world MANIFEST
+    has no source_revision, so absence is recorded but never used as a pass.
     """
     health = health_identity or {}
     desc = descriptor or {}
     manifest_rev = (manifest or {}).get("source_revision")
+    repo = Path(git_repo) if git_repo is not None else REPO
+    root = (Path(export_root) if export_root is not None
+            else Path(world) / "code")
+    actual_files = _exported_backend_files(root)
+    tracked, git_error = _git_tracked_backend_entries(
+        repo, frozen_source_sha)
+    tracked = tracked or {}
+    allowlisted = sorted(
+        path for path in actual_files
+        if _is_launcher_generated_backend_file(path))
+    missing = sorted(set(tracked) - set(actual_files))
+    unexpected = sorted(
+        set(actual_files) - set(tracked) - set(allowlisted))
+    coverage_complete = bool(tracked) and not missing
+    audit: Dict[str, Any] = {
+        "read_ok": False,
+        "error": "",
+        "files_checked": 0,
+        "byte_mismatches": [],
+        "manifest_mismatches": [],
+        "export_tree_mismatches": [],
+        "missing_exported_files": missing,
+        "unsupported_modes": [],
+        "git_backend_export": _manifest_subset_hash({}, "backend/"),
+        "export_backend_export": _manifest_subset_hash({}, "backend/"),
+    }
+    if tracked and coverage_complete:
+        audit = _git_blob_audit(
+            git_repo=repo, entries=tracked, export_root=root,
+            code_manifest=code_manifest, export_tree=export_tree)
     backend_export = _manifest_subset_hash(code_manifest, "backend/")
     whole_export = _manifest_subset_hash(code_manifest, "")
     expected_export = (Path(world) / "backend_root").resolve()
@@ -302,6 +509,26 @@ def _backend_source_binding(
             bool(frozen_source_sha)
             and str((preflight or {}).get("source_revision") or "")
             == str(frozen_source_sha)),
+        "git_repo_present": repo.is_dir(),
+        "git_commit_resolved": bool(tracked) and not git_error,
+        "tracked_backend_files_present": bool(tracked),
+        "all_tracked_backend_files_exported": coverage_complete,
+        "no_unexpected_backend_files": not unexpected,
+        "git_blob_read_ok": bool(audit.get("read_ok")),
+        "git_blob_bytes_match_export": (
+            bool(audit.get("read_ok"))
+            and not audit.get("byte_mismatches")),
+        "code_manifest_matches_git_blobs": (
+            bool(audit.get("read_ok"))
+            and not audit.get("manifest_mismatches")),
+        "export_tree_matches_git_blobs": (
+            bool(audit.get("read_ok"))
+            and not audit.get("export_tree_mismatches")),
+        "code_manifest_keys_match_export": (
+            set(code_manifest) == set(actual_files)),
+        "export_tree_keys_match_export": (
+            set(export_tree) == set(actual_files)),
+        "all_git_modes_supported": not audit.get("unsupported_modes"),
         "manifest_export_hash_present": bool(
             (manifest or {}).get("code_snapshot_sha256")
             or (manifest or {}).get("code_archive_sha256")),
@@ -311,7 +538,12 @@ def _backend_source_binding(
                 and str(manifest_rev) == str(frozen_source_sha))),
         "export_tree_matches_code_manifest": (
             export_tree == code_manifest),
-        "backend_export_hash_present": backend_export["file_count"] > 0,
+        "backend_export_hash_present": (
+            (audit.get("git_backend_export") or {}).get("file_count", 0) > 0),
+        "backend_export_hash_bound": (
+            bool(audit.get("read_ok"))
+            and (audit.get("git_backend_export") or {}).get("sha256")
+            == (audit.get("export_backend_export") or {}).get("sha256")),
         "health_cwd_exact": _same_path(health.get("cwd"), expected_export),
         "descriptor_export_exact": _same_path(
             desc.get("export_path"), expected_export),
@@ -321,11 +553,29 @@ def _backend_source_binding(
         **checks,
         "ok": all(checks.values()),
         "certified_by": (
-            "frozen_source+preflight_source+export_tree+backend_export+"
-            "isolated_cwd+descriptor"),
+            "frozen_source+preflight_source+git_blob_bytes+"
+            "exported_tree+backend_export+isolated_cwd+descriptor"),
         "frozen_source_sha": frozen_source_sha,
         "source_head": source_head,
         "preflight_source_revision": (preflight or {}).get("source_revision"),
+        "git_repo": str(repo),
+        "git_error": git_error,
+        "export_root": str(root),
+        "expected_commit_file_count": len(tracked),
+        "exported_backend_file_count": len(actual_files),
+        "missing_exported_files": missing[:25],
+        "unexpected_exported_files": unexpected[:25],
+        "launcher_generated_exported_files": allowlisted[:25],
+        "git_blob_files_checked": audit.get("files_checked", 0),
+        "git_blob_mismatches": (audit.get("byte_mismatches") or [])[:25],
+        "code_manifest_mismatches": (
+            audit.get("manifest_mismatches") or [])[:25],
+        "export_tree_mismatches": (
+            audit.get("export_tree_mismatches") or [])[:25],
+        "unsupported_git_modes": (audit.get("unsupported_modes") or [])[:25],
+        "git_blob_error": audit.get("error", ""),
+        "git_backend_export": audit.get("git_backend_export"),
+        "export_backend_export": audit.get("export_backend_export"),
         "manifest_source_revision": manifest_rev,
         "manifest_source_revision_present": manifest_rev is not None,
         "code_snapshot_sha256": (manifest or {}).get("code_snapshot_sha256"),
