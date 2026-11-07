@@ -1,0 +1,13 @@
+{
+  "source": "72a27e540ad452f356678cd354037b1142760025",
+  "head_after": "72a27e540ad452f356678cd354037b1142760025",
+  "runtime_or_test_diff": [],
+  "actual_exit": 1,
+  "scratch": "/private/tmp/root-wait-source-final-review-fq8paslu",
+  "finished": 1794076491.854084,
+  "probe_path": "/private/tmp/test_lead_wait_missing_authoritative_revision.py",
+  "probe_sha256": "1db1eea8687d6bdb404a254b25c153ed2c41967806fcc5fefc165da1c8552e78",
+  "result": "2 failed: missing authoritative revision incorrectly accepted",
+  "permanent_probe_commit": "aab7a62cd",
+  "scope": "real SQL authority row and actual applied-source consumer; indexed text leaf controlled, not browser/full-app qualification"
+}

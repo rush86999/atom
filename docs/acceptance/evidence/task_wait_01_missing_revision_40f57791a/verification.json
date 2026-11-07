@@ -1,0 +1,36 @@
+{
+  "kind": "task_wait_01_missing_revision",
+  "executed_source": "40f57791a059186c9b988d24e387e4a54609b759",
+  "root_negative_source": "72a27e540ad452f356678cd354037b1142760025",
+  "root_negative_test_commit": "aab7a62cdfd7cb88f0ad8eb13a08516226e169d9",
+  "source_tree_clean_at_focused_run": true,
+  "root_negative": {
+    "failed": 2,
+    "exit": 1,
+    "log": "root-missing-revision-negative.log",
+    "exit_json": "root-missing-revision-negative.exit.json"
+  },
+  "focused": {
+    "passed": 13,
+    "exit": 0,
+    "log": "focused-missing-revision-13.log"
+  },
+  "prior_clean_11pass": {
+    "passed": 11,
+    "source": "5fb98e929",
+    "log": "prior-focused-root-and-recovery-11.log"
+  },
+  "earlier_negatives": {
+    "progress_extraction_failed": 3,
+    "source_unavailable_failed": 2,
+    "upload_removed_failed": 1
+  },
+  "fix": "reuse current_extraction_revision; missing/malformed/mismatched revision -> typed gap",
+  "valid_exact_twins": "ev4 and manual opaque pass",
+  "no_new_validator_or_store": true,
+  "no_broad_dispatch": true,
+  "no_live_actions": true,
+  "g3_implementation": "deferred pending root acceptance",
+  "task_wait_01": "open",
+  "claim_denominator": 143
+}
