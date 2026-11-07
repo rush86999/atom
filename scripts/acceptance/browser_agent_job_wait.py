@@ -1559,6 +1559,8 @@ def _run_scenario(args: argparse.Namespace) -> int:
                     180000, "waiting status")
                 first_blocking = page.locator(
                     '[data-testid="agent-job-blocking"]').inner_text().strip()
+                panel_text = page.locator(
+                    '[data-testid="agent-job-wait-panel"]').inner_text().strip()
                 job1 = _read_job(api, fixture["agent_id"], job_id)
                 wait1 = (job1["data"].get("wait") or {})
                 shim1 = _shim_snapshot(args.shim_port)
@@ -1573,10 +1575,15 @@ def _run_scenario(args: argparse.Namespace) -> int:
                     "ui_question_exact": first_question == Q1,
                     "ui_waiting_status": "Waiting for your answer" in first_status,
                     "ui_blocking_fact": "task title" in first_blocking.lower(),
+                    "panel_says_information_not_approval": (
+                        "not approval of an action" in panel_text.lower()),
                     "no_completion": page.locator(
                         '[data-testid="agent-job-completed"]').count() == 0,
+                    "no_result": page.locator(
+                        '[data-testid="agent-job-result"]').count() == 0,
                 }, details={"job_read": job1["public"],
                             "ui_blocking": first_blocking,
+                            "panel_text": panel_text[:1200],
                             "shim_calls": shim1["calls"]})
                 # The read must be pure: no provider call, unchanged wait.
                 job1_again = _read_job(api, fixture["agent_id"], job_id)
@@ -1729,6 +1736,9 @@ def _run_scenario(args: argparse.Namespace) -> int:
                 job3 = _read_job(api, fixture["agent_id"], job_id)
                 wait3 = job3["data"].get("wait") or {}
                 shim3 = _shim_snapshot(args.shim_port)
+                waits_after_first = _durable_state(
+                    db_path, fixture["agent_id"], job_id, execution_id,
+                    fixture["board_id"])["waits"]
                 step("second_durable_question", {
                     "job_status_waiting": job3["data"].get("job_status") == "waiting",
                     "same_execution_id": str(
@@ -1742,7 +1752,17 @@ def _run_scenario(args: argparse.Namespace) -> int:
                     "answer_input_cleared": answer_input.input_value() == "",
                     "no_completion": page.locator(
                         '[data-testid="agent-job-completed"]').count() == 0,
+                    "two_wait_rows": len(waits_after_first) == 2,
+                    "first_wait_approved_with_title": (
+                        len(waits_after_first) == 2
+                        and waits_after_first[0].get("status") == "approved"
+                        and waits_after_first[0].get("user_feedback")
+                        == TITLE_ANSWER),
+                    "second_wait_pending": (
+                        len(waits_after_first) == 2
+                        and waits_after_first[1].get("status") == "pending"),
                 }, details={"job_read": job3["public"],
+                            "waits": waits_after_first,
                             "shim_calls": shim3["calls"]})
                 _screenshot(page, out, "03_second_question.png")
 
@@ -1867,6 +1887,8 @@ def _run_scenario(args: argparse.Namespace) -> int:
                     "result_visible": FINAL_ANSWER in result_text,
                     "no_failure_banner": page.locator(
                         '[data-testid="agent-job-failure"]').count() == 0,
+                    "no_open_question": page.locator(
+                        '[data-testid="agent-job-question"]').count() == 0,
                 }, details={"completed_text": completed_text,
                             "result_text": result_text[:1000]})
                 _screenshot(page, out, "05_verified_result.png")
