@@ -1,0 +1,37 @@
+{
+  "schema": "atom-generic-request-binding-manifest-1",
+  "qualified_source": "60d3b71de85c98e73a4ef43b5f8b565974f5157e",
+  "base_source": "fbe7a597585c",
+  "source_files": {
+    "backend/core/oracle/request_expectations.py": "28c8c41345bd8ca6d0d0be36b47ee5786935a512",
+    "backend/core/generic_agent.py": "9f5a1ee16ed80e6d572376dd1b9d9dbdcb07c433",
+    "backend/core/assignment_executor.py": "9dcd6e8f7ab06a7e543c8c971e02993ed624e02f",
+    "backend/tests/test_generic_request_expectations.py": "c4f9da24100f52de0fff66f94dc65d99967f43f2"
+  },
+  "artifacts": {
+    "docs/acceptance/evidence/generic_request_binding_20261107/README.md": "c24256d641723ff6e5fcacb9236d2b7459b280dc",
+    "docs/acceptance/evidence/generic_request_binding_20261107/final-gate.log": "e6736d82df7141ea52f55fd00adae42ed0ff496d",
+    "docs/acceptance/evidence/generic_request_binding_20261107/known-preexisting-failure.log": "a63f0c2a992880ea64e9594ccdedbb371955a6d7",
+    "docs/acceptance/evidence/generic_request_binding_20261107/run-spec.json": "f95946e170955f677aabee30fa565b58efc0f967",
+    "docs/acceptance/evidence/generic_request_binding_20261107/probe/test_lead_generic_mini_request_binding.py": "02cb78a1854d4bf21e669bfa6d245beac438dbd2"
+  },
+  "result": {
+    "final_gate_passed": 271,
+    "final_gate_failed": 0,
+    "final_gate_errors": 0,
+    "supplied_probe_after_fix": "2 passed",
+    "supplied_probe_before_fix": "1 failed (Generic), 1 passed (Assignment)"
+  },
+  "protected_namespace": {
+    "name": "_oracle_expected_*",
+    "model_or_body_args_can_populate": false,
+    "handler_result_can_populate": false,
+    "server_builder": "backend/core/oracle/request_expectations.py::build_request_expectations"
+  },
+  "worktree_at_run": {
+    "tracked_source_clean_after_checkpoint": true,
+    "untracked_work_order_and_lead_notes_present": true,
+    "evidence_files_untracked_at_run": true
+  },
+  "verification": "Compare source_files to qualified_source and artifacts to the containing evidence Git ref. MANIFEST itself is excluded."
+}

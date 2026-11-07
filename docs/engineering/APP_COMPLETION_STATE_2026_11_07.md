@@ -108,3 +108,13 @@ Runtime/tests are identical; only a disclosed synthetic revision-digest log
 derivative and its evidence metadata changed. Full original source refs and
 negative results remain preserved. Exact-head hosted checks still gate merge.
 Both implementation successors continue while this publishing repair runs.
+
+## Independent review checkpoint: joint foundation and automatic input continuation
+
+PR719 merged as8cbc99cc9 after exact-head eight green checks; merged tree equals6da9f3d2d. This closes only the reviewed host-writer and truthful AgentJob caller foundations, not whole-app ORACLE or TASK-WAIT-01.
+
+Normal Generic registered-request bridge source60d3b71de independently passed271 prior controls but two new reconciliation-persistence probes failed: effect readback was reported as success despite a failed/losing durable claim update. Root correctionba852d86d requires a committed payload-bound CAS. Integrated source3ad595693 passes361 controls, actualexit0; original negatives and original source packets remain preserved. Hosted final-head checks remain required.
+
+Targeted assignment source-answer continuation6d08b1c4b/evidenced874e1872 independently passes74 route controls plus9 AssignmentPanel tests;13 packet hashes match Git. Its restart test rebuilds an executor in the same process and explicitly resends the source. That is replay/session evidence, not actual process restart or automatic recovery of accepted input without another owner request. Agent2 is now implementing that finite process-recovery successor. The broader TASK-WAIT-01 goal stays open.
+
+Agent1 is active on the reproduced board-owner API/service boundary (hidden peer board still accepts a guessed-id column write). Core boards remain deferred; no force-enablement or UI acceptance is implied. Native CLI workers continue while model-free observers own hosted CI. No live-provider, credential, guest, send/spend or deployment authority is expanded.

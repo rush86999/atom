@@ -1,0 +1,27 @@
+{
+  "command": [
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-generic-context-review-lhocvu66/pytest",
+    "/private/tmp/test_lead_generic_reconcile_commit.py",
+    "/private/tmp/test_lead_generic_mini_request_binding.py",
+    "tests/test_generic_request_expectations.py",
+    "tests/test_generic_oracle_mutation_contract.py",
+    "tests/test_oracle_mini_app_host_mutations.py",
+    "tests/test_presentation_binding_controls.py",
+    "tests/test_assignment_executor.py",
+    "tests/test_oracle_connected_mutations.py",
+    "tests/test_oracle_registry_verification_gap.py",
+    "tests/test_employee_work_requests.py",
+    "tests/test_oracle_canvas_postcondition.py",
+    "--junitxml=/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-generic-context-review-lhocvu66/result.xml",
+    "-q",
+    "--tb=short"
+  ],
+  "source": "dc126be5dcd2b8356dc45c999086c1bc6154f8d9",
+  "scratch": "/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-generic-context-review-lhocvu66",
+  "started": 1794034990.877009
+}

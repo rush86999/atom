@@ -1,0 +1,28 @@
+{
+  "executed_source": "3ad59569367d7f6a6fc44cc7de6909a6cb7203d2",
+  "source_files": {
+    "backend/core/generic_agent.py": "fbb0c7c4662226b0e7daeb7c3ef3efcccc1c477b06917046daa1ce295c8367b2",
+    "backend/core/assignment_executor.py": "1dfeaa518b47dd9db28fb15618c1d76b4d6e3fe63c9e82c062771d545fca94d6",
+    "backend/core/oracle/request_expectations.py": "4ddc76fd99cb0cb32f900d85e29589f98dcd7b8bf04eadb12309a61b0789180f",
+    "backend/core/outbound_operation_claim.py": "95908c0d649b7b6ec41ba6c19c9beeafe846a9c7c841b30061da7cdd77b27538",
+    "backend/tests/test_generic_request_expectations.py": "b339ba09a9814b6549737eacd3e9231ce86783fed4a386a67e26a9e2dd5d1c94",
+    "backend/tests/test_generic_reconcile_commit_contract.py": "9cf9a0ee304a439b509d5112273dc683f0050a876fc8f84ecc542688091ba189",
+    "backend/tests/test_generic_oracle_mutation_contract.py": "ecc25c079c4675738f9da09bd1f524dfbb1dc8af59d5ff032d2aa301eb8fbdd1",
+    ".github/workflows/ci.yml": "82f704a547a2db23935f6047626294708b2b0d9d99d52bfc870d82ea2593f638"
+  },
+  "artifacts": {
+    "README.md": "09c6ee4f4ab27c1808d227a7059a27648f4a576f9ba4942541f20f76c1bc59c4",
+    "final-joint-exit.json": "7f39aa3b2674d817686ccdc9a5bf5dd2f14ed1ef3fe56671e962a067be203937",
+    "final-joint-spec.json": "c027d75536834c2d08f8b35e62ac38433e8b28daea829c4777a59e44f3adc721",
+    "final-joint.log": "baffaade7df34d9dc9d1965e001e28837963bcd207ebc64ac5a238ce32da8cdc",
+    "final-joint.xml": "a76c7eae396ab2e5acd53731a43c533c88b9a56c575e6d7a71caa6dff6b6389e",
+    "initial-review-exit.json": "8665513c73dcdff44a72758d525a1f86d4917f3ade0c7059c92c7b506bbfc9a3",
+    "initial-review-spec.json": "9452afe2ea6322f701c0264a64ed94e4a01610641bbca97d21536b8673eab0c0",
+    "initial-review.log": "8c141ac8f0d9c8b44086bbb3befd2e2ddd8c03013b0210901d0cd2ea82c1aa6c",
+    "initial-review.xml": "02f22658145de4516c066cc9d58bcf1d8693c9f855e5161c819bd25592a888d1",
+    "original-packet-git-check.json": "71d1cf5cc7ce8df2599fc8b5e9ccdb1d0304730a375f402a5203e1ee35becee0",
+    "supplied-normal-request-probe.py": "5b50de0385a2369e24f8f0bcca475fdb43d802b7884a5b670aa415010e08609b",
+    "supplied-reconciliation-probe.py": "12930b6806a1df1ca7b49e47c37028628ab5280c88afb67b19ea516017495bae",
+    "verification.json": "b40f921486fbc327de75fb5d123641da5046a019bda5be7dd15b204c5f050fcf"
+  }
+}
