@@ -171,6 +171,19 @@ def build_request_expectations(
     expected_board_id = (
         str(args.get("board_id") or "") if name == "tasks.create" else "")
 
+    # Shopify product material is frozen from the accepted business arguments
+    # (never from the handler's returned object).  The verifier compares this
+    # projection with a fresh provider readback, so a matching title alone can
+    # never certify the effect.
+    expected_shopify_product = None
+    if name == "shopify_create_product":
+        try:
+            from core.shopify_mutations import accepted_product_material
+
+            expected_shopify_product = accepted_product_material(args)
+        except Exception:  # noqa: BLE001 - verifier refuses absent binding
+            expected_shopify_product = None
+
     # Presentation material is frozen from the authorized arguments, not from
     # the handler's returned envelope.  Both consumers and the canvas producer
     # derive it through ``core.presentation_material`` so the digests cannot
@@ -267,6 +280,7 @@ def build_request_expectations(
         "_oracle_expected_title": expected_present_title,
         "_oracle_expected_task_title": expected_task_title,
         "_oracle_expected_board_id": expected_board_id,
+        "_oracle_expected_shopify_product": expected_shopify_product,
         "_oracle_expected_app_id": expected_app_id,
         "_oracle_expected_tests": expected_tests,
         "_oracle_expected_tests_sha256": expected_tests_sha256,

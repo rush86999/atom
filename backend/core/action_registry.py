@@ -1828,21 +1828,66 @@ def _resolve_shopify_store(context: Dict[str, Any]) -> tuple:
     Fail-closed: returns (None, None) when the workspace has no store — never
     falls back to another tenant's store, which would let one workspace read or
     mutate another tenant's storefront (P1 cross-tenant exposure).
+
+    The Shopify producer intentionally stores workspace identity in
+    ``EcommerceStore.tenant_id`` (see integrations/shopify_routes.py), so this
+    lookup preserves that supported compatibility rather than applying a
+    separate account/tenant budget rule.
+    """
+    return _resolve_shopify_store_authority(context)
+
+
+def _resolve_shopify_store_authority(
+    context: Dict[str, Any],
+) -> tuple:
+    """Return the current (token, shop) or (None, None) before any transport.
+
+    Ownership is re-read from the durable store row at dispatch time.  A row
+    whose workspace metadata disagrees with its owner column is a moved row,
+    not a usable store: no model/body argument can override the workspace
+    scope.  Inactive/credential-less rows are likewise unavailable.
     """
     try:
         from core.database import SessionLocal
         from core.models import EcommerceStore
-        ws_id = (context or {}).get("workspace_id", "default")
+        ctx = context or {}
+        ws_id = str(
+            ctx.get("workspace_id")
+            or ctx.get("_oracle_expected_workspace_id")
+            or "default")
         with SessionLocal() as db:
             store = db.query(EcommerceStore).filter(
                 EcommerceStore.tenant_id == ws_id
             ).first()
-            if not store or not store.access_token:
+            if not store or not store.access_token or not store.shop_domain:
                 return None, None
+            if getattr(store, "is_active", True) is False:
+                return None, None
+            metadata = getattr(store, "metadata_json", None)
+            if isinstance(metadata, dict):
+                metadata_workspace = str(
+                    metadata.get("workspace_id") or "").strip()
+                if metadata_workspace and metadata_workspace != ws_id:
+                    # The store was moved/reassigned without updating the
+                    # legacy owner column.  Do not dispatch against a store
+                    # that no longer belongs to this workspace.
+                    return None, None
             return store.access_token, store.shop_domain
     except Exception as e:
         logger.warning(f"Failed to resolve Shopify store: {e}")
         return None, None
+
+
+def _shopify_store_selector_arguments(
+    arguments: Dict[str, Any],
+) -> list:
+    """Store/credential selectors a body or model may not supply."""
+    from core.shopify_mutations import STORE_SELECTOR_FIELDS
+
+    return sorted(
+        str(key) for key in (arguments or {})
+        if str(key) in STORE_SELECTOR_FIELDS
+    )
 
 
 @register_action(
@@ -1854,10 +1899,46 @@ def _resolve_shopify_store(context: Dict[str, Any]) -> tuple:
 async def _shopify_create_product(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     token, shop = _resolve_shopify_store(context)
     if not token:
-        return {"success": False, "error": "no_shopify_store", "message": "No Shopify store connected to this workspace."}
-    from integrations.shopify_service import ShopifyService
-    product = await ShopifyService().create_product(token, shop, product=args)
-    return {"success": True, "product": product}
+        return {
+            "status": "failed_before_effect",
+            "success": False,
+            "action_result": "proven_not_applied",
+            "effect_possible": False,
+            "error": "no_shopify_store",
+            "error_kind": "no_shopify_store",
+            "message": "No Shopify store connected to this workspace.",
+        }
+    selectors = _shopify_store_selector_arguments(args)
+    if selectors:
+        return {
+            "status": "failed_before_effect",
+            "success": False,
+            "action_result": "proven_not_applied",
+            "effect_possible": False,
+            "error": "store_override_refused",
+            "error_kind": "store_override_refused",
+            "message": (
+                "Store and credential selectors are server-owned; refusing "
+                "before dispatch: " + ", ".join(selectors)),
+        }
+    if not str((args or {}).get("title") or "").strip():
+        return {
+            "status": "failed_before_effect",
+            "success": False,
+            "action_result": "proven_not_applied",
+            "effect_possible": False,
+            "error": "invalid_request",
+            "error_kind": "invalid_request",
+            "message": "A product title is required.",
+        }
+    from core.shopify_mutations import create_product
+
+    return await create_product(
+        token, shop, args,
+        operation_id=str(
+            (context or {}).get("operation_id")
+            or (args or {}).get("operation_id") or ""),
+    )
 
 
 @register_action(

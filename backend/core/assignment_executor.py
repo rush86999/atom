@@ -6925,15 +6925,19 @@ async def _action_registry_adapter(
                 f"{type(exc).__name__}"),
             "error_class": "request_snapshot_unavailable",
         }
-    known_connected = name.endswith(
-        ("books.create_bill", "books.create_estimate",
-         "outlook.create_draft"))
     expected_binding: Dict[str, str] = {}
     try:
-        from core.connected_actions import oracle_request_binding
+        from core.connected_actions import (
+            is_connected_mutation,
+            oracle_request_binding,
+        )
 
+        known_connected = is_connected_mutation(name)
         expected_binding = oracle_request_binding(name, authorized_arguments)
     except Exception as exc:  # noqa: BLE001 - malformed binding is a refusal
+        known_connected = name.endswith(
+            ("books.create_bill", "books.create_estimate",
+             "outlook.create_draft", "shopify_create_product"))
         if known_connected:
             return {
                 "status": "failed",
