@@ -2075,14 +2075,16 @@ def _public_information_wait(
     job_id: str,
     agent_id: str,
     execution_id: str,
+    namespace: Dict[str, Any],
 ) -> Optional[Dict[str, Any]]:
     """Project the exact current wait, re-verified against its durable row.
 
     The job receipt alone is not read authority: the referenced HITLAction must
     still exist, still be an information wait, and still name this same
-    job/agent/execution.  Only the question, what it blocks, the opaque
-    correlation and the wait state leave the server.  Resume history, claim
-    tokens, raw parameters and the context snapshot stay private.
+    job/agent/execution in the same admitted workspace/tenant/actor.  Only the
+    question, what it blocks, the opaque correlation and the wait state leave
+    the server.  Resume history, claim tokens, raw parameters and the context
+    snapshot stay private.
     """
     from core.information_wait import is_information_wait_action
 
@@ -2102,6 +2104,33 @@ def _public_information_wait(
         str(snapshot.get("job_id") or "") != str(job_id)
         or str(snapshot.get("agent_id") or "") != str(agent_id)
         or action_execution != str(execution_id)
+    ):
+        return None
+    # The durable wait must also live in the same admitted scope. Nullable
+    # personal/legacy values stay compatible; two concrete values must match.
+    ns_workspace = namespace.get("workspace_id")
+    action_workspace = getattr(action, "workspace_id", None)
+    if (
+        action_workspace is not None
+        and ns_workspace is not None
+        and str(action_workspace) != str(ns_workspace)
+    ):
+        return None
+    ns_tenant = namespace.get("tenant_id")
+    action_tenant = getattr(action, "tenant_id", None)
+    if (
+        action_tenant is not None
+        and ns_tenant is not None
+        and str(action_tenant) != str(ns_tenant)
+    ):
+        return None
+    ns_actor = str(
+        namespace.get("actor_id") or namespace.get("user_id") or "")
+    action_actor = getattr(action, "user_id", None)
+    if (
+        action_actor is not None
+        and ns_actor
+        and str(action_actor) != ns_actor
     ):
         return None
     question = str(
@@ -2133,19 +2162,42 @@ def _public_information_wait(
     }
 
 
-def _durable_public_result(bind, execution_id: str) -> Optional[Dict[str, Any]]:
+def _durable_public_result(
+    bind,
+    execution_id: str,
+    *,
+    agent_id: str,
+    namespace: Dict[str, Any],
+) -> Optional[Dict[str, Any]]:
     """Return the durable, public-facing output of a completed execution.
 
     The admitted job row carries status/outcome truth but not the final text;
-    the execution row is the durable public output.  Internal scores, audit
-    payloads and resume material are never projected.
+    the execution row is the durable public output.  It must still belong to
+    the same agent and admitted scope.  Internal scores, audit payloads and
+    resume material are never projected.
     """
     from core.models import AgentExecution
 
     if not execution_id:
         return None
     execution = _safe_get(bind, AgentExecution, execution_id)
-    if execution is None:
+    if execution is None or str(execution.agent_id or "") != str(agent_id):
+        return None
+    ns_workspace = namespace.get("workspace_id")
+    execution_workspace = getattr(execution, "workspace_id", None)
+    if (
+        execution_workspace is not None
+        and ns_workspace is not None
+        and str(execution_workspace) != str(ns_workspace)
+    ):
+        return None
+    ns_tenant = namespace.get("tenant_id")
+    execution_tenant = getattr(execution, "tenant_id", None)
+    if (
+        execution_tenant is not None
+        and ns_tenant is not None
+        and str(execution_tenant) != str(ns_tenant)
+    ):
         return None
     output = str(getattr(execution, "output_summary", "") or "").strip()
     if not output:
@@ -3416,6 +3468,7 @@ async def read_agent_job(
             job_id=str(job_id),
             agent_id=str(agent_id),
             execution_id=execution_id,
+            namespace=namespace,
         )
         if wait is None:
             # A waiting status without a re-verifiable current wait is not a
@@ -3428,7 +3481,11 @@ async def read_agent_job(
             data["next_action"] = "await_information"
     elif job_status == AgentJobStatus.SUCCESS.value:
         result = _durable_public_result(
-            bind, str(data.get("execution_id") or ""))
+            bind,
+            str(data.get("execution_id") or ""),
+            agent_id=str(agent_id),
+            namespace=namespace,
+        )
         if result is not None:
             data["result"] = result
     return router.success_response(

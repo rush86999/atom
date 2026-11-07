@@ -11,7 +11,7 @@ from __future__ import annotations
 
 import json
 
-from core.models import AgentJob, HITLAction, User
+from core.models import AgentExecution, AgentJob, HITLAction, User
 from core.react_models import InformationWaitRequest, ReActStep
 
 from tests.test_agent_run_outcome_join_contract import (
@@ -268,3 +268,60 @@ def test_second_question_and_final_result_read_back_on_the_same_job(
     job, payload = _job_payload(real_env, job_id)
     assert job.status == "success"
     assert payload["outcome"] == "success"
+
+
+def test_foreign_wait_scope_is_never_exposed(real_env, monkeypatch):
+    data, _calls = _waiting_job(
+        real_env, monkeypatch,
+        question="Which account id?",
+        missing_fact="account id",
+    )
+    receipt = data["wait_receipt"]
+    with real_env.SessionLocal() as db:
+        action = db.get(HITLAction, receipt["hitl_action_id"])
+        action.workspace_id = "ws2"
+        db.commit()
+
+    body = _job_readback(real_env, data["job_id"])
+    assert body["job_status"] == "waiting"
+    assert body["wait_unavailable"] is True
+    assert "wait" not in body
+
+
+def test_foreign_execution_scope_does_not_expose_the_result(
+    real_env, monkeypatch,
+):
+    def first(task_input, history, context):
+        return ReActStep(
+            thought="Need the title.",
+            information_wait=InformationWaitRequest(
+                question="What title?", missing_fact="title"))
+
+    def finished(task_input, history, context):
+        return ReActStep(thought="done", final_answer="public answer")
+
+    _install_model(monkeypatch, [first, finished])
+    start = _run(
+        real_env,
+        operation_id="readback-foreign-result",
+        parameters={"sync": True, "task_input": "prepare the closing task"},
+    )
+    first_data = start.json()["data"]
+    receipt = first_data["wait_receipt"]
+    answered = _client(real_env).post(
+        f"/api/agents/a1/jobs/{first_data['job_id']}/answer",
+        json={
+            "answer": "Closing task",
+            "correlation_id": receipt["correlation_id"],
+        },
+    )
+    assert answered.status_code == 200, answered.text
+
+    with real_env.SessionLocal() as db:
+        execution = db.get(AgentExecution, first_data["execution_id"])
+        execution.workspace_id = "ws2"
+        db.commit()
+
+    body = _job_readback(real_env, first_data["job_id"])
+    assert body["job_status"] == "success"
+    assert "result" not in body

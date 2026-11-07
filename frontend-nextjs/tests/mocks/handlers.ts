@@ -178,6 +178,25 @@ export const commonHandlers = [
     );
   }),
 
+  // Self-fetching Agents-page children (maturity proposals + launch guide).
+  // Dedicated tests override these; the defaults keep unrelated page suites
+  // from falling through to a live dev backend for background reads.
+  rest.get(/\/api\/maturity\/training\/proposals($|\?)/, (_req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ proposals: [] }));
+  }),
+  rest.get(/\/api\/maturity\/proposals($|\?)/, (_req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ proposals: [] }));
+  }),
+  rest.get(/\/api\/v1\/auth\/oauth\/tokens($|\?)/, (_req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ integrations: [] }));
+  }),
+  rest.get(/\/api\/v1\/auth\/oauth\/config-status($|\?)/, (_req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({}));
+  }),
+  rest.get(/\/api\/data-ingestion\/available-integrations($|\?)/, (_req, res, ctx) => {
+    return res(ctx.status(200), ctx.json({ data: [] }));
+  }),
+
   // CORS preflight handling
   rest.options('*', (req, res, ctx) => {
     return res(
