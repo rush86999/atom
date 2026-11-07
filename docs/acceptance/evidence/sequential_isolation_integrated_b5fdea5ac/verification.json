@@ -1,0 +1,9 @@
+{
+  "executed_source": "b5fdea5acbfb5d4effaf35729448bed2db8496e7",
+  "passed": 148,
+  "actual_exit": 0,
+  "junit_cases": 148,
+  "scope": "current-main normal continuation gate plus symmetric same-workspace isolation; controlled proposal/auth choices; no model/browser",
+  "previous_source_preserved": "5d7609d8f",
+  "independent_isolation_source": "cb13bee87"
+}

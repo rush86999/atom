@@ -1,0 +1,23 @@
+{
+  "executed_source": "b5fdea5acbfb5d4effaf35729448bed2db8496e7",
+  "source_files": {
+    ".github/workflows/ci.yml": "63cde6c606f4084c361348d12e7d663ba882143f764ab8dcedfd7c9326b24501",
+    "backend/api/assignment_routes.py": "cd89d63992ca9753d67c7e1fdcf8be7789a7adcdfeec0f1c50438ebc1494a788",
+    "backend/core/employee_adaptation.py": "f0214906347ba4ad961b604707dede957d2d3f3a82fbe04a236b5f02fe39e715",
+    "backend/core/employee_job_runner.py": "17c2980a1cb8332389cec0f713bb4aae8175e7221bfb27f66a290db632d246a2",
+    "backend/core/employee_proposal.py": "aa6ebcf459f05951fd1acdf36a7cdb8704fca48fe22752cd1fa65b7f391ab4a5",
+    "backend/tests/test_task_wait_two_job_isolation.py": "3f1520203c1786fa900d942372582d8248ee948a4573feb13ea6c674de3085da",
+    "backend/tests/test_task_wait_two_fact_events.py": "70b52996e14fa06a50a4fc19e41c9edf57f5449964d7d2411b39d0a19bb997d9",
+    "backend/tests/test_sequential_fact_completion_contract.py": "bc0f6d19483deb9c91b5277e88d84ebcb12f5c9ff272a96f502c03e336c10d61",
+    "backend/tests/test_boot_recovery_not_gated_by_scheduler.py": "d53331f506d24d677bff2aa7ce7f1b44e09eafe58abe1ba8d8022be8552c0bd8"
+  },
+  "artifacts": {
+    "final.xml": "e0f689339df9c219f3040b1396a45ac002924f33e696e7e17eea14df4c873f33",
+    "collection-counts.json": "97669ea9541f05a64472122e9baa22f11fc9429046d1bdc25f8559531b63f1de",
+    "final-spec.json": "b3b9c2223a53f99d4d9ce1c394558734abc6639b394cb37b56058dbcdabe42b7",
+    "final-exit.json": "63910b029819429cd20bdc7b62dfe21ffc05a3a88f5ab720a290e0bb95995e1a",
+    "README.md": "69db7eb8639de0244e81c0a1bb15e051dc51a200309843f72db47db71940ff6f",
+    "verification.json": "9c8bd1d75ac8b5f179c34a990b07851c2a610aa45d58195b52663b4d12b66c2d",
+    "final.log": "e37e4b1cb7bfded840130cf1eaf011b35d1afe20204ac02f3197da0827a7adbb"
+  }
+}
