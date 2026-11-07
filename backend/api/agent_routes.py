@@ -42,7 +42,7 @@ from core.models import (
     UserStatus,
 )
 from core.notification_manager import notification_manager
-from core.personal_scope import PERSONAL_TENANT_ID, PERSONAL_WORKSPACE_ID
+from core.personal_scope import PERSONAL_TENANT_ID, PERSONAL_WORKSPACE_ID, resolve_workspace_id
 from core.rbac_service import Permission, RBACService
 from core.security_dependencies import require_permission
 from core.websockets import manager as ws_manager
@@ -3494,7 +3494,9 @@ async def answer_agent_job_information_wait(
         raise HTTPException(
             status_code=409,
             detail="The answer does not match this job's current wait")
-    if action.workspace_id != getattr(current_user, "workspace_id", None):
+    # Bootstrap users may store NULL/empty while admitted waits use the
+    # effective Personal Edition default. Real workspace IDs stay exact.
+    if resolve_workspace_id(action) != resolve_workspace_id(current_user):
         raise HTTPException(status_code=404, detail="Information wait not found")
     if (
         action.tenant_id is not None
