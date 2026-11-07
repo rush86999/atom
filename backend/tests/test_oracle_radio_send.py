@@ -440,6 +440,69 @@ def test_unavailable_readback_is_uncertain_not_success(env, monkeypatch):
     assert len(_message_rows(env)) == 1
 
 
+@pytest.mark.parametrize("failure", [
+    "timeout", "runtime", "radio_error",
+])
+def test_known_committed_id_survives_readback_failure(
+        env, monkeypatch, failure):
+    """A known committed id is never dropped when only readback fails."""
+    _seed_thread(env)
+    from core.agent_radio import radio_mutations, radio_service
+
+    if failure == "timeout":
+        exc = TimeoutError("controlled readback unavailable")
+    elif failure == "runtime":
+        exc = RuntimeError("controlled readback crash")
+    else:
+        exc = radio_service.RadioError("controlled radio readback failure")
+
+    def _fail(_db, _message_id):
+        raise exc
+
+    monkeypatch.setattr(radio_mutations, "read_message", _fail)
+    operation_id = f"op-radio-known-{failure}-{uuid.uuid4().hex}"
+    result = asyncio.run(radio_mutations.send_message(
+        _send_args(operation_id), _context(operation_id)))
+    rows = _message_rows(env)
+
+    assert len(rows) == 1, rows
+    assert result["status"] == "uncertain", result
+    assert result["action_result"] == "uncertain", result
+    assert result["effect_possible"] is True, result
+    assert result["remote_id"] == rows[0].id, result
+    assert result["provider_receipt"]["remote_id"] == rows[0].id, result
+    assert result["error_kind"] == "readback_unavailable", result
+
+
+def test_replay_after_readback_failure_does_not_resend(env, monkeypatch):
+    _seed_thread(env)
+    from core.agent_radio import radio_mutations
+
+    real_read = radio_mutations.read_message
+
+    def _fail(_db, _message_id):
+        raise TimeoutError("controlled readback unavailable")
+
+    monkeypatch.setattr(radio_mutations, "read_message", _fail)
+    operation_id = f"op-radio-readback-replay-{uuid.uuid4().hex}"
+    args = _send_args(operation_id)
+    context = _context(operation_id)
+
+    first = _call(_agent(), args, context)
+    rows = _message_rows(env)
+    assert len(rows) == 1
+    assert first["status"] == "uncertain", first
+    assert first["remote_id"] == rows[0].id, first
+
+    monkeypatch.setattr(radio_mutations, "read_message", real_read)
+    second = _call(_agent(), dict(args), dict(context))
+
+    assert len(_message_rows(env)) == 1, "readback failure was resent"
+    assert second["success"] is not True, second
+    assert second["status"] == "uncertain", second
+    assert second.get("retryable") is False, second
+
+
 def test_unidentifiable_message_is_never_resent(env, monkeypatch):
     _seed_thread(env)
     from core.agent_radio import radio_service

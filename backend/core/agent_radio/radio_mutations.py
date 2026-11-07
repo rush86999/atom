@@ -320,6 +320,10 @@ async def send_message(
     if payload["requires_response"]:
         metadata = {"is_response": False, "priority": "high"}
 
+    # Dispatch and independent readback are deliberately separate phases.  A
+    # pre-effect policy/access/budget failure may be a proven no-op; anything
+    # raised after a known send (including a RadioError from the read primitive)
+    # is an uncertain readback, never a safe no-effect refusal.
     try:
         with get_db_session() as db:
             message = radio_service.send_message(
@@ -332,9 +336,6 @@ async def send_message(
                 metadata_json=metadata or None,
             )
             message_id = _text(getattr(message, "id", ""))
-        with get_db_session() as db:
-            observed_message = read_message(db, message_id) if message_id else None
-            observed_thread = read_thread(db, payload["thread_id"])
     except RadioPolicyError as exc:
         return _failed_before_effect(
             operation_id=operation, payload_sha256=digest,
@@ -396,6 +397,31 @@ async def send_message(
             },
             evidence={"kind": "radio_send_missing_id"},
         )
+
+    try:
+        with get_db_session() as db:
+            observed_message = read_message(db, message_id)
+            observed_thread = read_thread(db, payload["thread_id"])
+    except Exception as exc:  # noqa: BLE001 - readback failure is not pre-effect
+        return _uncertain(
+            operation_id=operation, payload_sha256=digest,
+            message_id=message_id, message=None,
+            error_kind="readback_unavailable",
+            error=(
+                "Radio message was written but the exact row/thread could not "
+                f"be read back ({type(exc).__name__})"),
+            verification={
+                "status": "incomplete",
+                "missing_fields": ["readback"],
+                "mismatches": [],
+            },
+            evidence={
+                "kind": "radio_send_readback_unavailable",
+                "remote_id": message_id,
+                "error": f"{type(exc).__name__}: {str(exc)[:300]}",
+            },
+        )
+
     if observed_message is None or observed_thread is None:
         return _uncertain(
             operation_id=operation, payload_sha256=digest,
