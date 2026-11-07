@@ -1,0 +1,30 @@
+{
+  "packet": "mem07_consolidated_chain_4189ff0bb",
+  "executed_source": "4189ff0bb",
+  "source_files": {
+    "backend/tests/test_mem07_consolidated_chain.py": "2b17b694c606d6aedef6e86f9446f4ef78087e97aab80e0f6118ce357aefadfa",
+    "backend/core/auto_dev/event_hooks.py": "005ee2abbdb6037989572fb558fc24c25ecb20cc9baaa6849e62ef8a4cc0bd15",
+    "backend/core/auto_dev/reflection_engine.py": "9842fc5f66e14f3b27fe1d8c4bcbb48454c878687fc2c5fc21d5c9e35d6f5235",
+    "backend/core/auto_dev/memento_engine.py": "d979f269125e41cd6f2f6367d5e23846e2675e52eba1bcbe0c969a1586049b21",
+    "backend/core/auto_dev/tool_error_signals.py": "e024f869d8a64cde0771d9f8cc53f32f7b0639d406580eb0a3f1ab952a164e76",
+    "backend/core/auto_dev/models.py": "94e533f3c3d221ae2b5136160393f3e081efb8edf8e47250223fe068b01071bb",
+    "backend/core/episode_service.py": "ac3bd1c03de8ccc528a11c013e4eb8654259701c33fb88c4831b84ecf437b530",
+    "backend/core/generic_agent.py": "432904f89608b6c98b05834957c79023ed82f2ec1162056e3640f8da728f7191",
+    "backend/core/reviewed_improvement.py": "f91e0cf84cd14cc68ec8647b23815dee8d83922348474771a62a0a5342eb1b3a",
+    "backend/core/skill_registry_service.py": "397985f4dc85f70cdf5edcc575876aff5c8052f16336a969fdfc6e4f17661ebc",
+    "backend/core/skill_retrieval_service.py": "c3207d6ec29b4b38defc53ebb99d7bbc21f0620c8a85952097780526991ce0d1",
+    "backend/api/autodev_review_routes.py": "27ed7cd1fe621437c72aef716b724e3899495156cfc89505252217459eea32f1",
+    "backend/core/auth.py": "63b747a9e335f84128fc43b846eacb8beaef3874edeac00874ee803a5e287c61",
+    "backend/core/models.py": "9aec60c9155da8af8652b3209839c658d78896837b1a30d38763007b44e14b59",
+    "backend/core/database.py": "fd3736e7f679b9b30e242597e25a27565d3ab93fc8c0efd3ea0b1cef76e9b16e"
+  },
+  "artifacts": {
+    "PR_BODY.md": "0a4f09e177afdfb1e7340b5c0ec349880cf0588cf1de1abb39b46cafd72f16f1",
+    "README.md": "d3d966ab6cef66b41210fc533953ba6b0185660f838d4129b3784cb36f1b488b",
+    "focused-exit.json": "9750f8a4c0366cf3805a86dedf8c423e2b591c30ef50686e4a18b597e5e5a9f0",
+    "focused.log": "44ad84b5ae01f72da935420dc8757aaed68e6370c2c3e256f43a4d392baaab36",
+    "focused.xml": "de65c2ab63b57cc9c8f904400ba7cc277165fbba53f6d3013674c371e6c81d3b",
+    "run_and_capture.py": "28da740c57a487cdb0874699593843eb800a1b751b8137e326362d2713115180",
+    "verification.json": "85dea56cb3d588fb2aa2e340b7e357f596c0b39b940998a690f6ed649f5b94ae"
+  }
+}

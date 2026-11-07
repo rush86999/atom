@@ -1,0 +1,17 @@
+{
+  "source": "2f0547c8cfe543c3b7151ec9eb3d05607d4a74c0",
+  "scratch": "/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-mem07-public-real-prompt-xoghlorc",
+  "command": [
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "tests/test_lead_mem07_real_prompt_chain.py",
+    "tests/test_lead_mem07_natural_event.py",
+    "tests/test_mem07_consolidated_chain.py",
+    "-q",
+    "--tb=short",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-mem07-public-real-prompt-xoghlorc/pytest"
+  ]
+}
