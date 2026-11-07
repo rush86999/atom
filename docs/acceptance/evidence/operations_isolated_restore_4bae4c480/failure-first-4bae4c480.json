@@ -1,0 +1,38 @@
+[
+  {
+    "label": "missing-required-target",
+    "argv": [
+      "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+      "/private/tmp/atom-oracle-refresh-20261107/scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/release_tool.py",
+      "--root",
+      "/private/tmp/ops-restore-corrected/failure-first/synthetic-release-root",
+      "restore",
+      "--backup",
+      "/private/tmp/ops-restore-corrected/failure-first/missing-backup"
+    ],
+    "cwd": "/private/tmp/ops-restore-corrected/failure-first/synthetic-release-root",
+    "exit_code": 2,
+    "stdout": "",
+    "stderr": "usage: release_tool.py restore [-h] --backup BACKUP\n                               --target-data-dir TARGET_DATA_DIR\nrelease_tool.py restore: error: the following arguments are required: --target-data-dir\n",
+    "target_exists": false
+  },
+  {
+    "label": "missing-manifest",
+    "argv": [
+      "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+      "/private/tmp/atom-oracle-refresh-20261107/scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/release_tool.py",
+      "--root",
+      "/private/tmp/ops-restore-corrected/failure-first/synthetic-release-root",
+      "restore",
+      "--backup",
+      "/private/tmp/ops-restore-corrected/failure-first/missing-backup",
+      "--target-data-dir",
+      "/private/tmp/ops-restore-corrected/failure-first/target"
+    ],
+    "cwd": "/private/tmp/ops-restore-corrected/failure-first/synthetic-release-root",
+    "exit_code": 2,
+    "stdout": "{\n  \"ok\": false,\n  \"status\": \"refused\",\n  \"error\": \"backup manifest is missing: /private/tmp/ops-restore-corrected/failure-first/missing-backup\"\n}\n",
+    "stderr": "",
+    "target_exists": false
+  }
+]
