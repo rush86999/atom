@@ -208,6 +208,8 @@ jobs:
             tests/test_oracle_shopify_product_authorized_material.py \
             tests/test_oracle_shopify_product_create.py \
             tests/test_oracle_shopify_product_replay.py \
+            tests/test_oracle_shopify_blog_create.py \
+            tests/test_lead_shopify_error_privacy.py \
             tests/test_generic_request_expectations.py \
             tests/test_generic_reconcile_commit_contract.py \
             tests/test_generic_normal_retry_identity.py \
