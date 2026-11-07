@@ -1,0 +1,22 @@
+{
+  "commit": "3ebee2da55f052b688d1ccb9047ff8a7277b0482",
+  "parents": [
+    "552aa13789529dc429afde6a75e20611a5ad9889"
+  ],
+  "merge_main": "36fa4ce39dd19a6b53b662699e5ceebede129df1",
+  "clean_at_execution": true,
+  "key_source_files": {
+    "backend/core/assignment_executor.py": "7baed8510847fc80791fed6e6416bd6c33b8bc0939f1d0115c25b438fc8b7d9d",
+    ".github/workflows/ci.yml": "146d040dc5d2fd1357b46612c6efd04331ac2762b2e2be80cc1b78b7be8d6541",
+    "backend/tests/test_task_wait_source_version_after_acceptance.py": "d59b494c43928094625b4e7554706e7ef3606700f36da9db1c9c29f1be924ed8",
+    "backend/tests/test_task_wait_two_fact_events.py": "70b52996e14fa06a50a4fc19e41c9edf57f5449964d7d2411b39d0a19bb997d9",
+    "backend/tests/test_task_wait_source_continuation_regressions.py": "486cd74543e6b5a79fe11836933fed385c5d0b72698e2b65ac0e072aac942d74",
+    "backend/tests/test_task_wait_process_recovery.py": "2514bf41ce951e7fa9af140d7160ddf55d8d2bc8b42fb6a1fb084d45f8d80a67",
+    "backend/tests/test_task_wait_independent_work.py": "0a515511675a23d6eb6bbbb10c70dfc578b1c5c25e5d7a95bd63a47689187497",
+    "backend/tests/test_task_wait_artifact_content_contract.py": "9751710aee16fc070f28e8a95f55c4804b9b409cd17bc468e7f13ff1bef08238",
+    "backend/tests/test_task_wait_source_revocation.py": "7f385bd4461785f6a80dd1ca19a39a6b77cb8df6899c390d7a02dbf32172b454",
+    "backend/tests/test_task_wait_two_job_isolation.py": "3f1520203c1786fa900d942372582d8248ee948a4573feb13ea6c674de3085da",
+    "backend/tests/test_generic_information_two_job_isolation.py": "75aad3be62f7ae415644e7bfebb2f9e7a858d0638042d789ce4714eec54bf2ed",
+    "backend/tests/test_generic_information_idle_contract.py": "8ffcb931ed6da3e8454da71cef55f67ccd0a3e8b908474cbee1e5a562b510457"
+  }
+}

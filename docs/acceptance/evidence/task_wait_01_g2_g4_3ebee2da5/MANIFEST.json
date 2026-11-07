@@ -1,0 +1,50 @@
+{
+  "kind": "task_wait_01_g2_g4_g1_manifest",
+  "executed_source": "3ebee2da55f052b688d1ccb9047ff8a7277b0482",
+  "merge_main": "36fa4ce39dd19a6b53b662699e5ceebede129df1",
+  "source_tree_clean_at_execution": true,
+  "targeted_controls": {
+    "passed": 30,
+    "exit": 0,
+    "log": "affected-clean.log"
+  },
+  "g2_failure_first": {
+    "failed": 1,
+    "pre_fix_source": "552aa1378 (working tree dirty from uncommitted fix)",
+    "log": "g2-failure-before-fix.log"
+  },
+  "runtime_files_changed": [
+    "backend/core/assignment_executor.py"
+  ],
+  "g4_runtime_fix": false,
+  "g1_runtime_fix": false,
+  "g3_runtime_fix": false,
+  "task_wait_01": "open",
+  "claim_denominator": 143,
+  "live_actions": false,
+  "source_files": {
+    "backend/core/assignment_executor.py": "7baed8510847fc80791fed6e6416bd6c33b8bc0939f1d0115c25b438fc8b7d9d",
+    ".github/workflows/ci.yml": "146d040dc5d2fd1357b46612c6efd04331ac2762b2e2be80cc1b78b7be8d6541",
+    "backend/tests/test_task_wait_source_version_after_acceptance.py": "d59b494c43928094625b4e7554706e7ef3606700f36da9db1c9c29f1be924ed8",
+    "backend/tests/test_task_wait_two_fact_events.py": "70b52996e14fa06a50a4fc19e41c9edf57f5449964d7d2411b39d0a19bb997d9",
+    "backend/tests/test_task_wait_source_continuation_regressions.py": "486cd74543e6b5a79fe11836933fed385c5d0b72698e2b65ac0e072aac942d74",
+    "backend/tests/test_task_wait_process_recovery.py": "2514bf41ce951e7fa9af140d7160ddf55d8d2bc8b42fb6a1fb084d45f8d80a67",
+    "backend/tests/test_task_wait_independent_work.py": "0a515511675a23d6eb6bbbb10c70dfc578b1c5c25e5d7a95bd63a47689187497",
+    "backend/tests/test_task_wait_artifact_content_contract.py": "9751710aee16fc070f28e8a95f55c4804b9b409cd17bc468e7f13ff1bef08238",
+    "backend/tests/test_task_wait_source_revocation.py": "7f385bd4461785f6a80dd1ca19a39a6b77cb8df6899c390d7a02dbf32172b454",
+    "backend/tests/test_task_wait_two_job_isolation.py": "3f1520203c1786fa900d942372582d8248ee948a4573feb13ea6c674de3085da",
+    "backend/tests/test_generic_information_two_job_isolation.py": "75aad3be62f7ae415644e7bfebb2f9e7a858d0638042d789ce4714eec54bf2ed",
+    "backend/tests/test_generic_information_idle_contract.py": "8ffcb931ed6da3e8454da71cef55f67ccd0a3e8b908474cbee1e5a562b510457"
+  },
+  "artifacts": {
+    "G1_GENERIC_BUDGET_TRACE.md": "eb85838dda19622f8df533fe7864872c3a6202a4f57cac27233184c831228a82",
+    "G3_SOURCE_ANSWER_TRACE.md": "4d4e01ed9d9a03e78dbc9e8f194668892fb3b56a05881ceaff7534c88a130f21",
+    "OPERATIONAL_MATRIX.md": "7602bfdde92e691b82621a33115a84021d5f371c689f5d280e7a0a1cd020c39f",
+    "README.md": "0056632a8cf21a8a4a43085eec8e4ba6373f1ab152a5f4bec002d1fc67a6a864",
+    "affected-clean.log": "e8531687c689b1877d6c765e2e6e13ca00f043508a5818336114b59a0c9f7b6c",
+    "g2-failure-before-fix.log": "95869c0be502207cca4e48ff0532bd7e103aa168c84dbeb0f93e383039447efe",
+    "source-change.patch": "e6fed57f1532ff90edd5b0985a7d1da40a79a8bb3ab39cc0d8c2ee55ecb3744b",
+    "source-identity.json": "0af541d54536a5caa502f829f948caba3486788739dd54c183aa78b3baca537e",
+    "verification.json": "57d8af28e43e26b20c2fda49dc5faeb15a8a7d4996a20e1d5a8e41be2f3e2630"
+  }
+}
