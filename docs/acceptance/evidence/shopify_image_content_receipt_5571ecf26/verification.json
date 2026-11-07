@@ -1,0 +1,53 @@
+{
+  "kind": "shopify_image_content_receipt_evidence",
+  "base_source": "197f054c8",
+  "failure_first_commit": "ebc36df9c",
+  "runtime_test_commit": "5571ecf26",
+  "scope": "eligible image-content receipt sub-contract only",
+  "raw_url_only": "OPEN / unverified; not full image support",
+  "official_docs": [
+    "https://shopify.dev/docs/api/admin-rest/2026-07/resources/product",
+    "https://shopify.dev/docs/api/admin-rest/2026-07/resources/product-image"
+  ],
+  "shared_file_changes": [
+    "backend/core/asset_content_receipt.py",
+    "backend/core/shopify_mutations.py",
+    "backend/integrations/shopify_service.py",
+    "backend/core/oracle/postcondition_verifiers.py"
+  ],
+  "tests": {
+    "image_receipt": {
+      "rc": 0,
+      "passed": 25,
+      "failed": 0,
+      "tests": [
+        "tests/test_lead_shopify_image_content_receipt.py",
+        "tests/test_asset_content_receipt.py"
+      ]
+    },
+    "product_contract": {
+      "rc": 0,
+      "passed": 57,
+      "failed": 0,
+      "tests": [
+        "tests/test_oracle_shopify_product_authorized_material.py",
+        "tests/test_oracle_shopify_product_create.py",
+        "tests/test_oracle_shopify_product_replay.py"
+      ]
+    },
+    "article_contract": {
+      "rc": 0,
+      "passed": 55,
+      "failed": 0,
+      "tests": [
+        "tests/test_lead_shopify_article_rest_shape.py",
+        "tests/test_oracle_shopify_article_create.py"
+      ]
+    }
+  },
+  "live_calls": false,
+  "http_leaves_doubled": [
+    "Shopify Admin product/image HTTP",
+    "provider CDN asset HTTP"
+  ]
+}
