@@ -171,6 +171,8 @@ jobs:
             tests/test_oracle_effect_families.py \
             tests/test_oracle_connected_mutations.py \
             tests/test_assignment_executor.py \
+            tests/test_generic_oracle_mutation_contract.py \
+            tests/test_generic_normal_retry_identity.py \
             tests/integration/journeys/test_oracle_registry_mutation_journey.py \
             -q --tb=short --timeout=300 --timeout-method=thread
       # P2.3 memory eval gate: the in-suite gate (test_memory_eval_gate.py)
