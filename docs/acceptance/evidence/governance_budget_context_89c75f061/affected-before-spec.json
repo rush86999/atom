@@ -1,0 +1,27 @@
+{
+  "command": [
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-budget-scope-baseline-wtjr3o3_/pytest",
+    "/private/tmp/test_lead_budget_scope_contract.py",
+    "tests/test_budget_control.py",
+    "tests/test_budget_enforcement_service.py",
+    "tests/test_agent_governance_service.py",
+    "tests/test_covpush_w29_governance.py",
+    "tests/test_generic_request_expectations.py",
+    "tests/test_generic_reconcile_commit_contract.py",
+    "--junitxml=/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-budget-scope-baseline-wtjr3o3_/result.xml",
+    "-q",
+    "--tb=short"
+  ],
+  "source": "5ff044ef62915e66d5a4a94ec1de58fa0bddf66c",
+  "scratch": "/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-budget-scope-baseline-wtjr3o3_",
+  "started": 1794036418.6087098,
+  "runtime_path": "/private/tmp/atom-cli-agent-job-join/backend/core/agent_governance_service.py",
+  "runtime_sha256": "3d6aabc04bec24665f2b0aeadbb6471e2908ee17929ef6af8d98e6bbc4add8dd",
+  "external_test_sha256": "f833158d712f949666d45f5ed18f13ad1360e6b26b39b64494410f8b09c018b2",
+  "test_note": "External successor controls; original runtime unchanged and verified equal to2e95."
+}

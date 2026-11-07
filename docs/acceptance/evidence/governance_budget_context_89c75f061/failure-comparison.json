@@ -1,0 +1,23 @@
+{
+  "baseline": [
+    "::test_real_mcp_registry_context_and_capability_boundary[hard_stop]",
+    "::test_budget_scope_uses_existing_personal_account_resolution[explicit]",
+    "::test_budget_scope_uses_existing_personal_account_resolution[agent_fallback]",
+    "::test_budget_scope_uses_existing_personal_account_resolution[workspace_fallback]",
+    "::test_budget_scope_uses_existing_personal_account_resolution[wrong_tenant]",
+    "::test_budget_scope_uses_existing_personal_account_resolution[wrong_workspace]",
+    "tests.test_covpush_w29_governance.TestRegistry::test_register_new_agent"
+  ],
+  "final": [
+    "tests.test_covpush_w29_governance.TestRegistry::test_register_new_agent"
+  ],
+  "new_failures": [],
+  "resolved": [
+    "::test_budget_scope_uses_existing_personal_account_resolution[agent_fallback]",
+    "::test_budget_scope_uses_existing_personal_account_resolution[explicit]",
+    "::test_budget_scope_uses_existing_personal_account_resolution[workspace_fallback]",
+    "::test_budget_scope_uses_existing_personal_account_resolution[wrong_tenant]",
+    "::test_budget_scope_uses_existing_personal_account_resolution[wrong_workspace]",
+    "::test_real_mcp_registry_context_and_capability_boundary[hard_stop]"
+  ]
+}

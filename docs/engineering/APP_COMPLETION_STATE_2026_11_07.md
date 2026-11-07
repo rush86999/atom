@@ -4,10 +4,10 @@ This dated checkpoint supersedes operational queue rows in the November6 directi
 
 ## Current execution snapshot (resolve remote heads before acting)
 
-- Main is now PR720 mergee26b5a332; its tree equals the reviewed2e95a94cf. PR719 foundation8cbc99cc9 post-mergeCI/Docker are green. Older sections below preserve source history rather than active assignments.
-- Root source-answer PR721 preserves the74-backend/9-component controlled proof and explicitly leaves actualprocess/no-owner-replay recovery open. Its current head must requalify after this main integration; no hosted green is inherited.
+- Main is now PR721 merge611b6b6f8; its tree equals the reviewede95b96902. PR720 is preserved ase26b5a332. PR719 foundation8cbc99cc9 post-mergeCI/Docker are green. Older sections below preserve source history rather than active assignments.
+- Merged source-answer PR721 preserves the74-backend/9-component controlled proof and explicitly leaves actualprocess/no-owner-replay recovery open. Its exact current-main head passed all eight checks before merge; the actualprocess/no-owner-replay successor remains separate and unaccepted.
 - Agent1 nativeCLI owns the reproduced board-owner API/service boundary. Agent2 nativeCLI owns actualprocess automatic recovery of accepted information. Both continue without waiting for hostedCI; observers are model-free.
-- Root real MCP/governance probing found a configured hard-stop budget bypass (workspace id used as account id): two valid/denied twins pass and the budget negative fails. The bounded existing-governance repair is sourcea5cabd207;31 final budget-mode/real-MCP controls pass at89c75f061, with the same one known baseline governance failure in the broader comparison. It is not yet merged or a general budget/financial assurance.
+- Root real MCP/governance probing found a configured hard-stop budget bypass (workspace id used as account id): two valid/denied twins pass and the budget negative fails. The final shared-governance repair is sourcecda63def4;45 focused controls pass, with146 broader passes and the same one known baseline governance failure plus a legacy module skip. It is not yet merged or a general budget/financial assurance.
 - Full app completion, general adaptive judgment, actualprocess TASK-WAIT-01 recovery and broader runtime/provider/guest/operations claims remain unproven. Historical scores and accepted evidence identities stay unchanged.
 
 ## Delivered since the older guide
@@ -132,3 +132,15 @@ Agent1 is active on the reproduced board-owner API/service boundary (hidden peer
 Source6d08b1c4b/evidenced874e1872 now continues the same task through the public targeted source-answer route; independent74 backend and9 AssignmentPanel controls pass, original13 packet hashes matchGit. UI no longer makes a separate advance call. Retain/no-model/wrong/partial/unrelated source and terminal negatives are preserved. Normal CI now includes both focused source-route and component controls.
 
 The original packet's restart/both-order wording is narrowed by task_wait_source_route_review_6d08b1c4b/README.md: it reconstructs an executor in the same process and replays the source. That is not actualprocess or no-owner-replay recovery. Agent2 owns the real process successor; general-appTASK-WAIT-01 remainsOPEN. Accepted historical episodes and raw captures remain unchanged.
+
+## GOV-BUDGET-01 real-consumer successor
+
+PR720 mergedase26b5a332 with reviewed-tree equality aftereightgreen; actualshared323 controls passed plus211API/29UI/40role-UI andmemory1.0. The realGeneric→Governance→MCP→registry successor found a configuredhard_stop bypass: governance sentworkspace_id asTenantid, so an actual exceeded account limit lookedunconfigured. Normal/capability-denied twins pass; budgetnegativefailsat2e95. Sourcea5cabd207 reuses the existing personal account resolver with current scoped agent/workspace binding; onlyconfiguredapproval mode canpropose review.31normal-CI controls pass at89c75f061. Broaderbefore87/7/1skip→after93/1/1skip; theonlyretainedfailure isknownw29confidence expectation. No newstore/router/schema, no livedollarspend andno wholebudget/concurrency guarantee. Packetgovernance_budget_context_89c75f061; hostedqualification pending.
+
+## Shared budget consumer final local checkpoint
+
+The first31-control budget repair exposed sibling sync-in-async skips and caller-owned transaction commits; both negatives are preserved. Finalsourcecda63def4 now shares one existing budget decision, scoped account resolution and refusal policy across both entrypoints. Preflight is read-only withpersist=False; explicit rollup writer remains durable. The final normal-CI gate passes45; broaderaffected/workflow controls146pass/1unchangedw29failure/1legacy skip. Packetgovernance_budget_shared_cda63def4 is canonical for this successor;31-control precursor89 remainsunchanged. Hosted/integration checks and generalfinancial/concurrency guarantees remainopen. Root also independently withholds Agent2processsource1f400/c0 after1fail1pass recovery-generation test; Agent2owns the token repair. No scope, permission, live provider or historical score upgrade follows.
+
+## Configured budget review-precedence successor
+
+PR722 old head25115124b is independently withheld despite its eight green checks: the valid maturity/budget policy matrix exposed12 failures. Repair171ba856d and real Generic/MCP twin5adcd9dd3 pass142 controls, actualexit0. Existing governance callers pass54 with the same knownw29 baseline failure. New source-bound packet `governance_budget_review_precedence_5adcd9dd3` preserves the negative and current evidence. Only the new pushed head may receive fresh CI acceptance; no old green is inherited. TASK-WAIT-01 and full-app completion remain open.

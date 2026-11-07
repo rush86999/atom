@@ -1,0 +1,21 @@
+{
+  "source": "5adcd9dd392e228844434099ac3e8b27ab3780fc",
+  "negative_source": "25115124bb3b7217dc8df42c2b9723af5a5ed561",
+  "negative": {
+    "passed": 84,
+    "failed": 12,
+    "actual_exit_code": 1
+  },
+  "final": {
+    "passed": 142,
+    "failed": 0,
+    "actual_exit_code": 0
+  },
+  "existing": {
+    "passed": 54,
+    "failed": 1,
+    "actual_exit_code": 1,
+    "known_failure": "test_covpush_w29_governance.py::TestRegistry::test_register_new_agent"
+  },
+  "scope": "controlled scratch DB policy and real Generic/MCP consumer; no live inference"
+}

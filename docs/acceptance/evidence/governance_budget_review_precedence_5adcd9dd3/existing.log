@@ -1,0 +1,230 @@
+
+tests/test_agent_governance_service.py::TestAgentRegistration::test_register_new_agent 
+-------------------------------- live log setup --------------------------------
+2026-11-07 03:28:03 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-07 03:28:04 [    INFO] EscalationManager initialized
+2026-11-07 03:28:04 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 03:28:04 [    INFO] EscalationManager initialized
+2026-11-07 03:28:04 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 03:28:04 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 03:28:04 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:28:04 [    INFO] Registered new agent: Test Agent
+PASSED                                                                   [  1%]
+tests/test_agent_governance_service.py::TestAgentRegistration::test_update_existing_agent PASSED [  3%]
+tests/test_agent_governance_service.py::TestActionPermissions::test_student_can_perform_level_1_actions 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:28:04 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-07 03:28:04 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-07 03:28:04 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant <Mock name='mock.query().filter().first().tenant_id' id='5081376688'>: '>' not supported between instances of 'Mock' and 'datetime.date'
+PASSED                                                                   [  5%]
+tests/test_agent_governance_service.py::TestActionPermissions::test_student_blocked_from_level_3_actions 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:28:04 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-07 03:28:04 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-07 03:28:04 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant <Mock name='mock.query().filter().first().tenant_id' id='5081379376'>: '>' not supported between instances of 'Mock' and 'datetime.date'
+PASSED                                                                   [  7%]
+tests/test_agent_governance_service.py::TestActionPermissions::test_autonomous_can_perform_critical_actions 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:28:04 [ WARNING] Budget check unavailable (legacy degradation): TypeError
+PASSED                                                                   [  9%]
+tests/test_agent_governance_service.py::TestActionPermissions::test_supervised_requires_approval_for_critical_actions 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:28:04 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-07 03:28:04 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-07 03:28:04 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant <Mock name='mock.query().filter().first().tenant_id' id='5081381392'>: '>' not supported between instances of 'Mock' and 'datetime.date'
+PASSED                                                                   [ 10%]
+tests/test_agent_governance_service.py::TestActionComplexity::test_action_complexity_mapping PASSED [ 12%]
+tests/test_agent_governance_service.py::TestMaturityRequirements::test_maturity_requirements_mapping PASSED [ 14%]
+tests/test_agent_governance_service.py::TestWorkspaceHandling::test_initialization_with_default_workspace PASSED [ 16%]
+tests/test_agent_governance_service.py::TestWorkspaceHandling::test_initialization_with_custom_workspace PASSED [ 18%]
+tests/test_agent_governance_service.py::TestListAgentsWorkspaceScope::test_list_agents_returns_unscoped_agents PASSED [ 20%]
+tests/test_agent_governance_service.py::TestListAgentsWorkspaceScope::test_list_agents_keeps_legacy_default_rows PASSED [ 21%]
+tests/test_agent_governance_service.py::TestListAgentsWorkspaceScope::test_list_agents_still_scopes_custom_workspaces PASSED [ 23%]
+tests/test_agent_governance_service.py::TestListAgentsWorkspaceScope::test_list_agents_filters_by_category 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:28:04 [    INFO] Registered new agent: Sales Agent
+2026-11-07 03:28:04 [    INFO] Registered new agent: Ops Agent
+PASSED                                                                   [ 25%]
+tests/test_agent_governance_service.py::TestErrorHandling::test_agent_not_found_returns_denied PASSED [ 27%]
+tests/test_agent_governance_service.py::TestErrorHandling::test_paused_agent_blocked_from_actions PASSED [ 29%]
+tests/test_covpush_w29_governance.py::TestRegistry::test_list_agents_filter PASSED [ 30%]
+tests/test_covpush_w29_governance.py::TestRegistry::test_register_new_agent 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:28:05 [    INFO] Registered new agent: New Agent
+FAILED                                                                   [ 32%]
+tests/test_covpush_w29_governance.py::TestRegistry::test_register_updates_existing 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:28:06 [    INFO] Registered new agent: Old
+PASSED                                                                   [ 34%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_agent_not_found PASSED [ 36%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_paused_denied PASSED [ 38%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_stopped_denied PASSED [ 40%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_student_blocked_low_complexity 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:28:08 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant t-1: Tenant t-1 not found
+PASSED                                                                   [ 41%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_autonomous_allowed 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:28:09 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant t-1: Tenant t-1 not found
+PASSED                                                                   [ 43%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_supervised_high_complexity_needs_approval 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:28:10 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant t-1: Tenant t-1 not found
+PASSED                                                                   [ 45%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_demo_agent_bypass_complexity_2 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:28:10 [    INFO] Governance demo_agent bypass: agent=agent-550bf1c0 action=canvas_presentation complexity=2 tier=student
+2026-11-07 03:28:10 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant t-1: Tenant t-1 not found
+PASSED                                                                   [ 47%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_demo_agent_bypass_capped_at_complexity_2 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:28:11 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant t-1: Tenant t-1 not found
+PASSED                                                                   [ 49%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_budget_exceeded_blocks PASSED [ 50%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_budget_service_unavailable_passthrough 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:28:12 [ WARNING] Budget check unavailable (legacy degradation): RuntimeError
+PASSED                                                                   [ 52%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_can_perform_action_async 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:28:13 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant t-1: Tenant t-1 not found
+PASSED                                                                   [ 54%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_can_perform_action_async_budget_blocked PASSED [ 56%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_recursion_depth_blocks 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:28:14 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant t-1: Tenant t-1 not found
+2026-11-07 03:28:14 [ WARNING] Recursion depth limit reached (chain: chain-1, depth=2, max=2). Blocking recruitment.
+PASSED                                                                   [ 58%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_get_agent_capabilities PASSED [ 60%]
+tests/test_covpush_w29_governance.py::TestEnforceAndApproval::test_enforce_blocked 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:28:15 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant t-1: Tenant t-1 not found
+PASSED                                                                   [ 61%]
+tests/test_covpush_w29_governance.py::TestEnforceAndApproval::test_enforce_pending_approval 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:28:16 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant t-1: Tenant t-1 not found
+PASSED                                                                   [ 63%]
+tests/test_covpush_w29_governance.py::TestEnforceAndApproval::test_enforce_arbor_code_gate_blocked 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:28:16 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant t-1: Tenant t-1 not found
+2026-11-07 03:28:16 [ WARNING] [Arbor/Governance] Code quality gate BLOCKED agent=agent-5d2fb93a action=write_code_file reason=SyntaxError in proposed code: invalid syntax (<unknown>, line 1) node=84d8b03a-dc96-4578-8b8d-2f3d6340f562
+PASSED                                                                   [ 65%]
+tests/test_covpush_w29_governance.py::TestEnforceAndApproval::test_enforce_approved 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:28:17 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant t-1: Tenant t-1 not found
+PASSED                                                                   [ 67%]
+tests/test_covpush_w29_governance.py::TestEnforceAndApproval::test_find_relevant_policies PASSED [ 69%]
+tests/test_covpush_w29_governance.py::TestEnforceAndApproval::test_request_approval_and_status PASSED [ 70%]
+tests/test_covpush_w29_governance.py::TestEnforceAndApproval::test_request_approval_with_chain_snapshot PASSED [ 72%]
+tests/test_covpush_w29_governance.py::TestArborAndGuardrails::test_arbor_syntax_error_blocked 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:28:19 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant t-1: Tenant t-1 not found
+2026-11-07 03:28:19 [ WARNING] [Arbor/Governance] Code quality gate BLOCKED agent=agent-1c5126a9 action=write_code_file reason=SyntaxError in proposed code: invalid syntax (<unknown>, line 1) node=022a4e50-f2db-433a-885c-5c0f0041d5ea
+PASSED                                                                   [ 74%]
+tests/test_covpush_w29_governance.py::TestArborAndGuardrails::test_arbor_high_complexity_blocked 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:28:20 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant t-1: Tenant t-1 not found
+2026-11-07 03:28:20 [ WARNING] [Arbor/Governance] Code quality gate BLOCKED agent=agent-e03f655d action=write_code_file reason=Code complexity too high (61 branches). Refactor before approval. node=0a67edc4-7ec3-4173-97b1-b9e74c22ef09
+PASSED                                                                   [ 76%]
+tests/test_covpush_w29_governance.py::TestArborAndGuardrails::test_arbor_non_python_language_passes 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:28:20 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant t-1: Tenant t-1 not found
+PASSED                                                                   [ 78%]
+tests/test_covpush_w29_governance.py::TestArborAndGuardrails::test_guardrail_blocks_autonomous 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:28:21 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant t-1: Tenant t-1 not found
+PASSED                                                                   [ 80%]
+tests/test_covpush_w29_governance.py::TestArborAndGuardrails::test_guardrail_downgrade_handles_violation 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:28:21 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant t-1: Tenant t-1 not found
+PASSED                                                                   [ 81%]
+tests/test_covpush_w29_governance.py::TestArborAndGuardrails::test_nesting_depth_helpers PASSED [ 83%]
+tests/test_covpush_w29_governance.py::TestArborAndGuardrails::test_submit_feedback_missing_agent_raises 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:28:22 [   ERROR] API Error: NOT_FOUND - Agent with ID 'missing' not found
+PASSED                                                                   [ 85%]
+tests/test_covpush_w29_governance.py::TestArborAndGuardrails::test_adjudicate_non_trusted_pending 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:28:23 [    INFO] Initialized global governance cache
+2026-11-07 03:28:23 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-07 03:28:23 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-1'. type='maturity_update'
+PASSED                                                                   [ 87%]
+tests/test_covpush_w29_governance.py::TestOutcomeAndEvolution::test_record_outcome_updates_confidence 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:28:24 [    INFO] Recorded outcome for agent-73edda0b: success
+2026-11-07 03:28:24 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-07 03:28:24 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-1'. type='maturity_update'
+PASSED                                                                   [ 89%]
+tests/test_covpush_w29_governance.py::TestOutcomeAndEvolution::test_validate_directive_danger_pattern 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:28:24 [ WARNING] Evolution directive REJECTED for tenant t-1: danger pattern in system_prompt: 'ignore all rules'
+PASSED                                                                   [ 90%]
+tests/test_covpush_w29_governance.py::TestOutcomeAndEvolution::test_validate_directive_danger_in_directive_list 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:28:25 [ WARNING] Evolution directive REJECTED for tenant t-1: danger pattern in directive: 'bypass guardrails'
+PASSED                                                                   [ 92%]
+tests/test_covpush_w29_governance.py::TestOutcomeAndEvolution::test_validate_directive_protected_key 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:28:25 [ WARNING] Evolution directive REJECTED for tenant t-1: self-referential mutation of protected config key: 'sandbox_config'
+PASSED                                                                   [ 94%]
+tests/test_covpush_w29_governance.py::TestOutcomeAndEvolution::test_validate_directive_harness_patches_allowed PASSED [ 96%]
+tests/test_covpush_w29_governance.py::TestOutcomeAndEvolution::test_validate_directive_privilege_escalation 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:28:26 [ WARNING] Evolution directive REJECTED for tenant t-1: self-referential mutation of protected config key: 'elevated_privileges'; privilege escalation: elevated_privileges=True set by evolution (must go through maturity graduation, not auto-tuning)
+PASSED                                                                   [ 98%]
+tests/test_covpush_w29_governance.py::TestOutcomeAndEvolution::test_validate_directive_clean_pass PASSED [100%]
+
+=================================== FAILURES ===================================
+_____________________ TestRegistry.test_register_new_agent _____________________
+tests/test_covpush_w29_governance.py:82: in test_register_new_agent
+    assert agent.confidence_score == 0.5
+E   assert 0.35 == 0.5
+E    +  where 0.35 = <core.models.AgentRegistry object at 0x12ece3ce0>.confidence_score
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_governance_service:agent_governance_service.py:399 Registered new agent: New Agent
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 110 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_agent_governance_service.py::TestListAgentsWorkspaceScope::test_list_agents_returns_unscoped_agents
+tests/test_agent_governance_service.py::TestListAgentsWorkspaceScope::test_list_agents_keeps_legacy_default_rows
+tests/test_agent_governance_service.py::TestListAgentsWorkspaceScope::test_list_agents_still_scopes_custom_workspaces
+tests/test_agent_governance_service.py::TestListAgentsWorkspaceScope::test_list_agents_filters_by_category
+  /private/tmp/atom-generic-lead-combine/backend/tests/test_agent_governance_service.py:355: SAWarning: Can't sort tables for DROP; an unresolvable foreign key dependency exists between tables: agent_divisions, agent_registry, canvases, mini_apps; and backend does not support ALTER.  To restore at least a partial sort, apply use_alter=True to ForeignKey and ForeignKeyConstraint objects involved in the cycle to mark these as known cycles that will be ignored.
+    Base.metadata.drop_all(engine)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-budget-review-existing-j_sy5ch1/result.xml -
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_covpush_w29_governance.py::TestRegistry::test_register_new_agent
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================= 1 failed, 54 passed, 120 warnings in 33.84s ==================
