@@ -1,0 +1,19 @@
+{
+  "code_commit": "882713a0a",
+  "evidence_commit": "6f9d742a2",
+  "source_base": "8bbad92cb",
+  "files": {
+    "backend/core/generic_agent.py": "852249a11d67bce9178ba3bf93236c47f09f5201",
+    "backend/core/outbound_operation_claim.py": "911d3c35719ea18191b23961544db93a123f9ae1",
+    "backend/tests/test_generic_oracle_mutation_contract.py": "7e1c66bda64bcc60a289d9f913408d3ea400f31e",
+    "docs/acceptance/evidence/generic_oracle_consumer_20261107/README.md": "34a3143b2959bbd3da8792563a4313f5432b176b",
+    "docs/acceptance/evidence/generic_oracle_consumer_20261107/baseline-unrelated-failures.txt": "1ff5d0555d48b8fcfa45f28241e785b64e8fdc2b",
+    "docs/acceptance/evidence/generic_oracle_consumer_20261107/verification.txt": "93dceb61f650120d4712587f733773d19850d218"
+  },
+  "hash_object": "git hash-object (SHA-1 blob)",
+  "schema": "atom-generic-oracle-consumer-evidence-manifest-1",
+  "verification": {
+    "check": "git ls-tree -r <evidence_commit> -- <path> must report each blob id",
+    "scope": "tracked source/test/evidence files above; MANIFEST.json excluded"
+  }
+}
