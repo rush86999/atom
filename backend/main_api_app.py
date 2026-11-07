@@ -708,9 +708,9 @@ async def lifespan(app: FastAPI):
     # It is a one-shot integrity pass outside the scheduler gate, not a
     # polling daemon, and it never replays ordinary governed effects.
     try:
-        from core.information_wait import recover_accepted_information_waits
+        from core.information_wait import drain_accepted_information_waits
 
-        _spawn_background_task(recover_accepted_information_waits())
+        _spawn_background_task(drain_accepted_information_waits())
         logger.info(
             "Accepted-information wait recovery started (outside the "
             "scheduler gate)")

@@ -478,97 +478,98 @@ def _current_wait_action_id(payload: Dict[str, Any]) -> str:
     return ""
 
 
-def _eligible_accepted_action_ids(
-    session, *, limit: int, max_scan: int = 2000, batch: int = 200,
-) -> list:
-    """Find accepted waits from CURRENT jobs, not from the approved history.
+def _eligible_accepted_page(
+    session, *, after_id: str, batch: int,
+) -> tuple:
+    """Return ``(eligible_action_ids, last_job_id, exhausted)`` for one page.
 
-    Completed jobs keep their approved wait rows forever, so scanning
-    ``hitl_actions`` by approval date and then limiting can starve a newly
-    accepted wait behind any amount of terminal history. Driving the scan from
-    jobs that still hold a run slot (and paging until enough *eligible*
-    actions are found) filters job status before any limit is applied. The
-    bounded pages keep startup work finite; settled jobs drop out on the next
-    pass, so a backlog drains rather than repeats forever.
+    Pages are keyed on ``AgentJob.id`` rather than an offset, so jobs that settle
+    while a scan is running cannot shift later rows into a missed window.
+    Unanswered/pending jobs are skipped without consuming the accepted-wait
+    budget: the scan advances by one page and continues.
     """
     from core.models import AgentJob
 
-    eligible: list = []
-    seen = set()
-    offset = 0
+    page_size = max(1, min(int(batch), 100))
     active_states = tuple(sorted(_WAITING_JOB_STATUSES | _ACTIVE_JOB_STATUSES))
-    while len(eligible) < limit and offset < max_scan:
-        page_size = min(batch, max_scan - offset)
-        jobs = (
-            session.query(AgentJob)
-            .filter(AgentJob.status.in_(active_states))
-            .order_by(AgentJob.start_time.asc(), AgentJob.id.asc())
-            .offset(offset)
-            .limit(page_size)
-            .all()
+    query = session.query(AgentJob).filter(
+        AgentJob.status.in_(active_states))
+    if after_id:
+        query = query.filter(AgentJob.id > after_id)
+    jobs = query.order_by(AgentJob.id.asc()).limit(page_size).all()
+    if not jobs:
+        return [], after_id, True
+    last_id = str(jobs[-1].id)
+    exhausted = len(jobs) < page_size
+    action_ids = []
+    seen = set()
+    for job in jobs:
+        action_id = _current_wait_action_id(_json_object(job.result_summary))
+        if action_id and action_id not in seen:
+            seen.add(action_id)
+            action_ids.append(action_id)
+    if not action_ids:
+        return [], last_id, exhausted
+    rows = (
+        session.query(HITLAction)
+        .filter(
+            HITLAction.id.in_(action_ids),
+            HITLAction.action_type.in_(
+                tuple(sorted(INFORMATION_WAIT_ACTION_TYPES))),
+            HITLAction.status == HITLActionStatus.APPROVED.value,
         )
-        if not jobs:
-            break
-        offset += len(jobs)
-        action_ids = []
-        for job in jobs:
-            action_id = _current_wait_action_id(
-                _json_object(job.result_summary))
-            if action_id and action_id not in seen:
-                seen.add(action_id)
-                action_ids.append(action_id)
-        if not action_ids:
-            continue
-        rows = (
-            session.query(HITLAction)
-            .filter(
-                HITLAction.id.in_(action_ids),
-                HITLAction.action_type.in_(
-                    tuple(sorted(INFORMATION_WAIT_ACTION_TYPES))),
-                HITLAction.status == HITLActionStatus.APPROVED.value,
-            )
-            .all()
-        )
-        approved = {str(row.id) for row in rows}
-        for action_id in action_ids:
-            if action_id in approved:
-                eligible.append(action_id)
-                if len(eligible) >= limit:
-                    break
-    return eligible
+        .all()
+    )
+    approved = {str(row.id) for row in rows}
+    eligible = [action_id for action_id in action_ids if action_id in approved]
+    return eligible, last_id, exhausted
 
 
-async def recover_accepted_information_waits(*, limit: int = 20) -> Dict[str, Any]:
-    """Bounded startup join: wake durably accepted information waits once.
+def _merge_recovery_detail(summary: Dict[str, Any], detail: Dict[str, Any]) -> None:
+    summary["details"].append(detail)
+    if detail.get("status") == "resumed":
+        summary["resumed"] += 1
+    elif detail.get("status") == "uncertain":
+        summary["uncertain"] += 1
+    elif detail.get("status") == "refused":
+        summary["refused"] += 1
+    else:
+        summary["skipped"] += 1
 
-    Only ``approved`` information waits whose exact server-owned binding still
-    points at a waiting job/execution are handed to the existing resume
-    consumer. The consumer's conditional job claim makes concurrent startups
-    race-free, so a duplicate boot or a replayed answer cannot dispatch twice.
 
-    A claimed-but-unconfirmed continuation (the process died after the job CAS
-    claim) is never re-dispatched: verified-dead ownership is marked
-    failed/uncertain with ``requires_reconciliation``; live or unknown owners
-    are left alone and reported. This is a one-shot integrity pass, not a
-    polling daemon, and it does not replay ordinary governed effects.
-    """
-    from core.database import SessionLocal
-
-    limit = max(0, min(int(limit), 100))
-    session = SessionLocal()
-    try:
-        action_ids = _eligible_accepted_action_ids(session, limit=limit)
-    finally:
-        session.close()
-
-    summary: Dict[str, Any] = {
-        "examined": len(action_ids),
+def _empty_recovery_summary() -> Dict[str, Any]:
+    return {
+        "examined": 0,
         "resumed": 0,
         "skipped": 0,
         "refused": 0,
         "uncertain": 0,
         "details": [],
     }
+
+
+async def recover_accepted_information_waits(*, limit: int = 20) -> Dict[str, Any]:
+    """Process one bounded batch of accepted information waits.
+
+    This is the batch API. The startup driver
+    :func:`drain_accepted_information_waits` pages the finite active-job set
+    until every accepted fact has been considered, so a normal boot is not
+    limited to one batch.
+    """
+    from core.database import SessionLocal
+
+    limit = max(0, min(int(limit), 100))
+    if limit == 0:
+        return _empty_recovery_summary()
+    session = SessionLocal()
+    try:
+        action_ids, _last_id, _exhausted = _eligible_accepted_page(
+            session, after_id="", batch=limit)
+    finally:
+        session.close()
+
+    summary = _empty_recovery_summary()
+    summary["examined"] = len(action_ids)
     for action_id in action_ids:
         try:
             detail = await _recover_one_accepted_wait(action_id)
@@ -578,15 +579,7 @@ async def recover_accepted_information_waits(*, limit: int = 20) -> Dict[str, An
                 action_id, type(exc).__name__)
             detail = {"status": "refused", "reason": "recovery_error"}
         detail["action_id"] = action_id
-        summary["details"].append(detail)
-        if detail.get("status") == "resumed":
-            summary["resumed"] += 1
-        elif detail.get("status") == "uncertain":
-            summary["uncertain"] += 1
-        elif detail.get("status") == "refused":
-            summary["refused"] += 1
-        else:
-            summary["skipped"] += 1
+        _merge_recovery_detail(summary, detail)
     if summary["resumed"] or summary["uncertain"]:
         logger.warning(
             "Accepted information wait recovery: resumed=%s uncertain=%s "
@@ -595,3 +588,64 @@ async def recover_accepted_information_waits(*, limit: int = 20) -> Dict[str, An
             summary["skipped"], summary["refused"])
     return summary
 
+
+async def drain_accepted_information_waits(
+    *, batch_size: int = 20, max_pages: int = 0,
+) -> Dict[str, Any]:
+    """Drain the finite boot backlog of accepted information waits.
+
+    Starts at the first active job and keyset-pages forward, processing each
+    page's eligible accepted waits before moving on. Unanswered/pending history
+    therefore cannot block a later accepted fact, and a second startup sees no
+    eligible work (the first pass settled or truthfully marked it). Work is
+    still bounded per page and yields between pages; it is a one-shot startup
+    pass, not a polling daemon or a second engine. ``max_pages`` is an optional
+    safety bound for callers/tests; zero means drain the finite active set.
+    """
+    import asyncio
+
+    from core.database import SessionLocal
+
+    batch_size = max(1, min(int(batch_size), 100))
+    max_pages = max(0, int(max_pages))
+    summary = _empty_recovery_summary()
+    summary.update({"pages": 0, "scanned_jobs": 0, "complete": True})
+    after_id = ""
+    complete = False
+    while max_pages == 0 or summary["pages"] < max_pages:
+        session = SessionLocal()
+        try:
+            action_ids, after_id, exhausted = _eligible_accepted_page(
+                session, after_id=after_id, batch=batch_size)
+        finally:
+            session.close()
+        summary["pages"] += 1
+        summary["examined"] += len(action_ids)
+        for action_id in action_ids:
+            try:
+                detail = await _recover_one_accepted_wait(action_id)
+            except Exception as exc:  # noqa: BLE001 — one bad row must not stop boot
+                logger.error(
+                    "Accepted information wait recovery failed for %s: %s",
+                    action_id, type(exc).__name__)
+                detail = {"status": "refused", "reason": "recovery_error"}
+            detail["action_id"] = action_id
+            _merge_recovery_detail(summary, detail)
+        if exhausted:
+            complete = True
+            break
+        # Bound each burst and let the event loop run between pages.
+        await asyncio.sleep(0)
+    summary["complete"] = complete
+    if not complete:
+        logger.warning(
+            "Accepted information wait recovery stopped at the page safety "
+            "limit: pages=%s examined=%s", summary["pages"],
+            summary["examined"])
+    if summary["resumed"] or summary["uncertain"]:
+        logger.warning(
+            "Accepted information wait drain: resumed=%s uncertain=%s "
+            "skipped=%s refused=%s pages=%s complete=%s",
+            summary["resumed"], summary["uncertain"], summary["skipped"],
+            summary["refused"], summary["pages"], summary["complete"])
+    return summary

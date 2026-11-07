@@ -37,7 +37,7 @@ RECOVERY_CALLS = (
     "reconcile_orphaned_executions",
     "notify_recovered_continuations",
     "recover_active_assignments_at_startup",
-    "recover_accepted_information_waits",
+    "drain_accepted_information_waits",
 )
 
 
@@ -121,8 +121,8 @@ async def lifespan(app):
         notify_recovered_continuations()
         from core.assignment_recovery import recover_active_assignments_at_startup
         recover_active_assignments_at_startup()
-        from core.information_wait import recover_accepted_information_waits
-        recover_accepted_information_waits()
+        from core.information_wait import drain_accepted_information_waits
+        drain_accepted_information_waits()
 '''
 
 

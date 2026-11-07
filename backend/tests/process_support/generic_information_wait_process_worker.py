@@ -204,11 +204,11 @@ if os.environ.get("GENERIC_WAIT_RECOVER_ACCEPTED") == "1":
 
     accepted = {"ran": False}
     try:
-        from core.information_wait import recover_accepted_information_waits
+        from core.information_wait import drain_accepted_information_waits
 
         accepted = {
             "ran": True,
-            "result": asyncio.run(recover_accepted_information_waits()),
+            "result": asyncio.run(drain_accepted_information_waits()),
         }
     except Exception as exc:  # noqa: BLE001
         accepted = {"ran": False, "error": f"{type(exc).__name__}:{exc}"}
