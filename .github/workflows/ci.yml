@@ -211,6 +211,8 @@ jobs:
             tests/test_agent_generic_information_wait.py \
             tests/test_agent_generic_information_wait_process.py \
             tests/test_generic_information_wait_recovery.py \
+            tests/test_generic_information_wait_recovery_authority.py \
+            tests/test_lead_recovery_personal_authority.py \
             tests/test_generic_information_recovery_batch_contract.py \
             tests/test_boot_recovery_not_gated_by_scheduler.py \
             tests/test_generic_information_resume_namespace_contract.py \

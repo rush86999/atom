@@ -2102,6 +2102,23 @@ def _trusted_execution_context(
         namespace["tenant_id"] = (
             None if actor_tenant is None else str(actor_tenant))
 
+    # Freezing the admitted namespace is not enough: the original actor must
+    # still hold current authority for that exact scope. A moved/deactivated
+    # actor or a revoked AGENT_RUN permission refuses before descendants run.
+    if actor_id and actor is not None:
+        from core.information_wait import actor_authority_reason
+
+        authority_reason = actor_authority_reason(
+            actor,
+            workspace_id=namespace.get("workspace_id"),
+            tenant_id=namespace.get("tenant_id"),
+        )
+        if authority_reason:
+            logger.debug(
+                "trusted context refused: current actor authority %s "
+                "job=%s actor=%s", authority_reason, job_id, actor_id)
+            return None
+
     namespace["operation_id"] = operation_id or None
     namespace["trigger"] = "agent_run_route"
     return namespace
@@ -2538,12 +2555,26 @@ def _claim_waiting_job_for_resume(
     agent_id: str,
     execution_id: str,
     action_id: str,
+    actor_id: Optional[str],
+    workspace_id: Optional[str],
+    tenant_id: Optional[str],
 ) -> bool:
     """CAS the SAME waiting job into a resumed run slot.
 
     Exactly one answer/replay wins.  A late reply after cancellation, a
     foreign execution id, or a wait receipt that is not the job's current
     receipt is refused before any model work.
+
+    The same conditional UPDATE also carries the current-authority predicate
+    for the admitted actor.  A move/deactivation committed before this claim
+    is therefore observed by the write statement itself; a preceding read is
+    never the authority for resuming the run.  A change committed after the
+    successful claim is honestly in flight and is not physically cancelled.
+
+    ``actor_id``/``workspace_id``/``tenant_id`` are required: the one
+    production claim site supplies the frozen snapshot, and a missing actor
+    makes the authority predicate unsatisfiable instead of acting as a
+    wildcard.
     """
     session = Session(bind=bind)
     try:
@@ -2589,6 +2620,18 @@ def _claim_waiting_job_for_resume(
             conditions.append(AgentJob.result_summary.is_(None))
         else:
             conditions.append(AgentJob.result_summary == current_summary)
+        from sqlalchemy import exists, select
+
+        from core.information_wait import actor_authority_conditions
+
+        authority_conditions = actor_authority_conditions(
+            actor_id=actor_id,
+            workspace_id=workspace_id,
+            tenant_id=tenant_id,
+        )
+        if authority_conditions:
+            conditions.append(
+                exists(select(User.id).where(*authority_conditions)))
         claimed = session.execute(
             update(AgentJob)
             .where(*conditions)
@@ -2704,7 +2747,10 @@ async def resume_information_wait_action(
     execution, agent, wait row, subject and correlation are all rechecked
     from the server-owned snapshot before dispatch.
     """
-    from core.information_wait import is_information_wait_action
+    from core.information_wait import (
+        current_actor_authority,
+        is_information_wait_action,
+    )
 
     if bind is None:
         return {"handled": False, "reason": "wait store unavailable"}
@@ -2726,6 +2772,8 @@ async def resume_information_wait_action(
         agent_id = str(snapshot.get("agent_id") or "")
         actor_id = str(
             snapshot.get("actor_id") or snapshot.get("user_id") or "")
+        target_workspace = str(snapshot.get("workspace_id") or "")
+        target_tenant = snapshot.get("tenant_id")
         expected_correlation = str(
             snapshot.get("correlation_id")
             or params.get("correlation_id") or "")
@@ -2773,13 +2821,51 @@ async def resume_information_wait_action(
             }
 
         # The original admitted actor remains the execution authority; an
-        # authorized answerer does not replace it.
+        # authorized answerer does not replace it. Accepted input is not
+        # perpetual authority: the same current User scope/status/RBAC check
+        # that guards startup recovery also guards the normal answer path.
+        _actor, authority_reason = current_actor_authority(
+            session,
+            actor_id=actor_id,
+            workspace_id=target_workspace,
+            tenant_id=target_tenant,
+        )
+        if authority_reason:
+            return {
+                "handled": True,
+                "resumed": False,
+                "reason": authority_reason,
+                "status": "refused",
+                "job_id": job_id,
+                "execution_id": execution_id,
+            }
+
         if not _claim_waiting_job_for_resume(
             job_id, bind,
             agent_id=agent_id,
             execution_id=execution_id,
             action_id=action_id,
+            actor_id=actor_id or None,
+            workspace_id=target_workspace,
+            tenant_id=target_tenant,
         ):
+            # The claim itself just refused. Explain authority drift if that
+            # is the cause; otherwise the job/receipt changed concurrently.
+            _actor, authority_reason = current_actor_authority(
+                session,
+                actor_id=actor_id,
+                workspace_id=target_workspace,
+                tenant_id=target_tenant,
+            )
+            if authority_reason:
+                return {
+                    "handled": True,
+                    "resumed": False,
+                    "reason": authority_reason,
+                    "status": "refused",
+                    "job_id": job_id,
+                    "execution_id": execution_id,
+                }
             current = _job_outcome_projection(job_id, bind)
             return {
                 "handled": True,
