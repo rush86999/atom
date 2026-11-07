@@ -2248,10 +2248,37 @@ What is your next step?"""
                 expected=expected, context=context)
             if isinstance(checked, dict) and checked.get(
                     "oracle_verified") is True:
-                if claim.get("record_id"):
-                    claims.mark_status(
-                        claim["record_id"], claims.SUCCEEDED,
-                        expected_status=status, db_factory=get_db_session)
+                committed = bool(claim.get("record_id")) and claims.mark_status(
+                    claim["record_id"], claims.SUCCEEDED,
+                    expected_status=status,
+                    expected_payload_sha256=claim.get("payload_sha256"),
+                    db_factory=get_db_session)
+                if not committed:
+                    evidence = (
+                        "the effect readback matched, but the original operation "
+                        "could not commit its reconciliation transition; the "
+                        "durable operation remains authoritative")
+                    self._record_uncertain_operation(
+                        context, tool_name, operation_id, evidence)
+                    return {
+                        "success": False,
+                        "status": "uncertain",
+                        "action_result": "uncertain",
+                        "business_success": False,
+                        "effect_state": "unknown",
+                        "replayed": True,
+                        "reconciled": False,
+                        "idempotent": True,
+                        "operation_id": operation_id,
+                        "oracle_verified": False,
+                        "oracle_evidence": evidence,
+                        "requires_reconciliation": True,
+                        "retryable": False,
+                        "message": (
+                            "No second dispatch was made. Reconcile the original "
+                            "operation before dependent work; its durable "
+                            "transition was not confirmed."),
+                    }
                 return {
                     "success": True,
                     "status": "success",
