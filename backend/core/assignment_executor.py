@@ -6598,174 +6598,44 @@ async def _action_registry_adapter(
     oracle_verified = None
     oracle_evidence = ""
     oracle_failed_closed = False
-    expected_digest = canonical_digest or supplied_digest
     executor_operation_id = str(
         (context.get("step") or {}).get("operation_id")
         or context.get("operation_id") or "")
-    expected_operation = str(
-        expected_binding.get("operation_id")
-        or authorized_arguments.get("operation_id")
-        or executor_operation_id or "")
-    expected_organization = str(
-        expected_binding.get("organization_id")
-        or authorized_arguments.get("organization_id") or "")
-    expected_provider = str(expected_binding.get("provider") or "")
-    expected_target = str(expected_binding.get("target") or "")
-    expected_tenant_id = str(
-        authorized_arguments.get("tenant_id")
-        or context.get("tenant_id") or "")
-    expected_canvas_id = str(
-        authorized_arguments.get("canvas_id") or "")
-    expected_restore_audit_id = (
-        str(authorized_arguments.get("audit_id") or "")
-        if name == "canvas.restore_version" else "")
-    expected_canvas_content_sha256 = ""
-    if name == "canvas.update" and "content" in authorized_arguments:
-        try:
-            expected_canvas_content_sha256 = _approval_payload_hash(
-                authorized_arguments.get("content"))
-        except Exception:  # noqa: BLE001 - verifier falls back to content
-            expected_canvas_content_sha256 = ""
-    expected_goal_id = str(
-        authorized_arguments.get("goal_id") or "")
-    expected_goal_title = (
-        str(authorized_arguments.get("title") or "")
-        if name == "goals.create" else "")
-    expected_workspace_id = str(
-        authorized_arguments.get("workspace_id")
-        or context.get("workspace_id") or "")
-    expected_agent_id = str(
-        authorized_arguments.get("agent_id")
-        or context.get("agent_id") or "")
-    expected_chart_type = (
-        str(authorized_arguments.get("chart_type")
-            or authorized_arguments.get("type") or "")
-        if name == "canvas.present_chart" else "")
-    expected_data_points = None
-    if name == "canvas.present_chart":
-        chart_data = authorized_arguments.get("data")
-        if chart_data is None and isinstance(
-                authorized_arguments.get("chart"), dict):
-            chart_data = authorized_arguments["chart"].get("data")
-        if isinstance(chart_data, list):
-            expected_data_points = len(chart_data)
-    expected_present_title = (
-        str(authorized_arguments.get("title") or "")
-        if name in ("canvas.present_chart", "canvas.present_markdown")
-        else "")
-    expected_task_title = (
-        str(authorized_arguments.get("title") or "")
-        if name == "tasks.create" else "")
-    expected_board_id = (
-        str(authorized_arguments.get("board_id") or "")
-        if name == "tasks.create" else "")
-    expected_actor_id = str(
-        context.get("employee_id") or context.get("user_id")
-        or authorized_arguments.get("user_id") or "")
-    _mini_app_app_actions = {
-        "mini_app_set_tests", "mini_app_write_logic", "mini_app_publish",
-        "mini_app_install", "mini_app_revert_logic",
-    }
-    expected_app_id = (
-        str(authorized_arguments.get("app_id") or "")
-        if name in _mini_app_app_actions else "")
-    expected_tests_sha256 = ""
-    if name == "mini_app_set_tests":
-        try:
-            expected_tests_sha256 = _approval_payload_hash(
-                authorized_arguments.get("tests"))
-        except Exception:  # noqa: BLE001 - verifier refuses absent binding
-            expected_tests_sha256 = ""
-    # Mini-app host-mutation material frozen from the authorized request. The
-    # handler receives a separate deep copy, so these fields cannot be changed
-    # by a handler's own return payload or in-place edits.
-    expected_mini_app_name = ""
-    expected_mini_app_declared_scopes: list = []
-    expected_mini_app_dependencies: list = []
-    expected_mini_app_spec: Dict[str, Any] = {}
-    expected_mini_app_source_sha256 = ""
-    expected_mini_app_version = ""
-    expected_db_op = ""
-    expected_db_series = None
-    expected_db_data = None
-    expected_db_record_id = ""
-    expected_db_append_id = ""
-    expected_db_filter: Dict[str, Any] = {}
-    if name == "mini_app_scaffold":
-        expected_mini_app_name = str(authorized_arguments.get("name") or "")
-        expected_mini_app_declared_scopes = [
-            str(s) for s in (authorized_arguments.get("declared_scopes") or [])]
-        expected_mini_app_dependencies = [
-            str(d) for d in (authorized_arguments.get("dependencies") or [])]
-        spec = authorized_arguments.get("spec")
-        expected_mini_app_spec = dict(spec) if isinstance(spec, dict) else {}
-    elif name == "mini_app_write_logic":
-        source = authorized_arguments.get("source")
-        if isinstance(source, str):
-            try:
-                from core.mini_app_service import logic_source_sha256
+    # Freeze the proof expectations through the SAME builder the normal
+    # Generic consumer uses.  The runtime identity is server-owned; the
+    # authorized args are the only material source.
+    from core.oracle.request_expectations import (
+        build_request_expectations,
+        strip_expected_fields,
+    )
 
-                expected_mini_app_source_sha256 = logic_source_sha256(source)
-            except Exception:  # noqa: BLE001 - verifier refuses absent binding
-                expected_mini_app_source_sha256 = ""
-    elif name == "mini_app_revert_logic":
-        expected_mini_app_version = str(
-            authorized_arguments.get("version"))
-    elif name == "mini_app_db_write":
-        expected_db_op = str(authorized_arguments.get("op") or "")
-        expected_db_series = authorized_arguments.get("series")
-        expected_db_data = authorized_arguments.get("data")
-        expected_db_record_id = str(
-            authorized_arguments.get("record_id") or "")
-        expected_db_append_id = str(authorized_arguments.get("id") or "")
-        filt = authorized_arguments.get("filter")
-        expected_db_filter = dict(filt) if isinstance(filt, dict) else {}
+    oracle_expected = build_request_expectations(
+        name,
+        authorized_arguments,
+        operation_id=executor_operation_id,
+        tenant_id=str(context.get("tenant_id") or ""),
+        workspace_id=str(context.get("workspace_id") or ""),
+        actor_id=str(
+            context.get("employee_id") or context.get("user_id")
+            or authorized_arguments.get("user_id") or ""),
+        agent_id=str(context.get("agent_id") or ""),
+        request_sha256=server_request_sha256,
+        binding=expected_binding,
+    )
+    # The pre-dispatch presentation freeze above is authoritative for this
+    # adapter; keep its exact material/digest even when the shared builder
+    # derives the same values.
+    oracle_expected["_oracle_expected_material_sha256"] = (
+        expected_material_sha256)
+    oracle_expected["_oracle_expected_material"] = (
+        expected_presentation_material)
+    # Neither the caller's material nor a handler's return envelope may
+    # inject an expectation key the server did not freeze.  Overlay the
+    # trusted builder last.
     oracle_context = {
-        **authorized_arguments,
-        **payload,
-        "_oracle_expected_payload_sha256": expected_digest,
-        "_oracle_expected_request_sha256": server_request_sha256,
-        "_oracle_expected_operation_id": expected_operation,
-        "_oracle_expected_organization_id": expected_organization,
-        "_oracle_expected_provider": expected_provider,
-        "_oracle_expected_target": expected_target,
-        "_oracle_expected_canvas_id": expected_canvas_id,
-        "_oracle_expected_restore_audit_id": expected_restore_audit_id,
-        "_oracle_expected_canvas_content_sha256": (
-            expected_canvas_content_sha256),
-        "_oracle_expected_material_sha256": expected_material_sha256,
-        "_oracle_expected_material": expected_presentation_material,
-        "_oracle_expected_tenant_id": expected_tenant_id,
-        "_oracle_expected_actor_id": expected_actor_id,
-        "_oracle_expected_goal_id": expected_goal_id,
-        "_oracle_expected_goal_title": expected_goal_title,
-        "_oracle_expected_workspace_id": expected_workspace_id,
-        "_oracle_expected_agent_id": expected_agent_id,
-        "_oracle_expected_chart_type": expected_chart_type,
-        "_oracle_expected_data_points": expected_data_points,
-        "_oracle_expected_title": expected_present_title,
-        "_oracle_expected_task_title": expected_task_title,
-        "_oracle_expected_board_id": expected_board_id,
-        "_oracle_expected_app_id": expected_app_id,
-        "_oracle_expected_tests": (
-            authorized_arguments.get("tests")
-            if name == "mini_app_set_tests" else None),
-        "_oracle_expected_tests_sha256": expected_tests_sha256,
-        "_oracle_expected_mini_app_name": expected_mini_app_name,
-        "_oracle_expected_mini_app_declared_scopes": (
-            expected_mini_app_declared_scopes),
-        "_oracle_expected_mini_app_dependencies": (
-            expected_mini_app_dependencies),
-        "_oracle_expected_mini_app_spec": expected_mini_app_spec,
-        "_oracle_expected_mini_app_source_sha256": (
-            expected_mini_app_source_sha256),
-        "_oracle_expected_mini_app_version": expected_mini_app_version,
-        "_oracle_expected_db_op": expected_db_op,
-        "_oracle_expected_db_series": expected_db_series,
-        "_oracle_expected_db_data": expected_db_data,
-        "_oracle_expected_db_record_id": expected_db_record_id,
-        "_oracle_expected_db_append_id": expected_db_append_id,
-        "_oracle_expected_db_filter": expected_db_filter,
+        **strip_expected_fields(authorized_arguments),
+        **strip_expected_fields(payload),
+        **oracle_expected,
     }
     oracle_db = context.get("db") or context.get("session")
     if oracle_db is not None:
