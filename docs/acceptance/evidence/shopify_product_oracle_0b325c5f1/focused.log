@@ -1,0 +1,200 @@
+$ /usr/local/opt/python@3.14/bin/python3.14 -m pytest tests/test_oracle_shopify_product_create.py tests/test_oracle_registry_verification_gap.py tests/test_oracle_connected_mutations.py tests/test_generic_oracle_mutation_contract.py tests/test_shopify_fulfillment_actions.py -q --disable-warnings --junitxml=/private/tmp/atom-agent-job-baseline/backend/.shopify_oracle_evidence/focused.xml
+
+STDOUT
+
+----------------------------- live log collection ------------------------------
+2026-11-07 08:14:29 [    INFO] MCP Service initialized
+
+tests/test_oracle_shopify_product_create.py::test_exact_product_create_is_independently_verified 
+-------------------------------- live log setup --------------------------------
+2026-11-07 08:14:30 [    INFO] EscalationManager initialized
+2026-11-07 08:14:30 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 08:14:30 [    INFO] EscalationManager initialized
+2026-11-07 08:14:30 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 08:14:30 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 08:14:30 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  0%]
+tests/test_oracle_shopify_product_create.py::test_missing_store_refuses_before_transport PASSED [  1%]
+tests/test_oracle_shopify_product_create.py::test_foreign_store_refuses_before_transport PASSED [  2%]
+tests/test_oracle_shopify_product_create.py::test_moved_store_metadata_refuses_before_transport PASSED [  3%]
+tests/test_oracle_shopify_product_create.py::test_inactive_store_refuses_before_transport PASSED [  4%]
+tests/test_oracle_shopify_product_create.py::test_body_store_selector_refuses_before_transport[shop] PASSED [  4%]
+tests/test_oracle_shopify_product_create.py::test_body_store_selector_refuses_before_transport[access_token] PASSED [  5%]
+tests/test_oracle_shopify_product_create.py::test_body_store_selector_refuses_before_transport[tenant_id] PASSED [  6%]
+tests/test_oracle_shopify_product_create.py::test_same_title_with_different_returned_id_is_not_success PASSED [  7%]
+tests/test_oracle_shopify_product_create.py::test_same_title_with_wrong_material_is_not_success PASSED [  8%]
+tests/test_oracle_shopify_product_create.py::test_store_moved_before_verification_refutes_original_authority PASSED [  8%]
+tests/test_oracle_shopify_product_create.py::test_absent_readback_is_uncertain_not_success 
+-------------------------------- live log call ---------------------------------
+2026-11-07 08:14:40 [   ERROR] Shopify get product 500 failed: 404: {"errors":"not found"}
+PASSED                                                                   [  9%]
+tests/test_oracle_shopify_product_create.py::test_contradictory_readback_is_uncertain_not_success PASSED [ 10%]
+tests/test_oracle_shopify_product_create.py::test_unidentifiable_effect_remains_uncertain_and_is_not_recreated PASSED [ 11%]
+tests/test_oracle_shopify_product_create.py::test_same_operation_same_material_has_one_effect PASSED [ 12%]
+tests/test_oracle_shopify_product_create.py::test_same_operation_changed_material_is_refused PASSED [ 13%]
+tests/test_oracle_shopify_product_create.py::test_lost_confirmation_retains_identity_and_never_resends 
+-------------------------------- live log call ---------------------------------
+2026-11-07 08:14:45 [   ERROR] Failed to create product: confirmation timed out
+PASSED                                                                   [ 13%]
+tests/test_oracle_shopify_product_create.py::test_supplied_payload_digest_mismatch_refuses_before_transport PASSED [ 14%]
+tests/test_oracle_registry_verification_gap.py::test_declared_mutation_without_verifier_is_uncertain_and_not_reapplied 
+-------------------------------- live log call ---------------------------------
+2026-11-07 08:14:45 [    INFO] runtime identity: source_id=0b325c5f1e8d-dirty.847f661cf89c revision=0b325c5f1e8d dirty=True (0 modified, 8 untracked)
+PASSED                                                                   [ 15%]
+tests/test_oracle_registry_verification_gap.py::test_unusable_verifier_is_uncertain_with_receipt[none] PASSED [ 16%]
+tests/test_oracle_registry_verification_gap.py::test_unusable_verifier_is_uncertain_with_receipt[raise] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 08:14:46 [ WARNING] [Oracle] postcondition check for test.gap.raise.94dc72ec failed: readback store unavailable
+PASSED                                                                   [ 17%]
+tests/test_oracle_registry_verification_gap.py::test_unusable_verifier_is_uncertain_with_receipt[refute] PASSED [ 17%]
+tests/test_oracle_registry_verification_gap.py::test_positive_independent_verdict_applies_with_receipt PASSED [ 18%]
+tests/test_oracle_registry_verification_gap.py::test_read_action_without_verifier_still_applies PASSED [ 19%]
+tests/test_oracle_registry_verification_gap.py::test_full_executor_real_task_create_is_independently_verified[True] PASSED [ 20%]
+tests/test_oracle_registry_verification_gap.py::test_full_executor_real_task_create_is_independently_verified[False] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 08:14:46 [   ERROR] tasks.create failed: 404: Board not found
+PASSED                                                                   [ 21%]
+tests/test_oracle_registry_verification_gap.py::test_full_executor_real_read_action_still_applies PASSED [ 21%]
+tests/test_oracle_registry_verification_gap.py::test_plan_output_is_not_treated_as_a_mutation PASSED [ 22%]
+tests/test_oracle_registry_verification_gap.py::test_changed_request_is_refuted_against_the_frozen_authorized_request PASSED [ 23%]
+tests/test_oracle_registry_verification_gap.py::test_disabled_oracle_never_certifies_applied PASSED [ 24%]
+tests/test_oracle_registry_verification_gap.py::test_lead_probe_declared_write_without_verifier_cannot_claim_applied PASSED [ 25%]
+tests/test_oracle_registry_verification_gap.py::test_readonly_twin_without_verifier_still_applies PASSED [ 26%]
+tests/test_oracle_registry_verification_gap.py::test_unqualified_effect_metadata_is_not_an_implicit_read[effects0] PASSED [ 26%]
+tests/test_oracle_registry_verification_gap.py::test_unqualified_effect_metadata_is_not_an_implicit_read[effects1] PASSED [ 27%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_effect_metadata_cannot_certify_write[read-missing-entry] PASSED [ 28%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_effect_metadata_cannot_certify_write[plan-missing-entry] PASSED [ 29%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_effect_metadata_cannot_certify_write[read-non-mapping-entry] PASSED [ 30%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_effect_metadata_cannot_certify_write[read-blank-name] PASSED [ 30%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_effect_metadata_cannot_certify_write[read-null-name] PASSED [ 31%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_effect_metadata_cannot_certify_write[read-non-string-name] PASSED [ 32%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_effect_metadata_cannot_certify_write[read-unknown-name] PASSED [ 33%]
+tests/test_oracle_registry_verification_gap.py::test_clean_non_mutating_metadata_still_applies[read] PASSED [ 34%]
+tests/test_oracle_registry_verification_gap.py::test_clean_non_mutating_metadata_still_applies[read-only] PASSED [ 34%]
+tests/test_oracle_registry_verification_gap.py::test_clean_non_mutating_metadata_still_applies[plan] PASSED [ 35%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_declaration_is_never_a_read_or_plan_exemption[missing-entry] PASSED [ 36%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_declaration_is_never_a_read_or_plan_exemption[blank-name] PASSED [ 37%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_declaration_is_never_a_read_or_plan_exemption[non-string-name] PASSED [ 38%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_declaration_is_never_a_read_or_plan_exemption[non-mapping-entry] PASSED [ 39%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_declaration_is_never_a_read_or_plan_exemption[plan-missing-entry] PASSED [ 39%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_declaration_is_never_a_read_or_plan_exemption[unknown-name] PASSED [ 40%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_declaration_is_never_a_read_or_plan_exemption[string-container] PASSED [ 41%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_declaration_is_never_a_read_or_plan_exemption[mapping-container] PASSED [ 42%]
+tests/test_oracle_registry_verification_gap.py::test_valid_declaration_semantics_remain_bounded PASSED [ 43%]
+tests/test_oracle_registry_verification_gap.py::test_registry_declares_effects_and_keeps_uncovered_explicit PASSED [ 43%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_manifest_cas_binds_exact_prior_value PASSED [ 44%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_manifest_cas_peer_change_preserves_peer_state PASSED [ 45%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_set_tests_conflict_is_truthful_no_effect PASSED [ 46%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_manifest_cas_scope_change_preserves_peer_state[tenant_id] PASSED [ 47%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_manifest_cas_scope_change_preserves_peer_state[workspace_id] PASSED [ 47%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_manifest_cas_scope_change_preserves_peer_state[created_by] PASSED [ 48%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_set_tests_authoritative_scope_contradiction_refutes[workspace_id] PASSED [ 49%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_set_tests_authoritative_scope_contradiction_refutes[tenant_id] PASSED [ 50%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_set_tests_authoritative_scope_contradiction_refutes[created_by] PASSED [ 51%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_set_tests_authoritative_scope_contradiction_refutes[audit_tenant] PASSED [ 52%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_set_tests_authoritative_scope_contradiction_refutes[audit_actor] PASSED [ 52%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_set_tests_fresh_read_refutes_dirty_request_object PASSED [ 53%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_set_tests_fresh_read_accepts_committed_valid_state PASSED [ 54%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_set_tests_verifier_binds_exact_tests_and_operation PASSED [ 55%]
+tests/test_oracle_connected_mutations.py::test_every_connected_mutating_action_has_a_postcondition_verifier PASSED [ 56%]
+tests/test_oracle_connected_mutations.py::test_connected_readback_receipt_is_required_for_verification PASSED [ 56%]
+tests/test_oracle_connected_mutations.py::test_action_registry_consumer_downgrades_a_false_oracle_pass PASSED [ 57%]
+tests/test_oracle_connected_mutations.py::test_connected_mutation_binding_matrix PASSED [ 58%]
+tests/test_oracle_connected_mutations.py::test_action_registry_consumer_downgrades_when_verifier_returns_none PASSED [ 59%]
+tests/test_oracle_connected_mutations.py::test_action_registry_consumer_downgrades_when_oracle_raises 
+-------------------------------- live log call ---------------------------------
+2026-11-07 08:14:46 [ WARNING] [Oracle] postcondition check for test.oracle.raises.5473f3d9 failed: oracle transport unavailable
+PASSED                                                                   [ 60%]
+tests/test_oracle_connected_mutations.py::test_action_registry_consumer_keeps_read_only_outcome PASSED [ 60%]
+tests/test_oracle_connected_mutations.py::test_request_snapshot_is_frozen_before_handler_mutation[body] PASSED [ 61%]
+tests/test_oracle_connected_mutations.py::test_request_snapshot_is_frozen_before_handler_mutation[nested_recipient] PASSED [ 62%]
+tests/test_oracle_connected_mutations.py::test_request_snapshot_is_frozen_before_handler_mutation[subject] PASSED [ 63%]
+tests/test_oracle_connected_mutations.py::test_request_snapshot_is_frozen_before_handler_mutation[operation_id] PASSED [ 64%]
+tests/test_oracle_connected_mutations.py::test_unchanged_connected_request_still_verifies PASSED [ 65%]
+tests/test_oracle_connected_mutations.py::test_supplied_digest_mismatch_refuses_before_dispatch PASSED [ 65%]
+tests/test_oracle_connected_mutations.py::test_unavailable_binding_refuses_before_dispatch PASSED [ 66%]
+tests/test_oracle_connected_mutations.py::test_connected_estimate_organization_mutation_is_uncertain PASSED [ 67%]
+tests/test_generic_oracle_mutation_contract.py::test_committed_declared_write_without_verifier_is_not_success PASSED [ 68%]
+tests/test_generic_oracle_mutation_contract.py::test_unverified_timeout_does_not_invite_retry PASSED [ 69%]
+tests/test_generic_oracle_mutation_contract.py::test_explicit_read_stays_usable PASSED [ 69%]
+tests/test_generic_oracle_mutation_contract.py::test_broken_verdicts_do_not_manufacture_business_success[refuting] PASSED [ 70%]
+tests/test_generic_oracle_mutation_contract.py::test_broken_verdicts_do_not_manufacture_business_success[raising] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 08:14:49 [ WARNING] [Oracle] postcondition check for test.generic.verdict.e113f92c8e45498d87202fa71f0f9423 failed: verifier transport unavailable
+PASSED                                                                   [ 71%]
+tests/test_generic_oracle_mutation_contract.py::test_broken_verdicts_do_not_manufacture_business_success[none] PASSED [ 72%]
+tests/test_generic_oracle_mutation_contract.py::test_real_effect_with_independent_readback_is_verified PASSED [ 73%]
+tests/test_generic_oracle_mutation_contract.py::test_disabled_oracle_cannot_lend_success[ATOM_ORACLE_VERIFIER_ENABLED] PASSED [ 73%]
+tests/test_generic_oracle_mutation_contract.py::test_disabled_oracle_cannot_lend_success[ATOM_ORACLE_ENFORCE] PASSED [ 74%]
+tests/test_generic_oracle_mutation_contract.py::test_registered_plan_only_output_stays_usable PASSED [ 75%]
+tests/test_generic_oracle_mutation_contract.py::test_returned_payload_cannot_overwrite_frozen_request[False] PASSED [ 76%]
+tests/test_generic_oracle_mutation_contract.py::test_returned_payload_cannot_overwrite_frozen_request[True] PASSED [ 77%]
+tests/test_generic_oracle_mutation_contract.py::test_handler_arg_mutation_does_not_rewrite_authorized_request[False] PASSED [ 78%]
+tests/test_generic_oracle_mutation_contract.py::test_handler_arg_mutation_does_not_rewrite_authorized_request[True] PASSED [ 78%]
+tests/test_generic_oracle_mutation_contract.py::test_durable_claim_replays_without_second_dispatch PASSED [ 79%]
+tests/test_generic_oracle_mutation_contract.py::test_changed_material_with_same_operation_is_refused PASSED [ 80%]
+tests/test_generic_oracle_mutation_contract.py::test_uncertain_timeout_claim_never_resends_on_restart 
+-------------------------------- live log call ---------------------------------
+2026-11-07 08:14:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='autodev_guidance'
+PASSED                                                                   [ 81%]
+tests/test_generic_oracle_mutation_contract.py::test_replay_with_refuted_fresh_readback_is_not_success PASSED [ 82%]
+tests/test_generic_oracle_mutation_contract.py::test_landed_effect_then_failed_selfreport_is_uncertain PASSED [ 82%]
+tests/test_generic_oracle_mutation_contract.py::test_landed_effect_then_ordinary_exception_is_uncertain PASSED [ 83%]
+tests/test_generic_oracle_mutation_contract.py::test_pre_effect_no_effect_refusal_stays_truthful PASSED [ 84%]
+tests/test_generic_oracle_mutation_contract.py::test_unqualified_registered_effect_metadata_is_conservative PASSED [ 85%]
+tests/test_generic_oracle_mutation_contract.py::test_normal_dispatch_without_operation_id_is_durable PASSED [ 86%]
+tests/test_generic_oracle_mutation_contract.py::test_server_intent_slot_is_not_reminted_by_model_material PASSED [ 86%]
+tests/test_generic_oracle_mutation_contract.py::test_cold_resume_without_explicit_operation_id_reloads_claim 
+-------------------------------- live log call ---------------------------------
+2026-11-07 08:15:02 [    INFO] Agent Scratch Agent (scratch-agent) starting task: resume the normal task
+2026-11-07 08:15:02 [    INFO] EscalationManager initialized
+2026-11-07 08:15:02 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 87%]
+tests/test_generic_oracle_mutation_contract.py::test_explicit_operation_without_workspace_is_refused_before_effect PASSED [ 88%]
+tests/test_generic_oracle_mutation_contract.py::test_handler_context_carries_server_operation_identity PASSED [ 89%]
+tests/test_generic_oracle_mutation_contract.py::test_cold_resume_with_unreadable_claim_store_stays_unresolved 
+-------------------------------- live log call ---------------------------------
+2026-11-07 08:15:05 [    INFO] Agent Scratch Agent (scratch-agent) starting task: continue original task
+PASSED                                                                   [ 90%]
+tests/test_generic_oracle_mutation_contract.py::test_zero_claim_read_only_execution_stays_success 
+-------------------------------- live log call ---------------------------------
+2026-11-07 08:15:06 [    INFO] Agent Scratch Agent (scratch-agent) starting task: answer the question
+PASSED                                                                   [ 91%]
+tests/test_generic_oracle_mutation_contract.py::test_mark_status_expected_status_is_database_cas PASSED [ 91%]
+tests/test_generic_oracle_mutation_contract.py::test_execution_finalization_blocks_unverified_mutation_but_keeps_reads 
+-------------------------------- live log call ---------------------------------
+2026-11-07 08:15:07 [    INFO] Agent Scratch Agent (scratch-agent) starting task: do the thing
+2026-11-07 08:15:07 [   ERROR] AUDIT GAP for execution 2a3ebff0-a578-4552-9d6b-2aab22c7b554: {'complete': False, 'execution_id': '2a3ebff0-a578-4552-9d6b-2aab22c7b554', 'expected_events': 5, 'actual_events': 4, 'coverage_percentage': 80.0, 'checked_at': '2026-11-07T13:15:07.688711+00:00'}
+2026-11-07 08:15:07 [    INFO] EscalationManager initialized
+2026-11-07 08:15:07 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 08:15:07 [   ERROR] Session sess-final not found
+PASSED                                                                   [ 92%]
+tests/test_generic_oracle_mutation_contract.py::test_execution_finalization_allows_verified_mutation 
+-------------------------------- live log call ---------------------------------
+2026-11-07 08:15:08 [    INFO] Agent Scratch Agent (scratch-agent) starting task: do the verified thing
+2026-11-07 08:15:08 [    INFO] EscalationManager initialized
+2026-11-07 08:15:08 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 08:15:08 [   ERROR] Session sess-final not found
+PASSED                                                                   [ 93%]
+tests/test_generic_oracle_mutation_contract.py::test_cold_resumed_execution_reloads_unresolved_claim 
+-------------------------------- live log call ---------------------------------
+2026-11-07 08:15:09 [    INFO] Agent Scratch Agent (scratch-agent) starting task: resume the task
+PASSED                                                                   [ 94%]
+tests/test_shopify_fulfillment_actions.py::TestRegistryDefinition::test_both_actions_registered PASSED [ 95%]
+tests/test_shopify_fulfillment_actions.py::TestRegistryDefinition::test_create_schema_advertises_optional_tracking PASSED [ 95%]
+tests/test_shopify_fulfillment_actions.py::TestCreateFulfillmentAction::test_success_threads_args PASSED [ 96%]
+tests/test_shopify_fulfillment_actions.py::TestCreateFulfillmentAction::test_notify_customer_defaults_true PASSED [ 97%]
+tests/test_shopify_fulfillment_actions.py::TestCreateFulfillmentAction::test_no_store_fail_closed PASSED [ 98%]
+tests/test_shopify_fulfillment_actions.py::TestGetFulfillmentsAction::test_success PASSED [ 99%]
+tests/test_shopify_fulfillment_actions.py::TestGetFulfillmentsAction::test_no_store_fail_closed PASSED [100%]
+
+- generated xml file: /private/tmp/atom-agent-job-baseline/backend/.shopify_oracle_evidence/focused.xml -
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+======================= 123 passed, 6 warnings in 58.13s =======================
+
+STDERR

@@ -1,0 +1,207 @@
+{
+  "journey": "Registered Shopify product-create Oracle vertical (first controlled case)",
+  "date": "2026-11-07",
+  "owner": "Agent2 Shopify Oracle family; independent acceptance retained by root",
+  "source_identity": {
+    "worktree": "/private/tmp/atom-agent-job-baseline",
+    "branch": "codex/shopify-product-oracle-20261107",
+    "base_commit": "f3b32005a6997e35f820c0510d42801d4946b12b",
+    "base_commit_ref": "origin/main at branch creation per LEAD_REVIEW (f3b32005a). origin/main later showed 980ba6e7f (root-owned E3 integration PR733); this branch was intentionally not rebased onto root's owned lane.",
+    "source_commit": "0b325c5f1e8de97a352f1d202cd1e8d13e21140b",
+    "source_commit_subject": "fix(shopify): verify product create by exact id/store/material readback",
+    "run_tree": "tracked tree clean at source commit (0 modified); 8 untracked files were guidance documents and the owned evidence scratch only",
+    "runtime_identity_line": "source_id=0b325c5f1e8d-dirty.847f661cf89c revision=0b325c5f1e8d dirty=True (0 modified, 8 untracked)"
+  },
+  "scope": {
+    "implemented": "shopify_create_product only",
+    "mechanism": "existing action registry + GenericAgent mutation consumer (durable TaskOperationRecord claim) + frozen request expectations + existing ShopifyService transport + postcondition Oracle",
+    "store_compatibility": "EcommerceStore.tenant_id remains the supported workspace identity (integrations/shopify_routes.py producer); no separate account-budget tenant rule was copied",
+    "not_implemented": [
+      "shopify_create_blog",
+      "shopify_create_article",
+      "shopify_create_fulfillment"
+    ]
+  },
+  "provider_contract": {
+    "readback": "GET /admin/api/{version}/products/{product_id}.json",
+    "documentation": "https://shopify.dev/docs/api/admin-rest/2026-07/resources/product",
+    "verification": "Official Shopify Admin REST product resource page fetched 2026-11-07; the by-id GET endpoint is documented and is used with ShopifyService.API_VERSION (2026-07)."
+  },
+  "environment": {
+    "python": "3.14.7 (/usr/local/opt/python@3.14/bin/python3.14)",
+    "TESTING": "1",
+    "SECRET_KEY": "explicit synthetic value; not recorded",
+    "DATABASE_URL": "sqlite:////private/tmp/atom-agent-job-baseline/backend/.shopify_oracle_evidence/scratch/atom.db",
+    "ATOM_DATA_DIR": "backend/.shopify_oracle_evidence/scratch/data",
+    "LANCEDB_URI": "backend/.shopify_oracle_evidence/scratch/lancedb",
+    "LANCEDB_URI_BASE": "backend/.shopify_oracle_evidence/scratch/lancedb",
+    "ATOM_OUTPUT_DIR": "backend/.shopify_oracle_evidence/scratch/output",
+    "provider_credentials": "SHOPIFY_API_KEY, SHOPIFY_API_SECRET, SHOPIFY_SHOP_NAME and live model keys pinned to empty strings",
+    "live_effects": "none: no provider HTTP, store/token/account configuration, credential, spend, send, download, deployment or live dev DB access",
+    "external_transport_double": "the product controls replace only ShopifyService.http; the real registered action, Generic consumer, durable claim, material normalizer, service methods and Oracle verifier execute"
+  },
+  "command": [
+    "/usr/local/opt/python@3.14/bin/python3.14",
+    "-m",
+    "pytest",
+    "tests/test_oracle_shopify_product_create.py",
+    "tests/test_oracle_registry_verification_gap.py",
+    "tests/test_oracle_connected_mutations.py",
+    "tests/test_generic_oracle_mutation_contract.py",
+    "tests/test_shopify_fulfillment_actions.py",
+    "-q",
+    "--disable-warnings",
+    "--junitxml=.../focused.xml"
+  ],
+  "result": {
+    "exit_code": 0,
+    "tests": 123,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "stdout_sha256": "106b45cea55b608d65636c63adf4ea5c4a3f6b501b8d76c50d33eb209cb6a545",
+    "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  },
+  "assertions": [
+    {
+      "id": "P1_exact_positive",
+      "control": "test_exact_product_create_is_independently_verified",
+      "observed": "one POST, producer GET plus independent Oracle GET, exact id 500, current shop, normalized accepted material, claim succeeded",
+      "result": "pass"
+    },
+    {
+      "id": "P2_missing_store_before_transport",
+      "control": "test_missing_store_refuses_before_transport",
+      "observed": "no POST; proven_not_applied; claim failed_before_effect",
+      "result": "pass"
+    },
+    {
+      "id": "P3_foreign_store_before_transport",
+      "control": "test_foreign_store_refuses_before_transport",
+      "observed": "a different tenant's store is not selected; no POST",
+      "result": "pass"
+    },
+    {
+      "id": "P4_moved_store_before_transport",
+      "control": "test_moved_store_metadata_refuses_before_transport",
+      "observed": "tenant_id/metadata workspace disagreement is unavailable; no POST",
+      "result": "pass"
+    },
+    {
+      "id": "P5_inactive_store_before_transport",
+      "control": "test_inactive_store_refuses_before_transport",
+      "observed": "inactive store is unavailable; no POST",
+      "result": "pass"
+    },
+    {
+      "id": "P6_body_store_selector_refused",
+      "control": "test_body_store_selector_refuses_before_transport[shop|access_token|tenant_id]",
+      "observed": "model/body store or credential selector refuses before transport",
+      "result": "pass"
+    },
+    {
+      "id": "N1_same_title_wrong_id",
+      "control": "test_same_title_with_different_returned_id_is_not_success",
+      "observed": "same-title object with id 999 against created id 500 is uncertain/refuted, not success",
+      "result": "pass"
+    },
+    {
+      "id": "N2_same_title_wrong_material",
+      "control": "test_same_title_with_wrong_material_is_not_success",
+      "observed": "same title with different body_html is uncertain/refuted",
+      "result": "pass"
+    },
+    {
+      "id": "N3_store_moved_before_verification",
+      "control": "test_store_moved_before_verification_refutes_original_authority",
+      "observed": "dispatch on the original store lands, but current workspace authority no longer resolves it; Oracle refutes and no resend is invited",
+      "result": "pass"
+    },
+    {
+      "id": "N4_absent_readback",
+      "control": "test_absent_readback_is_uncertain_not_success",
+      "observed": "created id with 404 readback stays uncertain; claim uncertain_effect",
+      "result": "pass"
+    },
+    {
+      "id": "N5_contradictory_readback",
+      "control": "test_contradictory_readback_is_uncertain_not_success",
+      "observed": "readback vendor contradicts the accepted material; uncertain/refuted",
+      "result": "pass"
+    },
+    {
+      "id": "N6_unidentifiable_effect",
+      "control": "test_unidentifiable_effect_remains_uncertain_and_is_not_recreated",
+      "observed": "a 201 with no product id is uncertain and a second call does not resend",
+      "result": "pass"
+    },
+    {
+      "id": "D1_same_operation_one_effect",
+      "control": "test_same_operation_same_material_has_one_effect",
+      "observed": "second identical call replays the durable claim; POST count remains 1, idempotent/replayed, claim succeeded",
+      "result": "pass"
+    },
+    {
+      "id": "D2_changed_material_refused",
+      "control": "test_same_operation_changed_material_is_refused",
+      "observed": "same operation id plus changed title is a conflict; POST count remains 1",
+      "result": "pass"
+    },
+    {
+      "id": "D3_lost_confirmation_no_resend",
+      "control": "test_lost_confirmation_retains_identity_and_never_resends",
+      "observed": "post-accept timeout retains the operation id, claim uncertain_effect, do-not-retry message, POST count remains 1",
+      "result": "pass"
+    },
+    {
+      "id": "F1_frozen_digest_refusal",
+      "control": "test_supplied_payload_digest_mismatch_refuses_before_transport",
+      "observed": "the assignment-adapter boundary refuses a supplied digest that differs from the canonical product payload; no POST",
+      "result": "pass"
+    }
+  ],
+  "artifacts": [
+    {
+      "file": "focused.log",
+      "sha256": "5053aff7cd4b81c38832edd3617cb110b88db2866cd3ec44ed95a1675ca67422",
+      "bytes": 21132
+    },
+    {
+      "file": "focused.xml",
+      "sha256": "30c56c72c792c400eda48271a71594ac3ca1f3a2fcfe319ad96abc25185d0a63",
+      "bytes": 18355
+    },
+    {
+      "file": "focused-exit.json",
+      "sha256": "2183886453a1add80aa7594235e094bf067a85b7d71cd9f540c502852775d526",
+      "bytes": 736
+    },
+    {
+      "file": "focused-spec.json",
+      "sha256": "590c4b8f922f9e83776fc8650ae851acd8474c9531aca083163513334083b003",
+      "bytes": 1066
+    },
+    {
+      "file": "run_and_capture.py",
+      "sha256": "0152ecd4d76575b0efcf8cc258a956e13a440a170db2698d38fc71e5040bd58a",
+      "bytes": 3140
+    },
+    {
+      "file": "README.md",
+      "sha256": "1cf48f14ce7c2c535f2e742161da4977e5cb100266abae9e4a49cd6d9ba77e97",
+      "bytes": 3150
+    },
+    {
+      "file": "verification.json",
+      "sha256": "ac583f0c3f54af31df5123012c1948028bcca29bd8573084971eae1880a20d2b",
+      "bytes": 1144
+    }
+  ],
+  "excluded_claims": [
+    "No live Shopify/provider/account/store/token/credential call or configuration.",
+    "No claim for shopify_create_blog, shopify_create_article or shopify_create_fulfillment; those remain the next owned cases.",
+    "No claim that a matching title or transport 201 is business success.",
+    "No self-acceptance; root independently verifies."
+  ],
+  "retained_scratch": "backend/.shopify_oracle_evidence/scratch (owned scratch; not part of the evidence commit)"
+}

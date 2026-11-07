@@ -1,0 +1,34 @@
+{
+  "source_commit": "0b325c5f1e8de97a352f1d202cd1e8d13e21140b",
+  "branch": "codex/shopify-product-oracle-20261107",
+  "base_commit": "f3b32005a6997e35f820c0510d42801d4946b12b",
+  "tracked_tree_clean": true,
+  "exit_code": 0,
+  "tests": 123,
+  "failures": 0,
+  "errors": 0,
+  "skipped": 0,
+  "duration_seconds_xml": 43.985,
+  "test_files": [
+    "tests/test_oracle_shopify_product_create.py",
+    "tests/test_oracle_registry_verification_gap.py",
+    "tests/test_oracle_connected_mutations.py",
+    "tests/test_generic_oracle_mutation_contract.py",
+    "tests/test_shopify_fulfillment_actions.py"
+  ],
+  "product_controls": 18,
+  "live_provider_calls": 0,
+  "live_credentials_used": 0,
+  "live_store_configuration_changes": 0,
+  "external_transport_double": "ShopifyService.http only",
+  "provider_contract": {
+    "read_by_id": "GET /admin/api/{version}/products/{product_id}.json",
+    "source": "https://shopify.dev/docs/api/admin-rest/2026-07/resources/product",
+    "verified_on": "2026-11-07"
+  },
+  "remaining_uncovered_owned_mutations": [
+    "shopify_create_blog",
+    "shopify_create_article",
+    "shopify_create_fulfillment"
+  ]
+}

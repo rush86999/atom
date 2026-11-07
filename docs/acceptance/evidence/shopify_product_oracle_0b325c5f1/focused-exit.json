@@ -1,0 +1,19 @@
+{
+  "command": [
+    "/usr/local/opt/python@3.14/bin/python3.14",
+    "-m",
+    "pytest",
+    "tests/test_oracle_shopify_product_create.py",
+    "tests/test_oracle_registry_verification_gap.py",
+    "tests/test_oracle_connected_mutations.py",
+    "tests/test_generic_oracle_mutation_contract.py",
+    "tests/test_shopify_fulfillment_actions.py",
+    "-q",
+    "--disable-warnings",
+    "--junitxml=/private/tmp/atom-agent-job-baseline/backend/.shopify_oracle_evidence/focused.xml"
+  ],
+  "cwd": "/private/tmp/atom-agent-job-baseline/backend",
+  "exit_code": 0,
+  "stdout_sha256": "106b45cea55b608d65636c63adf4ea5c4a3f6b501b8d76c50d33eb209cb6a545",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}
