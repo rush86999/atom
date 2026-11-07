@@ -2593,6 +2593,13 @@ def _run_execute(args: argparse.Namespace) -> int:
                         str(key).lower(): str(value)
                         for key, value in export_response.headers.items()
                     }
+                    request_headers = {
+                        str(key).lower(): str(value)
+                        for key, value in export_response.request.headers.items()
+                        if str(key).lower() in (
+                            "accept", "content-type", "origin", "referer",
+                            "x-request-id")
+                    }
                     expected_name = {
                         "text": expected_filename,
                         "markdown": expected_markdown_name,
@@ -2612,10 +2619,14 @@ def _run_execute(args: argparse.Namespace) -> int:
                     )
                     export_proofs[export_format] = {
                         "status": export_response.status,
+                        "doc_id": doc_id,
+                        "observed_source_version": headers.get(
+                            "x-document-source-version"),
                         "request_url_path": D3._path_of(
                             export_response.url),
                         "request_query": _query_dict(export_response.url),
                         "request_method": export_response.request.method,
+                        "request_headers_safe": request_headers,
                         "suggested_filename": suggested,
                         "download_url": download_url,
                         "filename_matches_expected": (
@@ -2810,9 +2821,14 @@ def _run_execute(args: argparse.Namespace) -> int:
             "export_proofs": {
                 key: {
                     "status": value.get("status"),
+                    "doc_id": value.get("doc_id"),
+                    "observed_source_version": value.get(
+                        "observed_source_version"),
                     "suggested_filename": value.get("suggested_filename"),
                     "request_path": value.get("request_url_path"),
                     "request_query": value.get("request_query"),
+                    "request_headers_safe": value.get(
+                        "request_headers_safe"),
                     "proof_ok": (value.get("proof") or {}).get("ok"),
                     "api_sha256": (value.get("proof") or {}).get(
                         "api_sha256"),
