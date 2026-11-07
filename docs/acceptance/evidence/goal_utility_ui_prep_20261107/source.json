@@ -1,0 +1,19 @@
+{
+  "schema": "atom-goal-utility-ui-prep-source-1",
+  "prep_branch": "codex/goal-utility-ui-prep-20261107",
+  "prep_head": "98bb2e181da25d48fdbebdcd1c0d3bfb6d419735",
+  "frozen_goal_pr_head": "dc92728d6e1302e8718c9435c08c119972e6fca8",
+  "runtime_diff_vs_frozen": [],
+  "runtime_tree_identical_to_frozen": true,
+  "driver": {
+    "path": "scripts/acceptance/browser_goal_utility_ui.py",
+    "blob": "d34b43704dabacb46e83c5f54dbde7beca2e36b8",
+    "sha256": "dc6d30ada841c91340cd29913c79aa90eceb07291406604d4121e5da3c52589f"
+  },
+  "workorder": {
+    "path": "docs/acceptance/GOAL_UTILITY_UI_EPISODE_WORK_ORDER_20261107.md",
+    "blob": "57631b3ab5b9ad386dfb974566b415f42338b6e7",
+    "sha256": "aa8c66d47bea93f6f330a77e4a80b576fc2178221acd60d252ebb34bea7b660c"
+  },
+  "note": "The prep head adds only scripts/docs. The production/UI runtime tree is identical to the frozen goal PR head; root must still pass the actual frozen source SHA at execute time."
+}
