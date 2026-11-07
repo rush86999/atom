@@ -1,0 +1,61 @@
+{
+  "schema": "atom-employee-evidence-1",
+  "status": "clean-history source-identical successor of PR709, pending fresh hosted checks",
+  "branch": "codex/mem07-workspace-clean-20261107",
+  "executed_source": "cf2964720e17",
+  "source_checkpoint": "b2faf066b863",
+  "base_main": "248a2329623b",
+  "commits": {
+    "fix": "f0efc7caadc2",
+    "seam_retarget": "eb8b4578cac6",
+    "ci_additivity": "8748f9033bce",
+    "pre_fix_gate": "54cd12bf20c8",
+    "merge_head": "cf2964720e17"
+  },
+  "source_files": {
+    "backend/core/auto_dev/reflection_engine.py": "9842fc5f66e14f3b27fe1d8c4bcbb48454c878687fc2c5fc21d5c9e35d6f5235",
+    "backend/core/auto_dev/capability_gate.py": "04f2d57c29135980c7b4c302e84351158cca2e05fff113df4e8c23312cfd47a1",
+    "backend/tests/test_tool_error_memento_lifecycle.py": "42282a5ab34ff74c57394916ae090a5610a6e5f100a562c401ca7f167fc88bf8",
+    "backend/tests/test_tool_error_evolution.py": "10771da1cd2cfae84f57305cb873dcc059f3166b2cdb659d67338aee696fdc06",
+    "backend/tests/test_covpush_w84c_autodev2.py": "435053d3a586fd8cc5caebc6e55ddaea50ea276d46ed846b73c47a2b388af8d7",
+    "backend/tests/test_covpush_autodev_comms.py": "44289341f71019bfb51458a6b67bbcc882854107b29ccf33df3d9f4fd5a44cba",
+    ".github/workflows/ci.yml": "ac8045ec76dbc973b4e001fda74d9747bfb2fb229a82c74125970ef9f03922a6"
+  },
+  "artifacts": {
+    "README.md": "a075c1544e313bd483552ed8b6d3004b1f9731bd47ce612be68d8a57721fe7dd",
+    "failure_id_comparison.json": "f55120e3e949f9ea4ddd91cf461043ad670059ab0860acaacb8b345b678ca157",
+    "candidate_mergehead.sanitized.log": "a0ec31b868819ce39ccad1e241cb88eb3b8afbb051147275018849ee576b3e2e",
+    "baseline_neighborhood.sanitized.log": "70e2d2c1aea7c79a449420238ac3958a2b9b6d4c7dc0fc5040ab4a6fcfc0a238",
+    "SOURCE_PROVENANCE.md": "9925985be995a51bb0849aac637a9e8fe9332aefdc35d74fbb8d9fed31b31089",
+    "candidate_corrected.sanitized.log": "e28cdbd478fa80d175d432575937bca7f0516c57e6289d4c4a3a748e9232e310",
+    "focused_mergehead.sanitized.log": "10bf94c55894718469296c31e75141aff331d94b8cf358123495cbff144d6d05",
+    "failure_first.sanitized.log": "609f664cef8784a20981fe1456fcb82f7f10cc2d069c09ca6dd65875d16cebba",
+    "candidate_preretarget.sanitized.log": "b0030bcfbfa67a053eb114b943133cd3d20adc940a062f8a4afff6c35dc693f6"
+  },
+  "checks": {
+    "baseline_248a23296": "23 failed, 345 passed",
+    "candidate_corrected_f0efc7caa": "23 failed, 347 passed; intermediate runtime f0efc7caa plus uncommitted seam-retarget test controls subsequently committed eb8b4578c; tree_clean_at_run=false",
+    "candidate_mergehead_cf2964720": "23 failed, 347 passed",
+    "failure_id_sets_identical_baseline_vs_corrected": true,
+    "failure_id_sets_identical_baseline_vs_mergehead": true,
+    "preretarget_intermediate": "25 failed / 343 passed; the 2 extra IDs are exactly the stale seam tests, removed by eb8b4578c retargeting",
+    "focused_mergehead": "13 failed, 43 passed \u2014 fails are the inherited baseline stale-symbol subset; both focused MEM-07 suites and all seam controls pass",
+    "skips_waits_deletions": 0,
+    "candidate_added_failures": 0,
+    "failure_first_twins_at_pre_fix_source": "5 failed / 5 run with only reflection_engine.py substituted byte-exactly from54cd12bf2 inside the corrected harness; not a full old-source checkout",
+    "worktree_restored_after_failure_first": true,
+    "sha256_audited_dependencies_no_mismatches": true,
+    "pii_residues_scan": "all seven sanitized artifacts scanned: rushiparikh and /Users/<home> absent; raw originals kept private and never uploaded",
+    "ci_additivity_at_merge_head": "all main gates retained (incl. test_recording_review_scope.py + served-route step) plus the two MEM-07 suites",
+    "merge_zero_source_delta_in_owned_files": "git diff 8748f9033..cf2964720 over the six owned files is empty; blob hashes identical",
+    "independent_integrator_verification": "25 passed at f0efc7caa (root run /private/tmp/root-mem07-fixed.log), cited only, NOT committed"
+  },
+  "boundaries": [
+    "scratch SQLite worlds only; no live DB, no external/model calls, no spend",
+    "scope limited to the resolver, the two gate consumers, seam retargeting on two coverage suites, five workspace twins + controls, and CI additivity",
+    "remaining failure IDs are inherited pre-existing baseline failures; not waived, skipped, or deleted",
+    "no merge, accept, approval, or self-review; PR #709 submitted for independent exact-head checks",
+    "bootstrap scratch files (.mem07_pr_body.md, CLI_WORK_ORDER.md, opencode.jsonc) stay untracked"
+  ],
+  "provenance_precision": "README and EXECUTED_SOURCE identify intermediate dirty test controls and single-file failure-first substitution; final committed-source checkpoint cf2964720 remains authoritative; captured logs unchanged"
+}

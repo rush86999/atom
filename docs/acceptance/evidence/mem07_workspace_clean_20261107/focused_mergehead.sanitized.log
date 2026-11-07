@@ -1,0 +1,328 @@
+
+tests/test_tool_error_memento_lifecycle.py::test_tool_errors_feed_the_canonical_memento_candidate 
+-------------------------------- live log setup --------------------------------
+2026-11-06 19:59:35 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-06 19:59:35 [    INFO] EscalationManager initialized
+2026-11-06 19:59:35 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:59:35 [    INFO] EscalationManager initialized
+2026-11-06 19:59:35 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:59:35 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:59:35 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:59:35 [    INFO] MCP Service initialized
+2026-11-06 19:59:35 [    INFO] EscalationManager initialized
+2026-11-06 19:59:35 [    INFO] CognitiveTierService initialized for workspace: ws-memento
+2026-11-06 19:59:35 [    INFO] Creating isolated LanceDBHandler for workspace: ws-memento at ./data/atom_memory/ws-memento
+2026-11-06 19:59:35 [    INFO] EscalationManager initialized
+2026-11-06 19:59:35 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:59:35 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:59:35 [    INFO] LanceDBHandler initialized. ID: 4950239952. LANCEDB_AVAILABLE: True
+2026-11-06 19:59:35 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-06 19:59:35 [    INFO] EscalationManager initialized
+2026-11-06 19:59:35 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:59:35 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:59:35 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='autodev_guidance'
+2026-11-06 19:59:35 [ WARNING] Failed to extract canvas metadata: 'AgentExecution' object has no attribute 'session_id'
+2026-11-06 19:59:35 [    INFO] Created episode e263e8aa-117e-43df-a906-816b5a2ce5c9 for agent memento-agent (outcome=partial, constitutional_score=1.00)
+2026-11-06 19:59:35 [    INFO] ReflectionEngine: 1 similar failures detected for agent memento-agent. Triggering Auto-Dev fix.
+2026-11-06 19:59:35 [    INFO] Generated skill candidate 'auto_look_customer_email' from episode e263e8aa-117e-43df-a906-816b5a2ce5c9
+2026-11-06 19:59:35 [    INFO] ReflectionEngine triggered skill candidate: auto_look_customer_email
+2026-11-06 19:59:35 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='autodev_guidance'
+PASSED                                                                   [  1%]
+tests/test_tool_error_memento_lifecycle.py::test_raised_dispatch_error_is_recorded_too 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:59:35 [    INFO] EscalationManager initialized
+2026-11-06 19:59:35 [    INFO] CognitiveTierService initialized for workspace: ws-memento
+2026-11-06 19:59:35 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-06 19:59:35 [    INFO] EscalationManager initialized
+2026-11-06 19:59:35 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:59:35 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+PASSED                                                                   [  3%]
+tests/test_tool_error_memento_lifecycle.py::test_disabled_workspace_refuses_the_candidate 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:59:36 [    INFO] EscalationManager initialized
+2026-11-06 19:59:36 [    INFO] CognitiveTierService initialized for workspace: ws-scope-False
+2026-11-06 19:59:36 [    INFO] Creating isolated LanceDBHandler for workspace: ws-scope-False at ./data/atom_memory/ws-scope-False
+2026-11-06 19:59:36 [    INFO] EscalationManager initialized
+2026-11-06 19:59:36 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:59:36 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:59:36 [    INFO] LanceDBHandler initialized. ID: 4957188048. LANCEDB_AVAILABLE: True
+2026-11-06 19:59:36 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-06 19:59:36 [    INFO] EscalationManager initialized
+2026-11-06 19:59:36 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:59:36 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:59:36 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='autodev_guidance'
+2026-11-06 19:59:36 [ WARNING] Failed to extract canvas metadata: 'AgentExecution' object has no attribute 'session_id'
+2026-11-06 19:59:36 [    INFO] Created episode 9a0912a7-e804-419d-a0d9-b199912250f4 for agent agent-scope-False (outcome=partial, constitutional_score=1.00)
+PASSED                                                                   [  5%]
+tests/test_tool_error_memento_lifecycle.py::test_live_tool_fix_refuses_when_not_opted_in 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:59:36 [    INFO] gatekeeper.audit service=outlook action=search_emails agent_id=agent-scope-False allowed=True reason=
+2026-11-06 19:59:36 [    INFO] gatekeeper.audit service=outlook action=search_emails agent_id=agent-scope-False allowed=True reason=
+PASSED                                                                   [  7%]
+tests/test_tool_error_memento_lifecycle.py::test_live_tool_fix_proposes_pending_mutation_when_opted_in 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:59:36 [    INFO] gatekeeper.audit service=outlook action=search_emails agent_id=agent-scope-True allowed=True reason=
+2026-11-06 19:59:36 [    INFO] gatekeeper.audit service=outlook action=search_emails agent_id=agent-scope-True allowed=True reason=
+2026-11-06 19:59:36 [    INFO] Live evolution trigger: tool mutation candidate for outlook.search_emails (agent agent-scope-True, active task)
+2026-11-06 19:59:36 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='autodev_guidance'
+PASSED                                                                   [  8%]
+tests/test_tool_error_memento_lifecycle.py::test_live_fix_gates_on_the_agents_own_workspace_not_the_first 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:59:36 [    INFO] gatekeeper.audit service=outlook action=search_emails agent_id=agent-twin allowed=True reason=
+2026-11-06 19:59:36 [    INFO] gatekeeper.audit service=outlook action=search_emails agent_id=agent-twin allowed=True reason=
+2026-11-06 19:59:36 [    INFO] Live evolution trigger: tool mutation candidate for outlook.search_emails (agent agent-twin, active task)
+2026-11-06 19:59:36 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='autodev_guidance'
+PASSED                                                                   [ 10%]
+tests/test_tool_error_memento_lifecycle.py::test_live_fix_refuses_when_agent_own_workspace_is_disabled_even_if_first_enabled 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:59:36 [    INFO] gatekeeper.audit service=outlook action=search_emails agent_id=agent-twin allowed=True reason=
+2026-11-06 19:59:36 [    INFO] gatekeeper.audit service=outlook action=search_emails agent_id=agent-twin allowed=True reason=
+PASSED                                                                   [ 12%]
+tests/test_tool_error_memento_lifecycle.py::test_live_fix_refuses_on_missing_or_inconsistent_authority 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:59:37 [    INFO] gatekeeper.audit service=outlook action=search_emails agent_id=agent-ghost allowed=True reason=
+2026-11-06 19:59:37 [    INFO] gatekeeper.audit service=outlook action=search_emails agent_id=agent-ghost allowed=True reason=
+2026-11-06 19:59:37 [ WARNING] Auto-Dev authority: agent agent-ghost has no registry row
+2026-11-06 19:59:37 [    INFO] gatekeeper.audit service=outlook action=search_emails agent_id=agent-orphan allowed=True reason=
+2026-11-06 19:59:37 [    INFO] gatekeeper.audit service=outlook action=search_emails agent_id=agent-orphan allowed=True reason=
+2026-11-06 19:59:37 [ WARNING] Auto-Dev authority: workspace ws-ghost for agent agent-orphan does not exist
+2026-11-06 19:59:37 [    INFO] gatekeeper.audit service=outlook action=search_emails agent_id=agent-cross allowed=True reason=
+2026-11-06 19:59:37 [    INFO] gatekeeper.audit service=outlook action=search_emails agent_id=agent-cross allowed=True reason=
+2026-11-06 19:59:37 [ WARNING] Auto-Dev authority: agent agent-cross serves tenant tenant-cross, not acting tenant tenant-twin
+PASSED                                                                   [ 14%]
+tests/test_tool_error_memento_lifecycle.py::test_episode_time_gates_on_the_agents_own_workspace_not_the_first 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:59:37 [    INFO] EscalationManager initialized
+2026-11-06 19:59:37 [    INFO] CognitiveTierService initialized for workspace: ws-twin-own
+2026-11-06 19:59:37 [    INFO] Creating isolated LanceDBHandler for workspace: ws-twin-own at ./data/atom_memory/ws-twin-own
+2026-11-06 19:59:37 [    INFO] EscalationManager initialized
+2026-11-06 19:59:37 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:59:37 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:59:37 [    INFO] LanceDBHandler initialized. ID: 4961817120. LANCEDB_AVAILABLE: True
+2026-11-06 19:59:37 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-06 19:59:37 [    INFO] EscalationManager initialized
+2026-11-06 19:59:37 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:59:37 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:59:37 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='autodev_guidance'
+2026-11-06 19:59:37 [ WARNING] Failed to extract canvas metadata: 'AgentExecution' object has no attribute 'session_id'
+2026-11-06 19:59:37 [    INFO] Created episode 33a110a7-e602-4aa5-a913-bf1c22d6594b for agent agent-twin (outcome=partial, constitutional_score=1.00)
+2026-11-06 19:59:37 [    INFO] ReflectionEngine: 1 similar failures detected for agent agent-twin. Triggering Auto-Dev fix.
+2026-11-06 19:59:37 [    INFO] Generated skill candidate 'auto_look_customer_email' from episode 33a110a7-e602-4aa5-a913-bf1c22d6594b
+2026-11-06 19:59:37 [    INFO] ReflectionEngine triggered skill candidate: auto_look_customer_email
+2026-11-06 19:59:37 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='autodev_guidance'
+PASSED                                                                   [ 16%]
+tests/test_tool_error_memento_lifecycle.py::test_episode_time_refuses_when_agent_own_workspace_is_disabled_even_if_first_enabled 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:59:37 [    INFO] EscalationManager initialized
+2026-11-06 19:59:37 [    INFO] CognitiveTierService initialized for workspace: ws-twin-own
+2026-11-06 19:59:37 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-06 19:59:37 [    INFO] EscalationManager initialized
+2026-11-06 19:59:37 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:59:37 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:59:37 [ WARNING] Failed to extract canvas metadata: 'AgentExecution' object has no attribute 'session_id'
+2026-11-06 19:59:37 [    INFO] Created episode 1b383244-50d1-4519-98a2-cedc24cf1cf2 for agent agent-twin (outcome=partial, constitutional_score=1.00)
+PASSED                                                                   [ 17%]
+tests/test_tool_error_evolution.py::test_record_tool_error_appends_to_running_execution PASSED [ 19%]
+tests/test_tool_error_evolution.py::test_record_tool_error_never_raises_on_garbage_input PASSED [ 21%]
+tests/test_tool_error_evolution.py::test_signature_is_per_tool_and_error_text_free PASSED [ 23%]
+tests/test_tool_error_evolution.py::test_effective_outcome_downgrades_tool_error_success PASSED [ 25%]
+tests/test_tool_error_evolution.py::test_effective_outcome_leaves_clean_success_alone PASSED [ 26%]
+tests/test_tool_error_evolution.py::test_summarize_renders_tool_errors_for_memento PASSED [ 28%]
+tests/test_tool_error_evolution.py::test_tool_flavored_pattern_triggers_alpha_evolver 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:59:37 [    INFO] ReflectionEngine: 3 similar failures detected for agent 9837ec71-4f1b-41db-b014-119862362d44. Triggering Auto-Dev fix.
+PASSED                                                                   [ 30%]
+tests/test_tool_error_evolution.py::test_non_tool_pattern_falls_back_to_memento 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:59:37 [    INFO] ReflectionEngine: 3 similar failures detected for agent 9837ec71-4f1b-41db-b014-119862362d44. Triggering Auto-Dev fix.
+2026-11-06 19:59:37 [    INFO] ReflectionEngine triggered skill candidate: auto_skill_m
+PASSED                                                                   [ 32%]
+tests/test_tool_error_evolution.py::test_alpha_failure_falls_back_to_memento 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:59:37 [    INFO] ReflectionEngine triggered skill candidate: auto_skill_x
+2026-11-06 19:59:37 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='autodev_guidance'
+PASSED                                                                   [ 33%]
+tests/test_tool_error_evolution.py::test_should_trigger_live_threshold_and_suppression PASSED [ 35%]
+tests/test_tool_error_evolution.py::test_trigger_live_tool_fix_creates_mutation_for_registered_tool 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:59:37 [    INFO] Live evolution trigger: tool mutation candidate for outlook.search_emails (agent 9837ec71-4f1b-41db-b014-119862362d44, active task)
+PASSED                                                                   [ 37%]
+tests/test_tool_error_evolution.py::test_trigger_live_tool_fix_is_noop_for_unregistered_tools PASSED [ 39%]
+tests/test_tool_error_evolution.py::test_chokepoint_schedules_live_trigger_on_threshold 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:59:37 [    INFO] gatekeeper.audit service=outlook action=search_emails agent_id=agent-9 allowed=True reason=
+PASSED                                                                   [ 41%]
+tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_init_defaults PASSED [ 42%]
+tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_init_custom_threshold PASSED [ 44%]
+tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_register 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:59:37 [    INFO] ReflectionEngine registered on event bus
+PASSED                                                                   [ 46%]
+tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_process_failure_skipped_when_not_allowed PASSED [ 48%]
+tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_process_failure_below_threshold FAILED [ 50%]
+tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_process_failure_triggers_and_clears FAILED [ 51%]
+tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_trigger_memento_success FAILED [ 53%]
+tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_trigger_memento_exception FAILED [ 55%]
+tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_should_process_agent_true PASSED [ 57%]
+tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_should_process_agent_refuses_when_authority_missing PASSED [ 58%]
+tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_should_process_agent_false PASSED [ 60%]
+tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_should_process_agent_exception PASSED [ 62%]
+tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_get_workspace_settings_with_metadata FAILED [ 64%]
+tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_get_workspace_settings_none_metadata FAILED [ 66%]
+tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_get_workspace_settings_missing FAILED [ 67%]
+tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_get_workspace_settings_exception FAILED [ 69%]
+tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_find_similar_failures_high_overlap PASSED [ 71%]
+tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_find_similar_failures_low_overlap PASSED [ 73%]
+tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_find_similar_failures_empty_task_words PASSED [ 75%]
+tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_find_similar_failures_unknown_agent PASSED [ 76%]
+tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_clear_pattern_removes_processed PASSED [ 78%]
+tests/test_covpush_autodev_comms.py::TestReflectionEngineCoverage::test_register 
+-------------------------------- live log call ---------------------------------
+2026-11-06 19:59:37 [    INFO] ReflectionEngine registered on event bus
+PASSED                                                                   [ 80%]
+tests/test_covpush_autodev_comms.py::TestReflectionEngineCoverage::test_process_failure_gate_denied PASSED [ 82%]
+tests/test_covpush_autodev_comms.py::TestReflectionEngineCoverage::test_process_failure_below_threshold FAILED [ 83%]
+tests/test_covpush_autodev_comms.py::TestReflectionEngineCoverage::test_process_failure_triggers_memento_and_clears FAILED [ 85%]
+tests/test_covpush_autodev_comms.py::TestReflectionEngineCoverage::test_trigger_memento_success FAILED [ 87%]
+tests/test_covpush_autodev_comms.py::TestReflectionEngineCoverage::test_trigger_memento_error FAILED [ 89%]
+tests/test_covpush_autodev_comms.py::TestReflectionEngineCoverage::test_should_process_agent PASSED [ 91%]
+tests/test_covpush_autodev_comms.py::TestReflectionEngineCoverage::test_should_process_agent_refuses_when_authority_missing PASSED [ 92%]
+tests/test_covpush_autodev_comms.py::TestReflectionEngineCoverage::test_should_process_agent_exception PASSED [ 94%]
+tests/test_covpush_autodev_comms.py::TestReflectionEngineCoverage::test_get_workspace_settings FAILED [ 96%]
+tests/test_covpush_autodev_comms.py::TestReflectionEngineCoverage::test_find_similar_failures PASSED [ 98%]
+tests/test_covpush_autodev_comms.py::TestReflectionEngineCoverage::test_clear_pattern PASSED [100%]
+
+=================================== FAILURES ===================================
+__________ TestReflectionEngine.test_process_failure_below_threshold ___________
+tests/test_covpush_w84c_autodev2.py:780: in test_process_failure_below_threshold
+    with patch.object(engine, "_trigger_memento") as trigger:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<home>/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/unittest/mock.py:1510: in __enter__
+    original, local = self.get_original()
+                      ^^^^^^^^^^^^^^^^^^^
+<home>/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/unittest/mock.py:1480: in get_original
+    raise AttributeError(
+E   AttributeError: <core.auto_dev.reflection_engine.ReflectionEngine object at 0x12a2a9220> does not have the attribute '_trigger_memento'
+________ TestReflectionEngine.test_process_failure_triggers_and_clears _________
+tests/test_covpush_w84c_autodev2.py:789: in test_process_failure_triggers_and_clears
+    with patch.object(engine, "_trigger_memento", new=AsyncMock()) as trigger:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+<home>/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/unittest/mock.py:1510: in __enter__
+    original, local = self.get_original()
+                      ^^^^^^^^^^^^^^^^^^^
+<home>/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/unittest/mock.py:1480: in get_original
+    raise AttributeError(
+E   AttributeError: <core.auto_dev.reflection_engine.ReflectionEngine object at 0x12a467310> does not have the attribute '_trigger_memento'
+______________ TestReflectionEngine.test_trigger_memento_success _______________
+tests/test_covpush_w84c_autodev2.py:822: in test_trigger_memento_success
+    await engine._trigger_memento(
+          ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'ReflectionEngine' object has no attribute '_trigger_memento'
+_____________ TestReflectionEngine.test_trigger_memento_exception ______________
+tests/test_covpush_w84c_autodev2.py:836: in test_trigger_memento_exception
+    await engine._trigger_memento(
+          ^^^^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'ReflectionEngine' object has no attribute '_trigger_memento'
+________ TestReflectionEngine.test_get_workspace_settings_with_metadata ________
+tests/test_covpush_w84c_autodev2.py:887: in test_get_workspace_settings_with_metadata
+    assert engine._get_workspace_settings("t1") == {"auto_dev": {"memento": True}}
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: ReflectionEngine._get_workspace_settings() missing 1 required positional argument: 'tenant_id'
+________ TestReflectionEngine.test_get_workspace_settings_none_metadata ________
+tests/test_covpush_w84c_autodev2.py:893: in test_get_workspace_settings_none_metadata
+    assert engine._get_workspace_settings("t1") == {}
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: ReflectionEngine._get_workspace_settings() missing 1 required positional argument: 'tenant_id'
+___________ TestReflectionEngine.test_get_workspace_settings_missing ___________
+tests/test_covpush_w84c_autodev2.py:899: in test_get_workspace_settings_missing
+    assert engine._get_workspace_settings("t1") == {}
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: ReflectionEngine._get_workspace_settings() missing 1 required positional argument: 'tenant_id'
+__________ TestReflectionEngine.test_get_workspace_settings_exception __________
+tests/test_covpush_w84c_autodev2.py:905: in test_get_workspace_settings_exception
+    assert engine._get_workspace_settings("t1") == {}
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: ReflectionEngine._get_workspace_settings() missing 1 required positional argument: 'tenant_id'
+______ TestReflectionEngineCoverage.test_process_failure_below_threshold _______
+tests/test_covpush_autodev_comms.py:787: in test_process_failure_below_threshold
+    with patch.object(eng, "_should_process_agent", return_value=True), patch.object(
+<home>/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/unittest/mock.py:1510: in __enter__
+    original, local = self.get_original()
+                      ^^^^^^^^^^^^^^^^^^^
+<home>/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/unittest/mock.py:1480: in get_original
+    raise AttributeError(
+E   AttributeError: <core.auto_dev.reflection_engine.ReflectionEngine object at 0x12abfcc80> does not have the attribute '_trigger_memento'
+_ TestReflectionEngineCoverage.test_process_failure_triggers_memento_and_clears _
+tests/test_covpush_autodev_comms.py:803: in test_process_failure_triggers_memento_and_clears
+    with patch.object(eng, "_should_process_agent", return_value=True), patch.object(
+<home>/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/unittest/mock.py:1510: in __enter__
+    original, local = self.get_original()
+                      ^^^^^^^^^^^^^^^^^^^
+<home>/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/unittest/mock.py:1480: in get_original
+    raise AttributeError(
+E   AttributeError: <core.auto_dev.reflection_engine.ReflectionEngine object at 0x12a51fad0> does not have the attribute '_trigger_memento'
+__________ TestReflectionEngineCoverage.test_trigger_memento_success ___________
+tests/test_covpush_autodev_comms.py:824: in test_trigger_memento_success
+    await eng._trigger_memento("a1", "t1", "e1", [{"episode_id": "e1"}])
+          ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'ReflectionEngine' object has no attribute '_trigger_memento'
+___________ TestReflectionEngineCoverage.test_trigger_memento_error ____________
+tests/test_covpush_autodev_comms.py:836: in test_trigger_memento_error
+    await eng._trigger_memento("a1", "t1", "e1", [])
+          ^^^^^^^^^^^^^^^^^^^^
+E   AttributeError: 'ReflectionEngine' object has no attribute '_trigger_memento'
+___________ TestReflectionEngineCoverage.test_get_workspace_settings ___________
+tests/test_covpush_autodev_comms.py:881: in test_get_workspace_settings
+    assert ReflectionEngine(db)._get_workspace_settings("t1") == {"auto_dev": {"enabled": True}}
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: ReflectionEngine._get_workspace_settings() missing 1 required positional argument: 'tenant_id'
+=============================== warnings summary ===============================
+../../../..<home>/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  <home>/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../..<home>/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  <home>/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../..<home>/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 112 warnings
+  <home>/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_process_failure_below_threshold
+FAILED tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_process_failure_triggers_and_clears
+FAILED tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_trigger_memento_success
+FAILED tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_trigger_memento_exception
+FAILED tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_get_workspace_settings_with_metadata
+FAILED tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_get_workspace_settings_none_metadata
+FAILED tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_get_workspace_settings_missing
+FAILED tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_get_workspace_settings_exception
+FAILED tests/test_covpush_autodev_comms.py::TestReflectionEngineCoverage::test_process_failure_below_threshold
+FAILED tests/test_covpush_autodev_comms.py::TestReflectionEngineCoverage::test_process_failure_triggers_memento_and_clears
+FAILED tests/test_covpush_autodev_comms.py::TestReflectionEngineCoverage::test_trigger_memento_success
+FAILED tests/test_covpush_autodev_comms.py::TestReflectionEngineCoverage::test_trigger_memento_error
+FAILED tests/test_covpush_autodev_comms.py::TestReflectionEngineCoverage::test_get_workspace_settings
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================= 13 failed, 43 passed, 118 warnings in 11.50s =================
