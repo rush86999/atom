@@ -1,0 +1,62 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+___________ test_same_source_different_accepted_answer_cannot_resume ___________
+../../test_lead_generic_source_answer_material.py:36: in test_same_source_different_accepted_answer_cannot_resume
+    assert second.status_code==409,('changed answer resumed against unchanged accepted source',second.status_code,second.text,observed)
+E   AssertionError: ('changed answer resumed against unchanged accepted source', 200, '{"success":true,"data":{"agent_id":"a1","job_id":"b..."}]}},"timestamp":"2026-11-07T18:52:21.419345+00:00","message":"Agent execution completed"}', ['wait', 'priority low'])
+E   assert 200 == 409
+E    +  where 200 = <Response [200 OK]>.status_code
+------------------------------ Captured log call -------------------------------
+WARNING  core.lancedb_service:lancedb_service.py:39 LanceDBService initialized in stub mode (no-op)
+WARNING  core.turn_fact_extractor:turn_fact_extractor.py:1025 get_active_facts_for_prompt failed: (sqlite3.OperationalError) no such table: turn_facts
+[SQL: SELECT turn_facts.id AS turn_facts_id, turn_facts.tenant_id AS turn_facts_tenant_id, turn_facts.workspace_id AS turn_facts_workspace_id, turn_facts.user_id AS turn_facts_user_id, turn_facts.execution_id AS turn_facts_execution_id, turn_facts.reasoning_step_id AS turn_facts_reasoning_step_id, turn_facts.episode_id AS turn_facts_episode_id, turn_facts.session_id AS turn_facts_session_id, turn_facts.extraction_source AS turn_facts_extraction_source, turn_facts.fact_text AS turn_facts_fact_text, turn_facts.category AS turn_facts_category, turn_facts.domain AS turn_facts_domain, turn_facts.tags AS turn_facts_tags, turn_facts.confidence AS turn_facts_confidence, turn_facts.epistemic_type AS turn_facts_epistemic_type, turn_facts.sensitivity AS turn_facts_sensitivity, turn_facts.content_hash AS turn_facts_content_hash, turn_facts.status AS turn_facts_status, turn_facts.superseded_at AS turn_facts_superseded_at, turn_facts.created_at AS turn_facts_created_at, turn_facts.parent_id AS turn_facts_parent_id, turn_facts.commit_message AS turn_facts_commit_message, turn_facts.author_type AS turn_facts_author_type, turn_facts.branch_name AS turn_facts_branch_name, turn_facts.diff_summary AS turn_facts_diff_summary, turn_facts.vector_id AS turn_facts_vector_id 
+FROM turn_facts 
+WHERE turn_facts.workspace_id = ? AND turn_facts.status = ?]
+[parameters: ('ws1', 'active')]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+WARNING  core.turn_fact_extractor:turn_fact_extractor.py:475 turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+WARNING  core.turn_fact_extractor:turn_fact_extractor.py:814 turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 1}
+WARNING  core.lancedb_service:lancedb_service.py:39 LanceDBService initialized in stub mode (no-op)
+WARNING  core.turn_fact_extractor:turn_fact_extractor.py:1025 get_active_facts_for_prompt failed: (sqlite3.OperationalError) no such table: turn_facts
+[SQL: SELECT turn_facts.id AS turn_facts_id, turn_facts.tenant_id AS turn_facts_tenant_id, turn_facts.workspace_id AS turn_facts_workspace_id, turn_facts.user_id AS turn_facts_user_id, turn_facts.execution_id AS turn_facts_execution_id, turn_facts.reasoning_step_id AS turn_facts_reasoning_step_id, turn_facts.episode_id AS turn_facts_episode_id, turn_facts.session_id AS turn_facts_session_id, turn_facts.extraction_source AS turn_facts_extraction_source, turn_facts.fact_text AS turn_facts_fact_text, turn_facts.category AS turn_facts_category, turn_facts.domain AS turn_facts_domain, turn_facts.tags AS turn_facts_tags, turn_facts.confidence AS turn_facts_confidence, turn_facts.epistemic_type AS turn_facts_epistemic_type, turn_facts.sensitivity AS turn_facts_sensitivity, turn_facts.content_hash AS turn_facts_content_hash, turn_facts.status AS turn_facts_status, turn_facts.superseded_at AS turn_facts_superseded_at, turn_facts.created_at AS turn_facts_created_at, turn_facts.parent_id AS turn_facts_parent_id, turn_facts.commit_message AS turn_facts_commit_message, turn_facts.author_type AS turn_facts_author_type, turn_facts.branch_name AS turn_facts_branch_name, turn_facts.diff_summary AS turn_facts_diff_summary, turn_facts.vector_id AS turn_facts_vector_id 
+FROM turn_facts 
+WHERE turn_facts.workspace_id = ? AND turn_facts.status = ?]
+[parameters: ('ws1', 'active')]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+WARNING  core.turn_fact_extractor:turn_fact_extractor.py:475 turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+WARNING  core.turn_fact_extractor:turn_fact_extractor.py:814 turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 2}
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+test_lead_generic_source_answer_material.py::test_same_source_different_accepted_answer_cannot_resume
+test_lead_generic_source_answer_material.py::test_same_source_different_accepted_answer_cannot_resume
+  /private/tmp/atom-task-wait-01-reconciliation-20261107/backend/core/lancedb_handler.py:407: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    names = set(self.db.table_names())
+
+test_lead_generic_source_answer_material.py::test_same_source_different_accepted_answer_cannot_resume
+test_lead_generic_source_answer_material.py::test_same_source_different_accepted_answer_cannot_resume
+test_lead_generic_source_answer_material.py::test_same_source_different_accepted_answer_cannot_resume
+test_lead_generic_source_answer_material.py::test_same_source_different_accepted_answer_cannot_resume
+  /Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/asyncio/events.py:94: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    self._context.run(self._callback, *self._args)
+
+test_lead_generic_source_answer_material.py::test_same_source_different_accepted_answer_cannot_resume
+test_lead_generic_source_answer_material.py::test_same_source_different_accepted_answer_cannot_resume
+  /private/tmp/atom-task-wait-01-reconciliation-20261107/backend/core/lancedb_handler.py:620: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    if table_name in self.db.table_names():
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED ../../test_lead_generic_source_answer_material.py::test_same_source_different_accepted_answer_cannot_resume
+1 failed, 12 warnings in 3.47s

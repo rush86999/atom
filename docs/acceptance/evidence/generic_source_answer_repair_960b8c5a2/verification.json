@@ -1,0 +1,41 @@
+{
+  "kind": "generic_source_answer_material_cas_repair",
+  "branch": "codex/generic-source-answer-20261107",
+  "base_source": "7d38d2ac946ca8b4470bde8edd72ed00ef49497d",
+  "root_probe_source": "c58340b1805b13602f169c113abd5b9727056fa3",
+  "executed_source": "960b8c5a225b637eb383df2678af42e139013260",
+  "source_tree_clean": true,
+  "root_negatives": {
+    "material_failed": 1,
+    "snapshot_cas_failed": 1,
+    "both_exit": 1
+  },
+  "focused": {
+    "backend_passed": 11,
+    "ui_passed": 11,
+    "exit": 0
+  },
+  "fixes": [
+    "full_answer_material_digest",
+    "snapshot_observed_cas",
+    "peer_row_preserved",
+    "typed_409_zero_effect"
+  ],
+  "coverage_completed": [
+    "dataset valid",
+    "missing/foreign/stale/revoked source",
+    "offline actor authority",
+    "duplicate/changed material",
+    "text compatibility",
+    "UI source picker"
+  ],
+  "remaining": [
+    "source-specific actual-process restart order",
+    "source-upload-alone route confirmation",
+    "ordinary UI episode"
+  ],
+  "no_dependency_install": true,
+  "no_live_actions": true,
+  "task_wait_01": "open",
+  "self_acceptance": false
+}

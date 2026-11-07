@@ -3501,6 +3501,37 @@ async def stop_agent(
     )
 
 
+def _answer_material_digest(
+    answer: Any,
+    source: Optional[Dict[str, Any]],
+) -> str:
+    """Stable digest of the meaningful text plus accepted source material."""
+    material = {
+        "answer": str(answer or "").strip(),
+        "source": source if isinstance(source, dict) and source else None,
+    }
+    return __import__("hashlib").sha256(
+        json.dumps(material, sort_keys=True, default=str).encode("utf-8")
+    ).hexdigest()
+
+
+def _frozen_answer_digest(
+    snapshot: Dict[str, Any],
+    prior_answer: Any = "",
+    prior_source: Optional[Dict[str, Any]] = None,
+) -> str:
+    stored = str(snapshot.get("accepted_answer_sha256") or "")
+    if stored:
+        return stored
+    answer = snapshot.get("accepted_answer")
+    if answer is None:
+        answer = prior_answer
+    source = snapshot.get("information_source")
+    if not isinstance(source, dict):
+        source = prior_source
+    return _answer_material_digest(answer, source)
+
+
 async def _load_generic_source_payload(
     db: Session,
     user: User,
@@ -3786,80 +3817,73 @@ async def answer_agent_job_information_wait(
                     "message": "Provide a text answer or select an authorized "
                                "source."})
 
+    incoming_digest = _answer_material_digest(
+        effective_answer, accepted_source)
+    prior_source = snapshot.get("information_source") if isinstance(
+        snapshot.get("information_source"), dict) else None
     if str(action.status or "") == HITLActionStatus.APPROVED.value:
         prior_answer = str(action.user_feedback or "")
-        prior_source = snapshot.get("information_source") if isinstance(
-            snapshot.get("information_source"), dict) else None
-        if accepted_source is not None:
-            if prior_source is None:
-                raise HTTPException(
-                    status_code=409,
-                    detail="A text answer was already accepted for this wait")
-            if (
-                str(prior_source.get("resource_id") or "")
-                != str(accepted_source.get("resource_id") or "")
-                or str(prior_source.get("source_version") or "")
-                != str(accepted_source.get("source_version") or "")
-                or str(prior_source.get("content_sha256") or "")
-                != str(accepted_source.get("content_sha256") or "")
-            ):
-                raise HTTPException(
-                    status_code=409,
-                    detail="A different source answer was already accepted "
-                           "for this wait")
-        elif prior_source is not None:
+        prior_digest = _frozen_answer_digest(
+            snapshot, prior_answer, prior_source)
+        if prior_digest != incoming_digest:
             raise HTTPException(
                 status_code=409,
-                detail="This wait was already answered with an authorized "
-                       "source; replay the exact source answer")
-        elif prior_answer and prior_answer.strip() != effective_answer:
-            raise HTTPException(
-                status_code=409,
-                detail="A different answer was already accepted for this wait")
+                detail="A different answer material was already accepted "
+                       "for this wait")
     else:
+        frozen_snapshot = dict(snapshot)
+        frozen_snapshot["accepted_answer"] = effective_answer
+        frozen_snapshot["accepted_answer_sha256"] = incoming_digest
+        if accepted_source is not None:
+            frozen_snapshot["information_source"] = accepted_source
         update_values: Dict[str, Any] = {
             "status": HITLActionStatus.APPROVED.value,
             "user_feedback": effective_answer,
             "reviewed_by": str(current_user.id),
             "reviewed_at": datetime.datetime.now(),
+            "context_snapshot": frozen_snapshot,
         }
-        if accepted_source is not None:
-            frozen_snapshot = dict(snapshot)
-            frozen_snapshot["information_source"] = accepted_source
-            update_values["context_snapshot"] = frozen_snapshot
+        # CAS on the exact observed authoritative wait snapshot, not just
+        # id/status. A peer correlation/material/scope change between read and
+        # claim must leave the peer row intact and create zero effects.
         claimed = db.execute(
             update(HITLAction)
             .where(
                 HITLAction.id == action_id,
                 HITLAction.status == HITLActionStatus.PENDING.value,
+                HITLAction.action_type == action.action_type,
+                HITLAction.context_snapshot == snapshot,
             )
             .values(**update_values))
         if claimed.rowcount != 1:
             db.rollback()
             current = db.query(HITLAction).filter(
                 HITLAction.id == action_id).first()
-            if current is None or str(current.status or "") not in (
-                HITLActionStatus.APPROVED.value,
-            ):
+            if current is None:
                 raise HTTPException(
                     status_code=409,
                     detail="This information wait was already decided")
             current_snapshot = (
                 current.context_snapshot
                 if isinstance(current.context_snapshot, dict) else {})
-            current_source = current_snapshot.get("information_source")
-            if accepted_source is not None:
-                if not isinstance(current_source, dict) or (
-                    str(current_source.get("content_sha256") or "")
-                    != str(accepted_source.get("content_sha256") or "")):
-                    raise HTTPException(
-                        status_code=409,
-                        detail="A different source answer was already accepted "
-                               "for this wait")
-            elif str(current.user_feedback or "").strip() != effective_answer:
+            current_digest = _frozen_answer_digest(
+                current_snapshot,
+                str(current.user_feedback or ""),
+                current_snapshot.get("information_source")
+                if isinstance(current_snapshot.get("information_source"), dict)
+                else None,
+            )
+            if str(current.status or "") != (
+                    HITLActionStatus.APPROVED.value):
                 raise HTTPException(
                     status_code=409,
-                    detail="A different answer was already accepted for this wait")
+                    detail="This information wait changed concurrently; "
+                           "reload the authoritative state")
+            if current_digest != incoming_digest:
+                raise HTTPException(
+                    status_code=409,
+                    detail="A different answer material was already accepted "
+                           "for this wait")
         else:
             db.commit()
 
