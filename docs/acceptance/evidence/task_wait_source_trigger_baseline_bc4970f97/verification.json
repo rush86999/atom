@@ -1,0 +1,23 @@
+{
+  "result": "negative_preserved_not_accepted",
+  "pytest_exit_code": 1,
+  "passed": 1,
+  "failed": 1,
+  "cases": {
+    "source_answer_only": {
+      "status": "failed_contract",
+      "actual_task_status": "blocked",
+      "adaptations_after_answer": 0,
+      "applied_reconciliations": 0
+    },
+    "separate_advance_twin": {
+      "status": "passed",
+      "verified_reconciliation": "140.25",
+      "task_status": "completed"
+    }
+  },
+  "authority": "controlled authenticated-user fixture; scratch SQLite",
+  "model": "controlled proposal transport; no inference",
+  "goal": "TASK-WAIT-01 open",
+  "executed_source": "bc4970f979be66d91b7bf84e88af7e1959455ada"
+}
