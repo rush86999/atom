@@ -1,0 +1,19 @@
+{
+  "diagnostic_uncommitted_candidate": true,
+  "source_bytes_before": {
+    "backend/api/agent_routes.py": "ae4758ee87a2aac411838ec76ed8a88307b5bb6552228f831b555eb88818fe39",
+    "backend/core/generic_agent.py": "2440ed15152ae6b0200831b6f2c07f8eb923e2ee34cae93dba9dbc4bef8d668a",
+    "backend/tests/test_generic_source_answer_contract.py": "d671b8c6b33623f0693d09547c26427058e861497047bab94c865e99f3cf2d97"
+  },
+  "source_bytes_after": {
+    "backend/api/agent_routes.py": "ae4758ee87a2aac411838ec76ed8a88307b5bb6552228f831b555eb88818fe39",
+    "backend/core/generic_agent.py": "2440ed15152ae6b0200831b6f2c07f8eb923e2ee34cae93dba9dbc4bef8d668a",
+    "backend/tests/test_generic_source_answer_contract.py": "d671b8c6b33623f0693d09547c26427058e861497047bab94c865e99f3cf2d97"
+  },
+  "source": "0509877ed20101b4e3e1e1123d1d54000e5fe7f2",
+  "head_after": "0509877ed20101b4e3e1e1123d1d54000e5fe7f2",
+  "runtime_or_test_diff": [],
+  "actual_exit": 1,
+  "scratch": "/private/tmp/root-wait-source-final-review-0lv_g0gy",
+  "finished": 1794079537.716939
+}

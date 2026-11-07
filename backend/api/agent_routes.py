@@ -1,5 +1,6 @@
 
 import asyncio
+import copy
 import datetime
 import json
 from datetime import timezone
@@ -10,7 +11,7 @@ from advanced_workflow_orchestrator import AdvancedWorkflowOrchestrator
 from fastapi import BackgroundTasks, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
-from sqlalchemy import and_, or_, update
+from sqlalchemy import JSON as SAJSON, and_, exists, or_, select, update
 from sqlalchemy.orm import Session
 
 from core.agent_governance_service import AgentGovernanceService
@@ -3532,6 +3533,181 @@ def _frozen_answer_digest(
     return _answer_material_digest(answer, source)
 
 
+# ------------------------------------------------ durable wait record CAS
+#
+# A wait row carries authority in more than its JSON snapshot: workspace,
+# tenant, owner, action type and params are all consumed by the answer route
+# and the resume bridge. The answer claim therefore compares the physical
+# record material, not just ``context_snapshot``. Physical SQL NULL and a
+# stored JSON null deserialize to the same Python ``None``, so the null kind
+# is selected beside the ORM row and carried into the CAS predicate (the same
+# canonical raw-JSON pattern used by the goal write service). This keeps a
+# valid Personal/default/null row claimable without treating the two null
+# kinds as interchangeable.
+
+_WAIT_SNAPSHOT_BINDING_FIELDS = (
+    "job_id",
+    "execution_id",
+    "run_id",
+    "agent_id",
+    "workspace_id",
+    "tenant_id",
+    "actor_id",
+    "user_id",
+    "correlation_id",
+    "question",
+    "subject",
+)
+
+
+def _wait_json_material(value: Any, *, sql_null: bool) -> Dict[str, Any]:
+    """Freeze one JSON column with its exact physical null kind."""
+    if sql_null:
+        return {"present": False, "null_kind": "sql_null"}
+    if value is None:
+        return {"present": False, "null_kind": "json_null"}
+    return {"present": True, "value": copy.deepcopy(value)}
+
+
+def _wait_json_condition(column, material: Dict[str, Any]):
+    """The exact prior JSON material, including both null kinds."""
+    if material.get("present"):
+        return column == material["value"]
+    if material.get("null_kind") == "sql_null":
+        return column.is_(None)
+    # A stored JSON null is JSON text, not SQL NULL. ``IS NULL`` would match
+    # zero rows and falsely report a changed wait for unchanged material.
+    return column == SAJSON.NULL
+
+
+def _wait_scalar_condition(column, value: Any):
+    return column.is_(None) if value is None else column == value
+
+
+def _load_wait_record(db: Session, action_id: str):
+    """Load the wait row and both JSON null flags in one SELECT.
+
+    The flags are selected with the row so the CAS compares one physical
+    snapshot; a second statement could observe a peer transition between the
+    value read and the flag read.
+    """
+    row = db.execute(
+        select(
+            HITLAction,
+            HITLAction.context_snapshot.is_(None).label(
+                "context_snapshot_sql_null"),
+            HITLAction.params.is_(None).label("params_sql_null"),
+        )
+        .where(HITLAction.id == str(action_id))
+        .execution_options(populate_existing=True)
+    ).first()
+    if row is None:
+        return None
+    return row[0], bool(row[1]), bool(row[2])
+
+
+def _wait_record_material(
+    action: HITLAction,
+    *,
+    context_snapshot_sql_null: bool,
+    params_sql_null: bool,
+) -> Dict[str, Any]:
+    """Every immutable field the answer route/resume consumes, frozen once."""
+    return {
+        "id": str(action.id or ""),
+        "status": str(action.status or ""),
+        "action_type": str(action.action_type or ""),
+        "agent_id": action.agent_id,
+        "workspace_id": action.workspace_id,
+        "tenant_id": action.tenant_id,
+        "user_id": action.user_id,
+        "params": _wait_json_material(
+            action.params, sql_null=params_sql_null),
+        "context_snapshot": _wait_json_material(
+            action.context_snapshot, sql_null=context_snapshot_sql_null),
+    }
+
+
+def _wait_snapshot_binding(snapshot: Any) -> Dict[str, Any]:
+    """The server-owned identity inside a wait snapshot.
+
+    Accepted-answer and information-source additions are deliberately absent:
+    they are the mutable result of answering, not part of the binding a lost
+    CAS may reuse for an idempotent replay.
+    """
+    snapshot = snapshot if isinstance(snapshot, dict) else {}
+    return {
+        field: copy.deepcopy(snapshot.get(field))
+        for field in _WAIT_SNAPSHOT_BINDING_FIELDS
+    }
+
+
+def _wait_binding_material(
+    action: HITLAction,
+    *,
+    context_snapshot_sql_null: bool,
+    params_sql_null: bool,
+) -> Dict[str, Any]:
+    """Binding-only material for a lost-CAS replay recheck.
+
+    Unlike :func:`_wait_record_material`, this ignores the accepted answer and
+    source receipt written by a concurrent exact winner, but keeps every
+    scope/owner/job/execution/correlation field an answer must still match.
+    """
+    snapshot = action.context_snapshot if isinstance(
+        action.context_snapshot, dict) else {}
+    if context_snapshot_sql_null:
+        snapshot_kind = "sql_null"
+    elif action.context_snapshot is None:
+        snapshot_kind = "json_null"
+    else:
+        snapshot_kind = "object"
+    return {
+        "action_type": str(action.action_type or ""),
+        "agent_id": action.agent_id,
+        "workspace_id": action.workspace_id,
+        "tenant_id": action.tenant_id,
+        "user_id": action.user_id,
+        "params": _wait_json_material(
+            action.params, sql_null=params_sql_null),
+        "context_snapshot_kind": snapshot_kind,
+        "snapshot_binding": _wait_snapshot_binding(snapshot),
+    }
+
+
+def _wait_record_cas_conditions(material: Dict[str, Any]) -> List[Any]:
+    """The same conditional UPDATE predicate for the full wait record."""
+    return [
+        HITLAction.id == material["id"],
+        HITLAction.status == HITLActionStatus.PENDING.value,
+        HITLAction.action_type == material["action_type"],
+        _wait_scalar_condition(HITLAction.agent_id, material["agent_id"]),
+        _wait_scalar_condition(
+            HITLAction.workspace_id, material["workspace_id"]),
+        _wait_scalar_condition(HITLAction.tenant_id, material["tenant_id"]),
+        _wait_scalar_condition(HITLAction.user_id, material["user_id"]),
+        _wait_json_condition(HITLAction.params, material["params"]),
+        _wait_json_condition(
+            HITLAction.context_snapshot, material["context_snapshot"]),
+    ]
+
+
+def _wait_actor_authority_condition(snapshot: Any):
+    """Current authority for the admitted actor, in the same UPDATE."""
+    from core.information_wait import actor_authority_conditions
+
+    snapshot = snapshot if isinstance(snapshot, dict) else {}
+    conditions = actor_authority_conditions(
+        actor_id=(
+            snapshot.get("actor_id") or snapshot.get("user_id") or ""),
+        workspace_id=snapshot.get("workspace_id") or "",
+        tenant_id=snapshot.get("tenant_id"),
+    )
+    if not conditions:
+        return None
+    return exists(select(User.id).where(*conditions))
+
+
 async def _load_generic_source_payload(
     db: Session,
     user: User,
@@ -3746,10 +3922,26 @@ async def answer_agent_job_information_wait(
         raise HTTPException(
             status_code=409,
             detail="This agent job is not waiting for information")
-    action = db.query(HITLAction).filter(
-        HITLAction.id == action_id).first()
-    if action is None or not is_information_wait_action(action.action_type):
+    loaded_wait = _load_wait_record(db, action_id)
+    if loaded_wait is None:
         raise HTTPException(status_code=404, detail="Information wait not found")
+    action, snapshot_sql_null, params_sql_null = loaded_wait
+    if not is_information_wait_action(action.action_type):
+        raise HTTPException(status_code=404, detail="Information wait not found")
+    # Freeze the complete authoritative wait record before any await/read.
+    # The answer may resolve a source (an awaited operation); a peer transition
+    # during that window must be observed by the claim below, not overwritten
+    # from this earlier read.
+    frozen_wait = _wait_record_material(
+        action,
+        context_snapshot_sql_null=snapshot_sql_null,
+        params_sql_null=params_sql_null,
+    )
+    frozen_binding = _wait_binding_material(
+        action,
+        context_snapshot_sql_null=snapshot_sql_null,
+        params_sql_null=params_sql_null,
+    )
     snapshot = action.context_snapshot if isinstance(
         action.context_snapshot, dict) else {}
     if (
@@ -3819,12 +4011,32 @@ async def answer_agent_job_information_wait(
 
     incoming_digest = _answer_material_digest(
         effective_answer, accepted_source)
-    prior_source = snapshot.get("information_source") if isinstance(
-        snapshot.get("information_source"), dict) else None
     if str(action.status or "") == HITLActionStatus.APPROVED.value:
-        prior_answer = str(action.user_feedback or "")
+        # An exact replay is idempotent only while the complete authoritative
+        # record is unchanged. Digest equality alone would let a foreign or
+        # retargeted wait reuse an earlier accepted review.
+        reloaded = _load_wait_record(db, action_id)
+        if reloaded is None:
+            raise HTTPException(
+                status_code=409,
+                detail="This information wait was already decided")
+        current, current_snapshot_sql_null, current_params_sql_null = reloaded
+        if _wait_record_material(
+                current,
+                context_snapshot_sql_null=current_snapshot_sql_null,
+                params_sql_null=current_params_sql_null) != frozen_wait:
+            raise HTTPException(
+                status_code=409,
+                detail="This information wait changed concurrently; "
+                       "reload the authoritative state")
+        current_snapshot = (
+            current.context_snapshot
+            if isinstance(current.context_snapshot, dict) else {})
+        current_source = current_snapshot.get("information_source") if (
+            isinstance(current_snapshot.get("information_source"), dict)
+        ) else None
         prior_digest = _frozen_answer_digest(
-            snapshot, prior_answer, prior_source)
+            current_snapshot, str(current.user_feedback or ""), current_source)
         if prior_digest != incoming_digest:
             raise HTTPException(
                 status_code=409,
@@ -3843,26 +4055,39 @@ async def answer_agent_job_information_wait(
             "reviewed_at": datetime.datetime.now(),
             "context_snapshot": frozen_snapshot,
         }
-        # CAS on the exact observed authoritative wait snapshot, not just
-        # id/status. A peer correlation/material/scope change between read and
-        # claim must leave the peer row intact and create zero effects.
+        # CAS on the complete observed authoritative wait record, not just
+        # id/status/snapshot. A peer scope/owner/params change between the
+        # read and this claim must leave the peer row intact and create zero
+        # effects. The admitted actor's current authority is part of the same
+        # UPDATE, so a move/deactivation committed before the claim is
+        # observed by the write statement itself.
+        conditions = _wait_record_cas_conditions(frozen_wait)
+        authority_condition = _wait_actor_authority_condition(snapshot)
+        if authority_condition is not None:
+            conditions.append(authority_condition)
         claimed = db.execute(
             update(HITLAction)
-            .where(
-                HITLAction.id == action_id,
-                HITLAction.status == HITLActionStatus.PENDING.value,
-                HITLAction.action_type == action.action_type,
-                HITLAction.context_snapshot == snapshot,
-            )
+            .where(*conditions)
             .values(**update_values))
         if claimed.rowcount != 1:
             db.rollback()
-            current = db.query(HITLAction).filter(
-                HITLAction.id == action_id).first()
-            if current is None:
+            reloaded = _load_wait_record(db, action_id)
+            if reloaded is None:
                 raise HTTPException(
                     status_code=409,
                     detail="This information wait was already decided")
+            current, current_snapshot_sql_null, current_params_sql_null = (
+                reloaded)
+            current_binding = _wait_binding_material(
+                current,
+                context_snapshot_sql_null=current_snapshot_sql_null,
+                params_sql_null=current_params_sql_null,
+            )
+            if current_binding != frozen_binding:
+                raise HTTPException(
+                    status_code=409,
+                    detail="This information wait changed concurrently; "
+                           "reload the authoritative state")
             current_snapshot = (
                 current.context_snapshot
                 if isinstance(current.context_snapshot, dict) else {})
