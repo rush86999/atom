@@ -59,6 +59,7 @@ from core.task_lifecycle import (
     TaskLifecycle,
     TaskLifecycleError,
     _approval_payload_hash,
+    open_unresolved_questions,
 )
 
 AdapterHandler = Callable[[Dict[str, Any], Dict[str, Any]], Any]
@@ -2142,14 +2143,24 @@ class AssignmentExecutor:
                     if not decision["eligible"]:
                         pending_step["readiness"] = decision
                 waiting = self._waiting_steps(assignment)
+                # A durable information request is a wait too: the task needs
+                # an authorized answer, not active execution. Without an idle
+                # interval the elapsed wall budget would expire while the
+                # owner is still gathering the missing fact, and a later
+                # authorized answer could no longer resume the same task.
+                information_wait = bool(open_unresolved_questions(record))
                 assignment = self._set_state(
                     assignment, "waiting" if waiting else "blocked")
-                if waiting:
+                if waiting or information_wait:
                     assignment = self._open_idle(
                         assignment,
-                        reason="all runnable branches are waiting")
+                        reason=(
+                            "all runnable branches are waiting" if waiting
+                            else "waiting for an information answer"))
                     self._persist_assignment(
-                        run_id, assignment, "assignment waiting")
+                        run_id, assignment,
+                        "assignment waiting" if waiting
+                        else "assignment waiting for information answer")
                 else:
                     self._persist_assignment(
                         run_id, assignment,
