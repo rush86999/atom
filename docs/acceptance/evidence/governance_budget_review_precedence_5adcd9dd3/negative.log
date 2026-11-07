@@ -1,0 +1,159 @@
+.F..........FF.F.....F..........F..F.............FF........F......F....F [ 75%]
+........................                                                 [100%]
+=================================== FAILURES ===================================
+___ test_budget_and_maturity_decisions_compose[True-hard_stop-student-async] ___
+../../test_lead_budget_review_precedence.py:46: in test_budget_and_maturity_decisions_compose
+    assert bool(result.get("requires_human_approval")) is (mode=="approval"),result
+E   AssertionError: {'allowed': False, 'reason': 'Maturity check failed. Required: supervised', 'agent_status': 'student', 'action_complexity': 3, ...}
+E   assert True is ('hard_stop' == 'approval'
+E    +  where True = bool(True)
+E    +    where True = <built-in method get of dict object at 0x1119f7ac0>('requires_human_approval')
+E    +      where <built-in method get of dict object at 0x1119f7ac0> = {'allowed': False, 'reason': 'Maturity check failed. Required: supervised', 'agent_status': 'student', 'action_complexity': 3, ...}.get
+E     
+E     - approval
+E     + hard_stop)
+___ test_budget_and_maturity_decisions_compose[True-hard_stop-student-sync] ____
+../../test_lead_budget_review_precedence.py:46: in test_budget_and_maturity_decisions_compose
+    assert bool(result.get("requires_human_approval")) is (mode=="approval"),result
+E   AssertionError: {'allowed': False, 'reason': 'Maturity check failed. Required: supervised', 'agent_status': 'student', 'action_complexity': 3, ...}
+E   assert True is ('hard_stop' == 'approval'
+E    +  where True = bool(True)
+E    +    where True = <built-in method get of dict object at 0x113256440>('requires_human_approval')
+E    +      where <built-in method get of dict object at 0x113256440> = {'allowed': False, 'reason': 'Maturity check failed. Required: supervised', 'agent_status': 'student', 'action_complexity': 3, ...}.get
+E     
+E     - approval
+E     + hard_stop)
+_ test_budget_and_maturity_decisions_compose[True-hard_stop-intern-sync_in_async] _
+../../test_lead_budget_review_precedence.py:46: in test_budget_and_maturity_decisions_compose
+    assert bool(result.get("requires_human_approval")) is (mode=="approval"),result
+E   AssertionError: {'allowed': False, 'reason': 'Maturity check failed. Required: supervised', 'agent_status': 'intern', 'action_complexity': 3, ...}
+E   assert True is ('hard_stop' == 'approval'
+E    +  where True = bool(True)
+E    +    where True = <built-in method get of dict object at 0x11324c580>('requires_human_approval')
+E    +      where <built-in method get of dict object at 0x11324c580> = {'allowed': False, 'reason': 'Maturity check failed. Required: supervised', 'agent_status': 'intern', 'action_complexity': 3, ...}.get
+E     
+E     - approval
+E     + hard_stop)
+___ test_budget_and_maturity_decisions_compose[True-hard_stop-intern-async] ____
+../../test_lead_budget_review_precedence.py:46: in test_budget_and_maturity_decisions_compose
+    assert bool(result.get("requires_human_approval")) is (mode=="approval"),result
+E   AssertionError: {'allowed': False, 'reason': 'Maturity check failed. Required: supervised', 'agent_status': 'intern', 'action_complexity': 3, ...}
+E   assert True is ('hard_stop' == 'approval'
+E    +  where True = bool(True)
+E    +    where True = <built-in method get of dict object at 0x11322eec0>('requires_human_approval')
+E    +      where <built-in method get of dict object at 0x11322eec0> = {'allowed': False, 'reason': 'Maturity check failed. Required: supervised', 'agent_status': 'intern', 'action_complexity': 3, ...}.get
+E     
+E     - approval
+E     + hard_stop)
+_ test_budget_and_maturity_decisions_compose[True-hard_stop-student-sync_in_async] _
+../../test_lead_budget_review_precedence.py:46: in test_budget_and_maturity_decisions_compose
+    assert bool(result.get("requires_human_approval")) is (mode=="approval"),result
+E   AssertionError: {'allowed': False, 'reason': 'Maturity check failed. Required: supervised', 'agent_status': 'student', 'action_complexity': 3, ...}
+E   assert True is ('hard_stop' == 'approval'
+E    +  where True = bool(True)
+E    +    where True = <built-in method get of dict object at 0x113260340>('requires_human_approval')
+E    +      where <built-in method get of dict object at 0x113260340> = {'allowed': False, 'reason': 'Maturity check failed. Required: supervised', 'agent_status': 'student', 'action_complexity': 3, ...}.get
+E     
+E     - approval
+E     + hard_stop)
+___ test_budget_and_maturity_decisions_compose[True-soft_stop-intern-async] ____
+../../test_lead_budget_review_precedence.py:46: in test_budget_and_maturity_decisions_compose
+    assert bool(result.get("requires_human_approval")) is (mode=="approval"),result
+E   AssertionError: {'allowed': False, 'reason': 'Maturity check failed. Required: supervised', 'agent_status': 'intern', 'action_complexity': 3, ...}
+E   assert True is ('soft_stop' == 'approval'
+E    +  where True = bool(True)
+E    +    where True = <built-in method get of dict object at 0x1115e2400>('requires_human_approval')
+E    +      where <built-in method get of dict object at 0x1115e2400> = {'allowed': False, 'reason': 'Maturity check failed. Required: supervised', 'agent_status': 'intern', 'action_complexity': 3, ...}.get
+E     
+E     - approval
+E     + soft_stop)
+_ test_budget_and_maturity_decisions_compose[True-soft_stop-intern-sync_in_async] _
+../../test_lead_budget_review_precedence.py:46: in test_budget_and_maturity_decisions_compose
+    assert bool(result.get("requires_human_approval")) is (mode=="approval"),result
+E   AssertionError: {'allowed': False, 'reason': 'Maturity check failed. Required: supervised', 'agent_status': 'intern', 'action_complexity': 3, ...}
+E   assert True is ('soft_stop' == 'approval'
+E    +  where True = bool(True)
+E    +    where True = <built-in method get of dict object at 0x113261740>('requires_human_approval')
+E    +      where <built-in method get of dict object at 0x113261740> = {'allowed': False, 'reason': 'Maturity check failed. Required: supervised', 'agent_status': 'intern', 'action_complexity': 3, ...}.get
+E     
+E     - approval
+E     + soft_stop)
+_ test_budget_and_maturity_decisions_compose[True-soft_stop-student-sync_in_async] _
+../../test_lead_budget_review_precedence.py:46: in test_budget_and_maturity_decisions_compose
+    assert bool(result.get("requires_human_approval")) is (mode=="approval"),result
+E   AssertionError: {'allowed': False, 'reason': 'Maturity check failed. Required: supervised', 'agent_status': 'student', 'action_complexity': 3, ...}
+E   assert True is ('soft_stop' == 'approval'
+E    +  where True = bool(True)
+E    +    where True = <built-in method get of dict object at 0x113263c00>('requires_human_approval')
+E    +      where <built-in method get of dict object at 0x113263c00> = {'allowed': False, 'reason': 'Maturity check failed. Required: supervised', 'agent_status': 'student', 'action_complexity': 3, ...}.get
+E     
+E     - approval
+E     + soft_stop)
+____ test_budget_and_maturity_decisions_compose[True-hard_stop-intern-sync] ____
+../../test_lead_budget_review_precedence.py:46: in test_budget_and_maturity_decisions_compose
+    assert bool(result.get("requires_human_approval")) is (mode=="approval"),result
+E   AssertionError: {'allowed': False, 'reason': 'Maturity check failed. Required: supervised', 'agent_status': 'intern', 'action_complexity': 3, ...}
+E   assert True is ('hard_stop' == 'approval'
+E    +  where True = bool(True)
+E    +    where True = <built-in method get of dict object at 0x113269000>('requires_human_approval')
+E    +      where <built-in method get of dict object at 0x113269000> = {'allowed': False, 'reason': 'Maturity check failed. Required: supervised', 'agent_status': 'intern', 'action_complexity': 3, ...}.get
+E     
+E     - approval
+E     + hard_stop)
+____ test_budget_and_maturity_decisions_compose[True-soft_stop-intern-sync] ____
+../../test_lead_budget_review_precedence.py:46: in test_budget_and_maturity_decisions_compose
+    assert bool(result.get("requires_human_approval")) is (mode=="approval"),result
+E   AssertionError: {'allowed': False, 'reason': 'Maturity check failed. Required: supervised', 'agent_status': 'intern', 'action_complexity': 3, ...}
+E   assert True is ('soft_stop' == 'approval'
+E    +  where True = bool(True)
+E    +    where True = <built-in method get of dict object at 0x113276f00>('requires_human_approval')
+E    +      where <built-in method get of dict object at 0x113276f00> = {'allowed': False, 'reason': 'Maturity check failed. Required: supervised', 'agent_status': 'intern', 'action_complexity': 3, ...}.get
+E     
+E     - approval
+E     + soft_stop)
+___ test_budget_and_maturity_decisions_compose[True-soft_stop-student-sync] ____
+../../test_lead_budget_review_precedence.py:46: in test_budget_and_maturity_decisions_compose
+    assert bool(result.get("requires_human_approval")) is (mode=="approval"),result
+E   AssertionError: {'allowed': False, 'reason': 'Maturity check failed. Required: supervised', 'agent_status': 'student', 'action_complexity': 3, ...}
+E   assert True is ('soft_stop' == 'approval'
+E    +  where True = bool(True)
+E    +    where True = <built-in method get of dict object at 0x1132baf40>('requires_human_approval')
+E    +      where <built-in method get of dict object at 0x1132baf40> = {'allowed': False, 'reason': 'Maturity check failed. Required: supervised', 'agent_status': 'student', 'action_complexity': 3, ...}.get
+E     
+E     - approval
+E     + soft_stop)
+___ test_budget_and_maturity_decisions_compose[True-soft_stop-student-async] ___
+../../test_lead_budget_review_precedence.py:46: in test_budget_and_maturity_decisions_compose
+    assert bool(result.get("requires_human_approval")) is (mode=="approval"),result
+E   AssertionError: {'allowed': False, 'reason': 'Maturity check failed. Required: supervised', 'agent_status': 'student', 'action_complexity': 3, ...}
+E   assert True is ('soft_stop' == 'approval'
+E    +  where True = bool(True)
+E    +    where True = <built-in method get of dict object at 0x11327f380>('requires_human_approval')
+E    +      where <built-in method get of dict object at 0x11327f380> = {'allowed': False, 'reason': 'Maturity check failed. Required: supervised', 'agent_status': 'student', 'action_complexity': 3, ...}.get
+E     
+E     - approval
+E     + soft_stop)
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 192 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED ../../test_lead_budget_review_precedence.py::test_budget_and_maturity_decisions_compose[True-hard_stop-student-async]
+FAILED ../../test_lead_budget_review_precedence.py::test_budget_and_maturity_decisions_compose[True-hard_stop-student-sync]
+FAILED ../../test_lead_budget_review_precedence.py::test_budget_and_maturity_decisions_compose[True-hard_stop-intern-sync_in_async]
+FAILED ../../test_lead_budget_review_precedence.py::test_budget_and_maturity_decisions_compose[True-hard_stop-intern-async]
+FAILED ../../test_lead_budget_review_precedence.py::test_budget_and_maturity_decisions_compose[True-hard_stop-student-sync_in_async]
+FAILED ../../test_lead_budget_review_precedence.py::test_budget_and_maturity_decisions_compose[True-soft_stop-intern-async]
+FAILED ../../test_lead_budget_review_precedence.py::test_budget_and_maturity_decisions_compose[True-soft_stop-intern-sync_in_async]
+FAILED ../../test_lead_budget_review_precedence.py::test_budget_and_maturity_decisions_compose[True-soft_stop-student-sync_in_async]
+FAILED ../../test_lead_budget_review_precedence.py::test_budget_and_maturity_decisions_compose[True-hard_stop-intern-sync]
+FAILED ../../test_lead_budget_review_precedence.py::test_budget_and_maturity_decisions_compose[True-soft_stop-intern-sync]
+FAILED ../../test_lead_budget_review_precedence.py::test_budget_and_maturity_decisions_compose[True-soft_stop-student-sync]
+FAILED ../../test_lead_budget_review_precedence.py::test_budget_and_maturity_decisions_compose[True-soft_stop-student-async]
+12 failed, 84 passed, 193 warnings in 1.98s
