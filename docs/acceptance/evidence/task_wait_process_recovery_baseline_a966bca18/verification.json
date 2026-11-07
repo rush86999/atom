@@ -1,0 +1,43 @@
+{
+  "result": "missing_actual_process_recovery_owner",
+  "pytest_exit_code": 1,
+  "passed": 1,
+  "failed": 1,
+  "executed_source": "a966bca18bf52039f826edbd3854582c40eb7238",
+  "source_state": "clean tracked worktree; 0 modified, 0 untracked tracked-tree changes",
+  "runtime": {
+    "python": "3.14.7",
+    "platform": "darwin",
+    "testing": "1",
+    "database": "fresh private scratch SQLite",
+    "data_lancedb": "fresh private scratch roots",
+    "basetemp": "new owned pytest basetemp"
+  },
+  "cases": {
+    "restart_while_genuinely_missing": {
+      "status": "passed",
+      "successor_process": "fresh OS child",
+      "adaptation_calls_while_missing": 0,
+      "source_delivery_after_restart": "same task completed through public /sources",
+      "verified_reconciliation": "140.25"
+    },
+    "accepted_source_after_process_exit": {
+      "status": "failed",
+      "expected": "successor process recovers accepted evidence and completes the same task",
+      "observed": "0 adaptation calls, 0 reconciliations, task not completed",
+      "assertion": "recovered['adaptation_calls'] == 1",
+      "interrupted_child_exit": 17,
+      "durable_commit_before_exit": {
+        "open_questions": 0,
+        "invoice_source_status": "applied",
+        "evidence_observations": 3,
+        "reconciliations": 0,
+        "status_not_completed": true
+      }
+    }
+  },
+  "transport": "controlled proposal fixture; no inference, provider or spend",
+  "authority": "controlled authenticated-user fixture; scratch SQLite/data/Lance",
+  "scope": "TASK-WAIT-01 accepted-source recovery entrypoint remains OPEN at this source",
+  "frontend_execution": "not_run_node_modules_absent"
+}

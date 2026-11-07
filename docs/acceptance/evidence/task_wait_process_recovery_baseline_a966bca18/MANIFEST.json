@@ -1,0 +1,13 @@
+{
+  "executed_source": "a966bca18bf52039f826edbd3854582c40eb7238",
+  "source_state": "clean tracked worktree (0 modified, 0 untracked tracked-tree changes)",
+  "source_files": {
+    "backend/tests/test_task_wait_process_recovery.py": "c617f7b076c32f563902bbaf606c193630a36efd89f30d7ec73c96260b8e712e",
+    "backend/tests/process_support/task_wait_process_worker.py": "7f3f2ad9f6a0080e3379731cc64f0a8d431825bc313b27458eee53965eeec3d4"
+  },
+  "artifacts": {
+    "README.md": "bf3f3802fe876af60c977bb6d5669041e30384132602dde8cd182998b310a672",
+    "verification.json": "c27f890cacc84d984e274e899ffdc0cf1115f80ea880f7e45f09f7cb2c008793",
+    "baseline.log": "5eff0dd8fc6b1144d1650bc0610b0d72368387266ac1beed4b98b374e8449eeb"
+  }
+}
