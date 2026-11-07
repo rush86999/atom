@@ -1,0 +1,139 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-07 11:45:25 [    INFO] MCP Service initialized
+
+tests/test_lead_shopify_fulfillment_rest_shape.py::test_official_fulfillment_rest_shape_is_usable 
+-------------------------------- live log setup --------------------------------
+2026-11-07 11:45:25 [    INFO] EscalationManager initialized
+2026-11-07 11:45:25 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 11:45:25 [    INFO] EscalationManager initialized
+2026-11-07 11:45:25 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 11:45:25 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 11:45:25 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  1%]
+tests/test_lead_shopify_fulfillment_rest_shape.py::test_wrong_fulfilled_quantity_cannot_borrow_remaining_quantity PASSED [  2%]
+tests/test_lead_shopify_fulfillment_rest_shape.py::test_contradictory_fulfillment_order_parent_refuses_before_post PASSED [  4%]
+tests/test_lead_shopify_fulfillment_rest_shape.py::test_failed_fulfillment_status_is_not_verified PASSED [  5%]
+tests/test_lead_shopify_fulfillment_rest_shape.py::test_fulfillment_read_uses_documented_parent_order_endpoint PASSED [  7%]
+tests/test_oracle_shopify_fulfillment_create.py::test_exact_fulfillment_create_is_independently_verified PASSED [  8%]
+tests/test_oracle_shopify_fulfillment_create.py::test_missing_store_refuses_before_transport PASSED [ 10%]
+tests/test_oracle_shopify_fulfillment_create.py::test_foreign_store_refuses_before_transport PASSED [ 11%]
+tests/test_oracle_shopify_fulfillment_create.py::test_moved_store_metadata_refuses_before_transport PASSED [ 13%]
+tests/test_oracle_shopify_fulfillment_create.py::test_inactive_store_refuses_before_transport PASSED [ 14%]
+tests/test_oracle_shopify_fulfillment_create.py::test_ambiguous_store_refuses_before_transport PASSED [ 15%]
+tests/test_oracle_shopify_fulfillment_create.py::test_body_store_selector_refuses_before_transport[shop] PASSED [ 17%]
+tests/test_oracle_shopify_fulfillment_create.py::test_body_store_selector_refuses_before_transport[access_token] PASSED [ 18%]
+tests/test_oracle_shopify_fulfillment_create.py::test_body_store_selector_refuses_before_transport[tenant_id] PASSED [ 20%]
+tests/test_oracle_shopify_fulfillment_create.py::test_missing_order_id_refuses_before_transport PASSED [ 21%]
+tests/test_oracle_shopify_fulfillment_create.py::test_no_fulfillable_orders_refuses_before_post PASSED [ 23%]
+tests/test_oracle_shopify_fulfillment_create.py::test_multi_location_requires_location_before_post PASSED [ 24%]
+tests/test_oracle_shopify_fulfillment_create.py::test_location_filter_selects_exact_fulfillment_order PASSED [ 26%]
+tests/test_oracle_shopify_fulfillment_create.py::test_same_order_with_different_returned_id_is_not_success PASSED [ 27%]
+tests/test_oracle_shopify_fulfillment_create.py::test_authorized_fields_must_match_readback[order_id-order-other-order_id] PASSED [ 28%]
+tests/test_oracle_shopify_fulfillment_create.py::test_authorized_fields_must_match_readback[tracking_number-TRACK-OTHER-tracking_number] PASSED [ 30%]
+tests/test_oracle_shopify_fulfillment_create.py::test_authorized_fields_must_match_readback[tracking_company-FedEx-tracking_company] PASSED [ 31%]
+tests/test_oracle_shopify_fulfillment_create.py::test_authorized_fields_must_match_readback[location_id-loc-other-location_id] PASSED [ 33%]
+tests/test_oracle_shopify_fulfillment_create.py::test_dispatch_material_must_match_readback[fulfillment_order_id] PASSED [ 34%]
+tests/test_oracle_shopify_fulfillment_create.py::test_dispatch_material_must_match_readback[line_item_id] PASSED [ 36%]
+tests/test_oracle_shopify_fulfillment_create.py::test_dispatch_material_must_match_readback[line_item_quantity] PASSED [ 37%]
+tests/test_oracle_shopify_fulfillment_create.py::test_dispatch_material_must_match_readback[drop_line_item] PASSED [ 39%]
+tests/test_oracle_shopify_fulfillment_create.py::test_missing_tracking_proof_is_explicitly_unverified PASSED [ 40%]
+tests/test_oracle_shopify_fulfillment_create.py::test_non_success_fulfillment_status_is_not_business_success[pending] PASSED [ 42%]
+tests/test_oracle_shopify_fulfillment_create.py::test_non_success_fulfillment_status_is_not_business_success[open] PASSED [ 43%]
+tests/test_oracle_shopify_fulfillment_create.py::test_non_success_fulfillment_status_is_not_business_success[failure] PASSED [ 44%]
+tests/test_oracle_shopify_fulfillment_create.py::test_non_success_fulfillment_status_is_not_business_success[cancelled] PASSED [ 46%]
+tests/test_oracle_shopify_fulfillment_create.py::test_absent_readback_is_uncertain_not_success 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:45:50 [   ERROR] Shopify get fulfillment 1100 for order order-500 failed: 404: {"errors":"not found"}
+PASSED                                                                   [ 47%]
+tests/test_oracle_shopify_fulfillment_create.py::test_unidentifiable_effect_is_uncertain_and_not_recreated PASSED [ 49%]
+tests/test_oracle_shopify_fulfillment_create.py::test_known_success_replays_exact_resource_without_second_create PASSED [ 50%]
+tests/test_oracle_shopify_fulfillment_create.py::test_restart_fresh_session_reloads_exact_durable_identity PASSED [ 52%]
+tests/test_oracle_shopify_fulfillment_create.py::test_replay_with_changed_current_material_stays_committed_unverified[order_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:45:54 [   ERROR] Shopify get fulfillment 1100 for order order-500 failed: 404: {"errors":"not found"}
+PASSED                                                                   [ 53%]
+tests/test_oracle_shopify_fulfillment_create.py::test_replay_with_changed_current_material_stays_committed_unverified[tracking_number] PASSED [ 55%]
+tests/test_oracle_shopify_fulfillment_create.py::test_replay_with_changed_current_material_stays_committed_unverified[tracking_company] PASSED [ 56%]
+tests/test_oracle_shopify_fulfillment_create.py::test_replay_with_changed_current_material_stays_committed_unverified[location_id] PASSED [ 57%]
+tests/test_oracle_shopify_fulfillment_create.py::test_replay_with_changed_current_material_stays_committed_unverified[fulfillment_order_id] PASSED [ 59%]
+tests/test_oracle_shopify_fulfillment_create.py::test_replay_with_changed_current_material_stays_committed_unverified[line_item_quantity] PASSED [ 60%]
+tests/test_oracle_shopify_fulfillment_create.py::test_replay_with_missing_current_resource_stays_committed_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:46:00 [   ERROR] Shopify get fulfillment 1100 for order order-500 failed: 404: {"errors":"not found"}
+PASSED                                                                   [ 62%]
+tests/test_oracle_shopify_fulfillment_create.py::test_replay_after_store_changed_stays_committed_unverified PASSED [ 63%]
+tests/test_oracle_shopify_fulfillment_create.py::test_replay_without_durable_identity_receipt_is_committed_unverified PASSED [ 65%]
+tests/test_oracle_shopify_fulfillment_create.py::test_replay_with_unavailable_readback_is_committed_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:46:03 [   ERROR] Failed to get fulfillment 1100 for order order-500: provider readback timed out
+PASSED                                                                   [ 66%]
+tests/test_oracle_shopify_fulfillment_create.py::test_same_operation_changed_material_refuses_before_readback[change0] PASSED [ 68%]
+tests/test_oracle_shopify_fulfillment_create.py::test_same_operation_changed_material_refuses_before_readback[change1] PASSED [ 69%]
+tests/test_oracle_shopify_fulfillment_create.py::test_same_operation_changed_material_refuses_before_readback[change2] PASSED [ 71%]
+tests/test_oracle_shopify_fulfillment_create.py::test_lost_confirmation_stays_uncertain_and_never_replays_as_success 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:46:07 [   ERROR] Failed to create fulfillment: confirmation timed out
+PASSED                                                                   [ 72%]
+tests/test_oracle_shopify_fulfillment_create.py::test_failed_identity_receipt_is_not_rolled_back_or_resent PASSED [ 73%]
+tests/test_shopify_fulfillment_actions.py::TestRegistryDefinition::test_both_actions_registered PASSED [ 75%]
+tests/test_shopify_fulfillment_actions.py::TestRegistryDefinition::test_create_schema_advertises_optional_tracking PASSED [ 76%]
+tests/test_shopify_fulfillment_actions.py::TestCreateFulfillmentAction::test_success_threads_args PASSED [ 78%]
+tests/test_shopify_fulfillment_actions.py::TestCreateFulfillmentAction::test_notify_customer_defaults_true PASSED [ 79%]
+tests/test_shopify_fulfillment_actions.py::TestCreateFulfillmentAction::test_no_store_fail_closed PASSED [ 81%]
+tests/test_shopify_fulfillment_actions.py::TestGetFulfillmentsAction::test_success PASSED [ 82%]
+tests/test_shopify_fulfillment_actions.py::TestGetFulfillmentsAction::test_no_store_fail_closed PASSED [ 84%]
+tests/test_covpush_w95_shopify.py::TestFulfillments::test_get_fulfillments PASSED [ 85%]
+tests/test_covpush_w95_shopify.py::TestFulfillments::test_get_fulfillments_error 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:46:08 [   ERROR] Failed to get fulfillments: net
+PASSED                                                                   [ 86%]
+tests/test_covpush_w95_shopify.py::TestFulfillments::test_get_fulfillment_orders PASSED [ 88%]
+tests/test_covpush_w95_shopify.py::TestFulfillments::test_create_fulfillment_full PASSED [ 89%]
+tests/test_covpush_w95_shopify.py::TestFulfillments::test_create_fulfillment_minimal PASSED [ 91%]
+tests/test_covpush_w95_shopify.py::TestFulfillments::test_create_fulfillment_notify_customer_opt_out PASSED [ 92%]
+tests/test_covpush_w95_shopify.py::TestFulfillments::test_create_fulfillment_location_mismatch_422 PASSED [ 94%]
+tests/test_covpush_w95_shopify.py::TestFulfillments::test_create_fulfillment_nothing_fulfillable_422 PASSED [ 95%]
+tests/test_covpush_w95_shopify.py::TestFulfillments::test_create_fulfillment_contradictory_parent_never_posts[foreign-order] PASSED [ 97%]
+tests/test_covpush_w95_shopify.py::TestFulfillments::test_create_fulfillment_contradictory_parent_never_posts[None] PASSED [ 98%]
+tests/test_covpush_w95_shopify.py::TestFulfillments::test_create_fulfillment_error 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:46:08 [   ERROR] Failed to get fulfillment orders for order o1: net
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 138 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /private/tmp/atom-shopify-product-lead-review/docs/acceptance/evidence/shopify_fulfillment_lead_repair_20261107/valid.xml -
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+====================== 69 passed, 144 warnings in 53.96s =======================
