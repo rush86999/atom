@@ -571,6 +571,52 @@ def test_recovery_claim_makes_second_successor_and_repeat_inert(
     assert lifecycle.get_assignment(run_id)["status"] == "completed"
 
 
+def test_concurrent_recovery_successors_adapt_accepted_evidence_once(
+        route_env, tmp_path, monkeypatch):
+    """Two successors starting together: exactly one model call and result."""
+    import api.assignment_routes as assignment_routes
+
+    _write_facts(tmp_path)
+    calls = _install_controlled_transport(monkeypatch, calls=[])
+    client = route_env["client"]
+    lifecycle = route_env["lifecycle"]
+    run_id = _start_missing_invoice(client, tmp_path)
+
+    real_advance = assignment_routes._advance_employee_work
+
+    async def interrupted(*args, **kwargs):
+        raise RuntimeError("simulated interruption before adaptation")
+
+    monkeypatch.setattr(
+        "api.assignment_routes._advance_employee_work", interrupted)
+    first = _add_invoice(client, run_id, tmp_path)
+    assert first.status_code == 200, first.text
+
+    async def slow_advance(*args, **kwargs):
+        # Yield so the second successor reaches the claim while the first is
+        # in flight; it must lose the CAS and make no model call.
+        await asyncio.sleep(0.2)
+        return await real_advance(*args, **kwargs)
+
+    monkeypatch.setattr(
+        "api.assignment_routes._advance_employee_work", slow_advance)
+    first_successor = _rebuilt_executor(route_env)
+    second_successor = _rebuilt_executor(route_env)
+    before = len(calls)
+
+    async def run_both():
+        return await asyncio.gather(
+            first_successor.recover_ready_assignments(limit=20),
+            second_successor.recover_ready_assignments(limit=20))
+
+    asyncio.run(run_both())
+    assert len(calls) == before + 1, calls
+    reconciliations = _reconciliations(lifecycle, run_id)
+    assert len(reconciliations) == 1
+    assert reconciliations[0]["result"]["value"] == EXPECTED_TOTAL
+    assert lifecycle.get_assignment(run_id)["status"] == "completed"
+
+
 def test_open_second_prerequisite_blocks_recovery_until_it_is_resolved(
         route_env, tmp_path, monkeypatch):
     """One settled prerequisite is not enough: a second open obligation sleeps.
