@@ -1,0 +1,16 @@
+{
+  "command": [
+    "/usr/local/opt/python@3.14/bin/python3.14",
+    "-m",
+    "pytest",
+    "../docs/acceptance/evidence/shopify_product_material_7cc5471f7/root_probe/test_lead_shopify_authorized_material.py",
+    "-q",
+    "--disable-warnings",
+    "--junitxml=/private/tmp/atom-agent-job-baseline/docs/acceptance/evidence/shopify_product_material_7cc5471f7/root-probe.xml"
+  ],
+  "cwd": "/private/tmp/atom-agent-job-baseline/backend",
+  "exit_code": 0,
+  "stdout_sha256": "c542cd9f945052708d93933090d5e9a5fe5ba165b675400a75b0eb0df9bef54b",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "junitxml": "root-probe.xml"
+}

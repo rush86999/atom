@@ -1,0 +1,8 @@
+$ /usr/local/opt/python@3.14/bin/python3.14 -m pytest ../docs/acceptance/evidence/shopify_product_material_7cc5471f7/root_probe/test_lead_shopify_authorized_material.py -q --disable-warnings --junitxml=/private/tmp/atom-agent-job-baseline/docs/acceptance/evidence/shopify_product_material_7cc5471f7/root-probe.xml
+cwd=/private/tmp/atom-agent-job-baseline/backend
+
+STDOUT
+......                                                                   [100%]
+6 passed in 7.37s
+
+STDERR

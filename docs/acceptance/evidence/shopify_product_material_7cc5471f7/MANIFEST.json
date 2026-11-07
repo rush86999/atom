@@ -1,0 +1,18 @@
+{
+  "packet": "shopify_product_material_7cc5471f7",
+  "files": {
+    "README.md": "aed9ce449a362069ac071694f7be0b630df03a0ae2a9a085adb16f562a7df90c",
+    "failure-first-exit.json": "08c1b954e8e5f0288c60a10375835d0947185c359ce96eca8ff4cf639d919645",
+    "failure-first.log": "f1004320549b31971727bacf72bdc12a6de16bcb6eba423ed0f3b9a54f7a4332",
+    "failure-first.xml": "99885a3b5b12e81fe869bda4263e5c4052b96ebaff30c83c25362872b97bb715",
+    "focused-exit.json": "ebaf1fed5b8ac189f3ec94bd2172e3792c2dc3c0fa28aac44b136c0435ad76c7",
+    "focused.log": "fd9f12303943c4740152531dcd9ff3e827a5c9eb1ab8ce87a9d922a8d4ffa173",
+    "focused.xml": "a325f2fb8a5ae1af5db115cb505c5dd05416c30d406449a2cd9682761ed71806",
+    "root-probe-exit.json": "ba6d162b474a3f50b2d2594a0e0bd998a91f0371be62c63fd9f8bef29353cbf2",
+    "root-probe.log": "75251e3c4b04053797120a3b7807caa0ba1cd9ae428d5d0372c9eb38fc3f06e8",
+    "root-probe.xml": "a226f0a9cac737aedf90b25e9129ff304de4ee6d89079579daecc67aa6773c91",
+    "root_probe/test_lead_shopify_authorized_material.py": "31cbe463d0104cb820e2e097447440c8677df0d890dcbcbc6728f79523136da7",
+    "run_and_capture.py": "ddf6dca5240feddf61a0551b49c939fe12f176b1bea8a97b0b786a6d5345714c",
+    "verification.json": "61125574f2f523016f0e41b3a455d5c60206e2b827ea0af5d5db6f09dea50df4"
+  }
+}

@@ -1,0 +1,99 @@
+$ /usr/local/opt/python@3.14/bin/python3.14 -m pytest tests/test_oracle_shopify_product_authorized_material.py -q --disable-warnings --junitxml=/private/tmp/atom-agent-job-baseline/docs/acceptance/evidence/shopify_product_material_7cc5471f7/failure-first.xml
+cwd=/private/tmp/atom-agent-job-baseline/backend
+
+STDOUT
+
+----------------------------- live log collection ------------------------------
+2026-11-07 09:45:04 [    INFO] MCP Service initialized
+
+tests/test_oracle_shopify_product_authorized_material.py::test_accepted_field_is_forwarded_and_exactly_verified[images] 
+-------------------------------- live log setup --------------------------------
+2026-11-07 09:45:04 [    INFO] EscalationManager initialized
+2026-11-07 09:45:04 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 09:45:04 [    INFO] EscalationManager initialized
+2026-11-07 09:45:04 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 09:45:04 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 09:45:04 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  6%]
+tests/test_oracle_shopify_product_authorized_material.py::test_accepted_field_is_forwarded_and_exactly_verified[price] PASSED [ 12%]
+tests/test_oracle_shopify_product_authorized_material.py::test_accepted_field_is_forwarded_and_exactly_verified[compare_at_price] PASSED [ 18%]
+tests/test_oracle_shopify_product_authorized_material.py::test_provider_omission_or_rounding_is_not_verified[images] FAILED [ 25%]
+tests/test_oracle_shopify_product_authorized_material.py::test_provider_omission_or_rounding_is_not_verified[price] FAILED [ 31%]
+tests/test_oracle_shopify_product_authorized_material.py::test_provider_omission_or_rounding_is_not_verified[compare_at_price] FAILED [ 37%]
+tests/test_oracle_shopify_product_authorized_material.py::test_image_source_rewrite_is_not_content_proof FAILED [ 43%]
+tests/test_oracle_shopify_product_authorized_material.py::test_replay_respects_complete_field_proof[omit_or_round-images] FAILED [ 50%]
+tests/test_oracle_shopify_product_authorized_material.py::test_replay_respects_complete_field_proof[omit_or_round-price] FAILED [ 56%]
+tests/test_oracle_shopify_product_authorized_material.py::test_replay_respects_complete_field_proof[omit_or_round-compare_at_price] FAILED [ 62%]
+tests/test_oracle_shopify_product_authorized_material.py::test_replay_respects_complete_field_proof[material-images] FAILED [ 68%]
+tests/test_oracle_shopify_product_authorized_material.py::test_replay_respects_complete_field_proof[material-price] PASSED [ 75%]
+tests/test_oracle_shopify_product_authorized_material.py::test_replay_respects_complete_field_proof[material-compare_at_price] FAILED [ 81%]
+tests/test_oracle_shopify_product_authorized_material.py::test_replay_of_complete_material_verifies_without_second_create[images] PASSED [ 87%]
+tests/test_oracle_shopify_product_authorized_material.py::test_replay_of_complete_material_verifies_without_second_create[price] PASSED [ 93%]
+tests/test_oracle_shopify_product_authorized_material.py::test_replay_of_complete_material_verifies_without_second_create[compare_at_price] PASSED [100%]
+
+=================================== FAILURES ===================================
+E   AssertionError: {'action_result': 'applied', 'operation': 'create_product', 'oracle_evidence': 'Shopify product 500 re-read from scratch-replay.myshopify.com; accepted material matches (payload 16c21f0db16f)', 'oracle_verified': True, ...}
+    assert True is not True
+     +  where True = <built-in method get of dict object at 0x176052d00>('oracle_verified')
+     +    where <built-in method get of dict object at 0x176052d00> = {'action_result': 'applied', 'operation': 'create_product', 'oracle_evidence': 'Shopify product 500 re-read from scratch-replay.myshopify.com; accepted material matches (payload 16c21f0db16f)', 'oracle_verified': True, ...}.get
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_product_authorized_material.py:129: AssertionError: {'action_result': 'applied', 'operation': 'create_product', 'oracle_evidence': 'Shopify product 500 re-read from scratch-replay.myshopify.com; accepted material matches (payload 16c21f0db16f)', 'oracle_verified': True, ...}
+E   AssertionError: {'action_result': 'applied', 'operation': 'create_product', 'oracle_evidence': 'Shopify product 500 re-read from scratch-replay.myshopify.com; accepted material matches (payload c87c68809fcf)', 'oracle_verified': True, ...}
+    assert True is not True
+     +  where True = <built-in method get of dict object at 0x177edeb00>('oracle_verified')
+     +    where <built-in method get of dict object at 0x177edeb00> = {'action_result': 'applied', 'operation': 'create_product', 'oracle_evidence': 'Shopify product 500 re-read from scratch-replay.myshopify.com; accepted material matches (payload c87c68809fcf)', 'oracle_verified': True, ...}.get
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_product_authorized_material.py:129: AssertionError: {'action_result': 'applied', 'operation': 'create_product', 'oracle_evidence': 'Shopify product 500 re-read from scratch-replay.myshopify.com; accepted material matches (payload c87c68809fcf)', 'oracle_verified': True, ...}
+E   AssertionError: {'action_result': 'applied', 'operation': 'create_product', 'oracle_evidence': 'Shopify product 500 re-read from scratch-replay.myshopify.com; accepted material matches (payload c87c68809fcf)', 'oracle_verified': True, ...}
+    assert True is not True
+     +  where True = <built-in method get of dict object at 0x177470640>('oracle_verified')
+     +    where <built-in method get of dict object at 0x177470640> = {'action_result': 'applied', 'operation': 'create_product', 'oracle_evidence': 'Shopify product 500 re-read from scratch-replay.myshopify.com; accepted material matches (payload c87c68809fcf)', 'oracle_verified': True, ...}.get
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_product_authorized_material.py:129: AssertionError: {'action_result': 'applied', 'operation': 'create_product', 'oracle_evidence': 'Shopify product 500 re-read from scratch-replay.myshopify.com; accepted material matches (payload c87c68809fcf)', 'oracle_verified': True, ...}
+E   AssertionError: {'action_result': 'applied', 'operation': 'create_product', 'oracle_evidence': 'Shopify product 500 re-read from scratch-replay.myshopify.com; accepted material matches (payload 16c21f0db16f)', 'oracle_verified': True, ...}
+    assert True is not True
+     +  where True = <built-in method get of dict object at 0x177fcea40>('oracle_verified')
+     +    where <built-in method get of dict object at 0x177fcea40> = {'action_result': 'applied', 'operation': 'create_product', 'oracle_evidence': 'Shopify product 500 re-read from scratch-replay.myshopify.com; accepted material matches (payload 16c21f0db16f)', 'oracle_verified': True, ...}.get
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_product_authorized_material.py:153: AssertionError: {'action_result': 'applied', 'operation': 'create_product', 'oracle_evidence': 'Shopify product 500 re-read from scratch-replay.myshopify.com; accepted material matches (payload 16c21f0db16f)', 'oracle_verified': True, ...}
+E   AssertionError: {'action_result': 'already_applied', 'already_applied': True, 'business_success': True, 'committed': True, ...}
+    assert True is not True
+     +  where True = <built-in method get of dict object at 0x178026b00>('success')
+     +    where <built-in method get of dict object at 0x178026b00> = {'action_result': 'already_applied', 'already_applied': True, 'business_success': True, 'committed': True, ...}.get
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_product_authorized_material.py:190: AssertionError: {'action_result': 'already_applied', 'already_applied': True, 'business_success': True, 'committed': True, ...}
+E   AssertionError: {'action_result': 'already_applied', 'already_applied': True, 'business_success': True, 'committed': True, ...}
+    assert True is not True
+     +  where True = <built-in method get of dict object at 0x1780956c0>('success')
+     +    where <built-in method get of dict object at 0x1780956c0> = {'action_result': 'already_applied', 'already_applied': True, 'business_success': True, 'committed': True, ...}.get
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_product_authorized_material.py:190: AssertionError: {'action_result': 'already_applied', 'already_applied': True, 'business_success': True, 'committed': True, ...}
+E   AssertionError: {'action_result': 'already_applied', 'already_applied': True, 'business_success': True, 'committed': True, ...}
+    assert True is not True
+     +  where True = <built-in method get of dict object at 0x178100d80>('success')
+     +    where <built-in method get of dict object at 0x178100d80> = {'action_result': 'already_applied', 'already_applied': True, 'business_success': True, 'committed': True, ...}.get
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_product_authorized_material.py:190: AssertionError: {'action_result': 'already_applied', 'already_applied': True, 'business_success': True, 'committed': True, ...}
+E   AssertionError: {'action_result': 'already_applied', 'already_applied': True, 'business_success': True, 'committed': True, ...}
+    assert True is not True
+     +  where True = <built-in method get of dict object at 0x178094c00>('success')
+     +    where <built-in method get of dict object at 0x178094c00> = {'action_result': 'already_applied', 'already_applied': True, 'business_success': True, 'committed': True, ...}.get
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_product_authorized_material.py:190: AssertionError: {'action_result': 'already_applied', 'already_applied': True, 'business_success': True, 'committed': True, ...}
+E   AssertionError: {'action_result': 'already_applied', 'already_applied': True, 'business_success': True, 'committed': True, ...}
+    assert True is not True
+     +  where True = <built-in method get of dict object at 0x1781bc4c0>('success')
+     +    where <built-in method get of dict object at 0x1781bc4c0> = {'action_result': 'already_applied', 'already_applied': True, 'business_success': True, 'committed': True, ...}.get
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_product_authorized_material.py:190: AssertionError: {'action_result': 'already_applied', 'already_applied': True, 'business_success': True, 'committed': True, ...}
+- generated xml file: /private/tmp/atom-agent-job-baseline/docs/acceptance/evidence/shopify_product_material_7cc5471f7/failure-first.xml -
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_oracle_shopify_product_authorized_material.py::test_provider_omission_or_rounding_is_not_verified[images]
+FAILED tests/test_oracle_shopify_product_authorized_material.py::test_provider_omission_or_rounding_is_not_verified[price]
+FAILED tests/test_oracle_shopify_product_authorized_material.py::test_provider_omission_or_rounding_is_not_verified[compare_at_price]
+FAILED tests/test_oracle_shopify_product_authorized_material.py::test_image_source_rewrite_is_not_content_proof
+FAILED tests/test_oracle_shopify_product_authorized_material.py::test_replay_respects_complete_field_proof[omit_or_round-images]
+FAILED tests/test_oracle_shopify_product_authorized_material.py::test_replay_respects_complete_field_proof[omit_or_round-price]
+FAILED tests/test_oracle_shopify_product_authorized_material.py::test_replay_respects_complete_field_proof[omit_or_round-compare_at_price]
+FAILED tests/test_oracle_shopify_product_authorized_material.py::test_replay_respects_complete_field_proof[material-images]
+FAILED tests/test_oracle_shopify_product_authorized_material.py::test_replay_respects_complete_field_proof[material-compare_at_price]
+=================== 9 failed, 7 passed, 6 warnings in 28.15s ===================
+
+STDERR
