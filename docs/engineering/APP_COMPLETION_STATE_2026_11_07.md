@@ -13,9 +13,9 @@ This dated checkpoint supersedes operational queue rows in the November6 directi
 
 ## Current deliveries and owners
 
-- Agent2 workspace opt-in repair: clean successor PR711, code/tests byte-identical to reviewed cf2964720, new branch codex/mem07-workspace-clean-20261107.25 independent controls;7source+9artifact checks; exact23baseline failure IDs retained.709 is closed/superseded, original branch/evidence retained. Its security finding was verified as a recorded Git commit ID; no waiver/history rewrite/credential change.711 GitGuardian passes; remaining exact-head checks must finish before merge.
-- Agent1/4 mini-app boundary: branch codex/mini03-runtime-boundary-20261107.9 real-auth public controls,6source+2artifact checks at380c8d7e1. Explicit unavailable feedback, no fabricated results/state, owner-only actions, production Docker refusal before daemon contact, unsafe execution tripwires. Supports only the allowed unsupported-host MINI03 leg; MINI04/05 working guest persistence/isolation/chat remain separate. Fresh hosted checks own the actual PR head.
-- Agent2 next family: codex/oracle-goal-writes-20261107, base555e4aafa. Exactly goal create and utility set/clear. First reproduce supported actor/material races, then repair only proven gaps with existing mechanisms. Member simple-goal creation and supervisor enrichment must keep working. Accepted ranking is not reopened. Root owns review/PR metadata/merge.
+- Workspace opt-in repair: PR711 merged as bae68c91d. The controlled 25-control and 16-hash proof remains at its recorded source; 709 stays closed/superseded. No new browser or model replay is required for this preserved proof.
+- Mini-app boundaries: PR712 merged as 272382adb; PR713 merged as 8a577f14a. The former proves explicit unsupported-host refusal, and the latter proves host-record persistence across a real process restart with ordinary authentication and member/instance isolation. Neither proves guest execution or MINI05 isolation/chat.
+- Agent2 goal writes: PR715, runtime nullable successor 7289ca692 and integrated source 9205b222a. Root independently verified 111 passing controls plus three redundant same-kind matrix skips; evidence has eight matching Git-object entries. Current-head hosted checks and final review are still required. Scope is goal create and utility set/clear; accepted utility ranking is preserved.
 - Agent3/CI: use bounded credit-free exact-head observation. A changed head invalidates old hosted green; a source commit change alone does not justify another browser journey. Lead still performs engineering/product acceptance and authorized merges.
 
 ## Continuous-work rules
@@ -32,7 +32,7 @@ Conserve disk: remove reproducible caches from completed inactive work first. Ar
 
 ## Completion still requires evidence
 
-Whole-app ORACLE mutation coverage, general adaptive judgment, qualified live integration/provider breadth, working Linux/KVM mini-app paths, PostgreSQL runtime/concurrency and multi-worker/soak remain separate and unqualified. Do not infer those from these finite tests or hide them by rewriting the historical score. Canonical143claim inventory and GOAL_COMPLETION_DELTA remain historical evidence inputs; reconcile each actual requirement against current code and source-bound proofs. New ready local work proceeds without waiting for unavailable live authority, but no limited proof becomes universal app completion.
+Whole-app ORACLE mutation coverage, general adaptive judgment, qualified live integration/provider breadth, working guest execution and MINI05 isolation/chat, PostgreSQL runtime/concurrency and multi-worker/soak remain separate and unqualified. Do not infer those from these finite tests or hide them by rewriting the historical score. Canonical143claim inventory and GOAL_COMPLETION_DELTA remain historical evidence inputs; reconcile each actual requirement against current code and source-bound proofs. New ready local work proceeds without waiting for unavailable live authority, but no limited proof becomes universal app completion.
 
 ## Latest worker allowance observation
 
@@ -43,3 +43,11 @@ Free GLM returned an actual429 free-usage-limit response during the next goal-wr
 At source d84e46a4a, a real-main-app HTTP journey with ordinary member registration/login, publish/install, record append/query and a real two-PID restart passed. The retained run is distinct from an earlier passed run whose temporary world was evicted; original logs remain separate. Fresh readback confirms records with seq1/2/3 in one installed instance and0 in the second, with unauthorized-user refusals. No guest execution occurred. The older inventory’s assumption that this host-mediated record leg requires KVM is contradicted by current code and runtime evidence. This does not qualify MINI05 guest isolation or change the historical score. Evidence: mini04_records_restart_d84e46a4a.
 
 PR711 and712 are now merged (bae68c91d and272382adbd). Main272 CI/Docker passed: backend667/1; utility31; workflow1; alignment3; mini runtime8/1 environment skip; API211/1/1; UI29 and role-UI40 with zero failures. Two OpenCode Go DeepSeek workers own the actual goal-write authority/material and shared-registry verdict defects. Root retains engineering/product/verifier and merge responsibility.
+
+## Current integration checkpoint
+
+PR713 is merged as 8a577f14a. Its reviewed tree and merged tree match exactly. Post-merge CI42330636445 and Docker42330636454 passed. Actual summaries are backend667/1 plus utility31, workflow1, alignment3, unsupported-runtime8/1 and real-record-restart1; API211/1/1, UI29 and role-UI40, with no failures. The skips and xfail retain their named scopes.
+
+PR714 remains withheld: its authoritative mini-app/audit scope repair passed173 independent controls, but three actual scratch-write probes exposed a mixed malformed-metadata classifier bypass. Agent1 is repairing that shared classifier; earlier green heads do not certify the successor. The broader registered-action snapshot still has11 explicitly uncovered mutations, and uninspected HTTP routes remain unqualified.
+
+The next general-agent consumer gap is reproduced separately: missing or unusable verifiers can preserve self-attested success, timeout advice can invite retry after a landed effect, and mutable arguments/results can overwrite expected request identity. Reviewed failure-first test checkpoint8bbad92cb has10 failing cases and4 passing twins. It is a test-only checkpoint, not a runtime repair or acceptance. Reuse the existing operation arbiter and audit receipts; do not introduce a second execution system.

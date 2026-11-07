@@ -1,0 +1,14 @@
+Manifest check for successor source 9205b222a1ab9dd9a3fe44fa0b06a1638b2582aa
+Evidence HEAD: c4ec93947e48a97b53136a90758d51c69a5676b0
+Method: git ls-tree -r HEAD -- <path> compared to MANIFEST.json git hash-object ids
+
+OK .github/workflows/ci.yml 0e3136309b4b1c1fbee798478d65bb60bef24183
+OK backend/core/goals/goal_write_service.py 646d5c263544a108ac82df1efea1872006983d19
+OK backend/tests/test_goal_write_authority_contract.py 0d2fae23de2f72e60198f06c2ba92aa3d0d1a47f
+OK docs/acceptance/evidence/goal_write_json_null_20261107/README.md ea320546e1958c16dca678dc12420c264cbdfbf1
+OK docs/acceptance/evidence/goal_write_json_null_20261107/logs/affected-185.log 8b84b09e0e58eab6a1c50bd87aff4117eceda505
+OK docs/acceptance/evidence/goal_write_json_null_20261107/logs/focused-109.log 78f2362d724d73512999f046e997e5ead3e41729
+OK docs/acceptance/evidence/goal_write_json_null_20261107/logs/supplied-probes.log 963fa244e4071fa2d48a1928a0bd9802979053dd
+OK docs/acceptance/evidence/goal_write_json_null_20261107/verification.txt e6721bf6a4ae1d562a49e51cbb06004a3557e8ed
+
+result: ALL 8 MATCH

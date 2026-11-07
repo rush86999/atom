@@ -1,0 +1,69 @@
+Goal-write JSON-null successor qualification
+=============================================
+
+Source commit qualified: 9205b222a1ab9dd9a3fe44fa0b06a1638b2582aa
+Predecessor source: 48889fd99 (evidence not regenerated)
+Merge base from origin/main: 8a577f14a
+Python: 3.14.7 (project venv)
+Runtime scope: SQLite scratch files only; TESTING=1
+
+All commands run with cwd "$REPO/backend" and PYTHONPATH=.
+Basetemp parents were fresh, uniquely owned, previously nonexistent
+directories; each pytest target was a new child under that parent
+("$SCRATCH/<run>/pytest-*"). Raw unsanitized logs are kept privately outside
+the tracked evidence bundle; tracked logs replace the operator home, worktree
+and venv prefixes with <home>, <worktree>, <python-venv> and <scratch-root>.
+
+1) Supplied root probe (3) plus original actor-race probe (2)
+-------------------------------------------------------------
+TESTING=1 PYTHONPATH=. <python-venv>/bin/pytest -q \
+  "$PROBES/test_lead_goal_json_null.py" \
+  "$PROBES/test_lead_goal_actor_race.py" \
+  --basetemp="$SCRATCH/goal-null-final-61001/pytest-probes"
+
+Result: 5 passed, 12 warnings in 1.48s
+  - json-null probe: 3/3 (physical None, 'null', '{}')
+  - actor-race probe: 2/2 (original negative + valid twin)
+
+2) Focused goal set (109 collected; predecessor set was 94)
+-----------------------------------------------------------
+TESTING=1 PYTHONPATH=. <python-venv>/bin/pytest -q \
+  tests/test_goal_write_authority_contract.py \
+  tests/test_goal_utility_target.py \
+  tests/test_goal_journey_gaps.py \
+  tests/test_goal_run_decision_contract.py \
+  --basetemp="$SCRATCH/goal-null-final-61001/pytest-focused"
+
+Result: 106 passed, 3 skipped, 242 warnings in 35.51s
+  - contract file: 31 passed, 3 skipped (same-kind transition cells)
+  - the predecessor 94 controls remain included and passing
+
+3) Affected goal selection (185 collected; predecessor set was 170)
+-------------------------------------------------------------------
+TESTING=1 PYTHONPATH=. <python-venv>/bin/pytest -q \
+  tests/test_goal_write_authority_contract.py \
+  tests/test_goal_utility_target.py \
+  tests/test_goal_journey_gaps.py \
+  tests/test_goal_run_decision_contract.py \
+  tests/test_goal_run_routes.py \
+  tests/test_goal_run_access_control.py \
+  tests/test_goal_run_bugfixes.py \
+  tests/test_goal_effect_family_controls.py \
+  tests/test_goal_projection_boundaries.py \
+  tests/test_goal_plan_validation.py \
+  --basetemp="$SCRATCH/goal-null-final-61001/pytest-affected"
+
+Result: 182 passed, 3 skipped, 418 warnings in 36.97s
+
+Notes
+-----
+- The 3 skips are the prior_kind == peer_kind cells of the 3x3 transition
+  matrix; the positive matrix covers each unchanged kind.
+- The contract file adds 15 controls over the predecessor (19 -> 34): 3
+  positive kinds, 1 distinct-prior-digest control, 6 ordered transition
+  pairs and 2 null-preserving clear no-change controls, plus the 3 skipped
+  matrix cells.
+- No PostgreSQL runtime was used. The dialect-aware JSONB column and
+  JSON.NULL predicate are static/design portability only, not a runtime
+  qualification claim.
+- Predecessor logs under the original 48889fd99 evidence remain untouched.
