@@ -95,6 +95,15 @@ def _matches(data: Dict[str, Any], f: Dict[str, Any]) -> bool:
     return all(data.get(k) == v for k, v in f.items())
 
 
+class RecordConflict(RuntimeError):
+    """A guarded record write lost its prior-material binding.
+
+    The row was changed or deleted by a peer after this invocation read it.
+    The caller must report a truthful no-effect conflict and write no receipt;
+    the peer's row is preserved.
+    """
+
+
 # ---------------------------------------------------------------------------
 # CRUD primitives (all scoped by canvas_id; tenant_id for row creation)
 # ---------------------------------------------------------------------------
@@ -109,6 +118,7 @@ def append_record(
     created_by: Optional[str] = None,
     *,
     max_records: Optional[int] = None,
+    commit: bool = True,
 ) -> Dict[str, Any]:
     """Append one record; ``seq`` = max(seq)+1 within (canvas, series).
 
@@ -150,8 +160,12 @@ def append_record(
         data=data,
     )
     db.add(row)
-    db.commit()
-    db.refresh(row)
+    if commit:
+        db.commit()
+        db.refresh(row)
+    else:
+        db.flush()
+        db.refresh(row)
     return _row_to_dict(row)
 
 
@@ -219,6 +233,51 @@ def count_records(
     return len(rows)
 
 
+def _guarded_update_record(
+    db: Session,
+    row: Any,
+    merged: Dict[str, Any],
+    *,
+    commit: bool,
+) -> Dict[str, Any]:
+    """Replace one row's payload only if its prior material is still current."""
+    from sqlalchemy import update
+
+    from core.models import CanvasRecord
+
+    prior = row.data
+    predicate = (
+        CanvasRecord.data.is_(None)
+        if prior is None
+        else CanvasRecord.data == prior
+    )
+    result = db.execute(
+        update(CanvasRecord)
+        .where(
+            CanvasRecord.id == row.id,
+            CanvasRecord.canvas_id == row.canvas_id,
+            CanvasRecord.series == row.series,
+            predicate,
+        )
+        .values(data=merged)
+        .execution_options(synchronize_session=False)
+    )
+    if int(result.rowcount or 0) != 1:
+        if commit:
+            db.rollback()
+        raise RecordConflict(
+            "mini-app record changed after it was read")
+    if commit:
+        db.commit()
+        db.expire(row)
+        db.refresh(row)
+        return _row_to_dict(row)
+    db.flush()
+    db.expire(row)
+    db.refresh(row)
+    return _row_to_dict(row)
+
+
 def update_record(
     db: Session,
     canvas_id: str,
@@ -227,6 +286,7 @@ def update_record(
     data: Dict[str, Any],
     *,
     max_bytes: int = DEFAULT_MAX_RECORD_BYTES,
+    commit: bool = True,
 ) -> Optional[Dict[str, Any]]:
     """Deep-merge ``data`` into the record's payload; returns the row or None.
 
@@ -234,7 +294,9 @@ def update_record(
     being written — a delta that is individually within ``max_bytes`` can push
     the merged record past it, which the incoming-only validation would miss.
     Raises ``ValueError`` when the merged payload exceeds the cap (row left
-    untouched).
+    untouched). The DML is a compare-and-swap on the prior row payload, so a
+    peer change after this read makes the write zero-effect
+    (``RecordConflict``) instead of overwriting the peer's data.
     """
     from core.models import CanvasRecord
 
@@ -255,9 +317,7 @@ def update_record(
         raise ValueError(
             "merged record data exceeds the size cap; update rejected"
         )
-    row.data = merged
-    db.commit()
-    return _row_to_dict(row)
+    return _guarded_update_record(db, row, merged, commit=commit)
 
 
 def update_many_records(
@@ -268,12 +328,18 @@ def update_many_records(
     data: Dict[str, Any],
     *,
     max_bytes: int = DEFAULT_MAX_RECORD_BYTES,
+    commit: bool = True,
+    candidate_ids: Optional[List[str]] = None,
+    updated_ids_out: Optional[List[str]] = None,
 ) -> int:
     """Merge ``data`` into every matching row; returns the number updated.
 
     All matching rows are validated BEFORE any is mutated: if any merged
     payload would exceed the per-record size cap, ``ValueError`` is raised and
-    no row is written (no partial application).
+    no row is written (no partial application). Each row is then updated with
+    a guarded DML binding its exact prior payload; a peer change after the
+    read makes the whole operation zero-effect (``RecordConflict``) and
+    preserves the peer's row.
     """
     from core.models import CanvasRecord
 
@@ -284,6 +350,16 @@ def update_many_records(
     )
     if f:
         rows = [r for r in rows if _matches(r.data or {}, f)]
+    if candidate_ids is not None:
+        wanted = {str(item) for item in candidate_ids}
+        rows = [r for r in rows if str(r.id) in wanted]
+        if len(rows) != len(wanted):
+            if commit:
+                db.rollback()
+            raise RecordConflict(
+                "mini-app record set changed after it was read")
+    if not rows:
+        return 0
     for r in rows:
         merged = dict(r.data or {})
         merged.update(data)
@@ -291,16 +367,63 @@ def update_many_records(
             raise ValueError(
                 "merged record data exceeds the size cap; update_many rejected"
             )
-    for r in rows:
-        merged = dict(r.data or {})
-        merged.update(data)
-        r.data = merged
-    if rows:
+    try:
+        for r in rows:
+            merged = dict(r.data or {})
+            merged.update(data)
+            _guarded_update_record(db, r, merged, commit=False)
+            if updated_ids_out is not None:
+                updated_ids_out.append(str(r.id))
+    except RecordConflict:
+        if commit:
+            db.rollback()
+        raise
+    if commit:
         db.commit()
     return len(rows)
 
 
-def delete_record(db: Session, canvas_id: str, series: str, record_id: str) -> bool:
+def _guarded_delete_rows(
+    db: Session, rows: List[Any], *, commit: bool,
+) -> int:
+    """Delete rows only while their exact prior payload is still current."""
+    from sqlalchemy import delete
+
+    from core.models import CanvasRecord
+
+    for row in rows:
+        prior = row.data
+        predicate = (
+            CanvasRecord.data.is_(None)
+            if prior is None
+            else CanvasRecord.data == prior
+        )
+        result = db.execute(
+            delete(CanvasRecord)
+            .where(
+                CanvasRecord.id == row.id,
+                CanvasRecord.canvas_id == row.canvas_id,
+                CanvasRecord.series == row.series,
+                predicate,
+            )
+            .execution_options(synchronize_session=False)
+        )
+        if int(result.rowcount or 0) != 1:
+            if commit:
+                db.rollback()
+            raise RecordConflict(
+                "mini-app record changed after it was read")
+    if commit:
+        db.commit()
+    else:
+        db.flush()
+    return len(rows)
+
+
+def delete_record(
+    db: Session, canvas_id: str, series: str, record_id: str,
+    *, commit: bool = True,
+) -> bool:
     from core.models import CanvasRecord
 
     row = (
@@ -314,12 +437,14 @@ def delete_record(db: Session, canvas_id: str, series: str, record_id: str) -> b
     )
     if row is None:
         return False
-    db.delete(row)
-    db.commit()
+    _guarded_delete_rows(db, [row], commit=commit)
     return True
 
 
-def delete_series(db: Session, canvas_id: str, series: str) -> int:
+def delete_series(
+    db: Session, canvas_id: str, series: str, *, commit: bool = True,
+    candidate_ids: Optional[List[str]] = None,
+) -> int:
     """Delete every row of one series; returns the deleted count."""
     from core.models import CanvasRecord
 
@@ -328,23 +453,38 @@ def delete_series(db: Session, canvas_id: str, series: str) -> int:
         .filter(CanvasRecord.canvas_id == canvas_id, CanvasRecord.series == series)
         .all()
     )
-    for r in rows:
-        db.delete(r)
-    if rows:
-        db.commit()
-    return len(rows)
+    if candidate_ids is not None:
+        wanted = {str(item) for item in candidate_ids}
+        rows = [r for r in rows if str(r.id) in wanted]
+        if len(rows) != len(wanted):
+            if commit:
+                db.rollback()
+            raise RecordConflict(
+                "mini-app record set changed after it was read")
+    if not rows:
+        return 0
+    return _guarded_delete_rows(db, rows, commit=commit)
 
 
-def clear_records(db: Session, canvas_id: str) -> int:
+def clear_records(
+    db: Session, canvas_id: str, *, commit: bool = True,
+    candidate_ids: Optional[List[str]] = None,
+) -> int:
     """Delete every record of an instance canvas; returns the deleted count."""
     from core.models import CanvasRecord
 
     rows = db.query(CanvasRecord).filter(CanvasRecord.canvas_id == canvas_id).all()
-    for r in rows:
-        db.delete(r)
-    if rows:
-        db.commit()
-    return len(rows)
+    if candidate_ids is not None:
+        wanted = {str(item) for item in candidate_ids}
+        rows = [r for r in rows if str(r.id) in wanted]
+        if len(rows) != len(wanted):
+            if commit:
+                db.rollback()
+            raise RecordConflict(
+                "mini-app record set changed after it was read")
+    if not rows:
+        return 0
+    return _guarded_delete_rows(db, rows, commit=commit)
 
 
 def list_series(db: Session, canvas_id: str) -> List[Dict[str, Any]]:

@@ -173,7 +173,9 @@ jobs:
             tests/test_assignment_executor.py \
             tests/test_generic_oracle_mutation_contract.py \
             tests/test_generic_normal_retry_identity.py \
+            tests/test_oracle_mini_app_host_mutations.py \
             tests/integration/journeys/test_oracle_registry_mutation_journey.py \
+            tests/integration/journeys/test_mini_app_host_receipts_journey.py \
             -q --tb=short --timeout=300 --timeout-method=thread
       # P2.3 memory eval gate: the in-suite gate (test_memory_eval_gate.py)
       # skips under pytest when AI fakes break provider resolution, so run the
