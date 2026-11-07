@@ -125,6 +125,27 @@ def _tags_payload(value: Any) -> str:
         ) if part.strip()}, key=str.casefold))
 
 
+def _normalized_bool(value: Any, default: Any = None) -> Any:
+    """Normalise a boolean business field without inventing a value.
+
+    An absent provider field must be omitted from observed material so the
+    verifier reports it as unproven; it must never default to the accepted
+    value.
+    """
+    if value is None:
+        return default
+    if isinstance(value, bool):
+        return value
+    if isinstance(value, (int, float)):
+        return value != 0
+    text = str(value).strip().lower()
+    if text in {"1", "true", "yes", "on"}:
+        return True
+    if text in {"0", "false", "no", "off"}:
+        return False
+    return value
+
+
 def _material_value(value: Any) -> Any:
     """JSON-safe, order-stable projection of an arbitrary material value."""
     if isinstance(value, Mapping):
@@ -507,6 +528,102 @@ def durable_blog_material_conflicts(
     durable_result = (
         durable_result if isinstance(durable_result, Mapping) else {})
     expected_material = expected.get("_oracle_expected_shopify_blog")
+    if not isinstance(expected_material, Mapping) or not expected_material:
+        return []
+    stored = durable_result.get("authorized_material")
+    if not isinstance(stored, Mapping) or not stored:
+        return ["authorized_material"]
+    return material_mismatches(expected_material, stored)
+
+
+def article_payload(arguments: Mapping[str, Any] | None) -> Dict[str, Any]:
+    """The exact business payload derived from accepted article arguments.
+
+    ``blog_id`` is the target scope and is included in the frozen payload
+    digest even though Shopify carries it in the URL rather than the JSON
+    body.  Optional fields the caller did not authorize are omitted so a
+    provider-derived value cannot be mistaken for caller intent.
+    """
+    args = arguments if isinstance(arguments, Mapping) else {}
+    payload: Dict[str, Any] = {
+        "blog_id": _text(args.get("blog_id")).strip(),
+        "title": _text(args.get("title")),
+        "body_html": _normalized_html(args.get("body_html", "")),
+        "published": _normalized_bool(args.get("published", True), True),
+    }
+    author = args.get("author")
+    if author not in (None, ""):
+        payload["author"] = _text(author).strip()
+    tags = args.get("tags")
+    if tags not in (None, "", [], ()):
+        payload["tags"] = _tags_payload(tags)
+    return payload
+
+
+def accepted_article_material(
+    arguments: Mapping[str, Any] | None,
+) -> Dict[str, Any]:
+    """The business material the caller authorized for the article."""
+    payload = article_payload(arguments)
+    material: Dict[str, Any] = {
+        "blog_id": _text(payload.get("blog_id")).strip(),
+        "title": _text(payload.get("title")).strip(),
+        "body_html": _normalized_html(payload.get("body_html")),
+        "published": _normalized_bool(payload.get("published"), True),
+    }
+    if "author" in payload:
+        material["author"] = _text(payload.get("author")).strip()
+    if "tags" in payload:
+        material["tags"] = normalize_tags(payload.get("tags"))
+    return material
+
+
+def observed_article_material(
+    article: Mapping[str, Any] | None,
+) -> Dict[str, Any]:
+    """The comparable business material of a provider article readback.
+
+    An absent optional field is omitted, never defaulted to the accepted
+    value: the verifier then reports that field as unproven.
+    """
+    item = article if isinstance(article, Mapping) else {}
+    material: Dict[str, Any] = {
+        "blog_id": _text(item.get("blog_id")).strip(),
+        "title": _text(item.get("title")).strip(),
+        "body_html": _normalized_html(item.get("body_html")),
+    }
+    if "published" in item and item.get("published") is not None:
+        material["published"] = _normalized_bool(item.get("published"))
+    if item.get("author") not in (None, ""):
+        material["author"] = _text(item.get("author")).strip()
+    if item.get("tags") not in (None, ""):
+        material["tags"] = normalize_tags(item.get("tags"))
+    return material
+
+
+def durable_article_receipt_projection(
+    result: Mapping[str, Any] | None,
+    expected: Mapping[str, Any] | None,
+) -> Dict[str, Any]:
+    """Provider-specific material for a durable Shopify article claim."""
+    expected = expected if isinstance(expected, Mapping) else {}
+    material = expected.get("_oracle_expected_shopify_article")
+    return {
+        "authorized_material": (
+            copy.deepcopy(dict(material))
+            if isinstance(material, Mapping) else None),
+    }
+
+
+def durable_article_material_conflicts(
+    expected: Mapping[str, Any] | None,
+    durable_result: Mapping[str, Any] | None,
+) -> List[str]:
+    """Conflicts between the stored authorized article material and request."""
+    expected = expected if isinstance(expected, Mapping) else {}
+    durable_result = (
+        durable_result if isinstance(durable_result, Mapping) else {})
+    expected_material = expected.get("_oracle_expected_shopify_article")
     if not isinstance(expected_material, Mapping) or not expected_material:
         return []
     stored = durable_result.get("authorized_material")
@@ -962,5 +1079,239 @@ async def create_blog(
         payload_sha256=digest,
         blog_id=blog_id,
         blog=observed or created,
+        read_receipt=read_receipt,
+    )
+
+
+def _article_uncertain(
+    *,
+    shop: str,
+    operation_id: str,
+    payload_sha256: str,
+    article_id: str,
+    article: Optional[Dict[str, Any]],
+    error_kind: str,
+    message: str,
+    verification: Dict[str, Any],
+    read_receipt: Optional[Dict[str, Any]] = None,
+    evidence: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """An explicit post-dispatch article ambiguity; never a success."""
+    return {
+        "status": "uncertain",
+        "success": False,
+        "action_result": "uncertain",
+        "effect_possible": True,
+        "provider": "shopify",
+        "operation": "create_article",
+        "error_kind": error_kind,
+        "error": message,
+        "retryable": False,
+        "remote_id": article_id,
+        "payload_sha256": payload_sha256,
+        "provider_receipt": {
+            "provider": "shopify",
+            "operation": "create_article",
+            "operation_id": operation_id,
+            "payload_sha256": payload_sha256,
+            "remote_id": article_id,
+            "shop": shop,
+        },
+        "read_receipt": read_receipt,
+        "verification": verification,
+        "article": article,
+        "evidence": [evidence] if evidence else [],
+    }
+
+
+def _article_applied(
+    *,
+    shop: str,
+    operation_id: str,
+    payload_sha256: str,
+    article_id: str,
+    article: Dict[str, Any],
+    read_receipt: Dict[str, Any],
+) -> Dict[str, Any]:
+    return {
+        "status": "success",
+        "success": True,
+        "action_result": "applied",
+        "provider": "shopify",
+        "operation": "create_article",
+        "remote_id": article_id,
+        "payload_sha256": payload_sha256,
+        "provider_receipt": {
+            "provider": "shopify",
+            "operation": "create_article",
+            "operation_id": operation_id,
+            "payload_sha256": payload_sha256,
+            "remote_id": article_id,
+            "shop": shop,
+        },
+        "read_receipt": read_receipt,
+        "verification": {
+            "status": "verified",
+            "missing_fields": [],
+            "mismatches": [],
+        },
+        "article": article,
+    }
+
+
+async def create_article(
+    token: str,
+    shop: str,
+    arguments: Mapping[str, Any] | None,
+    *,
+    operation_id: str = "",
+) -> Dict[str, Any]:
+    """Create one article, then bind the exact id/blog/material readback.
+
+    Official contract (verified 2026-11-07):
+    ``POST /admin/api/{version}/blogs/{blog_id}/articles.json`` and
+    ``GET /admin/api/{version}/blogs/{blog_id}/articles/{article_id}.json``
+    https://shopify.dev/docs/api/admin-rest/2026-07/resources/article
+    """
+    from integrations.shopify_service import ShopifyService
+
+    payload = article_payload(arguments)
+    expected_material = accepted_article_material(arguments)
+    digest = _payload_digest(payload)
+    operation = str(operation_id or "")
+    service = ShopifyService()
+
+    try:
+        created = await service.create_article(
+            token, shop,
+            blog_id=_text(payload.get("blog_id")),
+            title=_text(payload.get("title")),
+            body_html=_text(payload.get("body_html")),
+            author=payload.get("author"),
+            tags=payload.get("tags"),
+            published=payload.get("published"),
+        )
+    except Exception as exc:  # noqa: BLE001 - provider may have applied it
+        return _article_uncertain(
+            shop=shop,
+            operation_id=operation,
+            payload_sha256=digest,
+            article_id="",
+            article=None,
+            error_kind="provider_error",
+            message=(
+                "Shopify article creation did not return a confirmation; "
+                f"the effect may have landed ({type(exc).__name__})"),
+            verification={
+                "status": "incomplete",
+                "missing_fields": ["transport_confirmation"],
+                "mismatches": [],
+            },
+            evidence={
+                "kind": "shopify_create_article_transport_error",
+                "error": f"{type(exc).__name__}: {str(exc)[:300]}",
+            },
+        )
+
+    created = created if isinstance(created, dict) else {}
+    article_id = str(created.get("id") or "").strip()
+    if not article_id:
+        return _article_uncertain(
+            shop=shop,
+            operation_id=operation,
+            payload_sha256=digest,
+            article_id="",
+            article=created or None,
+            error_kind="unidentified_effect",
+            message=(
+                "Shopify accepted the article create request but returned no "
+                "article id; the effect cannot be identified and is not safe "
+                "to recreate"),
+            verification={
+                "status": "incomplete",
+                "missing_fields": ["remote_id"],
+                "mismatches": [],
+            },
+            evidence={
+                "kind": "shopify_create_article_missing_id",
+                "returned_keys": sorted(created)[:20],
+            },
+        )
+
+    blog_id = _text(payload.get("blog_id"))
+    try:
+        observed = await service.get_article(
+            token, shop, blog_id, article_id)
+    except Exception as exc:  # noqa: BLE001 - absent readback is not success
+        return _article_uncertain(
+            shop=shop,
+            operation_id=operation,
+            payload_sha256=digest,
+            article_id=article_id,
+            article=created,
+            error_kind="readback_unavailable",
+            message=(
+                "Shopify article was created but the exact resource could "
+                f"not be read back ({type(exc).__name__})"),
+            verification={
+                "status": "incomplete",
+                "missing_fields": ["readback"],
+                "mismatches": [],
+            },
+            evidence={
+                "kind": "shopify_create_article_readback_unavailable",
+                "remote_id": article_id,
+                "error": f"{type(exc).__name__}: {str(exc)[:300]}",
+            },
+        )
+
+    observed = observed if isinstance(observed, dict) else {}
+    observed_material = observed_article_material(observed)
+    observed_id = str(observed.get("id") or "").strip()
+    mismatches = material_mismatches(expected_material, observed_material)
+    if observed_id != article_id:
+        mismatches.append("remote_id")
+    read_receipt = {
+        "provider": "shopify",
+        "operation": "get_article",
+        "resource_id": observed_id,
+        "requested_remote_id": article_id,
+        "observed_remote_id": observed_id,
+        "coverage": "single",
+        "account_id": shop,
+        "shop": shop,
+        "fields": observed_material,
+    }
+    if mismatches:
+        return _article_uncertain(
+            shop=shop,
+            operation_id=operation,
+            payload_sha256=digest,
+            article_id=article_id,
+            article=observed or created,
+            error_kind="readback_mismatch",
+            message=(
+                "The Shopify readback did not match the accepted article "
+                "material: " + ", ".join(mismatches)),
+            verification={
+                "status": "mismatch",
+                "missing_fields": [],
+                "mismatches": mismatches,
+            },
+            read_receipt=read_receipt,
+            evidence={
+                "kind": "shopify_create_article_readback_mismatch",
+                "remote_id": article_id,
+                "observed_remote_id": observed_id,
+                "mismatches": mismatches,
+            },
+        )
+
+    return _article_applied(
+        shop=shop,
+        operation_id=operation,
+        payload_sha256=digest,
+        article_id=article_id,
+        article=observed or created,
         read_receipt=read_receipt,
     )
