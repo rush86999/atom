@@ -1,0 +1,96 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-07 11:45:06 [    INFO] MCP Service initialized
+
+tests/test_lead_shopify_fulfillment_rest_shape.py::test_official_fulfillment_rest_shape_is_usable 
+-------------------------------- live log setup --------------------------------
+2026-11-07 11:45:07 [    INFO] EscalationManager initialized
+2026-11-07 11:45:07 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 11:45:07 [    INFO] EscalationManager initialized
+2026-11-07 11:45:07 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 11:45:07 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 11:45:07 [    INFO] AgentTaskRegistry initialized
+FAILED                                                                   [ 20%]
+tests/test_lead_shopify_fulfillment_rest_shape.py::test_wrong_fulfilled_quantity_cannot_borrow_remaining_quantity FAILED [ 40%]
+tests/test_lead_shopify_fulfillment_rest_shape.py::test_contradictory_fulfillment_order_parent_refuses_before_post FAILED [ 60%]
+tests/test_lead_shopify_fulfillment_rest_shape.py::test_failed_fulfillment_status_is_not_verified FAILED [ 80%]
+tests/test_lead_shopify_fulfillment_rest_shape.py::test_fulfillment_read_uses_documented_parent_order_endpoint FAILED [100%]
+
+=================================== FAILURES ===================================
+E   AssertionError: {'status': 'uncertain', 'success': False, 'action_result': 'uncertain', 'effect_possible': True, ...}
+    assert False is True
+     +  where False = <built-in method get of dict object at 0x12bcaaa00>('oracle_verified')
+     +    where <built-in method get of dict object at 0x12bcaaa00> = {'status': 'uncertain', 'success': False, 'action_result': 'uncertain', 'effect_possible': True, ...}.get
+------------------------------ Captured log setup ------------------------------
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.embedding_service:embedding_service.py:131 Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+INFO     core.agent_task_registry:agent_task_registry.py:64 AgentTaskRegistry initialized
+/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/fulfillment-failure-first-ywpvdiqf/source/backend/tests/test_lead_shopify_fulfillment_rest_shape.py:31: AssertionError: {'status': 'uncertain', 'success': False, 'action_result': 'uncertain', 'effect_possible': True, ...}
+E   AssertionError: {'status': 'success', 'success': True, 'action_result': 'applied', 'provider': 'shopify', ...}
+    assert True is not True
+     +  where True = <built-in method get of dict object at 0x12bcaca80>('oracle_verified')
+     +    where <built-in method get of dict object at 0x12bcaca80> = {'status': 'success', 'success': True, 'action_result': 'applied', 'provider': 'shopify', ...}.get
+/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/fulfillment-failure-first-ywpvdiqf/source/backend/tests/test_lead_shopify_fulfillment_rest_shape.py:49: AssertionError: {'status': 'success', 'success': True, 'action_result': 'applied', 'provider': 'shopify', ...}
+E   AssertionError: contradictory source parent was dispatched
+    assert 1 == 0
+     +  where 1 = len([{'url': 'https://scratch-fulfillment.myshopify.com/admin/api/2026-07/fulfillments.json', 'json': {'fulfillment': {'line_items_by_fulfillment_order': [{'fulfillment_order_id': 'fo-1'}, {'fulfillment_order_id': 'fo-2'}], 'notify_customer': False, 'tracking_info': {'number': 'TRACK-123', 'company': 'UPS'}}}}])
+     +    where [{'url': 'https://scratch-fulfillment.myshopify.com/admin/api/2026-07/fulfillments.json', 'json': {'fulfillment': {'line_items_by_fulfillment_order': [{'fulfillment_order_id': 'fo-1'}, {'fulfillment_order_id': 'fo-2'}], 'notify_customer': False, 'tracking_info': {'number': 'TRACK-123', 'company': 'UPS'}}}}] = <tests.test_oracle_shopify_fulfillment_create.FakeShopifyTransport object at 0x12bb92e90>.posts
+/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/fulfillment-failure-first-ywpvdiqf/source/backend/tests/test_lead_shopify_fulfillment_rest_shape.py:60: AssertionError: contradictory source parent was dispatched
+E   AssertionError: {'status': 'success', 'success': True, 'action_result': 'applied', 'provider': 'shopify', ...}
+    assert True is not True
+     +  where True = <built-in method get of dict object at 0x12be1d5c0>('oracle_verified')
+     +    where <built-in method get of dict object at 0x12be1d5c0> = {'status': 'success', 'success': True, 'action_result': 'applied', 'provider': 'shopify', ...}.get
+/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/fulfillment-failure-first-ywpvdiqf/source/backend/tests/test_lead_shopify_fulfillment_rest_shape.py:77: AssertionError: {'status': 'success', 'success': True, 'action_result': 'applied', 'provider': 'shopify', ...}
+E   AssertionError: ['https://scratch-fulfillment.myshopify.com/admin/api/2026-07/fulfillments/1100.json', 'https://scratch-fulfillment.myshopify.com/admin/api/2026-07/fulfillments/1100.json']
+    assert (['https://scratch-fulfillment.myshopify.com/admin/api/2026-07/fulfillments/1100.json', 'https://scratch-fulfillment.myshopify.com/admin/api/2026-07/fulfillments/1100.json'] and False)
+     +  where False = all(<generator object test_fulfillment_read_uses_documented_parent_order_endpoint.<locals>.<genexpr> at 0x12b80ac20>)
+/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/fulfillment-failure-first-ywpvdiqf/source/backend/tests/test_lead_shopify_fulfillment_rest_shape.py:88: AssertionError: ['https://scratch-fulfillment.myshopify.com/admin/api/2026-07/fulfillments/1100.json', 'https://scratch-fulfillment.myshopify.com/admin/api/2026-07/fulfillments/1100.json']
+=============================== warnings summary ===============================
+../../../../../../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../../../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../../../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 10 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_lead_shopify_fulfillment_rest_shape.py::test_official_fulfillment_rest_shape_is_usable
+  /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/fulfillment-failure-first-ywpvdiqf/source/backend/core/graphrag_engine.py:203: SyntaxWarning: "\%" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\%"? A raw string is also an option.
+    Escaped pattern where % and _ are escaped to \%
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /private/tmp/atom-shopify-product-lead-review/docs/acceptance/evidence/shopify_fulfillment_lead_repair_20261107/failure-first.xml -
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_lead_shopify_fulfillment_rest_shape.py::test_official_fulfillment_rest_shape_is_usable
+FAILED tests/test_lead_shopify_fulfillment_rest_shape.py::test_wrong_fulfilled_quantity_cannot_borrow_remaining_quantity
+FAILED tests/test_lead_shopify_fulfillment_rest_shape.py::test_contradictory_fulfillment_order_parent_refuses_before_post
+FAILED tests/test_lead_shopify_fulfillment_rest_shape.py::test_failed_fulfillment_status_is_not_verified
+FAILED tests/test_lead_shopify_fulfillment_rest_shape.py::test_fulfillment_read_uses_documented_parent_order_endpoint
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 5 failed, 17 warnings in 12.94s ========================

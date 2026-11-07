@@ -370,6 +370,15 @@ def oracle_request_binding(
                     f"{payload.get('title') or ''}"),
                 "payload_sha256": _payload_digest(payload),
             })
+        elif name.endswith("shopify_create_fulfillment"):
+            from core.shopify_mutations import fulfillment_payload
+
+            payload = fulfillment_payload(args)
+            binding.update({
+                "provider": "shopify",
+                "target": str(payload.get("order_id") or ""),
+                "payload_sha256": _payload_digest(payload),
+            })
     except Exception:  # noqa: BLE001 - malformed arguments stay unbound
         return binding
     return binding

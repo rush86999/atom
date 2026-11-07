@@ -863,6 +863,9 @@ class TestRadioSendMessage:
         thread = RadioThread(id="th-1")
         db = RadioFakeDb(first_rows={"AgentThread": thread})
         db.first_sequences["AgentThread"] = [thread, thread]
+        # The producer re-reads the exact LateralMessage id; the fake DB's
+        # first() for that model returns the row appended by the real service.
+        db.first_sequences["LateralMessage"] = db.added
         patch_db(monkeypatch, db)
         result = await radio_actions.radio_send_message(
             {
@@ -888,6 +891,7 @@ class TestRadioSendMessage:
         thread = RadioThread(id="th-1")
         db = RadioFakeDb(first_rows={"AgentThread": thread})
         db.first_sequences["AgentThread"] = [thread, thread]
+        db.first_sequences["LateralMessage"] = db.added
         patch_db(monkeypatch, db)
         result = await radio_actions.radio_send_message(
             {

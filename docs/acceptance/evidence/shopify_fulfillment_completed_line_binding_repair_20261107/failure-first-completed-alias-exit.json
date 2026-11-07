@@ -1,0 +1,26 @@
+{
+  "command": [
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "tests/test_lead_shopify_fulfillment_rest_shape.py::test_completed_official_line_id_cannot_be_overridden_by_optional_line_item_id",
+    "-q",
+    "--basetemp",
+    "/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/fulfillment-completed-failure-first-completed-alias-6t7iqk2o/basetemp",
+    "-p",
+    "no:cacheprovider",
+    "--junitxml=/private/tmp/atom-shopify-product-lead-review/docs/acceptance/evidence/shopify_fulfillment_completed_line_binding_repair_20261107/failure-first-completed-alias.xml"
+  ],
+  "counts": {
+    "failed": 1
+  },
+  "cwd": "/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/fulfillment-completed-failure-first-completed-alias-6t7iqk2o/source/backend",
+  "database_url": "sqlite:////var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/fulfillment-completed-failure-first-completed-alias-6t7iqk2o/scratch.db",
+  "exit_code": 1,
+  "finished_utc": "2026-11-07T17:09:28.727030+00:00",
+  "phase": "failure-first-completed-alias",
+  "source_revision": "147e66c29",
+  "source_revision_meaning": "pre-repair source extracted from git",
+  "started_utc": "2026-11-07T17:09:13.114486+00:00",
+  "testing": "1"
+}

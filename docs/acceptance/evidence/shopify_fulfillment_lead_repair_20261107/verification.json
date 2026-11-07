@@ -1,0 +1,85 @@
+{
+  "packet": "shopify_fulfillment_lead_repair_20261107",
+  "source_revision_failure_first": "c001461118cc58737b3d6fe1c58f453b77dfece7",
+  "runtime_repair_commit": "c5dbcb68ec0b4482b462472ce280ab6ee76a8326",
+  "branch": "codex/shopify-fulfillment-lead-review-20261107",
+  "permanent_control": "backend/tests/test_lead_shopify_fulfillment_rest_shape.py",
+  "contracts": [
+    {
+      "id": 1,
+      "contract": "official Fulfillment shape without fabricated fulfillment_order_id/fulfillment_orders",
+      "implementation": [
+        "backend/core/shopify_mutations.py:observed_fulfillment_material",
+        "backend/core/shopify_mutations.py:authoritative_fulfillment_order_ids",
+        "backend/integrations/shopify_service.py:get_fulfillment_order_fulfillments"
+      ],
+      "evidence": [
+        "test_official_fulfillment_rest_shape_is_usable",
+        "test_exact_fulfillment_create_is_independently_verified"
+      ]
+    },
+    {
+      "id": 2,
+      "contract": "planning remaining quantity and observed completed quantity are separate namespaces",
+      "implementation": [
+        "backend/core/shopify_mutations.py:_fulfillment_planned_quantity",
+        "backend/core/shopify_mutations.py:_fulfillment_completed_quantity",
+        "backend/core/shopify_mutations.py:fulfillment_plan_mismatches"
+      ],
+      "evidence": [
+        "test_wrong_fulfilled_quantity_cannot_borrow_remaining_quantity",
+        "test_dispatch_material_must_match_readback"
+      ]
+    },
+    {
+      "id": 3,
+      "contract": "contradictory source parent/material/location/line identity refuses before POST",
+      "implementation": [
+        "backend/integrations/shopify_service.py:_validate_fulfillment_order_material"
+      ],
+      "evidence": [
+        "test_contradictory_fulfillment_order_parent_refuses_before_post",
+        "test_create_fulfillment_contradictory_parent_never_posts"
+      ]
+    },
+    {
+      "id": 4,
+      "contract": "only success status is verified; failure/cancelled/pending/open stay unresolved and are not resent",
+      "implementation": [
+        "backend/core/shopify_mutations.py:fulfillment_status_issue",
+        "backend/core/oracle/postcondition_verifiers.py:_verify_shopify_create_fulfillment"
+      ],
+      "evidence": [
+        "test_failed_fulfillment_status_is_not_verified",
+        "test_non_success_fulfillment_status_is_not_business_success"
+      ]
+    },
+    {
+      "id": 5,
+      "contract": "exact read uses parent-order-scoped documented endpoint and propagates through replay",
+      "implementation": [
+        "backend/integrations/shopify_service.py:get_fulfillment",
+        "backend/core/shopify_mutations.py:create_fulfillment",
+        "backend/core/oracle/postcondition_verifiers.py:_verify_shopify_create_fulfillment"
+      ],
+      "evidence": [
+        "test_fulfillment_read_uses_documented_parent_order_endpoint",
+        "test_known_success_replays_exact_resource_without_second_create",
+        "test_restart_fresh_session_reloads_exact_durable_identity"
+      ]
+    }
+  ],
+  "process_results": {
+    "failure_first": {"failed": 5, "passed": 0, "exit_code": 1},
+    "valid": {"passed": 69, "exit_code": 0},
+    "callers": {"passed": 4, "exit_code": 0}
+  },
+  "safety": {
+    "testing": "1",
+    "scratch_sqlite_database": true,
+    "only_http_leaf_doubled": true,
+    "live_calls": false,
+    "credentials_used": false,
+    "notify_customer_is_request_acknowledgement_not_delivery_proof": true
+  }
+}

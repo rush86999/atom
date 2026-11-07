@@ -1,0 +1,96 @@
+$ /usr/local/opt/python@3.14/bin/python3.14 -m pytest tests/test_lead_radio_readback_identity.py tests/test_oracle_radio_send.py::test_known_committed_id_survives_readback_failure tests/test_oracle_radio_send.py::test_replay_after_readback_failure_does_not_resend -q --disable-warnings --junitxml=/private/tmp/atom-agent-job-baseline/docs/acceptance/evidence/oracle_radio_readback_repair_3d69ddc44/failure-first.xml
+cwd=/private/tmp/atom-agent-job-baseline/backend
+
+STDOUT
+
+----------------------------- live log collection ------------------------------
+2026-11-07 11:52:33 [    INFO] MCP Service initialized
+
+tests/test_lead_radio_readback_identity.py::test_committed_message_identity_survives_readback_timeout 
+-------------------------------- live log setup --------------------------------
+2026-11-07 11:52:34 [    INFO] EscalationManager initialized
+2026-11-07 11:52:34 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 11:52:34 [    INFO] EscalationManager initialized
+2026-11-07 11:52:34 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 11:52:34 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 11:52:34 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:52:36 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+FAILED                                                                   [ 20%]
+tests/test_oracle_radio_send.py::test_known_committed_id_survives_readback_failure[timeout] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:52:38 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+FAILED                                                                   [ 40%]
+tests/test_oracle_radio_send.py::test_known_committed_id_survives_readback_failure[runtime] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:52:39 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+FAILED                                                                   [ 60%]
+tests/test_oracle_radio_send.py::test_known_committed_id_survives_readback_failure[radio_error] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:52:41 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+FAILED                                                                   [ 80%]
+tests/test_oracle_radio_send.py::test_replay_after_readback_failure_does_not_resend 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:52:43 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+FAILED                                                                   [100%]
+
+=================================== FAILURES ===================================
+E   AssertionError: known committed identity was discarded
+    assert '' == '931e102c-994...-56789df66c16'
+      
+      - 931e102c-9946-4823-b37f-56789df66c16
+------------------------------ Captured log setup ------------------------------
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.embedding_service:embedding_service.py:131 Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+INFO     core.agent_task_registry:agent_task_registry.py:64 AgentTaskRegistry initialized
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_radio.radio_service:radio_service.py:209 radio: agent-a -> ['agent-b'] on thread-1
+/private/tmp/atom-agent-job-baseline/backend/tests/test_lead_radio_readback_identity.py:17: AssertionError: known committed identity was discarded
+E   AssertionError: {'action_result': 'uncertain', 'effect_possible': True, 'error': 'internal_error', 'error_kind': 'provider_error', ...}
+    assert '' == '72377e30-f45...-d18144975b23'
+      
+      - 72377e30-f454-4c19-807d-d18144975b23
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_radio.radio_service:radio_service.py:209 radio: agent-a -> ['agent-b'] on thread-1
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_radio_send.py:472: AssertionError: {'action_result': 'uncertain', 'effect_possible': True, 'error': 'internal_error', 'error_kind': 'provider_error', ...}
+E   AssertionError: {'action_result': 'uncertain', 'effect_possible': True, 'error': 'internal_error', 'error_kind': 'provider_error', ...}
+    assert '' == 'e8d31478-723...-92646f212138'
+      
+      - e8d31478-723e-4085-b390-92646f212138
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_radio.radio_service:radio_service.py:209 radio: agent-a -> ['agent-b'] on thread-1
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_radio_send.py:472: AssertionError: {'action_result': 'uncertain', 'effect_possible': True, 'error': 'internal_error', 'error_kind': 'provider_error', ...}
+E   AssertionError: {'action_result': 'proven_not_applied', 'effect_possible': False, 'error': 'radio_error', 'error_kind': 'radio_error', ...}
+    assert 'failed_before_effect' == 'uncertain'
+      
+      - uncertain
+      + failed_before_effect
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_radio.radio_service:radio_service.py:209 radio: agent-a -> ['agent-b'] on thread-1
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_radio_send.py:469: AssertionError: {'action_result': 'proven_not_applied', 'effect_possible': False, 'error': 'radio_error', 'error_kind': 'radio_error', ...}
+E   AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_possible': True, ...}
+    assert '' == '3bec195f-449...-944427cd8f6a'
+      
+      - 3bec195f-4497-487f-aec7-944427cd8f6a
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_radio.radio_service:radio_service.py:209 radio: agent-a -> ['agent-b'] on thread-1
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_radio_send.py:495: AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_possible': True, ...}
+- generated xml file: /private/tmp/atom-agent-job-baseline/docs/acceptance/evidence/oracle_radio_readback_repair_3d69ddc44/failure-first.xml -
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_lead_radio_readback_identity.py::test_committed_message_identity_survives_readback_timeout
+FAILED tests/test_oracle_radio_send.py::test_known_committed_id_survives_readback_failure[timeout]
+FAILED tests/test_oracle_radio_send.py::test_known_committed_id_survives_readback_failure[runtime]
+FAILED tests/test_oracle_radio_send.py::test_known_committed_id_survives_readback_failure[radio_error]
+FAILED tests/test_oracle_radio_send.py::test_replay_after_readback_failure_does_not_resend
+======================== 5 failed, 6 warnings in 25.84s ========================
+
+STDERR

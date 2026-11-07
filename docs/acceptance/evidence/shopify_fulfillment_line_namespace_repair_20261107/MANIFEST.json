@@ -1,0 +1,20 @@
+{
+  "files": {
+    "PR_BODY.md": "8cc4dd6d4cae5772717039e0209675e98ba2d452ad4a1d95a65dd665219cfc53",
+    "README.md": "ce193f71d7456fc935ab165792c3b0302da10e3e45eb46998f335402ae4a52ff",
+    "affected-exit.json": "821301e4fbb22d0592357b7c3865ea7396143ce160fe85756d1f480d88d50c03",
+    "affected.log": "b4273ead8ff5905567c8cf03f00c48259c8b215bc70a1784a797c095c20c3b6c",
+    "affected.xml": "cc92b4fa5117f2f6a9508f3e710da7fe6d15a378d4fabbd6536ee6f2367cd4fc",
+    "exact6-exit.json": "810d9abdc109a03b4eeb6e599803f05a8383ec5d77adca59ef242374fbc8f38d",
+    "exact6.log": "1d6ed81fcd7252f9cb8fba47be535d0793406b148389f47fb5cf8a0d322148bf",
+    "exact6.xml": "fb8cd7a21b9da59b31599ea56103522ec0dd8a52c521721fed4fd0badefe68b1",
+    "failure-first-line-namespace-exit.json": "835a991a7ea3eb55073a336d89ccd5ccf1069ef2ce8e9914c109902dc69a395c",
+    "failure-first-line-namespace.log": "d67f822716f41936d13e0a554d918027f9606dae6b6d0f5bc8f1a0470b7ce124",
+    "failure-first-line-namespace.xml": "5e0c790a63ae61067e39750612412725024a8e4477998c80fcb6516a3821896f",
+    "matrix-exit.json": "984a1ebed69e80cf1ad1de6254cc8fc8b5dcad7bb8ac55d7214a7c9a601e769a",
+    "run_and_capture.py": "cd3e20eaf584456c405c29f858546191f7bbc8e32ab472a2faa06bfe47067a2d",
+    "source-binding.json": "cb4e314e9acf7e2e66a52784f85db24e000eb34f37abd82ee0ec50fb087ef146",
+    "verification.json": "b908476909dd8d55c0dbc0823ea6f183e2bfcb28a127343d7a8962179573d660"
+  },
+  "packet": "shopify_fulfillment_line_namespace_repair_20261107"
+}

@@ -1,0 +1,14 @@
+{
+  "packet": "oracle_radio_send_ed97452f8",
+  "files": {
+    "README.md": "57c745f0105fd48e986ae7b37f8e3560e82630a55b0cdc9909359265ebffe17f",
+    "failure-first-exit.json": "e88417f634fce8cde8e91cf15ec9ca1cec1e7e742622aa38d687bc8f1fb6a783",
+    "failure-first.log": "1745da84194bf3b2c838aceb3b4ff60c10513351ff5a19c3b57fa17358a4950e",
+    "failure-first.xml": "7fd5b26edd6cf406a21ce03d139efb36041517004d7391b3b821d625f71cc5c6",
+    "focused-exit.json": "4a2f6b0e4d1e63cafdd0fcad0230c14f2d4121c28c706897f2df0ba2057a67e2",
+    "focused.log": "7edf9888162a6d38fee21f1b8842c6f551e267ec04b0fb37201bb57a2b6aa601",
+    "focused.xml": "086e1cbd566e3048641795c09df2ea892498a259f4337f99bcab5e603517b809",
+    "run_and_capture.py": "3cfb26cd81a4e51f17e7c59859691c4f7343bef5fd96d06d7b9d8c95dda8105c",
+    "verification.json": "0bcd97ea261a68ed5d22f26182696a6b736c7b976245eaa8b4afb23879c918ed"
+  }
+}

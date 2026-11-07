@@ -1,0 +1,13 @@
+{
+  "target": "1f1d410ef39177f00008f20f925a0ebfcdbf135b",
+  "compared_production_files": 10,
+  "functions_compared_including_decorators": 346,
+  "unreviewed_function_bodies": [],
+  "main_functions_removed": [],
+  "canonical_main_runtime_preserved": true,
+  "composed_function_review": {
+    "function": "build_request_expectations",
+    "proof": "entire file equals frozen750 plus exact frozen749 radio binding block and return key; no other changes",
+    "passed": true
+  }
+}

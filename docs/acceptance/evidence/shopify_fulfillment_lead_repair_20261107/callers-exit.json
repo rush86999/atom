@@ -1,0 +1,29 @@
+{
+  "command": [
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "tests/test_covpush_saaspair.py::test_shopify_fulfillments",
+    "tests/test_covpush_saaspair.py::test_shopify_create_fulfillment_minimal",
+    "tests/test_covpush_intgr_b.py::TestShopifyService::test_write_operations",
+    "tests/test_covpush_w87_freshdesk_trello_shopify.py::test_sh_write_endpoints",
+    "-q",
+    "--basetemp",
+    "/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/fulfillment-callers-2doyesdo/basetemp",
+    "-p",
+    "no:cacheprovider",
+    "--junitxml=/private/tmp/atom-shopify-product-lead-review/docs/acceptance/evidence/shopify_fulfillment_lead_repair_20261107/callers.xml"
+  ],
+  "counts": {
+    "passed": 4
+  },
+  "cwd": "/private/tmp/atom-shopify-product-lead-review/backend",
+  "database_url": "sqlite:////var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/fulfillment-callers-2doyesdo/scratch.db",
+  "exit_code": 0,
+  "finished_utc": "2026-11-07T16:46:39.959097+00:00",
+  "phase": "callers",
+  "source_revision": "c5dbcb68ec0b4482b462472ce280ab6ee76a8326",
+  "source_revision_meaning": "current repair working tree",
+  "started_utc": "2026-11-07T16:46:25.880597+00:00",
+  "testing": "1"
+}
