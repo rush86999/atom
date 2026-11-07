@@ -57,6 +57,15 @@ def get_runtime():
     return _get()
 
 
+class LogicConflict(RuntimeError):
+    """A conditional logic save lost its prior-material binding.
+
+    Raised when the guarded DML matches zero rows because a peer changed or
+    deleted the logic row after this invocation read it. The caller must report
+    a truthful no-effect conflict and append no receipt.
+    """
+
+
 class CanvasLogicService:
     """Save/load/run per-canvas server-side logic."""
 
@@ -73,8 +82,18 @@ class CanvasLogicService:
         source: str,
         language: str = "python",
         created_by: Optional[str] = None,
+        *,
+        commit: bool = True,
+        require_cas: bool = False,
     ) -> Dict[str, Any]:
-        """Upsert the logic row for ``canvas_id``."""
+        """Upsert the logic row for ``canvas_id``.
+
+        ``require_cas`` binds the write to the exact prior row/material this
+        invocation read: the update only lands when the row id and prior source
+        are still current. A zero-row match raises :class:`LogicConflict` and
+        leaves the peer's row untouched. ``commit=False`` lets a caller add its
+        receipt in the same transaction as the write.
+        """
         from core.models import CanvasLogic
 
         row = (
@@ -90,13 +109,84 @@ class CanvasLogicService:
                 created_by=created_by,
             )
             self.db.add(row)
-        else:
-            row.source = source
-            row.language = language
+            if commit:
+                self.db.commit()
+                self.db.refresh(row)
+            else:
+                # Flush only this new row, never another caller's dirty state.
+                self.db.flush([row])
+            return {
+                "id": row.id,
+                "canvas_id": row.canvas_id,
+                "language": row.language,
+                "source": row.source,
+            }
+        if require_cas:
+            from sqlalchemy import func, update
+
+            # Bind EVERY prior qualifier this write replaces: row identity,
+            # source, language, and nullable creator. A same-source peer
+            # language/creator change must make this write zero-effect rather
+            # than being silently overwritten.
+            predicates = [
+                CanvasLogic.id == row.id,
+                CanvasLogic.canvas_id == canvas_id,
+            ]
+            if row.source is None:
+                predicates.append(CanvasLogic.source.is_(None))
+            else:
+                predicates.append(CanvasLogic.source == row.source)
+            if row.language is None:
+                predicates.append(CanvasLogic.language.is_(None))
+            else:
+                predicates.append(CanvasLogic.language == row.language)
+            if row.created_by is None:
+                predicates.append(CanvasLogic.created_by.is_(None))
+            else:
+                predicates.append(CanvasLogic.created_by == row.created_by)
+            values: Dict[str, Any] = {
+                "source": source,
+                "language": language,
+                "updated_at": func.now(),
+            }
             if created_by is not None:
-                row.created_by = created_by
-        self.db.commit()
-        self.db.refresh(row)
+                values["created_by"] = created_by
+            result = self.db.execute(
+                update(CanvasLogic)
+                .where(*predicates)
+                .values(**values)
+                .execution_options(synchronize_session=False)
+            )
+            if int(result.rowcount or 0) != 1:
+                if commit:
+                    self.db.rollback()
+                raise LogicConflict(
+                    "mini-app logic changed after it was read")
+            if commit:
+                self.db.commit()
+                self.db.expire(row)
+                self.db.refresh(row)
+                return {
+                    "id": row.id,
+                    "canvas_id": row.canvas_id,
+                    "language": row.language,
+                    "source": row.source,
+                }
+            return {
+                "id": row.id,
+                "canvas_id": canvas_id,
+                "language": language,
+                "source": source,
+            }
+        row.source = source
+        row.language = language
+        if created_by is not None:
+            row.created_by = created_by
+        if commit:
+            self.db.commit()
+            self.db.refresh(row)
+        else:
+            self.db.flush()
         return {
             "id": row.id,
             "canvas_id": row.canvas_id,

@@ -6437,6 +6437,9 @@ async def _action_registry_adapter(
         "assignment_id": context.get("assignment_id"),
         "agent_id": context.get("agent_id"),
         "tenant_id": context.get("tenant_id"),
+        # Propagate the caller's declared operating tier; registered handlers
+        # such as mini_app_db_write enforce their own tier floor from it.
+        "tier": context.get("tier"),
         "task_revision": (context.get("task_revision") or {}).get(
             "revision"),
         "operation_id": str(
@@ -6659,9 +6662,13 @@ async def _action_registry_adapter(
     expected_actor_id = str(
         context.get("employee_id") or context.get("user_id")
         or authorized_arguments.get("user_id") or "")
+    _mini_app_app_actions = {
+        "mini_app_set_tests", "mini_app_write_logic", "mini_app_publish",
+        "mini_app_install", "mini_app_revert_logic",
+    }
     expected_app_id = (
         str(authorized_arguments.get("app_id") or "")
-        if name == "mini_app_set_tests" else "")
+        if name in _mini_app_app_actions else "")
     expected_tests_sha256 = ""
     if name == "mini_app_set_tests":
         try:
@@ -6669,6 +6676,50 @@ async def _action_registry_adapter(
                 authorized_arguments.get("tests"))
         except Exception:  # noqa: BLE001 - verifier refuses absent binding
             expected_tests_sha256 = ""
+    # Mini-app host-mutation material frozen from the authorized request. The
+    # handler receives a separate deep copy, so these fields cannot be changed
+    # by a handler's own return payload or in-place edits.
+    expected_mini_app_name = ""
+    expected_mini_app_declared_scopes: list = []
+    expected_mini_app_dependencies: list = []
+    expected_mini_app_spec: Dict[str, Any] = {}
+    expected_mini_app_source_sha256 = ""
+    expected_mini_app_version = ""
+    expected_db_op = ""
+    expected_db_series = None
+    expected_db_data = None
+    expected_db_record_id = ""
+    expected_db_append_id = ""
+    expected_db_filter: Dict[str, Any] = {}
+    if name == "mini_app_scaffold":
+        expected_mini_app_name = str(authorized_arguments.get("name") or "")
+        expected_mini_app_declared_scopes = [
+            str(s) for s in (authorized_arguments.get("declared_scopes") or [])]
+        expected_mini_app_dependencies = [
+            str(d) for d in (authorized_arguments.get("dependencies") or [])]
+        spec = authorized_arguments.get("spec")
+        expected_mini_app_spec = dict(spec) if isinstance(spec, dict) else {}
+    elif name == "mini_app_write_logic":
+        source = authorized_arguments.get("source")
+        if isinstance(source, str):
+            try:
+                from core.mini_app_service import logic_source_sha256
+
+                expected_mini_app_source_sha256 = logic_source_sha256(source)
+            except Exception:  # noqa: BLE001 - verifier refuses absent binding
+                expected_mini_app_source_sha256 = ""
+    elif name == "mini_app_revert_logic":
+        expected_mini_app_version = str(
+            authorized_arguments.get("version"))
+    elif name == "mini_app_db_write":
+        expected_db_op = str(authorized_arguments.get("op") or "")
+        expected_db_series = authorized_arguments.get("series")
+        expected_db_data = authorized_arguments.get("data")
+        expected_db_record_id = str(
+            authorized_arguments.get("record_id") or "")
+        expected_db_append_id = str(authorized_arguments.get("id") or "")
+        filt = authorized_arguments.get("filter")
+        expected_db_filter = dict(filt) if isinstance(filt, dict) else {}
     oracle_context = {
         **authorized_arguments,
         **payload,
@@ -6700,6 +6751,21 @@ async def _action_registry_adapter(
             authorized_arguments.get("tests")
             if name == "mini_app_set_tests" else None),
         "_oracle_expected_tests_sha256": expected_tests_sha256,
+        "_oracle_expected_mini_app_name": expected_mini_app_name,
+        "_oracle_expected_mini_app_declared_scopes": (
+            expected_mini_app_declared_scopes),
+        "_oracle_expected_mini_app_dependencies": (
+            expected_mini_app_dependencies),
+        "_oracle_expected_mini_app_spec": expected_mini_app_spec,
+        "_oracle_expected_mini_app_source_sha256": (
+            expected_mini_app_source_sha256),
+        "_oracle_expected_mini_app_version": expected_mini_app_version,
+        "_oracle_expected_db_op": expected_db_op,
+        "_oracle_expected_db_series": expected_db_series,
+        "_oracle_expected_db_data": expected_db_data,
+        "_oracle_expected_db_record_id": expected_db_record_id,
+        "_oracle_expected_db_append_id": expected_db_append_id,
+        "_oracle_expected_db_filter": expected_db_filter,
     }
     oracle_db = context.get("db") or context.get("session")
     if oracle_db is not None:

@@ -84,6 +84,21 @@ def _auth_error() -> Dict[str, Any]:
     return {"success": False, "error": "Authenticated user is required"}
 
 
+def _request_sha256(args: Dict[str, Any]) -> str:
+    """Frozen digest of the authorized action arguments (best effort).
+
+    The assignment adapter computes the same digest before dispatch; the
+    producer stamps it into its receipt so an independent verifier can prove
+    THIS request produced the effect, not merely an identical old state.
+    """
+    try:
+        from core.task_lifecycle import _approval_payload_hash
+
+        return _approval_payload_hash(args)
+    except Exception:  # noqa: BLE001 - a receipt without a binding is refused
+        return ""
+
+
 # ---------------------------------------------------------------------------
 # Authoring loop (the harness)
 # ---------------------------------------------------------------------------
@@ -95,7 +110,8 @@ async def mini_app_scaffold(args: Dict[str, Any], context: Dict[str, Any]) -> Di
     name = (args.get("name") or "").strip()
     if not name:
         return {"success": False, "error": "name is required"}
-    spec = args.get("spec") or {}
+    request_sha256 = _request_sha256(args)
+    spec = dict(args.get("spec") or {})
     declared_scopes = [str(s) for s in (args.get("declared_scopes") or [])]
     dependencies = [str(d) for d in (args.get("dependencies") or [])]
     if "base_image" in spec and not spec.get("base_image"):
@@ -108,6 +124,7 @@ async def mini_app_scaffold(args: Dict[str, Any], context: Dict[str, Any]) -> Di
         with get_db_session() as db:
             from core.models import MiniApp
 
+            receipt: Dict[str, Any] = {}
             app, canvas_id = scaffold(
                 spec=spec,
                 name=name,
@@ -115,6 +132,9 @@ async def mini_app_scaffold(args: Dict[str, Any], context: Dict[str, Any]) -> Di
                 dependencies=dependencies,
                 viewer=viewer,
                 db=db,
+                operation_id=str(context.get("operation_id") or ""),
+                request_sha256=request_sha256,
+                receipt_out=receipt,
             )
             # Re-query for a fresh attached instance: the caller's session may
             # expire attributes on commit (expire_on_commit=True), which would
@@ -133,6 +153,8 @@ async def mini_app_scaffold(args: Dict[str, Any], context: Dict[str, Any]) -> Di
             "name": app.name,
             "logic_source": logic_source,
             "manifest": manifest,
+            "audit_id": receipt.get("audit_id"),
+            "operation_id": str(context.get("operation_id") or ""),
             "message": f"Scaffolded mini-app '{name}' — edit logic, dev-run, then publish",
         }
     except ValueError as e:
@@ -154,10 +176,15 @@ async def mini_app_write_logic(args: Dict[str, Any], context: Dict[str, Any]) ->
     source = args.get("source") or ""
     if not app_id:
         return {"success": False, "error": "app_id is required"}
+    if not isinstance(source, str):
+        return {"success": False, "error": "source must be a string"}
+    request_sha256 = _request_sha256(args)
     try:
-        from core.canvas_logic_service import CanvasLogicService
+        from core.canvas_logic_service import CanvasLogicService, LogicConflict
         from core.database import get_db_session
-        from core.mini_app_service import record_logic_snapshot, syntax_check
+        from core.mini_app_service import (
+            logic_source_sha256, record_logic_snapshot, syntax_check,
+        )
         from core.models import MiniApp
 
         with get_db_session() as db:
@@ -172,12 +199,30 @@ async def mini_app_write_logic(args: Dict[str, Any], context: Dict[str, Any]) ->
                 syntax_check(source)
             except SyntaxError as e:
                 return {"success": False, "error": f"SyntaxError: {e}"}
-            CanvasLogicService(db).save_logic(
-                canvas_id=app.blueprint_canvas_id,
-                source=source,
-                created_by=viewer.id,
-            )
+            try:
+                CanvasLogicService(db).save_logic(
+                    canvas_id=app.blueprint_canvas_id,
+                    source=source,
+                    created_by=viewer.id,
+                    commit=False,
+                    require_cas=True,
+                )
+            except LogicConflict:
+                return {
+                    "success": False,
+                    "status": "error",
+                    "action_result": "proven_not_applied",
+                    "error": "mini_app_logic_changed",
+                    "error_kind": "logic_changed",
+                    "conflict": True,
+                    "retryable": False,
+                    "message": (
+                        "The mini-app logic changed after it was read; "
+                        "nothing was written."),
+                }
             # Checkpoint the save so the agent can list/revert logic versions.
+            # The checkpoint row is the receipt for THIS operation and commits
+            # in the same transaction as the controller write above.
             snapshot = record_logic_snapshot(
                 db,
                 canvas_id=app.blueprint_canvas_id,
@@ -185,11 +230,20 @@ async def mini_app_write_logic(args: Dict[str, Any], context: Dict[str, Any]) ->
                 app_id=app.id,
                 source=source,
                 actor_id=viewer.id,
+                operation_id=str(context.get("operation_id") or ""),
+                request_sha256=request_sha256,
+                source_sha256=logic_source_sha256(source),
+                commit=False,
             )
+            db.commit()
         return {
             "success": True,
             "app_id": app_id,
+            "canvas_id": app.blueprint_canvas_id,
             "version": snapshot["version"],
+            "source_sha256": logic_source_sha256(source),
+            "audit_id": snapshot.get("audit_id"),
+            "operation_id": str(context.get("operation_id") or ""),
             "message": f"Logic saved (syntax OK, checkpoint v{snapshot['version']})",
         }
     except Exception as e:  # noqa: BLE001
@@ -261,6 +315,7 @@ async def mini_app_publish(args: Dict[str, Any], context: Dict[str, Any]) -> Dic
     app_id = args.get("app_id")
     if not app_id:
         return {"success": False, "error": "app_id is required"}
+    request_sha256 = _request_sha256(args)
     try:
         from core.database import get_db_session
         from core.mini_app_service import publish
@@ -272,11 +327,21 @@ async def mini_app_publish(args: Dict[str, Any], context: Dict[str, Any]) -> Dic
                 return {"success": False, "error": f"MiniApp {app_id} not found"}
             if str(app.created_by) != viewer.id:
                 return {"success": False, "error": "Not the app owner"}
-            result = publish(app, db)
+            result = publish(
+                app, db,
+                operation_id=str(context.get("operation_id") or ""),
+                request_sha256=request_sha256,
+                actor_id=viewer.id,
+            )
+        if result.get("success") is False:
+            return result
         return {
             "success": True,
             "app_id": app_id,
             "version": result.get("version"),
+            "is_public": result.get("is_public"),
+            "audit_id": result.get("audit_id"),
+            "operation_id": str(context.get("operation_id") or ""),
             "message": f"Mini-app {app_id} published (v{result.get('version')})",
         }
     except RuntimeError as e:
@@ -296,6 +361,7 @@ async def mini_app_install(args: Dict[str, Any], context: Dict[str, Any]) -> Dic
     app_id = args.get("app_id")
     if not app_id:
         return {"success": False, "error": "app_id is required"}
+    request_sha256 = _request_sha256(args)
     try:
         from core.database import get_db_session
         from core.mini_app_service import install
@@ -312,11 +378,20 @@ async def mini_app_install(args: Dict[str, Any], context: Dict[str, Any]) -> Dic
                 if bool(app.is_public) and not bool(getattr(app, "is_approved", False)):
                     return {"success": False, "error": "App is pending review"}
                 return {"success": False, "error": "Not authorized to install this app"}
-            canvas_id = install(app, viewer, db)
+            receipt: Dict[str, Any] = {}
+            canvas_id = install(
+                app, viewer, db,
+                operation_id=str(context.get("operation_id") or ""),
+                request_sha256=request_sha256,
+                receipt_out=receipt,
+            )
         return {
             "success": True,
             "app_id": app_id,
             "canvas_id": canvas_id,
+            "installed_version": receipt.get("installed_version"),
+            "audit_id": receipt.get("audit_id"),
+            "operation_id": str(context.get("operation_id") or ""),
             "message": f"Installed mini-app '{app.name}' — instance canvas {canvas_id}",
         }
     except ValueError as e:
@@ -675,7 +750,9 @@ async def mini_app_revert_logic(args: Dict[str, Any], context: Dict[str, Any]) -
         return {"success": False, "error": "app_id is required"}
     if version is None:
         return {"success": False, "error": "version is required"}
+    request_sha256 = _request_sha256(args)
     try:
+        from core.canvas_logic_service import LogicConflict
         from core.database import get_db_session
         from core.mini_app_service import revert_logic
         from core.models import MiniApp
@@ -686,11 +763,35 @@ async def mini_app_revert_logic(args: Dict[str, Any], context: Dict[str, Any]) -
                 return {"success": False, "error": f"MiniApp {app_id} not found"}
             if str(app.created_by) != viewer.id:
                 return {"success": False, "error": "Not the app owner"}
-            result = revert_logic(app, db, int(version), actor_id=viewer.id)
+            try:
+                result = revert_logic(
+                    app, db, int(version), actor_id=viewer.id,
+                    operation_id=str(context.get("operation_id") or ""),
+                    request_sha256=request_sha256,
+                )
+            except LogicConflict:
+                return {
+                    "success": False,
+                    "status": "error",
+                    "action_result": "proven_not_applied",
+                    "error": "mini_app_logic_changed",
+                    "error_kind": "logic_changed",
+                    "conflict": True,
+                    "retryable": False,
+                    "message": (
+                        "The mini-app logic changed after it was read; "
+                        "the revert wrote nothing."),
+                }
         return {
             "success": True,
             "app_id": app_id,
+            "canvas_id": app.blueprint_canvas_id,
             "version": result["version"],
+            "reverted_to": result.get("reverted_to"),
+            "target_audit_id": result.get("target_audit_id"),
+            "source_sha256": result.get("source_sha256"),
+            "audit_id": result.get("audit_id"),
+            "operation_id": str(context.get("operation_id") or ""),
             "message": f"Reverted logic to checkpoint v{result['version']}",
         }
     except ValueError as e:
@@ -852,6 +953,7 @@ async def mini_app_db_write(args: Dict[str, Any], context: Dict[str, Any]) -> Di
     tier_err = _require_tier(context, "supervised")
     if tier_err:
         return {"success": False, "error": tier_err}
+    request_sha256 = _request_sha256(args)
     try:
         from core.database import get_db_session
         from core.mini_app_db_service import db_store_enabled, validate_series
@@ -896,8 +998,56 @@ async def mini_app_db_write(args: Dict[str, Any], context: Dict[str, Any]) -> Di
                 valid, db, canvas, app, created_by=viewer.id,
                 max_records=db_cfg.get("max_records_per_series", DEFAULT_MAX_RECORDS_PER_SERIES),
                 max_record_bytes=max_bytes,
+                receipt={
+                    "operation_id": str(context.get("operation_id") or ""),
+                    "request_sha256": request_sha256,
+                    "actor_id": viewer.id,
+                    "workspace_id": str(
+                        context.get("workspace_id")
+                        or getattr(canvas, "workspace_id", None) or ""),
+                    "requested_id": args.get("id"),
+                    "requested_record_id": args.get("record_id"),
+                    "requested_filter": args.get("filter") or {},
+                    "requested_series": args.get("series"),
+                },
             )
-            return {"success": bool(result.get("ok")), **result}
+            if result.get("ok"):
+                return {
+                    "success": True,
+                    "canvas_id": canvas.id,
+                    "audit_id": result.get("audit_id"),
+                    "operation_id": str(context.get("operation_id") or ""),
+                    **result,
+                }
+            error = str(result.get("error") or "")
+            if error in {"not_found", "conflict", "series_cap", "size_cap"}:
+                return {
+                    "success": False,
+                    "canvas_id": canvas.id,
+                    "action_result": "proven_not_applied",
+                    "error_kind": (
+                        "record_changed" if error == "conflict"
+                        else "record_missing" if error == "not_found"
+                        else "record_limit"),
+                    "conflict": error == "conflict",
+                    "retryable": False,
+                    **result,
+                }
+            if error == "receipt_too_large":
+                return {
+                    "success": False,
+                    "canvas_id": canvas.id,
+                    "action_result": "uncertain",
+                    "error_kind": "receipt_too_large",
+                    "retryable": False,
+                    **result,
+                }
+            return {
+                "success": False,
+                "canvas_id": canvas.id,
+                "action_result": "uncertain",
+                **result,
+            }
     except Exception as e:  # noqa: BLE001
         logger.error("mini_app_db_write failed: %s", e)
         return {"success": False, "error": "Mini-app record write failed"}

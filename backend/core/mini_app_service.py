@@ -18,6 +18,7 @@ Locked decisions:
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import logging
 import os
@@ -60,6 +61,26 @@ _VALID_STORAGE_BACKENDS = {"local", "cloud", "auto"}
 # defaults (no hardcoded domain list).
 NATIVE_BASE_CANVAS_TYPE = "mini_app"
 _BASE_CANVAS_TYPE_RE = re.compile(r"[a-z][a-z0-9_-]{0,49}")
+
+
+def logic_source_sha256(source: Any) -> str:
+    """Canonical digest of the exact logic source written/read back.
+
+    The producer stamps this in its receipt and the independent verifier
+    recomputes it from both the durable ``CanvasLogic`` row and the checkpoint
+    source, so a changed or stale code body cannot certify a new operation.
+    """
+    return hashlib.sha256(
+        str(source if source is not None else "").encode("utf-8")
+    ).hexdigest()
+
+
+def _json_sha256(value: Any) -> str:
+    """Canonical JSON digest (matches oracle ``_content_digest``)."""
+    blob = json.dumps(
+        value, sort_keys=True, separators=(",", ":"), ensure_ascii=True,
+        default=str)
+    return hashlib.sha256(blob.encode("utf-8")).hexdigest()
 
 
 def _validate_base_canvas_type(canvas_type: str) -> str:
@@ -245,7 +266,9 @@ def validate_tests(tests: Any) -> None:
 # ===========================================================================
 # Runtime preparation — fail-closed dependency scan + rootfs verification
 # ===========================================================================
-def prepare_runtime(app: Any, db: Session) -> Optional[str]:
+def prepare_runtime(
+    app: Any, db: Session, *, commit: bool = True,
+) -> Optional[str]:
     """Resolve/verify the per-app rootfs for ``app``; return its path or None.
 
     * No dependencies → ``runtime_image=None`` (base template rootfs; guest
@@ -268,7 +291,8 @@ def prepare_runtime(app: Any, db: Session) -> Optional[str]:
     if not deps:
         if app.runtime_image is not None:
             app.runtime_image = None
-            db.commit()
+            if commit:
+                db.commit()
         return None
 
     scan = PackageDependencyScanner().scan_packages(list(deps))
@@ -296,7 +320,8 @@ def prepare_runtime(app: Any, db: Session) -> Optional[str]:
     if app.runtime_image != rootfs_path:
         app.runtime_image = rootfs_path
         app.runtime_version = (app.runtime_version or 0) + 1
-        db.commit()
+        if commit:
+            db.commit()
     return rootfs_path
 
 
@@ -408,8 +433,18 @@ def scaffold(
     dependencies: List[str],
     viewer: Any,
     db: Session,
+    *,
+    operation_id: str = "",
+    request_sha256: str = "",
+    receipt_out: Optional[Dict[str, Any]] = None,
 ) -> Tuple[Any, str]:
-    """Create a source canvas + starter logic + draft MiniApp. Returns (app, canvas_id)."""
+    """Create a source canvas + starter logic + draft MiniApp. Returns (app, canvas_id).
+
+    The ``mini_app_scaffold`` receipt is appended in the SAME transaction as the
+    app/canvas/logic rows. It binds the executor-owned operation id and the
+    frozen request digest, so an independently read app with the same name is
+    never mistaken for this invocation.
+    """
     from core.canvas_logic_service import CanvasLogicService
     from core.models import Canvas, CanvasAudit, CanvasLogic, MiniApp
 
@@ -424,6 +459,7 @@ def scaffold(
 
     canvas_id = str(uuid.uuid4())
     app_id = str(uuid.uuid4())
+    receipt_id = str(uuid.uuid4())
     source_canvas = Canvas(
         id=canvas_id,
         tenant_id=tenant_id,
@@ -453,25 +489,43 @@ def scaffold(
         source=logic_source,
         language="python",
         created_by=str(viewer.id),
+        commit=False,
     )
+
+    manifest = _build_starter_manifest(name, declared_scopes, dependencies, base_image)
+    manifest["canvas_type"] = canvas_type
+    validate_manifest(manifest)
 
     # First audit row. read_canvas (GET /api/canvas/{id}, the canvas page's
     # load path) serves FROM the audit trail — without a row a freshly
     # scaffolded blueprint 404s on open ("Canvas not found"). The row also
-    # stamps the base canvas type so the page renders the typed view.
+    # stamps the base canvas type so the page renders the typed view, and
+    # carries the operation/request binding for independent verification.
     db.add(CanvasAudit(
+        id=receipt_id,
         canvas_id=canvas_id,
         tenant_id=tenant_id,
         action_type="mini_app_scaffold",
         user_id=str(viewer.id),
         canvas_type=canvas_type,
-        details_json={"app_id": app_id, "title": name, "content": {"blocks": []}},
+        details_json={
+            "app_id": app_id,
+            "title": name,
+            "content": {"blocks": []},
+            "name": name,
+            "declared_scopes": list(manifest["declared_scopes"]),
+            "dependencies": list(manifest["dependencies"]),
+            "base_image": manifest["base_image"],
+            "canvas_type": canvas_type,
+            "operation_id": operation_id,
+            "request_sha256": request_sha256,
+            "tenant_id": tenant_id,
+            "workspace_id": workspace_id,
+            "actor_id": str(viewer.id),
+            "logic_source_sha256": logic_source_sha256(logic_source),
+        },
     ))
     db.flush()
-
-    manifest = _build_starter_manifest(name, declared_scopes, dependencies, base_image)
-    manifest["canvas_type"] = canvas_type
-    validate_manifest(manifest)
 
     app = MiniApp(
         id=app_id,
@@ -492,6 +546,13 @@ def scaffold(
     db.add(app)
     db.commit()
     db.refresh(app)
+    if receipt_out is not None:
+        receipt_out.update({
+            "audit_id": receipt_id,
+            "canvas_id": canvas_id,
+            "app_id": app_id,
+            "request_sha256": request_sha256,
+        })
     return app, canvas_id
 
 
@@ -562,7 +623,15 @@ def _bump_patch_version(version: str) -> str:
         return f"{version}.1"
 
 
-def publish(app: Any, db: Session, public: bool = False) -> Dict[str, Any]:
+def publish(
+    app: Any,
+    db: Session,
+    public: bool = False,
+    *,
+    operation_id: str = "",
+    request_sha256: str = "",
+    actor_id: Optional[str] = None,
+) -> Dict[str, Any]:
     """Scan deps + verify rootfs, snapshot source canvas into the blueprint.
 
     Captures the latest ``CanvasState.state`` (or latest audit details_json) as
@@ -578,10 +647,25 @@ def publish(app: Any, db: Session, public: bool = False) -> Dict[str, Any]:
     """
     from core.blueprint_sanitizer import strip_credentials
     from core.canvas_logic_service import CanvasLogicService
-    from core.models import Canvas, CanvasLogic, CanvasState, ComponentInstallation
+    from core.models import (
+        Canvas, CanvasAudit, CanvasLogic, CanvasState, ComponentInstallation,
+    )
     from sqlalchemy import desc
 
-    prepare_runtime(app, db)  # fail-closed: deps scan + rootfs must exist
+    # Preparation is part of THIS publish transaction. A precondition failure
+    # after preparation (e.g. missing blueprint canvas) must not have already
+    # committed a runtime_image clear/change. The proxy keeps the caller's ORM
+    # object clean until the guarded publish update succeeds.
+    prior_runtime_image = app.runtime_image
+    prior_runtime_version = app.runtime_version
+    runtime_proxy = SimpleNamespace(
+        id=app.id, name=app.name, manifest=app.manifest,
+        runtime_image=app.runtime_image,
+        runtime_version=app.runtime_version)
+    prepare_runtime(
+        runtime_proxy, db, commit=False)  # fail-closed: deps + rootfs gate
+    new_runtime_image = runtime_proxy.runtime_image
+    new_runtime_version = runtime_proxy.runtime_version
 
     source_canvas_id = app.blueprint_canvas_id
     canvas = db.query(Canvas).filter(Canvas.id == source_canvas_id).first()
@@ -642,39 +726,178 @@ def publish(app: Any, db: Session, public: bool = False) -> Dict[str, Any]:
     # Belt-and-suspenders: never let a known-credential key through initial_state.
     if isinstance(cleaned.get("initial_state"), dict):
         cleaned["initial_state"] = strip_credentials(cleaned["initial_state"])
-    app.manifest = cleaned
+
+    # Freeze the exact prior app material BEFORE the write. The guarded UPDATE
+    # below is a true compare-and-swap on the whole app row's publish-relevant
+    # state: a peer publish/logic change after this read makes the write
+    # zero-effect instead of silently overwriting the peer's whole manifest.
+    from sqlalchemy import JSON as SAJSON
+    from sqlalchemy import select, update
+
+    from core.models import MiniApp
+
+    prior_tenant = app.tenant_id
+    prior_workspace = app.workspace_id
+    prior_owner = app.created_by
+    prior_status = app.status
+    prior_version = app.version
+    prior_blueprint_id = app.blueprint_canvas_id
+    prior_is_public = bool(app.is_public)
+    prior_share_token = app.share_token
+    prior_manifest = app.manifest
+    prior_is_sql_null = bool(db.execute(
+        select(MiniApp.manifest.is_(None)).where(MiniApp.id == app.id)
+    ).scalar())
+    if prior_is_sql_null:
+        manifest_predicate = MiniApp.manifest.is_(None)
+    elif prior_manifest is None:
+        manifest_predicate = MiniApp.manifest == SAJSON.NULL
+    else:
+        manifest_predicate = MiniApp.manifest == prior_manifest
+
     # Updates ship as new versions: the FIRST publish keeps the scaffold
     # version (1.0.0); every re-publish bumps the patch so the
     # MiniAppInstallation.installed_version comparison can signal
     # update-available. Without the bump a re-published app is invisible to
     # every installed instance forever (installed_version never differs).
-    if app.status == "published":
-        app.version = _bump_patch_version(app.version)
-    app.status = "published"
+    new_version = (
+        _bump_patch_version(prior_version)
+        if prior_status == "published" else prior_version)
+    new_status = "published"
     # Gap C: optionally activate public/share. Publishing publicly mints a
     # share_token for the by-token install path. is_approved stays False until
     # an admin approves (Gap D); public install requires both flags.
+    new_is_public = prior_is_public
+    new_share_token = prior_share_token
     if public:
         import secrets
 
-        app.is_public = True
-        if not app.share_token:
-            app.share_token = secrets.token_urlsafe(32)
-    db.commit()
+        new_is_public = True
+        if not new_share_token:
+            new_share_token = secrets.token_urlsafe(32)
 
-    return {"success": True, "app_id": app.id, "version": app.version,
-            "is_public": bool(app.is_public), "share_token": app.share_token}
+    conditions = [
+        MiniApp.id == app.id,
+        manifest_predicate,
+        MiniApp.created_by == prior_owner,
+        MiniApp.tenant_id == prior_tenant,
+        MiniApp.status == prior_status,
+        MiniApp.version == prior_version,
+        MiniApp.is_public.is_(prior_is_public),
+    ]
+    conditions.append(
+        MiniApp.workspace_id.is_(None)
+        if prior_workspace is None
+        else MiniApp.workspace_id == prior_workspace
+    )
+    conditions.append(
+        MiniApp.blueprint_canvas_id.is_(None)
+        if prior_blueprint_id is None
+        else MiniApp.blueprint_canvas_id == prior_blueprint_id
+    )
+    conditions.append(
+        MiniApp.runtime_image.is_(None)
+        if prior_runtime_image is None
+        else MiniApp.runtime_image == prior_runtime_image
+    )
+    conditions.append(
+        MiniApp.runtime_version.is_(None)
+        if prior_runtime_version is None
+        else MiniApp.runtime_version == prior_runtime_version
+    )
+    updated = db.execute(
+        update(MiniApp)
+        .where(*conditions)
+        .values(
+            manifest=cleaned,
+            status=new_status,
+            version=new_version,
+            is_public=new_is_public,
+            share_token=new_share_token,
+            runtime_image=new_runtime_image,
+            runtime_version=new_runtime_version,
+        )
+        .execution_options(synchronize_session=False)
+    )
+    if int(updated.rowcount or 0) != 1:
+        db.rollback()
+        return {
+            "success": False,
+            "status": "error",
+            "action_result": "proven_not_applied",
+            "error": "mini_app_publish_conflict",
+            "error_kind": "publish_conflict",
+            "conflict": True,
+            "retryable": False,
+            "message": (
+                "The mini-app changed after it was read; it was not "
+                "published."),
+        }
+
+    receipt_id = str(uuid.uuid4())
+    db.add(CanvasAudit(
+        id=receipt_id,
+        canvas_id=source_canvas_id,
+        tenant_id=prior_tenant,
+        action_type="mini_app_publish",
+        user_id=actor_id or prior_owner,
+        canvas_type=canvas.canvas_type,
+        details_json={
+            "app_id": app.id,
+            "operation_id": operation_id,
+            "request_sha256": request_sha256,
+            "version": new_version,
+            "status": new_status,
+            "is_public": new_is_public,
+            "manifest_sha256": _json_sha256(cleaned),
+            "blueprint_sha256": _json_sha256(cleaned.get("blueprint")),
+            "initial_state_sha256": _json_sha256(
+                cleaned.get("initial_state")),
+            "tenant_id": prior_tenant,
+            "workspace_id": prior_workspace,
+            "actor_id": actor_id or prior_owner,
+        },
+    ))
+    db.commit()
+    # The bulk UPDATE bypasses the identity map; keep the caller's object in
+    # sync so a subsequent install in the same session sees the new blueprint.
+    try:
+        db.expire(app)
+        db.refresh(app)
+    except Exception:  # noqa: BLE001 - the durable row is authoritative
+        pass
+
+    return {
+        "success": True,
+        "app_id": app.id,
+        "version": new_version,
+        "is_public": bool(new_is_public),
+        "share_token": new_share_token,
+        "audit_id": receipt_id,
+    }
 
 
 # ===========================================================================
 # Install — hydrate a fresh instance canvas (copy-on-install)
 # ===========================================================================
-def install(app: Any, viewer: Any, db: Session) -> str:
+def install(
+    app: Any,
+    viewer: Any,
+    db: Session,
+    *,
+    operation_id: str = "",
+    request_sha256: str = "",
+    receipt_out: Optional[Dict[str, Any]] = None,
+) -> str:
     """Hydrate a fresh instance Canvas from ``manifest["blueprint"]``.
 
     Returns the new ``canvas_id``. Identity/state fields are reset; component
     configs are credential-stripped; exactly one ``mini_app_install`` audit row
     is written. Assets are NOT copied (instance data — uploaded after install).
+
+    The audit row is also the install receipt: it is committed in the same
+    transaction as the instance/state/logic rows and binds the operation id,
+    frozen request digest, app/installed version and blueprint digest.
     """
     from datetime import datetime, timezone
 
@@ -687,6 +910,9 @@ def install(app: Any, viewer: Any, db: Session) -> str:
 
     blueprint = (app.manifest or {}).get("blueprint") or {}
     initial_state = (app.manifest or {}).get("initial_state") or {}
+    published_version = str(app.version or "")
+    published_manifest = app.manifest if isinstance(app.manifest, dict) else {}
+    receipt_id = str(uuid.uuid4())
 
     # Gap B fix: the instance lands in the INSTALLER's tenant/workspace, not the
     # author's. Previously this hardcoded app.tenant_id/app.workspace_id, which
@@ -731,6 +957,7 @@ def install(app: Any, viewer: Any, db: Session) -> str:
             source=logic_source,
             language=logic_language,
             created_by=str(viewer.id),
+            commit=False,
         )
 
     # Re-create component installations with credentials stripped.
@@ -753,8 +980,10 @@ def install(app: Any, viewer: Any, db: Session) -> str:
         version=1,
     ))
 
-    # Exactly one audit row.
+    # Exactly one audit row. It is also this invocation's install receipt and
+    # is committed with the instance rows below (single transaction).
     db.add(CanvasAudit(
+        id=receipt_id,
         canvas_id=new_id,
         tenant_id=instance_tenant,
         action_type="mini_app_install",
@@ -763,7 +992,26 @@ def install(app: Any, viewer: Any, db: Session) -> str:
         # the instance's real type so a typed app (inventory, crm, …) renders
         # as that type on first open, not the native mini_app fallback.
         canvas_type=instance_canvas_type,
-        details_json={"app_id": app.id},
+        details_json={
+            "app_id": app.id,
+            "instance_canvas_id": new_id,
+            "installed_by": str(viewer.id),
+            "installed_version": published_version,
+            "installed_runtime_version": int(app.runtime_version or 0),
+            "blueprint_sha256": _json_sha256(blueprint),
+            "initial_state_sha256": _json_sha256(initial_state),
+            "manifest_sha256": _json_sha256(published_manifest),
+            "app_name": app.name,
+            "canvas_type": instance_canvas_type,
+            "operation_id": operation_id,
+            "request_sha256": request_sha256,
+            "tenant_id": instance_tenant,
+            "workspace_id": instance_workspace,
+            "actor_id": str(viewer.id),
+            "source": (
+                "owned" if str(viewer.id) == str(app.created_by)
+                else "marketplace"),
+        },
     ))
 
     # Gap F: record which version was installed so update-check can signal.
@@ -783,6 +1031,14 @@ def install(app: Any, viewer: Any, db: Session) -> str:
         logger.debug("MiniAppInstallation write skipped: %s", e)
 
     db.commit()
+    if receipt_out is not None:
+        receipt_out.update({
+            "audit_id": receipt_id,
+            "canvas_id": new_id,
+            "app_id": app.id,
+            "installed_version": published_version,
+            "request_sha256": request_sha256,
+        })
     return new_id
 
 
@@ -1600,6 +1856,9 @@ def _validate_record_op(op: Any, max_record_bytes: int) -> Optional[Dict[str, An
     return valid
 
 
+_MAX_RECEIPT_ROWS = 1000
+
+
 def _execute_record_op(
     valid_op: Dict[str, Any],
     db: Session,
@@ -1609,24 +1868,64 @@ def _execute_record_op(
     *,
     max_records: Optional[int] = None,
     max_record_bytes: Optional[int] = None,
+    receipt: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Execute a validated record op against the mini-app DB store.
 
     ``max_records`` / ``max_record_bytes`` carry the manifest-declared caps so
     the store's limits (rows/series, per-record size after merge) hold on this
     path too.
+
+    ``receipt`` is supplied only by the agent-facing ``mini_app_db_write``
+    producer. When present, the exact affected record ids/sequences/material
+    digests and the executor-owned operation identity are appended as a
+    ``CanvasAudit`` row in the SAME transaction as the record mutation.
     """
     from core.mini_app_db_service import (
-        DEFAULT_MAX_RECORD_BYTES, append_record, clear_records, count_records,
-        delete_record, delete_series, get_record, list_series, query_records,
-        update_many_records, update_record,
+        DEFAULT_MAX_RECORD_BYTES, RecordConflict, append_record, clear_records,
+        count_records, delete_record, delete_series, get_record, list_series,
+        query_records, update_many_records, update_record,
     )
 
     op = valid_op["op"]
     series = valid_op.get("series")
+    write_op = op in {
+        "append", "update", "update_many", "delete", "delete_series", "clear"}
+    write_receipt = bool(receipt is not None and write_op)
+    commit = not write_receipt
+    receipt_details: Dict[str, Any] = dict(receipt or {})
     base: Dict[str, Any] = {"op": op}
     if series is not None:
         base["series"] = series
+
+    def _finalize(result: Dict[str, Any], effect: Dict[str, Any]) -> Dict[str, Any]:
+        if not write_receipt or not result.get("ok"):
+            return result
+        from core.models import CanvasAudit
+
+        details = {
+            **receipt_details,
+            "canvas_id": canvas.id,
+            "app_id": app.id,
+            "tenant_id": canvas.tenant_id,
+            "actor_id": created_by,
+            "op": op,
+            "series": series,
+            "effect": effect,
+        }
+        receipt_id = str(uuid.uuid4())
+        db.add(CanvasAudit(
+            id=receipt_id,
+            canvas_id=canvas.id,
+            tenant_id=canvas.tenant_id,
+            action_type="mini_app_db_write",
+            user_id=created_by,
+            canvas_type=getattr(canvas, "canvas_type", None),
+            details_json=details,
+        ))
+        db.commit()
+        return {**result, "audit_id": receipt_id, "canvas_id": canvas.id}
+
     try:
         if op == "append":
             row = append_record(
@@ -1634,8 +1933,18 @@ def _execute_record_op(
                 series, valid_op["data"], record_id=valid_op.get("id"),
                 created_by=created_by,
                 max_records=max_records,
+                commit=commit,
             )
-            return {**base, "ok": True, "id": row["id"], "seq": row["seq"]}
+            return _finalize(
+                {**base, "ok": True, "id": row["id"], "seq": row["seq"]},
+                {
+                    "record_id": row["id"],
+                    "requested_id": valid_op.get("id"),
+                    "seq": int(row["seq"] or 0),
+                    "data": valid_op["data"],
+                    "data_sha256": _json_sha256(valid_op["data"]),
+                },
+            )
         if op == "get":
             row = get_record(db, canvas.id, series, valid_op["id"])
             if row is None:
@@ -1652,33 +1961,185 @@ def _execute_record_op(
             n = count_records(db, canvas.id, series=series, f=valid_op.get("filter"))
             return {**base, "ok": True, "count": n}
         if op == "update":
+            prior = get_record(db, canvas.id, series, valid_op["id"])
+            if prior is None:
+                return {**base, "ok": False, "error": "not_found"}
             row = update_record(
                 db, canvas.id, series, valid_op["id"], valid_op["data"],
                 max_bytes=max_record_bytes or DEFAULT_MAX_RECORD_BYTES,
+                commit=commit,
             )
             if row is None:
                 return {**base, "ok": False, "error": "not_found"}
-            return {**base, "ok": True, "record": row}
-        if op == "update_many":
-            n = update_many_records(
-                db, canvas.id, series, valid_op.get("filter") or {}, valid_op["data"],
-                max_bytes=max_record_bytes or DEFAULT_MAX_RECORD_BYTES,
+            return _finalize(
+                {**base, "ok": True, "record": row},
+                {
+                    "record_id": row["id"],
+                    "seq": int(row["seq"] or 0),
+                    "data": row["data"],
+                    "data_sha256": _json_sha256(row["data"]),
+                    "prior_data": prior.get("data"),
+                    "prior_seq": int(prior.get("seq") or 0),
+                    "prior_sha256": _json_sha256(prior.get("data")),
+                },
             )
+        if op == "update_many":
+            filt = valid_op.get("filter") or {}
+            prior_rows = query_records(
+                db, canvas.id, series, f=filt,
+                limit=_MAX_RECEIPT_ROWS, order="asc",
+            ) if write_receipt else []
+            if write_receipt and len(prior_rows) >= _MAX_RECEIPT_ROWS:
+                return {
+                    **base, "ok": False, "error": "receipt_too_large",
+                    "action_result": "uncertain",
+                }
+            candidate_ids = (
+                [str(item["id"]) for item in prior_rows]
+                if write_receipt else None)
+            updated_ids: List[str] = []
+            n = update_many_records(
+                db, canvas.id, series, filt, valid_op["data"],
+                max_bytes=max_record_bytes or DEFAULT_MAX_RECORD_BYTES,
+                commit=commit,
+                candidate_ids=candidate_ids,
+                updated_ids_out=updated_ids,
+            )
+            if write_receipt:
+                records = []
+                for prior in prior_rows:
+                    current = get_record(
+                        db, canvas.id, series, str(prior["id"]))
+                    if current is None:
+                        return {
+                            **base, "ok": False, "error": "conflict",
+                            "action_result": "uncertain",
+                        }
+                    records.append({
+                        "id": str(current["id"]),
+                        "seq": int(current["seq"] or 0),
+                        "prior_sha256": _json_sha256(prior.get("data")),
+                        "data_sha256": _json_sha256(current.get("data")),
+                    })
+                return _finalize(
+                    {**base, "ok": True, "updated": n},
+                    {
+                        "filter": filt,
+                        "data": valid_op["data"],
+                        "data_sha256": _json_sha256(valid_op["data"]),
+                        "updated": n,
+                        "records": records,
+                    },
+                )
             return {**base, "ok": True, "updated": n}
         if op == "delete":
-            ok = delete_record(db, canvas.id, series, valid_op["id"])
-            return {**base, "ok": ok, "id": valid_op["id"], "error": None if ok else "not_found"}
+            prior = get_record(db, canvas.id, series, valid_op["id"])
+            if prior is None:
+                return {**base, "ok": False, "error": "not_found"}
+            ok = delete_record(
+                db, canvas.id, series, valid_op["id"], commit=commit)
+            if not ok:
+                return {**base, "ok": False, "error": "not_found"}
+            return _finalize(
+                {**base, "ok": True, "id": valid_op["id"]},
+                {
+                    "record_id": valid_op["id"],
+                    "seq": int(prior.get("seq") or 0),
+                    "prior_data": prior.get("data"),
+                    "prior_sha256": _json_sha256(prior.get("data")),
+                },
+            )
         if op == "delete_series":
-            n = delete_series(db, canvas.id, series)
+            prior_rows = query_records(
+                db, canvas.id, series, limit=_MAX_RECEIPT_ROWS,
+                order="asc") if write_receipt else []
+            if write_receipt and len(prior_rows) >= _MAX_RECEIPT_ROWS:
+                return {
+                    **base, "ok": False, "error": "receipt_too_large",
+                    "action_result": "uncertain",
+                }
+            candidate_ids = (
+                [str(item["id"]) for item in prior_rows]
+                if write_receipt else None)
+            n = delete_series(
+                db, canvas.id, series, commit=commit,
+                candidate_ids=candidate_ids)
+            if n == 0:
+                return {**base, "ok": True, "deleted": 0}
+            if write_receipt:
+                return _finalize(
+                    {**base, "ok": True, "deleted": n},
+                    {
+                        "records": [
+                            {
+                                "id": str(item["id"]),
+                                "seq": int(item.get("seq") or 0),
+                                "data_sha256": _json_sha256(item.get("data")),
+                            }
+                            for item in prior_rows
+                        ],
+                    },
+                )
             return {**base, "ok": True, "deleted": n}
         if op == "clear":
-            n = clear_records(db, canvas.id)
+            prior_rows = []
+            if write_receipt:
+                from core.models import CanvasRecord
+
+                rows = (
+                    db.query(CanvasRecord)
+                    .filter(CanvasRecord.canvas_id == canvas.id)
+                    .order_by(CanvasRecord.seq.asc())
+                    .limit(_MAX_RECEIPT_ROWS)
+                    .all()
+                )
+                if len(rows) >= _MAX_RECEIPT_ROWS:
+                    return {
+                        **base, "ok": False, "error": "receipt_too_large",
+                        "action_result": "uncertain",
+                    }
+                prior_rows = [
+                    {
+                        "id": str(row.id),
+                        "seq": int(row.seq or 0),
+                        "data": row.data,
+                    }
+                    for row in rows
+                ]
+            candidate_ids = (
+                [str(item["id"]) for item in prior_rows]
+                if write_receipt else None)
+            n = clear_records(
+                db, canvas.id, commit=commit, candidate_ids=candidate_ids)
+            if n == 0:
+                return {**base, "ok": True, "deleted": 0}
+            if write_receipt:
+                return _finalize(
+                    {**base, "ok": True, "deleted": n},
+                    {
+                        "records": [
+                            {
+                                "id": str(item["id"]),
+                                "seq": int(item.get("seq") or 0),
+                                "data_sha256": _json_sha256(item.get("data")),
+                            }
+                            for item in prior_rows
+                        ],
+                    },
+                )
             return {**base, "ok": True, "deleted": n}
         if op == "list_series":
             return {**base, "ok": True, "series": list_series(db, canvas.id)}
+    except RecordConflict:
+        db.rollback()
+        return {
+            **base, "ok": False, "error": "conflict",
+            "action_result": "proven_not_applied",
+        }
     except ValueError as e:
         # Store-cap enforcement (rows/series, post-merge size) — fail closed
         # with a structured error, never a generic 500.
+        db.rollback()
         logger.warning("record_op %s cap hit for %s: %s", op, canvas.id, e)
         return {
             **base,
@@ -1686,6 +2147,7 @@ def _execute_record_op(
             "error": "series_cap" if op == "append" else "size_cap",
         }
     except Exception as e:  # noqa: BLE001
+        db.rollback()
         logger.warning("record_op %s failed for %s: %s", op, canvas.id, e)
         return {**base, "ok": False, "error": "failed"}
     return {**base, "ok": False, "error": "unknown_op"}
@@ -1771,25 +2233,57 @@ def record_logic_snapshot(
     app_id: str,
     source: str,
     actor_id: Optional[str] = None,
+    *,
+    operation_id: str = "",
+    request_sha256: str = "",
+    source_sha256: Optional[str] = None,
+    reverted_to: Optional[int] = None,
+    target_audit_id: str = "",
+    commit: bool = True,
 ) -> Dict[str, Any]:
-    """Append a versioned checkpoint of the app logic to the audit trail."""
+    """Append a versioned checkpoint of the app logic to the audit trail.
+
+    The checkpoint row doubles as the write/revert receipt: it carries the
+    executor-owned operation id, the frozen request digest and the exact source
+    digest. ``commit=False`` keeps it in the caller's write transaction.
+    """
     from core.models import Canvas, CanvasAudit
 
     # Stamp the canvas's real type — the audit trail is what read_canvas
     # serves, so a typed blueprint must not read back as native mini_app.
-    canvas_row = db.query(Canvas).filter(Canvas.id == canvas_id).first()
-    canvas_type = canvas_row.canvas_type if canvas_row is not None else NATIVE_BASE_CANVAS_TYPE
-    version = _logic_version_number(db, canvas_id)
+    with db.no_autoflush:
+        canvas_row = db.query(Canvas).filter(Canvas.id == canvas_id).first()
+        canvas_type = (
+            canvas_row.canvas_type if canvas_row is not None
+            else NATIVE_BASE_CANVAS_TYPE)
+        version = _logic_version_number(db, canvas_id)
+    receipt_id = str(uuid.uuid4())
+    digest = source_sha256 or logic_source_sha256(source)
+    details: Dict[str, Any] = {
+        "app_id": app_id,
+        "version": version,
+        "source": source,
+        "source_sha256": digest,
+        "operation_id": operation_id,
+        "request_sha256": request_sha256,
+        "tenant_id": tenant_id,
+        "actor_id": actor_id,
+    }
+    if reverted_to is not None:
+        details["reverted_to"] = int(reverted_to)
+        details["target_audit_id"] = target_audit_id
     db.add(CanvasAudit(
+        id=receipt_id,
         canvas_id=canvas_id,
         tenant_id=tenant_id,
         action_type="mini_app_logic",
         user_id=actor_id,
         canvas_type=canvas_type,
-        details_json={"app_id": app_id, "version": version, "source": source},
+        details_json=details,
     ))
-    db.commit()
-    return {"version": version}
+    if commit:
+        db.commit()
+    return {"version": version, "audit_id": receipt_id}
 
 
 def list_logic_history(app: Any, db: Session) -> List[Dict[str, Any]]:
@@ -1823,11 +2317,16 @@ def revert_logic(
     db: Session,
     version: int,
     actor_id: Optional[str] = None,
+    *,
+    operation_id: str = "",
+    request_sha256: str = "",
 ) -> Dict[str, Any]:
     """Restore a previously checkpointed logic version onto the blueprint canvas.
 
     Writes a fresh checkpoint for the reverted source so the revert itself is
-    visible in history (never silently loses the reverted-from state).
+    visible in history (never silently loses the reverted-from state). The
+    logic write and the new checkpoint/receipt commit together, and the write
+    is a compare-and-swap on the prior controller source.
     """
     from core.canvas_logic_service import CanvasLogicService
     from core.models import CanvasAudit
@@ -1850,10 +2349,13 @@ def revert_logic(
         raise ValueError(f"Logic version {version} not found for app '{app.id}'")
 
     source = (target.details_json or {}).get("source") or ""
+    target_source_sha256 = logic_source_sha256(source)
     CanvasLogicService(db).save_logic(
         canvas_id=app.blueprint_canvas_id,
         source=source,
         created_by=actor_id,
+        commit=False,
+        require_cas=True,
     )
     snapshot = record_logic_snapshot(
         db,
@@ -1862,7 +2364,14 @@ def revert_logic(
         app_id=app.id,
         source=source,
         actor_id=actor_id,
+        operation_id=operation_id,
+        request_sha256=request_sha256,
+        source_sha256=target_source_sha256,
+        reverted_to=version,
+        target_audit_id=str(target.id or ""),
+        commit=False,
     )
+    db.commit()
     # ``version`` is the NEW checkpoint just written (the current head),
     # not the reverted-to target — otherwise callers report a stale version
     # after a revert (the newest checkpoint is what counts as "current").
@@ -1872,6 +2381,9 @@ def revert_logic(
         "version": snapshot["version"],
         "reverted_to": version,
         "source": source,
+        "target_audit_id": str(target.id or ""),
+        "source_sha256": target_source_sha256,
+        "audit_id": snapshot.get("audit_id"),
     }
 
 
