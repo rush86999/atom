@@ -1,0 +1,25 @@
+{
+  "schema": "mem07-failure-id-comparison-1",
+  "baseline_commit": "248a23296",
+  "candidate_corrected_commit": "f0efc7caa",
+  "candidate_mergehead_commit": "cf2964720",
+  "baseline_failed_n": [
+    23
+  ],
+  "candidate_corrected_failed_n": [
+    23
+  ],
+  "candidate_mergehead_failed_n": [
+    23
+  ],
+  "only_in_baseline_vs_corrected": [],
+  "only_in_candidate_corrected_vs_baseline": [],
+  "id_sets_identical_baseline_vs_corrected": true,
+  "only_in_baseline_vs_mergehead": [],
+  "only_in_candidate_mergehead_vs_baseline": [],
+  "id_sets_identical_baseline_vs_mergehead": true,
+  "preretarget_extra_failures_removed_by_seam_retarget": [
+    "tests/test_covpush_autodev_comms.py::TestReflectionEngineCoverage::test_should_process_agent",
+    "tests/test_covpush_w84c_autodev2.py::TestReflectionEngine::test_should_process_agent_true"
+  ]
+}

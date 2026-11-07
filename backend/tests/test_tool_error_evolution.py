@@ -261,6 +261,7 @@ def test_trigger_live_tool_fix_creates_mutation_for_registered_tool():
     with patch("core.auto_dev.alpha_evolver_engine.AlphaEvolverEngine", FakeEngine), \
          patch("core.action_registry.action_registry", fake_registry), \
          patch("core.auto_dev.guidance.notify_proposal") as notify, \
+         patch.object(re_mod, "_live_fix_opted_in", return_value=True), \
          patch.object(re_mod, "_mark_execution_triggered") as mark:
         ok = asyncio.run(re_mod.trigger_live_tool_fix(
             agent_id=AGENT, tenant_id=TENANT,
@@ -280,7 +281,8 @@ def test_trigger_live_tool_fix_is_noop_for_unregistered_tools():
     from core.auto_dev import reflection_engine as re_mod
 
     fake_registry = SimpleNamespace(get_action=lambda name: None)
-    with patch("core.action_registry.action_registry", fake_registry):
+    with patch("core.action_registry.action_registry", fake_registry), \
+         patch.object(re_mod, "_live_fix_opted_in", return_value=True):
         ok = asyncio.run(re_mod.trigger_live_tool_fix(
             agent_id=AGENT, tenant_id=TENANT,
             service="outlook", action="search_emails",

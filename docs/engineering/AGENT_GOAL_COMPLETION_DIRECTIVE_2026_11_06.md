@@ -2,7 +2,7 @@
 
 Issued 2026-11-06 by the engineering and product lead under the owner's instruction to complete the authorized goals, provide detailed guidance, and push progress between phases.
 
-Progress refreshed 2026-11-06 against the current PR heads and merge records through PR679. Sections 3 and 17 contain the current disposition and next actions; historical source-bound evidence remains unchanged. Merged work is not automatically independently accepted or deployed. The newest progress edit must be committed and pushed before it is described as the remote version.
+Operational state is refreshed in [the November7 completion checkpoint](APP_COMPLETION_STATE_2026_11_07.md), batched with the mini-app boundary delivery. That checkpoint supersedes historical PR/queue rows in sections3/17; engineering/product constraints below remain. Resolve current remote heads before acting. Merged work is not automatically whole-app accepted or deployed. Only a committed/pushed checkpoint is the remote version.
 
 Agent 3 supports integration and independent verification under [its separate work order](AGENT3_INTEGRATION_VERIFICATION_GUIDANCE_2026_11_06.md). The primary agent remains the lead verifier, senior engineer and senior product manager for the whole app; adding Agent 3 does not transfer that authority.
 
