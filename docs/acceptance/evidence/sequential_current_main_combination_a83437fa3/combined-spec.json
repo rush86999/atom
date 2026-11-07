@@ -1,0 +1,30 @@
+{
+  "executed_source": "a83437fa3ad1f82dffd703c679de339093007ab5",
+  "combined_main": "31346bfb936ab59987f1e2a9ee67bc57c600aa3a",
+  "pr730_head": "750953499c8c228dc66b7425e74bdd1697b8bf39",
+  "tree": "1bc24c4eb7e427350175815e9c34afd8e791b707",
+  "scratch": "/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-sequential-main-combination-9c7go0xd",
+  "command": [
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "tests/test_agent_read_scope_contract.py",
+    "tests/test_task_wait_two_fact_events.py",
+    "tests/test_employee_prerequisite_eligibility.py",
+    "tests/test_sequential_fact_completion_contract.py",
+    "tests/test_task_wait_two_job_isolation.py",
+    "tests/test_agent_generic_information_wait.py",
+    "tests/test_agent_generic_information_wait_process.py",
+    "tests/test_generic_information_wait_recovery.py",
+    "tests/test_generic_information_recovery_batch_contract.py",
+    "tests/test_boot_recovery_not_gated_by_scheduler.py",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-sequential-main-combination-9c7go0xd/pytest",
+    "--junitxml=/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-sequential-main-combination-9c7go0xd/result.xml",
+    "-q",
+    "--tb=short"
+  ],
+  "scope": "exact combined candidate: privacy readers, repeated assignment waits, two-job isolation, Generic wait/recovery/process controls; high-level reasoning/auth controlled; no provider/browser",
+  "known_open_negative": "root-recovery-actor-workspace-valid 1fail1pass remains active Agent1 repair; not qualified by this passing selection"
+}
