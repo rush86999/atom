@@ -1,6 +1,6 @@
 # App completion state — 2026-11-07
 
-This dated checkpoint supersedes operational queue rows in the November6 directive. Re-resolve current remote heads and ownership before acting. It records current progress, not whole-app acceptance. The product is single tenant with supported user/role/workspace safeguards. Historical111/123, planner5/5, goal router1/2 and alignment gap3.0 remain unchanged.
+This dated checkpoint supersedes operational queue rows in the November6 directive. Re-resolve current remote heads and ownership before acting. It records current progress, not whole-app acceptance. The product is single tenant with supported user/role/workspace safeguards. Historical 111/123, planner 5/5, goal router 1/2 and alignment gap 3.0 remain unchanged.
 
 ## Delivered since the older guide
 
@@ -33,3 +33,7 @@ Conserve disk: remove reproducible caches from completed inactive work first. Ar
 ## Completion still requires evidence
 
 Whole-app ORACLE mutation coverage, general adaptive judgment, qualified live integration/provider breadth, working Linux/KVM mini-app paths, PostgreSQL runtime/concurrency and multi-worker/soak remain separate and unqualified. Do not infer those from these finite tests or hide them by rewriting the historical score. Canonical143claim inventory and GOAL_COMPLETION_DELTA remain historical evidence inputs; reconcile each actual requirement against current code and source-bound proofs. New ready local work proceeds without waiting for unavailable live authority, but no limited proof becomes universal app completion.
+
+## Latest worker allowance observation
+
+Free GLM returned an actual429 free-usage-limit response during the next goal-write task. The provider delay gives an estimated reset of2026-11-08 00:22:19.968UTC; remaining balances are unknown. The saved session continues on authorized OpenCode Go DeepSeek V4.1 Flash. Do not retry the exhausted free pool early or classify this coding-quota event as an app semantic failure.

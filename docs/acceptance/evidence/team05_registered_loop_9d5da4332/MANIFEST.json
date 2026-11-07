@@ -1,0 +1,24 @@
+{
+  "executed_source": "9d5da4332bb760e6aa12ab730fb820f9ac095412",
+  "source_files": {
+    "backend/tests/test_org_politics_registered_loop_join.py": "30fb6da382b8857d2f8f6724016d2296c6c15c8ede053be696ad3ccc250e9dc5",
+    "backend/tests/test_org_politics_scheduled_entry.py": "4373564937e46a30d83d126497dbbe8c18c7a354e607038b20bc92dfac4b3f94",
+    "backend/tests/test_org_politics_automation.py": "95f0287e9888ae8274e28fc394722b8788050691fddc321349fe87b7027193d7",
+    "backend/core/org_politics_automation.py": "be6af9530931ed7d4fdbd54785b5052e95891f02044e123342a2dd78ecca01ff",
+    ".github/workflows/ci.yml": "f2254ded255bc97d14ae3dcd7a32e2e53a78868f0c408623c92774475b6508b6"
+  },
+  "artifacts": {
+    "README.md": "6fe61fe5505b3d049fe68e6f1a5681321848c2bf6d45d1ed5720e53d19b7f85e",
+    "focused-tests.log": "a254b5e8a8efe119f49d40e57bd7c84aff69c0388de38eb0a0a9ea8fd995ef4c"
+  },
+  "verification": {
+    "focused_passed": 31,
+    "secret_pattern_matches": {
+      "jwt": 0,
+      "bearer": 0,
+      "query_token": 0,
+      "known_fixture_secret": 0
+    },
+    "scope": "controlled registered-loop durable-consent join"
+  }
+}
