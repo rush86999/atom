@@ -50,7 +50,10 @@ scope/actor evidence is refuted.
 `ActionDefinition.effects`. A registration declares durable mutations
 (`write/create/update/delete/send/execute`, goal/record families) and may add
 `"scope": "local"|"external"`. Business names and request headers never decide
-mutation; empty or unknown metadata stays visible as unqualified.
+mutation. Before any read/plan exemption, every raw declaration entry must be a
+mapping (or bare effect name) with a non-empty, explicitly known effect name;
+missing, blank, non-string, unknown, non-mapping, and invalid-container
+declarations stay visible as unqualified.
 
 `AssignmentExecutor`'s `action.registry` adapter enforces one rule: a declared
 mutation cannot return `applied` unless the oracle independently verified it.
@@ -67,7 +70,8 @@ mutation cannot return `applied` unless the oracle independently verified it.
   the operation execution and receipt.
 - Reads with no verifier keep their historical applied behavior.
 - `goals.decompose` (`plan_produced`) is plan-shape validation, not a durable
-  mutation; a plan effect mixed with an unknown effect is **not** exempted.
+  mutation; a plan effect mixed with an unknown or malformed entry is **not**
+  exempted.
 
 The legacy `_LOCAL_MUTATING_ACTIONS` list remains as a compatibility guard
 alongside explicit registration metadata.
