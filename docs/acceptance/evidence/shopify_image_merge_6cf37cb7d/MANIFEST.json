@@ -44,7 +44,7 @@
   "raw_url_only": "OPEN / unverified",
   "pr746_blog741": "not present in fetched origin/main; branch retains its existing article/blog changes",
   "artifacts": {
-    "HANDOFF.md": "34e32d75cc87101efd20e4ae2008b532d4228ffa22446c79274693ce3fed9dee",
+    "HANDOFF.md": "9fcf9d92e099e6af5914adf3790a3b92e1514c46994d24a6d3f9b50d299ec0d2",
     "README.md": "99587bc32d7dcb5bfb855514a2cbc418efa2f098f14dc58c8ae22f11aed92d5e",
     "article.log": "e3c1c152e638a8488602406e5f4de6487f96cf7c504642789a325173ca93dbdb",
     "compile-pyflakes.log": "d66249d91a5a1089dc543c15fb938dbe1817bbd5fd96f21d16a6019de8c95c47",
@@ -65,5 +65,11 @@
     "backend/tests/test_lead_asset_usable_image.py": "a9cb0fe536936fd26cb6a4741d3f05950318bdfecaedfe60f6aa9cf43930de21",
     "backend/tests/test_asset_content_receipt.py": "9002a9f050f36648e3ba6b4fcce589cc0ab7646c4c45b71fb63041d04b5fa63a",
     "backend/tests/test_lead_shopify_image_content_receipt.py": "5d8c4bf1299a5962ceb71f018b7fc7bf4d72cf6534dcc2bd6b4184e61dc1e625"
+  },
+  "pr": {
+    "number": 748,
+    "url": "https://github.com/rush86999/atom/pull/748",
+    "base": "codex/shopify-article-rest-shape-20261107",
+    "head": "e89061d24"
   }
 }
