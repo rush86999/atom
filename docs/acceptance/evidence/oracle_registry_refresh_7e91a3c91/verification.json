@@ -1,0 +1,51 @@
+{
+  "task": "authoritative enabled-registry-to-verifier refresh at final repair source",
+  "executed_source": "7e91a3c91",
+  "main_merged": "cf5e98191",
+  "merge_commit": "7a587f646",
+  "inventory_command": [
+    "python3",
+    "docs/acceptance/evidence/oracle_registry_refresh_7e91a3c91/generate_inventory.py"
+  ],
+  "inventory_exit": 0,
+  "lazy_modules_loaded": [
+    "core.agent_radio.radio_actions",
+    "core.bpe.actions"
+  ],
+  "counts": {
+    "registered_actions": 98,
+    "declared_mutations": 30,
+    "mutation_local": 20,
+    "mutation_external": 10,
+    "mutation_covered": 27,
+    "mutation_uncovered": 3,
+    "read_only": 67,
+    "plan_output_validation": 1,
+    "undeclared": 0
+  },
+  "uncovered": {
+    "workspace.commit": "deferred; in-process BPE state",
+    "workspace.note": "deferred; pre-consolidation buffer",
+    "mini_app_run": "unqualified; guest runtime"
+  },
+  "covered_now": {
+    "radio.create_thread": "first-DML authority CAS + exact-row verifier",
+    "radio.send_message": "current main accepted helpers, reused",
+    "shopify_create_fulfillment": "current main provider work"
+  },
+  "historical_note": "oracle_registry_refresh_20261107 captured 25/5 at 908026a39 and was not rewritten",
+  "scope_note": "Static inventory is discovery evidence, not runtime coverage or acceptance.",
+  "not_used": [
+    "live provider",
+    "model",
+    "account",
+    "credential",
+    "send",
+    "spend",
+    "install",
+    "deploy",
+    "KVM",
+    "PostgreSQL",
+    "all-827 sweep"
+  ]
+}

@@ -1,0 +1,125 @@
+{
+  "task": "radio.create_thread first-DML authority linearization repair",
+  "executed_source": "7e91a3c91",
+  "main_merged": "cf5e98191",
+  "merge_commit": "7a587f646",
+  "branch": "codex/oracle-refresh-20261107",
+  "root_original_negative": {
+    "frozen_source": "f29b4db12",
+    "result": "2 failed, 1 passed, actual exit 1",
+    "files": "root-originals/root-radio-thread-f29-first-dml.log/.exit.json"
+  },
+  "root_frozen_probe_rerun": {
+    "nodes": [
+      "/private/tmp/lead_radio_thread_authority_first_dml_frozen.py"
+    ],
+    "exit_code": 0,
+    "result": "3 passed"
+  },
+  "controls": {
+    "focused-oracle-plus-root": {
+      "nodes": [
+        "tests/test_oracle_radio_create_thread.py",
+        "tests/test_lead_radio_thread_authority_linearization.py"
+      ],
+      "exit_code": 0,
+      "result": "32 passed"
+    },
+    "root-frozen-first-dml": {
+      "nodes": [
+        "/private/tmp/lead_radio_thread_authority_first_dml_frozen.py"
+      ],
+      "exit_code": 0,
+      "result": "3 passed"
+    },
+    "merged-send-registry-request": {
+      "nodes": [
+        "tests/test_oracle_radio_send.py",
+        "tests/test_lead_radio_readback_identity.py",
+        "tests/test_generic_request_expectations.py",
+        "tests/test_oracle_registry_verification_gap.py"
+      ],
+      "exit_code": 0,
+      "result": "85 passed"
+    },
+    "radio-units": {
+      "nodes": [
+        "tests/unit/agents/test_radio_actions.py",
+        "tests/unit/agents/test_agent_radio_tool.py",
+        "tests/unit/agents/test_radio_service.py",
+        "tests/unit/agents/test_radio_adapter.py",
+        "tests/unit/agents/test_radio_server.py"
+      ],
+      "exit_code": 0,
+      "result": "45 passed"
+    },
+    "heavy-full-radio": {
+      "nodes": [
+        "tests/test_covpush_w80a_radio.py"
+      ],
+      "profile": "heavy",
+      "exit_code": 0,
+      "result": "219 passed"
+    }
+  },
+  "linearization": {
+    "first_dml": "conditional no-op UPDATE agent_registry per authorized row",
+    "snapshot_fields": [
+      "id",
+      "enabled",
+      "status",
+      "workspace_id",
+      "tenant_id"
+    ],
+    "order": "creator first, then member ids sorted lexicographically",
+    "zero_match": "rollback before agent_threads INSERT; typed failed_before_effect/proven_not_applied; peer preserved; zero thread",
+    "same_transaction_as_insert": true,
+    "post_commit_peer_change": "post-effect; replay may honestly return committed_unverified; no physical-stop claim"
+  },
+  "authority_semantics": {
+    "deployment": "single tenant",
+    "personal_scope": "NULL and \"default\" are the same personal workspace/tenant; concrete ids require exact equality",
+    "creator": "registered, not explicitly disabled, not paused/stopped/deprecated/deleted, persisted INTERN+ floor",
+    "members": "registered, not explicitly disabled, same compatible scope; no INTERN+ requirement",
+    "not_added": [
+      "SaaS role/plan/seat gates",
+      "new approval lifecycle",
+      "new engine/router/store"
+    ]
+  },
+  "registry_map": {
+    "packet": "../oracle_registry_refresh_7e91a3c91/inventory.json",
+    "registered_actions": 98,
+    "declared_mutations": 30,
+    "covered_mutations": 27,
+    "uncovered_mutations": [
+      "workspace.commit",
+      "workspace.note",
+      "mini_app_run"
+    ]
+  },
+  "root_originals_copied": [
+    "root-originals/root-radio-thread-f29-first-dml.log",
+    "root-originals/root-radio-thread-f29-first-dml.exit.json",
+    "root-originals/root-radio-thread-authority-first-dml.log",
+    "root-originals/root-radio-thread-authority-first-dml.spec.json",
+    "root-originals/root-radio-thread-authority-first-dml.exit.json",
+    "root-originals/lead_radio_thread_authority_first_dml_frozen.py"
+  ],
+  "not_used": [
+    "live app",
+    "model",
+    "provider",
+    "account",
+    "credential",
+    "send",
+    "spend",
+    "install",
+    "deploy",
+    "KVM",
+    "PostgreSQL",
+    "guest/sandbox execution",
+    "all-827 sweep"
+  ],
+  "root_owns": "independent review, PR, CI and merge"
+}
