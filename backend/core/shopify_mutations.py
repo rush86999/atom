@@ -29,6 +29,7 @@ The service's pinned ``ShopifyService.API_VERSION`` is the ``{version}``.
 """
 from __future__ import annotations
 
+import copy
 from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, List, Mapping, Optional, Sequence
 
@@ -252,6 +253,48 @@ def material_mismatches(
         if not same:
             mismatches.append(field)
     return mismatches
+
+
+def durable_product_receipt_projection(
+    result: Mapping[str, Any] | None,
+    expected: Mapping[str, Any] | None,
+) -> Dict[str, Any]:
+    """Provider-specific material for a durable Shopify claim receipt.
+
+    The shared claim persistence is domain neutral; it asks the registered
+    verifier/provider projection for the exact accepted product material so a
+    later replay can compare the CURRENT readback with what was authorized.
+    """
+    expected = expected if isinstance(expected, Mapping) else {}
+    material = expected.get("_oracle_expected_shopify_product")
+    return {
+        "authorized_material": (
+            copy.deepcopy(dict(material))
+            if isinstance(material, Mapping) else None),
+    }
+
+
+def durable_product_material_conflicts(
+    expected: Mapping[str, Any] | None,
+    durable_result: Mapping[str, Any] | None,
+) -> List[str]:
+    """Conflicts between the stored authorized material and this request.
+
+    Missing stored material is a conflict when the current request has frozen
+    material: the receipt cannot prove the exact resource was authorized by
+    this operation.  The caller stays committed_unverified without readback or
+    resend.
+    """
+    expected = expected if isinstance(expected, Mapping) else {}
+    durable_result = (
+        durable_result if isinstance(durable_result, Mapping) else {})
+    expected_material = expected.get("_oracle_expected_shopify_product")
+    if not isinstance(expected_material, Mapping) or not expected_material:
+        return []
+    stored = durable_result.get("authorized_material")
+    if not isinstance(stored, Mapping) or not stored:
+        return ["authorized_material"]
+    return material_mismatches(expected_material, stored)
 
 
 def _payload_digest(payload: Mapping[str, Any]) -> str:

@@ -2256,63 +2256,17 @@ What is your next step?"""
     def _durable_effect_result(
         tool_name: str, result: Any, expected: Dict,
     ) -> Optional[Dict]:
-        """Build the compact durable result/receipt for a confirmed effect.
+        """Build the durable claim result/receipt for a confirmed effect.
 
-        The receipt retains the exact provider resource identity (remote id,
-        provider/store, readback) and the authorized material frozen before
-        dispatch.  A later replay can therefore re-read THIS resource instead
-        of guessing from a title.  Values are JSON-round-tripped so an
-        unserializable observation fails closed (no receipt) rather than being
-        written lossily.
+        Shared claim persistence is domain neutral: the provider/verifier
+        layer registers any domain-specific projection, and the shared
+        contract refuses proof that is not strict JSON (no lossy ``default=
+        str`` conversion).  A ``None`` receipt is honest uncertainty, never a
+        succeeded claim with fabricated identity.
         """
-        if not isinstance(result, dict):
-            return None
-        expected = expected or {}
-        provider_receipt = result.get("provider_receipt")
-        provider_receipt = (
-            provider_receipt if isinstance(provider_receipt, dict) else {})
-        read_receipt = result.get("read_receipt")
-        read_receipt = read_receipt if isinstance(read_receipt, dict) else {}
-        verification = result.get("verification")
-        verification = verification if isinstance(verification, dict) else {}
-        authorized_material = expected.get("_oracle_expected_shopify_product")
-        store = str(provider_receipt.get("shop") or "").strip()
-        if not store:
-            store = str(
-                read_receipt.get("account_id")
-                or read_receipt.get("shop") or "").strip()
-        receipt = {
-            "durable_result_version": 1,
-            "action": str(tool_name or ""),
-            "operation_id": str(
-                expected.get("_oracle_expected_operation_id")
-                or result.get("operation_id") or ""),
-            "payload_sha256": str(result.get("payload_sha256") or ""),
-            "provider": str(result.get("provider") or ""),
-            "operation": str(result.get("operation") or ""),
-            "action_result": str(
-                result.get("action_result") or "applied"),
-            "status": "success",
-            "success": True,
-            "remote_id": str(result.get("remote_id") or "").strip(),
-            "store": store,
-            "workspace_id": str(
-                expected.get("_oracle_expected_workspace_id") or ""),
-            "tenant_id": str(
-                expected.get("_oracle_expected_tenant_id") or ""),
-            "provider_receipt": provider_receipt,
-            "read_receipt": read_receipt,
-            "verification": verification,
-            "authorized_material": (
-                copy.deepcopy(authorized_material)
-                if isinstance(authorized_material, dict) else None),
-            "oracle_verified": bool(result.get("oracle_verified")),
-            "oracle_evidence": str(result.get("oracle_evidence") or ""),
-        }
-        try:
-            return json.loads(json.dumps(receipt, default=str))
-        except Exception:  # noqa: BLE001 - no receipt is honest uncertainty
-            return None
+        from core.oracle import build_durable_effect_result
+
+        return build_durable_effect_result(tool_name, result, expected)
 
     async def _claim_replay_result(
         self, tool_name: str, authorized: Dict, expected: Dict,
@@ -2388,21 +2342,17 @@ What is your next step?"""
                 return _committed_unverified(
                     "durable claim is succeeded but carries no provider "
                     "identity receipt; the exact resource cannot be re-read")
-            expected_material = (expected or {}).get(
-                "_oracle_expected_shopify_product")
-            stored_material = durable_result.get("authorized_material")
-            if isinstance(expected_material, dict) and expected_material:
-                if not isinstance(stored_material, dict) or not stored_material:
-                    return _committed_unverified(
-                        "durable receipt carries no authorized material")
-                from core.shopify_mutations import material_mismatches
+            # Provider-specific replay material (if any) is compared by the
+            # registered verifier/provider contract; shared claim code never
+            # reads a domain field.  Changed material refuses before readback.
+            from core.oracle import durable_result_conflicts
 
-                material_conflicts = material_mismatches(
-                    expected_material, stored_material)
-                if material_conflicts:
-                    return _committed_unverified(
-                        "durable receipt authorized material does not match "
-                        "this operation: " + ", ".join(material_conflicts))
+            material_conflicts = durable_result_conflicts(
+                tool_name, expected, durable_result)
+            if material_conflicts:
+                return _committed_unverified(
+                    "durable receipt does not match this operation: "
+                    + ", ".join(material_conflicts))
             # Re-run the independent verifier against the stored identity.  It
             # re-reads the exact remote id from the CURRENT workspace store and
             # compares the authorized material; the stored receipt is proof

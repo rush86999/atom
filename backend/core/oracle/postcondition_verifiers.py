@@ -15,7 +15,12 @@ import json
 import re
 from typing import Any, Dict, Iterable, Optional
 
-from core.oracle import OracleResult, register_postcondition
+from core.oracle import (
+    OracleResult,
+    register_durable_receipt_matcher,
+    register_durable_receipt_projector,
+    register_postcondition,
+)
 
 _SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
@@ -261,6 +266,24 @@ for _action in (
     "connected.outlook.create_draft",
 ):
     register_postcondition(_action)(_connected_postcondition(_action))
+
+
+@register_durable_receipt_projector("shopify_create_product")
+def _shopify_durable_receipt_projection(
+    result: Dict[str, Any], expected: Dict[str, Any],
+) -> Dict[str, Any]:
+    from core.shopify_mutations import durable_product_receipt_projection
+
+    return durable_product_receipt_projection(result, expected)
+
+
+@register_durable_receipt_matcher("shopify_create_product")
+def _shopify_durable_receipt_conflicts(
+    expected: Dict[str, Any], durable_result: Dict[str, Any],
+) -> Iterable[str]:
+    from core.shopify_mutations import durable_product_material_conflicts
+
+    return durable_product_material_conflicts(expected, durable_result)
 
 
 @register_postcondition("shopify_create_product")
