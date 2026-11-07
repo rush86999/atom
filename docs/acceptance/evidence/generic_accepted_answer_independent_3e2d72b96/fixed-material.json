@@ -1,0 +1,18 @@
+{
+  "executed_source": "3e2d72b96a1924a3bc0964fbbc4518c077957bd8",
+  "runtime_equivalent_paths_to_0a2db1f2a": [
+    "backend/api/agent_routes.py",
+    "backend/core/execution_ownership.py",
+    "backend/core/information_wait.py",
+    "backend/main_api_app.py"
+  ],
+  "original_negative": "/private/tmp/root-generic-accepted-crash-spec.json",
+  "fixture_change": "Only new production startup join added to copied test worker; original negative files retained unchanged",
+  "scope": "three real OS processes, same job, public answer, production startup functions; authentication and LLM leaves controlled; not full main lifespan",
+  "files": {
+    "worker.py": "f5a59434023c5d116bd1050176ba09ff23c25e1a90b085ef99913e20f2892c56",
+    "driver_helpers.py": "2e926a6e1deabc98e368b4050c6cd3734a3b52757f0a11c36a23f1d46f5e27e4",
+    "test_accepted_answer_recovery.py": "4416e6c4f42e178fccabbfa7d027a34ceb60479bb43373577e41bb6493a974b0",
+    "probe-material.json": "7d358dcba9a314270811108cc61316f805e1f5f76edf7bbd752dbff6c42f663f"
+  }
+}
