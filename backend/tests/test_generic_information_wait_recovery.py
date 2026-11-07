@@ -164,6 +164,35 @@ def _recover(monkeypatch, calls=None):
     return result, calls
 
 
+def _drain(world, monkeypatch, *, batch_size=20, calls=None):
+    """Run the production startup driver with a settling consumer double."""
+    from api import agent_routes
+
+    calls = calls if calls is not None else []
+
+    async def spy(action_id, **kwargs):
+        calls.append(action_id)
+        with world.SessionLocal() as db:
+            action = db.get(HITLAction, action_id)
+            snapshot = dict(action.context_snapshot or {})
+            job = db.get(AgentJob, snapshot.get("job_id"))
+            execution = db.get(
+                AgentExecution, snapshot.get("execution_id"))
+            if job is not None:
+                job.status = "success"
+            if execution is not None:
+                execution.status = "completed"
+            db.commit()
+        return {"handled": True, "resumed": True, "job_status": "success"}
+
+    monkeypatch.setattr(agent_routes, "resume_information_wait_action", spy)
+    from core.information_wait import drain_accepted_information_waits
+
+    result = asyncio.run(
+        drain_accepted_information_waits(batch_size=batch_size))
+    return result, calls
+
+
 def test_recovery_refuses_unbound_unapproved_or_foreign_waits(
         world, monkeypatch):
     _wait(world, answer_present=False)
@@ -264,6 +293,39 @@ def test_recovery_selects_a_new_wait_behind_twenty_terminal_waits(
             HITLAction.id != target.action_id).all()
         assert len(historical) == 20
         assert {row.status for row in historical} == {"approved"}
+
+
+def test_startup_drain_processes_all_ready_facts_in_one_boot(
+        world, monkeypatch):
+    targets = [_wait(world) for _ in range(21)]
+
+    result, calls = _drain(world, monkeypatch)
+
+    assert result["resumed"] == 21, result
+    assert result["complete"] is True, result
+    assert result["pages"] >= 2, result
+    assert len(calls) == 21, calls
+    assert set(calls) == {target.action_id for target in targets}
+    with world.SessionLocal() as db:
+        assert {job.status for job in db.query(AgentJob).all()} == {"success"}
+
+    second, second_calls = _drain(world, monkeypatch)
+    assert second["resumed"] == 0, second
+    assert second_calls == [], second_calls
+
+
+def test_startup_drain_finds_ready_fact_behind_unanswered_history(
+        world, monkeypatch):
+    for _ in range(50):
+        _wait(world, status="pending", feedback=None)
+    target = _wait(world)
+
+    result, calls = _drain(world, monkeypatch, batch_size=10)
+
+    assert calls == [target.action_id], calls
+    assert result["resumed"] == 1, result
+    assert result["complete"] is True, result
+    assert result["pages"] >= 6, result
 
 
 def test_recovery_marks_dead_claimed_resume_uncertain_without_resend(

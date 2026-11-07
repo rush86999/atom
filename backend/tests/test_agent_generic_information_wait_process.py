@@ -745,15 +745,17 @@ def test_actual_process_interrupted_resume_claim_is_not_resent(tmp_path):
         _stop(recovering, recovering_log, kill=False)
 
 
-def test_recovery_join_is_a_bounded_async_startup_pass():
-    """The join is async and explicitly bounded, for the lifespan hook."""
+def test_recovery_driver_is_a_bounded_async_startup_pass():
+    """The startup driver is async, paged, and has an explicit safety bound."""
     import inspect
 
     import core.information_wait as information_wait
 
     assert inspect.iscoroutinefunction(
-        information_wait.recover_accepted_information_waits)
+        information_wait.drain_accepted_information_waits)
     signature = inspect.signature(
+        information_wait.drain_accepted_information_waits)
+    assert signature.parameters["batch_size"].default == 20
+    assert signature.parameters["max_pages"].default == 0
+    assert inspect.iscoroutinefunction(
         information_wait.recover_accepted_information_waits)
-    assert signature.parameters["limit"].default == 20
-
