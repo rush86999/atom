@@ -33,10 +33,16 @@ Verifiers (system of record, NOT tool claim):
 | `mini_app_set_tests` | `CanvasAudit` receipt + persisted manifest match the frozen tests digest, operation id, actor and scope | `MiniApp`, `CanvasAudit` |
 
 `mini_app_set_tests` writes its manifest with an exact-prior compare-and-swap
-(SQL NULL / JSON null / empty object / full object) and appends a `CanvasAudit`
-receipt (app id, tests digest, operation id, tenant, workspace, actor). It never
-overwrites a peer's logic/publish/config update; a zero-row CAS is a truthful
-`proven_not_applied` conflict with no audit row.
+(SQL NULL / JSON null / empty object / full object) plus the app owner, tenant,
+workspace and blueprint canvas. It appends a `CanvasAudit` receipt (app id,
+tests digest, operation id, tenant, workspace, actor). It never overwrites a
+peer's logic/publish/config/scope update; a zero-row CAS is a truthful
+`proven_not_applied` conflict with no audit row. The verifier reads through a
+**fresh session** and requires the authoritative `MiniApp` tenant/workspace/
+`created_by`, the current blueprint `Canvas` identity/scope, and the
+`CanvasAudit` action/tenant/user to agree with the frozen request; copied audit
+details never override an authoritative contradiction. Missing required
+scope/actor evidence is refuted.
 
 ### 1b. Registered-action consumer contract (shared registry)
 

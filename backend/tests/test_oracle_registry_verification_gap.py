@@ -569,7 +569,11 @@ def test_mini_app_manifest_cas_binds_exact_prior_value(tmp_path):
             prior_manifest = loaded.manifest
             updated = _cas_set_tests_manifest(
                 db, app.id, prior_manifest, False,
-                {"tests": [{"name": "x", "expect_state": {"runs": 1}}]})
+                {"tests": [{"name": "x", "expect_state": {"runs": 1}}]},
+                owner_id=str(loaded.created_by),
+                tenant_id=str(loaded.tenant_id),
+                workspace_id=loaded.workspace_id,
+                blueprint_canvas_id=loaded.blueprint_canvas_id)
             db.commit()
             assert updated == 1
         with Session() as db:
@@ -620,7 +624,11 @@ def test_mini_app_manifest_cas_peer_change_preserves_peer_state(tmp_path):
         new_manifest = dict(prior)
         new_manifest["tests"] = [{"name": "x", "expect_state": {"runs": 1}}]
         updated = _cas_set_tests_manifest(
-            reader, "peer-app", prior, prior_is_sql_null, new_manifest)
+            reader, "peer-app", prior, prior_is_sql_null, new_manifest,
+            owner_id=str(app.created_by),
+            tenant_id=str(app.tenant_id),
+            workspace_id=app.workspace_id,
+            blueprint_canvas_id=app.blueprint_canvas_id)
         assert updated == 0
 
     with Session() as db:
@@ -692,6 +700,240 @@ def test_mini_app_set_tests_conflict_is_truthful_no_effect(
          "step": {"effect": "local", "operation_id": "op-conflict"}}))
     assert dispatched["status"] == "failed", dispatched
     assert dispatched["data"]["action_result"] == "proven_not_applied"
+
+
+@pytest.mark.parametrize(
+    "field", ["tenant_id", "workspace_id", "created_by"])
+def test_mini_app_manifest_cas_scope_change_preserves_peer_state(
+        tmp_path, field):
+    """Owner/tenant/workspace changes after our read make the CAS zero-effect."""
+    from core.models import Canvas, MiniApp
+    from tools.mini_app_tool import _cas_set_tests_manifest
+
+    engine = create_engine(
+        f"sqlite:///{tmp_path}/cas-scope-{field}.db",
+        connect_args={"timeout": 30})
+    with engine.connect() as connection:
+        connection.exec_driver_sql("PRAGMA journal_mode=WAL")
+    for table in (Canvas.__table__, MiniApp.__table__):
+        table.create(engine)
+    Session = sessionmaker(bind=engine, expire_on_commit=False)
+    with Session() as setup:
+        setup.add(Canvas(
+            id="scope-canvas", tenant_id="tenant-1", workspace_id="ws-1",
+            created_by="user-1", name="source",
+            canvas_type="mini_app", content={}))
+        setup.add(MiniApp(
+            id="scope-app", tenant_id="tenant-1", workspace_id="ws-1",
+            created_by="user-1", name="app", manifest={"peer": "v1"},
+            blueprint_canvas_id="scope-canvas", status="draft"))
+        setup.commit()
+
+    with Session() as reader:
+        app = reader.query(MiniApp).filter(MiniApp.id == "scope-app").one()
+        prior = app.manifest
+        scope = {
+            "owner_id": str(app.created_by),
+            "tenant_id": str(app.tenant_id),
+            "workspace_id": app.workspace_id,
+            "blueprint_canvas_id": app.blueprint_canvas_id,
+        }
+        with Session() as peer:
+            peer_app = peer.query(MiniApp).filter(
+                MiniApp.id == "scope-app").one()
+            setattr(peer_app, field, {
+                "tenant_id": "peer-tenant",
+                "workspace_id": "peer-ws",
+                "created_by": "peer-user",
+            }[field])
+            peer.commit()
+        new_manifest = dict(prior)
+        new_manifest["tests"] = [{"name": "x", "expect_state": {"runs": 1}}]
+        updated = _cas_set_tests_manifest(
+            reader, "scope-app", prior, False, new_manifest, **scope)
+        assert updated == 0
+
+    with Session() as db:
+        saved = db.query(MiniApp).filter(MiniApp.id == "scope-app").one()
+        assert str(getattr(saved, field)) == {
+            "tenant_id": "peer-tenant",
+            "workspace_id": "peer-ws",
+            "created_by": "peer-user",
+        }[field]
+        assert saved.manifest == {"peer": "v1"}
+
+
+@pytest.mark.parametrize(
+    "field", ["workspace_id", "tenant_id", "created_by",
+              "audit_tenant", "audit_actor"])
+def test_mini_app_set_tests_authoritative_scope_contradiction_refutes(
+        tmp_path, field):
+    """Root supplied negative: authoritative columns override copied details."""
+    from core.models import Canvas, CanvasAudit, MiniApp
+
+    engine = create_engine(f"sqlite:///{tmp_path}/authoritative-{field}.db")
+    for table in (Canvas.__table__, MiniApp.__table__, CanvasAudit.__table__):
+        table.create(engine)
+    Session = sessionmaker(bind=engine, expire_on_commit=False)
+    tests = [{"name": "proof", "expect_state": {"runs": 1}}]
+    digest = _approval_payload_hash(tests)
+    with Session() as db:
+        canvas = Canvas(
+            id="canvas-1", tenant_id="tenant-1", workspace_id="ws-1",
+            created_by="user-1", name="App source", canvas_type="mini_app",
+            content={})
+        app = MiniApp(
+            id="app-1", tenant_id="tenant-1", workspace_id="ws-1",
+            created_by="user-1", name="App", manifest={"tests": tests},
+            blueprint_canvas_id=canvas.id, status="draft")
+        audit = CanvasAudit(
+            id="audit-1", canvas_id=canvas.id, tenant_id="tenant-1",
+            action_type="mini_app_set_tests", user_id="user-1",
+            canvas_type="mini_app",
+            details_json={
+                "app_id": app.id, "tests_sha256": digest,
+                "operation_id": "op-new", "workspace_id": "ws-1",
+                "tenant_id": "tenant-1", "actor_id": "user-1",
+            })
+        db.add_all([canvas, app, audit])
+        db.commit()
+
+        base = {
+            "db": db,
+            "_oracle_expected_app_id": app.id,
+            "_oracle_expected_tests": tests,
+            "_oracle_expected_tests_sha256": digest,
+            "_oracle_expected_operation_id": "op-new",
+            "_oracle_expected_tenant_id": "tenant-1",
+            "_oracle_expected_workspace_id": "ws-1",
+            "_oracle_expected_actor_id": "user-1",
+            "audit_id": audit.id,
+        }
+        good = asyncio.run(validate("mini_app_set_tests", base))
+        assert good is not None and good.verified is True, good
+
+        if field == "audit_tenant":
+            audit.tenant_id = "peer-scope"
+        elif field == "audit_actor":
+            audit.user_id = "peer-actor"
+        else:
+            setattr(app, field, "peer-scope")
+        db.commit()
+        result = asyncio.run(validate("mini_app_set_tests", base))
+        assert result is not None and result.verified is False, (field, result)
+
+
+def test_mini_app_set_tests_fresh_read_refutes_dirty_request_object(tmp_path):
+    """Uncommitted caller-session fixes cannot certify peer-scope rows."""
+    from core.models import Canvas, CanvasAudit, MiniApp
+
+    engine = create_engine(f"sqlite:///{tmp_path}/fresh-negative.db")
+    for table in (Canvas.__table__, MiniApp.__table__, CanvasAudit.__table__):
+        table.create(engine)
+    Session = sessionmaker(bind=engine, expire_on_commit=False)
+    tests = [{"name": "proof", "expect_state": {"runs": 1}}]
+    digest = _approval_payload_hash(tests)
+    with Session() as setup:
+        setup.add(Canvas(
+            id="canvas-1", tenant_id="peer-tenant",
+            workspace_id="peer-ws", created_by="peer-actor",
+            name="App source", canvas_type="mini_app", content={}))
+        setup.add(MiniApp(
+            id="app-1", tenant_id="peer-tenant",
+            workspace_id="peer-ws", created_by="peer-actor",
+            name="App", manifest={"tests": tests},
+            blueprint_canvas_id="canvas-1", status="draft"))
+        setup.add(CanvasAudit(
+            id="audit-1", canvas_id="canvas-1",
+            tenant_id="peer-tenant", action_type="mini_app_set_tests",
+            user_id="peer-actor", canvas_type="mini_app",
+            details_json={
+                "app_id": "app-1", "tests_sha256": digest,
+                "operation_id": "op-new", "workspace_id": "peer-ws",
+                "tenant_id": "peer-tenant", "actor_id": "peer-actor",
+            }))
+        setup.commit()
+
+    with Session() as caller:
+        # Dirty (uncommitted) request objects that would look valid if the
+        # verifier reused this session; the authoritative DB still says peer.
+        app = caller.query(MiniApp).filter(MiniApp.id == "app-1").one()
+        audit = caller.query(CanvasAudit).filter(
+            CanvasAudit.id == "audit-1").one()
+        app.tenant_id = "tenant-1"
+        app.workspace_id = "ws-1"
+        app.created_by = "user-1"
+        audit.tenant_id = "tenant-1"
+        audit.user_id = "user-1"
+        audit.details_json = {
+            "app_id": "app-1", "tests_sha256": digest,
+            "operation_id": "op-new", "workspace_id": "ws-1",
+            "tenant_id": "tenant-1", "actor_id": "user-1",
+        }
+        result = asyncio.run(validate("mini_app_set_tests", {
+            "db": caller,
+            "_oracle_expected_app_id": "app-1",
+            "_oracle_expected_tests": tests,
+            "_oracle_expected_tests_sha256": digest,
+            "_oracle_expected_operation_id": "op-new",
+            "_oracle_expected_tenant_id": "tenant-1",
+            "_oracle_expected_workspace_id": "ws-1",
+            "_oracle_expected_actor_id": "user-1",
+            "audit_id": "audit-1",
+        }))
+        assert result is not None and result.verified is False, result
+
+
+def test_mini_app_set_tests_fresh_read_accepts_committed_valid_state(tmp_path):
+    """Stale dirty caller state cannot refute a committed valid operation."""
+    from core.models import Canvas, CanvasAudit, MiniApp
+
+    engine = create_engine(f"sqlite:///{tmp_path}/fresh-positive.db")
+    for table in (Canvas.__table__, MiniApp.__table__, CanvasAudit.__table__):
+        table.create(engine)
+    Session = sessionmaker(bind=engine, expire_on_commit=False)
+    tests = [{"name": "proof", "expect_state": {"runs": 1}}]
+    digest = _approval_payload_hash(tests)
+    with Session() as setup:
+        setup.add(Canvas(
+            id="canvas-1", tenant_id="tenant-1", workspace_id="ws-1",
+            created_by="user-1", name="App source", canvas_type="mini_app",
+            content={}))
+        setup.add(MiniApp(
+            id="app-1", tenant_id="tenant-1", workspace_id="ws-1",
+            created_by="user-1", name="App", manifest={"tests": tests},
+            blueprint_canvas_id="canvas-1", status="draft"))
+        setup.add(CanvasAudit(
+            id="audit-1", canvas_id="canvas-1", tenant_id="tenant-1",
+            action_type="mini_app_set_tests", user_id="user-1",
+            canvas_type="mini_app",
+            details_json={
+                "app_id": "app-1", "tests_sha256": digest,
+                "operation_id": "op-new", "workspace_id": "ws-1",
+                "tenant_id": "tenant-1", "actor_id": "user-1",
+            }))
+        setup.commit()
+
+    with Session() as caller:
+        app = caller.query(MiniApp).filter(MiniApp.id == "app-1").one()
+        audit = caller.query(CanvasAudit).filter(
+            CanvasAudit.id == "audit-1").one()
+        # Uncommitted stale values in the caller's identity map; the committed
+        # authoritative state is still valid.
+        app.tenant_id = "stale-dirty"
+        audit.tenant_id = "stale-dirty"
+        result = asyncio.run(validate("mini_app_set_tests", {
+            "db": caller,
+            "_oracle_expected_app_id": "app-1",
+            "_oracle_expected_tests": tests,
+            "_oracle_expected_tests_sha256": digest,
+            "_oracle_expected_operation_id": "op-new",
+            "_oracle_expected_tenant_id": "tenant-1",
+            "_oracle_expected_workspace_id": "ws-1",
+            "_oracle_expected_actor_id": "user-1",
+            "audit_id": "audit-1",
+        }))
+        assert result is not None and result.verified is True, result
 
 
 def test_mini_app_set_tests_verifier_binds_exact_tests_and_operation(tmp_path):
