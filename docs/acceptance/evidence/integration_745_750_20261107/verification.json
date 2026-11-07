@@ -1,0 +1,87 @@
+{
+  "packet": "integration_745_750_20261107",
+  "executed_source": "1f1d410ef39177f00008f20f925a0ebfcdbf135b",
+  "base_main": "36fa4ce39dd19a6b53b662699e5ceebede129df1",
+  "branch": "codex/engineer-integration-20261107",
+  "frozen_heads": {
+    "745": "182dab986cce9fcd5afb587ddd3451c1532ca524",
+    "747": "ee6b3efd8ee23f1387d4c0ff768d7652e657c5a6",
+    "748": "e0ca9cca0d5627e39d6eaa7cdafac8d0d0905d41",
+    "749": "3a188840dbf92a1f8f0ceb5eb1471051d44ed991",
+    "750": "bf94fc1f81732375055130e1ccc8e4fed8586d0c"
+  },
+  "merge_method": "normal git merge only; no force, rebase or history rewrite",
+  "ci_union": {
+    "union_paths": 137,
+    "integration_paths": 141,
+    "missing_from_integration": [],
+    "integration_additions": [
+      "tests/test_asset_content_receipt.py",
+      "tests/test_lead_asset_usable_image.py",
+      "tests/test_lead_shopify_image_content_receipt.py",
+      "tests/test_shopify_fulfillment_actions.py"
+    ],
+    "drops_skips_xfails": false
+  },
+  "identity_crosswalk": {
+    "artifact": "IDENTITY_CROSSWALK.json",
+    "families": [
+      "positive_745",
+      "wait_browser_main",
+      "radio_749",
+      "image_748",
+      "fulfillment_750",
+      "article_product_main"
+    ],
+    "missing_production_functions": [],
+    "missing_test_functions": [],
+    "new_duplicate_ast_functions": [],
+    "canonical_current_main_unchanged": [
+      "backend/core/generic_agent.py",
+      "backend/api/agent_routes.py",
+      "backend/api/canvas_pdf_routes.py"
+    ]
+  },
+  "registration_completeness": {
+    "radio.send_message": {
+      "postcondition": 1,
+      "durable_projector": 1,
+      "durable_matcher": 1
+    },
+    "shopify_create_fulfillment": {
+      "postcondition": 1,
+      "durable_projector": 1,
+      "durable_matcher": 1
+    },
+    "request_expectation_keys": {
+      "radio": 1,
+      "fulfillment": 1
+    }
+  },
+  "decisive_matrix": {
+    "result": "784 passed",
+    "exit_code": 0,
+    "duration_seconds": 226.85,
+    "harness": "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "testing": "1",
+    "scratch_sqlite": true,
+    "only_http_leaf_doubled": true
+  },
+  "disk_interruption": {
+    "type": "ENOSPC while saving prior evidence state",
+    "treated_as_product_failure": false,
+    "passes_assumed": false,
+    "resumed_after_root_archive": true,
+    "free_gib_before_final_run": 4.8
+  },
+  "safety": {
+    "live_model": false,
+    "live_provider": false,
+    "live_cdn": false,
+    "live_browser": false,
+    "live_account": false,
+    "credentials_used": false,
+    "send_spend_install_deploy": false,
+    "root_acceptance_withheld": true
+  }
+}

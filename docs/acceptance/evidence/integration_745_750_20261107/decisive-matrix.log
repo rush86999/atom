@@ -1,0 +1,1872 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-07 12:52:39 [    INFO] MCP Service initialized
+
+tests/test_oracle_registry_verification_gap.py::test_declared_mutation_without_verifier_is_uncertain_and_not_reapplied 
+-------------------------------- live log setup --------------------------------
+2026-11-07 12:52:39 [    INFO] EscalationManager initialized
+2026-11-07 12:52:39 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:52:39 [    INFO] EscalationManager initialized
+2026-11-07 12:52:39 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:52:39 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 12:52:39 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:52:39 [    INFO] runtime identity: source_id=1f1d410ef391-dirty.50043c227f02 revision=1f1d410ef391 dirty=True (0 modified, 3 untracked)
+PASSED                                                                   [  0%]
+tests/test_oracle_registry_verification_gap.py::test_unusable_verifier_is_uncertain_with_receipt[none] PASSED [  0%]
+tests/test_oracle_registry_verification_gap.py::test_unusable_verifier_is_uncertain_with_receipt[raise] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:52:39 [ WARNING] [Oracle] postcondition check for test.gap.raise.d4253345 failed: readback store unavailable
+PASSED                                                                   [  0%]
+tests/test_oracle_registry_verification_gap.py::test_unusable_verifier_is_uncertain_with_receipt[refute] PASSED [  0%]
+tests/test_oracle_registry_verification_gap.py::test_positive_independent_verdict_applies_with_receipt PASSED [  0%]
+tests/test_oracle_registry_verification_gap.py::test_read_action_without_verifier_still_applies PASSED [  0%]
+tests/test_oracle_registry_verification_gap.py::test_full_executor_real_task_create_is_independently_verified[True] PASSED [  0%]
+tests/test_oracle_registry_verification_gap.py::test_full_executor_real_task_create_is_independently_verified[False] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:52:39 [   ERROR] tasks.create failed: 404: Board not found
+PASSED                                                                   [  1%]
+tests/test_oracle_registry_verification_gap.py::test_full_executor_real_read_action_still_applies PASSED [  1%]
+tests/test_oracle_registry_verification_gap.py::test_plan_output_is_not_treated_as_a_mutation PASSED [  1%]
+tests/test_oracle_registry_verification_gap.py::test_changed_request_is_refuted_against_the_frozen_authorized_request PASSED [  1%]
+tests/test_oracle_registry_verification_gap.py::test_disabled_oracle_never_certifies_applied PASSED [  1%]
+tests/test_oracle_registry_verification_gap.py::test_lead_probe_declared_write_without_verifier_cannot_claim_applied PASSED [  1%]
+tests/test_oracle_registry_verification_gap.py::test_readonly_twin_without_verifier_still_applies PASSED [  1%]
+tests/test_oracle_registry_verification_gap.py::test_unqualified_effect_metadata_is_not_an_implicit_read[effects0] PASSED [  1%]
+tests/test_oracle_registry_verification_gap.py::test_unqualified_effect_metadata_is_not_an_implicit_read[effects1] PASSED [  2%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_effect_metadata_cannot_certify_write[read-missing-entry] PASSED [  2%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_effect_metadata_cannot_certify_write[plan-missing-entry] PASSED [  2%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_effect_metadata_cannot_certify_write[read-non-mapping-entry] PASSED [  2%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_effect_metadata_cannot_certify_write[read-blank-name] PASSED [  2%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_effect_metadata_cannot_certify_write[read-null-name] PASSED [  2%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_effect_metadata_cannot_certify_write[read-non-string-name] PASSED [  2%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_effect_metadata_cannot_certify_write[read-unknown-name] PASSED [  2%]
+tests/test_oracle_registry_verification_gap.py::test_clean_non_mutating_metadata_still_applies[read] PASSED [  3%]
+tests/test_oracle_registry_verification_gap.py::test_clean_non_mutating_metadata_still_applies[read-only] PASSED [  3%]
+tests/test_oracle_registry_verification_gap.py::test_clean_non_mutating_metadata_still_applies[plan] PASSED [  3%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_declaration_is_never_a_read_or_plan_exemption[missing-entry] PASSED [  3%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_declaration_is_never_a_read_or_plan_exemption[blank-name] PASSED [  3%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_declaration_is_never_a_read_or_plan_exemption[non-string-name] PASSED [  3%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_declaration_is_never_a_read_or_plan_exemption[non-mapping-entry] PASSED [  3%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_declaration_is_never_a_read_or_plan_exemption[plan-missing-entry] PASSED [  3%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_declaration_is_never_a_read_or_plan_exemption[unknown-name] PASSED [  4%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_declaration_is_never_a_read_or_plan_exemption[string-container] PASSED [  4%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_declaration_is_never_a_read_or_plan_exemption[mapping-container] PASSED [  4%]
+tests/test_oracle_registry_verification_gap.py::test_valid_declaration_semantics_remain_bounded PASSED [  4%]
+tests/test_oracle_registry_verification_gap.py::test_registry_declares_effects_and_keeps_uncovered_explicit PASSED [  4%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_manifest_cas_binds_exact_prior_value PASSED [  4%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_manifest_cas_peer_change_preserves_peer_state PASSED [  4%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_set_tests_conflict_is_truthful_no_effect PASSED [  4%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_manifest_cas_scope_change_preserves_peer_state[tenant_id] PASSED [  5%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_manifest_cas_scope_change_preserves_peer_state[workspace_id] PASSED [  5%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_manifest_cas_scope_change_preserves_peer_state[created_by] PASSED [  5%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_set_tests_authoritative_scope_contradiction_refutes[workspace_id] PASSED [  5%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_set_tests_authoritative_scope_contradiction_refutes[tenant_id] PASSED [  5%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_set_tests_authoritative_scope_contradiction_refutes[created_by] PASSED [  5%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_set_tests_authoritative_scope_contradiction_refutes[audit_tenant] PASSED [  5%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_set_tests_authoritative_scope_contradiction_refutes[audit_actor] PASSED [  5%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_set_tests_fresh_read_refutes_dirty_request_object PASSED [  6%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_set_tests_fresh_read_accepts_committed_valid_state PASSED [  6%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_set_tests_verifier_binds_exact_tests_and_operation PASSED [  6%]
+tests/test_oracle_effect_families.py::test_canvas_present_family_verifies_exact_material_and_operation PASSED [  6%]
+tests/test_oracle_effect_families.py::test_canvas_update_family_verifies_content_and_mirror PASSED [  6%]
+tests/test_oracle_effect_families.py::test_canvas_restore_family_verifies_original_target PASSED [  6%]
+tests/test_oracle_effect_families.py::test_goal_create_and_evaluate_families PASSED [  6%]
+tests/test_oracle_effect_families.py::test_goal_run_and_plan_families PASSED [  7%]
+tests/test_oracle_effect_families.py::test_tasks_create_family_accepts_nested_task_payload PASSED [  7%]
+tests/test_oracle_effect_families.py::test_adapter_uses_shared_canvas_update_postcondition PASSED [  7%]
+tests/test_oracle_effect_families.py::test_adapter_downgrades_wrong_local_canvas_content PASSED [  7%]
+tests/test_oracle_effect_families.py::test_adapter_uses_shared_goal_and_task_postconditions PASSED [  7%]
+tests/test_oracle_effect_families.py::test_adapter_presentation_positive_binds_exact_audit PASSED [  7%]
+tests/test_oracle_effect_families.py::test_adapter_presentation_handler_mutation_is_refuted PASSED [  7%]
+tests/test_oracle_effect_families.py::test_adapter_old_audit_cannot_certify_new_operation PASSED [  7%]
+tests/test_oracle_effect_families.py::test_adapter_missing_presentation_material_refuses_before_dispatch PASSED [  8%]
+tests/test_oracle_connected_mutations.py::test_every_connected_mutating_action_has_a_postcondition_verifier PASSED [  8%]
+tests/test_oracle_connected_mutations.py::test_connected_readback_receipt_is_required_for_verification PASSED [  8%]
+tests/test_oracle_connected_mutations.py::test_action_registry_consumer_downgrades_a_false_oracle_pass PASSED [  8%]
+tests/test_oracle_connected_mutations.py::test_connected_mutation_binding_matrix PASSED [  8%]
+tests/test_oracle_connected_mutations.py::test_action_registry_consumer_downgrades_when_verifier_returns_none PASSED [  8%]
+tests/test_oracle_connected_mutations.py::test_action_registry_consumer_downgrades_when_oracle_raises 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:52:42 [ WARNING] [Oracle] postcondition check for test.oracle.raises.c48a4f6c failed: oracle transport unavailable
+PASSED                                                                   [  8%]
+tests/test_oracle_connected_mutations.py::test_action_registry_consumer_keeps_read_only_outcome PASSED [  8%]
+tests/test_oracle_connected_mutations.py::test_request_snapshot_is_frozen_before_handler_mutation[body] PASSED [  9%]
+tests/test_oracle_connected_mutations.py::test_request_snapshot_is_frozen_before_handler_mutation[nested_recipient] PASSED [  9%]
+tests/test_oracle_connected_mutations.py::test_request_snapshot_is_frozen_before_handler_mutation[subject] PASSED [  9%]
+tests/test_oracle_connected_mutations.py::test_request_snapshot_is_frozen_before_handler_mutation[operation_id] PASSED [  9%]
+tests/test_oracle_connected_mutations.py::test_unchanged_connected_request_still_verifies PASSED [  9%]
+tests/test_oracle_connected_mutations.py::test_supplied_digest_mismatch_refuses_before_dispatch PASSED [  9%]
+tests/test_oracle_connected_mutations.py::test_unavailable_binding_refuses_before_dispatch PASSED [  9%]
+tests/test_oracle_connected_mutations.py::test_connected_estimate_organization_mutation_is_uncertain PASSED [  9%]
+tests/test_assignment_executor.py::test_two_materially_different_assignments_same_executor PASSED [ 10%]
+tests/test_assignment_executor.py::test_changed_artifact_invalidates_approval PASSED [ 10%]
+tests/test_assignment_executor.py::test_provider_accepted_then_worker_lost_is_reconciled_not_resent PASSED [ 10%]
+tests/test_assignment_executor.py::test_cancellation_prevents_unstarted_effect PASSED [ 10%]
+tests/test_assignment_executor.py::test_external_reply_matches_exact_correlation_once PASSED [ 10%]
+tests/test_assignment_executor.py::test_action_dispatched_alone_is_not_provider_acceptance PASSED [ 10%]
+tests/test_assignment_executor.py::test_assignment_approval_binding_cannot_be_rebound PASSED [ 10%]
+tests/test_assignment_executor.py::test_stale_task_revision_prevents_dispatch PASSED [ 10%]
+tests/test_assignment_executor.py::test_failed_prerequisite_blocks_downstream_effect PASSED [ 11%]
+tests/test_assignment_executor.py::test_crash_after_wake_before_advance_recovers PASSED [ 11%]
+tests/test_assignment_executor.py::test_approval_after_cancellation_is_refused PASSED [ 11%]
+tests/test_assignment_executor.py::test_ordinary_resume_leaves_healthy_running_operation_intact PASSED [ 11%]
+tests/test_assignment_executor.py::test_recovery_without_worker_proof_does_not_assert_loss PASSED [ 11%]
+tests/test_assignment_executor.py::test_recovery_names_previous_worker_and_marks_uncertain PASSED [ 11%]
+tests/test_assignment_executor.py::test_liveness_probe_true_keeps_running_operation PASSED [ 11%]
+tests/test_assignment_executor.py::test_two_concurrent_resume_requests_dispatch_once PASSED [ 11%]
+tests/test_assignment_executor.py::test_send_prepare_binds_attachment_bytes_not_just_ids PASSED [ 12%]
+tests/test_assignment_executor.py::test_send_prepare_refuses_attachment_ids_without_hashes PASSED [ 12%]
+tests/test_assignment_executor.py::test_restart_after_artifact_creation_does_not_recreate_work PASSED [ 12%]
+tests/test_assignment_executor.py::test_external_research_reads_action_result_as_evidence PASSED [ 12%]
+tests/test_assignment_executor.py::test_external_research_missing_result_is_typed_obligation_and_resumes PASSED [ 12%]
+tests/test_assignment_executor.py::test_external_research_rejects_write_actions PASSED [ 12%]
+tests/test_assignment_executor.py::test_controlled_outbox_applies_taught_email_protocol PASSED [ 12%]
+tests/test_assignment_executor.py::test_external_response_contradicting_source_fact_stays_waiting PASSED [ 13%]
+tests/test_assignment_executor.py::test_external_response_for_genuinely_missing_fact_resumes PASSED [ 13%]
+tests/test_assignment_executor.py::test_blank_currency_value_accepts_authorized_resolution_and_survives_restart PASSED [ 13%]
+tests/test_assignment_executor.py::test_agreeing_currency_response_is_confirmation_not_conflict PASSED [ 13%]
+tests/test_assignment_executor.py::test_mixed_currency_values_require_record_specific_resolution PASSED [ 13%]
+tests/test_assignment_executor.py::test_substring_replies_do_not_confirm_established_values PASSED [ 13%]
+tests/test_assignment_executor.py::test_numeric_substring_reply_is_not_agreement PASSED [ 13%]
+tests/test_assignment_executor.py::test_explicit_typed_value_can_confirm_with_explanatory_text PASSED [ 13%]
+tests/test_assignment_executor.py::test_fact_resolution_uses_only_accepted_rows PASSED [ 14%]
+tests/test_assignment_executor.py::test_unreadable_evidence_is_not_treated_as_missing PASSED [ 14%]
+tests/test_assignment_executor.py::test_incomplete_coverage_does_not_allow_ordinary_resolution PASSED [ 14%]
+tests/test_assignment_executor.py::test_fact_evidence_branch_matrix PASSED [ 14%]
+tests/test_assignment_executor.py::test_bounded_standing_authority_covers_two_sends_without_approval PASSED [ 14%]
+tests/test_assignment_executor.py::test_standing_authority_bound_falls_back_to_approval PASSED [ 14%]
+tests/test_assignment_executor.py::test_recipient_outside_the_grant_requires_approval PASSED [ 14%]
+tests/test_assignment_executor.py::test_expired_standing_authority_requires_approval PASSED [ 14%]
+tests/test_assignment_executor.py::test_cost_budget_stops_before_the_next_step PASSED [ 15%]
+tests/test_assignment_executor.py::test_post_effect_runtime_error_is_uncertain_not_failed_before_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:52:45 [    INFO] Created HITL action a07fe38a-262a-412f-a518-1f31d9a35102 for agent None
+PASSED                                                                   [ 15%]
+tests/test_assignment_executor.py::test_post_effect_timeout_is_uncertain_and_does_not_resend 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:52:45 [    INFO] Created HITL action c2166b35-1e3b-4bbc-b916-ff26b809ef3e for agent None
+PASSED                                                                   [ 15%]
+tests/test_assignment_executor.py::test_post_effect_parse_error_is_uncertain 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:52:46 [    INFO] Created HITL action 26190e78-0dcf-4dd2-9a75-3680a214a04f for agent None
+PASSED                                                                   [ 15%]
+tests/test_assignment_executor.py::test_post_effect_cancellation_is_uncertain 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:52:46 [    INFO] Created HITL action f6f93b32-9a2b-48c8-a62b-1528b1db14e7 for agent None
+PASSED                                                                   [ 15%]
+tests/test_assignment_executor.py::test_trusted_before_effect_error_remains_retryable 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:52:46 [    INFO] Created HITL action 14574f42-9d23-4764-939f-757069397e37 for agent None
+PASSED                                                                   [ 15%]
+tests/test_assignment_executor.py::test_hard_cost_budget_refuses_before_dispatch PASSED [ 15%]
+tests/test_assignment_executor.py::test_reserved_cost_blocks_the_next_over_limit_step PASSED [ 15%]
+tests/test_assignment_executor.py::test_soft_cost_limit_is_explicit_and_exposed PASSED [ 16%]
+tests/test_assignment_executor.py::test_cost_bearing_adapter_without_a_bound_is_refused PASSED [ 16%]
+tests/test_assignment_executor.py::test_durable_wait_time_is_excluded_from_the_wall_budget PASSED [ 16%]
+tests/test_assignment_executor.py::test_retry_credits_a_legacy_wait_once_and_keeps_working_time PASSED [ 16%]
+tests/test_assignment_executor.py::test_legacy_already_credited_pause_is_not_extended PASSED [ 16%]
+tests/test_assignment_executor.py::test_each_new_wait_interval_is_credited_once PASSED [ 16%]
+tests/test_assignment_executor.py::test_independent_ready_branch_runs_while_first_branch_waits PASSED [ 16%]
+tests/test_assignment_executor.py::test_idle_budget_unions_overlapping_waits_across_restart PASSED [ 16%]
+tests/test_assignment_executor.py::test_legacy_open_wait_migration_does_not_invent_a_second_credit PASSED [ 17%]
+tests/test_assignment_executor.py::test_absolute_deadline_expires_through_wait_and_restart PASSED [ 17%]
+tests/test_assignment_executor.py::test_concurrent_retries_credit_a_legacy_wait_once PASSED [ 17%]
+tests/test_assignment_executor.py::test_genuine_active_work_exhaustion_is_refused PASSED [ 17%]
+tests/test_assignment_executor.py::test_legacy_open_wait_is_not_subtracted_twice PASSED [ 17%]
+tests/test_assignment_executor.py::test_legacy_credit_clears_matching_active_wait PASSED [ 17%]
+tests/test_assignment_executor.py::test_legacy_retry_keeps_genuine_active_exhaustion PASSED [ 17%]
+tests/test_assignment_executor.py::test_recorded_credit_with_stale_open_wait_is_not_double_subtracted PASSED [ 17%]
+tests/test_assignment_executor.py::test_concurrent_external_responses_credit_the_wait_once PASSED [ 18%]
+tests/test_assignment_executor.py::test_restart_while_waiting_credits_the_interval_once PASSED [ 18%]
+tests/test_assignment_executor.py::test_evidence_backed_quote_plan_end_to_end PASSED [ 18%]
+tests/test_assignment_executor.py::test_service_line_plan_uses_the_same_executor PASSED [ 18%]
+tests/test_assignment_executor.py::test_non_sales_policy_plan_uses_the_same_executor PASSED [ 18%]
+tests/test_assignment_executor.py::test_discount_clarification_is_durable_and_resumes_the_same_work PASSED [ 18%]
+tests/test_assignment_executor.py::test_uncertain_action_envelope_blocks_dependents_until_reconciled 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:52:47 [    INFO] Created HITL action bee0edb4-9dbf-4f3e-a474-bd55df22c1fd for agent None
+2026-11-07 12:52:47 [    INFO] Created HITL action 2b656b76-044f-42e8-83f8-a0c6da8b82b6 for agent None
+PASSED                                                                   [ 18%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result0-effects0-external-uncertain] PASSED [ 19%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result1-effects1-external-failed] PASSED [ 19%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result2-effects2-external-uncertain] PASSED [ 19%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result3-effects3-external-uncertain] PASSED [ 19%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result4-effects4-read_only-unavailable] PASSED [ 19%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result5-effects5-read_only-unavailable] PASSED [ 19%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result6-effects6-external-uncertain] PASSED [ 19%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result7-effects7-external-uncertain] PASSED [ 19%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result8-effects8-external-uncertain] PASSED [ 20%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result9-effects9-read_only-applied] PASSED [ 20%]
+tests/test_assignment_executor.py::test_mutation_exception_after_dispatch_is_uncertain_not_ordinary_failure PASSED [ 20%]
+tests/test_assignment_executor.py::test_trusted_proof_of_no_effect_is_before_effect_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:52:47 [    INFO] Created HITL action c6578a25-f192-40ff-a104-f05cb2f27bf3 for agent None
+PASSED                                                                   [ 20%]
+tests/test_assignment_executor.py::test_unavailable_read_is_reported_without_fabricated_data PASSED [ 20%]
+tests/test_assignment_executor.py::test_readback_conflict_preserves_remote_identity_and_blocks_dependents 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:52:47 [    INFO] Created HITL action 52c0bd37-b9dd-4881-9f10-30e5e295bf51 for agent None
+PASSED                                                                   [ 20%]
+tests/test_assignment_executor.py::test_plan_shape_output_is_not_a_durable_mutation PASSED [ 20%]
+tests/test_assignment_executor.py::test_verified_receipt_gates_dependent_execution[proof0-verified_proof_missing] PASSED [ 20%]
+tests/test_assignment_executor.py::test_verified_receipt_gates_dependent_execution[proof1-verified_proof_refuted] PASSED [ 21%]
+tests/test_assignment_executor.py::test_verified_receipt_gates_dependent_execution[proof2-verified_proof_missing_fields] PASSED [ 21%]
+tests/test_assignment_executor.py::test_verified_receipt_gates_dependent_execution[proof3-verified_coverage_truncated] PASSED [ 21%]
+tests/test_assignment_executor.py::test_verified_receipt_gates_dependent_execution[proof4-verified_coverage_unknown] PASSED [ 21%]
+tests/test_assignment_executor.py::test_verified_receipt_positive_twin_executes_dependent PASSED [ 21%]
+tests/test_assignment_executor.py::test_provider_acceptance_never_confirms_sent_items_through_executor 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:52:48 [    INFO] Created HITL action 3728030a-c2a5-4b02-8f75-68397b3373a7 for agent None
+PASSED                                                                   [ 21%]
+tests/test_assignment_executor.py::test_sent_items_minimum_schema_gates_executor[operation_only] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:52:48 [    INFO] Created HITL action 346a580b-3824-4788-ae4a-a99a12253e37 for agent None
+PASSED                                                                   [ 21%]
+tests/test_assignment_executor.py::test_sent_items_minimum_schema_gates_executor[message_only] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:52:48 [    INFO] Created HITL action e48be067-3700-4eb4-be8f-9784b956fdeb for agent None
+PASSED                                                                   [ 21%]
+tests/test_assignment_executor.py::test_explicit_sent_items_readback_confirms_through_executor 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:52:48 [    INFO] Created HITL action 3dbdac7e-9820-4be7-a838-acf0ad0b6375 for agent None
+PASSED                                                                   [ 22%]
+tests/test_assignment_executor.py::test_business_readiness_blocks_dependent_while_independent_runs PASSED [ 22%]
+tests/test_assignment_executor.py::test_plan_patch_invalidates_only_affected_branch_and_preserves_budget PASSED [ 22%]
+tests/test_assignment_executor.py::test_plan_patch_rewires_invalidated_work_and_refuses_applied_update PASSED [ 22%]
+tests/test_assignment_executor.py::test_plan_patch_rejects_stale_base_and_immutable_effects PASSED [ 22%]
+tests/test_assignment_executor.py::test_plan_patch_duplicate_is_idempotent_and_survives_restart PASSED [ 22%]
+tests/test_assignment_executor.py::test_adaptation_invalidates_only_affected_branch PASSED [ 22%]
+tests/test_assignment_executor.py::test_replayed_observation_does_not_reopen_work_twice PASSED [ 22%]
+tests/test_assignment_executor.py::test_observation_reopens_affected_work_and_reruns_only_that_branch PASSED [ 23%]
+tests/test_assignment_executor.py::test_adaptation_missing_qualification_asks_instead_of_guessing PASSED [ 23%]
+tests/test_assignment_executor.py::test_adaptation_model_choice_is_scoped_and_uncertain_reconciles PASSED [ 23%]
+tests/test_assignment_executor.py::test_plan_patch_validation_refuses_weakening_and_effect_relabel PASSED [ 23%]
+tests/test_assignment_executor.py::test_approval_clears_the_matching_human_input_wait PASSED [ 23%]
+tests/test_generic_oracle_mutation_contract.py::test_committed_declared_write_without_verifier_is_not_success PASSED [ 23%]
+tests/test_generic_oracle_mutation_contract.py::test_unverified_timeout_does_not_invite_retry PASSED [ 23%]
+tests/test_generic_oracle_mutation_contract.py::test_explicit_read_stays_usable PASSED [ 23%]
+tests/test_generic_oracle_mutation_contract.py::test_broken_verdicts_do_not_manufacture_business_success[refuting] PASSED [ 24%]
+tests/test_generic_oracle_mutation_contract.py::test_broken_verdicts_do_not_manufacture_business_success[raising] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:52:50 [ WARNING] [Oracle] postcondition check for test.generic.verdict.1c6ccbf8a2d844adbc6217fadc259ba0 failed: verifier transport unavailable
+PASSED                                                                   [ 24%]
+tests/test_generic_oracle_mutation_contract.py::test_broken_verdicts_do_not_manufacture_business_success[none] PASSED [ 24%]
+tests/test_generic_oracle_mutation_contract.py::test_real_effect_with_independent_readback_is_verified PASSED [ 24%]
+tests/test_generic_oracle_mutation_contract.py::test_disabled_oracle_cannot_lend_success[ATOM_ORACLE_VERIFIER_ENABLED] PASSED [ 24%]
+tests/test_generic_oracle_mutation_contract.py::test_disabled_oracle_cannot_lend_success[ATOM_ORACLE_ENFORCE] PASSED [ 24%]
+tests/test_generic_oracle_mutation_contract.py::test_registered_plan_only_output_stays_usable PASSED [ 24%]
+tests/test_generic_oracle_mutation_contract.py::test_returned_payload_cannot_overwrite_frozen_request[False] PASSED [ 25%]
+tests/test_generic_oracle_mutation_contract.py::test_returned_payload_cannot_overwrite_frozen_request[True] PASSED [ 25%]
+tests/test_generic_oracle_mutation_contract.py::test_handler_arg_mutation_does_not_rewrite_authorized_request[False] PASSED [ 25%]
+tests/test_generic_oracle_mutation_contract.py::test_handler_arg_mutation_does_not_rewrite_authorized_request[True] PASSED [ 25%]
+tests/test_generic_oracle_mutation_contract.py::test_durable_claim_replays_without_second_dispatch PASSED [ 25%]
+tests/test_generic_oracle_mutation_contract.py::test_changed_material_with_same_operation_is_refused PASSED [ 25%]
+tests/test_generic_oracle_mutation_contract.py::test_uncertain_timeout_claim_never_resends_on_restart 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:52:54 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='autodev_guidance'
+PASSED                                                                   [ 25%]
+tests/test_generic_oracle_mutation_contract.py::test_replay_with_refuted_fresh_readback_is_not_success PASSED [ 25%]
+tests/test_generic_oracle_mutation_contract.py::test_landed_effect_then_failed_selfreport_is_uncertain PASSED [ 26%]
+tests/test_generic_oracle_mutation_contract.py::test_landed_effect_then_ordinary_exception_is_uncertain PASSED [ 26%]
+tests/test_generic_oracle_mutation_contract.py::test_pre_effect_no_effect_refusal_stays_truthful PASSED [ 26%]
+tests/test_generic_oracle_mutation_contract.py::test_unqualified_registered_effect_metadata_is_conservative PASSED [ 26%]
+tests/test_generic_oracle_mutation_contract.py::test_normal_dispatch_without_operation_id_is_durable PASSED [ 26%]
+tests/test_generic_oracle_mutation_contract.py::test_server_intent_slot_is_not_reminted_by_model_material PASSED [ 26%]
+tests/test_generic_oracle_mutation_contract.py::test_cold_resume_without_explicit_operation_id_reloads_claim 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:52:59 [    INFO] Agent Scratch Agent (scratch-agent) starting task: resume the normal task
+2026-11-07 12:52:59 [    INFO] EscalationManager initialized
+2026-11-07 12:52:59 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 26%]
+tests/test_generic_oracle_mutation_contract.py::test_explicit_operation_without_workspace_is_refused_before_effect PASSED [ 26%]
+tests/test_generic_oracle_mutation_contract.py::test_handler_context_carries_server_operation_identity PASSED [ 27%]
+tests/test_generic_oracle_mutation_contract.py::test_cold_resume_with_unreadable_claim_store_stays_unresolved 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:53:00 [    INFO] Agent Scratch Agent (scratch-agent) starting task: continue original task
+PASSED                                                                   [ 27%]
+tests/test_generic_oracle_mutation_contract.py::test_zero_claim_read_only_execution_stays_success 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:53:01 [    INFO] Agent Scratch Agent (scratch-agent) starting task: answer the question
+PASSED                                                                   [ 27%]
+tests/test_generic_oracle_mutation_contract.py::test_mark_status_expected_status_is_database_cas PASSED [ 27%]
+tests/test_generic_oracle_mutation_contract.py::test_execution_finalization_blocks_unverified_mutation_but_keeps_reads 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:53:01 [    INFO] Agent Scratch Agent (scratch-agent) starting task: do the thing
+2026-11-07 12:53:01 [   ERROR] AUDIT GAP for execution a7862278-34ab-44a1-bc6f-53cd49d02481: {'complete': False, 'execution_id': 'a7862278-34ab-44a1-bc6f-53cd49d02481', 'expected_events': 5, 'actual_events': 4, 'coverage_percentage': 80.0, 'checked_at': '2026-11-07T17:53:01.876180+00:00'}
+2026-11-07 12:53:01 [    INFO] EscalationManager initialized
+2026-11-07 12:53:01 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:53:01 [   ERROR] Session sess-final not found
+PASSED                                                                   [ 27%]
+tests/test_generic_oracle_mutation_contract.py::test_execution_finalization_allows_verified_mutation 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:53:02 [    INFO] Agent Scratch Agent (scratch-agent) starting task: do the verified thing
+2026-11-07 12:53:02 [    INFO] EscalationManager initialized
+2026-11-07 12:53:02 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:53:02 [   ERROR] Session sess-final not found
+PASSED                                                                   [ 27%]
+tests/test_generic_oracle_mutation_contract.py::test_cold_resumed_execution_reloads_unresolved_claim 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:53:02 [    INFO] Agent Scratch Agent (scratch-agent) starting task: resume the task
+PASSED                                                                   [ 27%]
+tests/test_lead_shopify_authorized_material.py::test_every_forwarded_business_field_must_match_readback[False-images] PASSED [ 27%]
+tests/test_lead_shopify_authorized_material.py::test_every_forwarded_business_field_must_match_readback[False-price] PASSED [ 28%]
+tests/test_lead_shopify_authorized_material.py::test_every_forwarded_business_field_must_match_readback[False-compare_at_price] PASSED [ 28%]
+tests/test_lead_shopify_authorized_material.py::test_every_forwarded_business_field_must_match_readback[True-images] PASSED [ 28%]
+tests/test_lead_shopify_authorized_material.py::test_every_forwarded_business_field_must_match_readback[True-price] PASSED [ 28%]
+tests/test_lead_shopify_authorized_material.py::test_every_forwarded_business_field_must_match_readback[True-compare_at_price] PASSED [ 28%]
+tests/test_lead_shopify_authorized_material.py::test_money_normalization_cannot_round_under_callers_decimal_context[1.005-3] PASSED [ 28%]
+tests/test_lead_shopify_authorized_material.py::test_money_normalization_cannot_round_under_callers_decimal_context[1.005-28] PASSED [ 28%]
+tests/test_lead_shopify_authorized_material.py::test_money_normalization_cannot_round_under_callers_decimal_context[1000-3] PASSED [ 28%]
+tests/test_lead_shopify_authorized_material.py::test_money_normalization_cannot_round_under_callers_decimal_context[1000-28] PASSED [ 29%]
+tests/test_lead_shopify_authorized_material.py::test_money_normalization_cannot_round_under_callers_decimal_context[1.2300-3] PASSED [ 29%]
+tests/test_lead_shopify_authorized_material.py::test_money_normalization_cannot_round_under_callers_decimal_context[1.2300-28] PASSED [ 29%]
+tests/test_lead_shopify_authorized_material.py::test_money_normalization_cannot_round_under_callers_decimal_context[0.000001-3] PASSED [ 29%]
+tests/test_lead_shopify_authorized_material.py::test_money_normalization_cannot_round_under_callers_decimal_context[0.000001-28] PASSED [ 29%]
+tests/test_lead_shopify_authorized_material.py::test_money_normalization_cannot_round_under_callers_decimal_context[-0.00-3] PASSED [ 29%]
+tests/test_lead_shopify_authorized_material.py::test_money_normalization_cannot_round_under_callers_decimal_context[-0.00-28] PASSED [ 29%]
+tests/test_lead_shopify_authorized_material.py::test_money_normalization_cannot_round_under_callers_decimal_context[12345678901234567890123456789.001-3] PASSED [ 29%]
+tests/test_lead_shopify_authorized_material.py::test_money_normalization_cannot_round_under_callers_decimal_context[12345678901234567890123456789.001-28] PASSED [ 30%]
+tests/test_oracle_shopify_product_authorized_material.py::test_accepted_field_is_forwarded_and_exactly_verified[images] PASSED [ 30%]
+tests/test_oracle_shopify_product_authorized_material.py::test_accepted_field_is_forwarded_and_exactly_verified[price] PASSED [ 30%]
+tests/test_oracle_shopify_product_authorized_material.py::test_accepted_field_is_forwarded_and_exactly_verified[compare_at_price] PASSED [ 30%]
+tests/test_oracle_shopify_product_authorized_material.py::test_provider_omission_or_rounding_is_not_verified[images] PASSED [ 30%]
+tests/test_oracle_shopify_product_authorized_material.py::test_provider_omission_or_rounding_is_not_verified[price] PASSED [ 30%]
+tests/test_oracle_shopify_product_authorized_material.py::test_provider_omission_or_rounding_is_not_verified[compare_at_price] PASSED [ 30%]
+tests/test_oracle_shopify_product_authorized_material.py::test_image_source_rewrite_is_not_content_proof PASSED [ 30%]
+tests/test_oracle_shopify_product_authorized_material.py::test_replay_respects_complete_field_proof[omit_or_round-images] PASSED [ 31%]
+tests/test_oracle_shopify_product_authorized_material.py::test_replay_respects_complete_field_proof[omit_or_round-price] PASSED [ 31%]
+tests/test_oracle_shopify_product_authorized_material.py::test_replay_respects_complete_field_proof[omit_or_round-compare_at_price] PASSED [ 31%]
+tests/test_oracle_shopify_product_authorized_material.py::test_replay_respects_complete_field_proof[material-images] PASSED [ 31%]
+tests/test_oracle_shopify_product_authorized_material.py::test_replay_respects_complete_field_proof[material-price] PASSED [ 31%]
+tests/test_oracle_shopify_product_authorized_material.py::test_replay_respects_complete_field_proof[material-compare_at_price] PASSED [ 31%]
+tests/test_oracle_shopify_product_authorized_material.py::test_replay_of_complete_material_verifies_without_second_create[images] PASSED [ 31%]
+tests/test_oracle_shopify_product_authorized_material.py::test_replay_of_complete_material_verifies_without_second_create[price] PASSED [ 32%]
+tests/test_oracle_shopify_product_authorized_material.py::test_replay_of_complete_material_verifies_without_second_create[compare_at_price] PASSED [ 32%]
+tests/test_oracle_shopify_product_create.py::test_exact_product_create_is_independently_verified PASSED [ 32%]
+tests/test_oracle_shopify_product_create.py::test_missing_store_refuses_before_transport PASSED [ 32%]
+tests/test_oracle_shopify_product_create.py::test_foreign_store_refuses_before_transport PASSED [ 32%]
+tests/test_oracle_shopify_product_create.py::test_moved_store_metadata_refuses_before_transport PASSED [ 32%]
+tests/test_oracle_shopify_product_create.py::test_inactive_store_refuses_before_transport PASSED [ 32%]
+tests/test_oracle_shopify_product_create.py::test_body_store_selector_refuses_before_transport[shop] PASSED [ 32%]
+tests/test_oracle_shopify_product_create.py::test_body_store_selector_refuses_before_transport[access_token] PASSED [ 33%]
+tests/test_oracle_shopify_product_create.py::test_body_store_selector_refuses_before_transport[tenant_id] PASSED [ 33%]
+tests/test_oracle_shopify_product_create.py::test_same_title_with_different_returned_id_is_not_success PASSED [ 33%]
+tests/test_oracle_shopify_product_create.py::test_same_title_with_wrong_material_is_not_success PASSED [ 33%]
+tests/test_oracle_shopify_product_create.py::test_store_moved_before_verification_refutes_original_authority PASSED [ 33%]
+tests/test_oracle_shopify_product_create.py::test_absent_readback_is_uncertain_not_success 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:53:22 [   ERROR] Shopify get product 500 failed: 404: {"errors":"not found"}
+PASSED                                                                   [ 33%]
+tests/test_oracle_shopify_product_create.py::test_contradictory_readback_is_uncertain_not_success PASSED [ 33%]
+tests/test_oracle_shopify_product_create.py::test_unidentifiable_effect_remains_uncertain_and_is_not_recreated PASSED [ 33%]
+tests/test_oracle_shopify_product_create.py::test_same_operation_same_material_has_one_effect PASSED [ 34%]
+tests/test_oracle_shopify_product_create.py::test_same_operation_changed_material_is_refused PASSED [ 34%]
+tests/test_oracle_shopify_product_create.py::test_lost_confirmation_retains_identity_and_never_resends 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:53:25 [   ERROR] Failed to create product: confirmation timed out
+PASSED                                                                   [ 34%]
+tests/test_oracle_shopify_product_create.py::test_supplied_payload_digest_mismatch_refuses_before_transport PASSED [ 34%]
+tests/test_oracle_shopify_product_replay.py::test_known_success_replays_exact_resource_without_second_create PASSED [ 34%]
+tests/test_oracle_shopify_product_replay.py::test_restart_fresh_session_reloads_exact_durable_identity PASSED [ 34%]
+tests/test_oracle_shopify_product_replay.py::test_failed_identity_receipt_is_not_rolled_back_or_resent PASSED [ 34%]
+tests/test_oracle_shopify_product_replay.py::test_replay_with_wrong_current_resource_material_stays_committed_unverified PASSED [ 34%]
+tests/test_oracle_shopify_product_replay.py::test_replay_with_missing_current_resource_stays_committed_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:53:28 [   ERROR] Shopify get product 500 failed: 404: {"errors":"not found"}
+PASSED                                                                   [ 35%]
+tests/test_oracle_shopify_product_replay.py::test_replay_after_store_changed_stays_committed_unverified PASSED [ 35%]
+tests/test_oracle_shopify_product_replay.py::test_replay_without_durable_identity_receipt_is_committed_unverified PASSED [ 35%]
+tests/test_oracle_shopify_product_replay.py::test_replay_with_unavailable_current_readback_is_committed_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:53:30 [   ERROR] Failed to get product 500: provider readback timed out
+PASSED                                                                   [ 35%]
+tests/test_oracle_shopify_product_replay.py::test_same_operation_changed_material_refuses_before_readback PASSED [ 35%]
+tests/test_oracle_shopify_product_replay.py::test_lost_confirmation_stays_uncertain_and_never_replays_as_success 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:53:31 [   ERROR] Failed to create product: confirmation timed out
+PASSED                                                                   [ 35%]
+tests/test_oracle_shopify_product_replay.py::test_strict_json_proof_rejects_unsupported_values[value0] PASSED [ 35%]
+tests/test_oracle_shopify_product_replay.py::test_strict_json_proof_rejects_unsupported_values[nan] PASSED [ 35%]
+tests/test_oracle_shopify_product_replay.py::test_strict_json_proof_rejects_unsupported_values[inf] PASSED [ 36%]
+tests/test_oracle_shopify_product_replay.py::test_strict_json_proof_rejects_unsupported_values[value3] PASSED [ 36%]
+tests/test_oracle_shopify_product_replay.py::test_strict_json_proof_rejects_unsupported_values[value4] PASSED [ 36%]
+tests/test_oracle_shopify_product_replay.py::test_strict_json_proof_rejects_unsupported_values[value5] PASSED [ 36%]
+tests/test_oracle_shopify_product_replay.py::test_strict_json_proof_rejects_unsupported_values[value6] PASSED [ 36%]
+tests/test_oracle_shopify_product_replay.py::test_strict_json_proof_rejects_unsupported_values[value7] PASSED [ 36%]
+tests/test_oracle_shopify_product_replay.py::test_durable_receipt_builder_rejects_lossy_proof PASSED [ 36%]
+tests/test_oracle_shopify_product_replay.py::test_lossy_proof_cannot_persist_a_succeeded_claim 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:53:32 [   ERROR] refusing claim status succeeded for 093d62cd-65d0-407c-97e1-58ee352b2d8e: receipt is not strictly JSON-serializable
+2026-11-07 12:53:32 [   ERROR] refusing claim status succeeded for 093d62cd-65d0-407c-97e1-58ee352b2d8e: receipt is not strictly JSON-serializable
+2026-11-07 12:53:32 [   ERROR] refusing claim status succeeded for 093d62cd-65d0-407c-97e1-58ee352b2d8e: receipt is not strictly JSON-serializable
+PASSED                                                                   [ 36%]
+tests/test_oracle_shopify_product_replay.py::test_existing_database_upgrade_and_replay_survives_restart 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:53:33 [    INFO] schema repair: added task_operation_records.result_json
+2026-11-07 12:53:33 [    INFO] schema repair: added marketing_channels.workspace_id
+2026-11-07 12:53:33 [    INFO] schema repair: added marketing_ad_spend.workspace_id
+2026-11-07 12:53:33 [    INFO] schema repair: added marketing_attribution_events.workspace_id
+PASSED                                                                   [ 37%]
+tests/test_oracle_shopify_product_replay.py::test_migration_revision_fits_alembic_version_column_and_parent_resolves PASSED [ 37%]
+tests/test_oracle_shopify_product_replay.py::test_alembic_upgrade_records_revision_keeps_old_claim_and_restart_replays_once PASSED [ 37%]
+tests/test_oracle_shopify_blog_create.py::test_exact_blog_create_is_independently_verified PASSED [ 37%]
+tests/test_oracle_shopify_blog_create.py::test_missing_store_refuses_before_transport PASSED [ 37%]
+tests/test_oracle_shopify_blog_create.py::test_foreign_store_refuses_before_transport PASSED [ 37%]
+tests/test_oracle_shopify_blog_create.py::test_moved_store_metadata_refuses_before_transport PASSED [ 37%]
+tests/test_oracle_shopify_blog_create.py::test_inactive_store_refuses_before_transport PASSED [ 38%]
+tests/test_oracle_shopify_blog_create.py::test_body_store_selector_refuses_before_transport[shop] PASSED [ 38%]
+tests/test_oracle_shopify_blog_create.py::test_body_store_selector_refuses_before_transport[access_token] PASSED [ 38%]
+tests/test_oracle_shopify_blog_create.py::test_body_store_selector_refuses_before_transport[tenant_id] PASSED [ 38%]
+tests/test_oracle_shopify_blog_create.py::test_ambiguous_store_refuses_before_transport PASSED [ 38%]
+tests/test_oracle_shopify_blog_create.py::test_missing_title_refuses_before_transport PASSED [ 38%]
+tests/test_oracle_shopify_blog_create.py::test_same_title_with_different_returned_id_is_not_success PASSED [ 38%]
+tests/test_oracle_shopify_blog_create.py::test_same_title_with_wrong_handle_is_not_success PASSED [ 38%]
+tests/test_oracle_shopify_blog_create.py::test_same_title_with_wrong_title_is_not_success PASSED [ 39%]
+tests/test_oracle_shopify_blog_create.py::test_absent_readback_is_uncertain_not_success 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:53:44 [   ERROR] Shopify get blog 700 failed: 404: {"errors":"not found"}
+PASSED                                                                   [ 39%]
+tests/test_oracle_shopify_blog_create.py::test_unidentifiable_effect_is_uncertain_and_not_recreated PASSED [ 39%]
+tests/test_oracle_shopify_blog_create.py::test_known_success_replays_exact_resource_without_second_create PASSED [ 39%]
+tests/test_oracle_shopify_blog_create.py::test_restart_fresh_session_reloads_exact_durable_identity PASSED [ 39%]
+tests/test_oracle_shopify_blog_create.py::test_replay_with_changed_current_material_stays_committed_unverified PASSED [ 39%]
+tests/test_oracle_shopify_blog_create.py::test_replay_with_missing_current_resource_stays_committed_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:53:47 [   ERROR] Shopify get blog 700 failed: 404: {"errors":"not found"}
+PASSED                                                                   [ 39%]
+tests/test_oracle_shopify_blog_create.py::test_replay_after_store_changed_stays_committed_unverified PASSED [ 39%]
+tests/test_oracle_shopify_blog_create.py::test_replay_without_durable_identity_receipt_is_committed_unverified PASSED [ 40%]
+tests/test_oracle_shopify_blog_create.py::test_replay_with_unavailable_readback_is_committed_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:53:48 [   ERROR] Failed to get blog 700: provider readback timed out
+PASSED                                                                   [ 40%]
+tests/test_oracle_shopify_blog_create.py::test_same_operation_changed_material_refuses_before_readback PASSED [ 40%]
+tests/test_oracle_shopify_blog_create.py::test_lost_confirmation_stays_uncertain_and_never_replays_as_success 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:53:49 [   ERROR] Failed to create blog: confirmation timed out
+PASSED                                                                   [ 40%]
+tests/test_oracle_shopify_article_create.py::test_exact_article_create_is_independently_verified PASSED [ 40%]
+tests/test_oracle_shopify_article_create.py::test_missing_store_refuses_before_transport PASSED [ 40%]
+tests/test_oracle_shopify_article_create.py::test_foreign_store_refuses_before_transport PASSED [ 40%]
+tests/test_oracle_shopify_article_create.py::test_moved_store_metadata_refuses_before_transport PASSED [ 40%]
+tests/test_oracle_shopify_article_create.py::test_inactive_store_refuses_before_transport PASSED [ 41%]
+tests/test_oracle_shopify_article_create.py::test_ambiguous_store_refuses_before_transport PASSED [ 41%]
+tests/test_oracle_shopify_article_create.py::test_body_store_selector_refuses_before_transport[shop] PASSED [ 41%]
+tests/test_oracle_shopify_article_create.py::test_body_store_selector_refuses_before_transport[access_token] PASSED [ 41%]
+tests/test_oracle_shopify_article_create.py::test_body_store_selector_refuses_before_transport[tenant_id] PASSED [ 41%]
+tests/test_oracle_shopify_article_create.py::test_missing_required_target_refuses_before_transport[blog_id] PASSED [ 41%]
+tests/test_oracle_shopify_article_create.py::test_missing_required_target_refuses_before_transport[title] PASSED [ 41%]
+tests/test_oracle_shopify_article_create.py::test_same_title_with_different_returned_id_is_not_success PASSED [ 41%]
+tests/test_oracle_shopify_article_create.py::test_every_authorized_field_must_match_readback[blog_id-blog-other] PASSED [ 42%]
+tests/test_oracle_shopify_article_create.py::test_every_authorized_field_must_match_readback[title-Unapproved Article] PASSED [ 42%]
+tests/test_oracle_shopify_article_create.py::test_every_authorized_field_must_match_readback[body_html-<p>Unapproved body</p>] PASSED [ 42%]
+tests/test_oracle_shopify_article_create.py::test_every_authorized_field_must_match_readback[author-Unapproved Author] PASSED [ 42%]
+tests/test_oracle_shopify_article_create.py::test_every_authorized_field_must_match_readback[tags-gamma] PASSED [ 42%]
+tests/test_oracle_shopify_article_create.py::test_every_authorized_field_must_match_readback[published-False] PASSED [ 42%]
+tests/test_oracle_shopify_article_create.py::test_unavailable_published_at_proof_is_explicitly_unverified PASSED [ 42%]
+tests/test_oracle_shopify_article_create.py::test_absent_readback_is_uncertain_not_success 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:54:02 [   ERROR] Shopify get article 900 in blog blog-700 failed: 404: {"errors":"not found"}
+PASSED                                                                   [ 42%]
+tests/test_oracle_shopify_article_create.py::test_unidentifiable_effect_is_uncertain_and_not_recreated PASSED [ 43%]
+tests/test_oracle_shopify_article_create.py::test_known_success_replays_exact_resource_without_second_create PASSED [ 43%]
+tests/test_oracle_shopify_article_create.py::test_restart_fresh_session_reloads_exact_durable_identity PASSED [ 43%]
+tests/test_oracle_shopify_article_create.py::test_replay_with_changed_current_material_stays_committed_unverified[title-Changed after create] PASSED [ 43%]
+tests/test_oracle_shopify_article_create.py::test_replay_with_changed_current_material_stays_committed_unverified[body_html-<p>Changed body</p>] PASSED [ 43%]
+tests/test_oracle_shopify_article_create.py::test_replay_with_changed_current_material_stays_committed_unverified[author-Changed Author] PASSED [ 43%]
+tests/test_oracle_shopify_article_create.py::test_replay_with_changed_current_material_stays_committed_unverified[tags-changed] PASSED [ 43%]
+tests/test_oracle_shopify_article_create.py::test_replay_with_changed_current_material_stays_committed_unverified[published-False] PASSED [ 44%]
+tests/test_oracle_shopify_article_create.py::test_replay_with_changed_current_material_stays_committed_unverified[blog_id-blog-other] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:54:08 [   ERROR] Shopify get article 900 in blog blog-700 failed: 404: {"errors":"not found"}
+PASSED                                                                   [ 44%]
+tests/test_oracle_shopify_article_create.py::test_replay_with_missing_current_resource_stays_committed_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:54:08 [   ERROR] Shopify get article 900 in blog blog-700 failed: 404: {"errors":"not found"}
+PASSED                                                                   [ 44%]
+tests/test_oracle_shopify_article_create.py::test_replay_after_store_changed_stays_committed_unverified PASSED [ 44%]
+tests/test_oracle_shopify_article_create.py::test_replay_without_durable_identity_receipt_is_committed_unverified PASSED [ 44%]
+tests/test_oracle_shopify_article_create.py::test_replay_with_unavailable_readback_is_committed_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:54:10 [   ERROR] Failed to get article 900 in blog blog-700: provider readback timed out
+PASSED                                                                   [ 44%]
+tests/test_oracle_shopify_article_create.py::test_same_operation_changed_material_refuses_before_readback PASSED [ 44%]
+tests/test_oracle_shopify_article_create.py::test_lost_confirmation_stays_uncertain_and_never_replays_as_success 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:54:11 [   ERROR] Failed to create article: confirmation timed out
+PASSED                                                                   [ 44%]
+tests/test_oracle_shopify_article_create.py::test_failed_identity_receipt_is_not_rolled_back_or_resent PASSED [ 45%]
+tests/test_lead_shopify_article_rest_shape.py::test_official_rest_publication_readback_is_usable[True-2020-01-01T00:00:00Z] PASSED [ 45%]
+tests/test_lead_shopify_article_rest_shape.py::test_official_rest_publication_readback_is_usable[True-2020-01-01T00:00:00-05:00] PASSED [ 45%]
+tests/test_lead_shopify_article_rest_shape.py::test_official_rest_publication_readback_is_usable[False-None] PASSED [ 45%]
+tests/test_lead_shopify_article_rest_shape.py::test_future_published_at_is_scheduled_not_certified[True] PASSED [ 45%]
+tests/test_lead_shopify_article_rest_shape.py::test_future_published_at_is_scheduled_not_certified[False] PASSED [ 45%]
+tests/test_lead_shopify_article_rest_shape.py::test_missing_malformed_or_naive_published_at_stays_unknown[observed_at0] PASSED [ 45%]
+tests/test_lead_shopify_article_rest_shape.py::test_missing_malformed_or_naive_published_at_stays_unknown[] PASSED [ 45%]
+tests/test_lead_shopify_article_rest_shape.py::test_missing_malformed_or_naive_published_at_stays_unknown[not-a-date] PASSED [ 46%]
+tests/test_lead_shopify_article_rest_shape.py::test_missing_malformed_or_naive_published_at_stays_unknown[2020-01-01] PASSED [ 46%]
+tests/test_lead_shopify_article_rest_shape.py::test_missing_malformed_or_naive_published_at_stays_unknown[2020-01-01T00:00:00] PASSED [ 46%]
+tests/test_lead_shopify_article_rest_shape.py::test_contradictory_published_and_published_at_is_unknown[True-None-True] PASSED [ 46%]
+tests/test_lead_shopify_article_rest_shape.py::test_contradictory_published_and_published_at_is_unknown[False-2020-01-01T00:00:00Z-False] PASSED [ 46%]
+tests/test_lead_shopify_article_rest_shape.py::test_contradictory_published_and_published_at_is_unknown[True-2999-01-01T00:00:00Z-True] PASSED [ 46%]
+tests/test_lead_shopify_article_rest_shape.py::test_requested_published_but_null_readback_is_draft PASSED [ 46%]
+tests/test_lead_shopify_article_rest_shape.py::test_requested_draft_but_published_readback_is_unexpected PASSED [ 46%]
+tests/test_lead_shopify_article_rest_shape.py::test_published_only_readback_is_not_official_shape PASSED [ 47%]
+tests/test_lead_shopify_article_rest_shape.py::test_consistent_legacy_published_compatibility_is_justified[True-2020-01-01T00:00:00Z] PASSED [ 47%]
+tests/test_lead_shopify_article_rest_shape.py::test_consistent_legacy_published_compatibility_is_justified[False-None] PASSED [ 47%]
+tests/test_lead_shopify_article_rest_shape.py::test_official_rest_shape_replays_without_second_create PASSED [ 47%]
+tests/test_lead_shopify_error_privacy.py::test_provider_exception_material_is_not_returned 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:54:25 [   ERROR] Failed to create blog: private-provider-material-710d518a85ec4f569e27cdaadc51287b
+PASSED                                                                   [ 47%]
+tests/test_generic_request_expectations.py::test_builder_freezes_business_args_and_ignores_model_expected_fields PASSED [ 47%]
+tests/test_generic_request_expectations.py::test_plain_args_generic_and_assignment_produce_the_same_verified_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:54:26 [    INFO] Canvas type 'mini_app' auto-registered (generic defaults)
+PASSED                                                                   [ 47%]
+tests/test_generic_request_expectations.py::test_plain_args_non_miniapp_presentation_is_verified 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:54:27 [    INFO] Presented markdown content to user user-1
+PASSED                                                                   [ 47%]
+tests/test_generic_request_expectations.py::test_model_forged_expected_metadata_is_stripped_before_dispatch PASSED [ 48%]
+tests/test_generic_request_expectations.py::test_handler_result_cannot_overwrite_frozen_expectations PASSED [ 48%]
+tests/test_generic_request_expectations.py::test_model_forged_expected_metadata_cannot_rescue_wrong_server_scope PASSED [ 48%]
+tests/test_generic_request_expectations.py::test_uncertain_operation_reconciles_from_frozen_material_without_resend PASSED [ 48%]
+tests/test_generic_request_expectations.py::test_peer_claim_is_not_dispatched_or_stolen PASSED [ 48%]
+tests/test_generic_request_expectations.py::test_distinct_sequential_authorized_mutations_still_run PASSED [ 48%]
+tests/test_generic_reconcile_commit_contract.py::test_reconcile_cannot_report_committed_success_if_transition_loses[refused] PASSED [ 48%]
+tests/test_generic_reconcile_commit_contract.py::test_reconcile_cannot_report_committed_success_if_transition_loses[peer_changed] PASSED [ 48%]
+tests/test_generic_reconcile_commit_contract.py::test_reconcile_cannot_report_committed_success_if_transition_loses[peer_payload] PASSED [ 49%]
+tests/test_generic_normal_retry_identity.py::test_normal_loop_changed_retry_cannot_repeat_uncertain_intent 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:54:34 [    INFO] Agent Scratch Agent (scratch-agent) starting task: Append exactly one record once
+2026-11-07 12:54:34 [   ERROR] AUDIT GAP for execution one-record-exec: {'complete': False, 'execution_id': 'one-record-exec', 'expected_events': 5, 'actual_events': 4, 'coverage_percentage': 80.0, 'checked_at': '2026-11-07T17:54:34.582617+00:00'}
+2026-11-07 12:54:34 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='autodev_guidance'
+2026-11-07 12:54:34 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-07 12:54:34 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 1}
+PASSED                                                                   [ 49%]
+tests/test_generic_normal_retry_identity.py::test_late_peer_claim_keeps_normal_run_unresolved 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:54:35 [    INFO] Agent Scratch Agent (scratch-agent) starting task: Perform the requested write
+2026-11-07 12:54:35 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-07 12:54:35 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 2}
+PASSED                                                                   [ 49%]
+tests/test_oracle_radio_send.py::test_exact_send_is_independently_verified 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:54:35 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+PASSED                                                                   [ 49%]
+tests/test_oracle_radio_send.py::test_to_agent_and_requires_response_are_verified 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:54:36 [    INFO] radio: agent-a -> ['agent-b', 'agent-c'] on thread-1
+PASSED                                                                   [ 49%]
+tests/test_oracle_radio_send.py::test_pre_effect_refusals_do_not_write[missing_thread] PASSED [ 49%]
+tests/test_oracle_radio_send.py::test_pre_effect_refusals_do_not_write[no_mentions] PASSED [ 49%]
+tests/test_oracle_radio_send.py::test_pre_effect_refusals_do_not_write[student_tier] PASSED [ 50%]
+tests/test_oracle_radio_send.py::test_pre_effect_refusals_do_not_write[disabled] PASSED [ 50%]
+tests/test_oracle_radio_send.py::test_known_success_replays_exact_message_without_second_send 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:54:39 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+PASSED                                                                   [ 50%]
+tests/test_oracle_radio_send.py::test_restart_fresh_session_reloads_exact_message 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:54:40 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+PASSED                                                                   [ 50%]
+tests/test_oracle_radio_send.py::test_replay_with_changed_current_material_is_committed_unverified[content] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:54:41 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+PASSED                                                                   [ 50%]
+tests/test_oracle_radio_send.py::test_replay_with_changed_current_material_is_committed_unverified[mentions] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:54:41 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+PASSED                                                                   [ 50%]
+tests/test_oracle_radio_send.py::test_replay_with_changed_current_material_is_committed_unverified[to_agent_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:54:42 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+PASSED                                                                   [ 50%]
+tests/test_oracle_radio_send.py::test_replay_with_changed_current_material_is_committed_unverified[requires_response] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:54:42 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+PASSED                                                                   [ 50%]
+tests/test_oracle_radio_send.py::test_replay_with_changed_current_material_is_committed_unverified[tenant_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:54:43 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+PASSED                                                                   [ 51%]
+tests/test_oracle_radio_send.py::test_replay_with_missing_message_is_committed_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:54:44 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+PASSED                                                                   [ 51%]
+tests/test_oracle_radio_send.py::test_changed_same_operation_material_refuses_before_send 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:54:45 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+PASSED                                                                   [ 51%]
+tests/test_oracle_radio_send.py::test_wrong_readback_id_is_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:54:45 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+PASSED                                                                   [ 51%]
+tests/test_oracle_radio_send.py::test_missing_readback_is_uncertain_not_success 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:54:46 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+PASSED                                                                   [ 51%]
+tests/test_oracle_radio_send.py::test_unavailable_readback_is_uncertain_not_success 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:54:47 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+PASSED                                                                   [ 51%]
+tests/test_oracle_radio_send.py::test_known_committed_id_survives_readback_failure[timeout] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:54:48 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+PASSED                                                                   [ 51%]
+tests/test_oracle_radio_send.py::test_known_committed_id_survives_readback_failure[runtime] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:54:48 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+PASSED                                                                   [ 51%]
+tests/test_oracle_radio_send.py::test_known_committed_id_survives_readback_failure[radio_error] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:54:49 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+PASSED                                                                   [ 52%]
+tests/test_oracle_radio_send.py::test_replay_after_readback_failure_does_not_resend 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:54:49 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+PASSED                                                                   [ 52%]
+tests/test_oracle_radio_send.py::test_unidentifiable_message_is_never_resent PASSED [ 52%]
+tests/test_oracle_radio_send.py::test_lost_confirmation_is_uncertain_and_never_resent 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:54:51 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+PASSED                                                                   [ 52%]
+tests/test_oracle_radio_send.py::test_failed_identity_receipt_is_not_rolled_back_or_resent 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:54:51 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+PASSED                                                                   [ 52%]
+tests/test_lead_radio_readback_identity.py::test_committed_message_identity_survives_readback_timeout 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:54:52 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+PASSED                                                                   [ 52%]
+tests/test_agent_generic_information_wait.py::test_generic_info_wait_resumes_same_job_to_verified_result 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:54:52 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 12:54:52 [    INFO] EscalationManager initialized
+2026-11-07 12:54:52 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 12:54:52 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 12:54:52 [    INFO] EscalationManager initialized
+2026-11-07 12:54:52 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:54:52 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 12:54:52 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Create the closing task
+2026-11-07 12:54:52 [    INFO] Agent Agent One (a1) starting task: Create the closing task
+2026-11-07 12:54:52 [    INFO] EscalationManager initialized
+2026-11-07 12:54:52 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:54:52 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 12:54:52 [    INFO] LanceDBHandler initialized. ID: 5149493200. LANCEDB_AVAILABLE: True
+2026-11-07 12:54:52 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 12:54:52 [    INFO] Connecting to LanceDB at /private/tmp/atom-shopify-product-lead-review/.worktrees/integration-745-750/backend/data/atom_memory with storage_options=None
+2026-11-07 12:54:52 [    INFO] LanceDB connected successfully
+2026-11-07 12:54:53 [    INFO] EscalationManager initialized
+2026-11-07 12:54:53 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 12:54:53 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-07 12:54:53 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 3}
+2026-11-07 12:54:53 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=generic-info-wait "HTTP/1.1 202 Accepted"
+2026-11-07 12:54:53 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 12:54:53 [    INFO] EscalationManager initialized
+2026-11-07 12:54:53 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 12:54:53 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 12:54:53 [    INFO] EscalationManager initialized
+2026-11-07 12:54:53 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:54:53 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 12:54:53 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Create the closing task
+2026-11-07 12:54:53 [    INFO] Agent Agent One (a1) starting task: Create the closing task
+2026-11-07 12:54:53 [    INFO] EscalationManager initialized
+2026-11-07 12:54:53 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:54:53 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 12:54:53 [    INFO] LanceDBHandler initialized. ID: 5150306256. LANCEDB_AVAILABLE: True
+2026-11-07 12:54:53 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 12:54:53 [    INFO] Connecting to LanceDB at /private/tmp/atom-shopify-product-lead-review/.worktrees/integration-745-750/backend/data/atom_memory with storage_options=None
+2026-11-07 12:54:53 [    INFO] LanceDB connected successfully
+2026-11-07 12:54:53 [    INFO] Recorded outcome for a1: success
+2026-11-07 12:54:53 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-07 12:54:53 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 4}
+2026-11-07 12:54:53 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/jobs/d9746535-8c5d-4900-8b6b-9d4c1c5be876/answer "HTTP/1.1 200 OK"
+PASSED                                                                   [ 52%]
+tests/test_agent_generic_information_wait.py::test_wrong_correlation_cannot_resume_the_wait 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:54:54 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 12:54:54 [    INFO] EscalationManager initialized
+2026-11-07 12:54:54 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 12:54:54 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 12:54:54 [    INFO] EscalationManager initialized
+2026-11-07 12:54:54 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:54:54 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 12:54:54 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Look up the account
+2026-11-07 12:54:54 [    INFO] Agent Agent One (a1) starting task: Look up the account
+2026-11-07 12:54:54 [    INFO] EscalationManager initialized
+2026-11-07 12:54:54 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:54:54 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 12:54:54 [    INFO] LanceDBHandler initialized. ID: 5149338992. LANCEDB_AVAILABLE: True
+2026-11-07 12:54:54 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 12:54:54 [    INFO] Connecting to LanceDB at /private/tmp/atom-shopify-product-lead-review/.worktrees/integration-745-750/backend/data/atom_memory with storage_options=None
+2026-11-07 12:54:54 [    INFO] LanceDB connected successfully
+2026-11-07 12:54:54 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-07 12:54:54 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 5}
+2026-11-07 12:54:54 [ WARNING] turn_fact circuit breaker OPENED after 5 consecutive failures (cooldown=120s) — extraction skipped
+2026-11-07 12:54:54 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=generic-wrong-correlation "HTTP/1.1 202 Accepted"
+2026-11-07 12:54:54 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/jobs/cfdcfa84-8c39-431c-ab30-92dcd44fd016/answer "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 52%]
+tests/test_agent_generic_information_wait.py::test_duplicate_answer_does_not_dispatch_again 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:54:55 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 12:54:55 [    INFO] EscalationManager initialized
+2026-11-07 12:54:55 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 12:54:55 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 12:54:55 [    INFO] EscalationManager initialized
+2026-11-07 12:54:55 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:54:55 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 12:54:55 [    INFO] Executing Agent Agent One with ReAct Loop. Input: create a task
+2026-11-07 12:54:55 [    INFO] Agent Agent One (a1) starting task: create a task
+2026-11-07 12:54:55 [    INFO] EscalationManager initialized
+2026-11-07 12:54:55 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:54:55 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 12:54:55 [    INFO] LanceDBHandler initialized. ID: 5150758320. LANCEDB_AVAILABLE: True
+2026-11-07 12:54:55 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 12:54:55 [    INFO] Connecting to LanceDB at /private/tmp/atom-shopify-product-lead-review/.worktrees/integration-745-750/backend/data/atom_memory with storage_options=None
+2026-11-07 12:54:55 [    INFO] LanceDB connected successfully
+2026-11-07 12:54:55 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=generic-duplicate-answer "HTTP/1.1 202 Accepted"
+2026-11-07 12:54:55 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 12:54:55 [    INFO] EscalationManager initialized
+2026-11-07 12:54:55 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 12:54:55 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 12:54:55 [    INFO] EscalationManager initialized
+2026-11-07 12:54:55 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:54:55 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 12:54:55 [    INFO] Executing Agent Agent One with ReAct Loop. Input: create a task
+2026-11-07 12:54:55 [    INFO] Agent Agent One (a1) starting task: create a task
+2026-11-07 12:54:55 [    INFO] EscalationManager initialized
+2026-11-07 12:54:55 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:54:55 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 12:54:55 [    INFO] LanceDBHandler initialized. ID: 5155326000. LANCEDB_AVAILABLE: True
+2026-11-07 12:54:55 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 12:54:55 [    INFO] Connecting to LanceDB at /private/tmp/atom-shopify-product-lead-review/.worktrees/integration-745-750/backend/data/atom_memory with storage_options=None
+2026-11-07 12:54:55 [    INFO] LanceDB connected successfully
+2026-11-07 12:54:55 [    INFO] Recorded outcome for a1: success
+2026-11-07 12:54:55 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/jobs/6ff67475-3d9c-4e3c-82dc-98347a15e8c3/answer "HTTP/1.1 200 OK"
+2026-11-07 12:54:55 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/jobs/6ff67475-3d9c-4e3c-82dc-98347a15e8c3/answer "HTTP/1.1 200 OK"
+PASSED                                                                   [ 53%]
+tests/test_agent_generic_information_wait.py::test_answer_after_cancellation_cannot_revive_the_job 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:54:56 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 12:54:56 [    INFO] EscalationManager initialized
+2026-11-07 12:54:56 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 12:54:56 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 12:54:56 [    INFO] EscalationManager initialized
+2026-11-07 12:54:56 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:54:56 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 12:54:56 [    INFO] Executing Agent Agent One with ReAct Loop. Input: use the code
+2026-11-07 12:54:56 [    INFO] Agent Agent One (a1) starting task: use the code
+2026-11-07 12:54:56 [    INFO] EscalationManager initialized
+2026-11-07 12:54:56 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:54:56 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 12:54:56 [    INFO] LanceDBHandler initialized. ID: 5155379120. LANCEDB_AVAILABLE: True
+2026-11-07 12:54:56 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 12:54:56 [    INFO] Connecting to LanceDB at /private/tmp/atom-shopify-product-lead-review/.worktrees/integration-745-750/backend/data/atom_memory with storage_options=None
+2026-11-07 12:54:56 [    INFO] LanceDB connected successfully
+2026-11-07 12:54:56 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=generic-cancelled-wait "HTTP/1.1 202 Accepted"
+2026-11-07 12:54:56 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/jobs/147ff714-c3d0-470c-8cff-e8ca45324fee/answer "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 53%]
+tests/test_agent_generic_information_wait.py::test_legacy_approvals_input_surface_resumes_the_same_wait 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:54:57 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 12:54:57 [    INFO] EscalationManager initialized
+2026-11-07 12:54:57 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 12:54:57 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 12:54:57 [    INFO] EscalationManager initialized
+2026-11-07 12:54:57 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:54:57 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 12:54:57 [    INFO] Executing Agent Agent One with ReAct Loop. Input: create from approvals
+2026-11-07 12:54:57 [    INFO] Agent Agent One (a1) starting task: create from approvals
+2026-11-07 12:54:57 [    INFO] EscalationManager initialized
+2026-11-07 12:54:57 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:54:57 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 12:54:57 [    INFO] LanceDBHandler initialized. ID: 5155388912. LANCEDB_AVAILABLE: True
+2026-11-07 12:54:57 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 12:54:57 [    INFO] Connecting to LanceDB at /private/tmp/atom-shopify-product-lead-review/.worktrees/integration-745-750/backend/data/atom_memory with storage_options=None
+2026-11-07 12:54:57 [    INFO] LanceDB connected successfully
+2026-11-07 12:54:57 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=generic-approvals-input "HTTP/1.1 202 Accepted"
+2026-11-07 12:54:57 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 12:54:57 [    INFO] EscalationManager initialized
+2026-11-07 12:54:57 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 12:54:57 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 12:54:57 [    INFO] EscalationManager initialized
+2026-11-07 12:54:57 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:54:57 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 12:54:57 [    INFO] Executing Agent Agent One with ReAct Loop. Input: create from approvals
+2026-11-07 12:54:57 [    INFO] Agent Agent One (a1) starting task: create from approvals
+2026-11-07 12:54:57 [    INFO] EscalationManager initialized
+2026-11-07 12:54:57 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:54:57 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 12:54:57 [    INFO] LanceDBHandler initialized. ID: 5151095632. LANCEDB_AVAILABLE: True
+2026-11-07 12:54:57 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 12:54:57 [    INFO] Connecting to LanceDB at /private/tmp/atom-shopify-product-lead-review/.worktrees/integration-745-750/backend/data/atom_memory with storage_options=None
+2026-11-07 12:54:57 [    INFO] LanceDB connected successfully
+2026-11-07 12:54:57 [    INFO] Recorded outcome for a1: success
+2026-11-07 12:54:57 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/3d3691c3-7d46-4ef8-a3b6-bfce963c9070 "HTTP/1.1 200 OK"
+2026-11-07 12:54:57 [ WARNING] API Error: INFORMATION_ANSWER_CONFLICT - A different answer was already accepted for this wait.
+2026-11-07 12:54:57 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/3d3691c3-7d46-4ef8-a3b6-bfce963c9070 "HTTP/1.1 409 Conflict"
+2026-11-07 12:54:57 [ WARNING] HITL 3d3691c3-7d46-4ef8-a3b6-bfce963c9070 decided (approved) but work did not resume: {'handled': True, 'resumed': False, 'reason': 'job_not_waiting_for_this_answer', 'status': 'refused', 'job': {'job_status': 'success', 'outcome': 'success', 'reason': 'execution_succeeded', 'next_action': 'none', 'requires_reconciliation': False, 'execution_id': '65155edf-ef7c-4ee2-9cd0-334144743158'}}
+2026-11-07 12:54:57 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/3d3691c3-7d46-4ef8-a3b6-bfce963c9070 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 53%]
+tests/test_agent_generic_information_wait.py::test_second_missing_fact_waits_again_then_completes 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:54:57 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 12:54:57 [    INFO] EscalationManager initialized
+2026-11-07 12:54:57 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 12:54:57 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 12:54:57 [    INFO] EscalationManager initialized
+2026-11-07 12:54:57 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:54:57 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 12:54:57 [    INFO] Executing Agent Agent One with ReAct Loop. Input: prepare the task
+2026-11-07 12:54:57 [    INFO] Agent Agent One (a1) starting task: prepare the task
+2026-11-07 12:54:57 [    INFO] EscalationManager initialized
+2026-11-07 12:54:57 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:54:57 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 12:54:57 [    INFO] LanceDBHandler initialized. ID: 5151095120. LANCEDB_AVAILABLE: True
+2026-11-07 12:54:57 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 12:54:57 [    INFO] Connecting to LanceDB at /private/tmp/atom-shopify-product-lead-review/.worktrees/integration-745-750/backend/data/atom_memory with storage_options=None
+2026-11-07 12:54:57 [    INFO] LanceDB connected successfully
+2026-11-07 12:54:57 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=generic-second-prerequisite "HTTP/1.1 202 Accepted"
+2026-11-07 12:54:57 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 12:54:57 [    INFO] EscalationManager initialized
+2026-11-07 12:54:57 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 12:54:57 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 12:54:57 [    INFO] EscalationManager initialized
+2026-11-07 12:54:57 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:54:57 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 12:54:57 [    INFO] Executing Agent Agent One with ReAct Loop. Input: prepare the task
+2026-11-07 12:54:57 [    INFO] Agent Agent One (a1) starting task: prepare the task
+2026-11-07 12:54:57 [    INFO] EscalationManager initialized
+2026-11-07 12:54:57 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:54:57 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 12:54:57 [    INFO] LanceDBHandler initialized. ID: 5114104240. LANCEDB_AVAILABLE: True
+2026-11-07 12:54:57 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 12:54:57 [    INFO] Connecting to LanceDB at /private/tmp/atom-shopify-product-lead-review/.worktrees/integration-745-750/backend/data/atom_memory with storage_options=None
+2026-11-07 12:54:57 [    INFO] LanceDB connected successfully
+2026-11-07 12:54:57 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/jobs/6080521c-f493-4ee0-961d-514853e11c23/answer "HTTP/1.1 202 Accepted"
+2026-11-07 12:54:57 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 12:54:57 [    INFO] EscalationManager initialized
+2026-11-07 12:54:57 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 12:54:57 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 12:54:57 [    INFO] EscalationManager initialized
+2026-11-07 12:54:57 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:54:57 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 12:54:57 [    INFO] Executing Agent Agent One with ReAct Loop. Input: prepare the task
+2026-11-07 12:54:57 [    INFO] Agent Agent One (a1) starting task: prepare the task
+2026-11-07 12:54:57 [    INFO] EscalationManager initialized
+2026-11-07 12:54:57 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:54:57 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 12:54:57 [    INFO] LanceDBHandler initialized. ID: 5114116480. LANCEDB_AVAILABLE: True
+2026-11-07 12:54:57 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 12:54:57 [    INFO] Connecting to LanceDB at /private/tmp/atom-shopify-product-lead-review/.worktrees/integration-745-750/backend/data/atom_memory with storage_options=None
+2026-11-07 12:54:57 [    INFO] LanceDB connected successfully
+2026-11-07 12:54:57 [    INFO] Recorded outcome for a1: success
+2026-11-07 12:54:57 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/jobs/6080521c-f493-4ee0-961d-514853e11c23/answer "HTTP/1.1 200 OK"
+PASSED                                                                   [ 53%]
+tests/test_agent_generic_information_wait.py::test_answer_without_wait_identity_is_refused_before_acceptance 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:54:58 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 12:54:58 [    INFO] EscalationManager initialized
+2026-11-07 12:54:58 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 12:54:58 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 12:54:58 [    INFO] EscalationManager initialized
+2026-11-07 12:54:58 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:54:58 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 12:54:58 [    INFO] Executing Agent Agent One with ReAct Loop. Input: create a task
+2026-11-07 12:54:58 [    INFO] Agent Agent One (a1) starting task: create a task
+2026-11-07 12:54:58 [    INFO] EscalationManager initialized
+2026-11-07 12:54:58 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:54:58 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 12:54:58 [    INFO] LanceDBHandler initialized. ID: 5017401648. LANCEDB_AVAILABLE: True
+2026-11-07 12:54:58 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 12:54:58 [    INFO] Connecting to LanceDB at /private/tmp/atom-shopify-product-lead-review/.worktrees/integration-745-750/backend/data/atom_memory with storage_options=None
+2026-11-07 12:54:58 [    INFO] LanceDB connected successfully
+2026-11-07 12:54:58 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=generic-unbound-answer "HTTP/1.1 202 Accepted"
+2026-11-07 12:54:58 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/jobs/eed284f5-7e74-4293-a46d-adf2db09d521/answer "HTTP/1.1 422 Unprocessable Entity"
+2026-11-07 12:54:58 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 12:54:58 [    INFO] EscalationManager initialized
+2026-11-07 12:54:58 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 12:54:58 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 12:54:58 [    INFO] EscalationManager initialized
+2026-11-07 12:54:58 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:54:58 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 12:54:58 [    INFO] Executing Agent Agent One with ReAct Loop. Input: create a task
+2026-11-07 12:54:58 [    INFO] Agent Agent One (a1) starting task: create a task
+2026-11-07 12:54:58 [    INFO] EscalationManager initialized
+2026-11-07 12:54:58 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:54:58 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 12:54:58 [    INFO] LanceDBHandler initialized. ID: 5050478256. LANCEDB_AVAILABLE: True
+2026-11-07 12:54:58 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 12:54:58 [    INFO] Connecting to LanceDB at /private/tmp/atom-shopify-product-lead-review/.worktrees/integration-745-750/backend/data/atom_memory with storage_options=None
+2026-11-07 12:54:58 [    INFO] LanceDB connected successfully
+2026-11-07 12:54:58 [    INFO] Recorded outcome for a1: success
+2026-11-07 12:54:58 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/jobs/eed284f5-7e74-4293-a46d-adf2db09d521/answer "HTTP/1.1 200 OK"
+PASSED                                                                   [ 53%]
+tests/test_agent_generic_information_wait.py::test_old_answer_cannot_settle_the_next_wait 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:54:59 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 12:54:59 [    INFO] EscalationManager initialized
+2026-11-07 12:54:59 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 12:54:59 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 12:54:59 [    INFO] EscalationManager initialized
+2026-11-07 12:54:59 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:54:59 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 12:54:59 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Create a task after obtaining its title and priority
+2026-11-07 12:54:59 [    INFO] Agent Agent One (a1) starting task: Create a task after obtaining its title and priori
+2026-11-07 12:54:59 [    INFO] EscalationManager initialized
+2026-11-07 12:54:59 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:54:59 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 12:54:59 [    INFO] LanceDBHandler initialized. ID: 5159163664. LANCEDB_AVAILABLE: True
+2026-11-07 12:54:59 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 12:54:59 [    INFO] Connecting to LanceDB at /private/tmp/atom-shopify-product-lead-review/.worktrees/integration-745-750/backend/data/atom_memory with storage_options=None
+2026-11-07 12:54:59 [    INFO] LanceDB connected successfully
+2026-11-07 12:54:59 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=generic-repeated-prerequisite "HTTP/1.1 202 Accepted"
+2026-11-07 12:54:59 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 12:54:59 [    INFO] EscalationManager initialized
+2026-11-07 12:54:59 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 12:54:59 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 12:54:59 [    INFO] EscalationManager initialized
+2026-11-07 12:54:59 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:54:59 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 12:54:59 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Create a task after obtaining its title and priority
+2026-11-07 12:54:59 [    INFO] Agent Agent One (a1) starting task: Create a task after obtaining its title and priori
+2026-11-07 12:54:59 [    INFO] EscalationManager initialized
+2026-11-07 12:54:59 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:54:59 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 12:54:59 [    INFO] LanceDBHandler initialized. ID: 5159996688. LANCEDB_AVAILABLE: True
+2026-11-07 12:54:59 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 12:54:59 [    INFO] Connecting to LanceDB at /private/tmp/atom-shopify-product-lead-review/.worktrees/integration-745-750/backend/data/atom_memory with storage_options=None
+2026-11-07 12:54:59 [    INFO] LanceDB connected successfully
+2026-11-07 12:54:59 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/jobs/d916762f-20ae-4b63-a00f-473699f159f0/answer "HTTP/1.1 202 Accepted"
+2026-11-07 12:54:59 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/jobs/d916762f-20ae-4b63-a00f-473699f159f0/answer "HTTP/1.1 409 Conflict"
+2026-11-07 12:54:59 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/jobs/d916762f-20ae-4b63-a00f-473699f159f0/answer "HTTP/1.1 422 Unprocessable Entity"
+2026-11-07 12:54:59 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 12:54:59 [    INFO] EscalationManager initialized
+2026-11-07 12:54:59 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 12:54:59 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 12:54:59 [    INFO] EscalationManager initialized
+2026-11-07 12:54:59 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:54:59 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 12:54:59 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Create a task after obtaining its title and priority
+2026-11-07 12:54:59 [    INFO] Agent Agent One (a1) starting task: Create a task after obtaining its title and priori
+2026-11-07 12:54:59 [    INFO] EscalationManager initialized
+2026-11-07 12:54:59 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:54:59 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 12:54:59 [    INFO] LanceDBHandler initialized. ID: 5160009360. LANCEDB_AVAILABLE: True
+2026-11-07 12:54:59 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 12:54:59 [    INFO] Connecting to LanceDB at /private/tmp/atom-shopify-product-lead-review/.worktrees/integration-745-750/backend/data/atom_memory with storage_options=None
+2026-11-07 12:54:59 [    INFO] LanceDB connected successfully
+2026-11-07 12:54:59 [    INFO] Recorded outcome for a1: success
+2026-11-07 12:54:59 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/jobs/d916762f-20ae-4b63-a00f-473699f159f0/answer "HTTP/1.1 200 OK"
+PASSED                                                                   [ 53%]
+tests/test_agent_generic_information_wait.py::test_real_react_step_consumer_answers_wait_and_verifies_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:55:00 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 12:55:00 [    INFO] EscalationManager initialized
+2026-11-07 12:55:00 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 12:55:00 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 12:55:00 [    INFO] EscalationManager initialized
+2026-11-07 12:55:00 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:55:00 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 12:55:00 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Create the closing task
+2026-11-07 12:55:00 [    INFO] Agent Agent One (a1) starting task: Create the closing task
+2026-11-07 12:55:00 [    INFO] EscalationManager initialized
+2026-11-07 12:55:00 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:55:00 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 12:55:00 [    INFO] LanceDBHandler initialized. ID: 5161779984. LANCEDB_AVAILABLE: True
+2026-11-07 12:55:00 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 12:55:00 [    INFO] Connecting to LanceDB at /private/tmp/atom-shopify-product-lead-review/.worktrees/integration-745-750/backend/data/atom_memory with storage_options=None
+2026-11-07 12:55:00 [    INFO] LanceDB connected successfully
+2026-11-07 12:55:00 [    INFO] Initializing tool registry...
+2026-11-07 12:55:00 [    INFO] Discovering tools from modules: ['tools.dataset_tool', 'tools.device_tool', 'tools.canvas_crud_tool', 'tools.productivity_tool', 'tools.drive_tool', 'tools.data_analysis_tool', 'tools.agent_radio_tool', 'tools.media_tool', 'tools.canvas_docs_tool', 'tools.creative_tool', 'tools.memory_tool', 'tools.canvas_orchestration_tool', 'tools.platform_management_tool', 'tools.canvas_sheets_tool', 'tools.browser_tool', 'tools.canvas_terminal_tool', 'tools.canvas_email_tool', 'tools.pdf_canvas_tool', 'tools.email_attachment_tool', 'tools.agent_guidance_canvas_tool', 'tools.calendar_tool', 'tools.canvas_coding_tool', 'tools.mini_app_tool', 'tools.canvas_tool', 'tools.smarthome_tool', 'tools.email_ingest_tool', 'tools.office_tool']
+2026-11-07 12:55:00 [    INFO] Registered tool: find_datasets v1.0.0 (dataset)
+2026-11-07 12:55:00 [    INFO] Registered tool: load_registered_dataset v1.0.0 (dataset)
+2026-11-07 12:55:00 [    INFO] Device WebSocket module loaded - real device communication enabled
+2026-11-07 12:55:00 [    INFO] Registered tool: device_camera_snap v1.0.0 (device)
+2026-11-07 12:55:00 [    INFO] Registered tool: device_execute_command v1.0.0 (device)
+2026-11-07 12:55:00 [    INFO] Registered tool: device_get_location v1.0.0 (device)
+2026-11-07 12:55:00 [    INFO] Registered tool: device_screen_record_start v1.0.0 (device)
+2026-11-07 12:55:00 [    INFO] Registered tool: device_screen_record_stop v1.0.0 (device)
+2026-11-07 12:55:00 [    INFO] Registered tool: device_send_notification v1.0.0 (device)
+2026-11-07 12:55:00 [    INFO] Registered tool: execute_device_command v1.0.0 (device)
+2026-11-07 12:55:00 [    INFO] Registered tool: get_device_info v1.0.0 (device)
+2026-11-07 12:55:00 [    INFO] Registered tool: list_devices v1.0.0 (device)
+2026-11-07 12:55:00 [    INFO] Registered tool: send_device_command v1.0.0 (device)
+2026-11-07 12:55:00 [    INFO] Registered tool: delete_canvas v1.0.0 (canvas_crud)
+2026-11-07 12:55:00 [    INFO] Registered tool: list_canvas_versions v1.0.0 (canvas_crud)
+2026-11-07 12:55:00 [    INFO] Registered tool: list_canvases v1.0.0 (canvas_crud)
+2026-11-07 12:55:00 [    INFO] Registered tool: read_canvas v1.0.0 (canvas_crud)
+2026-11-07 12:55:00 [    INFO] Registered tool: restore_canvas_version v1.0.0 (canvas_crud)
+2026-11-07 12:55:00 [    INFO] Registered tool: restore_deleted_canvas v1.0.0 (canvas_crud)
+2026-11-07 12:55:00 [    INFO] Registered tool: update_canvas_content v1.0.0 (canvas_crud)
+2026-11-07 12:55:00 [    INFO] Registered tool: integration_ingest_item v1.0.0 (drive)
+2026-11-07 12:55:00 [    INFO] Registered tool: integration_search_index v1.0.0 (drive)
+2026-11-07 12:55:00 [    INFO] Registered tool: analyze_data v1.0.0 (data_analysis)
+2026-11-07 12:55:00 [    INFO] Registered tool: describe_data v1.0.0 (data_analysis)
+2026-11-07 12:55:00 [    INFO] Registered tool: list_datasets v1.0.0 (data_analysis)
+2026-11-07 12:55:00 [    INFO] Registered tool: load_dataset v1.0.0 (data_analysis)
+2026-11-07 12:55:00 [    INFO] Registered tool: query_data v1.0.0 (data_analysis)
+2026-11-07 12:55:00 [    INFO] Registered tool: radio_create_thread v1.0.0 (agent_radio)
+2026-11-07 12:55:00 [    INFO] Registered tool: radio_read_inbox v1.0.0 (agent_radio)
+2026-11-07 12:55:00 [    INFO] Registered tool: radio_send_message v1.0.0 (agent_radio)
+2026-11-07 12:55:00 [    INFO] Registered tool: radio_wait_for_mention v1.0.0 (agent_radio)
+2026-11-07 12:55:00 [ WARNING] SoCo library not installed - Sonos functions will fail
+2026-11-07 12:55:00 [    INFO] Registered tool: spotify_current v1.0.0 (media)
+2026-11-07 12:55:00 [    INFO] Registered tool: spotify_play v1.0.0 (media)
+2026-11-07 12:55:00 [    INFO] Registered tool: spotify_pause v1.0.0 (media)
+2026-11-07 12:55:00 [    INFO] Registered tool: spotify_next v1.0.0 (media)
+2026-11-07 12:55:00 [    INFO] Registered tool: spotify_previous v1.0.0 (media)
+2026-11-07 12:55:00 [    INFO] Registered tool: spotify_volume v1.0.0 (media)
+2026-11-07 12:55:00 [    INFO] Registered tool: spotify_devices v1.0.0 (media)
+2026-11-07 12:55:00 [    INFO] Registered tool: sonos_discover v1.0.0 (media)
+2026-11-07 12:55:00 [    INFO] Registered tool: sonos_play v1.0.0 (media)
+2026-11-07 12:55:00 [    INFO] Registered tool: sonos_pause v1.0.0 (media)
+2026-11-07 12:55:00 [    INFO] Registered tool: sonos_volume v1.0.0 (media)
+2026-11-07 12:55:00 [    INFO] Registered tool: sonos_groups v1.0.0 (media)
+2026-11-07 12:55:00 [    INFO] Media control tools registered with tool registry
+2026-11-07 12:55:00 [    INFO] Registered tool: present_docs_canvas v1.0.0 (canvas_docs)
+2026-11-07 12:55:00 [    INFO] Registered tool: present_specialized_canvas v1.0.0 (canvas_docs)
+2026-11-07 12:55:00 [    INFO] Registered tool: update_docs_canvas v1.0.0 (canvas_docs)
+2026-11-07 12:55:00 [    INFO] FFmpeg Python library loaded successfully
+2026-11-07 12:55:00 [    INFO] FFmpegService initialized
+2026-11-07 12:55:00 [    INFO] FFmpegTool initialized
+2026-11-07 12:55:00 [    INFO] Registered tool: ffmpeg_edit v1.0.0 (creative)
+2026-11-07 12:55:00 [    INFO] FFmpeg creative tool registered
+2026-11-07 12:55:00 [    INFO] Registered tool: memory_forget v1.0.0 (memory)
+2026-11-07 12:55:00 [    INFO] Registered tool: memory_remember v1.0.0 (memory)
+2026-11-07 12:55:00 [    INFO] Registered tool: present_orchestration_canvas v1.0.0 (canvas_orchestration)
+2026-11-07 12:55:00 [    INFO] Registered tool: add_member_to_team v1.0.0 (platform_management)
+2026-11-07 12:55:00 [    INFO] Registered tool: add_member_to_workspace v1.0.0 (platform_management)
+2026-11-07 12:55:00 [    INFO] Registered tool: create_team v1.0.0 (platform_management)
+2026-11-07 12:55:00 [    INFO] Registered tool: create_tenant v1.0.0 (platform_management)
+2026-11-07 12:55:00 [    INFO] Registered tool: create_workspace v1.0.0 (platform_management)
+2026-11-07 12:55:00 [    INFO] Registered tool: delete_team v1.0.0 (platform_management)
+2026-11-07 12:55:00 [    INFO] Registered tool: delete_tenant v1.0.0 (platform_management)
+2026-11-07 12:55:00 [    INFO] Registered tool: delete_workspace v1.0.0 (platform_management)
+2026-11-07 12:55:00 [    INFO] Registered tool: get_platform_settings v1.0.0 (platform_management)
+2026-11-07 12:55:00 [    INFO] Registered tool: list_tenant_members v1.0.0 (platform_management)
+2026-11-07 12:55:00 [    INFO] Registered tool: manage_team v1.0.0 (platform_management)
+2026-11-07 12:55:00 [    INFO] Registered tool: manage_tenant_member v1.0.0 (platform_management)
+2026-11-07 12:55:00 [    INFO] Registered tool: manage_workspace v1.0.0 (platform_management)
+2026-11-07 12:55:00 [    INFO] Registered tool: remove_member_from_team v1.0.0 (platform_management)
+2026-11-07 12:55:00 [    INFO] Registered tool: remove_member_from_workspace v1.0.0 (platform_management)
+2026-11-07 12:55:00 [    INFO] Registered tool: set_byok_api_key v1.0.0 (platform_management)
+2026-11-07 12:55:00 [    INFO] Registered tool: update_platform_setting v1.0.0 (platform_management)
+2026-11-07 12:55:00 [    INFO] Registered tool: update_team v1.0.0 (platform_management)
+2026-11-07 12:55:00 [    INFO] Registered tool: update_tenant v1.0.0 (platform_management)
+2026-11-07 12:55:00 [    INFO] Registered tool: update_tenant_profile v1.0.0 (platform_management)
+2026-11-07 12:55:00 [    INFO] Registered tool: update_workspace v1.0.0 (platform_management)
+2026-11-07 12:55:00 [    INFO] Registered tool: present_sheets_canvas v1.0.0 (canvas_sheets)
+2026-11-07 12:55:00 [    INFO] Registered tool: attach_tiebreak v1.0.0 (browser)
+2026-11-07 12:55:00 [    INFO] Registered tool: browser_click v1.0.0 (browser)
+2026-11-07 12:55:00 [    INFO] Registered tool: browser_close_session v1.0.0 (browser)
+2026-11-07 12:55:00 [    INFO] Registered tool: browser_create_session v1.0.0 (browser)
+2026-11-07 12:55:00 [    INFO] Registered tool: browser_execute_script v1.0.0 (browser)
+2026-11-07 12:55:00 [    INFO] Registered tool: browser_extract_text v1.0.0 (browser)
+2026-11-07 12:55:00 [    INFO] Registered tool: browser_fill_form v1.0.0 (browser)
+2026-11-07 12:55:00 [    INFO] Registered tool: browser_get_page_info v1.0.0 (browser)
+2026-11-07 12:55:00 [    INFO] Registered tool: browser_navigate v1.0.0 (browser)
+2026-11-07 12:55:00 [    INFO] Registered tool: browser_screenshot v1.0.0 (browser)
+2026-11-07 12:55:00 [    INFO] Registered tool: present_terminal_canvas v1.0.0 (canvas_terminal)
+2026-11-07 12:55:00 [    INFO] Registered tool: present_email_canvas v1.0.0 (canvas_email)
+2026-11-07 12:55:00 [    INFO] Registered tool: pdf_canvas_annotate v1.0.0 (pdf_canvas)
+2026-11-07 12:55:00 [    INFO] Registered tool: pdf_canvas_apply_page_ops v1.0.0 (pdf_canvas)
+2026-11-07 12:55:00 [    INFO] Registered tool: pdf_canvas_approve v1.0.0 (pdf_canvas)
+2026-11-07 12:55:00 [    INFO] Registered tool: pdf_canvas_archive_to_onedrive v1.0.0 (pdf_canvas)
+2026-11-07 12:55:00 [    INFO] Registered tool: pdf_canvas_attach_to_email v1.0.0 (pdf_canvas)
+2026-11-07 12:55:00 [    INFO] Registered tool: pdf_canvas_flatten v1.0.0 (pdf_canvas)
+2026-11-07 12:55:00 [    INFO] Registered tool: pdf_canvas_generate_from_data v1.0.0 (pdf_canvas)
+2026-11-07 12:55:00 [    INFO] Registered tool: pdf_canvas_get_form_fields v1.0.0 (pdf_canvas)
+2026-11-07 12:55:00 [    INFO] Registered tool: pdf_canvas_get_state v1.0.0 (pdf_canvas)
+2026-11-07 12:55:00 [    INFO] Registered tool: pdf_canvas_list_versions v1.0.0 (pdf_canvas)
+2026-11-07 12:55:00 [    INFO] Registered tool: pdf_canvas_merge_canvas v1.0.0 (pdf_canvas)
+2026-11-07 12:55:00 [    INFO] Registered tool: pdf_canvas_read_text v1.0.0 (pdf_canvas)
+2026-11-07 12:55:00 [    INFO] Registered tool: pdf_canvas_redact v1.0.0 (pdf_canvas)
+2026-11-07 12:55:00 [    INFO] Registered tool: pdf_canvas_send_to_docusign v1.0.0 (pdf_canvas)
+2026-11-07 12:55:00 [    INFO] Registered tool: pdf_canvas_set_form_fields v1.0.0 (pdf_canvas)
+2026-11-07 12:55:00 [    INFO] Registered tool: pdf_canvas_stamp_signature v1.0.0 (pdf_canvas)
+2026-11-07 12:55:00 [    INFO] Registered tool: pdf_canvas_submit_for_review v1.0.0 (pdf_canvas)
+2026-11-07 12:55:00 [    INFO] Registered tool: email_attachment_attach v1.0.0 (email_attachment)
+2026-11-07 12:55:00 [    INFO] Registered tool: email_attachment_get_text v1.0.0 (email_attachment)
+2026-11-07 12:55:00 [    INFO] Registered tool: email_attachment_ingest v1.0.0 (email_attachment)
+2026-11-07 12:55:00 [    INFO] Registered tool: email_attachment_list v1.0.0 (email_attachment)
+2026-11-07 12:55:00 [    INFO] Registered tool: email_attachment_remove v1.0.0 (email_attachment)
+2026-11-07 12:55:00 [    INFO] Registered tool: email_attachment_stage_file v1.0.0 (email_attachment)
+2026-11-07 12:55:00 [    INFO] Registered tool: present_coding_canvas v1.0.0 (canvas_coding)
+2026-11-07 12:55:00 [    INFO] Registered tool: mini_app_db_query v1.0.0 (mini_app)
+2026-11-07 12:55:00 [    INFO] Registered tool: mini_app_db_write v1.0.0 (mini_app)
+2026-11-07 12:55:00 [    INFO] Registered tool: mini_app_dev_run v1.0.0 (mini_app)
+2026-11-07 12:55:00 [    INFO] Registered tool: mini_app_get_state v1.0.0 (mini_app)
+2026-11-07 12:55:00 [    INFO] Registered tool: mini_app_install v1.0.0 (mini_app)
+2026-11-07 12:55:00 [    INFO] Registered tool: mini_app_list v1.0.0 (mini_app)
+2026-11-07 12:55:00 [    INFO] Registered tool: mini_app_logic_history v1.0.0 (mini_app)
+2026-11-07 12:55:00 [    INFO] Registered tool: mini_app_publish v1.0.0 (mini_app)
+2026-11-07 12:55:00 [    INFO] Registered tool: mini_app_revert_logic v1.0.0 (mini_app)
+2026-11-07 12:55:00 [    INFO] Registered tool: mini_app_run v1.0.0 (mini_app)
+2026-11-07 12:55:00 [    INFO] Registered tool: mini_app_run_tests v1.0.0 (mini_app)
+2026-11-07 12:55:00 [    INFO] Registered tool: mini_app_scaffold v1.0.0 (mini_app)
+2026-11-07 12:55:00 [    INFO] Registered tool: mini_app_set_tests v1.0.0 (mini_app)
+2026-11-07 12:55:00 [    INFO] Registered tool: mini_app_status v1.0.0 (mini_app)
+2026-11-07 12:55:00 [    INFO] Registered tool: mini_app_write_logic v1.0.0 (mini_app)
+2026-11-07 12:55:00 [    INFO] Registered tool: canvas_execute_javascript v1.0.0 (canvas)
+2026-11-07 12:55:00 [    INFO] Registered tool: close_canvas v1.0.0 (canvas)
+2026-11-07 12:55:00 [    INFO] Registered tool: present_chart v1.0.0 (canvas)
+2026-11-07 12:55:00 [    INFO] Registered tool: present_form v1.0.0 (canvas)
+2026-11-07 12:55:00 [    INFO] Registered tool: present_markdown v1.0.0 (canvas)
+2026-11-07 12:55:00 [    INFO] Registered tool: present_status_panel v1.0.0 (canvas)
+2026-11-07 12:55:00 [    INFO] Registered tool: present_to_canvas v1.0.0 (canvas)
+2026-11-07 12:55:00 [    INFO] Registered tool: update_canvas v1.0.0 (canvas)
+2026-11-07 12:55:00 [    INFO] python-hue-v2 library loaded - Hue integration enabled
+2026-11-07 12:55:00 [    INFO] Registered tool: hue_discover_bridges v1.0.0 (smarthome)
+2026-11-07 12:55:00 [    INFO] Registered tool: hue_get_lights v1.0.0 (smarthome)
+2026-11-07 12:55:00 [    INFO] Registered tool: hue_set_light_state v1.0.0 (smarthome)
+2026-11-07 12:55:00 [    INFO] Registered tool: home_assistant_get_states v1.0.0 (smarthome)
+2026-11-07 12:55:00 [    INFO] Registered tool: home_assistant_call_service v1.0.0 (smarthome)
+2026-11-07 12:55:00 [    INFO] Registered tool: home_assistant_get_lights v1.0.0 (smarthome)
+2026-11-07 12:55:00 [    INFO] Smart home tools registered with ToolRegistry
+2026-11-07 12:55:00 [    INFO] Registered tool: email_ingest_message v1.0.0 (email_ingest)
+2026-11-07 12:55:00 [    INFO] Registered tool: add_excel_pivot_table v1.0.0 (office)
+2026-11-07 12:55:00 [    INFO] Registered tool: get_excel_formula_result v1.0.0 (office)
+2026-11-07 12:55:00 [    INFO] Registered tool: insert_excel_columns v1.0.0 (office)
+2026-11-07 12:55:00 [    INFO] Registered tool: insert_excel_rows v1.0.0 (office)
+2026-11-07 12:55:00 [    INFO] Registered tool: modify_pptx_slides v1.0.0 (office)
+2026-11-07 12:55:00 [    INFO] Registered tool: modify_word_document v1.0.0 (office)
+2026-11-07 12:55:00 [    INFO] Registered tool: present_coedit_canvas v1.0.0 (office)
+2026-11-07 12:55:00 [    INFO] Registered tool: read_excel_cell v1.0.0 (office)
+2026-11-07 12:55:00 [    INFO] Registered tool: read_pptx_slides v1.0.0 (office)
+2026-11-07 12:55:00 [    INFO] Registered tool: read_word_document v1.0.0 (office)
+2026-11-07 12:55:00 [    INFO] Registered tool: recalculate_excel v1.0.0 (office)
+2026-11-07 12:55:00 [    INFO] Registered tool: run_excel_macro v1.0.0 (office)
+2026-11-07 12:55:00 [    INFO] Registered tool: write_excel_cell v1.0.0 (office)
+2026-11-07 12:55:00 [    INFO] Tool discovery complete. Discovered 131 new tools. Total tools: 149
+2026-11-07 12:55:00 [ WARNING] Tool 'present_chart' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: present_chart v1.2.0 (canvas)
+2026-11-07 12:55:00 [ WARNING] Tool 'present_markdown' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: present_markdown v1.2.0 (canvas)
+2026-11-07 12:55:00 [ WARNING] Tool 'present_form' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: present_form v1.2.0 (canvas)
+2026-11-07 12:55:00 [ WARNING] Tool 'update_canvas' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: update_canvas v1.0.0 (canvas)
+2026-11-07 12:55:00 [ WARNING] Tool 'read_canvas' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: read_canvas v1.0.0 (canvas)
+2026-11-07 12:55:00 [ WARNING] Tool 'update_canvas_content' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: update_canvas_content v1.0.0 (canvas)
+2026-11-07 12:55:00 [ WARNING] Tool 'delete_canvas' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: delete_canvas v1.0.0 (canvas)
+2026-11-07 12:55:00 [ WARNING] Tool 'list_canvases' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: list_canvases v1.0.0 (canvas)
+2026-11-07 12:55:00 [ WARNING] Tool 'browser_create_session' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: browser_create_session v1.0.0 (browser)
+2026-11-07 12:55:00 [ WARNING] Tool 'browser_navigate' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: browser_navigate v1.0.0 (browser)
+2026-11-07 12:55:00 [ WARNING] Tool 'browser_screenshot' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: browser_screenshot v1.0.0 (browser)
+2026-11-07 12:55:00 [ WARNING] Tool 'browser_fill_form' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: browser_fill_form v1.0.0 (browser)
+2026-11-07 12:55:00 [ WARNING] Tool 'browser_click' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: browser_click v1.0.0 (browser)
+2026-11-07 12:55:00 [ WARNING] Tool 'browser_extract_text' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: browser_extract_text v1.0.0 (browser)
+2026-11-07 12:55:00 [ WARNING] Tool 'browser_execute_script' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: browser_execute_script v1.0.0 (browser)
+2026-11-07 12:55:00 [ WARNING] Tool 'browser_close_session' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: browser_close_session v1.0.0 (browser)
+2026-11-07 12:55:00 [ WARNING] Tool 'browser_get_page_info' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: browser_get_page_info v1.0.0 (browser)
+2026-11-07 12:55:00 [    INFO] Registered tool: operator_start_task v1.0.0 (browser)
+2026-11-07 12:55:00 [    INFO] Registered tool: operator_get_status v1.0.0 (browser)
+2026-11-07 12:55:00 [    INFO] Registered tool: operator_get_screenshot v1.0.0 (browser)
+2026-11-07 12:55:00 [    INFO] Registered tool: operator_stop_task v1.0.0 (browser)
+2026-11-07 12:55:00 [ WARNING] Tool 'device_camera_snap' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: device_camera_snap v1.0.0 (device)
+2026-11-07 12:55:00 [ WARNING] Tool 'device_screen_record_start' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: device_screen_record_start v1.0.0 (device)
+2026-11-07 12:55:00 [ WARNING] Tool 'device_screen_record_stop' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: device_screen_record_stop v1.0.0 (device)
+2026-11-07 12:55:00 [ WARNING] Tool 'device_get_location' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: device_get_location v1.0.0 (device)
+2026-11-07 12:55:00 [ WARNING] Tool 'device_send_notification' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: device_send_notification v1.0.0 (device)
+2026-11-07 12:55:00 [ WARNING] Tool 'device_execute_command' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: device_execute_command v1.0.0 (device)
+2026-11-07 12:55:00 [   ERROR] No Google Calendar credentials provided
+2026-11-07 12:55:00 [    INFO] CalendarTool initialized
+2026-11-07 12:55:00 [    INFO] Registered tool: calendar_tool v1.0.0 (productivity)
+2026-11-07 12:55:00 [    INFO] CalendarTool registered with ToolRegistry
+2026-11-07 12:55:00 [    INFO] NotionTool initialized
+2026-11-07 12:55:00 [    INFO] Registered tool: notion_tool v1.0.0 (productivity)
+2026-11-07 12:55:00 [    INFO] NotionTool registered with ToolRegistry
+2026-11-07 12:55:00 [ WARNING] Tool 'memory_remember' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: memory_remember v1.0.0 (memory)
+2026-11-07 12:55:00 [ WARNING] Tool 'memory_forget' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: memory_forget v1.0.0 (memory)
+2026-11-07 12:55:00 [    INFO] memory_remember + memory_forget registered with ToolRegistry
+2026-11-07 12:55:00 [ WARNING] Tool 'integration_search_index' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: integration_search_index v1.0.0 (integrations)
+2026-11-07 12:55:00 [ WARNING] Tool 'integration_ingest_item' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: integration_ingest_item v1.0.0 (integrations)
+2026-11-07 12:55:00 [ WARNING] Tool 'load_dataset' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: load_dataset v1.0.0 (data)
+2026-11-07 12:55:00 [ WARNING] Tool 'analyze_data' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: analyze_data v1.0.0 (data)
+2026-11-07 12:55:00 [ WARNING] Tool 'query_data' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: query_data v1.0.0 (data)
+2026-11-07 12:55:00 [ WARNING] Tool 'describe_data' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: describe_data v1.0.0 (data)
+2026-11-07 12:55:00 [ WARNING] Tool 'list_datasets' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: list_datasets v1.0.0 (data)
+2026-11-07 12:55:00 [    INFO] Data analysis tools registered with ToolRegistry
+2026-11-07 12:55:00 [ WARNING] Tool 'find_datasets' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: find_datasets v1.0.0 (data)
+2026-11-07 12:55:00 [ WARNING] Tool 'load_registered_dataset' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: load_registered_dataset v1.0.0 (data)
+2026-11-07 12:55:00 [    INFO] Dataset catalog tools registered with ToolRegistry
+2026-11-07 12:55:00 [    INFO] Registered tool: forecast v1.0.0 (data)
+2026-11-07 12:55:00 [    INFO] Registered tool: run_model v1.0.0 (data)
+2026-11-07 12:55:00 [    INFO] Predictive modeling tools registered with ToolRegistry
+2026-11-07 12:55:00 [    INFO] Registered tool: radio.create_thread v1.0.0 (coordination)
+2026-11-07 12:55:00 [    INFO] Registered tool: radio.send_message v1.0.0 (coordination)
+2026-11-07 12:55:00 [    INFO] Registered tool: radio.wait_for_mention v1.0.0 (coordination)
+2026-11-07 12:55:00 [    INFO] Registered tool: radio.read_inbox v1.0.0 (coordination)
+2026-11-07 12:55:00 [    INFO] radio.* tools registered with ToolRegistry
+2026-11-07 12:55:00 [ WARNING] Tool 'email_attachment_list' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: email_attachment_list v1.0.0 (email)
+2026-11-07 12:55:00 [ WARNING] Tool 'email_attachment_get_text' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: email_attachment_get_text v1.0.0 (email)
+2026-11-07 12:55:00 [ WARNING] Tool 'email_attachment_stage_file' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: email_attachment_stage_file v1.0.0 (email)
+2026-11-07 12:55:00 [ WARNING] Tool 'email_attachment_attach' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: email_attachment_attach v1.0.0 (email)
+2026-11-07 12:55:00 [ WARNING] Tool 'email_attachment_remove' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: email_attachment_remove v1.0.0 (email)
+2026-11-07 12:55:00 [ WARNING] Tool 'email_attachment_ingest' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: email_attachment_ingest v1.0.0 (email)
+2026-11-07 12:55:00 [ WARNING] Tool 'email_ingest_message' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: email_ingest_message v1.0.0 (email)
+2026-11-07 12:55:00 [ WARNING] Tool 'pdf_canvas_get_state' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: pdf_canvas_get_state v1.0.0 (canvas)
+2026-11-07 12:55:00 [ WARNING] Tool 'pdf_canvas_read_text' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: pdf_canvas_read_text v1.0.0 (canvas)
+2026-11-07 12:55:00 [ WARNING] Tool 'pdf_canvas_list_versions' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: pdf_canvas_list_versions v1.0.0 (canvas)
+2026-11-07 12:55:00 [ WARNING] Tool 'pdf_canvas_get_form_fields' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: pdf_canvas_get_form_fields v1.0.0 (canvas)
+2026-11-07 12:55:00 [ WARNING] Tool 'pdf_canvas_apply_page_ops' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: pdf_canvas_apply_page_ops v1.0.0 (canvas)
+2026-11-07 12:55:00 [ WARNING] Tool 'pdf_canvas_merge_canvas' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: pdf_canvas_merge_canvas v1.0.0 (canvas)
+2026-11-07 12:55:00 [ WARNING] Tool 'pdf_canvas_submit_for_review' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: pdf_canvas_submit_for_review v1.0.0 (canvas)
+2026-11-07 12:55:00 [ WARNING] Tool 'pdf_canvas_set_form_fields' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: pdf_canvas_set_form_fields v1.0.0 (canvas)
+2026-11-07 12:55:00 [ WARNING] Tool 'pdf_canvas_flatten' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: pdf_canvas_flatten v1.0.0 (canvas)
+2026-11-07 12:55:00 [ WARNING] Tool 'pdf_canvas_annotate' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: pdf_canvas_annotate v1.0.0 (canvas)
+2026-11-07 12:55:00 [ WARNING] Tool 'pdf_canvas_generate_from_data' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: pdf_canvas_generate_from_data v1.0.0 (canvas)
+2026-11-07 12:55:00 [ WARNING] Tool 'pdf_canvas_approve' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: pdf_canvas_approve v1.0.0 (canvas)
+2026-11-07 12:55:00 [ WARNING] Tool 'pdf_canvas_attach_to_email' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: pdf_canvas_attach_to_email v1.0.0 (canvas)
+2026-11-07 12:55:00 [ WARNING] Tool 'pdf_canvas_redact' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: pdf_canvas_redact v1.0.0 (canvas)
+2026-11-07 12:55:00 [ WARNING] Tool 'pdf_canvas_stamp_signature' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: pdf_canvas_stamp_signature v1.0.0 (canvas)
+2026-11-07 12:55:00 [ WARNING] Tool 'pdf_canvas_archive_to_onedrive' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: pdf_canvas_archive_to_onedrive v1.0.0 (canvas)
+2026-11-07 12:55:00 [ WARNING] Tool 'pdf_canvas_send_to_docusign' already registered, updating...
+2026-11-07 12:55:00 [    INFO] Registered tool: pdf_canvas_send_to_docusign v1.0.0 (canvas)
+2026-11-07 12:55:00 [    INFO] Tool registry initialized with 161 tools
+2026-11-07 12:55:00 [    INFO] ✓ Tool Registry integrated with MCP Service
+2026-11-07 12:55:00 [    INFO] Core MCP Service initialized
+2026-11-07 12:55:01 [    INFO] EscalationManager initialized
+2026-11-07 12:55:01 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:55:01 [    INFO] EscalationManager initialized
+2026-11-07 12:55:01 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:55:01 [    INFO] Listed 0 skills (status=Active, type=None)
+2026-11-07 12:55:01 [ WARNING] get_or_create_reflection_pool_table() called on LanceDB stub (no table)
+2026-11-07 12:55:01 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=generic-real-react-consumer "HTTP/1.1 202 Accepted"
+2026-11-07 12:55:01 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 12:55:01 [    INFO] EscalationManager initialized
+2026-11-07 12:55:01 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 12:55:01 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 12:55:01 [    INFO] EscalationManager initialized
+2026-11-07 12:55:01 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:55:01 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 12:55:01 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Create the closing task
+2026-11-07 12:55:01 [    INFO] Agent Agent One (a1) starting task: Create the closing task
+2026-11-07 12:55:01 [    INFO] EscalationManager initialized
+2026-11-07 12:55:01 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:55:01 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 12:55:01 [    INFO] LanceDBHandler initialized. ID: 5269566608. LANCEDB_AVAILABLE: True
+2026-11-07 12:55:01 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 12:55:01 [    INFO] Connecting to LanceDB at /private/tmp/atom-shopify-product-lead-review/.worktrees/integration-745-750/backend/data/atom_memory with storage_options=None
+2026-11-07 12:55:01 [    INFO] LanceDB connected successfully
+2026-11-07 12:55:01 [    INFO] EscalationManager initialized
+2026-11-07 12:55:01 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:55:01 [    INFO] EscalationManager initialized
+2026-11-07 12:55:01 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:55:01 [    INFO] Listed 0 skills (status=Active, type=None)
+2026-11-07 12:55:01 [ WARNING] get_or_create_reflection_pool_table() called on LanceDB stub (no table)
+2026-11-07 12:55:01 [    INFO] EscalationManager initialized
+2026-11-07 12:55:01 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:55:01 [    INFO] EscalationManager initialized
+2026-11-07 12:55:01 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:55:01 [    INFO] Listed 0 skills (status=Active, type=None)
+2026-11-07 12:55:01 [ WARNING] get_or_create_reflection_pool_table() called on LanceDB stub (no table)
+2026-11-07 12:55:01 [    INFO] Recorded outcome for a1: success
+2026-11-07 12:55:01 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/jobs/68bb0ffb-18db-4fa5-ab95-ba0fa28d770d/answer "HTTP/1.1 200 OK"
+PASSED                                                                   [ 53%]
+tests/test_information_wait_maturity_neutral.py::test_repeated_waits_preserve_maturity_and_same_durable_execution PASSED [ 53%]
+tests/test_information_wait_maturity_neutral.py::test_terminal_success_and_failure_still_update_maturity 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:55:02 [    INFO] Recorded outcome for terminal-success: success
+2026-11-07 12:55:02 [    INFO] Initialized global governance cache
+2026-11-07 12:55:02 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-07 12:55:02 [    INFO] Recorded outcome for terminal-failed: failure
+2026-11-07 12:55:02 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+PASSED                                                                   [ 54%]
+tests/test_positive_maturity_no_demotion.py::test_outcome_direction_preserves_authority_and_evidence_gates[autonomous-0.35-True-autonomous-0.36] PASSED [ 54%]
+tests/test_positive_maturity_no_demotion.py::test_outcome_direction_preserves_authority_and_evidence_gates[autonomous-0.35-False-student-0.33] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:55:03 [    INFO] Agent Direction agent transitioned: autonomous -> student
+PASSED                                                                   [ 54%]
+tests/test_positive_maturity_no_demotion.py::test_outcome_direction_preserves_authority_and_evidence_gates[autonomous-0.95-True-autonomous-0.96] PASSED [ 54%]
+tests/test_positive_maturity_no_demotion.py::test_outcome_direction_preserves_authority_and_evidence_gates[student-0.49-True-student-0.5] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:55:05 [    INFO] Agent Direction agent evidence gate blocked intern: no pathway satisfied: [mentor_taught] needs 0/3 mentored sessions, 0/5 work episodes | [self_directed] needs 0/3 completed training sessions, 0/10 work episodes
+PASSED                                                                   [ 54%]
+tests/test_positive_maturity_no_demotion.py::test_outcome_direction_preserves_authority_and_evidence_gates[paused-0.35-True-paused-0.36] PASSED [ 54%]
+tests/test_positive_maturity_no_demotion.py::test_outcome_direction_preserves_authority_and_evidence_gates[stopped-0.35-True-stopped-0.36] PASSED [ 54%]
+::test_frontend_cwd_none_is_not_certified PASSED                         [ 54%]
+::test_frontend_cwd_wrong_tree_is_not_certified PASSED                   [ 55%]
+::test_frontend_cwd_exact_isolated_path_is_certified PASSED              [ 55%]
+::test_valid_actual_git_blob_twin_is_certified PASSED                    [ 55%]
+::test_consistent_but_wrong_export_does_not_certify PASSED               [ 55%]
+::test_original_self_consistent_fake_manifest_negative PASSED            [ 55%]
+::test_missing_exported_tracked_file_is_rejected PASSED                  [ 55%]
+::test_tampered_export_byte_is_rejected PASSED                           [ 55%]
+::test_wrong_consistent_manifest_hashes_are_rejected PASSED              [ 55%]
+::test_unexpected_backend_file_is_rejected PASSED                        [ 56%]
+::test_launcher_generated_backend_file_is_accounted_for PASSED           [ 56%]
+::test_missing_frozen_commit_is_rejected PASSED                          [ 56%]
+::test_wrong_health_cwd_is_rejected PASSED                               [ 56%]
+::test_wrong_descriptor_export_is_rejected PASSED                        [ 56%]
+::test_conflicting_manifest_source_revision_is_rejected PASSED           [ 56%]
+::test_preflight_source_mismatch_is_rejected PASSED                      [ 56%]
+::test_matching_manifest_source_revision_is_accepted PASSED              [ 57%]
+::test_source_binding_returns_real_consumer_checks PASSED                [ 57%]
+tests/test_oracle_shopify_fulfillment_create.py::test_exact_fulfillment_create_is_independently_verified PASSED [ 57%]
+tests/test_oracle_shopify_fulfillment_create.py::test_missing_store_refuses_before_transport PASSED [ 57%]
+tests/test_oracle_shopify_fulfillment_create.py::test_foreign_store_refuses_before_transport PASSED [ 57%]
+tests/test_oracle_shopify_fulfillment_create.py::test_moved_store_metadata_refuses_before_transport PASSED [ 57%]
+tests/test_oracle_shopify_fulfillment_create.py::test_inactive_store_refuses_before_transport PASSED [ 57%]
+tests/test_oracle_shopify_fulfillment_create.py::test_ambiguous_store_refuses_before_transport PASSED [ 57%]
+tests/test_oracle_shopify_fulfillment_create.py::test_body_store_selector_refuses_before_transport[shop] PASSED [ 58%]
+tests/test_oracle_shopify_fulfillment_create.py::test_body_store_selector_refuses_before_transport[access_token] PASSED [ 58%]
+tests/test_oracle_shopify_fulfillment_create.py::test_body_store_selector_refuses_before_transport[tenant_id] PASSED [ 58%]
+tests/test_oracle_shopify_fulfillment_create.py::test_missing_order_id_refuses_before_transport PASSED [ 58%]
+tests/test_oracle_shopify_fulfillment_create.py::test_no_fulfillable_orders_refuses_before_post PASSED [ 58%]
+tests/test_oracle_shopify_fulfillment_create.py::test_multi_location_requires_location_before_post PASSED [ 58%]
+tests/test_oracle_shopify_fulfillment_create.py::test_location_filter_selects_exact_fulfillment_order PASSED [ 58%]
+tests/test_oracle_shopify_fulfillment_create.py::test_same_order_with_different_returned_id_is_not_success PASSED [ 58%]
+tests/test_oracle_shopify_fulfillment_create.py::test_authorized_fields_must_match_readback[order_id-order-other-order_id] PASSED [ 59%]
+tests/test_oracle_shopify_fulfillment_create.py::test_authorized_fields_must_match_readback[tracking_number-TRACK-OTHER-tracking_number] PASSED [ 59%]
+tests/test_oracle_shopify_fulfillment_create.py::test_authorized_fields_must_match_readback[tracking_company-FedEx-tracking_company] PASSED [ 59%]
+tests/test_oracle_shopify_fulfillment_create.py::test_authorized_fields_must_match_readback[location_id-loc-other-location_id] PASSED [ 59%]
+tests/test_oracle_shopify_fulfillment_create.py::test_dispatch_material_must_match_readback[fulfillment_order_id] PASSED [ 59%]
+tests/test_oracle_shopify_fulfillment_create.py::test_dispatch_material_must_match_readback[line_item_id] PASSED [ 59%]
+tests/test_oracle_shopify_fulfillment_create.py::test_dispatch_material_must_match_readback[line_item_quantity] PASSED [ 59%]
+tests/test_oracle_shopify_fulfillment_create.py::test_dispatch_material_must_match_readback[drop_line_item] PASSED [ 59%]
+tests/test_oracle_shopify_fulfillment_create.py::test_completed_fulfillment_line_id_is_order_line_identity PASSED [ 60%]
+tests/test_oracle_shopify_fulfillment_create.py::test_contradictory_completed_order_line_binding_is_unverified PASSED [ 60%]
+tests/test_oracle_shopify_fulfillment_create.py::test_completed_fulfillment_matching_id_and_alias_is_valid PASSED [ 60%]
+tests/test_oracle_shopify_fulfillment_create.py::test_completed_fulfillment_matching_official_id_rejects_wrong_alias PASSED [ 60%]
+tests/test_oracle_shopify_fulfillment_create.py::test_completed_fulfillment_wrong_official_id_rejects_matching_alias PASSED [ 60%]
+tests/test_oracle_shopify_fulfillment_create.py::test_completed_fulfillment_missing_required_official_id_is_unverified[False] PASSED [ 60%]
+tests/test_oracle_shopify_fulfillment_create.py::test_completed_fulfillment_missing_required_official_id_is_unverified[True] PASSED [ 60%]
+tests/test_oracle_shopify_fulfillment_create.py::test_missing_tracking_proof_is_explicitly_unverified PASSED [ 60%]
+tests/test_oracle_shopify_fulfillment_create.py::test_non_success_fulfillment_status_is_not_business_success[pending] PASSED [ 61%]
+tests/test_oracle_shopify_fulfillment_create.py::test_non_success_fulfillment_status_is_not_business_success[open] PASSED [ 61%]
+tests/test_oracle_shopify_fulfillment_create.py::test_non_success_fulfillment_status_is_not_business_success[failure] PASSED [ 61%]
+tests/test_oracle_shopify_fulfillment_create.py::test_non_success_fulfillment_status_is_not_business_success[cancelled] PASSED [ 61%]
+tests/test_oracle_shopify_fulfillment_create.py::test_absent_readback_is_uncertain_not_success 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:55:32 [   ERROR] Shopify get fulfillment 1100 for order order-500 failed: 404: {"errors":"not found"}
+PASSED                                                                   [ 61%]
+tests/test_oracle_shopify_fulfillment_create.py::test_unidentifiable_effect_is_uncertain_and_not_recreated PASSED [ 61%]
+tests/test_oracle_shopify_fulfillment_create.py::test_known_success_replays_exact_resource_without_second_create PASSED [ 61%]
+tests/test_oracle_shopify_fulfillment_create.py::test_restart_fresh_session_reloads_exact_durable_identity PASSED [ 61%]
+tests/test_oracle_shopify_fulfillment_create.py::test_replay_with_changed_current_material_stays_committed_unverified[order_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:55:35 [   ERROR] Shopify get fulfillment 1100 for order order-500 failed: 404: {"errors":"not found"}
+PASSED                                                                   [ 62%]
+tests/test_oracle_shopify_fulfillment_create.py::test_replay_with_changed_current_material_stays_committed_unverified[tracking_number] PASSED [ 62%]
+tests/test_oracle_shopify_fulfillment_create.py::test_replay_with_changed_current_material_stays_committed_unverified[tracking_company] PASSED [ 62%]
+tests/test_oracle_shopify_fulfillment_create.py::test_replay_with_changed_current_material_stays_committed_unverified[location_id] PASSED [ 62%]
+tests/test_oracle_shopify_fulfillment_create.py::test_replay_with_changed_current_material_stays_committed_unverified[fulfillment_order_id] PASSED [ 62%]
+tests/test_oracle_shopify_fulfillment_create.py::test_replay_with_changed_current_material_stays_committed_unverified[line_item_quantity] PASSED [ 62%]
+tests/test_oracle_shopify_fulfillment_create.py::test_replay_with_missing_current_resource_stays_committed_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:55:39 [   ERROR] Shopify get fulfillment 1100 for order order-500 failed: 404: {"errors":"not found"}
+PASSED                                                                   [ 62%]
+tests/test_oracle_shopify_fulfillment_create.py::test_replay_after_store_changed_stays_committed_unverified PASSED [ 63%]
+tests/test_oracle_shopify_fulfillment_create.py::test_replay_without_durable_identity_receipt_is_committed_unverified PASSED [ 63%]
+tests/test_oracle_shopify_fulfillment_create.py::test_replay_with_unavailable_readback_is_committed_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:55:41 [   ERROR] Failed to get fulfillment 1100 for order order-500: provider readback timed out
+PASSED                                                                   [ 63%]
+tests/test_oracle_shopify_fulfillment_create.py::test_same_operation_changed_material_refuses_before_readback[change0] PASSED [ 63%]
+tests/test_oracle_shopify_fulfillment_create.py::test_same_operation_changed_material_refuses_before_readback[change1] PASSED [ 63%]
+tests/test_oracle_shopify_fulfillment_create.py::test_same_operation_changed_material_refuses_before_readback[change2] PASSED [ 63%]
+tests/test_oracle_shopify_fulfillment_create.py::test_lost_confirmation_stays_uncertain_and_never_replays_as_success 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:55:43 [   ERROR] Failed to create fulfillment: confirmation timed out
+PASSED                                                                   [ 63%]
+tests/test_oracle_shopify_fulfillment_create.py::test_failed_identity_receipt_is_not_rolled_back_or_resent PASSED [ 63%]
+tests/test_lead_shopify_fulfillment_rest_shape.py::test_official_fulfillment_rest_shape_is_usable PASSED [ 64%]
+tests/test_lead_shopify_fulfillment_rest_shape.py::test_wrong_fulfilled_quantity_cannot_borrow_remaining_quantity PASSED [ 64%]
+tests/test_lead_shopify_fulfillment_rest_shape.py::test_contradictory_fulfillment_order_parent_refuses_before_post PASSED [ 64%]
+tests/test_lead_shopify_fulfillment_rest_shape.py::test_failed_fulfillment_status_is_not_verified PASSED [ 64%]
+tests/test_lead_shopify_fulfillment_rest_shape.py::test_fulfillment_read_uses_documented_parent_order_endpoint PASSED [ 64%]
+tests/test_lead_shopify_fulfillment_rest_shape.py::test_missing_order_line_identity_cannot_borrow_fulfillment_order_line_id PASSED [ 64%]
+tests/test_lead_shopify_fulfillment_rest_shape.py::test_completed_official_line_id_cannot_be_overridden_by_optional_line_item_id PASSED [ 64%]
+tests/test_shopify_fulfillment_actions.py::TestRegistryDefinition::test_both_actions_registered PASSED [ 64%]
+tests/test_shopify_fulfillment_actions.py::TestRegistryDefinition::test_create_schema_advertises_optional_tracking PASSED [ 65%]
+tests/test_shopify_fulfillment_actions.py::TestCreateFulfillmentAction::test_success_threads_args PASSED [ 65%]
+tests/test_shopify_fulfillment_actions.py::TestCreateFulfillmentAction::test_notify_customer_defaults_true PASSED [ 65%]
+tests/test_shopify_fulfillment_actions.py::TestCreateFulfillmentAction::test_no_store_fail_closed PASSED [ 65%]
+tests/test_shopify_fulfillment_actions.py::TestGetFulfillmentsAction::test_success PASSED [ 65%]
+tests/test_shopify_fulfillment_actions.py::TestGetFulfillmentsAction::test_no_store_fail_closed PASSED [ 65%]
+tests/test_asset_content_receipt.py::test_private_resolved_address_is_refused_before_fetch PASSED [ 65%]
+tests/test_asset_content_receipt.py::test_non_allowlisted_host_is_refused PASSED [ 65%]
+tests/test_asset_content_receipt.py::test_https_userinfo_and_nonstandard_port_are_refused PASSED [ 66%]
+tests/test_asset_content_receipt.py::test_redirect_is_refused PASSED     [ 66%]
+tests/test_asset_content_receipt.py::test_html_json_empty_and_non_image_are_refused PASSED [ 66%]
+tests/test_asset_content_receipt.py::test_oversize_body_is_refused PASSED [ 66%]
+tests/test_asset_content_receipt.py::test_exact_digest_and_bytes_are_verified PASSED [ 66%]
+tests/test_asset_content_receipt.py::test_provider_transform_remains_unknown PASSED [ 66%]
+tests/test_asset_content_receipt.py::test_dns_is_resolved_once_and_public_ip_is_pinned PASSED [ 66%]
+tests/test_asset_content_receipt.py::test_http_request_carries_no_credentials_or_cookies PASSED [ 66%]
+tests/test_asset_content_receipt.py::test_mime_must_match_decoded_format PASSED [ 67%]
+tests/test_asset_content_receipt.py::test_pixel_bound_refuses_before_full_decode PASSED [ 67%]
+tests/test_asset_content_receipt.py::test_real_jpeg_is_supported PASSED  [ 67%]
+tests/test_lead_asset_usable_image.py::test_mime_and_matching_hash_cannot_certify_unusable_image[] PASSED [ 67%]
+tests/test_lead_asset_usable_image.py::test_mime_and_matching_hash_cannot_certify_unusable_image[<html>not an image</html>] PASSED [ 67%]
+tests/test_lead_asset_usable_image.py::test_mime_and_matching_hash_cannot_certify_unusable_image[\x89PNG\r\n\x1a\ntruncated] PASSED [ 67%]
+tests/test_lead_asset_usable_image.py::test_real_decodable_png_with_matching_digest_is_supported PASSED [ 67%]
+tests/test_lead_shopify_image_content_receipt.py::test_explicit_digest_verifies_cdn_rewritten_image PASSED [ 67%]
+tests/test_lead_shopify_image_content_receipt.py::test_existing_asset_receipt_verifies_cdn_rewritten_image PASSED [ 68%]
+tests/test_lead_shopify_image_content_receipt.py::test_raw_url_only_remains_open_and_unverified PASSED [ 68%]
+tests/test_lead_shopify_image_content_receipt.py::test_wrong_digest_is_not_certified PASSED [ 68%]
+tests/test_lead_shopify_image_content_receipt.py::test_missing_by_id_image_is_not_certified PASSED [ 68%]
+tests/test_lead_shopify_image_content_receipt.py::test_exact_image_replay_without_second_create PASSED [ 68%]
+tests/test_lead_shopify_image_content_receipt.py::test_many_images_are_not_arbitrarily_capped PASSED [ 68%]
+tests/test_lead_shopify_image_content_receipt.py::test_wrong_by_id_image_id_is_not_certified PASSED [ 68%]
+tests/test_lead_shopify_image_content_receipt.py::test_wrong_by_id_product_id_is_not_certified PASSED [ 69%]
+tests/test_lead_shopify_image_content_receipt.py::test_invalid_explicit_proof_fails_before_effect PASSED [ 69%]
+tests/test_lead_shopify_image_content_receipt.py::test_invalid_asset_receipt_fails_before_effect PASSED [ 69%]
+tests/test_lead_shopify_image_content_receipt.py::test_replay_provider_transform_stays_committed_unverified PASSED [ 69%]
+tests/test_lead_shopify_image_content_receipt.py::test_authorized_image_qualifier_mismatch_is_not_certified[alt-Unapproved alt] PASSED [ 69%]
+tests/test_lead_shopify_image_content_receipt.py::test_authorized_image_qualifier_mismatch_is_not_certified[position-9] PASSED [ 69%]
+tests/test_lead_shopify_image_content_receipt.py::test_authorized_image_qualifier_mismatch_is_not_certified[variant_ids-value2] PASSED [ 69%]
+tests/test_lead_shopify_image_content_receipt.py::test_provider_metadata_dimensions_must_match_decoded_image PASSED [ 69%]
+tests/test_covpush_w95_shopify.py::TestFulfillments::test_get_fulfillments PASSED [ 70%]
+tests/test_covpush_w95_shopify.py::TestFulfillments::test_get_fulfillments_error 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:56:00 [   ERROR] Failed to get fulfillments: net
+PASSED                                                                   [ 70%]
+tests/test_covpush_w95_shopify.py::TestFulfillments::test_get_fulfillment_orders PASSED [ 70%]
+tests/test_covpush_w95_shopify.py::TestFulfillments::test_create_fulfillment_full PASSED [ 70%]
+tests/test_covpush_w95_shopify.py::TestFulfillments::test_create_fulfillment_minimal PASSED [ 70%]
+tests/test_covpush_w95_shopify.py::TestFulfillments::test_create_fulfillment_notify_customer_opt_out PASSED [ 70%]
+tests/test_covpush_w95_shopify.py::TestFulfillments::test_create_fulfillment_location_mismatch_422 PASSED [ 70%]
+tests/test_covpush_w95_shopify.py::TestFulfillments::test_create_fulfillment_nothing_fulfillable_422 PASSED [ 70%]
+tests/test_covpush_w95_shopify.py::TestFulfillments::test_create_fulfillment_missing_order_line_id_never_posts[None] PASSED [ 71%]
+tests/test_covpush_w95_shopify.py::TestFulfillments::test_create_fulfillment_missing_order_line_id_never_posts[] PASSED [ 71%]
+tests/test_covpush_w95_shopify.py::TestFulfillments::test_create_fulfillment_contradictory_parent_never_posts[foreign-order] PASSED [ 71%]
+tests/test_covpush_w95_shopify.py::TestFulfillments::test_create_fulfillment_contradictory_parent_never_posts[None] PASSED [ 71%]
+tests/test_covpush_w95_shopify.py::TestFulfillments::test_create_fulfillment_error 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:56:00 [   ERROR] Failed to get fulfillment orders for order o1: net
+PASSED                                                                   [ 71%]
+tests/test_covpush_saaspair.py::test_shopify_fulfillments PASSED         [ 71%]
+tests/test_covpush_saaspair.py::test_shopify_create_fulfillment_minimal PASSED [ 71%]
+tests/test_covpush_intgr_b.py::TestShopifyService::test_write_operations PASSED [ 71%]
+tests/test_covpush_w87_freshdesk_trello_shopify.py::test_sh_write_endpoints PASSED [ 72%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_empty_task PASSED [ 72%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_whitespace_task PASSED [ 72%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_none_task PASSED [ 72%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_bounded_patterns_never_trigger[just one-file change] PASSED [ 72%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_bounded_patterns_never_trigger[write some boilerplate] PASSED [ 72%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_bounded_patterns_never_trigger[rename a variable] PASSED [ 72%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_bounded_patterns_never_trigger[add a comment here] PASSED [ 72%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_bounded_patterns_never_trigger[fix typo in doc] PASSED [ 73%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_bounded_patterns_never_trigger[small change to css] PASSED [ 73%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_bounded_overrides_breakpoint_keywords PASSED [ 73%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_breakpoint_patterns_detected[this is legacy code-legacy] PASSED [ 73%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_breakpoint_patterns_detected[totally unfamiliar stack-unfamiliar] PASSED [ 73%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_breakpoint_patterns_detected[a data migration-migration] PASSED [ 73%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_breakpoint_patterns_detected[multi module refactor is needed-multi[- ]module] PASSED [ 73%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_breakpoint_patterns_detected[a cross service call-cross[- ]service] PASSED [ 73%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_breakpoint_patterns_detected[production incident-incident] PASSED [ 74%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_breakpoint_patterns_detected[root cause analysis-root[- ]cause] PASSED [ 74%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_breakpoint_patterns_detected[do a security audit-security (audit|review|analysis)] PASSED [ 74%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_breakpoint_patterns_detected[security review please-security (audit|review|analysis)] PASSED [ 74%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_breakpoint_patterns_detected[security analysis-security (audit|review|analysis)] PASSED [ 74%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_breakpoint_patterns_detected[refactor the payment flow-refactor] PASSED [ 74%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_breakpoint_patterns_detected[write an integration test-integration] PASSED [ 74%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_breakpoint_patterns_detected[api integration work-api integration] PASSED [ 75%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_breakpoint_patterns_detected[coordination between teams-coordinat] PASSED [ 75%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_breakpoint_patterns_detected[dependency upgrade-dependenc] PASSED [ 75%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_single_signal_not_enough PASSED [ 75%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_two_signals_trigger PASSED [ 75%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_three_signals_score PASSED [ 75%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_api_integration_deduped_with_integration PASSED [ 75%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_compact_keyword_variants PASSED [ 75%]
+tests/test_covpush_w80a_radio.py::TestShouldAttachThread::test_gate_disabled_returns_false PASSED [ 76%]
+tests/test_covpush_w80a_radio.py::TestShouldAttachThread::test_gate_enabled_delegates_to_classifier PASSED [ 76%]
+tests/test_covpush_w80a_radio.py::TestShouldAttachThread::test_gate_enabled_bounded_task PASSED [ 76%]
+tests/test_covpush_w80a_radio.py::TestShouldAttachThread::test_verdict_dataclass_defaults PASSED [ 76%]
+tests/test_covpush_w80a_radio.py::TestAttachThreadForChain::test_disabled_returns_none PASSED [ 76%]
+tests/test_covpush_w80a_radio.py::TestAttachThreadForChain::test_no_breakpoint_returns_none PASSED [ 76%]
+tests/test_covpush_w80a_radio.py::TestAttachThreadForChain::test_creates_thread_without_execution 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:56:00 [    INFO] radio: fleet thread th-abc12345 attached to chain chain-1234567890
+PASSED                                                                   [ 76%]
+tests/test_covpush_w80a_radio.py::TestAttachThreadForChain::test_execution_id_attaches_thread 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:56:00 [    INFO] radio: fleet thread th-xyz attached to chain c1
+PASSED                                                                   [ 76%]
+tests/test_covpush_w80a_radio.py::TestAttachThreadForChain::test_execution_not_found_skips_attach 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:56:00 [    INFO] radio: fleet thread th-xyz attached to chain c1
+PASSED                                                                   [ 77%]
+tests/test_covpush_w80a_radio.py::TestAttachThreadForChain::test_creator_default_and_tenant_passthrough 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:56:00 [    INFO] radio: fleet thread th-1 attached to chain c1
+PASSED                                                                   [ 77%]
+tests/test_covpush_w80a_radio.py::TestExecutionThreadId::test_returns_thread_id_when_found PASSED [ 77%]
+tests/test_covpush_w80a_radio.py::TestExecutionThreadId::test_returns_none_when_missing PASSED [ 77%]
+tests/test_covpush_w80a_radio.py::TestExecutionThreadId::test_returns_none_on_db_error PASSED [ 77%]
+tests/test_covpush_w80a_radio.py::TestRadioServerSingleton::test_get_returns_singleton PASSED [ 77%]
+tests/test_covpush_w80a_radio.py::TestRadioServerSingleton::test_reset_creates_new_instance PASSED [ 77%]
+tests/test_covpush_w80a_radio.py::TestPublish::test_publish_wakes_registered_listener PASSED [ 77%]
+tests/test_covpush_w80a_radio.py::TestPublish::test_publish_unmentioned_agent_not_woken PASSED [ 78%]
+tests/test_covpush_w80a_radio.py::TestPublish::test_publish_empty_mentions PASSED [ 78%]
+tests/test_covpush_w80a_radio.py::TestPublish::test_publish_never_raises PASSED [ 78%]
+tests/test_covpush_w80a_radio.py::TestRegisterListener::test_creates_queue_and_event PASSED [ 78%]
+tests/test_covpush_w80a_radio.py::TestRegisterListener::test_reuse_existing_queue_and_event PASSED [ 78%]
+tests/test_covpush_w80a_radio.py::TestWaitForMention::test_timeout_returns_none PASSED [ 78%]
+tests/test_covpush_w80a_radio.py::TestWaitForMention::test_timeout_capped_by_config PASSED [ 78%]
+tests/test_covpush_w80a_radio.py::TestWaitForMention::test_explicit_timeout_honored PASSED [ 78%]
+tests/test_covpush_w80a_radio.py::TestWaitForMention::test_returns_pending_db_message_immediately PASSED [ 79%]
+tests/test_covpush_w80a_radio.py::TestWaitForMention::test_drains_queued_token_then_checks_db PASSED [ 79%]
+tests/test_covpush_w80a_radio.py::TestWaitForMention::test_event_set_returns_db_message PASSED [ 79%]
+tests/test_covpush_w80a_radio.py::TestWaitForMention::test_event_set_without_db_returns_none PASSED [ 79%]
+tests/test_covpush_w80a_radio.py::TestWaitForMention::test_db_error_returns_none PASSED [ 79%]
+tests/test_covpush_w80a_radio.py::TestWaitForMention::test_get_nowait_exception_swallowed PASSED [ 79%]
+tests/test_covpush_w80a_radio.py::TestActionHelpers::test_context_tier_defaults_to_student PASSED [ 79%]
+tests/test_covpush_w80a_radio.py::TestActionHelpers::test_context_tier_normalized PASSED [ 79%]
+tests/test_covpush_w80a_radio.py::TestActionHelpers::test_require_tier_ok PASSED [ 80%]
+tests/test_covpush_w80a_radio.py::TestActionHelpers::test_require_tier_denied PASSED [ 80%]
+tests/test_covpush_w80a_radio.py::TestActionHelpers::test_require_tier_unknown_tier_denied PASSED [ 80%]
+tests/test_covpush_w80a_radio.py::TestActionHelpers::test_require_tier_missing_tier_denied PASSED [ 80%]
+tests/test_covpush_w80a_radio.py::TestActionHelpers::test_context_agent_id PASSED [ 80%]
+tests/test_covpush_w80a_radio.py::TestActionHelpers::test_disabled_note PASSED [ 80%]
+tests/test_covpush_w80a_radio.py::TestRadioCreateThread::test_disabled PASSED [ 80%]
+tests/test_covpush_w80a_radio.py::TestRadioCreateThread::test_tier_denied PASSED [ 80%]
+tests/test_covpush_w80a_radio.py::TestRadioCreateThread::test_no_agent_id PASSED [ 81%]
+tests/test_covpush_w80a_radio.py::TestRadioCreateThread::test_name_required PASSED [ 81%]
+tests/test_covpush_w80a_radio.py::TestRadioCreateThread::test_members_required PASSED [ 81%]
+tests/test_covpush_w80a_radio.py::TestRadioCreateThread::test_success 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:56:00 [    INFO] radio: thread fake-382dde78 created by agent-a
+PASSED                                                                   [ 81%]
+tests/test_covpush_w80a_radio.py::TestRadioCreateThread::test_radio_error PASSED [ 81%]
+tests/test_covpush_w80a_radio.py::TestRadioCreateThread::test_internal_error 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:56:00 [ WARNING] radio.create_thread failed: boom
+PASSED                                                                   [ 81%]
+tests/test_covpush_w80a_radio.py::TestRadioSendMessage::test_disabled PASSED [ 81%]
+tests/test_covpush_w80a_radio.py::TestRadioSendMessage::test_tier_denied PASSED [ 82%]
+tests/test_covpush_w80a_radio.py::TestRadioSendMessage::test_no_agent_id PASSED [ 82%]
+tests/test_covpush_w80a_radio.py::TestRadioSendMessage::test_thread_id_required PASSED [ 82%]
+tests/test_covpush_w80a_radio.py::TestRadioSendMessage::test_success_plain 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:56:00 [    INFO] radio: agent-a -> ['agent-b'] on th-1
+PASSED                                                                   [ 82%]
+tests/test_covpush_w80a_radio.py::TestRadioSendMessage::test_success_to_agent_and_requires_response 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:56:00 [    INFO] radio: agent-a -> ['agent-b'] on th-1
+PASSED                                                                   [ 82%]
+tests/test_covpush_w80a_radio.py::TestRadioSendMessage::test_policy_error PASSED [ 82%]
+tests/test_covpush_w80a_radio.py::TestRadioSendMessage::test_access_error PASSED [ 82%]
+tests/test_covpush_w80a_radio.py::TestRadioSendMessage::test_budget_exceeded PASSED [ 82%]
+tests/test_covpush_w80a_radio.py::TestRadioSendMessage::test_radio_error PASSED [ 83%]
+tests/test_covpush_w80a_radio.py::TestRadioSendMessage::test_internal_error PASSED [ 83%]
+tests/test_covpush_w80a_radio.py::TestRadioWaitForMention::test_disabled PASSED [ 83%]
+tests/test_covpush_w80a_radio.py::TestRadioWaitForMention::test_no_tier_passes_student_floor PASSED [ 83%]
+tests/test_covpush_w80a_radio.py::TestRadioWaitForMention::test_no_agent_id PASSED [ 83%]
+tests/test_covpush_w80a_radio.py::TestRadioWaitForMention::test_thread_id_required PASSED [ 83%]
+tests/test_covpush_w80a_radio.py::TestRadioWaitForMention::test_timed_out PASSED [ 83%]
+tests/test_covpush_w80a_radio.py::TestRadioWaitForMention::test_timeout_none_passed_through PASSED [ 83%]
+tests/test_covpush_w80a_radio.py::TestRadioWaitForMention::test_invalid_timeout_falls_back_to_none PASSED [ 84%]
+tests/test_covpush_w80a_radio.py::TestRadioWaitForMention::test_message_received PASSED [ 84%]
+tests/test_covpush_w80a_radio.py::TestRadioWaitForMention::test_message_without_created_at PASSED [ 84%]
+tests/test_covpush_w80a_radio.py::TestRadioWaitForMention::test_wait_raises_returns_error 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:56:00 [ WARNING] radio.wait_for_mention failed: boom
+PASSED                                                                   [ 84%]
+tests/test_covpush_w80a_radio.py::TestRadioReadInbox::test_disabled PASSED [ 84%]
+tests/test_covpush_w80a_radio.py::TestRadioReadInbox::test_no_tier_passes_student_floor PASSED [ 84%]
+tests/test_covpush_w80a_radio.py::TestRadioReadInbox::test_no_agent_id PASSED [ 84%]
+tests/test_covpush_w80a_radio.py::TestRadioReadInbox::test_snapshot_with_thread_id PASSED [ 84%]
+tests/test_covpush_w80a_radio.py::TestRadioReadInbox::test_inbox_without_thread_id PASSED [ 85%]
+tests/test_covpush_w80a_radio.py::TestRadioReadInbox::test_inbox_empty PASSED [ 85%]
+tests/test_covpush_w80a_radio.py::TestRadioReadInbox::test_read_error 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:56:00 [ WARNING] radio.read_inbox failed: boom
+PASSED                                                                   [ 85%]
+tests/test_covpush_w80a_radio.py::TestRegisterAll::test_register_all_actions_exist PASSED [ 85%]
+tests/test_covpush_w80a_radio.py::TestTeamModels::test_role_keys PASSED  [ 85%]
+tests/test_covpush_w80a_radio.py::TestTeamModels::test_reviewer_absent PASSED [ 85%]
+tests/test_covpush_w80a_radio.py::TestTeamModels::test_empty_team PASSED [ 85%]
+tests/test_covpush_w80a_radio.py::TestTeamModels::test_role_defaults PASSED [ 85%]
+tests/test_covpush_w80a_radio.py::TestValidate::test_not_a_dict 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:56:00 [ WARNING] radio team config: missing top-level 'team' mapping
+2026-11-07 12:56:00 [ WARNING] radio team config: missing top-level 'team' mapping
+2026-11-07 12:56:00 [ WARNING] radio team config: missing top-level 'team' mapping
+PASSED                                                                   [ 86%]
+tests/test_covpush_w80a_radio.py::TestValidate::test_missing_team_key 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:56:00 [ WARNING] radio team config: missing top-level 'team' mapping
+PASSED                                                                   [ 86%]
+tests/test_covpush_w80a_radio.py::TestValidate::test_team_not_mapping 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:56:00 [ WARNING] radio team config: missing top-level 'team' mapping
+PASSED                                                                   [ 86%]
+tests/test_covpush_w80a_radio.py::TestValidate::test_missing_name 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:56:00 [ WARNING] radio team config: team.name is required
+PASSED                                                                   [ 86%]
+tests/test_covpush_w80a_radio.py::TestValidate::test_role_missing_key_or_name_skipped 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:56:00 [ WARNING] radio team config: role missing key/name: {'name': 'NoKey'}
+2026-11-07 12:56:00 [ WARNING] radio team config: role missing key/name: {'key': 'noName'}
+PASSED                                                                   [ 86%]
+tests/test_covpush_w80a_radio.py::TestValidate::test_no_valid_roles 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:56:00 [ WARNING] radio team config: role missing key/name: {'key': 'k'}
+2026-11-07 12:56:00 [ WARNING] radio team config 'x': no valid roles
+2026-11-07 12:56:00 [ WARNING] radio team config 'x': no valid roles
+PASSED                                                                   [ 86%]
+tests/test_covpush_w80a_radio.py::TestValidate::test_valid_config_strips_and_defaults PASSED [ 86%]
+tests/test_covpush_w80a_radio.py::TestValidate::test_roles_none_means_no_roles 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:56:00 [ WARNING] radio team config 'x': no valid roles
+PASSED                                                                   [ 86%]
+tests/test_covpush_w80a_radio.py::TestValidate::test_defaults_none_becomes_empty PASSED [ 87%]
+tests/test_covpush_w80a_radio.py::TestTryImportYaml::test_yaml_available PASSED [ 87%]
+tests/test_covpush_w80a_radio.py::TestTryImportYaml::test_yaml_missing PASSED [ 87%]
+tests/test_covpush_w80a_radio.py::TestLoadTeam::test_yaml_unavailable_returns_none PASSED [ 87%]
+tests/test_covpush_w80a_radio.py::TestLoadTeam::test_no_config_for_team PASSED [ 87%]
+tests/test_covpush_w80a_radio.py::TestLoadTeam::test_loads_yaml_file PASSED [ 87%]
+tests/test_covpush_w80a_radio.py::TestLoadTeam::test_falls_back_to_yml PASSED [ 87%]
+tests/test_covpush_w80a_radio.py::TestLoadTeam::test_yaml_preferred_over_yml PASSED [ 88%]
+tests/test_covpush_w80a_radio.py::TestLoadTeam::test_invalid_yaml_returns_none 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:56:00 [ WARNING] radio team loader: failed to parse /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/integration-745-750-s479e_yk/basetemp/test_invalid_yaml_returns_none0/bad.yaml: while parsing a flow sequence
+  in "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/integration-745-750-s479e_yk/basetemp/test_invalid_yaml_returns_none0/bad.yaml", line 1, column 7
+expected ',' or ']', but got '<stream end>'
+  in "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/integration-745-750-s479e_yk/basetemp/test_invalid_yaml_returns_none0/bad.yaml", line 1, column 16
+PASSED                                                                   [ 88%]
+tests/test_covpush_w80a_radio.py::TestLoadTeam::test_invalid_structure_returns_none 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:56:00 [ WARNING] radio team config: missing top-level 'team' mapping
+PASSED                                                                   [ 88%]
+tests/test_covpush_w80a_radio.py::TestLoadTeam::test_loads_repo_coding_team PASSED [ 88%]
+tests/test_covpush_w80a_radio.py::TestListTeamNames::test_missing_dir PASSED [ 88%]
+tests/test_covpush_w80a_radio.py::TestListTeamNames::test_lists_yaml_and_yml_sorted PASSED [ 88%]
+tests/test_covpush_w80a_radio.py::TestFalsificationPrompt::test_block_content PASSED [ 88%]
+tests/test_covpush_w80a_radio.py::TestCreateThread::test_creator_prepended_and_dedup 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:56:00 [    INFO] radio: thread fake-d97f243b created by agent-a
+PASSED                                                                   [ 88%]
+tests/test_covpush_w80a_radio.py::TestCreateThread::test_creator_already_member_order_preserved 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:56:00 [    INFO] radio: thread fake-d429d6c2 created by agent-a
+PASSED                                                                   [ 89%]
+tests/test_covpush_w80a_radio.py::TestCreateThread::test_metadata_default_preserved 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:56:00 [    INFO] radio: thread fake-9f98dc22 created by agent-a
+PASSED                                                                   [ 89%]
+tests/test_covpush_w80a_radio.py::TestCreateThread::test_empty_members 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:56:00 [    INFO] radio: thread fake-1c46838e created by agent-a
+PASSED                                                                   [ 89%]
+tests/test_covpush_w80a_radio.py::TestIsMember::test_empty_agent_false PASSED [ 89%]
+tests/test_covpush_w80a_radio.py::TestIsMember::test_roster_member PASSED [ 89%]
+tests/test_covpush_w80a_radio.py::TestIsMember::test_non_member_false PASSED [ 89%]
+tests/test_covpush_w80a_radio.py::TestIsMember::test_creator_counts_even_if_not_in_roster PASSED [ 89%]
+tests/test_covpush_w80a_radio.py::TestThreadBudgetUsed::test_float_metadata PASSED [ 89%]
+tests/test_covpush_w80a_radio.py::TestThreadBudgetUsed::test_int_metadata PASSED [ 90%]
+tests/test_covpush_w80a_radio.py::TestThreadBudgetUsed::test_numeric_string_metadata PASSED [ 90%]
+tests/test_covpush_w80a_radio.py::TestThreadBudgetUsed::test_missing_key_defaults_zero PASSED [ 90%]
+tests/test_covpush_w80a_radio.py::TestThreadBudgetUsed::test_corrupt_string_raises PASSED [ 90%]
+tests/test_covpush_w80a_radio.py::TestThreadBudgetUsed::test_corrupt_dict_raises PASSED [ 90%]
+tests/test_covpush_w80a_radio.py::TestThreadBudgetUsed::test_nan_raises PASSED [ 90%]
+tests/test_covpush_w80a_radio.py::TestThreadBudgetUsed::test_inf_raises PASSED [ 90%]
+tests/test_covpush_w80a_radio.py::TestThreadBudgetUsed::test_negative_raises PASSED [ 90%]
+tests/test_covpush_w80a_radio.py::TestSendMessage::test_no_mentions_raises_policy PASSED [ 91%]
+tests/test_covpush_w80a_radio.py::TestSendMessage::test_to_agent_self_not_counted PASSED [ 91%]
+tests/test_covpush_w80a_radio.py::TestSendMessage::test_to_agent_counts_as_mention 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:56:00 [    INFO] radio: agent-a -> ['agent-b'] on th-1
+PASSED                                                                   [ 91%]
+tests/test_covpush_w80a_radio.py::TestSendMessage::test_mention_dedup_with_to_agent 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:56:00 [    INFO] radio: agent-a -> ['agent-b'] on th-1
+PASSED                                                                   [ 91%]
+tests/test_covpush_w80a_radio.py::TestSendMessage::test_thread_missing_raises_access PASSED [ 91%]
+tests/test_covpush_w80a_radio.py::TestSendMessage::test_thread_closed_raises_access PASSED [ 91%]
+tests/test_covpush_w80a_radio.py::TestSendMessage::test_non_member_raises_access PASSED [ 91%]
+tests/test_covpush_w80a_radio.py::TestSendMessage::test_locked_recheck_thread_gone PASSED [ 91%]
+tests/test_covpush_w80a_radio.py::TestSendMessage::test_locked_recheck_non_member PASSED [ 92%]
+tests/test_covpush_w80a_radio.py::TestSendMessage::test_corrupted_budget_fails_closed PASSED [ 92%]
+tests/test_covpush_w80a_radio.py::TestSendMessage::test_budget_exhausted PASSED [ 92%]
+tests/test_covpush_w80a_radio.py::TestSendMessage::test_success_with_cost_updates_budget 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:56:01 [    INFO] radio: agent-a -> ['agent-b'] on th-1
+PASSED                                                                   [ 92%]
+tests/test_covpush_w80a_radio.py::TestSendMessage::test_success_zero_cost_no_budget_update 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:56:01 [    INFO] radio: agent-a -> ['agent-b'] on th-1
+PASSED                                                                   [ 92%]
+tests/test_covpush_w80a_radio.py::TestSendMessage::test_negative_cost_clamped 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:56:01 [    INFO] radio: agent-a -> ['agent-b'] on th-1
+PASSED                                                                   [ 92%]
+tests/test_covpush_w80a_radio.py::TestSendMessage::test_non_finite_cost_treated_zero 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:56:01 [    INFO] radio: agent-a -> ['agent-b'] on th-1
+2026-11-07 12:56:01 [    INFO] radio: agent-a -> ['agent-b'] on th-1
+2026-11-07 12:56:01 [    INFO] radio: agent-a -> ['agent-b'] on th-1
+PASSED                                                                   [ 92%]
+tests/test_covpush_w80a_radio.py::TestSendMessage::test_at_budget_exactly_allowed 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:56:01 [    INFO] radio: agent-a -> ['agent-b'] on th-1
+PASSED                                                                   [ 92%]
+tests/test_covpush_w80a_radio.py::TestGetThread::test_found PASSED       [ 93%]
+tests/test_covpush_w80a_radio.py::TestGetThread::test_missing PASSED     [ 93%]
+tests/test_covpush_w80a_radio.py::TestMarkRead::test_already_read_noop PASSED [ 93%]
+tests/test_covpush_w80a_radio.py::TestMarkRead::test_first_read_appends PASSED [ 93%]
+tests/test_covpush_w80a_radio.py::TestMarkRead::test_read_by_two_readers PASSED [ 93%]
+tests/test_covpush_w80a_radio.py::TestMarkRead::test_all_mentioned_read_marks_delivered PASSED [ 93%]
+tests/test_covpush_w80a_radio.py::TestMarkRead::test_message_without_metadata PASSED [ 93%]
+tests/test_covpush_w80a_radio.py::TestGetPendingMentions::test_no_agent_returns_empty PASSED [ 94%]
+tests/test_covpush_w80a_radio.py::TestGetPendingMentions::test_filters_mentions_and_read PASSED [ 94%]
+tests/test_covpush_w80a_radio.py::TestGetPendingMentions::test_limit_applied PASSED [ 94%]
+tests/test_covpush_w80a_radio.py::TestGetPendingMentions::test_limit_none_returns_all PASSED [ 94%]
+tests/test_covpush_w80a_radio.py::TestGetThreadSnapshot::test_thread_missing PASSED [ 94%]
+tests/test_covpush_w80a_radio.py::TestGetThreadSnapshot::test_full_snapshot PASSED [ 94%]
+tests/test_covpush_w80a_radio.py::TestGetThreadSnapshot::test_corrupted_budget_returns_none PASSED [ 94%]
+tests/test_covpush_w80a_radio.py::TestGetThreadSnapshot::test_message_without_mentions_not_unread PASSED [ 94%]
+tests/test_covpush_w80a_radio.py::TestCloseThread::test_missing_returns_none PASSED [ 95%]
+tests/test_covpush_w80a_radio.py::TestCloseThread::test_closes_thread PASSED [ 95%]
+tests/test_covpush_w80a_radio.py::TestInboxDrainText::test_disabled_returns_empty PASSED [ 95%]
+tests/test_covpush_w80a_radio.py::TestInboxDrainText::test_no_agent_returns_empty PASSED [ 95%]
+tests/test_covpush_w80a_radio.py::TestInboxDrainText::test_db_error_returns_empty PASSED [ 95%]
+tests/test_covpush_w80a_radio.py::TestInboxDrainText::test_no_thread_found_returns_empty PASSED [ 95%]
+tests/test_covpush_w80a_radio.py::TestInboxDrainText::test_thread_not_agent_member_returns_empty PASSED [ 95%]
+tests/test_covpush_w80a_radio.py::TestInboxDrainText::test_no_pending_returns_empty PASSED [ 95%]
+tests/test_covpush_w80a_radio.py::TestInboxDrainText::test_returns_formatted_inbox_and_marks_read PASSED [ 96%]
+tests/test_covpush_w80a_radio.py::TestInboxDrainText::test_explicit_thread_id_used PASSED [ 96%]
+tests/test_covpush_w80a_radio.py::TestInboxDrainText::test_cap_via_inbox_config PASSED [ 96%]
+tests/test_covpush_w80a_radio.py::TestRadioConfigReverify::test_env_bool_unset_default PASSED [ 96%]
+tests/test_covpush_w80a_radio.py::TestRadioConfigReverify::test_env_bool_truthy[1] PASSED [ 96%]
+tests/test_covpush_w80a_radio.py::TestRadioConfigReverify::test_env_bool_truthy[true] PASSED [ 96%]
+tests/test_covpush_w80a_radio.py::TestRadioConfigReverify::test_env_bool_truthy[yes] PASSED [ 96%]
+tests/test_covpush_w80a_radio.py::TestRadioConfigReverify::test_env_bool_truthy[on] PASSED [ 96%]
+tests/test_covpush_w80a_radio.py::TestRadioConfigReverify::test_env_bool_truthy[TRUE] PASSED [ 97%]
+tests/test_covpush_w80a_radio.py::TestRadioConfigReverify::test_env_bool_truthy[ ON ] PASSED [ 97%]
+tests/test_covpush_w80a_radio.py::TestRadioConfigReverify::test_env_bool_falsy[0] PASSED [ 97%]
+tests/test_covpush_w80a_radio.py::TestRadioConfigReverify::test_env_bool_falsy[false] PASSED [ 97%]
+tests/test_covpush_w80a_radio.py::TestRadioConfigReverify::test_env_bool_falsy[no] PASSED [ 97%]
+tests/test_covpush_w80a_radio.py::TestRadioConfigReverify::test_env_bool_falsy[off] PASSED [ 97%]
+tests/test_covpush_w80a_radio.py::TestRadioConfigReverify::test_env_bool_falsy[anything] PASSED [ 97%]
+tests/test_covpush_w80a_radio.py::TestRadioConfigReverify::test_env_bool_falsy[] PASSED [ 97%]
+tests/test_covpush_w80a_radio.py::TestRadioConfigReverify::test_master_switch PASSED [ 98%]
+tests/test_covpush_w80a_radio.py::TestRadioConfigReverify::test_knob_defaults PASSED [ 98%]
+tests/test_covpush_w80a_radio.py::TestRadioConfigReverify::test_knob_overrides PASSED [ 98%]
+tests/test_covpush_w80a_radio.py::TestRadioConfigReverify::test_env_str PASSED [ 98%]
+tests/test_covpush_w80a_radio.py::TestRadioConfigReverify::test_thread_override_chain_id PASSED [ 98%]
+tests/test_covpush_w80a_radio.py::TestRadioConfigReverify::test_constant PASSED [ 98%]
+tests/test_covpush_w80a_radio.py::TestRadioGuardReverify::test_policy_allowed_mention_and_to PASSED [ 98%]
+tests/test_covpush_w80a_radio.py::TestRadioGuardReverify::test_policy_no_recipients PASSED [ 98%]
+tests/test_covpush_w80a_radio.py::TestRadioGuardReverify::test_policy_self_mention_only PASSED [ 99%]
+tests/test_covpush_w80a_radio.py::TestRadioGuardReverify::test_policy_empty_content PASSED [ 99%]
+tests/test_covpush_w80a_radio.py::TestRadioGuardReverify::test_policy_oversized_content PASSED [ 99%]
+tests/test_covpush_w80a_radio.py::TestRadioGuardReverify::test_policy_closed_or_none_thread PASSED [ 99%]
+tests/test_covpush_w80a_radio.py::TestRadioGuardReverify::test_policy_non_member PASSED [ 99%]
+tests/test_covpush_w80a_radio.py::TestRadioGuardReverify::test_budget_allows PASSED [ 99%]
+tests/test_covpush_w80a_radio.py::TestRadioGuardReverify::test_inbox_pending PASSED [ 99%]
+tests/test_covpush_w80a_radio.py::TestRadioGuardReverify::test_interrupt_worth_it PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 1568 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_agent_generic_information_wait.py: 18 warnings
+  /private/tmp/atom-shopify-product-lead-review/.worktrees/integration-745-750/backend/core/lancedb_handler.py:407: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    names = set(self.db.table_names())
+
+tests/test_agent_generic_information_wait.py: 36 warnings
+  /Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/asyncio/events.py:94: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    self._context.run(self._callback, *self._args)
+
+tests/test_agent_generic_information_wait.py: 18 warnings
+  /private/tmp/atom-shopify-product-lead-review/.worktrees/integration-745-750/backend/core/lancedb_handler.py:620: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    if table_name in self.db.table_names():
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /private/tmp/atom-shopify-product-lead-review/.worktrees/integration-745-750/docs/acceptance/evidence/integration_745_750_20261107/decisive-matrix.xml -
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================ 784 passed, 1647 warnings in 226.85s (0:03:46) ================
