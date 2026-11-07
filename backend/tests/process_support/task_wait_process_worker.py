@@ -49,6 +49,12 @@ def _prepare_environment(scratch: Path) -> None:
     backend = Path(__file__).resolve().parents[2]
     os.environ["TESTING"] = "1"
     os.environ["ENVIRONMENT"] = "test"
+    # `core.database.get_database_url` honors an explicit non-dev DATABASE_URL
+    # for a pytest-importing process and otherwise forces the shared
+    # backend/test_integration.db. This child is a real process but must use
+    # the verifier's private scratch store, so declare the pytest marker
+    # explicitly (no test module is imported; this only selects the DB path).
+    os.environ["PYTEST_CURRENT_TEST"] = "task_wait_process_worker"
     os.environ["SECRET_KEY"] = os.environ.get(
         "SECRET_KEY", "task-wait-process-recovery-test")
     os.environ["DATABASE_URL"] = f"sqlite:///{scratch / 'routes.db'}"
@@ -351,12 +357,26 @@ def main() -> int:
         from core.assignment_executor import AssignmentExecutor
 
         executor = AssignmentExecutor(lifecycle)
-        recovered = asyncio_run(executor.recover_ready_assignments(
-            limit=20, max_steps_per_assignment=12))
+        entrypoint = "AssignmentExecutor.recover_ready_assignments"
+        try:
+            from core.assignment_recovery import (
+                recover_active_assignments_at_startup,
+            )
+        except ImportError:
+            recovered = asyncio_run(executor.recover_ready_assignments(
+                limit=20, max_steps_per_assignment=12))
+        else:
+            entrypoint = (
+                "core.assignment_recovery."
+                "recover_active_assignments_at_startup")
+            recovered = asyncio_run(
+                recover_active_assignments_at_startup(
+                    limit=20, max_steps_per_assignment=12))
         report = _snapshot(lifecycle, args.run_id, calls)
         report.update({
             "phase": args.phase,
             "pid": os.getpid(),
+            "startup_entrypoint": entrypoint,
             "recovery_results": recovered,
         })
         _write_json(args.report, report)

@@ -2289,6 +2289,197 @@ class AssignmentExecutor:
                 continue
         return marked
 
+    def _unconsumed_evidence_key(
+        self, record: Dict[str, Any],
+    ) -> Optional[Dict[str, Any]]:
+        """Active, model-driven evidence that no adaptation patch consumed."""
+        from core.employee_job_runner import evidence_observations
+        from core.task_lifecycle import open_unresolved_questions
+
+        assignment = record.get("assignment") or {}
+        if not assignment:
+            return None
+        if str(assignment.get("status") or "") in TERMINAL_ASSIGNMENT_STATES:
+            return None
+        provenance = assignment.get("provenance") or {}
+        if provenance.get("use_model", True) is False:
+            return None
+        # This recovery seam owns employee-objective work only. An explicit
+        # plan assignment (or another route's projection) must not acquire an
+        # unrequested model adaptation merely because the process restarted.
+        if str(provenance.get("started_from") or "") != "employee_objective":
+            return None
+        if str((record.get("task_revision") or {}).get(
+                "authorization") or "").lower() == "cancelled":
+            return None
+        budget = assignment.get("budget") or {}
+        deadline = str(budget.get("deadline") or "").strip()
+        if deadline:
+            try:
+                expires = datetime.fromisoformat(
+                    deadline.replace("Z", "+00:00"))
+                if expires.tzinfo is None:
+                    expires = expires.replace(tzinfo=timezone.utc)
+                if datetime.now(timezone.utc) >= expires:
+                    return None
+            except (TypeError, ValueError):
+                pass
+        if open_unresolved_questions(record):
+            return None
+        observations = evidence_observations(record)
+        observation_ids = sorted({
+            str(item.get("observation_id"))
+            for item in observations
+            if item.get("observation_id")
+        })
+        if not observation_ids:
+            return None
+        key = hashlib.sha256(
+            "\n".join(observation_ids).encode("utf-8")).hexdigest()[:20]
+        return {"key": key, "observation_ids": observation_ids}
+
+    def _evidence_recovery_plan(
+        self, record: Dict[str, Any],
+    ) -> Optional[Dict[str, Any]]:
+        """The accepted evidence that a restart must hand to adaptation.
+
+        Eligible only when the task is still active, the objective is
+        model-driven, no obligation is open, and applied evidence results have
+        not yet been consumed by an adaptation patch. A durable marker makes
+        each evidence set a ONE-SHOT recovery: a retain/clarify attempt is not
+        re-polled forever on every boot, and a bounded claim prevents two
+        concurrent successors from adapting the same evidence twice.
+        """
+        base = self._unconsumed_evidence_key(record)
+        if base is None:
+            return None
+        key = base["key"]
+        marker = (record.get("assignment") or {}).get("evidence_recovery")
+        marker = marker if isinstance(marker, dict) else {}
+        if str(marker.get("key") or "") == key:
+            state = str(marker.get("status") or "")
+            if state in ("attempted", "completed", "model_unavailable"):
+                return None
+            if state == "claimed":
+                try:
+                    claimed_at = float(marker.get("at"))
+                    ttl = float(marker.get("ttl") or 0)
+                except (TypeError, ValueError):
+                    claimed_at = ttl = 0.0
+                if ttl > 0 and (time.time() - claimed_at) < ttl:
+                    return None
+        return {**base, "marker": marker}
+
+    def _claim_evidence_recovery(
+        self, run_id: str, key: str,
+    ) -> Optional[Dict[str, Any]]:
+        """CAS-claim one accepted-evidence recovery attempt.
+
+        The claim is stored on the assignment plan (not a new table/daemon)
+        and is bounded by its own recorded TTL. A different successor that
+        loses the CAS, or sees a fresh claim, performs no model call.
+        """
+        from core.task_lifecycle import _current_worker_fingerprint
+
+        ttl = float(os.getenv(
+            "ATOM_ASSIGNMENT_EVIDENCE_RECOVERY_CLAIM_TTL", "120") or 120)
+        owner = _current_worker_fingerprint()
+
+        def compute(record, assignment):
+            plan = self._evidence_recovery_plan(record)
+            if plan is None or plan["key"] != key:
+                raise TaskLifecycleError(
+                    "accepted evidence changed before the recovery claim")
+            updated = copy.deepcopy(assignment)
+            updated["evidence_recovery"] = {
+                "key": key,
+                "status": "claimed",
+                "owner": owner,
+                "at": time.time(),
+                "ttl": ttl,
+                "claimed_at": _utc_now_iso(),
+                "observation_ids": list(plan["observation_ids"])[:20],
+            }
+            return updated, {"key": key, "owner": owner, "ttl": ttl}
+
+        try:
+            return self.lifecycle.mutate_assignment(
+                run_id, compute,
+                rationale="bounded accepted-evidence restart recovery claim")
+        except TaskLifecycleError:
+            return None
+
+    def _finish_evidence_recovery(
+        self,
+        run_id: str,
+        key: str,
+        status: str,
+        *,
+        rounds: Optional[List[Dict[str, Any]]] = None,
+        error: Optional[str] = None,
+    ) -> None:
+        """Record the one-shot recovery outcome without widening authority."""
+        def compute(record, assignment):
+            marker = dict(assignment.get("evidence_recovery") or {})
+            if str(marker.get("key") or "") != key:
+                return assignment, {"status": "stale"}
+            marker["status"] = status
+            marker["finished_at"] = _utc_now_iso()
+            if error:
+                marker["error"] = str(error)[:500]
+            if rounds is not None:
+                marker["rounds"] = [
+                    {
+                        "decision": item.get("decision"),
+                        "source": item.get("source"),
+                        "adoption_status": item.get("adoption_status"),
+                        "execution_status": item.get("execution_status"),
+                    }
+                    for item in rounds[:3]
+                    if isinstance(item, dict)
+                ]
+            updated = copy.deepcopy(assignment)
+            updated["evidence_recovery"] = marker
+            return updated, {"status": status}
+
+        try:
+            self.lifecycle.mutate_assignment(
+                run_id, compute,
+                rationale="accepted-evidence restart recovery outcome")
+        except TaskLifecycleError:
+            # The run moved on (or another writer won). The durable task is
+            # authoritative; recovery must not force a stale marker.
+            pass
+
+    async def _continue_accepted_evidence(
+        self, run_id: str, *, deadline_seconds: float = 180.0,
+    ) -> List[Dict[str, Any]]:
+        """Hand durable accepted evidence to the EXISTING adaptation consumer.
+
+        No new planner/engine is introduced: this calls the same
+        ``_advance_employee_work`` path the source route and ``/advance`` use,
+        with an LLM service built from the run's durable workspace/tenant
+        scope. Under the test environment the proposal transport is the
+        repository's controlled fixture.
+        """
+        from api.assignment_routes import (
+            _advance_employee_work,
+            _employee_llm_for_scope,
+            _employee_provider_model,
+        )
+        from core.database import get_db_session
+
+        runs = self.lifecycle.runs
+        workspace_id = str(
+            getattr(runs, "workspace_id", "default") or "default")
+        tenant_id = str(getattr(runs, "tenant_id", "default") or "default")
+        with get_db_session() as db:
+            llm = _employee_llm_for_scope(db, workspace_id, tenant_id)
+            return await _advance_employee_work(
+                self, run_id, llm, max_rounds=1,
+                deadline_seconds=deadline_seconds,
+                provider_model=_employee_provider_model())
+
     async def recover_ready_assignments(
         self, *, limit: int = 50, max_steps_per_assignment: int = 20,
     ) -> List[Dict[str, Any]]:
@@ -2298,6 +2489,12 @@ class AssignmentExecutor:
         does NOT assert worker loss and does not call restart recovery; a
         running operation owned by another worker is left intact. The
         explicit ``recover_after_restart`` path owns loss recovery.
+
+        Before ordinary re-entry, an accepted evidence result that was
+        committed before a process died is handed to the same employee
+        adaptation consumer used by the source route (explicitly claimed and
+        one-shot per evidence set). A genuinely missing prerequisite has an
+        open obligation and is never model-polled here.
         """
         results: List[Dict[str, Any]] = []
         runs = self.lifecycle.runs.list_runs(
@@ -2310,9 +2507,33 @@ class AssignmentExecutor:
             if assignment.get("status") in TERMINAL_ASSIGNMENT_STATES:
                 continue
             self.replay_pending_wake(run["id"])
-            results.append(await self.execute(
-                run["id"], max_steps=max_steps_per_assignment))
+            plan = self._evidence_recovery_plan(record)
+            if plan is not None:
+                claim = self._claim_evidence_recovery(run["id"], plan["key"])
+                if claim is not None:
+                    try:
+                        rounds = await self._continue_accepted_evidence(
+                            run["id"])
+                        remaining = self._unconsumed_evidence_key(
+                            self.lifecycle.get_task(run["id"]) or {})
+                        self._finish_evidence_recovery(
+                            run["id"], plan["key"],
+                            ("completed" if remaining is None
+                             or remaining["key"] != plan["key"]
+                             else "attempted"),
+                            rounds=rounds)
+                    except Exception as exc:  # noqa: BLE001 — per-run isolation
+                        logger.warning(
+                            "assignment %s: accepted-evidence recovery "
+                            "failed: %s", run["id"], exc)
+                        self._finish_evidence_recovery(
+                            run["id"], plan["key"], "attempted",
+                            error=f"{type(exc).__name__}: {exc}")
+            execution = await self.execute(
+                run["id"], max_steps=max_steps_per_assignment)
+            results.append(execution)
         return results
+
 
     def _wake_run(self, run_id: str, event: Dict[str, Any]) -> None:
         """Try to consume the matching GoalRun wait (best effort).

@@ -11,6 +11,7 @@ All transport is controlled through the existing proposal monkeypatches; no
 provider, spend, account, send or deployment action occurs. Public assignment
 routes, the real compiler/executor and scratch durable records are exercised.
 """
+import asyncio
 import json
 
 import pytest
@@ -26,6 +27,7 @@ from core.employee_work_requests import InvoiceReconciliationRequest
 from core.task_lifecycle import (
     add_unresolved_questions,
     open_unresolved_questions,
+    resolve_unresolved_questions,
 )
 
 PO = "PO-TRIGGER-63"
@@ -473,3 +475,212 @@ def test_absolute_deadline_is_not_extended_by_source_arrival(
     assert final["budget"]["deadline"] == past
     assert _reconciliations(lifecycle, run_id) == []
     assert len(calls) == before
+
+
+def test_restart_owner_does_not_poll_a_missing_or_unsuitable_obligation(
+        route_env, tmp_path, monkeypatch):
+    """No accepted evidence means no model call, no advance and no success.
+
+    This is the startup-owner counterpart of the route's no-suitable negative:
+    a genuine missing-invoice obligation is open, so ordinary recovery may
+    resume other ready work but must not ask the model to invent business
+    work from absence.
+    """
+    _write_facts(tmp_path)
+    calls = _install_controlled_transport(monkeypatch, calls=[])
+    run_id = _start_missing_invoice(route_env["client"], tmp_path)
+    before = len(calls)
+
+    restarted = _rebuilt_executor(route_env)
+    asyncio.run(restarted.recover_ready_assignments(limit=20))
+
+    final = route_env["lifecycle"].get_assignment(run_id)
+    assert len(calls) == before, "absence must not be model-polled"
+    assert _reconciliations(route_env["lifecycle"], run_id) == []
+    assert final["status"] != "completed"
+    assert open_unresolved_questions(route_env["lifecycle"].get_task(run_id))
+
+
+def test_recovery_claim_makes_second_successor_and_repeat_inert(
+        route_env, tmp_path, monkeypatch):
+    """A bounded claim is the concurrent-wake authority for this seam.
+
+    The first successor claims the accepted evidence; a second successor
+    (the concurrent wake) sees the fresh claim and makes no model call. After
+    the first attempt is recorded, a later boot is one-shot inert for the same
+    evidence set instead of polling forever.
+    """
+    import api.assignment_routes as assignment_routes
+    from core.employee_job_runner import evidence_observations
+
+    _write_facts(tmp_path)
+    calls = _install_controlled_transport(monkeypatch, calls=[])
+    client = route_env["client"]
+    lifecycle = route_env["lifecycle"]
+    run_id = _start_missing_invoice(client, tmp_path)
+
+    real_advance = assignment_routes._advance_employee_work
+
+    async def interrupted(*args, **kwargs):
+        raise RuntimeError("simulated interruption before adaptation")
+
+    monkeypatch.setattr(
+        "api.assignment_routes._advance_employee_work", interrupted)
+    first = _add_invoice(client, run_id, tmp_path)
+    assert first.status_code == 200, first.text
+    monkeypatch.setattr(
+        "api.assignment_routes._advance_employee_work", real_advance)
+
+    record = lifecycle.get_task(run_id)
+    assert open_unresolved_questions(record) == []
+    assert evidence_observations(record), "accepted evidence must remain"
+    first_successor = _rebuilt_executor(route_env)
+    second_successor = _rebuilt_executor(route_env)
+    plan = first_successor._evidence_recovery_plan(record)
+    assert plan is not None
+    assert first_successor._claim_evidence_recovery(
+        run_id, plan["key"]) is not None
+
+    before = len(calls)
+    asyncio.run(second_successor.recover_ready_assignments(limit=20))
+    assert len(calls) == before, "the concurrent successor must stay inert"
+
+    first_successor._finish_evidence_recovery(
+        run_id, plan["key"], "attempted")
+    asyncio.run(second_successor.recover_ready_assignments(limit=20))
+    assert len(calls) == before, "a repeat boot must not re-poll the same set"
+    assert _reconciliations(lifecycle, run_id) == []
+    assert lifecycle.get_assignment(run_id)["status"] != "completed"
+
+    # Clear only the test's synthetic one-shot marker: a real successor then
+    # performs the single dependent operation once.
+    def clear_marker(record, assignment):
+        import copy as _copy
+
+        updated = _copy.deepcopy(assignment)
+        updated.pop("evidence_recovery", None)
+        return updated, {}
+
+    lifecycle.mutate_assignment(
+        run_id, clear_marker, rationale="test: clear synthetic claim marker")
+    asyncio.run(second_successor.recover_ready_assignments(limit=20))
+    assert len(calls) == before + 1
+    reconciliations = _reconciliations(lifecycle, run_id)
+    assert len(reconciliations) == 1
+    assert reconciliations[0]["result"]["value"] == EXPECTED_TOTAL
+    assert lifecycle.get_assignment(run_id)["status"] == "completed"
+
+
+def test_open_second_prerequisite_blocks_recovery_until_it_is_resolved(
+        route_env, tmp_path, monkeypatch):
+    """One settled prerequisite is not enough: a second open obligation sleeps.
+
+    The accepted invoice evidence is durable, but recovery must not adapt
+    around another open material prerequisite. Resolving it lets the same
+    successor recover the accepted source exactly once.
+    """
+    import api.assignment_routes as assignment_routes
+
+    _write_facts(tmp_path)
+    calls = _install_controlled_transport(monkeypatch, calls=[])
+    client = route_env["client"]
+    lifecycle = route_env["lifecycle"]
+    run_id = _start_missing_invoice(client, tmp_path)
+
+    real_advance = assignment_routes._advance_employee_work
+
+    async def interrupted(*args, **kwargs):
+        raise RuntimeError("simulated interruption before adaptation")
+
+    monkeypatch.setattr(
+        "api.assignment_routes._advance_employee_work", interrupted)
+    first = _add_invoice(client, run_id, tmp_path)
+    assert first.status_code == 200, first.text
+    monkeypatch.setattr(
+        "api.assignment_routes._advance_employee_work", real_advance)
+    assert open_unresolved_questions(lifecycle.get_task(run_id)) == []
+
+    add_unresolved_questions(lifecycle, run_id, [{
+        "kind": "missing_evidence",
+        "item": "invoice approval",
+        "question": f"Is invoice {INVOICE} approved for {PO}?",
+        "concept": "invoice_reconciliation",
+        "operation": "invoice_reconciliation",
+        "next_action": "Authorize the approval record.",
+        "inputs": {
+            "operation": "invoice_reconciliation",
+            "missing": ["approval"],
+            "known_identities": {"purchase_order.po_id": PO},
+        },
+    }])
+    second = [
+        item for item in open_unresolved_questions(
+            lifecycle.get_task(run_id))
+        if str(item.get("item") or "") == "invoice approval"]
+    assert len(second) == 1
+
+    before = len(calls)
+    asyncio.run(_rebuilt_executor(route_env).recover_ready_assignments(
+        limit=20))
+    assert len(calls) == before, "an open second obligation must sleep"
+    assert _reconciliations(lifecycle, run_id) == []
+    assert lifecycle.get_assignment(run_id)["status"] != "completed"
+
+    resolve_unresolved_questions(
+        lifecycle, run_id,
+        question_ids=[second[0]["question_id"]],
+        resolution="approval record accepted")
+    asyncio.run(_rebuilt_executor(route_env).recover_ready_assignments(
+        limit=20))
+    assert len(calls) == before + 1
+    reconciliations = _reconciliations(lifecycle, run_id)
+    assert len(reconciliations) == 1
+    assert reconciliations[0]["result"]["value"] == EXPECTED_TOTAL
+    assert lifecycle.get_assignment(run_id)["status"] == "completed"
+
+
+def test_restart_owner_does_not_revive_expired_or_cancelled_work(
+        route_env, tmp_path, monkeypatch):
+    """An absolute deadline and cancellation still beat a restart wake."""
+    import api.assignment_routes as assignment_routes
+    from datetime import datetime, timezone
+
+    _write_facts(tmp_path)
+    calls = _install_controlled_transport(monkeypatch, calls=[])
+    client = route_env["client"]
+    lifecycle = route_env["lifecycle"]
+    run_id = _start_missing_invoice(client, tmp_path)
+
+    real_advance = assignment_routes._advance_employee_work
+
+    async def interrupted(*args, **kwargs):
+        raise RuntimeError("simulated interruption before adaptation")
+
+    monkeypatch.setattr(
+        "api.assignment_routes._advance_employee_work", interrupted)
+    first = _add_invoice(client, run_id, tmp_path)
+    assert first.status_code == 200, first.text
+    monkeypatch.setattr(
+        "api.assignment_routes._advance_employee_work", real_advance)
+
+    past = datetime(2020, 1, 1, tzinfo=timezone.utc).isoformat()
+
+    def expire(record, assignment):
+        assignment["budget"]["deadline"] = past
+        return assignment, {}
+
+    lifecycle.mutate_assignment(
+        run_id, expire, rationale="test: explicit absolute deadline")
+    before = len(calls)
+    asyncio.run(_rebuilt_executor(route_env).recover_ready_assignments(
+        limit=20))
+    assert len(calls) == before, "an expired task must not wake the model"
+    assert _reconciliations(lifecycle, run_id) == []
+    assert lifecycle.get_assignment(run_id)["budget"]["deadline"] == past
+
+    client.post(f"/api/assignments/{run_id}/cancel", json={"reason": "owner"})
+    asyncio.run(_rebuilt_executor(route_env).recover_ready_assignments(
+        limit=20))
+    assert len(calls) == before
+    assert _reconciliations(lifecycle, run_id) == []
+    assert lifecycle.get_assignment(run_id)["status"] == "cancelled"

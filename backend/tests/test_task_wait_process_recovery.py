@@ -148,6 +148,8 @@ def test_actual_process_restart_does_not_model_poll_a_missing_prerequisite(
         scratch, "startup-recover", run_id=run_id)
     assert missing_proc.returncode == 0, _fail_message(missing_proc, missing)
     assert missing["pid"] != started["pid"], "this must be a real second process"
+    assert missing["startup_entrypoint"].endswith(
+        "recover_active_assignments_at_startup"), missing
     assert missing["adaptation_calls"] == 0, missing
     assert missing["reconciliations"] == [], missing
     assert missing["status"] != "completed", missing
@@ -209,6 +211,8 @@ def test_actual_process_restart_recovers_accepted_source_without_replay(
         recovered_proc, recovered)
     assert recovered["pid"] not in (started["pid"], committed["pid"]), (
         "recovery must run in a fresh OS process")
+    assert recovered["startup_entrypoint"].endswith(
+        "recover_active_assignments_at_startup"), recovered
     assert recovered["run_id"] == run_id
     assert recovered["objective"] == started["objective"]
     assert recovered["assignment_id"] == started["assignment_id"]

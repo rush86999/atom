@@ -390,16 +390,31 @@ def _employee_action_views(
     return views
 
 
-def _employee_llm(current_user: User, db: Session):
+def _employee_llm_for_scope(db: Session, workspace_id: str, tenant_id: str):
+    """Build the employee consumer for an already-authorized scope.
+
+    The interactive route has a ``User``; restart recovery only has the run's
+    durable workspace/tenant binding. Both paths must use the SAME consumer,
+    so the scope-based builder is the single implementation and the route is a
+    thin adapter over it.
+    """
     try:
         from core.llm_service import LLMService
         return LLMService(
             db=db,
-            workspace_id=current_user.workspace_id or "default",
-            tenant_id=current_user.tenant_id or "default",
+            workspace_id=workspace_id or "default",
+            tenant_id=tenant_id or "default",
         )
     except Exception:  # noqa: BLE001 — deterministic fallback remains
         return None
+
+
+def _employee_llm(current_user: User, db: Session):
+    return _employee_llm_for_scope(
+        db,
+        current_user.workspace_id or "default",
+        current_user.tenant_id or "default",
+    )
 
 
 def _employee_provider_model() -> Optional[tuple]:
