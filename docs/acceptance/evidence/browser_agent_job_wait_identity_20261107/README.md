@@ -4,8 +4,8 @@ Status: **PREPARATION ONLY.** No world, application server, browser, provider
 shim process or live provider/model/account/credential was started. No
 dependency was installed. Root owns the actual browser acceptance.
 
-Source at this preflight: `9d282de3f2f0d633e03a051548940ad81ca5afcd`.
-Driver SHA-256: `1f6946a37ba278b21eff418bc9d16a3de0dabe80719b49f7746fd7cb2065d27f`.
+Source at this preflight: `8c7676fa34aab20104baf68ff369b14e5bd61165`.
+Driver SHA-256: `83f2d8939691fe7730affc2ea5692090457445a700a721347a00876b7104b6bc`.
 
 ## Merge state
 
