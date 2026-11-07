@@ -1,18 +1,18 @@
 {
   "kind": "browser_agent_job_wait_preflight_evidence_manifest",
-  "source_commit": "7b164f7b6e3ff5bf5b556d92873bd24062b69623",
-  "driver_sha256": "782592ceea5f8ee5e2e6c482d5484a64b659cb153d617a951c139ef09ef66cbb",
+  "source_commit": "378a893906bd2b5e1a0f721539d9780a35b19309",
+  "driver_sha256": "fe08f390699de2768cea1e0ef7929621bb870d197e3eafc31e09de02b642d268",
   "fixture_sha256": "d0d169c8eaa4e5c3d753072f808ff8ff822372674e24c029ef440ec25c43c7d5",
   "preflight_ok": true,
   "files": [
     {
       "path": "README.md",
-      "sha256": "6b39627accc286b8e3384ba760b96fb6306aa945f24f57280685910781b74dde",
+      "sha256": "c93919d331b24bd424f3d9ee539656a2f1e3c2a3b533513a5f0398612e44efdc",
       "bytes": 4341
     },
     {
       "path": "preflight.json",
-      "sha256": "16ab20db3c16655f3b15ea3b31229c073dc9d433fcfe520e8479ad84c6afb4cb",
+      "sha256": "2bb176d9981428c5b19caab529019edc5eb1b974eae04d1072a052bbfaac5877",
       "bytes": 8731
     }
   ]

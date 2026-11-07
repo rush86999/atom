@@ -5,7 +5,7 @@ server was started, no browser was driven, no provider/model/account/credential
 was used, and no dependency was installed. Root owns the actual browser
 acceptance.
 
-Source at this preflight: `7b164f7b6e3ff5bf5b556d92873bd24062b69623`
+Source at this preflight: `378a893906bd2b5e1a0f721539d9780a35b19309`
 (the combined candidate merged PR735/PR737, plus the driver commits).
 
 Driver: `scripts/acceptance/browser_agent_job_wait.py`
