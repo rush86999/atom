@@ -15,7 +15,7 @@ This dated checkpoint supersedes operational queue rows in the November6 directi
 
 - Workspace opt-in repair: PR711 merged as bae68c91d. The controlled 25-control and 16-hash proof remains at its recorded source; 709 stays closed/superseded. No new browser or model replay is required for this preserved proof.
 - Mini-app boundaries: PR712 merged as 272382adb; PR713 merged as 8a577f14a. The former proves explicit unsupported-host refusal, and the latter proves host-record persistence across a real process restart with ordinary authentication and member/instance isolation. Neither proves guest execution or MINI05 isolation/chat.
-- Agent2 goal writes: PR715, runtime nullable successor 7289ca692 and integrated source 9205b222a. Root independently verified 111 passing controls plus three redundant same-kind matrix skips; evidence has eight matching Git-object entries. Current-head hosted checks and final review are still required. Scope is goal create and utility set/clear; accepted utility ranking is preserved.
+- Agent2 goal writes: PR715 merged as 6d791db46. Authority and nullable metadata controls are qualified at their recorded SQLite scope. Post-merge CI and Docker passed; current-head counts include the new 31-control goal gate and its three documented redundant matrix skips. Accepted utility ranking is preserved.
 - Agent3/CI: use bounded credit-free exact-head observation. A changed head invalidates old hosted green; a source commit change alone does not justify another browser journey. Lead still performs engineering/product acceptance and authorized merges.
 
 ## Continuous-work rules
@@ -51,3 +51,9 @@ PR713 is merged as 8a577f14a. Its reviewed tree and merged tree match exactly. P
 PR714 remains withheld: its authoritative mini-app/audit scope repair passed173 independent controls, but three actual scratch-write probes exposed a mixed malformed-metadata classifier bypass. Agent1 is repairing that shared classifier; earlier green heads do not certify the successor. The broader registered-action snapshot still has11 explicitly uncovered mutations, and uninspected HTTP routes remain unqualified.
 
 The next general-agent consumer gap is reproduced separately: missing or unusable verifiers can preserve self-attested success, timeout advice can invite retry after a landed effect, and mutable arguments/results can overwrite expected request identity. Reviewed failure-first test checkpoint8bbad92cb has10 failing cases and4 passing twins. It is a test-only checkpoint, not a runtime repair or acceptance. Reuse the existing operation arbiter and audit receipts; do not introduce a second execution system.
+
+## Integrated registry successor awaiting hosted acceptance
+
+PR714 now has a repaired classifier at `d240c96ee`, qualified independently at `b0a1f538a` with196 passing controls. Root integrated accepted main6d791db46 as `bfdc49404`; the combined goal/registry selection passed227 controls with3 documented nullable-matrix skips. The measured broader comparison is711/9 on the merged-main-equivalent baseline and761/the same9 failure IDs on the earlier candidate. The supplemental bundle preserves both source identities and the later integrated run. Earlier26/31/55-entry bundles remain at their actual evidence refs.
+
+The current registry snapshot remains90 actions,26 declared mutations,15 verified families and11 explicitly uncovered mutations. This is not whole-app ORACLE acceptance. The general-agent consumer remains a separate active repair: independent draft probes caught a stale status overwrite and a successful replay despite refuted current readback. Root will verify its eventual frozen source; no draft test result is release evidence.
