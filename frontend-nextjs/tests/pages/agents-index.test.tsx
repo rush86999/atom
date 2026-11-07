@@ -789,3 +789,21 @@ describe("AgentsDashboard", () => {
     );
   });
 });
+
+
+// These child flows have their own controls; page wiring tests must not call
+// a developer backend for onboarding, OAuth or maturity proposals.
+jest.mock("@/components/Agents/MaturityApprovalPanel", () => ({ __esModule: true, default: () => null }));
+jest.mock("@/components/Agents/EmployeeOnboardingGuide", () => ({ EmployeeOnboardingGuide: () => null }));
+jest.mock("@/components/Agents/AgentLaunchGuide", () => ({ __esModule: true, default: () => null }));
+jest.mock("@/components/Agents/GuidedAgentCreator", () => ({ GuidedAgentCreator: () => null }));
+jest.mock("@/components/Agents/AutomationSuggestionsPanel", () => ({ AutomationSuggestionsPanel: () => null }));
+jest.mock("@/components/Agents/AgentMaturityGuide", () => ({ AgentMaturityGuideDialog: () => null }));
+let unhandledRequestWarnings: jest.SpyInstance;
+beforeEach(() => { unhandledRequestWarnings = jest.spyOn(console, "warn"); });
+afterEach(() => {
+  const unhandled = unhandledRequestWarnings.mock.calls.filter(
+    (args) => args.some((arg) => typeof arg === "string" && arg.includes("captured a request without a matching request handler")));
+  unhandledRequestWarnings.mockRestore();
+  expect(unhandled).toEqual([]);
+});
