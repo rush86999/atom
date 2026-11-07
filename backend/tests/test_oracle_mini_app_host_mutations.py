@@ -776,6 +776,26 @@ def test_stale_record_write_raises_conflict_and_preserves_peer(host):
 # ---------------------------------------------------------------------------
 # Registry coverage snapshot (bounded: six newly covered actions)
 # ---------------------------------------------------------------------------
+def test_fresh_engine_readback_certifies_after_producer_session_closes(
+        host, tmp_path):
+    """A new engine/session (restart-shaped) reads the committed proof."""
+    data = _adapter("mini_app_scaffold", {"name": "Restart readback"},
+                    "op-restart")
+    arguments = {"name": "Restart readback"}
+    ctx = _scaffold_ctx(data, arguments, "op-restart")
+    fresh_engine = create_engine(
+        f"sqlite:///{tmp_path}/mini-host-proofs.db",
+        connect_args={"check_same_thread": False})
+    FreshSession = sessionmaker(bind=fresh_engine, expire_on_commit=False)
+    try:
+        with FreshSession() as db:
+            ctx["db"] = db
+            result = asyncio.run(validate("mini_app_scaffold", ctx))
+        assert result is not None and result.verified is True, result
+    finally:
+        fresh_engine.dispose()
+
+
 def test_registered_host_mutations_have_verifiers():
     for name in (
             "mini_app_scaffold", "mini_app_write_logic", "mini_app_publish",
