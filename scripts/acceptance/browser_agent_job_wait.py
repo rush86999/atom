@@ -1204,7 +1204,7 @@ def _safe_error_body(response: Any) -> Any:
     try:
         body = response.json()
     except Exception:
-        return {"status": response.status_code}
+        return {"status": getattr(response, "status_code", getattr(response, "status", None))}
     detail = body.get("detail")
     if isinstance(detail, dict):
         detail = {
@@ -1946,6 +1946,7 @@ def _run_scenario(args: argparse.Namespace) -> int:
                 with page.expect_response(
                         lambda response: (
                             response.request.method == "POST"
+                            and response.status not in (301, 302, 303, 307, 308)
                             and "/api/agents/" in response.url
                             and _path_of(response.url).rstrip("/").endswith("/run")),
                         timeout=180000) as run_info:
@@ -1959,9 +1960,9 @@ def _run_scenario(args: argparse.Namespace) -> int:
                 run_data = run_body.get("data") or run_body
                 job_id = str(run_data.get("job_id") or "")
                 execution_id = str(run_data.get("execution_id") or "")
-                if not job_id or not execution_id:
+                if not job_id:
                     raise DriverError(
-                        f"run response lacked job/execution identity: "
+                        f"run response lacked admitted job identity: "
                         f"{_safe_error_body(run_response)}")
                 stack["job"] = {
                     "agent_id": fixture["agent_id"],
@@ -1973,7 +1974,6 @@ def _run_scenario(args: argparse.Namespace) -> int:
                 step("run_admitted", {
                     "http_2xx": 200 <= run_response.status < 300,
                     "job_id_present": bool(job_id),
-                    "execution_id_present": bool(execution_id),
                 }, details=_public_job(run_data))
 
                 _wait_selector(page, '[data-testid="agent-job-wait-panel"]',
@@ -1990,6 +1990,12 @@ def _run_scenario(args: argparse.Namespace) -> int:
                 panel_text = page.locator(
                     '[data-testid="agent-job-wait-panel"]').inner_text().strip()
                 job1 = _read_job(api, fixture["agent_id"], job_id)
+                # The normal UI admits asynchronously. Execution identity is
+                # authoritative only after that same job has actually started.
+                execution_id = str(job1["data"].get("execution_id") or "")
+                if not execution_id:
+                    raise DriverError("waiting job has no durable execution identity")
+                stack["job"]["execution_id"] = execution_id
                 wait1 = (job1["data"].get("wait") or {})
                 shim1 = _shim_snapshot(args.shim_port)
                 step("first_durable_question", {
