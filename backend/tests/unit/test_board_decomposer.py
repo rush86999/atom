@@ -55,7 +55,7 @@ def populated(db_session):
     db_session.add(Tenant(id=tid, name="T", subdomain="t-default"))
     db_session.add(User(id=uid, tenant_id=tid, email=f"u-{uid[:8]}@x.com", first_name="A", last_name="B", hashed_password="pw", role="admin", status="active"))
     db_session.commit()
-    board = BoardService(db_session).create_board(
+    board = BoardService(db_session, actor_user_id=uid).create_board(
         owner_user_id=uid, payload=BoardCreate(name="B"),
     )
     return {"tenant_id": tid, "user_id": uid, "board_id": str(board.id)}
@@ -63,7 +63,7 @@ def populated(db_session):
 
 @pytest.fixture
 def parent_task(db_session, populated):
-    service = BoardService(db_session)
+    service = BoardService(db_session, actor_user_id=populated["user_id"])
     cols = service.list_columns(populated["board_id"])
     backlog = next(c for c in cols if c.name == "Backlog")
     task = service.create_task(
@@ -125,7 +125,7 @@ class TestPropose:
         )
         handler = _FakeHandlerWithKey(result_obj)
 
-        decomposer = BoardDecomposer(db_session)
+        decomposer = BoardDecomposer(db_session, actor_user_id=populated["user_id"])
         result = await decomposer.propose(
             populated["board_id"], parent_task, handler,
         )
@@ -139,7 +139,7 @@ class TestPropose:
         self, db_session, populated, parent_task
     ):
         handler = _FakeHandlerNoKey()
-        decomposer = BoardDecomposer(db_session)
+        decomposer = BoardDecomposer(db_session, actor_user_id=populated["user_id"])
         with pytest.raises(HTTPException) as exc:
             await decomposer.propose(
                 populated["board_id"], parent_task, handler,
@@ -153,7 +153,7 @@ class TestPropose:
         self, db_session, populated, parent_task
     ):
         handler = _FakeHandlerMalformed()
-        decomposer = BoardDecomposer(db_session)
+        decomposer = BoardDecomposer(db_session, actor_user_id=populated["user_id"])
         with pytest.raises(HTTPException) as exc:
             await decomposer.propose(
                 populated["board_id"], parent_task, handler,
@@ -166,7 +166,7 @@ class TestPropose:
         self, db_session, populated, parent_task
     ):
         handler = _FakeHandlerRaises()
-        decomposer = BoardDecomposer(db_session)
+        decomposer = BoardDecomposer(db_session, actor_user_id=populated["user_id"])
         with pytest.raises(HTTPException) as exc:
             await decomposer.propose(
                 populated["board_id"], parent_task, handler,
@@ -180,7 +180,7 @@ class TestPropose:
         too_many = [SubtaskProposal(title=f"ST{i}") for i in range(15)]
         handler = _FakeHandlerWithKey(DecompositionResult(subtasks=too_many))
 
-        decomposer = BoardDecomposer(db_session)
+        decomposer = BoardDecomposer(db_session, actor_user_id=populated["user_id"])
         result = await decomposer.propose(
             populated["board_id"], parent_task, handler,
         )
@@ -191,7 +191,7 @@ class TestPropose:
         self, db_session, populated, parent_task
     ):
         handler = _FakeHandlerWithKey(DecompositionResult(subtasks=[]))
-        decomposer = BoardDecomposer(db_session)
+        decomposer = BoardDecomposer(db_session, actor_user_id=populated["user_id"])
         with pytest.raises(HTTPException) as exc:
             await decomposer.propose(
                 populated["board_id"], parent_task, handler,
@@ -205,7 +205,7 @@ class TestPropose:
 # --------------------------------------------------------------------------- #
 class TestDepthCap:
     def _build_chain(self, db_session, populated, depth):
-        service = BoardService(db_session)
+        service = BoardService(db_session, actor_user_id=populated["user_id"])
         cols = service.list_columns(populated["board_id"])
         backlog = next(c for c in cols if c.name == "Backlog")
 
@@ -234,7 +234,7 @@ class TestDepthCap:
         leaf_id = self._build_chain(db_session, populated, MAX_ROOT_DEPTH)
         handler = _FakeHandlerWithKey(DecompositionResult(subtasks=[SubtaskProposal(title="x")]))
 
-        decomposer = BoardDecomposer(db_session)
+        decomposer = BoardDecomposer(db_session, actor_user_id=populated["user_id"])
         with pytest.raises(HTTPException) as exc:
             await decomposer.propose(
                 populated["board_id"], leaf_id, handler,
@@ -248,7 +248,7 @@ class TestDepthCap:
         leaf_id = self._build_chain(db_session, populated, MAX_ROOT_DEPTH - 1)
         handler = _FakeHandlerWithKey(DecompositionResult(subtasks=[SubtaskProposal(title="x")]))
 
-        decomposer = BoardDecomposer(db_session)
+        decomposer = BoardDecomposer(db_session, actor_user_id=populated["user_id"])
         result = await decomposer.propose(
             populated["board_id"], leaf_id, handler,
         )
@@ -262,7 +262,7 @@ class TestCommit:
     def test_commit_creates_subtasks_atomically(
         self, db_session, populated, parent_task
     ):
-        decomposer = BoardDecomposer(db_session)
+        decomposer = BoardDecomposer(db_session, actor_user_id=populated["user_id"])
         proposals = [
             SubtaskProposal(title="A", column_name="To Do"),
             SubtaskProposal(title="B", column_name="Backlog"),
@@ -278,7 +278,7 @@ class TestCommit:
             assert str(c.parent_task_id) == parent_task
             assert str(c.root_task_id) == parent_task
 
-        service = BoardService(db_session)
+        service = BoardService(db_session, actor_user_id=populated["user_id"])
         cols = {c.name.lower(): c for c in service.list_columns(populated["board_id"])}
         assert str(children[0].column_id) == str(cols["to do"].id)
         assert str(children[1].column_id) == str(cols["backlog"].id)
@@ -287,7 +287,7 @@ class TestCommit:
     def test_commit_hallucinated_column_falls_back_to_backlog(
         self, db_session, populated, parent_task
     ):
-        decomposer = BoardDecomposer(db_session)
+        decomposer = BoardDecomposer(db_session, actor_user_id=populated["user_id"])
         proposals = [
             SubtaskProposal(title="X", column_name="Nonexistent Column"),
         ]
@@ -295,7 +295,7 @@ class TestCommit:
             populated["board_id"], parent_task,
             proposals, created_by_user_id=populated["user_id"],
         )
-        service = BoardService(db_session)
+        service = BoardService(db_session, actor_user_id=populated["user_id"])
         backlog = next(c for c in service.list_columns(populated["board_id"]) if c.name == "Backlog")
         assert str(children[0].column_id) == str(backlog.id)
 
@@ -309,7 +309,7 @@ class TestCommit:
         db_session.add(ws)
         db_session.commit()
 
-        decomposer = BoardDecomposer(db_session)
+        decomposer = BoardDecomposer(db_session, actor_user_id=populated["user_id"])
         proposals = [
             SubtaskProposal(title="A"),
             SubtaskProposal(title="B"),
@@ -328,7 +328,7 @@ class TestCommit:
     def test_commit_without_spawn_workspaces_leaves_canvas_null(
         self, db_session, populated, parent_task
     ):
-        decomposer = BoardDecomposer(db_session)
+        decomposer = BoardDecomposer(db_session, actor_user_id=populated["user_id"])
         proposals = [SubtaskProposal(title="A")]
         children = decomposer.commit(
             populated["board_id"], parent_task,
@@ -340,7 +340,7 @@ class TestCommit:
     def test_commit_rollbacks_on_failure(
         self, db_session, populated, parent_task
     ):
-        decomposer = BoardDecomposer(db_session)
+        decomposer = BoardDecomposer(db_session, actor_user_id=populated["user_id"])
         proposals = [SubtaskProposal(title="A"), SubtaskProposal(title="B")]
 
         original_flush = db_session.flush

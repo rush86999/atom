@@ -44,7 +44,7 @@ async def create_task_comment(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    service = BoardCommentService(db)
+    service = BoardCommentService(db, actor_user_id=str(current_user.id))
     msg = service.create_comment(
         board_id=board_id,
         task_id=task_id,
@@ -55,7 +55,10 @@ async def create_task_comment(
     serialized = _serialize_comment(service, msg)
     from core.models_board import BoardTask
 
-    task = db.query(BoardTask).filter(BoardTask.id == task_id).first()
+    task = db.query(BoardTask).filter(
+        BoardTask.id == task_id,
+        BoardTask.board_id == board_id,
+    ).first()
     if task is not None:
         await _emitter.emit_comment_posted(task, comment_id=str(msg.id), comment_payload=serialized)
     return CommentRead(**serialized, replies=[])
@@ -73,7 +76,7 @@ async def list_task_comments(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    service = BoardCommentService(db)
+    service = BoardCommentService(db, actor_user_id=str(current_user.id))
     flat = service.list_comments(
         board_id=board_id,
         task_id=task_id,
@@ -91,7 +94,7 @@ async def patch_comment(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    service = BoardCommentService(db)
+    service = BoardCommentService(db, actor_user_id=str(current_user.id))
     msg = service.patch_comment(
         comment_id=comment_id,
         author_user_id=str(current_user.id),
@@ -106,7 +109,7 @@ async def delete_comment(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    service = BoardCommentService(db)
+    service = BoardCommentService(db, actor_user_id=str(current_user.id))
     service.delete_comment(
         comment_id=comment_id,
         author_user_id=str(current_user.id),
@@ -128,7 +131,7 @@ async def list_artifact_comments(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    service = BoardCommentService(db)
+    service = BoardCommentService(db, actor_user_id=str(current_user.id))
     rows = service.list_artifact_comments_for_task(
         board_id=board_id,
         task_id=task_id,

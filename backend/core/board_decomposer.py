@@ -40,9 +40,14 @@ class BoardDecomposer:
         self,
         db: Session,
         emitter: Union[BoardEventEmitter, None] = None,
+        *,
+        actor_user_id: Union[str, None] = None,
     ):
         self.db = db
-        self.board_service = BoardService(db)
+        self.actor_user_id = str(actor_user_id) if actor_user_id else None
+        self.board_service = BoardService(
+            db, actor_user_id=actor_user_id
+        )
         self.emitter = emitter or BoardEventEmitter()
 
     @staticmethod
@@ -212,7 +217,9 @@ class BoardDecomposer:
         created_by_user_id: Union[str, None],
         spawn_workspaces: bool = False,
     ) -> list[BoardTask]:
-        parent = self.board_service._get_task_scoped(parent_task_id, board_id)
+        parent = self.board_service._get_task_scoped(
+            parent_task_id, board_id, for_update=True
+        )
         self._check_depth(parent)
 
         columns_by_name = {
