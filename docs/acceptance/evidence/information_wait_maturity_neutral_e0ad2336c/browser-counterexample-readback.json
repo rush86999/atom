@@ -1,0 +1,38 @@
+{
+  "source": "ed80be96b",
+  "scope": "retained failed ordinary UI episode; controlled transport only",
+  "job_rows": [
+    {
+      "id": "543e1dd7-f842-4fb9-9d6d-583b881cb19a",
+      "status": "running"
+    }
+  ],
+  "agent_rows": [
+    {
+      "id": "92511a4e-e3b4-4a8c-ac21-f8516b99926d",
+      "status": "student",
+      "confidence_score": 0.31
+    }
+  ],
+  "wait_rows": [
+    {
+      "id": "0a8a0237-ee76-419e-bd1f-2f3874129940",
+      "status": "approved",
+      "action_type": "agent_information_request",
+      "reason": "What title should the closing task have?"
+    },
+    {
+      "id": "69b31ab2-44b8-497e-a209-f5e3c3436dc4",
+      "status": "approved",
+      "action_type": "agent_information_request",
+      "reason": "What priority should the closing task have?"
+    },
+    {
+      "id": "575dc55c-9a5b-4c94-bcda-002c296c570b",
+      "status": "pending",
+      "action_type": "tasks.create",
+      "reason": "Maturity check failed. Required: supervised"
+    }
+  ],
+  "board_task_count": 0
+}
