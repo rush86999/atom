@@ -180,6 +180,30 @@ jobs:
         run: |
           python -m pytest tests/test_org_politics_registered_loop_join.py -q --tb=short --timeout=300 --timeout-method=thread
 
+      # MINI-03 runtime-boundary journey (additive): the actual public RPC
+      # consumer (POST /api/rpc/mini_app_dev_run / mini_app_run_tests) must
+      # fail CLOSED with an explicit actionable runtime-unavailable message
+      # on hosts without Firecracker, register no installed instance and
+      # persist no state; explicit docker-dev must be refused under
+      # ENVIRONMENT=production (the factory gate runs before any Docker
+      # contact — deterministic on any host). Repair of the stale
+      # mini_app_harness_journey (R87-R89 mandatory AUTONOMOUS canvas-logic
+      # gate postdated it) + new focused boundary controls.
+      - name: Run mini-app runtime-boundary journey (MINI-03 fail-closed joins)
+        env:
+          TESTING: "1"
+          DATABASE_URL: "sqlite:///:memory:"
+          SECRET_KEY: "ci-test-secret-key"
+          ENVIRONMENT: "development"
+          ATOM_DATA_DIR: "${{ runner.temp }}/mini03-data"
+          LANCEDB_URI: "${{ runner.temp }}/mini03-lance"
+          MINIAPP_ROOTFS_DIR: "${{ runner.temp }}/mini03-rootfs"
+        run: |
+          python -m pytest \
+            tests/integration/journeys/test_mini_app_runtime_boundary_journey.py \
+            tests/integration/journeys/test_mini_app_harness_journey.py \
+            -q --tb=short --timeout=300 --timeout-method=thread
+
   # -------------------------------------------------------------------
   # End-to-end user-journey suite: boots full app + frontend, runs
   # Playwright tests against them.
