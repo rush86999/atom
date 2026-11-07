@@ -560,6 +560,242 @@ def _storage_probe(world: Path) -> Dict[str, Any]:
 
 
 
+
+_RUN_REDIRECT_STATUSES = frozenset({307, 308})
+
+
+def _normalized_run_path(path: Any) -> str:
+    return str(path or "").rstrip("/")
+
+
+def _run_request_identity(request: Any) -> Dict[str, Any]:
+    """Safe identity for one run request: origin/method/path/body/operation.
+
+    The raw Authorization header and body are never stored. Only a body
+    SHA-256 and the controlled objective (when the body is exactly the
+    authored objective envelope) are retained for redirect equivalence.
+    """
+    if request is None:
+        return {"request_key": None}
+    try:
+        from urllib.parse import parse_qs, urlparse
+
+        url = str(request.url)
+        parsed = urlparse(url)
+        operation_id = (parse_qs(parsed.query).get("operation_id") or [None])[0]
+        body = request.post_data or ""
+        body_sha = (
+            hashlib.sha256(body.encode("utf-8")).hexdigest() if body else "")
+        path = D3._path_of(url)
+        origin = D3._origin(url)
+        key = hashlib.sha256(json.dumps(
+            [request.method, origin, _normalized_run_path(path), body_sha,
+             operation_id], separators=(",", ":")).encode("utf-8")).hexdigest()
+        return {
+            "method": request.method,
+            "origin": origin,
+            "path": path,
+            "operation_id": operation_id,
+            "body_sha256": body_sha,
+            "request_key": key,
+        }
+    except Exception as exc:  # noqa: BLE001 - reported, not hidden
+        return {"request_key": None,
+                "error": f"{type(exc).__name__}: {exc}"}
+
+
+def _key_for_request(request: Any) -> Optional[str]:
+    return _run_request_identity(request).get("request_key")
+
+
+def _controlled_objective(body: str) -> Optional[str]:
+    try:
+        payload = json.loads(body or "{}")
+        task_input = (payload.get("parameters") or {}).get("task_input")
+        if isinstance(task_input, str) and task_input in (OBJECTIVE, ""):
+            return task_input
+    except Exception:
+        pass
+    return None
+
+
+def _classify_run_admissions(
+    run_posts: List[Dict[str, Any]],
+    run_responses: List[Dict[str, Any]],
+    successful_run: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """Collapse one validated 307/308 transport hop without hiding resends.
+
+    A logical admission is a root request whose terminal response is 2xx. A
+    single 307/308 hop is the same intent only when the response status, the
+    Location target, origin, method, agent path, body bytes and operation key
+    all agree. Two independent non-redirect 2xx admissions, a foreign origin,
+    or any changed identity still count as separate/invalid and refuse.
+    """
+    posts = [
+        dict(item) for item in (run_posts or [])
+        if isinstance(item, dict)
+        and _normalized_run_path(item.get("path")).endswith("/run")
+    ]
+    responses: Dict[str, Dict[str, Any]] = {}
+    for item in (run_responses or []):
+        if isinstance(item, dict) and item.get("request_key"):
+            responses[str(item["request_key"])] = item
+    by_key = {
+        str(item["request_key"]): item for item in posts
+        if item.get("request_key")
+    }
+    invalid_edges: List[Dict[str, Any]] = []
+    edges: List[Dict[str, Any]] = []
+
+    def _matches_location(parent: Dict[str, Any],
+                          child: Dict[str, Any]) -> bool:
+        response = responses.get(str(parent.get("request_key"))) or {}
+        location = str(response.get("location") or "")
+        if not location:
+            return True
+        loc_origin = (D3._origin(location)
+                      if location.startswith("http")
+                      else parent.get("origin"))
+        loc_path = (D3._path_of(location)
+                    if location.startswith("http") else location)
+        return (
+            loc_origin == child.get("origin")
+            and _normalized_run_path(loc_path)
+            == _normalized_run_path(child.get("path"))
+        )
+
+    for child in posts:
+        parent_key = child.get("redirected_from_key")
+        if not parent_key:
+            continue
+        parent = by_key.get(str(parent_key))
+        if parent is None:
+            invalid_edges.append({
+                "reason": "redirect_parent_missing",
+                "child": child.get("path"),
+                "parent_key": parent_key,
+            })
+            continue
+        response = responses.get(str(parent_key)) or {}
+        status = response.get("status")
+        if status not in _RUN_REDIRECT_STATUSES:
+            invalid_edges.append({
+                "reason": "redirect_status_not_307_308",
+                "status": status,
+                "parent": parent.get("path"),
+            })
+            continue
+        if child.get("origin") != parent.get("origin"):
+            invalid_edges.append({
+                "reason": "redirect_origin_changed",
+                "parent": parent.get("origin"),
+                "child": child.get("origin"),
+            })
+            continue
+        if (str(child.get("method") or "").upper() != "POST"
+                or str(parent.get("method") or "").upper() != "POST"):
+            invalid_edges.append({"reason": "redirect_method_changed"})
+            continue
+        if (_normalized_run_path(child.get("path"))
+                != _normalized_run_path(parent.get("path"))):
+            invalid_edges.append({
+                "reason": "redirect_agent_or_path_changed",
+                "parent": parent.get("path"),
+                "child": child.get("path"),
+            })
+            continue
+        if child.get("operation_id") != parent.get("operation_id"):
+            invalid_edges.append({
+                "reason": "redirect_operation_changed",
+                "parent": parent.get("operation_id"),
+                "child": child.get("operation_id"),
+            })
+            continue
+        child_body = str(child.get("body_sha256") or "")
+        parent_body = str(parent.get("body_sha256") or "")
+        if not child_body and parent_body:
+            # 307/308 preserve the request body; the browser may omit the
+            # redirected request's post_data even though the bytes are the
+            # same. Treat it as preserved only because the status is 307/308.
+            child_body = parent_body
+        if child_body != parent_body:
+            invalid_edges.append({
+                "reason": "redirect_body_changed",
+                "parent": parent.get("body_sha256"),
+                "child": child.get("body_sha256"),
+            })
+            continue
+        if not _matches_location(parent, child):
+            invalid_edges.append({
+                "reason": "redirect_location_mismatch",
+                "parent": parent.get("path"),
+                "child": child.get("path"),
+            })
+            continue
+        edges.append({
+            "parent": parent.get("path"),
+            "child": child.get("path"),
+            "status": status,
+            "origin": child.get("origin"),
+            "operation_id": child.get("operation_id"),
+        })
+
+    roots = [item for item in posts if not item.get("redirected_from_key")]
+    terminals = [item for item in posts if not item.get("redirected_to_key")]
+    terminal_success: List[Dict[str, Any]] = []
+    for terminal in terminals:
+        response = responses.get(str(terminal.get("request_key"))) or {}
+        try:
+            status = int(response.get("status") or 0)
+        except (TypeError, ValueError):
+            status = 0
+        if 200 <= status < 300:
+            terminal_success.append(terminal)
+    success = successful_run or {}
+    success_key = success.get("request_key")
+    success_matches = bool(
+        success_key
+        and any(item.get("request_key") == success_key
+                for item in terminal_success))
+    try:
+        success_status = int(success.get("status") or 0)
+    except (TypeError, ValueError):
+        success_status = 0
+    logical = len(terminal_success)
+    ok = (
+        not invalid_edges
+        and len(roots) == 1
+        and len(terminals) >= 1
+        and logical == 1
+        and success_matches
+        and 200 <= success_status < 300
+    )
+    return {
+        "ok": ok,
+        "logical_admissions": logical,
+        "root_count": len(roots),
+        "terminal_count": len(terminals),
+        "redirect_hops": len(edges),
+        "redirect_edges": edges,
+        "invalid_edges": invalid_edges,
+        "raw_run_post_count": len(posts),
+        "successful_admission_key": success_key,
+        "successful_admission": {
+            key: success.get(key) for key in (
+                "status", "path", "origin", "method", "operation_id",
+                "job_id", "execution_id")
+        },
+        "reason": (
+            "ok" if ok else
+            "invalid_redirect" if invalid_edges else
+            "not_one_logical_admission"),
+        "note": (
+            "one validated 307/308 transport hop is one intent; two "
+            "independent 2xx admissions or changed/foreign redirects refuse"),
+    }
+
+
 def _per_file_source_proof() -> Dict[str, Any]:
     """Bind every executed runtime/harness file to its committed Git blob."""
     files: Dict[str, Any] = {}
@@ -872,6 +1108,7 @@ def _run_scenario(args: argparse.Namespace) -> int:
     durable: Dict[str, Any] = {}
     answer_posts: List[Dict[str, Any]] = []
     run_posts: List[Dict[str, Any]] = []
+    run_responses: List[Dict[str, Any]] = []
     advance_paths: List[str] = []
     requests_seen: List[Dict[str, Any]] = []
     cleanups: List[Tuple[str, Any]] = []
@@ -1077,9 +1314,23 @@ def _run_scenario(args: argparse.Namespace) -> int:
                     path = D3._path_of(url)
                     if "/answer" in path and request.method == "POST":
                         answer_posts.append({"path": path})
-                    if (path.rstrip("/").endswith("/run")
+                    if (_normalized_run_path(path).endswith("/run")
                             and request.method == "POST"):
-                        run_posts.append({"path": path})
+                        identity = _run_request_identity(request)
+                        run_posts.append({
+                            "path": path,
+                            "method": identity.get("method"),
+                            "origin": identity.get("origin"),
+                            "operation_id": identity.get("operation_id"),
+                            "body_sha256": identity.get("body_sha256"),
+                            "request_key": identity.get("request_key"),
+                            "redirected_from_key": _key_for_request(
+                                getattr(request, "redirected_from", None)),
+                            "redirected_to_key": _key_for_request(
+                                getattr(request, "redirected_to", None)),
+                            "controlled_objective": _controlled_objective(
+                                request.post_data or ""),
+                        })
                     if "/advance" in path:
                         advance_paths.append(path)
                     requests_seen.append({
@@ -1088,7 +1339,37 @@ def _run_scenario(args: argparse.Namespace) -> int:
                         "host": parsed.hostname or "",
                         "path": path,
                     })
+                def _on_response(response: Any) -> None:
+                    try:
+                        path = D3._path_of(response.url)
+                        if not _normalized_run_path(path).endswith("/run"):
+                            return
+                        request = response.request
+                        identity = _run_request_identity(request)
+                        headers = getattr(response, "headers", {}) or {}
+                        location = (
+                            headers.get("location")
+                            or headers.get("Location") or "")
+                        if location:
+                            from urllib.parse import urlparse
+                            parsed = urlparse(str(location))
+                            location = (
+                                f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
+                                if parsed.scheme else (parsed.path or location))
+                        run_responses.append({
+                            "path": path,
+                            "status": response.status,
+                            "method": request.method,
+                            "origin": D3._origin(response.url),
+                            "location": location,
+                            "request_key": identity.get("request_key"),
+                        })
+                    except Exception as exc:  # noqa: BLE001 - reported
+                        run_responses.append({
+                            "error": f"{type(exc).__name__}: {exc}"})
+
                 page.on("request", _on_request)
+                page.on("response", _on_response)
 
                 login = BV.ui_login(
                     page, fe_base, ADMIN_EMAIL, password)
@@ -1167,6 +1448,20 @@ def _run_scenario(args: argparse.Namespace) -> int:
                     raise DriverError(
                         f"run response lacked admitted job identity: "
                         f"{D3._safe_error_body(run_response)}")
+                run_admission = {
+                    "status": run_response.status,
+                    "path": D3._path_of(run_response.url),
+                    "origin": D3._origin(run_response.url),
+                    "method": run_response.request.method,
+                    "operation_id": _run_request_identity(
+                        run_response.request).get("operation_id"),
+                    "request_key": _run_request_identity(
+                        run_response.request).get("request_key"),
+                    "job_id": job_id,
+                    "execution_id": str(
+                        run_data.get("execution_id") or ""),
+                    "job_status": run_data.get("job_status"),
+                }
                 stack["job"] = {
                     "agent_id": fixture["agent_id"],
                     "job_id": job_id,
@@ -1197,6 +1492,7 @@ def _run_scenario(args: argparse.Namespace) -> int:
                 if not execution_id:
                     raise DriverError("waiting job has no durable execution identity")
                 stack["job"]["execution_id"] = execution_id
+                run_admission["execution_id"] = execution_id
                 wait1 = (job1["data"].get("wait") or {})
                 shim1 = D3._shim_snapshot(args.shim_port)
                 step("first_source_question", {
@@ -1522,6 +1818,8 @@ def _run_scenario(args: argparse.Namespace) -> int:
                     item for item in final_steps
                     if item.get("action_tool") == "tasks.create"
                 ]
+                run_classification = _classify_run_admissions(
+                    run_posts, run_responses, run_admission)
                 step("source_answer_verified", {
                     "http_200": final_response.status == 200,
                     "job_status_success": (
@@ -1537,12 +1835,15 @@ def _run_scenario(args: argparse.Namespace) -> int:
                         task_steps
                         and task_steps[0].get("oracle_verified") is True),
                     "single_answer_post": len(answer_posts) == 1,
-                    "single_run_post": len(run_posts) == 1,
+                    "single_run_post": bool(run_classification["ok"]),
                     "no_advance_path": not advance_paths,
                 }, details={"result_steps": final_steps,
                             "response": D3._public_job(final_data),
                             "answer_posts": answer_posts,
-                            "run_posts": run_posts})
+                            "run_posts": run_posts,
+                            "run_responses": run_responses,
+                            "run_classification": run_classification,
+                            "run_admission": run_admission})
 
                 D3._wait_selector(
                     page, '[data-testid="agent-job-completed"]', 180000)
@@ -1691,13 +1992,15 @@ def _run_scenario(args: argparse.Namespace) -> int:
                             "data": D3._public_job(duplicate["data"])})
 
                 step("no_new_objective_or_manual_advance", {
-                    "single_run_post": len(run_posts) == 1,
+                    "single_run_post": bool(run_classification["ok"]),
                     "single_answer_post": len(answer_posts) == 1,
                     "no_advance_request": not advance_paths,
                     "one_job_for_agent": (
                         durable_after_duplicate["counts"]["jobs_for_agent"]
                         == 1),
                 }, details={"run_posts": run_posts,
+                            "run_responses": run_responses,
+                            "run_classification": run_classification,
                             "answer_posts": answer_posts,
                             "advance_paths": advance_paths})
 
