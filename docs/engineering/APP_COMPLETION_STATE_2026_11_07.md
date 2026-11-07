@@ -50,20 +50,20 @@ PR713 is merged as 8a577f14a. Its reviewed tree and merged tree match exactly. P
 
 PR714 is merged as `e3e9d8f6c`. The earlier authoritative-scope and malformed-metadata negatives remain at their original sources; the repaired integrated source passed227 controls with3 documented redundant nullable-matrix skips and132 source-bound Git checks. Post-merge CI and Docker passed, including185 shared-verification controls,211 API tests,29 UI tests and40 role-UI tests. The registered-action snapshot still has11 explicitly uncovered mutations; uninspected HTTP routes remain unqualified.
 
-The next general-agent consumer gap is reproduced separately: missing or unusable verifiers can preserve self-attested success, timeout advice can invite retry after a landed effect, and mutable arguments/results can overwrite expected request identity. Reviewed failure-first test checkpoint8bbad92cb has10 failing cases and4 passing twins. It is a test-only checkpoint, not a runtime repair or acceptance. Reuse the existing operation arbiter and audit receipts; do not introduce a second execution system.
+The historical general-agent consumer precursor gap was reproduced separately: missing or unusable verifiers can preserve self-attested success, timeout advice can invite retry after a landed effect, and mutable arguments/results can overwrite expected request identity. Reviewed failure-first test checkpoint8bbad92cb has10 failing cases and4 passing twins. It is a test-only checkpoint, not a runtime repair or acceptance. Reuse the existing operation arbiter and audit receipts; do not introduce a second execution system.
 
 ## Integrated registry evidence and active successors
 
 PR714 now has a repaired classifier at `d240c96ee`, qualified independently at `b0a1f538a` with196 passing controls. Root integrated accepted main6d791db46 as `bfdc49404`; the combined goal/registry selection passed227 controls with3 documented nullable-matrix skips. The measured broader comparison is711/9 on the merged-main-equivalent baseline and761/the same9 failure IDs on the earlier candidate. The supplemental bundle preserves both source identities and the later integrated run. Earlier26/31/55-entry bundles remain at their actual evidence refs.
 
-The current registry snapshot remains90 actions,26 declared mutations,15 verified families and11 explicitly uncovered mutations. This is not whole-app ORACLE acceptance. The general-agent consumer remains a separate active repair: independent draft probes caught a stale status overwrite and a successful replay despite refuted current readback. Root will verify its eventual frozen source; no draft test result is release evidence.
+The PR714 registry snapshot was90 actions,26 declared mutations,15 verified families and11 explicitly uncovered mutations; the MiniApp host successor below updates registration coverage. This is not whole-app ORACLE acceptance. The general-agent consumer remains a separate active repair: independent draft probes caught a stale status overwrite and a successful replay despite refuted current readback. Root will verify its eventual frozen source; no draft test result is release evidence.
 
 
 ## GenericAgent consumer candidate and next caller boundary
 
 The integrated GenericAgent repair is qualified locally at `ddc6de056`:229 controls passed on project Python3.14, including the permanent normal-loop changed-retry case and independent race/replay/identity/cold-readback/normal-use probes. The repair sources are `882713a0a`, `ec9dede00` and final replay-ledger `039a24f4e`; the exact accepted main classifier/registry/MiniApp/CI contracts were retained during integration. This is a candidate awaiting hosted verification and merge, not a new whole-app acceptance. Prior negatives and worker evidence retain their own sources; external lead probes were copied after execution and are labelled accordingly.
 
-Agent1 remains on the six supported MiniApp host mutation/verifier gaps. Agent2 finishes the consumer candidate, pushes its exact evidence, then takes the confirmed admitted-execution caller join. The real `_dispatch_admitted_run` currently records uncertain/failed/blocked/cancelled result objects as successful durable AgentJobs (four negative twins fail; the success positive passes). That consumer truth/scope/WS follow-through precedes the prepared board-owner family. Admission authority/CAS acceptance remains preserved at its actual doubled-execution scope. The separate board-owner baseline proves a peer board hidden from the list can still receive a new column by guessed id; it is prepared, not accepted or assigned twice.
+Agent1 has committed the six supported MiniApp host successor described below. Agent2 owns the admitted-execution caller join after the merged Generic consumer. The real `_dispatch_admitted_run` currently records uncertain/failed/blocked/cancelled result objects as successful durable AgentJobs (four negative twins fail; the success positive passes). That consumer truth/scope/WS follow-through precedes the prepared board-owner family. Admission authority/CAS acceptance remains preserved at its actual doubled-execution scope. The separate board-owner baseline proves a peer board hidden from the list can still receive a new column by guessed id; it is prepared, not accepted or assigned twice.
 
 Root owns independent source/evidence verification and authorized merges. Workers do not wait idle for CI. No live provider/model/credential/send/spend/deploy/guest action is implied. No new framework, operation store or review lifecycle should be introduced for these caller repairs. Economy-first capable Flash remains the coding/routing policy; a genuine unsupported or deferred feature is not a completed app goal.
 
@@ -75,3 +75,36 @@ Long-running tasks must durably pause when relevant information is missing and a
 This general-app goal is open. Preserve and reuse the accepted G5 examples at their original scopes; do not claim their existence proves every caller/event path. Agent1/Agent2 take the cross-app follow-through after current coherent deliveries; Agent3/Agent4 independently review the durable and ordinary-user boundaries. Use existing lifecycle/event/receipt mechanisms, not a new task engine or model polling loop. No new external authority is granted.
 
 PR716 is now merged as `335fd77fa` with an identical reviewed/merged tree. Post-merge CI42340426105 and Docker42340426147 passed, including220 shared verification controls,211 API tests,29 UI tests and40 role-UI tests. Its229 local controls remain bound to `ddc6de056`; this does not close TASK-WAIT-01 or the active outer job/context and MiniApp producer work.
+
+
+## MiniApp host candidate integrated with current main
+
+The six-action host repair at `af97665c7` passes27 independent controls on project Python3.14:22 owned host cases, the real public RPC journey and four supplied transaction probes. This is a candidate awaiting integrated qualification, evidence verification and hosted CI/merge. The language/creator compare-and-swap and publish preparation rollback regressions retain their original negative evidence; the repaired valid/negative twins pass. No guest execution or Shopify provider write is certified.
+
+The candidate static registry has90 actions,26 declared mutations,21 verifier-covered mutations and5 explicitly uncovered (`mini_app_run` and four Shopify writes). This is registration coverage plus bounded host controls, not whole-app ORACLE acceptance. A registry-only scan omits HTTP/provider inventories; omitted zero counts must not be read as zero remaining writes. The broader earlier candidate had780 passing controls and the same9 failure IDs as the measured unchanged-code761/9 baseline. That comparison is bound to its actual pre-final source and does not replace the integrated final gate.
+
+Caller successor `42a937d0e` remains withheld:23 of25 independent controls pass; two cases allow business action params to supply or override server-owned wait execution identity. Agent2 is repairing the existing producer/consumer namespace separation. TASK-WAIT-01 remains open: the public targeted source-answer baseline accepts the invoice but stays blocked; its separate-advance twin produces verified140.25. The ordinary source answer must eventually trigger the same task automatically, without a second objective or manual advance.
+
+
+## Joint host/caller integration candidate
+
+The MiniApp host source `af97665c7` is integrated with accepted main at `7d2579e65`;278 controls passed with3 documented redundant nullable-matrix skips, actual exit0. The repaired caller source `80b17a489` independently passes67 controls:30 owned route/outcome cases,12 admission cases and25 supplied independent regressions. The source packet follow-up `9b659b3bd` tracks the exact ignored original gate and adds independent readback; strict8 source/28 artifact checks pass. These are scoped foundations pending the joint source gate, final evidence and hosted acceptance, not whole-app completion. Earlier snapshots/negatives stay at their original sources.
+
+Root has combined the reviewed code paths for one joint integration gate. The25 independent regressions are now permanent backend tests in the normal shared verification selection, alongside the owned outcome and admission controls. Accepted Generic retry, registry/MiniApp, goal and wait-policy coverage remains additive. The separate normal Generic registered-request bridge is still open: a real scaffold effect/receipt lands but Generic reports uncertain with no frozen operation/request binding, while the assignment equivalent passes. Agent1 takes that caller/context weld after its current evidence push. This deterministic missing binding is not evidence that a more expensive model is required.
+
+Agent2 has already started the targeted TASK-WAIT-01 source-answer continuation on the prepared failure-first branch. The same task must resume from relevant authorized information without a manual advance; restart/duplicates/late-input and honest business completion remain required. The general-app wait goal remains open beyond any entrypoints not exercised. No additional provider/model/credential/send/spend/guest/deployment authority is granted.
+
+
+## Qualified joint submission snapshot
+
+The host/caller candidate now has an independent joint result at `fbe7a5975`:345 passed,3 documented nullable-matrix skips, actual pytest exit0. The only prior joint failures were four tests blocked before dispatch by an outdated governance double constructor; its signature alone was aligned with the real scoped service, retaining every production guard and assertion. Merge `5d6619ad5` adds only the native host packet and a fresh-engine test, which passes independently1/1. Runtime core/api/tools bytes are unchanged. Evidence: `docs/acceptance/evidence/host_job_joint_fbe7a5975/`, strict24 source/16 artifact checks; original source-specific component packets remain distinct. Hosted exact-head checks and independent merge review still apply.
+
+Current workhorses are active on the normal Generic request-binding bridge (Agent1) and TASK-WAIT-01 information-trigger continuation (Agent2), without a routine CI pause. The host and truthful waiting projection foundations do not close either successor or general app acceptance. Historical scores remain unchanged. This is a submission-time snapshot; resolve live PR state from `codex/host-job-integrated-20261107` before deciding acceptance.
+
+
+Publishing follow-through: the joint candidate is carried by
+`codex/host-job-clean-20261107`, superseding PR718 without rewriting its history.
+Runtime/tests are identical; only a disclosed synthetic revision-digest log
+derivative and its evidence metadata changed. Full original source refs and
+negative results remain preserved. Exact-head hosted checks still gate merge.
+Both implementation successors continue while this publishing repair runs.

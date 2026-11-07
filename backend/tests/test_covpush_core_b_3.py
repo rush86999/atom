@@ -354,7 +354,7 @@ class TestPublishInstall:
         app_id, _ = _make_app(db_session)
         app = db_session.query(MiniApp).filter(MiniApp.id == app_id).first()
         app.blueprint_canvas_id = "missing-canvas"
-        with patch("core.mini_app_service.prepare_runtime", lambda a, db: None):
+        with patch("core.mini_app_service.prepare_runtime", lambda a, db, **k: None):
             with pytest.raises(ValueError):
                 publish(app, db_session)
 
@@ -368,7 +368,7 @@ class TestPublishInstall:
             details_json={"content": {"blocks": [{"t": "x"}]}},
         ))
         db_session.commit()
-        with patch("core.mini_app_service.prepare_runtime", lambda a, db: None):
+        with patch("core.mini_app_service.prepare_runtime", lambda a, db, **k: None):
             result = publish(app, db_session, public=True)
         assert result["success"] is True
         assert result["is_public"] is True
@@ -381,7 +381,7 @@ class TestPublishInstall:
         from core.mini_app_service import publish
         app_id, _ = _make_app(db_session, state={"api_key": "LEAKED", "ok": 1})
         app = db_session.query(MiniApp).filter(MiniApp.id == app_id).first()
-        with patch("core.mini_app_service.prepare_runtime", lambda a, db: None):
+        with patch("core.mini_app_service.prepare_runtime", lambda a, db, **k: None):
             publish(app, db_session)
         assert app.manifest["initial_state"].get("api_key") is None
         assert app.manifest["initial_state"]["ok"] == 1

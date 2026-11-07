@@ -1,0 +1,143 @@
+{
+  "mini_declared_entries": 24,
+  "mini_declared_sources": 14,
+  "mini_declared_artifacts": 10,
+  "references": [
+    {
+      "ref": "b205fc151",
+      "path": ".github/workflows/ci.yml",
+      "git_blob": "7a4c86bbe7958d62db7993e7764226907d5d66d3"
+    },
+    {
+      "ref": "b205fc151",
+      "path": "backend/core/assignment_executor.py",
+      "git_blob": "09947c247a06832f0e1f796ebd9589939c51e70c"
+    },
+    {
+      "ref": "b205fc151",
+      "path": "backend/core/canvas_logic_service.py",
+      "git_blob": "e2a51a930873bc4bbf4e47ce1bf589b9c6b478b5"
+    },
+    {
+      "ref": "b205fc151",
+      "path": "backend/core/mini_app_db_service.py",
+      "git_blob": "80c3853fdef9bce3c20638f78a31e8a36293dbb3"
+    },
+    {
+      "ref": "b205fc151",
+      "path": "backend/core/mini_app_service.py",
+      "git_blob": "52023ed0badc60e47a3ee882e0d6f0c29eca7a81"
+    },
+    {
+      "ref": "b205fc151",
+      "path": "backend/core/oracle/postcondition_verifiers.py",
+      "git_blob": "bb75f56e09f774935976b086c71120877503a1a3"
+    },
+    {
+      "ref": "b205fc151",
+      "path": "backend/tests/integration/journeys/test_mini_app_host_receipts_journey.py",
+      "git_blob": "2cf861fcadae593e029f54a60be27355082f507f"
+    },
+    {
+      "ref": "b205fc151",
+      "path": "backend/tests/test_covpush_core_b_3.py",
+      "git_blob": "750ee2c18590a011d8772f186a0e05ab592d675a"
+    },
+    {
+      "ref": "b205fc151",
+      "path": "backend/tests/test_mini_app_agent_tools.py",
+      "git_blob": "81233d7645c1bc96d7658f9a11bbac3ece2042fd"
+    },
+    {
+      "ref": "b205fc151",
+      "path": "backend/tests/test_oracle_mini_app_host_mutations.py",
+      "git_blob": "3231596383006c76b64688d838e798b4bb3e12c8"
+    },
+    {
+      "ref": "b205fc151",
+      "path": "backend/tests/test_oracle_registry_verification_gap.py",
+      "git_blob": "d889c793c79b700337642696aff2633c3108a38e"
+    },
+    {
+      "ref": "b205fc151",
+      "path": "backend/tools/mini_app_tool.py",
+      "git_blob": "35c19499fd09f71f0fdd22877c67bc8b07bb21f3"
+    },
+    {
+      "ref": "3a81b5e6b",
+      "path": "docs/acceptance/evidence/oracle_mini_app_host_mutations_20261107/README.md",
+      "git_blob": "1c20cac3cb36041389783d33a7240036cbe3993c"
+    },
+    {
+      "ref": "3a81b5e6b",
+      "path": "docs/acceptance/evidence/oracle_mini_app_host_mutations_20261107/affected-cluster.log",
+      "git_blob": "b723436031a74aa6329b7a73e65e73cab6b6f2fb"
+    },
+    {
+      "ref": "3a81b5e6b",
+      "path": "docs/acceptance/evidence/oracle_mini_app_host_mutations_20261107/baseline-unrelated-failures.txt",
+      "git_blob": "58a12fe82a1e3a3fe6a462ed2e7f4565aa554657"
+    },
+    {
+      "ref": "3a81b5e6b",
+      "path": "docs/acceptance/evidence/oracle_mini_app_host_mutations_20261107/coverage/README.md",
+      "git_blob": "8e509b560935a7ac5874540569374e4fcc72f7b7"
+    },
+    {
+      "ref": "3a81b5e6b",
+      "path": "docs/acceptance/evidence/oracle_mini_app_host_mutations_20261107/coverage/inventory-run.log",
+      "git_blob": "546a28a56366c786a44b88ec0477d12f8f3fee24"
+    },
+    {
+      "ref": "3a81b5e6b",
+      "path": "docs/acceptance/evidence/oracle_mini_app_host_mutations_20261107/coverage/inventory.json",
+      "git_blob": "910441dae165b41c50090bbcef2355b47c4164d9"
+    },
+    {
+      "ref": "3a81b5e6b",
+      "path": "docs/acceptance/evidence/oracle_mini_app_host_mutations_20261107/focused-gate.log",
+      "git_blob": "47de0030ff13dd0b03f7da542acd4bbeaa2a9161"
+    },
+    {
+      "ref": "3a81b5e6b",
+      "path": "docs/acceptance/evidence/oracle_mini_app_host_mutations_20261107/supplied-logic-cas.log",
+      "git_blob": "d7717869549db8e1c2bbb187c18b89f52703a7c5"
+    },
+    {
+      "ref": "3a81b5e6b",
+      "path": "docs/acceptance/evidence/oracle_mini_app_host_mutations_20261107/supplied-publish-preparation.log",
+      "git_blob": "42a324b2f9a8d5b96ef8c99af23bcb9c20a83550"
+    },
+    {
+      "ref": "3a81b5e6b",
+      "path": "docs/acceptance/evidence/oracle_mini_app_host_mutations_20261107/verification.txt",
+      "git_blob": "beea06c26123e5557c9c78d46c049485c98aed10"
+    },
+    {
+      "ref": "b205fc151",
+      "path": "docs/architecture/ORACLE_VERIFICATION.md",
+      "git_blob": "702bb0853f39e666ca324f188221711b7a359078"
+    },
+    {
+      "ref": "b205fc151",
+      "path": "docs/engineering/APP_COMPLETION_STATE_2026_11_07.md",
+      "git_blob": "2135c87ae77176377344f08324c8a00dfeb7254c"
+    },
+    {
+      "ref": "3a81b5e6b",
+      "path": "docs/acceptance/evidence/oracle_mini_app_host_mutations_20261107/MANIFEST.json",
+      "sha256": "a0008a71aae6d560a781ef8dbd895aa56225ef7047fb108ec628825c09021380",
+      "role": "manifest/report supplementary, not a declared producer test"
+    },
+    {
+      "ref": "3a81b5e6b",
+      "path": "docs/acceptance/evidence/oracle_mini_app_host_mutations_20261107/MANIFEST_CHECK.txt",
+      "sha256": "3ac0a449ed15e0fc33d7f900b7ce6f41c0ef84183d945b293d9bff41f29c6e03",
+      "role": "manifest/report supplementary, not a declared producer test"
+    }
+  ],
+  "caller_canonical_bundle": "docs/acceptance/evidence/agent_job_outcome_join_20261107",
+  "caller_runtime": "80b17a4898272d44ec0a7c510b1ef0f930ec6dc2",
+  "caller_strict_checks": "8sources+28artifacts",
+  "accepted_Generic_evidence": "byte-identical subtree to main4294; historical source bindings preserved"
+}

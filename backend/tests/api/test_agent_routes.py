@@ -215,7 +215,7 @@ def test_run_agent_sync_mode(
         }
     }
 
-    with patch('api.agent_routes.execute_agent_task', new=AsyncMock(return_value={"result": "test output"})):
+    with patch('api.agent_routes.execute_agent_task', new=AsyncMock(return_value={"status": "success", "result": "test output"})):
 
         response = client.post(f"/api/agents/{mock_agent.id}/run", json=request_data)
 
