@@ -26,6 +26,7 @@ from api.schemas.board_schemas import (
 )
 from core.board_access import (
     FOREIGN_OWNER,
+    claim_active_actor,
     get_owned_board,
     require_active_actor,
 )
@@ -155,8 +156,10 @@ class BoardService:
             ):
                 raise HTTPException(status_code=403, detail=FOREIGN_OWNER)
             owner_user_id = self.actor_user_id
-            # A board is only useful to an active owner; fail before writing.
-            self.require_active_actor()
+            # A board is only useful to an active owner.  Claim the actor with
+            # the mutation boundary (not the read-only check) so a concurrent
+            # deactivation cannot land between this check and the INSERT.
+            claim_active_actor(self.db, self.actor_user_id)
 
         board = Board(
             name=payload.name,
