@@ -3390,6 +3390,15 @@ def test_uncertain_action_envelope_blocks_dependents_until_reconciled(
         effects=[{"effect": "create", "object": "estimate"}])
     action_registry.register(
         send_name, send_draft, effects=[{"effect": "send"}])
+
+    async def send_postcondition(ctx):
+        from core.oracle import OracleResult
+
+        return OracleResult(send_name, True, "controlled send receipt")
+
+    from core.oracle import register_postcondition
+
+    register_postcondition(send_name)(send_postcondition)
     monkeypatch.setenv("ATOM_OFFICE_DIR", str(env["tmp"]))
     steps = [
         new_step(
@@ -3510,7 +3519,7 @@ def test_uncertain_action_envelope_blocks_dependents_until_reconciled(
     (
         {"status": "success", "action_result": "applied",
          "verification": {"status": "complete"}, "remote_id": "rec-1"},
-        [{"effect": "create"}], "external", "applied",
+        [{"effect": "create"}], "external", "uncertain",
     ),
     (
         {"status": "error", "action_result": "proven_not_applied",

@@ -34,6 +34,12 @@ from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Any, Awaitable, Callable, Dict, List, Optional, Sequence, Tuple
 
+from core.action_effects import (
+    MUTATING_EFFECTS,
+    declares_mutation as _declares_mutation,
+    declares_plan_output as _declares_plan_output,
+    declares_read_only as _declares_read_only,
+)
 from core.assignment_readiness import evaluate_step_readiness
 from core.assignment_plan import (
     ASSIGNMENT_STATES,
@@ -3945,6 +3951,8 @@ class AssignmentExecutor:
             "observed_status": observed_status,
             "error_class": error_class,
             "reconciliation_required": bool(reconciliation_required),
+            "oracle_verified": result.get("oracle_verified"),
+            "oracle_evidence": result.get("oracle_evidence"),
             "at": _utc_now_iso(),
             "source": {
                 "kind": artifact.get("kind"),
@@ -5816,6 +5824,8 @@ class AssignmentExecutor:
                 "provider_receipt": result.get("provider_receipt"),
                 "payload_sha256": result.get("payload_sha256"),
                 "verification": result.get("verification"),
+                "oracle_verified": result.get("oracle_verified"),
+                "oracle_evidence": result.get("oracle_evidence"),
                 "conflicts": result.get("conflicts") or [],
                 "at": _utc_now_iso(),
             })
@@ -5923,6 +5933,8 @@ class AssignmentExecutor:
             # The operation receipt also carries it, but dependent readiness
             # evaluates the step result and must not lose the proof.
             "verification": result.get("verification"),
+            "oracle_verified": result.get("oracle_verified"),
+            "oracle_evidence": result.get("oracle_evidence"),
             "coverage": result.get("coverage"),
             "readback": result.get("readback"),
             "resource_id": result.get("resource_id"),
@@ -6164,17 +6176,18 @@ class AssignmentExecutor:
 # ---------------------------------------------------------------------------
 
 
-_MUTATING_ACTION_EFFECTS = {
-    "write", "create", "update", "delete", "send", "execute",
-    "graph_updated", "record_created", "record_updated", "record_deleted",
-    "goal_created", "goal_run_started", "goal_evaluated",
-}
-# ``plan_produced`` (goals.decompose) is pure plan-shape output, not a durable
-# mutation: it must not be counted as persisted execution proof.
+# Declared effect vocabulary is shared with the planner and the coverage
+# inventory (``core.action_effects``). ``plan_produced`` (goals.decompose) is
+# pure plan-shape output, not a durable mutation: it must not be counted as
+# persisted execution proof.
+_MUTATING_ACTION_EFFECTS = MUTATING_EFFECTS
 
 # Registered actions that mutate local durable state without declaring an
 # effect family in their registration metadata.  Keep this list aligned with
 # the local postcondition families in core.oracle.postcondition_verifiers.
+# Explicit registration effects are the primary declaration (and now cover
+# every durable mutation in the registry); this legacy list remains because it
+# protects deployed plans whose action metadata predates that declaration.
 _LOCAL_MUTATING_ACTIONS = {
     "canvas.present_chart", "canvas.present_markdown", "canvas.restore_version",
     "canvas.update", "tasks.create", "goals.create", "goals.evaluate",
@@ -6184,17 +6197,20 @@ _LOCAL_MUTATING_ACTIONS = {
 
 def _registered_action_mutates(action: Any, context: Dict[str, Any]) -> bool:
     name = str(getattr(action, "name", "") or "")
-    effects = [
-        str(item.get("effect") or "").strip().lower()
-        for item in (getattr(action, "effects", None) or [])
-        if isinstance(item, dict)
-    ]
     step_effect = str((context.get("step") or {}).get("effect") or "")
     if step_effect == "external":
         return True
     if name in _LOCAL_MUTATING_ACTIONS:
         return True
-    return any(effect in _MUTATING_ACTION_EFFECTS for effect in effects)
+    if _declares_mutation(action):
+        return True
+    # Explicitly read-only or plan-only declarations are non-mutating. Empty
+    # or unknown effect metadata is UNQUALIFIED, not an implicit read proof:
+    # it must satisfy the same independent-verification gate or the action
+    # could silently evade the oracle by omitting its declaration.
+    if _declares_read_only(action) or _declares_plan_output(action):
+        return False
+    return True
 
 
 def _action_result_outcome(result: Any, *, mutating: bool) -> str:
@@ -6393,6 +6409,27 @@ async def _action_registry_adapter(
                     "supplied": supplied_digest,
                 }],
             }
+    # A mutation is classified from its trusted registration metadata (plus
+    # the legacy local list / an explicitly external step), never from a
+    # business name or header.
+    mutating = _registered_action_mutates(action, context)
+    # Freeze a server-owned digest of the exact authorized request before the
+    # handler runs. The handler receives a separate deep copy, so in-place
+    # edits cannot change what the oracle compares against.
+    server_request_sha256 = ""
+    if mutating:
+        try:
+            server_request_sha256 = _approval_payload_hash(
+                authorized_arguments)
+        except Exception as exc:  # noqa: BLE001 - refuse before effect
+            return {
+                "status": "failed",
+                "message": (
+                    "the authorized request could not be frozen before "
+                    f"dispatch: {type(exc).__name__}"),
+                "error_class": "request_snapshot_unavailable",
+                "effect": "none",
+            }
     execution_context = {
         "workspace_id": context.get("workspace_id"),
         "user_id": context.get("employee_id"),
@@ -6403,7 +6440,8 @@ async def _action_registry_adapter(
         "task_revision": (context.get("task_revision") or {}).get(
             "revision"),
         "operation_id": str(
-            (context.get("step") or {}).get("operation_id") or ""),
+            (context.get("step") or {}).get("operation_id")
+            or context.get("operation_id") or ""),
     }
     failures = action.check_preconditions(execution_context)
     if failures:
@@ -6472,7 +6510,6 @@ async def _action_registry_adapter(
                     "material to verify; refusing before dispatch"),
                 "error_class": "presentation_binding_unavailable",
             }
-    mutating = _registered_action_mutates(action, context)
     try:
         result = await action_registry.execute_action(
             name, dispatch_arguments, execution_context)
@@ -6560,7 +6597,8 @@ async def _action_registry_adapter(
     oracle_failed_closed = False
     expected_digest = canonical_digest or supplied_digest
     executor_operation_id = str(
-        (context.get("step") or {}).get("operation_id") or "")
+        (context.get("step") or {}).get("operation_id")
+        or context.get("operation_id") or "")
     expected_operation = str(
         expected_binding.get("operation_id")
         or authorized_arguments.get("operation_id")
@@ -6618,10 +6656,24 @@ async def _action_registry_adapter(
     expected_board_id = (
         str(authorized_arguments.get("board_id") or "")
         if name == "tasks.create" else "")
+    expected_actor_id = str(
+        context.get("employee_id") or context.get("user_id")
+        or authorized_arguments.get("user_id") or "")
+    expected_app_id = (
+        str(authorized_arguments.get("app_id") or "")
+        if name == "mini_app_set_tests" else "")
+    expected_tests_sha256 = ""
+    if name == "mini_app_set_tests":
+        try:
+            expected_tests_sha256 = _approval_payload_hash(
+                authorized_arguments.get("tests"))
+        except Exception:  # noqa: BLE001 - verifier refuses absent binding
+            expected_tests_sha256 = ""
     oracle_context = {
         **authorized_arguments,
         **payload,
         "_oracle_expected_payload_sha256": expected_digest,
+        "_oracle_expected_request_sha256": server_request_sha256,
         "_oracle_expected_operation_id": expected_operation,
         "_oracle_expected_organization_id": expected_organization,
         "_oracle_expected_provider": expected_provider,
@@ -6633,6 +6685,7 @@ async def _action_registry_adapter(
         "_oracle_expected_material_sha256": expected_material_sha256,
         "_oracle_expected_material": expected_presentation_material,
         "_oracle_expected_tenant_id": expected_tenant_id,
+        "_oracle_expected_actor_id": expected_actor_id,
         "_oracle_expected_goal_id": expected_goal_id,
         "_oracle_expected_goal_title": expected_goal_title,
         "_oracle_expected_workspace_id": expected_workspace_id,
@@ -6642,14 +6695,37 @@ async def _action_registry_adapter(
         "_oracle_expected_title": expected_present_title,
         "_oracle_expected_task_title": expected_task_title,
         "_oracle_expected_board_id": expected_board_id,
+        "_oracle_expected_app_id": expected_app_id,
+        "_oracle_expected_tests": (
+            authorized_arguments.get("tests")
+            if name == "mini_app_set_tests" else None),
+        "_oracle_expected_tests_sha256": expected_tests_sha256,
     }
     oracle_db = context.get("db") or context.get("session")
     if oracle_db is not None:
         oracle_context.setdefault("db", oracle_db)
     try:
-        from core.oracle import get_postcondition, validate
+        from core.oracle import (
+            get_postcondition,
+            oracle_verifier_enabled,
+            validate,
+        )
 
-        if get_postcondition(name) is not None:
+        verifier = get_postcondition(name)
+        if verifier is None:
+            if mutating:
+                # A declared mutation with no independent verifier can never
+                # certify applied success. The effect may already have landed,
+                # so it is uncertain (not "failed none") and is never resent.
+                oracle_verified = False
+                oracle_evidence = "no registered postcondition verifier"
+                oracle_failed_closed = True
+        elif not oracle_verifier_enabled():
+            if mutating:
+                oracle_verified = False
+                oracle_evidence = "oracle verifier is disabled"
+                oracle_failed_closed = True
+        else:
             oracle = await validate(name, oracle_context)
             if oracle is None:
                 oracle_verified = False
@@ -6734,6 +6810,7 @@ async def _action_registry_adapter(
     if outcome == "uncertain":
         return {
             "status": "uncertain",
+            "action_result": "uncertain",
             "reason": (
                 f"registered action {name} reported "
                 f"{payload.get('action_result') or payload.get('status') or 'an unknown outcome'}"

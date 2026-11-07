@@ -1,0 +1,39 @@
+{
+  "baseline_source": "a08ce72f0 (tree identical to merged main8a577f14a)",
+  "candidate_source": "b0a1f538a",
+  "baseline_files": 18,
+  "candidate_files": 20,
+  "candidate_only_files": [
+    "test_oracle_registry_verification_gap.py",
+    "integration/journeys/test_oracle_registry_mutation_journey.py"
+  ],
+  "baseline_failures": [
+    "tests/core/test_action_registry_coverage.py::TestDocumentsSearchAction::test_search_legacy_path_flag_off",
+    "tests/test_covpush_w36_oracle_vfs.py::TestTaskVerifier::test_task_exists",
+    "tests/test_covpush_w77b_graphrag_oracle.py::TestOracleRegistry::test_validate_task_round_trip",
+    "tests/test_covpush_w77b_graphrag_oracle.py::TestTaskVerifier::test_missing_ctx",
+    "tests/test_covpush_w77b_graphrag_oracle.py::TestTaskVerifier::test_task_present",
+    "tests/test_r79_action_registry_rpc.py::TestRpcRouteAuthenticated::test_list_actions_includes_registered_names",
+    "tests/test_write_zero_effect_claims.py::test_a_non_edit_turn_may_say_nothing_was_changed_because_nothing_started",
+    "tests/test_write_zero_effect_claims.py::test_an_edit_shaped_planner_failure_reports_the_limitation",
+    "tests/test_write_zero_effect_claims.py::test_teaching_phrase_with_planner_down_mutates_nothing"
+  ],
+  "candidate_failures": [
+    "tests/core/test_action_registry_coverage.py::TestDocumentsSearchAction::test_search_legacy_path_flag_off",
+    "tests/test_covpush_w36_oracle_vfs.py::TestTaskVerifier::test_task_exists",
+    "tests/test_covpush_w77b_graphrag_oracle.py::TestOracleRegistry::test_validate_task_round_trip",
+    "tests/test_covpush_w77b_graphrag_oracle.py::TestTaskVerifier::test_missing_ctx",
+    "tests/test_covpush_w77b_graphrag_oracle.py::TestTaskVerifier::test_task_present",
+    "tests/test_r79_action_registry_rpc.py::TestRpcRouteAuthenticated::test_list_actions_includes_registered_names",
+    "tests/test_write_zero_effect_claims.py::test_a_non_edit_turn_may_say_nothing_was_changed_because_nothing_started",
+    "tests/test_write_zero_effect_claims.py::test_an_edit_shaped_planner_failure_reports_the_limitation",
+    "tests/test_write_zero_effect_claims.py::test_teaching_phrase_with_planner_down_mutates_nothing"
+  ],
+  "new_failures": [],
+  "cleared_failures": [],
+  "identical_failure_ids": true,
+  "scope": "SQLite controlled affected selection; baseline retains its own tracked test versions, does not copy candidate tests",
+  "baseline_command_scope": "18 pre-existing files; no candidate files copied into baseline",
+  "candidate_observation": "Read from Agent1 retained actual broader run; root separately executed 196 focused candidate controls",
+  "environment_note": "Root baseline: project Python3.14 venv; Agent1 broader candidate: system python3 (3.14). Not an identical-environment benchmark."
+}

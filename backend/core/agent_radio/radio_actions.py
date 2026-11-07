@@ -153,6 +153,7 @@ _READ_INBOX_SCHEMA = {
         "Additive + reversible: a thread has no effect until someone sends on it."
     ),
     parameters_schema=_CREATE_THREAD_SCHEMA,
+    effects=[{"effect": "create", "scope": "local"}],
 )
 async def radio_create_thread(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     if not radio_config.radio_enabled():
@@ -207,6 +208,7 @@ async def radio_create_thread(args: Dict[str, Any], context: Dict[str, Any]) -> 
         "There is no broadcast — the legacy global feed is a separate channel."
     ),
     parameters_schema=_SEND_MESSAGE_SCHEMA,
+    effects=[{"effect": "send", "scope": "local"}],
 )
 async def radio_send_message(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     if not radio_config.radio_enabled():
@@ -276,6 +278,7 @@ async def radio_send_message(args: Dict[str, Any], context: Dict[str, Any]) -> D
         "when the agent deliberately must have an answer before proceeding."
     ),
     parameters_schema=_WAIT_FOR_MENTION_SCHEMA,
+    effects=[{"effect": "read"}],
 )
 async def radio_wait_for_mention(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     if not radio_config.radio_enabled():
@@ -334,6 +337,7 @@ async def radio_wait_for_mention(args: Dict[str, Any], context: Dict[str, Any]) 
         "context, like a worklog). STUDENT+ read-only."
     ),
     parameters_schema=_READ_INBOX_SCHEMA,
+    effects=[{"effect": "read"}],
 )
 async def radio_read_inbox(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     if not radio_config.radio_enabled():

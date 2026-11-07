@@ -146,7 +146,8 @@ def test_connected_actions_are_registered_with_safe_effects():
         action = action_registry.get_action(name)
         assert action is not None, name
     assert action_registry.get_action(
-        "brennan.outlook.create_draft").effects == [{"effect": "create"}]
+        "brennan.outlook.create_draft").effects == [
+            {"effect": "create", "scope": "external"}]
     assert action_registry.get_action(
         "brennan.workdrive.read_file").effects == [{"effect": "read"}]
 

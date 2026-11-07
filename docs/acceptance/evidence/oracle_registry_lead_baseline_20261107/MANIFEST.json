@@ -1,0 +1,48 @@
+{
+  "schema": "atom-lead-baseline-and-integration-1",
+  "qualified_runtime_source": "bfdc494045d6c37550f2db26e43fbda643c4442a",
+  "predecessor_worker_evidence_ref": "74a9bf956",
+  "source_files": {
+    ".github/workflows/ci.yml": "9a72475ed5f9a464a029aab98b888d439d8bca29",
+    "backend/core/action_effects.py": "2343726103d19a07a80097c939652aa80a57fa15",
+    "backend/core/action_registry.py": "df0c895ba62b4ac92f51f36d4fe72798da1c8ac0",
+    "backend/core/assignment_executor.py": "8f77358a71687d97d35703204dc541b00d056f16",
+    "backend/core/assignment_planner.py": "b29c50516fb282e632cf0f987b26df00f2768708",
+    "backend/core/oracle/postcondition_verifiers.py": "cb8056ec8f3364292806229ed6e72ca7a3a7e9db",
+    "backend/tools/mini_app_tool.py": "774b6bd878340452ca21242a23e1eeb5add57dc7",
+    "backend/core/goals/goal_write_service.py": "646d5c263544a108ac82df1efea1872006983d19",
+    "backend/api/goal_routes.py": "53fad2a43b3fcb48ea47376c3eb24b0b014b95b3",
+    "backend/tests/test_oracle_registry_verification_gap.py": "013a14a2233ab3f67384576da691e2968a06597f",
+    "backend/tests/integration/journeys/test_oracle_registry_mutation_journey.py": "3e776928e0e6611807b78f8a71334768d7cdba5f",
+    "backend/tests/test_goal_write_authority_contract.py": "0d2fae23de2f72e60198f06c2ba92aa3d0d1a47f"
+  },
+  "artifacts": {
+    "docs/acceptance/evidence/oracle_registry_lead_baseline_20261107/README.md": "cdb77af6aa88027555e14c72e0978d55ddfb46b1",
+    "docs/acceptance/evidence/oracle_registry_lead_baseline_20261107/baseline-sanitized.log": "43f76141417de908ee7b9d87b23c05b580f44258",
+    "docs/acceptance/evidence/oracle_registry_lead_baseline_20261107/combined-sanitized.log": "4b1f3111c69523ae1aeb15e1c76cda22f5c05402",
+    "docs/acceptance/evidence/oracle_registry_lead_baseline_20261107/comparison.json": "f522bc810efe6e535290bfab31fcd67be7795654",
+    "docs/acceptance/evidence/oracle_registry_lead_baseline_20261107/independent-probes/test_lead_oracle_authoritative_scope.py": "b49548d1da19ec4e092756a4eba3e45b1e1c141c",
+    "docs/acceptance/evidence/oracle_registry_lead_baseline_20261107/independent-probes/test_lead_oracle_malformed_effects.py": "10f3c8f9a198944403d776d8ce4cb60aaeac46b4",
+    "docs/acceptance/evidence/oracle_registry_lead_baseline_20261107/independent-probes/test_lead_oracle_missing_verifier.py": "0354140b0b17ff9b959f1837734ef0e4cd17513a",
+    "docs/acceptance/evidence/oracle_registry_lead_baseline_20261107/run-spec.json": "f0b2f963a270eed7d293bb1d073947d5f7389e8b"
+  },
+  "independent_probe_copy_matches": {
+    "test_lead_oracle_missing_verifier.py": true,
+    "test_lead_oracle_malformed_effects.py": true,
+    "test_lead_oracle_authoritative_scope.py": true
+  },
+  "result": {
+    "root_combined_passed": 227,
+    "root_combined_skipped": 3,
+    "baseline_passed": 711,
+    "baseline_failed": 9,
+    "candidate_broader_passed": 761,
+    "candidate_broader_failed": 9,
+    "new_failure_ids": []
+  },
+  "worktree_at_run": {
+    "tracked_runtime_clean": true,
+    "untracked_bootstrap_and_probe_inputs": true
+  },
+  "verification": "Compare source_files to qualified_runtime_source; artifacts to the containing evidence Git ref. MANIFEST itself is excluded."
+}

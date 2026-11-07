@@ -18,6 +18,7 @@ human-facing Monaco review surface is a secondary, optional layer on top.
 from __future__ import annotations
 
 import logging
+import uuid
 from types import SimpleNamespace
 from typing import Any, Dict, Optional
 
@@ -427,6 +428,62 @@ async def mini_app_get_state(args: Dict[str, Any], context: Dict[str, Any]) -> D
 # revert on failure → publish. mini_app_status surfaces the constraints the
 # agent must satisfy before it iterates.
 # ---------------------------------------------------------------------------
+def _cas_set_tests_manifest(
+    db: Any,
+    app_id: str,
+    prior_manifest: Any,
+    prior_is_sql_null: bool,
+    new_manifest: Dict[str, Any],
+    *,
+    owner_id: str,
+    tenant_id: str,
+    workspace_id: Any,
+    blueprint_canvas_id: Any,
+) -> int:
+    """Conditionally replace the manifest only if it and its owner/app scope
+    are still exactly prior.
+
+    The predicate binds the prior manifest as read (SQL NULL, JSON null, empty
+    object or full object), never ``or {}``, plus the owner, tenant, workspace
+    and blueprint canvas. A zero row count means a peer changed the manifest or
+    the app scope after this invocation read it; the caller must return a
+    truthful no-effect conflict and leave the peer's state intact.
+    """
+    from sqlalchemy import JSON as SAJSON
+    from sqlalchemy import update
+
+    from core.models import MiniApp
+
+    if prior_is_sql_null:
+        predicate = MiniApp.manifest.is_(None)
+    elif prior_manifest is None:
+        predicate = MiniApp.manifest == SAJSON.NULL
+    else:
+        predicate = MiniApp.manifest == prior_manifest
+    conditions = [
+        MiniApp.id == app_id,
+        predicate,
+        MiniApp.created_by == owner_id,
+        MiniApp.tenant_id == tenant_id,
+    ]
+    conditions.append(
+        MiniApp.workspace_id.is_(None)
+        if workspace_id is None else MiniApp.workspace_id == workspace_id
+    )
+    conditions.append(
+        MiniApp.blueprint_canvas_id.is_(None)
+        if blueprint_canvas_id is None
+        else MiniApp.blueprint_canvas_id == blueprint_canvas_id
+    )
+    result = db.execute(
+        update(MiniApp)
+        .where(*conditions)
+        .values(manifest=new_manifest)
+        .execution_options(synchronize_session=False)
+    )
+    return int(result.rowcount or 0)
+
+
 async def mini_app_set_tests(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     """Declare acceptance-test cases for an app (stored in the manifest)."""
     viewer = _require_actor(context)
@@ -441,7 +498,9 @@ async def mini_app_set_tests(args: Dict[str, Any], context: Dict[str, Any]) -> D
     try:
         from core.database import get_db_session
         from core.mini_app_service import validate_tests
-        from core.models import MiniApp
+        from core.models import CanvasAudit, MiniApp
+        from core.task_lifecycle import _approval_payload_hash
+        from sqlalchemy import select
 
         validate_tests(tests)
         with get_db_session() as db:
@@ -450,15 +509,77 @@ async def mini_app_set_tests(args: Dict[str, Any], context: Dict[str, Any]) -> D
                 return {"success": False, "error": f"MiniApp {app_id} not found"}
             if str(app.created_by) != viewer.id:
                 return {"success": False, "error": "Not the app owner"}
-            # Reassign the whole manifest so the JSON column detects the change.
-            manifest = dict(app.manifest or {})
+            prior_manifest = app.manifest
+            prior_is_sql_null = bool(db.execute(
+                select(MiniApp.manifest.is_(None))
+                .where(MiniApp.id == app_id)
+            ).scalar())
+            manifest = (
+                dict(prior_manifest)
+                if isinstance(prior_manifest, dict) else {}
+            )
             manifest["tests"] = tests
-            app.manifest = manifest
+            app_tenant_id = str(app.tenant_id or "")
+            app_workspace_id = str(
+                context.get("workspace_id") or app.workspace_id or "")
+            app_workspace_value = app.workspace_id
+            blueprint_canvas_id = app.blueprint_canvas_id
+            owner_id = str(app.created_by or "")
+            # Append the same durable receipt used by other canvas-backed
+            # mutations. It is what lets an independent verifier prove THIS
+            # invocation (operation id + exact tests digest), not an old
+            # identical manifest state or the handler's own success flag.
+            operation_id = str(context.get("operation_id") or "")
+            tests_sha256 = _approval_payload_hash(tests)
+            updated = _cas_set_tests_manifest(
+                db, app_id, prior_manifest, prior_is_sql_null, manifest,
+                owner_id=owner_id,
+                tenant_id=app_tenant_id,
+                workspace_id=app_workspace_value,
+                blueprint_canvas_id=blueprint_canvas_id)
+            # Never leave a stale whole-manifest ORM object that a later flush
+            # could write back over a peer update.
+            db.expire(app)
+            if updated != 1:
+                return {
+                    "success": False,
+                    "status": "error",
+                    "action_result": "proven_not_applied",
+                    "error": "mini_app_manifest_changed",
+                    "error_kind": "manifest_changed",
+                    "conflict": True,
+                    "retryable": False,
+                    "message": (
+                        "The mini-app manifest changed after it was read; "
+                        "the acceptance tests were not written."),
+                }
+            audit_id = None
+            if blueprint_canvas_id:
+                audit_id = str(uuid.uuid4())
+                db.add(CanvasAudit(
+                    id=audit_id,
+                    canvas_id=blueprint_canvas_id,
+                    tenant_id=app_tenant_id,
+                    action_type="mini_app_set_tests",
+                    user_id=viewer.id,
+                    canvas_type="mini_app",
+                    details_json={
+                        "app_id": app_id,
+                        "tests_sha256": tests_sha256,
+                        "tests_count": len(tests),
+                        "operation_id": operation_id,
+                        "workspace_id": app_workspace_id,
+                        "tenant_id": app_tenant_id,
+                        "actor_id": viewer.id,
+                    },
+                ))
             db.commit()
         return {
             "success": True,
             "app_id": app_id,
             "tests": len(tests),
+            "audit_id": audit_id,
+            "operation_id": operation_id,
             "message": f"Saved {len(tests)} acceptance test case(s)",
         }
     except ValueError as e:

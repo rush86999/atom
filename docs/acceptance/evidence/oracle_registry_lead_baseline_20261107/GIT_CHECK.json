@@ -1,0 +1,39 @@
+{
+  "method": "runtime/test/CI files against qualified source; evidence/prose against containing evidence ref",
+  "bundles": [
+    {
+      "bundle": "oracle_registry_gap_20261107",
+      "source": "bb807d62d58eb9a3e84a59f8598857e74358d5ac",
+      "evidence_ref": "ce4938c99",
+      "checks": 26,
+      "matches": 26,
+      "failures": []
+    },
+    {
+      "bundle": "oracle_registry_authoritative_scope_20261107",
+      "source": "9134893831cacb7ab52e633e8318753c938b888f",
+      "evidence_ref": "92465014e",
+      "checks": 31,
+      "matches": 31,
+      "failures": []
+    },
+    {
+      "bundle": "oracle_registry_malformed_metadata_20261107",
+      "source": "b0a1f538afaf98abb1b1b4f90aa091bcfea9d3ab",
+      "evidence_ref": "74a9bf956",
+      "checks": 55,
+      "matches": 55,
+      "failures": []
+    },
+    {
+      "bundle": "oracle_registry_lead_baseline_20261107",
+      "source": "bfdc494045d6c37550f2db26e43fbda643c4442a",
+      "evidence_ref": "604e7319dea75b77c7b3dc003e52e3d2e60729be",
+      "checks": 20,
+      "matches": 20,
+      "failures": []
+    }
+  ],
+  "total_checks": 132,
+  "total_matches": 132
+}

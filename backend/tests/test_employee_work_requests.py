@@ -456,6 +456,7 @@ def test_work_request_rejects_unverified_or_skipped_evidence():
 
 def test_invoice_request_can_compile_one_approved_bill_action(env):
     from core.action_registry import action_registry
+    from core.oracle import OracleResult, register_postcondition
 
     calls = []
 
@@ -469,9 +470,18 @@ def test_invoice_request_can_compile_one_approved_bill_action(env):
             "data": {"bill_id": "bill-1", "total": arguments.get("total")},
         }
 
+    async def verify_bill(ctx):
+        return OracleResult(
+            "books.create_bill",
+            ctx.get("action_result") == "applied"
+            and bool(ctx.get("remote_id")),
+            "controlled provider returned a readback receipt",
+        )
+
     action_registry.register(
         "books.create_bill", create_bill,
         effects=[{"effect": "create", "object": "bill"}])
+    register_postcondition("books.create_bill")(verify_bill)
     po, invoice, receiving = _verified_invoice_evidence()
     teaching = new_teaching_snapshot(revision="invoice-terms-1")
     plan = new_assignment(

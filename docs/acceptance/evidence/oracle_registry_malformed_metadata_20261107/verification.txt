@@ -1,0 +1,70 @@
+Final verification on qualified source
+`b0a1f538afaf98abb1b1b4f90aa091bcfea9d3ab` (clean tracked tree at gate time;
+untracked LEAD/order/PR files excluded).
+
+Qualified source is the additive merge of repair commit `d240c96ee` with
+`origin/main` `8a577f14a` (MINI-03/MINI-04 CI steps retained). Predecessor
+runtime: `92465014e`.
+
+Environment: TESTING=1; unique scratch SQLite per probe; fresh owned pytest
+basetemp children under
+`<scratch>/opencode/oracle-malformed-final-20261107/`; no live DB, world
+directory, provider, VM, model, account or network effect.
+
+1. Supplied malformed-metadata probe
+   Command:
+   python -m pytest ../LEAD_PROBES/test_lead_oracle_malformed_effects.py -q
+   Result: 4 passed.
+   Baseline at `92465014e`: 3 failed, 1 passed.
+   - effects=[{effect:read},{}]
+   - effects=[{effect:plan_produced},{}]
+   - effects=[{effect:read},42]
+   Each real scratch write now returns uncertain with oracle_verified=False;
+   the clean read twin still applies.
+
+2. Predecessor supplied probes
+   Command:
+   python -m pytest ../LEAD_PROBES/test_lead_oracle_missing_verifier.py \
+     ../LEAD_PROBES/test_lead_oracle_authoritative_scope.py -q
+   Result: 7 passed.
+
+3. CI control step (additive permanent controls)
+   Command:
+   python -m pytest tests/test_oracle_registry_verification_gap.py \
+     tests/test_oracle_effect_families.py \
+     tests/test_oracle_connected_mutations.py \
+     tests/test_assignment_executor.py \
+     tests/integration/journeys/test_oracle_registry_mutation_journey.py \
+     -q --tb=short --timeout=300 --timeout-method=thread
+   Result: 185 passed (predecessor 166 + 19 new tracked malformed/clean
+   controls).
+
+4. Original 173 root gate as a subset
+   The original 173 = 7 supplied probes + 166 focused controls still pass.
+   Successor combined selection = 7 + 185 + 4 malformed probes = 196 passed.
+
+5. Affected 20-file cluster
+   Command: 20 affected backend files (action registry, oracle/effect families,
+   assignment executor/routes, employee work requests, Brennan connected
+   effects, write-zero claims, mini-app tooling/harness, direct canvas oracle).
+   Result: 761 passed, 9 pre-existing unrelated failures (same IDs recorded in
+   the predecessor baseline; unchanged code paths). The two mini-app harness
+   failures from the predecessor baseline no longer fail because the merge
+   includes origin/main's harness repair. See baseline-unrelated-failures.txt.
+
+6. Registry/verifier snapshot at qualified source
+   Command:
+   TESTING=1 PYTHONPATH=backend python \
+     scripts/acceptance/oracle_mutation_surface_inventory.py --registry-only \
+     --source b0a1f538afaf98abb1b1b4f90aa091bcfea9d3ab \
+     --out <scratch>/inventory
+   Result: 90 actions; 26 declared mutations (15 covered, 11 explicitly
+   uncovered); 0 undeclared; 1 plan-output validator covered. Unchanged from
+   the predecessor; not a whole-app completion claim.
+
+Merge note: `origin/main` `8a577f14a` merged additively with no conflict;
+`.github/workflows/ci.yml` retains both the shared ORACLE registry step and the
+incoming MINI-03/MINI-04 steps.
+
+Path sanitization: repository path -> `<repo>`; scratch root -> `<scratch>`.
+No credentials, private outputs or live data are included.

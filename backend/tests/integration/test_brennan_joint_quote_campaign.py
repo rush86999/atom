@@ -157,6 +157,20 @@ def test_executor_adapter_preserves_connected_action_outcome():
                              description="controlled outcome",
                              effects=[{"effect": "record_created"}])
 
+    async def verify_outcome(ctx):
+        from core.oracle import OracleResult
+
+        return OracleResult(
+            name,
+            ctx.get("action_result") == "applied"
+            and bool(ctx.get("remote_id")),
+            "controlled applied readback",
+        )
+
+    from core.oracle import register_postcondition
+
+    register_postcondition(name)(verify_outcome)
+
     async def run(outcome):
         return await _action_registry_adapter(
             {"action": name, "arguments": {"outcome": outcome}},
