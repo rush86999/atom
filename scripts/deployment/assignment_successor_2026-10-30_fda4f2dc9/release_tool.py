@@ -41,6 +41,12 @@ from release_identity import (  # noqa: E402
     sha256_file,
     sha256_tree,
 )
+from restore_support import (  # noqa: E402
+    BackupConfigError,
+    RestoreRefused,
+    resolve_backup_sources,
+    restore_backup,
+)
 
 
 def now() -> str:
@@ -411,14 +417,17 @@ def cmd_approval_check(args) -> int:
 def cmd_backup(args) -> int:
     root = Path(args.root).resolve()
     env = runtime_env(root)
-    data = Path(env["ATOM_DATA_DIR"])
+    try:
+        resolved = resolve_backup_sources(env, bool(args.include_memory))
+    except BackupConfigError as exc:
+        raise SystemExit(f"REFUSED: {exc}")
+    data = Path(resolved["data_root"])
+    roots = resolved["roots"]
+    db_src = Path(resolved["database"])
     out_root = Path(args.out_dir) if args.out_dir else root / "backups"
     label = args.label or "release"
     out = out_root / f"{label}-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
     out.mkdir(parents=True, exist_ok=False)
-    db_src = data / "atom.db"
-    if not db_src.is_file():
-        raise SystemExit(f"REFUSED: missing {db_src}")
     src = sqlite3.connect(f"file:{db_src}?mode=ro", uri=True)
     dst = sqlite3.connect(out / "atom.db")
     try:
@@ -442,13 +451,18 @@ def cmd_backup(args) -> int:
     if not integrity_ok:
         raise SystemExit("REFUSED: backup sqlite integrity_check failed")
     for name in ("office", "sheet_datasets", "email_attachments"):
-        src_dir = data / name
-        if src_dir.is_dir():
+        info = roots[name]
+        src_dir = Path(info["source"])
+        if info.get("included") and src_dir.is_dir():
             shutil.copytree(src_dir, out / name, symlinks=False)
     if args.include_memory:
-        src_dir = data / "atom_memory"
-        if src_dir.is_dir():
-            shutil.copytree(src_dir, out / "atom_memory", symlinks=False)
+        info = roots["atom_memory"]
+        src_dir = Path(info["source"])
+        if not info.get("included") or not src_dir.is_dir():
+            raise SystemExit(
+                "REFUSED: --include-memory requested but the resolved memory "
+                "store is missing or unsupported")
+        shutil.copytree(src_dir, out / "atom_memory", symlinks=False)
     for name in ("byok_config.json", "byok_keys.json", "byok_encryption_key"):
         src_file = data / name
         if src_file.is_file():
@@ -480,12 +494,36 @@ def cmd_backup(args) -> int:
             "atom_memory excluded by default because it is large; pass "
             "--include-memory when a full vector-store snapshot is required"
         ),
+        "database": roots["database"],
+        "store_roots": roots,
         "files": files,
         "newer_user_data_preserved": True,
     }
     atomic_write_json(out / "BACKUP_MANIFEST.json", manifest)
     print(json.dumps({"ok": True, "backup": str(out), "manifest": manifest}, indent=2))
     return 0
+
+
+def cmd_restore(args) -> int:
+    root = Path(args.root).resolve()
+    env = runtime_env(root)
+    try:
+        result = restore_backup(
+            backup_arg=args.backup,
+            target_arg=args.target_data_dir,
+            env=env,
+        )
+    except RestoreRefused as exc:
+        print(json.dumps({
+            "ok": False, "status": "refused", "error": str(exc),
+        }, indent=2))
+        return 2
+    print(json.dumps(result, indent=2))
+    if result.get("status") == "verified":
+        return 0
+    if result.get("status") == "committed_unverified":
+        return 3
+    return 2
 
 
 def wait_health(base: str, expected_commit: str, timeout: float = 120.0) -> dict:
@@ -797,6 +835,12 @@ def main() -> None:
     p.add_argument("--label")
     p.add_argument("--include-memory", action="store_true")
     p.set_defaults(func=cmd_backup)
+    p = sub.add_parser("restore")
+    p.add_argument("--backup", required=True,
+                   help="backup directory or BACKUP_MANIFEST.json")
+    p.add_argument("--target-data-dir", required=True,
+                   help="explicit empty target data directory")
+    p.set_defaults(func=cmd_restore)
     p = sub.add_parser("status")
     p.set_defaults(func=cmd_status)
     p = sub.add_parser("rollback")

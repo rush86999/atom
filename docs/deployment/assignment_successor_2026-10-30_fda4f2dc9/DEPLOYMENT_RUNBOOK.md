@@ -272,3 +272,69 @@ Deployment is blocked only on owner authorization. The precise action is:
 
 No Zoho repair, model change, real email send, source writeback or deployment is
 performed by this package.
+
+## Local backup and isolated restore
+
+The release kit owns the local SQLite backup contract. `backup` remains the
+only producer of `BACKUP_MANIFEST.json` (schema
+`atom-assignment-release-backup-1`) and `restore` is its manifest consumer.
+
+### Backup
+
+```bash
+python .../release_tool.py --root <release-root> backup --label predeploy
+# optional full memory snapshot
+python .../release_tool.py --root <release-root> backup --label predeploy --include-memory
+```
+
+The backup resolves `DATABASE_URL`, `ATOM_DATA_DIR`, `ATOM_OFFICE_DIR`,
+`ATOM_EMAIL_ATTACHMENT_DIR` and `LANCEDB_URI` before copying. It refuses an
+ambiguous `DATABASE_URL`/`ATOM_DATA_DIR` pair, a missing explicitly configured
+store, and a non-local memory store when `--include-memory` is requested. The
+manifest records the resolved `store_roots` (source provenance) and copies
+managed office/sheet/email stores into canonical backup paths even when the
+source roots live outside `ATOM_DATA_DIR`. A backup never silently omits a
+declared managed store.
+
+The SQLite copy uses the SQLite backup API (consistent, includes committed WAL)
+and verifies integrity plus row counts. Source WAL/SHM files are never copied
+as the restore authority.
+
+### Restore
+
+```bash
+python .../release_tool.py --root <release-root> restore \
+  --backup <backup-dir-or-BACKUP_MANIFEST.json> \
+  --target-data-dir <explicit-empty-target>
+```
+
+`restore` requires both arguments and refuses:
+
+- the live configured data/store root, `source == target`, or overlapping paths;
+- an existing/non-empty target, an existing target `atom.db`, or a target
+  symlink;
+- an unknown manifest schema, missing/duplicate/colliding/escaping paths,
+  symlink/hardlink entries, byte/SHA-256 mismatch, or a corrupt/truncated
+  database;
+- a manifest that declares memory included but contains no memory files, or
+  declares it excluded but includes memory files.
+
+It verifies every manifest entry before copying, restores the DB through the
+SQLite backup API into an owned staging directory, verifies copied bytes and
+DB integrity/row counts again, rewrites only current managed path bindings
+(dataset parquet paths, optional document file paths, assignment operational
+paths, current Canvas office bindings and the latest content-bearing
+CanvasAudit row) from the manifest's source provenance to the target, then
+publishes with an atomic rename. Concurrent target creation is refused by an
+exclusive claim file and a final target check. Failure before publish leaves
+the target untouched; failure after publish returns `committed_unverified` and
+is never blindly repeated.
+
+`memory_included: false` means no search/recall claim; the result reports
+`memory_restored: false`. When memory is included, the backup/restore copies
+the LanceDB files and a separate app-level readback must open the restored
+store. Credential/config files are published mode 0600 and are never printed.
+
+Code rollback remains deliberately separate: `rollback` flips code symlinks and
+reports `database_restored: false`, `user_data_preserved: true`. It is not a
+data restore.
