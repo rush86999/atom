@@ -1,0 +1,54 @@
+{
+  "kind": "browser_agent_source_answer_preparation",
+  "status": "prepared_not_launched",
+  "prepared_source": "929979f4a4a279668020118b613d4f2eaafe0dd2",
+  "prepared_branch": "codex/generic-source-answer-20261107",
+  "source_branch_frozen": "7d38d2ac946ca8b4470bde8edd72ed00ef49497d",
+  "driver": "scripts/acceptance/browser_agent_source_answer.py",
+  "driver_sha256": "6a55e5118db306a29c0a313e47776d0a396ccc7a40c97b1b2f5d3938eb099004",
+  "fixture_sha256": "a0411ef62b815cf793f768b992756283d53c7a7ce4ba40349eb713c846c259a0",
+  "typescript_noemit": {
+    "raw_exit": 0,
+    "source_clean": true,
+    "install": false,
+    "npx_fetch": false
+  },
+  "preflight": {
+    "ok": true,
+    "response_count": 3,
+    "source_marker": "UI-SOURCE-AUTH-7F3C"
+  },
+  "prepared_tests": {
+    "passed": 23,
+    "exit": 0
+  },
+  "root_gate": {
+    "source": "0509877ed20101b4e3e1e1123d1d54000e5fe7f2",
+    "exit": 0,
+    "passed": 22
+  },
+  "post_gate_probe": {
+    "source": "1ac32d01530f2ac33f44cfd071d386873dcaab1b",
+    "failed": 4,
+    "passed": 0,
+    "fields": [
+      "workspace_id",
+      "tenant_id",
+      "user_id",
+      "params"
+    ],
+    "backend_modified": false
+  },
+  "world_launched": false,
+  "browser_launched": false,
+  "model_or_provider_launched": false,
+  "dependency_install": false,
+  "npx_fetch": false,
+  "live_actions": false,
+  "remaining": [
+    "root resolves/coordinates the post-gate scope/params probe",
+    "root runs and reviews the single ordinary UI episode"
+  ],
+  "task_wait_01": "open",
+  "self_acceptance": false
+}

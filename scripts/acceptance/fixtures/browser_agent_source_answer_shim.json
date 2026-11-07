@@ -1,0 +1,57 @@
+{
+  "_label": "SIMULATED MODEL DECISIONS / CONTROLLED TRANSPORT. Authored provider completions for the isolated loopback shim. Not served-model output; not a general-judgment claim.",
+  "_protocol": "OpenAI-compatible tool_call envelope consumed by instructor TOOLS mode through LLMService.generate_structured(response_model=ReActStep).",
+  "default": "SIMULATED CONTROL TRANSPORT: no authored ReAct completion matched this request. This text must not be read as a completed job or a served-model decision.",
+  "responses": [
+    {
+      "match": "oracle_verified",
+      "response": {
+        "tool": "ReActStep",
+        "tool_call": {
+          "name": "ReActStep",
+          "arguments": {
+            "thought": "The registered tasks.create result is present in the execution history and the default oracle marked it verified.",
+            "final_answer": "Created the closing task from the authorized source."
+          }
+        }
+      }
+    },
+    {
+      "match": "UI-SOURCE-AUTH-7F3C",
+      "response": {
+        "tool": "ReActStep",
+        "tool_call": {
+          "name": "ReActStep",
+          "arguments": {
+            "thought": "The authorized source content is present in the same execution history. Create the task with the registered action.",
+            "action": {
+              "tool": "tasks.create",
+              "params": {
+                "board_id": "__BOARD_ID__",
+                "column_id": "__COLUMN_ID__",
+                "title": "__SOURCE_TASK_TITLE__",
+                "status": "backlog"
+              }
+            }
+          }
+        }
+      }
+    },
+    {
+      "response": {
+        "tool": "ReActStep",
+        "tool_call": {
+          "name": "ReActStep",
+          "arguments": {
+            "thought": "No authorized source or verified action result is present yet. Ask for the authorized source before creating anything.",
+            "information_wait": {
+              "question": "Which authorized source should be used?",
+              "missing_fact": "authorized source",
+              "subject": "closing task"
+            }
+          }
+        }
+      }
+    }
+  ]
+}

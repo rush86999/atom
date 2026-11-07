@@ -1,0 +1,25 @@
+{
+  "kind": "post_gate_probe_finding",
+  "observed_source": "1ac32d01530f2ac33f44cfd071d386873dcaab1b",
+  "test": "backend/tests/test_lead_generic_source_scope_cas.py",
+  "command": [
+    "pytest",
+    "tests/test_lead_generic_source_scope_cas.py",
+    "-q",
+    "--tb=short"
+  ],
+  "raw_exit": 1,
+  "failed": 4,
+  "passed": 0,
+  "failed_fields": [
+    "workspace_id",
+    "tenant_id",
+    "user_id",
+    "params"
+  ],
+  "raw_log": "post-gate-scope-cas-fail.log",
+  "raw_log_sha256": "b8f0def456e1783e8945a41a277787884f5a0417315a6aa0cf76db663e27eed7",
+  "runtime_or_test_diff": [],
+  "backend_modified_for_preparation": false,
+  "note": "Probe added after the root gate; it exposes a real scope/params claim defect. Per instruction only TypeScript defects were repaired. Root must resolve or coordinate this API-gate failure before the UI episode."
+}
