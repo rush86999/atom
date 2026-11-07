@@ -2,6 +2,14 @@
 
 This dated checkpoint supersedes operational queue rows in the November6 directive. Re-resolve current remote heads and ownership before acting. It records current progress, not whole-app acceptance. The product is single tenant with supported user/role/workspace safeguards. Historical 111/123, planner 5/5, goal router 1/2 and alignment gap 3.0 remain unchanged.
 
+## Current execution snapshot (resolve remote heads before acting)
+
+- Main is now PR720 mergee26b5a332; its tree equals the reviewed2e95a94cf. PR719 foundation8cbc99cc9 post-mergeCI/Docker are green. Older sections below preserve source history rather than active assignments.
+- Root source-answer PR721 preserves the74-backend/9-component controlled proof and explicitly leaves actualprocess/no-owner-replay recovery open. Its current head must requalify after this main integration; no hosted green is inherited.
+- Agent1 nativeCLI owns the reproduced board-owner API/service boundary. Agent2 nativeCLI owns actualprocess automatic recovery of accepted information. Both continue without waiting for hostedCI; observers are model-free.
+- Root real MCP/governance probing found a configured hard-stop budget bypass (workspace id used as account id): two valid/denied twins pass and the budget negative fails. The bounded existing-governance repair is sourcea5cabd207;31 final budget-mode/real-MCP controls pass at89c75f061, with the same one known baseline governance failure in the broader comparison. It is not yet merged or a general budget/financial assurance.
+- Full app completion, general adaptive judgment, actualprocess TASK-WAIT-01 recovery and broader runtime/provider/guest/operations claims remain unproven. Historical scores and accepted evidence identities stay unchanged.
+
 ## Delivered since the older guide
 
 - PR697/700/704 Documents/Settings/Assignments deferred UI integration merged through b2faf066b. PR699 Agents gates were already merged. Deferred capabilities stay deferred; no broken substitute link is offered.
@@ -108,6 +116,16 @@ Runtime/tests are identical; only a disclosed synthetic revision-digest log
 derivative and its evidence metadata changed. Full original source refs and
 negative results remain preserved. Exact-head hosted checks still gate merge.
 Both implementation successors continue while this publishing repair runs.
+
+## Independent review checkpoint: joint foundation and automatic input continuation
+
+PR719 merged as8cbc99cc9 after exact-head eight green checks; merged tree equals6da9f3d2d. This closes only the reviewed host-writer and truthful AgentJob caller foundations, not whole-app ORACLE or TASK-WAIT-01.
+
+Normal Generic registered-request bridge source60d3b71de independently passed271 prior controls but two new reconciliation-persistence probes failed: effect readback was reported as success despite a failed/losing durable claim update. Root correctionba852d86d requires a committed payload-bound CAS. Integrated source3ad595693 passes361 controls, actualexit0; original negatives and original source packets remain preserved. Hosted final-head checks remain required.
+
+Targeted assignment source-answer continuation6d08b1c4b/evidenced874e1872 independently passes74 route controls plus9 AssignmentPanel tests;13 packet hashes match Git. Its restart test rebuilds an executor in the same process and explicitly resends the source. That is replay/session evidence, not actual process restart or automatic recovery of accepted input without another owner request. Agent2 is now implementing that finite process-recovery successor. The broader TASK-WAIT-01 goal stays open.
+
+Agent1 is active on the reproduced board-owner API/service boundary (hidden peer board still accepts a guessed-id column write). Core boards remain deferred; no force-enablement or UI acceptance is implied. Native CLI workers continue while model-free observers own hosted CI. No live-provider, credential, guest, send/spend or deployment authority is expanded.
 
 ## TASK-WAIT-01 targeted source-route checkpoint
 

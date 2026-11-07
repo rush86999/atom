@@ -1,0 +1,43 @@
+{
+  "schema": "atom-generic-request-binding-evidence-1",
+  "work_order": "CLI_WORK_ORDER.md — normal registered-request verification context",
+  "agent": "Agent 1 successor (isolated worktree)",
+  "branch": "codex/generic-request-context-20261107",
+  "base_source": "fbe7a597585c",
+  "qualified_source": "60d3b71de85c98e73a4ef43b5f8b565974f5157e",
+  "interpreter": "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+  "python_version": "3.14",
+  "environment": {
+    "TESTING": "1",
+    "ATOM_ORACLE_ENFORCE": "true",
+    "ATOM_ORACLE_VERIFIER_ENABLED": "true",
+    "DATABASE_URL": "sqlite:////private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/generic-binding-final3-1794034593/db/atom.db",
+    "pytest_basetemp": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/generic-binding-final3-1794034593/bt",
+    "fresh_scratch": true
+  },
+  "final_gate": {
+    "command": "python -m pytest -p no:cacheprovider --basetemp=<scratch>/bt <probe copy> tests/test_generic_request_expectations.py tests/test_generic_oracle_mutation_contract.py tests/test_oracle_mini_app_host_mutations.py tests/test_presentation_binding_controls.py tests/test_assignment_executor.py tests/test_oracle_connected_mutations.py tests/test_oracle_registry_verification_gap.py tests/test_employee_work_requests.py tests/test_oracle_canvas_postcondition.py -q",
+    "result": "271 passed",
+    "exit_code": 0,
+    "log": "final-gate.log"
+  },
+  "supplied_probe": {
+    "original_path": "/private/tmp/test_lead_generic_mini_request_binding.py",
+    "copy_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/generic-binding-final3-1794034593/test_generic_mini_request_binding.py",
+    "copy_difference": "scratch output path only; assertions and test body unchanged",
+    "before_fix": "1 failed (Generic), 1 passed (Assignment) at fbe7a5975",
+    "after_fix": "2 passed"
+  },
+  "known_preexisting_failure": {
+    "test": "tests/test_covpush_w36_oracle_vfs.py::TestTaskVerifier::test_task_exists",
+    "reason": "stale SimpleNamespace(id=...) fixture lacks title/board_id; the unchanged verifier reads them for evidence",
+    "caused_by_this_change": false,
+    "log": "known-preexisting-failure.log"
+  },
+  "limits": [
+    "No model/provider/guest microVM/sandbox invocation.",
+    "No credentials, spend, send or deployment.",
+    "Governance is explicitly bypassed with pre_approved=True in the controlled consumer probes.",
+    "This does not qualify end-to-end ordinary user/model behavior."
+  ]
+}

@@ -180,6 +180,8 @@ jobs:
             tests/test_oracle_connected_mutations.py \
             tests/test_assignment_executor.py \
             tests/test_generic_oracle_mutation_contract.py \
+            tests/test_generic_request_expectations.py \
+            tests/test_generic_reconcile_commit_contract.py \
             tests/test_generic_normal_retry_identity.py \
             tests/test_oracle_mini_app_host_mutations.py \
             tests/test_agent_run_outcome_join_contract.py \
