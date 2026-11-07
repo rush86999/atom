@@ -162,7 +162,10 @@ describe("AgentsDashboard", () => {
     global.fetch = mockFetch;
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    // Drain page-owned effects while the controlled fetch is still installed.
+    // Restoring it first lets a delayed graduation request escape into MSW.
+    await act(async () => { await Promise.resolve(); });
     global.fetch = originalFetch;
   });
 
