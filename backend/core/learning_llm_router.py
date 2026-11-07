@@ -1839,11 +1839,11 @@ class LearningBasedRouter:
             if business_binding:
                 for key, expected in binding:
                     predicates.append(
-                        LLMRoutingFeedback.prompt_features[key].astext
+                        LLMRoutingFeedback.prompt_features[key].as_string()
                         == str(expected or ""))
             predicates.append(func.coalesce(
                 LLMRoutingFeedback.prompt_features[
-                    "evaluation_revision"].astext.cast(Integer), 0)
+                    "evaluation_revision"].as_string().cast(Integer), 0)
                 == LearningBasedRouter._evaluation_revision(stored))
             return predicates
         return None
