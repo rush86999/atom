@@ -52,3 +52,8 @@ Owner decisions required: code-owner review/merge, disk headroom, Linux/KVM, rea
 ## Remote/commit
 
 Remote reads were performed with `git fetch`/`git show` and `gh pr view`/`gh pr checks` only. The exact pushed head is the branch tip reported by the root after this docs commit; no CI wait, merge, review approval or runtime work was performed.
+
+
+## Root follow-through 2026-11-07T23:32:23.388706+00:00
+
+Current root reconciliation is now the leading overlay in the audit, state and directive, with machine-readable lead_post_cut_update. Initial audit counts and historical source cuts remain preserved. Source/Goal UI and normal child restore are demonstrated only at their stated controlled scopes. PR759 all8green/review-required; PR760 CIpending. ORACLE static counts independently reproduced; current canvas negative preserved, native repair active. No denominator/rescore or whole-app completion.

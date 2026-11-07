@@ -815,7 +815,7 @@
           "scope": "Current registry/coverage inputs; registration coverage is not whole-app runtime coverage."
         }
       ],
-      "gap": "Whole-app promise is not established. The inventory recorded 827 mutating HTTP routes, 366 high-risk names/paths and 311 provider-adapter write methods unqualified, and has not been rebased after later merged families. Merged scoped families and green CI do not equal whole-app ORACLE coverage.",
+      "gap": "Whole-app promise remains open. Rebased static main inventory counts 836 mutating decorator declarations,371 high-risk names/paths,311 provider-adapter write methods; these are discovery counts, not all unqualified routes nor runtime reachability. Controlled registry coverage is separate. Four current-scope delete/undelete negative cases are confirmed; repair active. Merged finite families do not prove universal coverage.",
       "owner": "Agent2 / root verifier",
       "next_work_order": "WO-ORACLE-02"
     },
@@ -5183,11 +5183,57 @@
     "not_run": "No pytest, browser, server, installer, dependency download, live DB, account, credential, send, spend, deploy, merge, review comment or model inference."
   },
   "lead_post_cut_update": {
-    "at": "2026-11-07T22:10:36.908479+00:00",
-    "inventory_validation": "143 exact unique IDs equal canonical inventory; six input blobs match declared main;123functional+20separate; no rescore",
-    "source_ui": "f179 root30stages195assertions passed, evidence367daad91 PR759draft; reuse matching relevant blobs, no commit-only replay",
-    "goal_ui": "367 ordinary run preserved failed: late member onboarding overlay blocked click after target/ranking/reload passed. Harness-only5145 waits authoritative onboarding +realUI+durable status, six controls pass; fresh root run pending. No product/UI completion claim.",
-    "restore": "4bae/c795 withheld: new audit tenant recertification negative failed. Permanent abad tests and cd4 negative packet pushed, A2 scope repair active. Five effective binding/history controls passed, old wrapper TypeError false-pass explained, public child restart still open.",
-    "parallelism": "Owner review blocks protected merge only; continue independent assigned repairs/audit/preparation, no review bypass or self-approval."
+    "at": "2026-11-07T23:32:23.388706+00:00",
+    "main": "8ded00232c30961a990e675e06ec672ef6a43910",
+    "historical_scores_changed": false,
+    "source_ui": {
+      "source": "f179c73ce2bc6feae38c3641c5a11d4a8db52386",
+      "evidence": "367daad91c61d1933f8455380798fdf6528d595a",
+      "stages": 30,
+      "assertions": 195,
+      "model": "authored loopback responses; simulated decisions, not real model quality"
+    },
+    "goal_ui": {
+      "source": "5145d5eab76c3e4f5d374d39942fe2376b32cc43",
+      "evidence": "08adfd8a0",
+      "stages": 18,
+      "assertions": 107,
+      "history": "explicit synthetic analytics fixtures, not real agent work"
+    },
+    "integration": {
+      "pr": 759,
+      "head": "855208860d0d5454b80a6ce1e184a392d3853fb6",
+      "draft": false,
+      "checks": "8/8 success",
+      "review": "REVIEW_REQUIRED; no self approval or bypass",
+      "includes_pr758": true
+    },
+    "restore": {
+      "pr": 760,
+      "head": "27a1830a27e73ed30124a82d01bb710e26bc7113",
+      "runtime_repair": "22f501599331dd6a6d00009097b338599513b586",
+      "child_source": "bb60d53d6a2e3d9725a18c18b346febc64c51176",
+      "product_controls": 100,
+      "helper_controls": 20,
+      "outer_checks": 38,
+      "readback_checks": [
+        73,
+        74
+      ],
+      "checks_overlap": true,
+      "scope": "normal scratch application login/read/DOCX download and distinct-process restart; synthetic product-model fixtures; memory search excluded",
+      "manifest": "15 sources +25 artifacts strict Git pass",
+      "ci": "in progress at current readback; not inherited green"
+    },
+    "oracle": {
+      "main_static_declarations": 836,
+      "high_risk_names": 371,
+      "provider_adapter_write_methods": 311,
+      "static_inventory_runtime_qualification": false,
+      "canvas_scope": "4 expected-refusal assertions failed: real mounted delete/undelete accept former coeditor after current workspace/tenant reassignment",
+      "repair": "native CLI code-only repair active on isolated main-based branch; root owns independent tests"
+    },
+    "merge_gate": "Code-owner approval required on submitted PRs; independent implementation, audit and evidence work continue.",
+    "remaining_scope": "General TASK-WAIT-01, whole-app ORACLE, live/model quality and external breadth, KVM, PostgreSQL/multi-worker/soak, performance/comparative and complete operations remain open."
   }
 }
