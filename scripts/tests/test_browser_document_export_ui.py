@@ -191,7 +191,7 @@ def test_profile_contract_refuses_full_or_search_enabled(driver):
 
 
 def test_text_payload_exact_download_passes(driver):
-    text = ("line\n" * 3000) + "FINAL-TAIL\n"
+    text = ("line\n" * 5000) + "FINAL-TAIL\n"
     doc_id = "doc_" + "d" * 24
     version = "ev4:" + "e" * 64
     proof = _proof(driver, "text", text, doc_id, version, "file.txt")
@@ -200,7 +200,7 @@ def test_text_payload_exact_download_passes(driver):
 
 
 def test_markdown_payload_exact_download_passes(driver):
-    text = ("line\n" * 3000) + "FINAL-TAIL\n"
+    text = ("line\n" * 5000) + "FINAL-TAIL\n"
     doc_id = "doc_" + "d" * 24
     version = "ev4:" + "e" * 64
     proof = _proof(driver, "markdown", text, doc_id, version, "file.txt")
@@ -208,7 +208,7 @@ def test_markdown_payload_exact_download_passes(driver):
 
 
 def test_json_payload_exact_download_passes(driver):
-    text = ("line\n" * 3000) + "FINAL-TAIL\n"
+    text = ("line\n" * 5000) + "FINAL-TAIL\n"
     doc_id = "doc_" + "d" * 24
     version = "ev4:" + "e" * 64
     proof = _proof(driver, "json", text, doc_id, version, "file.txt")
@@ -217,7 +217,7 @@ def test_json_payload_exact_download_passes(driver):
 
 
 def test_truncated_tail_fails(driver):
-    text = ("line\n" * 3000) + "FINAL-TAIL\n"
+    text = ("line\n" * 5000) + "FINAL-TAIL\n"
     truncated = text[:-200]
     doc_id = "doc_" + "d" * 24
     version = "ev4:" + "e" * 64
@@ -232,7 +232,7 @@ def test_truncated_tail_fails(driver):
 
 
 def test_wrong_document_id_fails(driver):
-    text = ("line\n" * 3000) + "FINAL-TAIL\n"
+    text = ("line\n" * 5000) + "FINAL-TAIL\n"
     doc_id = "doc_" + "d" * 24
     wrong_id = "doc_" + "f" * 24
     version = "ev4:" + "e" * 64
@@ -247,7 +247,7 @@ def test_wrong_document_id_fails(driver):
 
 
 def test_wrong_downloaded_bytes_fail(driver):
-    text = ("line\n" * 3000) + "FINAL-TAIL\n"
+    text = ("line\n" * 5000) + "FINAL-TAIL\n"
     doc_id = "doc_" + "d" * 24
     version = "ev4:" + "e" * 64
     body = text.encode("utf-8")
@@ -259,7 +259,7 @@ def test_wrong_downloaded_bytes_fail(driver):
 
 
 def test_json_source_version_mismatch_fails(driver):
-    text = ("line\n" * 3000) + "FINAL-TAIL\n"
+    text = ("line\n" * 5000) + "FINAL-TAIL\n"
     doc_id = "doc_" + "d" * 24
     version = "ev4:" + "e" * 64
     wrong = "ev4:" + "a" * 64
