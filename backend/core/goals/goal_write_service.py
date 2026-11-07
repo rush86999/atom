@@ -25,9 +25,10 @@ import logging
 import re
 import uuid
 from datetime import datetime
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any, Callable, Dict, List, Optional, Tuple
 
-from sqlalchemy import update
+from sqlalchemy import JSON as SAJSON
+from sqlalchemy import select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -323,14 +324,36 @@ def _bind_intended_scope(
 
 # ---------------------------------------------------------------- target I/O
 
-def _load_goal(
+def _load_goal_snapshot(
     db: Session, workspace_id: str, goal_id: str,
-) -> Optional[GoalObjective]:
-    with _fresh_session(db) as fresh:
-        return fresh.query(GoalObjective).filter(
+) -> Optional[Tuple[GoalObjective, bool]]:
+    """Load the goal and its physical SQL-NULL metadata state in one SELECT.
+
+    ORM deserialization maps both a physical SQL NULL and a stored JSON null
+    (``'null'``) to Python ``None``. A value-only read, or a flag read in a
+    second statement, therefore cannot tell them apart and would let the CAS
+    compare the wrong physical material. The flag is selected alongside the
+    row here so the goal material, its exact nullable kind and the CAS
+    predicate all come from the same snapshot.
+    """
+    statement = (
+        select(
+            GoalObjective,
+            GoalObjective.metadata_json.is_(None).label(
+                "metadata_is_sql_null"),
+        )
+        .where(
             GoalObjective.id == str(goal_id),
             GoalObjective.workspace_id == str(workspace_id),
-        ).populate_existing().first()
+        )
+        .execution_options(populate_existing=True)
+    )
+    with _fresh_session(db) as fresh:
+        row = fresh.execute(statement).first()
+    if row is None:
+        return None
+    goal = row[0]
+    return goal, bool(row[1])
 
 
 def _goal_dict(goal: GoalObjective) -> Dict[str, Any]:
@@ -361,46 +384,79 @@ def _goal_utility_data(goal: GoalObjective) -> Dict[str, Any]:
     }
 
 
-def _metadata_material(metadata: Optional[Dict[str, Any]]) -> Dict[str, Any]:
-    """Distinguish JSON null / SQL NULL from an empty object.
+def _metadata_material(
+    metadata: Optional[Dict[str, Any]], *, sql_null: bool = False,
+) -> Dict[str, Any]:
+    """Distinguish SQL NULL / JSON null / empty object material.
 
-    ``None`` and ``{}`` are different stored material: a CAS that treated
-    them as interchangeable would either false-conflict an unchanged null row
-    or silently overwrite a peer's null/empty transition.
+    A physical SQL NULL and a stored JSON null both deserialize to ``None``.
+    They are different stored material: a CAS that treated them as
+    interchangeable would false-conflict an unchanged JSON-null row (its
+    ``IS NULL`` predicate matches nothing) or silently overwrite a peer's
+    null-to-empty-object transition. Object material keeps its original
+    representation so receipts written before this distinction still replay;
+    null material names its exact physical kind.
     """
+    if sql_null:
+        return {"present": False, "null_kind": "sql_null"}
     if metadata is None:
-        return {"present": False}
+        return {"present": False, "null_kind": "json_null"}
     return {"present": True, "value": metadata}
 
 
-def _metadata_digest(metadata: Optional[Dict[str, Any]]) -> str:
-    return _fingerprint("goal-metadata", _canonical(_metadata_material(metadata)))
+def _metadata_digest(
+    metadata: Optional[Dict[str, Any]], *, sql_null: bool = False,
+) -> str:
+    return _fingerprint(
+        "goal-metadata",
+        _canonical(_metadata_material(metadata, sql_null=sql_null)))
 
 
-def _utility_state_digest(goal: GoalObjective) -> str:
-    return _metadata_digest(goal.metadata_json)
+def _utility_state_digest(
+    goal: GoalObjective, *, sql_null: bool = False,
+) -> str:
+    return _metadata_digest(goal.metadata_json, sql_null=sql_null)
 
 
-def _metadata_cas_condition(prior_metadata: Optional[Dict[str, Any]]):
-    """The exact prior material to compare, including a null row."""
-    if prior_metadata is None:
+def _metadata_cas_condition(
+    prior_metadata: Optional[Dict[str, Any]], *, sql_null: bool = False,
+):
+    """The exact prior material to compare, including both null kinds."""
+    if sql_null:
         return GoalObjective.metadata_json.is_(None)
+    if prior_metadata is None:
+        # A JSON null is stored as JSON text, not SQL NULL. ``IS NULL`` would
+        # match zero rows and falsely report a stale target for unchanged
+        # material; compare against SQLAlchemy's JSON-null sentinel instead.
+        return GoalObjective.metadata_json == SAJSON.NULL
     return GoalObjective.metadata_json == prior_metadata
 
 
-def _read_prior_metadata(goal: GoalObjective) -> Any:
-    """Return the stored metadata value (``None`` stays ``None``)."""
+def _read_prior_metadata(
+    goal: GoalObjective, *, sql_null: bool = False,
+) -> Any:
+    """Return the stored metadata value with its physical-null kind.
+
+    ``None`` is valid for both SQL NULL and JSON null; callers carry the
+    ``sql_null`` flag separately and must never normalize one into the other.
+    """
+    if sql_null:
+        return None
     return goal.metadata_json
 
 
-def _replay_target_digest(action: str, goal: GoalObjective) -> str:
+def _replay_target_digest(
+    action: str, goal: GoalObjective, *, sql_null: bool = False,
+) -> str:
     """The material digest the operation's receipt was written against."""
     if str(action) == _ACTION_CREATE:
-        return _goal_material_digest(goal)
-    return _utility_state_digest(goal)
+        return _goal_material_digest(goal, sql_null=sql_null)
+    return _utility_state_digest(goal, sql_null=sql_null)
 
 
-def _goal_material_digest(goal: GoalObjective) -> str:
+def _goal_material_digest(
+    goal: GoalObjective, *, sql_null: bool = False,
+) -> str:
     material = {
         "id": str(goal.id),
         "workspace_id": str(goal.workspace_id or ""),
@@ -420,6 +476,12 @@ def _goal_material_digest(goal: GoalObjective) -> str:
         "target_date": (
             goal.target_date.isoformat() if goal.target_date else None),
     }
+    if sql_null or goal.metadata_json is None:
+        # Object material keeps its original shape (and therefore its
+        # existing digest); null material records its exact physical kind so
+        # SQL NULL, JSON null and {} never share a result/replay digest.
+        material["metadata_kind"] = (
+            "sql_null" if sql_null else "json_null")
     return _fingerprint("goal-material", _canonical(material))
 
 
@@ -574,14 +636,16 @@ def _replay(
                     code="OPERATION_CONFLICT")
             audit_expected = _expected_from_metadata(metadata)
             audit_state = _verify_audit(db, audit_expected)
-            current = _load_goal(
+            snapshot = _load_goal_snapshot(
                 db,
                 str(audit_expected["target_workspace_id"] or ""),
                 str(audit_expected["target_id"] or ""))
+            current = snapshot[0] if snapshot is not None else None
+            current_is_null = snapshot[1] if snapshot is not None else False
             target_ok = (
                 current is not None
                 and _replay_target_digest(
-                    expected["action"], current)
+                    expected["action"], current, sql_null=current_is_null)
                 == audit_expected["result_digest"]
             )
             data = (
@@ -799,9 +863,11 @@ def create_goal(
     return _commit_and_verify(
         db, expected=expected, audit_row=audit_row,
         target_check=lambda: (
-            (now := _load_goal(
+            (snapshot := _load_goal_snapshot(
                 db, authority["workspace_id"], goal_id)) is not None
-            and _goal_material_digest(now) == expected["result_digest"]),
+            and _goal_material_digest(
+                snapshot[0], sql_null=snapshot[1])
+            == expected["result_digest"]),
         success_data=success_data(goal), operation_id=operation_id)
 
 
@@ -859,12 +925,14 @@ def set_utility_target(
     if replay is not None:
         return replay
 
-    goal = _load_goal(db, authority["workspace_id"], goal_id)
-    if goal is None:
+    snapshot = _load_goal_snapshot(db, authority["workspace_id"], goal_id)
+    if snapshot is None:
         return _refused(
             f"goal {goal_id} not found", http_status=404,
             error_code="NOT_FOUND")
-    prior_metadata = _read_prior_metadata(goal)
+    goal, metadata_is_sql_null = snapshot
+    prior_metadata = _read_prior_metadata(
+        goal, sql_null=metadata_is_sql_null)
     if prior_metadata is not None and not isinstance(prior_metadata, dict):
         return _conflict(
             "goal metadata is unreadable; refresh and retry",
@@ -879,7 +947,8 @@ def set_utility_target(
     result_metadata = (
         dict(prior_metadata) if isinstance(prior_metadata, dict) else {})
     result_metadata["utility_target"] = normalized
-    prior_digest = _metadata_digest(prior_metadata)
+    prior_digest = _metadata_digest(
+        prior_metadata, sql_null=metadata_is_sql_null)
     result_digest = _metadata_digest(result_metadata)
     expected = _audit_expected(
         operation_id=operation_id, action=_ACTION_UTILITY_SET,
@@ -900,7 +969,8 @@ def set_utility_target(
             .where(
                 GoalObjective.id == str(goal.id),
                 GoalObjective.workspace_id == authority["workspace_id"],
-                _metadata_cas_condition(prior_metadata),
+                _metadata_cas_condition(
+                    prior_metadata, sql_null=metadata_is_sql_null),
             )
             .values(metadata_json=result_metadata))
         if updated.rowcount != 1:
@@ -931,9 +1001,10 @@ def set_utility_target(
     return _commit_and_verify(
         db, expected=expected, audit_row=audit_row,
         target_check=lambda: (
-            (now := _load_goal(
+            (snapshot := _load_goal_snapshot(
                 db, authority["workspace_id"], str(goal_id))) is not None
-            and _metadata_digest(now.metadata_json)
+            and _metadata_digest(
+                snapshot[0].metadata_json, sql_null=snapshot[1])
             == result_digest),
         success_data={"goal_id": str(goal_id),
                       "utility_target": normalized},
@@ -987,12 +1058,14 @@ def clear_utility_target(
     if replay is not None:
         return replay
 
-    goal = _load_goal(db, authority["workspace_id"], goal_id)
-    if goal is None:
+    snapshot = _load_goal_snapshot(db, authority["workspace_id"], goal_id)
+    if snapshot is None:
         return _refused(
             f"goal {goal_id} not found", http_status=404,
             error_code="NOT_FOUND")
-    prior_metadata = _read_prior_metadata(goal)
+    goal, metadata_is_sql_null = snapshot
+    prior_metadata = _read_prior_metadata(
+        goal, sql_null=metadata_is_sql_null)
     if prior_metadata is not None and not isinstance(prior_metadata, dict):
         return _conflict(
             "goal metadata is unreadable; refresh and retry",
@@ -1003,7 +1076,8 @@ def clear_utility_target(
             "The goal has no utility target to clear")
     result_metadata = dict(prior_metadata)
     result_metadata.pop("utility_target", None)
-    prior_digest = _metadata_digest(prior_metadata)
+    prior_digest = _metadata_digest(
+        prior_metadata, sql_null=metadata_is_sql_null)
     result_digest = _metadata_digest(result_metadata)
     expected = _audit_expected(
         operation_id=operation_id, action=_ACTION_UTILITY_CLEAR,
@@ -1024,7 +1098,8 @@ def clear_utility_target(
             .where(
                 GoalObjective.id == str(goal.id),
                 GoalObjective.workspace_id == authority["workspace_id"],
-                _metadata_cas_condition(prior_metadata),
+                _metadata_cas_condition(
+                    prior_metadata, sql_null=metadata_is_sql_null),
             )
             .values(metadata_json=result_metadata))
         if updated.rowcount != 1:
@@ -1055,9 +1130,10 @@ def clear_utility_target(
     return _commit_and_verify(
         db, expected=expected, audit_row=audit_row,
         target_check=lambda: (
-            (now := _load_goal(
+            (snapshot := _load_goal_snapshot(
                 db, authority["workspace_id"], str(goal_id))) is not None
-            and _metadata_digest(now.metadata_json)
+            and _metadata_digest(
+                snapshot[0].metadata_json, sql_null=snapshot[1])
             == result_digest),
         success_data={"goal_id": str(goal_id), "utility_target": None},
         operation_id=operation_id)

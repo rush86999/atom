@@ -111,6 +111,14 @@ def env(tmp_path):
             id="goal-empty", tenant_id="default", workspace_id="ws-test",
             title="Empty metadata goal", status="active", metadata_json={}),
         GoalObjective(
+            id="goal-json-null", tenant_id="default", workspace_id="ws-test",
+            title="JSON null metadata goal", status="active",
+            metadata_json={}),
+        GoalObjective(
+            id="goal-transition", tenant_id="default", workspace_id="ws-test",
+            title="Nullable transition goal", status="active",
+            metadata_json={}),
+        GoalObjective(
             id="goal-other", tenant_id="default", workspace_id="ws-other",
             title="Other workspace goal", status="active",
             metadata_json={}),
@@ -123,6 +131,12 @@ def env(tmp_path):
     seed.execute(text(
         "UPDATE goal_objectives SET metadata_json = NULL "
         "WHERE id = 'goal-null'"))
+    # A stored JSON null ('null'), physically distinct from both SQL NULL and
+    # the empty object. ORM deserialization maps it to Python None, so the
+    # write service must read the physical IS NULL flag in the same snapshot.
+    seed.execute(text(
+        "UPDATE goal_objectives SET metadata_json = 'null' "
+        "WHERE id = 'goal-json-null'"))
     seed.commit()
     seed.close()
 
@@ -193,6 +207,51 @@ def _peer_goal_change(env, goal_id, **values):
         db.commit()
     finally:
         db.close()
+
+
+_NULLABLE_METADATA_KINDS = ("sql_null", "json_null", "object")
+_NULLABLE_GOALS = {
+    "sql_null": "goal-null",
+    "json_null": "goal-json-null",
+    "object": "goal-empty",
+}
+
+
+def _physical_metadata(env, goal_id):
+    """Read the physically stored metadata kind without ORM normalization.
+
+    SQLite stores JSON null as the JSON text ``'null'``; ``IS NULL`` is only
+    true for a physical SQL NULL. This helper deliberately does not reuse the
+    service's snapshot helper so the assertions are independent of it.
+    """
+    db = env.Session()
+    try:
+        row = db.execute(text(
+            "SELECT metadata_json, (metadata_json IS NULL) "
+            "FROM goal_objectives WHERE id = :id"), {"id": goal_id}).one()
+    finally:
+        db.close()
+    raw, is_sql_null = row
+    if is_sql_null:
+        return "sql_null", None
+    if raw == "null":
+        return "json_null", None
+    return "object", json.loads(raw)
+
+
+def _set_physical_metadata(env, goal_id, kind):
+    """Commit an arbitrary physical nullable state for the transition matrix."""
+    values = {"sql_null": None, "json_null": "null", "object": "{}"}
+    db = env.Session()
+    try:
+        db.execute(
+            text("UPDATE goal_objectives SET metadata_json = :value "
+                 "WHERE id = :id"),
+            {"value": values[kind], "id": goal_id})
+        db.commit()
+    finally:
+        db.close()
+    assert _physical_metadata(env, goal_id)[0] == kind
 
 
 def _arm_after_gate(monkeypatch, change):
@@ -610,6 +669,119 @@ def test_utility_set_refuses_stale_null_metadata(env, monkeypatch):
     goal = _goal(env, "goal-null")
     assert goal.metadata_json == {"peer_note": "kept-null"}
     assert goal.progress == 42.0
+    assert _audits(env) == []
+
+
+# -------------------------------------------- nullable metadata material
+
+@pytest.mark.parametrize("kind", _NULLABLE_METADATA_KINDS)
+def test_utility_accepts_each_nullable_metadata_kind(env, kind):
+    """SQL NULL, JSON null and {} each accept an explicit new target.
+
+    The supplied root probe reproduced a 409 STALE_TARGET only for a physical
+    JSON null because the CAS mapped both null kinds to ``IS NULL``. All three
+    physical kinds are valid unchanged prior material.
+    """
+    goal_id = _NULLABLE_GOALS[kind]
+    assert _physical_metadata(env, goal_id)[0] == kind
+    client = env.client(env.actors["lead-1"])
+    operation_id = f"nullable-positive-{kind}"
+
+    response = client.put(
+        f"/api/goals/{goal_id}/utility?operation_id={operation_id}",
+        json={"metric": "steps_executed", "direction": "minimize",
+              "source": "goal_run"})
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["verification"]["status"] == "verified"
+    assert body["verification"]["effect"] == "committed"
+
+    stored_kind, stored_value = _physical_metadata(env, goal_id)
+    assert stored_kind == "object"
+    assert stored_value["utility_target"]["metric"] == "steps_executed"
+
+    replay = client.put(
+        f"/api/goals/{goal_id}/utility?operation_id={operation_id}",
+        json={"metric": "steps_executed", "direction": "minimize",
+              "source": "goal_run"})
+    assert replay.status_code == 200, replay.text
+    assert replay.json()["verification"]["status"] == "already_applied"
+    assert len(_audits(env)) == 1
+
+
+def test_nullable_metadata_kinds_have_distinct_prior_digests(env):
+    """The exact physical kind is part of the comparison material/digest."""
+    client = env.client(env.actors["lead-1"])
+    prior_digests = {}
+    for kind in _NULLABLE_METADATA_KINDS:
+        goal_id = _NULLABLE_GOALS[kind]
+        response = client.put(
+            f"/api/goals/{goal_id}/utility?operation_id=nullable-digest-{kind}",
+            json={"metric": "steps_executed", "direction": "minimize",
+                  "source": "goal_run"})
+        assert response.status_code == 200, response.text
+        audits = _audits(env, f"goal:{goal_id}")
+        assert len(audits) == 1
+        metadata = json.loads(audits[0].metadata_json)
+        prior_digests[kind] = metadata["prior_digest"]
+        assert metadata["prior_digest"] != metadata["result_digest"]
+    assert len(set(prior_digests.values())) == len(_NULLABLE_METADATA_KINDS)
+
+
+@pytest.mark.parametrize("peer_kind", _NULLABLE_METADATA_KINDS)
+@pytest.mark.parametrize("prior_kind", _NULLABLE_METADATA_KINDS)
+def test_utility_refuses_nullable_metadata_transition_after_read(
+        env, prior_kind, peer_kind):
+    """A peer transition between null/empty kinds refuses with no effect.
+
+    This includes both directions between SQL NULL and JSON null, which share
+    a Python ``None`` value but not a physical identity. The peer's exact kind
+    is preserved and a fresh request then succeeds against it.
+    """
+    if prior_kind == peer_kind:
+        pytest.skip("same-kind prior material is the positive matrix")
+
+    goal_id = "goal-transition"
+    _set_physical_metadata(env, goal_id, prior_kind)
+    _arm_after_goal_read(
+        env, lambda: _set_physical_metadata(env, goal_id, peer_kind))
+
+    client = env.client(env.actors["lead-1"])
+    response = client.put(
+        f"/api/goals/{goal_id}/utility"
+        f"?operation_id=nullable-transition-{prior_kind}-{peer_kind}",
+        json={"metric": "replan_count", "direction": "minimize",
+              "source": "goal_run"})
+    assert response.status_code == 409, response.text
+    assert response.json()["detail"]["error"]["code"] == "STALE_TARGET"
+    assert response.json()["detail"]["verification"]["effect"] == "none"
+    assert _physical_metadata(env, goal_id)[0] == peer_kind
+    assert _audits(env) == []
+
+    # Fresh read: the peer's exact material is the new prior state.
+    twin = client.put(
+        f"/api/goals/{goal_id}/utility"
+        f"?operation_id=nullable-transition-twin-{prior_kind}-{peer_kind}",
+        json={"metric": "replan_count", "direction": "minimize",
+              "source": "goal_run"})
+    assert twin.status_code == 200, twin.text
+    assert twin.json()["verification"]["status"] == "verified"
+    assert _physical_metadata(env, goal_id)[0] == "object"
+    assert len(_audits(env)) == 1
+
+
+@pytest.mark.parametrize("kind", ("sql_null", "json_null"))
+def test_utility_clear_preserves_null_metadata_kind(env, kind):
+    """Clearing with no target is a no-change; it never coerces null to {}."""
+    goal_id = _NULLABLE_GOALS[kind]
+    response = env.client(env.actors["lead-1"]).delete(
+        f"/api/goals/{goal_id}/utility?operation_id=nullable-clear-{kind}")
+    assert response.status_code == 200, response.text
+    body = response.json()
+    assert body["verification"]["status"] == "no_change"
+    assert body["verification"]["effect"] == "none"
+    assert body["utility_target"] is None
+    assert _physical_metadata(env, goal_id)[0] == kind
     assert _audits(env) == []
 
 
