@@ -1,0 +1,177 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-07 11:02:14 [    INFO] MCP Service initialized
+
+backend/tests/test_information_wait_maturity_neutral.py::test_repeated_waits_preserve_maturity_and_same_durable_execution 
+-------------------------------- live log setup --------------------------------
+2026-11-07 11:02:15 [    INFO] EscalationManager initialized
+2026-11-07 11:02:15 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 11:02:15 [    INFO] EscalationManager initialized
+2026-11-07 11:02:15 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 11:02:15 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 11:02:15 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  4%]
+backend/tests/test_information_wait_maturity_neutral.py::test_terminal_success_and_failure_still_update_maturity 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:02:17 [    INFO] Recorded outcome for terminal-success: success
+2026-11-07 11:02:17 [    INFO] Initialized global governance cache
+2026-11-07 11:02:17 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-07 11:02:17 [    INFO] Recorded outcome for terminal-failed: failure
+2026-11-07 11:02:17 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+PASSED                                                                   [  9%]
+backend/tests/test_lead_personal_information_answer.py::test_public_information_answer_uses_effective_personal_workspace[False] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:02:18 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 11:02:18 [    INFO] EscalationManager initialized
+2026-11-07 11:02:18 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 11:02:18 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 11:02:18 [    INFO] EscalationManager initialized
+2026-11-07 11:02:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 11:02:18 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 11:02:18 [    INFO] Executing Agent Agent One with ReAct Loop. Input: prepare the closing task
+2026-11-07 11:02:18 [    INFO] Agent Agent One (a1) starting task: prepare the closing task
+2026-11-07 11:02:18 [    INFO] EscalationManager initialized
+2026-11-07 11:02:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 11:02:18 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 11:02:18 [    INFO] LanceDBHandler initialized. ID: 5030624336. LANCEDB_AVAILABLE: True
+2026-11-07 11:02:18 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 11:02:18 [    INFO] Connecting to LanceDB at /private/tmp/root-browser-neutral-integrated-lance with storage_options=None
+2026-11-07 11:02:18 [    INFO] LanceDB connected successfully
+2026-11-07 11:02:18 [    INFO] EscalationManager initialized
+2026-11-07 11:02:18 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 11:02:18 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-07 11:02:18 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 1}
+2026-11-07 11:02:18 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=readback-title "HTTP/1.1 202 Accepted"
+2026-11-07 11:02:18 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 11:02:18 [    INFO] EscalationManager initialized
+2026-11-07 11:02:18 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 11:02:18 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 11:02:18 [    INFO] EscalationManager initialized
+2026-11-07 11:02:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 11:02:18 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 11:02:18 [    INFO] Executing Agent Agent One with ReAct Loop. Input: prepare the closing task
+2026-11-07 11:02:18 [    INFO] Agent Agent One (a1) starting task: prepare the closing task
+2026-11-07 11:02:18 [    INFO] EscalationManager initialized
+2026-11-07 11:02:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 11:02:18 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 11:02:18 [    INFO] LanceDBHandler initialized. ID: 5036684176. LANCEDB_AVAILABLE: True
+2026-11-07 11:02:18 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 11:02:18 [    INFO] Connecting to LanceDB at /private/tmp/root-browser-neutral-integrated-lance with storage_options=None
+2026-11-07 11:02:18 [    INFO] LanceDB connected successfully
+2026-11-07 11:02:18 [    INFO] Recorded outcome for a1: success
+2026-11-07 11:02:18 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-07 11:02:18 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 2}
+2026-11-07 11:02:18 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/jobs/7c209681-f25c-41f0-83fa-b9185f5d21fb/answer "HTTP/1.1 200 OK"
+PASSED                                                                   [ 13%]
+backend/tests/test_lead_personal_information_answer.py::test_public_information_answer_uses_effective_personal_workspace[True] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:02:19 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 11:02:19 [    INFO] EscalationManager initialized
+2026-11-07 11:02:19 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 11:02:19 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 11:02:19 [    INFO] EscalationManager initialized
+2026-11-07 11:02:19 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 11:02:19 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 11:02:19 [    INFO] Executing Agent Agent One with ReAct Loop. Input: prepare the closing task
+2026-11-07 11:02:19 [    INFO] Agent Agent One (a1) starting task: prepare the closing task
+2026-11-07 11:02:19 [    INFO] EscalationManager initialized
+2026-11-07 11:02:19 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 11:02:19 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 11:02:19 [    INFO] LanceDBHandler initialized. ID: 5036239632. LANCEDB_AVAILABLE: True
+2026-11-07 11:02:19 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 11:02:19 [    INFO] Connecting to LanceDB at /private/tmp/root-browser-neutral-integrated-lance with storage_options=None
+2026-11-07 11:02:19 [    INFO] LanceDB connected successfully
+2026-11-07 11:02:19 [    INFO] EscalationManager initialized
+2026-11-07 11:02:19 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 11:02:19 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-07 11:02:19 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 3}
+2026-11-07 11:02:19 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=readback-title "HTTP/1.1 202 Accepted"
+2026-11-07 11:02:20 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 11:02:20 [    INFO] EscalationManager initialized
+2026-11-07 11:02:20 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 11:02:20 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 11:02:20 [    INFO] EscalationManager initialized
+2026-11-07 11:02:20 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 11:02:20 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 11:02:20 [    INFO] Executing Agent Agent One with ReAct Loop. Input: prepare the closing task
+2026-11-07 11:02:20 [    INFO] Agent Agent One (a1) starting task: prepare the closing task
+2026-11-07 11:02:20 [    INFO] EscalationManager initialized
+2026-11-07 11:02:20 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 11:02:20 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 11:02:20 [    INFO] LanceDBHandler initialized. ID: 5039147472. LANCEDB_AVAILABLE: True
+2026-11-07 11:02:20 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 11:02:20 [    INFO] Connecting to LanceDB at /private/tmp/root-browser-neutral-integrated-lance with storage_options=None
+2026-11-07 11:02:20 [    INFO] LanceDB connected successfully
+2026-11-07 11:02:20 [    INFO] Recorded outcome for a1: success
+2026-11-07 11:02:20 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-07 11:02:20 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-07 11:02:20 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 4}
+2026-11-07 11:02:20 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/jobs/5be8e9c7-f2e4-4dab-abb7-69cea25d6af8/answer "HTTP/1.1 200 OK"
+PASSED                                                                   [ 18%]
+backend::test_frontend_cwd_none_is_not_certified PASSED                  [ 22%]
+backend::test_frontend_cwd_wrong_tree_is_not_certified PASSED            [ 27%]
+backend::test_frontend_cwd_exact_isolated_path_is_certified PASSED       [ 31%]
+backend::test_valid_actual_git_blob_twin_is_certified PASSED             [ 36%]
+backend::test_consistent_but_wrong_export_does_not_certify PASSED        [ 40%]
+backend::test_original_self_consistent_fake_manifest_negative PASSED     [ 45%]
+backend::test_missing_exported_tracked_file_is_rejected PASSED           [ 50%]
+backend::test_tampered_export_byte_is_rejected PASSED                    [ 54%]
+backend::test_wrong_consistent_manifest_hashes_are_rejected PASSED       [ 59%]
+backend::test_unexpected_backend_file_is_rejected PASSED                 [ 63%]
+backend::test_launcher_generated_backend_file_is_accounted_for PASSED    [ 68%]
+backend::test_missing_frozen_commit_is_rejected PASSED                   [ 72%]
+backend::test_wrong_health_cwd_is_rejected PASSED                        [ 77%]
+backend::test_wrong_descriptor_export_is_rejected PASSED                 [ 81%]
+backend::test_conflicting_manifest_source_revision_is_rejected PASSED    [ 86%]
+backend::test_preflight_source_mismatch_is_rejected PASSED               [ 90%]
+backend::test_matching_manifest_source_revision_is_accepted PASSED       [ 95%]
+backend::test_source_binding_returns_real_consumer_checks PASSED         [100%]
+
+=============================== warnings summary ===============================
+backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /private/tmp/atom-browser-capture-frozen-20261107/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /private/tmp/atom-browser-capture-frozen-20261107/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 44 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_information_wait_maturity_neutral.py::test_repeated_waits_preserve_maturity_and_same_durable_execution
+  /private/tmp/atom-browser-capture-frozen-20261107/backend/core/graphrag_engine.py:203: SyntaxWarning: "\%" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\%"? A raw string is also an option.
+    Escaped pattern where % and _ are escaped to \%
+
+tests/test_lead_personal_information_answer.py::test_public_information_answer_uses_effective_personal_workspace[False]
+tests/test_lead_personal_information_answer.py::test_public_information_answer_uses_effective_personal_workspace[False]
+tests/test_lead_personal_information_answer.py::test_public_information_answer_uses_effective_personal_workspace[True]
+tests/test_lead_personal_information_answer.py::test_public_information_answer_uses_effective_personal_workspace[True]
+  /private/tmp/atom-browser-capture-frozen-20261107/backend/core/lancedb_handler.py:407: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    names = set(self.db.table_names())
+
+tests/test_lead_personal_information_answer.py::test_public_information_answer_uses_effective_personal_workspace[False]
+tests/test_lead_personal_information_answer.py::test_public_information_answer_uses_effective_personal_workspace[False]
+tests/test_lead_personal_information_answer.py::test_public_information_answer_uses_effective_personal_workspace[False]
+tests/test_lead_personal_information_answer.py::test_public_information_answer_uses_effective_personal_workspace[False]
+tests/test_lead_personal_information_answer.py::test_public_information_answer_uses_effective_personal_workspace[True]
+tests/test_lead_personal_information_answer.py::test_public_information_answer_uses_effective_personal_workspace[True]
+tests/test_lead_personal_information_answer.py::test_public_information_answer_uses_effective_personal_workspace[True]
+tests/test_lead_personal_information_answer.py::test_public_information_answer_uses_effective_personal_workspace[True]
+  /Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/asyncio/events.py:94: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    self._context.run(self._callback, *self._args)
+
+tests/test_lead_personal_information_answer.py::test_public_information_answer_uses_effective_personal_workspace[False]
+tests/test_lead_personal_information_answer.py::test_public_information_answer_uses_effective_personal_workspace[False]
+tests/test_lead_personal_information_answer.py::test_public_information_answer_uses_effective_personal_workspace[True]
+tests/test_lead_personal_information_answer.py::test_public_information_answer_uses_effective_personal_workspace[True]
+  /private/tmp/atom-browser-capture-frozen-20261107/backend/core/lancedb_handler.py:620: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    if table_name in self.db.table_names():
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 22 passed, 64 warnings in 9.52s ========================
