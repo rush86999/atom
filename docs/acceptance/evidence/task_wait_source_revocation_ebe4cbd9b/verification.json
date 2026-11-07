@@ -1,0 +1,11 @@
+{
+  "executed_source": "ebe4cbd9b5f4767b14d21d0280a8ae277e39c767",
+  "native_source": "7099473aaea41d0478fbe8b8276d0c7f9f5d3a33",
+  "passed": 11,
+  "actual_exit": 0,
+  "runtime_change": false,
+  "scope": "real public source grant recheck/compiler/executor with high-level proposal/auth controls; no provider",
+  "negative_status": 403,
+  "positive_quote": "37.50",
+  "question_and_adaptation_inert_on_refusal": true
+}
