@@ -344,7 +344,6 @@ test("answers an open prerequisite with the selected authorized source", async (
   (addAssignmentSource as jest.Mock).mockResolvedValue({
     status: "applied", resolved_question_ids: ["q-invoice"],
   });
-  (advanceAssignment as jest.Mock).mockResolvedValue({ rounds: [] });
   render(<AssignmentPanel />);
   const button = await screen.findByTestId("assignment-use-source");
   fireEvent.click(button);
@@ -359,9 +358,9 @@ test("answers an open prerequisite with the selected authorized source", async (
       expect.stringContaining("open question"),
     )
   );
-  await waitFor(() =>
-    expect(advanceAssignment).toHaveBeenCalledWith("run-1")
-  );
+  // The source route owns the same-task continuation; a second client
+  // advance would duplicate that consumer call.
+  expect(advanceAssignment).not.toHaveBeenCalled();
 });
 
 

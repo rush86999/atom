@@ -2112,7 +2112,9 @@ async def add_assignment_source(
             break
     # A duplicate source addition must not add another read step or cause
     # duplicate arithmetic/effects later. Same resource identity/version is
-    # already present: return the durable state unchanged.
+    # already present: skip the write, but keep the continuation path below
+    # available so a delivery that was accepted before an interruption can
+    # still finish the same task instead of stranding it.
     existing = None
     for step in assignment.get("steps") or []:
         binding = ((step.get("inputs") or {}).get("resource_binding")
@@ -2125,72 +2127,85 @@ async def add_assignment_source(
                 resolved.get("source_version") or ""):
             existing = step
             break
-    if existing is not None:
-        return {
-            "status": "already_present",
-            "reason": "the authorized source version is already present",
-            "step_id": existing.get("step_id"),
-            "assignment": executor.status(run_id),
-        }
     from core.assignment_planner import _source_step
     from core.employee_patch import apply_plan_patch
     import hashlib as _hashlib
 
-    indexes = []
-    for step in assignment.get("steps") or []:
-        step_id = str(step.get("step_id") or "")
-        if step_id.startswith("source-"):
+    reassessment_rounds: List[Dict[str, Any]] = []
+    if existing is not None:
+        step = dict(existing)
+        status = executor.status(run_id)
+        if str((record.get("assignment") or {}).get("status") or "") not in (
+                "completed", "failed", "cancelled"):
+            # Replaying an accepted source is not a new effect. Run the same
+            # executor so any already-compiled work can finish; operation
+            # receipts/CAS make this idempotent.
             try:
-                indexes.append(int(step_id.split("-", 1)[1]))
-            except ValueError:
-                pass
-    raw_step = _source_step(resolved, (max(indexes) if indexes else 0) + 1)
-    step = {
-        key: raw_step.get(key) for key in (
-            "step_id", "title", "operation_type", "adapter", "depends_on",
-            "inputs", "effect", "requires", "required")
-        if raw_step.get(key) is not None
-    }
-    identity = _hashlib.sha256(json.dumps(
-        {"resource_id": resolved.get("resource_id"),
-         "source_version": resolved.get("source_version")},
-        sort_keys=True, default=str).encode()).hexdigest()[:16]
-    patch = {
-        "patch_id": f"source-add-{identity}",
-        "base_task_version": int(record.get("task_version") or 0),
-        "base_plan_revision": int(assignment.get("plan_revision") or 1),
-        "reason": body.reason,
-        "observations": [{
-            "kind": "authorized_source_added",
-            "resource_id": resolved.get("resource_id"),
-            "source_version": resolved.get("source_version"),
-        }],
-        "invalidate_steps": [],
-        "remove_steps": [],
-        "add_steps": [step],
-        "update_steps": [],
-        "add_facts": [],
-        "set_requires": {},
-    }
-    try:
-        adopted = apply_plan_patch(
-            executor.lifecycle, run_id, patch, rationale=body.reason)
-        status = await executor.execute(run_id, max_steps=12)
-    except Exception as exc:  # noqa: BLE001 — durable state remains
-        raise HTTPException(status_code=409, detail=str(exc)) from exc
+                status = await executor.execute(run_id, max_steps=12)
+            except Exception as exc:  # noqa: BLE001 — durable state remains
+                raise HTTPException(
+                    status_code=409, detail=str(exc)) from exc
+        adopted: Dict[str, Any] = {
+            "status": "already_present",
+            "reason": "the authorized source version is already present",
+            "step_id": step.get("step_id"),
+        }
+    else:
+        indexes = []
+        for step in assignment.get("steps") or []:
+            step_id = str(step.get("step_id") or "")
+            if step_id.startswith("source-"):
+                try:
+                    indexes.append(int(step_id.split("-", 1)[1]))
+                except ValueError:
+                    pass
+        raw_step = _source_step(
+            resolved, (max(indexes) if indexes else 0) + 1)
+        step = {
+            key: raw_step.get(key) for key in (
+                "step_id", "title", "operation_type", "adapter", "depends_on",
+                "inputs", "effect", "requires", "required")
+            if raw_step.get(key) is not None
+        }
+        identity = _hashlib.sha256(json.dumps(
+            {"resource_id": resolved.get("resource_id"),
+             "source_version": resolved.get("source_version")},
+            sort_keys=True, default=str).encode()).hexdigest()[:16]
+        patch = {
+            "patch_id": f"source-add-{identity}",
+            "base_task_version": int(record.get("task_version") or 0),
+            "base_plan_revision": int(assignment.get("plan_revision") or 1),
+            "reason": body.reason,
+            "observations": [{
+                "kind": "authorized_source_added",
+                "resource_id": resolved.get("resource_id"),
+                "source_version": resolved.get("source_version"),
+            }],
+            "invalidate_steps": [],
+            "remove_steps": [],
+            "add_steps": [step],
+            "update_steps": [],
+            "add_facts": [],
+            "set_requires": {},
+        }
+        try:
+            adopted = apply_plan_patch(
+                executor.lifecycle, run_id, patch, rationale=body.reason)
+            status = await executor.execute(run_id, max_steps=12)
+        except Exception as exc:  # noqa: BLE001 — durable state remains
+            raise HTTPException(status_code=409, detail=str(exc)) from exc
     # A genuinely new authorized version on a completed job is fresh
     # evidence: let the same employee adaptation contract decide whether the
     # changed evidence supports more work or a material clarification. The
     # loop only runs for model-driven jobs and only while an unconsumed
     # evidence observation exists, so duplicate adds and calculation-only
     # results stay inert.
-    reassessment_rounds: List[Dict[str, Any]] = []
     provenance = assignment.get("provenance") or {}
     added_now = next((
         item for item in (
             executor.lifecycle.get_assignment(run_id) or {}).get("steps") or []
         if item.get("step_id") == step.get("step_id")), {})
-    if (was_completed and same_resource_previous_version
+    if (was_completed and existing is None and same_resource_previous_version
             and str(provenance.get("proposal_source") or "") in (
                 "model", "model_repaired")
             and added_now.get("status") == "applied"):
@@ -2255,13 +2270,58 @@ async def add_assignment_source(
                 f"{resolved.get('resource_id')} version "
                 f"{resolved.get('source_version')} made the capability ready"))
         status = executor.status(run_id)
+    # Source-triggered continuation. A source answer that settled a targeted
+    # obligation is itself the wake-up: hand the fresh accepted evidence to
+    # the SAME adaptation consumer and executor that /advance uses. A replay
+    # whose source was durably accepted before an interruption may have no
+    # open question left, so it recovers when the applied source still has an
+    # unconsumed evidence observation. Arrival/question settlement alone never
+    # marks the business objective complete; only an executed, verified
+    # result can.
+    continuation_rounds: List[Dict[str, Any]] = []
+    current = executor.lifecycle.get_task(run_id) or {}
+    current_assignment = current.get("assignment") or {}
+    current_status = str(current_assignment.get("status") or "")
+    open_after = open_unresolved_questions(current)
+    source_step_id = str(step.get("step_id") or "")
+    from core.employee_job_runner import evidence_observations
+    fresh_source_observation = any(
+        str(item.get("step_id") or "") == source_step_id
+        for item in evidence_observations(current))
+    use_model = provenance.get("use_model", True) is not False
+    recovered_replay = (
+        existing is not None
+        and not open_after
+        and fresh_source_observation
+        and current_status not in ("completed", "failed", "cancelled"))
+    should_continue = (
+        use_model
+        and not was_completed
+        and not reassessment_rounds
+        and current_status not in ("completed", "failed", "cancelled")
+        and (bool(question_ids) or recovered_replay))
+    if should_continue:
+        try:
+            llm = _employee_llm(current_user, db)
+            continuation_rounds = await _advance_employee_work(
+                executor, run_id, llm, max_rounds=1,
+                deadline_seconds=180.0,
+                provider_model=_employee_provider_model())
+            status = executor.status(run_id)
+        except Exception as exc:  # noqa: BLE001 — source add already durable
+            continuation_rounds = [{
+                "source": "error",
+                "decision": "source_continuation_failed",
+                "error": f"{type(exc).__name__}: {exc}",
+            }]
     return {**adopted, "assignment": status,
             "resolved_question_ids": [
                 item.get("question_id") for item in settled],
             "mismatched_question_ids": [
                 item for item in mismatched if item],
             "observed_purchase_order": observed_po or None,
-            "reassessment_rounds": reassessment_rounds}
+            "reassessment_rounds": reassessment_rounds,
+            "continuation_rounds": continuation_rounds}
 
 
 @router.post("/{run_id}/reassess")
