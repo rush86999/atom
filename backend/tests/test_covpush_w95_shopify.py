@@ -393,6 +393,24 @@ class TestFulfillments:
             await svc.create_fulfillment("tok", "shop", "o1")
         assert ei.value.status_code == 422
 
+    @pytest.mark.parametrize("line_item_id", [None, ""])
+    async def test_create_fulfillment_missing_order_line_id_never_posts(
+            self, line_item_id):
+        svc = _svc()
+        line = {"id": "foli-7", "quantity": 1, "remaining_quantity": 1}
+        if line_item_id is not None:
+            line["line_item_id"] = line_item_id
+        svc.http.get = AsyncMock(return_value=_resp(200, {"fulfillment_orders": [{
+            "id": 7, "order_id": "o1", "status": "open",
+            "assigned_location_id": 2,
+            "line_items": [line],
+        }]}))
+        svc.http.post = AsyncMock(return_value=_resp(201, {}))
+        with pytest.raises(HTTPException) as ei:
+            await svc.create_fulfillment("tok", "shop", "o1")
+        assert ei.value.status_code == 422
+        svc.http.post.assert_not_called()
+
     @pytest.mark.parametrize("source_order", ["foreign-order", None])
     async def test_create_fulfillment_contradictory_parent_never_posts(
             self, source_order):

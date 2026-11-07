@@ -587,6 +587,11 @@ class ShopifyService(IntegrationService):
         server-owned identities are the dispatch material: a source order from
         another parent, a missing location/line identity or a line without a
         usable order-line id must never be combined into a write.
+
+        FulfillmentOrder line identity has two distinct namespaces: ``id`` is
+        the fulfillment-order line id and ``line_item_id`` is the order line
+        id.  Only ``line_item_id`` may bind a source dispatch line; borrowing
+        the FO-line ``id`` would dispatch an unproven order-line scope.
         """
         for fo in fulfillment_orders:
             fo_id = str(fo.get("id") or "").strip()
@@ -618,11 +623,12 @@ class ShopifyService(IntegrationService):
                 )
             for line in lines:
                 if not isinstance(line, dict) or not str(
-                    line.get("line_item_id") or line.get("id") or ""
+                    line.get("line_item_id") or ""
                 ).strip():
                     raise ShopifyFulfillmentPreflightError(
                         (f"Fulfillment order {fo_id} carries a line without "
-                         "an order-line identity"),
+                         "an order-line id (FO-line id is a different "
+                         "namespace and cannot substitute)"),
                         error_kind="fulfillment_order_line_identity_missing",
                     )
 
@@ -644,7 +650,8 @@ class ShopifyService(IntegrationService):
         ``POST /admin/api/{version}/fulfillments.json`` with
         ``line_items_by_fulfillment_order``.  The endpoint is order-independent
         in its URL but every referenced fulfillment order belongs to the
-        authorized order.  ``GET /admin/api/{version}/fulfillments/{id}.json``
+        authorized order.
+        ``GET /admin/api/{version}/orders/{order_id}/fulfillments/{id}.json``
         is the exact readback.
         https://shopify.dev/docs/api/admin-rest/2026-07/resources/fulfillment
 

@@ -734,6 +734,70 @@ def test_dispatch_material_must_match_readback(env, monkeypatch, change):
     assert result["oracle_verified"] is False, result
 
 
+def test_completed_fulfillment_line_id_is_order_line_identity(
+        env, monkeypatch):
+    """Fulfillment.line_items[].id is the order-line namespace.
+
+    The source FO line deliberately has distinct ``id`` (FO-line) and
+    ``line_item_id`` (order-line) values.  The completed readback carries only
+    the documented Fulfillment line ``id``; verification must still bind it to
+    the planned order line, never to the FO-line id.
+    """
+    _add_store(env)
+    transport = FakeShopifyTransport()
+
+    def _drop_completed_line_item_id(fid, fulfillment):
+        item = copy.deepcopy(fulfillment)
+        for line in item["line_items"]:
+            line.pop("line_item_id", None)
+        return item
+
+    transport.read_override = _drop_completed_line_item_id
+    _install_transport(monkeypatch, transport)
+    operation_id = f"op-fulfillment-line-id-{uuid.uuid4().hex}"
+
+    result = _call(
+        _agent(), _fulfillment_args(operation_id), _context(operation_id))
+
+    assert result["success"] is True, result
+    assert result["oracle_verified"] is True, result
+    assert result["dispatch_plan"]["line_items"] == [
+        {"fulfillment_order_id": "fo-1", "line_item_id": "line-1",
+         "quantity": "2"},
+        {"fulfillment_order_id": "fo-2", "line_item_id": "line-2",
+         "quantity": "1"},
+    ], result["dispatch_plan"]
+    assert result["read_receipt"]["fields"]["line_items"] == [
+        {"line_item_id": "line-1", "quantity": "2"},
+        {"line_item_id": "line-2", "quantity": "1"},
+    ], result["read_receipt"]
+
+
+def test_contradictory_completed_order_line_binding_is_unverified(
+        env, monkeypatch):
+    _add_store(env)
+    transport = FakeShopifyTransport()
+
+    def _wrong_completed_order_line(fid, fulfillment):
+        item = copy.deepcopy(fulfillment)
+        for line in item["line_items"]:
+            line.pop("line_item_id", None)
+            line["id"] = "line-other"
+        return item
+
+    transport.read_override = _wrong_completed_order_line
+    _install_transport(monkeypatch, transport)
+    operation_id = f"op-fulfillment-line-wrong-{uuid.uuid4().hex}"
+
+    result = _call(
+        _agent(), _fulfillment_args(operation_id), _context(operation_id))
+
+    assert len(transport.posts) == 1, result
+    assert result["success"] is not True, result
+    assert result["oracle_verified"] is not True, result
+    assert "line_items" in result["verification"]["mismatches"], result
+
+
 def test_missing_tracking_proof_is_explicitly_unverified(
         env, monkeypatch):
     _add_store(env)

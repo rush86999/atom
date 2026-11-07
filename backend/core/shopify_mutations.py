@@ -756,6 +756,27 @@ def _fulfillment_completed_quantity(line_item: Mapping[str, Any]) -> str:
     return "" if value is None else _normalized_number(value)
 
 
+def _fulfillment_source_line_identity(line_item: Mapping[str, Any]) -> str:
+    """Order-line id of a source FulfillmentOrder line.
+
+    ``FulfillmentOrder.line_items[].id`` is the FO-line id, not the order-line
+    id.  Only ``line_item_id`` names the order line, so a missing value stays
+    missing and the pre-effect validator refuses it.
+    """
+    return _text(line_item.get("line_item_id")).strip()
+
+
+def _fulfillment_observed_line_identity(line_item: Mapping[str, Any]) -> str:
+    """Order-line id of a completed Fulfillment line.
+
+    The documented Fulfillment line item uses ``id`` for the order-line id
+    (the FO-line namespace does not apply here).  A provider that also returns
+    ``line_item_id`` is accepted, but no other field is borrowed.
+    """
+    return _text(
+        line_item.get("line_item_id") or line_item.get("id")).strip()
+
+
 def _fulfillment_line_material(
     line_item: Mapping[str, Any],
     *,
@@ -763,8 +784,9 @@ def _fulfillment_line_material(
     completed: bool = False,
 ) -> Dict[str, Any]:
     entry = {
-        "line_item_id": _text(
-            line_item.get("line_item_id") or line_item.get("id")).strip(),
+        "line_item_id": (
+            _fulfillment_observed_line_identity(line_item)
+            if completed else _fulfillment_source_line_identity(line_item)),
         "quantity": (
             _fulfillment_completed_quantity(line_item)
             if completed else _fulfillment_planned_quantity(line_item)),
