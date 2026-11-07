@@ -1,0 +1,18 @@
+{
+  "status": "not_run",
+  "reason": "free space below the required 4 GiB floor; no new process/world was launched",
+  "free_bytes": 4158459904,
+  "minimum_bytes": 4294967296,
+  "what_would_be_required": [
+    "isolated target data root already verified by restore",
+    "TESTING=0 + explicit target DATABASE_URL/ATOM_DATA_DIR/ATOM_OFFICE_DIR/ATOM_EMAIL_ATTACHMENT_DIR/LANCEDB_URI",
+    "synthetic local password hash and no provider/model/account keys",
+    "isolated free port; /health/ready; login; one canvas/document/artifact read; stop; start again; repeat read"
+  ],
+  "service_level_evidence": [
+    "final-gate portability test renames the original source and external office root, then calls the real read_canvas with a fresh target DB session",
+    "document/dataset/goal rows and target artifact files are read after source absence",
+    "memory-included test opens the restored LanceDB table and reads content after source absence"
+  ],
+  "no_acceptance_claim": "Child HTTP/login/restart not executed; root may run it when the >=4 GiB floor is met."
+}

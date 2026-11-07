@@ -1,0 +1,37 @@
+{
+  "packet": "operations_isolated_restore_d4b313992",
+  "executed_source": "d4b313992",
+  "source_files": {
+    ".github/workflows/ci.yml": "f0017cc20fb55ae1cb68a21c7921c502d59b4506d3fa83bd5e7626e8ad42fda8",
+    "docs/deployment/assignment_successor_2026-10-30_fda4f2dc9/DEPLOYMENT_RUNBOOK.md": "898e99fa996a144ae7666af0a5d11497508174654e841bee5020bfaa3d7d9b57",
+    "scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/release_tool.py": "d42770507df71534818023607a6fff23316aaf6ca869340cf6f8279ad6572aa1",
+    "scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/restore_support.py": "90fedf75db04a86b4e9cf5d207afdd060bfd04a536c0331ea6c8202b023a6ab2",
+    "scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/tests/test_release_restore.py": "8bf46e028c5487655a216000ebfa9744a8c58f57213eff3de3a0b87223f36930",
+    "scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/tests/test_deploy_release_contract.py": "d1abd4f2b37ed0c20f0544bb0f5aff5bff918eeedfe55c18f98e161b8c1e34f6",
+    "backend/core/db_safety.py": "39bacf243002aba8a54d44b40fab803cbaf90701e366edc620424796dd68b9e8",
+    "backend/core/exchange_memory_maintenance.py": "b9d63727be6fc15970fa0034cb68731a00c2bd54df09f10def1d40c38d664789",
+    "backend/core/database.py": "fd3736e7f679b9b30e242597e25a27565d3ab93fc8c0efd3ea0b1cef76e9b16e",
+    "backend/core/models.py": "9aec60c9155da8af8652b3209839c658d78896837b1a30d38763007b44e14b59",
+    "backend/core/models_registration.py": "87e51e95544b656e4ff18fd525f87d0100bd106b7e30ab7626945540ac95e323",
+    "backend/core/office_service.py": "d01be9f1d9076bc4cc83386a39ec4964d6715cea145f3213dcfe4f5fa554eae6",
+    "backend/core/office_sync_service.py": "042351c20865a5a8546381c3250d20d455e3520ee5b46948bf92edbff7e2a4ec",
+    "backend/core/email_attachment_store.py": "c39f062dd5b8c24b30d3bdb44dee92b80e60c464c5d0ce52795c03b794312d66",
+    "backend/core/sheet_dataset_service.py": "2bc67fdc4f2a3aa6be36e2229cfaee22725d0178bb4ed2efdf801bbeb6cb50ba",
+    "backend/core/data/dataset_manager.py": "8d4fa4e75a2467832777d6c0c99fce74349be3c543e752a3243406cd41f852c7",
+    "backend/core/lancedb_handler.py": "ae16083306c502bc57886ee381255f1bd2ee36ee36648ae64d13f46c39ce9f2e",
+    "backend/tools/canvas_crud_tool.py": "be810f46a3d6be3a9a3b8ed069a075e746d18bf04e2fe3947ec144380c33ebc3",
+    "backend/tests/test_db_safety.py": "a8fdd960a4f2682a37fd5e72bacc9ffea036677de79a9aa929e53971d3e050da",
+    "backend/tests/test_db_safety_atomicity.py": "d23f4ab39777b85335df9cfebd8084bd1e598eb1d98f3aa0447a3f9d8e90203f",
+    "backend/tests/core/test_db_snapshot_protection.py": "345c2035d92f8f661e8db3486021399c9f10d403498672f128f5bbba7b865e2c"
+  },
+  "artifacts": {
+    "PR_BODY.md": "f352fad51568c3492b7e9cd72f0476d9487477d171d9285c9be9e77406be95d9",
+    "README.md": "d757d2241bec9ac15099147b4eca08e9f501a1685ff2bf2a4bb4fd4109b83e26",
+    "child-backend-not-run.json": "169af0d7984bfce2462e7d6c6f8f01838b6f392808df65a9910ea806603c80e6",
+    "failure-first-restore-exit.json": "73e52ac1b106a7dcbed4dc4589cd77ce41b9d6ea7442cd9fafa13d6d7e359e82",
+    "failure-first-restore.log": "42120178c576126ebe737d77e7da1438ef819ba39e52e2892acb9383612667d4",
+    "final-gate-exit.json": "02e5ee087946a64d48d9964c483158af8da4062d39b103f8e60cdf911162985e",
+    "final-gate.log": "4360f34c1448693ed4849bcd874268428f15a50f9853c12e43f77a376892dcea",
+    "verification.json": "b3fd4930c94daef03960843e48ddf841cf6965569b8b8e0f0e7846edf40f098f"
+  }
+}
