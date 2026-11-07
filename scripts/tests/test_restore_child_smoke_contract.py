@@ -9,7 +9,6 @@ from __future__ import annotations
 
 import hashlib
 import importlib.util
-import sys
 from pathlib import Path
 
 import pytest
@@ -28,7 +27,6 @@ def _load(name: str, path: Path):
 
 
 smoke = _load("restore_child_smoke_contract", HARNESS_PATH)
-sys.path.insert(0, str(SCRIPTS / "acceptance"))
 readback = _load("restore_child_readback_contract", READBACK_PATH)
 
 
