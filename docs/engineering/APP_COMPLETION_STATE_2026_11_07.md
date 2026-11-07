@@ -108,3 +108,9 @@ Runtime/tests are identical; only a disclosed synthetic revision-digest log
 derivative and its evidence metadata changed. Full original source refs and
 negative results remain preserved. Exact-head hosted checks still gate merge.
 Both implementation successors continue while this publishing repair runs.
+
+## TASK-WAIT-01 targeted source-route checkpoint
+
+Source6d08b1c4b/evidenced874e1872 now continues the same task through the public targeted source-answer route; independent74 backend and9 AssignmentPanel controls pass, original13 packet hashes matchGit. UI no longer makes a separate advance call. Retain/no-model/wrong/partial/unrelated source and terminal negatives are preserved. Normal CI now includes both focused source-route and component controls.
+
+The original packet's restart/both-order wording is narrowed by task_wait_source_route_review_6d08b1c4b/README.md: it reconstructs an executor in the same process and replays the source. That is not actualprocess or no-owner-replay recovery. Agent2 owns the real process successor; general-appTASK-WAIT-01 remainsOPEN. Accepted historical episodes and raw captures remain unchanged.
