@@ -1,0 +1,19 @@
+{
+  "command": [
+    "python",
+    "-m",
+    "pytest",
+    "tests/test_oracle_shopify_product_replay.py::test_known_success_replays_exact_resource_without_second_create",
+    "-q",
+    "--disable-warnings"
+  ],
+  "cwd": "/private/tmp/atom-agent-job-baseline/backend",
+  "code_source": "0b325c5f1e8de97a352f1d202cd1e8d13e21140b",
+  "head_at_capture": "556bc4e40c6955a433d4b439957a8423d88fe0f1",
+  "exit_code": 1,
+  "captured_from_shell_exit_status": true,
+  "log_sha256": "991b820f43e2ed389a9195c8d630c66c8fefc3bb456845788324b393da7691cd",
+  "log_bytes": 2945,
+  "observed_status": "committed_unverified",
+  "observed_action_result": "already_applied_unverified"
+}

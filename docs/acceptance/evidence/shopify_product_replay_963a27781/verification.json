@@ -1,0 +1,103 @@
+{
+  "journey": "Registered Shopify product-create durable exact replay",
+  "scope": "shopify_create_product only",
+  "source_commit": "963a27781b58d606e0fe47e78f5ccf008cc597c2",
+  "predecessor_product_source": "0b325c5f1e8de97a352f1d202cd1e8d13e21140b",
+  "failure_first": {
+    "control": "tests/test_oracle_shopify_product_replay.py::test_known_success_replays_exact_resource_without_second_create",
+    "code_source": "0b325c5f1e8de97a352f1d202cd1e8d13e21140b",
+    "head_at_capture": "556bc4e40c6955a433d4b439957a8423d88fe0f1",
+    "observed": "replay returned committed_unverified / already_applied_unverified with no second POST",
+    "result": "fail (honest predecessor limitation)",
+    "artifacts": ["failure-first.log", "failure-first.xml"]
+  },
+  "final_run": {
+    "exit_code": 0,
+    "tests": 133,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "environment": {
+      "TESTING": "1",
+      "python": "3.14.7 (project venv314)",
+      "DATABASE_URL": "fresh scratch sqlite under this packet",
+      "SECRET_KEY": "synthetic; not recorded",
+      "provider_credentials": "pinned to empty strings",
+      "external_transport_double": "ShopifyService.http only"
+    }
+  },
+  "controls": [
+    {
+      "id": "P1_exact_success_replay",
+      "control": "test_known_success_replays_exact_resource_without_second_create",
+      "observed": "one POST; replay re-read exact id 500 and current shop; returned already_applied/verified with durable receipt and no second create",
+      "result": "pass"
+    },
+    {
+      "id": "P2_restart_fresh_session",
+      "control": "test_restart_fresh_session_reloads_exact_durable_identity",
+      "observed": "new engine/session factory plus new agent reloaded the same succeeded claim/receipt; one POST total; exact id 500",
+      "result": "pass"
+    },
+    {
+      "id": "P3_receipt_persist_failure",
+      "control": "test_failed_identity_receipt_is_not_rolled_back_or_resent",
+      "observed": "forced succeeded-receipt write failure left the claim uncertain_effect; result stayed uncertain (not success, not rollback) and replay did not resend",
+      "result": "pass"
+    },
+    {
+      "id": "N1_wrong_current_material",
+      "control": "test_replay_with_wrong_current_resource_material_stays_committed_unverified",
+      "observed": "exact id still present but authoritative body changed; replay committed_unverified, no second POST",
+      "result": "pass"
+    },
+    {
+      "id": "N2_missing_current_resource",
+      "control": "test_replay_with_missing_current_resource_stays_committed_unverified",
+      "observed": "exact id absent on readback; replay committed_unverified, no second POST",
+      "result": "pass"
+    },
+    {
+      "id": "N3_changed_store",
+      "control": "test_replay_after_store_changed_stays_committed_unverified",
+      "observed": "current workspace store moved to another shop; replay committed_unverified and did not use it to recreate",
+      "result": "pass"
+    },
+    {
+      "id": "N4_receipt_unavailable",
+      "control": "test_replay_without_durable_identity_receipt_is_committed_unverified",
+      "observed": "succeeded claim with result_json cleared stayed committed_unverified; no title lookup, no resend",
+      "result": "pass"
+    },
+    {
+      "id": "N5_readback_unavailable",
+      "control": "test_replay_with_unavailable_current_readback_is_committed_unverified",
+      "observed": "readback timeout stayed committed_unverified and did not resend",
+      "result": "pass"
+    },
+    {
+      "id": "N6_changed_material",
+      "control": "test_same_operation_changed_material_refuses_before_readback",
+      "observed": "same operation id with changed title returned conflict before any readback/create",
+      "result": "pass"
+    },
+    {
+      "id": "N7_lost_confirmation",
+      "control": "test_lost_confirmation_stays_uncertain_and_never_replays_as_success",
+      "observed": "post-accept timeout retained uncertain_effect; replay stayed uncertain with do-not-retry and one POST total",
+      "result": "pass"
+    },
+    {
+      "id": "R1_predecessor_controls",
+      "control": "predecessor product/registry/connected/Generic/fulfillment nodes",
+      "observed": "all predecessor controls still pass alongside the replay suite",
+      "result": "pass"
+    }
+  ],
+  "excluded_claims": [
+    "No live Shopify/provider/account/store/token/credential call or configuration.",
+    "No claim for shopify_create_blog, shopify_create_article or shopify_create_fulfillment.",
+    "No title-based resource guessing and no second create.",
+    "No self-acceptance; root independently verifies."
+  ]
+}

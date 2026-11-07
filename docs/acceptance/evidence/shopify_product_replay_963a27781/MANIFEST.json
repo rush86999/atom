@@ -1,0 +1,152 @@
+{
+  "executed_source": "963a27781b58d606e0fe47e78f5ccf008cc597c2",
+  "source_files": {
+    "backend/core/generic_agent.py": "6e8907a48195ac9fe7ae27e927f1c481773df6aaff94e6dab69787c421b98572",
+    "backend/core/models.py": "9aec60c9155da8af8652b3209839c658d78896837b1a30d38763007b44e14b59",
+    "backend/core/outbound_operation_claim.py": "70b04d345c677febd3044cda73896d7b498de8cd626dcf4c2684a2f85ef01b99",
+    "backend/core/sqlite_schema_repair.py": "46a2420f2bc9d3a575631214fa515af317bb4425cf98c32490528aea5365b174",
+    "backend/tests/test_oracle_shopify_product_create.py": "492bc98bfda5bcdb2e0a24c941d18767072cbf7001fb1596fd9034ea6212eebb",
+    "backend/tests/test_oracle_shopify_product_replay.py": "ced4df7f411b44d42999bac1e8fc73abcf9e2573135633cf0a91f2bd1a63cf34"
+  },
+  "journey": "Registered Shopify product-create durable exact replay",
+  "date": "2026-11-07",
+  "owner": "Agent2 Shopify Oracle family; independent acceptance retained by root",
+  "source_identity": {
+    "worktree": "/private/tmp/atom-agent-job-baseline",
+    "branch": "codex/shopify-product-oracle-20261107",
+    "base_commit": "556bc4e40c6955a433d4b439957a8423d88fe0f1",
+    "product_code_predecessor": "0b325c5f1e8de97a352f1d202cd1e8d13e21140b",
+    "source_commit": "963a27781b58d606e0fe47e78f5ccf008cc597c2",
+    "source_commit_subject": "fix(shopify): replay known product creation from durable identity",
+    "run_tree": {
+      "tracked_modified": "A  docs/acceptance/evidence/shopify_product_replay_963a27781/MANIFEST.json\nA  docs/acceptance/evidence/shopify_product_replay_963a27781/README.md\nA  docs/acceptance/evidence/shopify_product_replay_963a27781/failure-first-exit.json\nA  docs/acceptance/evidence/shopify_product_replay_963a27781/failure-first.log\nA  docs/acceptance/evidence/shopify_product_replay_963a27781/failure-first.xml\nA  docs/acceptance/evidence/shopify_product_replay_963a27781/focused-exit.json\nA  docs/acceptance/evidence/shopify_product_replay_963a27781/focused-spec.json\nA  docs/acceptance/evidence/shopify_product_replay_963a27781/focused.log\nA  docs/acceptance/evidence/shopify_product_replay_963a27781/focused.xml\nAM docs/acceptance/evidence/shopify_product_replay_963a27781/make_manifest.py\nA  docs/acceptance/evidence/shopify_product_replay_963a27781/run_and_capture.py\nA  docs/acceptance/evidence/shopify_product_replay_963a27781/verification.json",
+      "note": "tracked tree clean at the implementation commit; the packet and retained scratch are untracked evidence"
+    }
+  },
+  "scope": {
+    "implemented": "shopify_create_product durable exact replay",
+    "mechanism": "existing TaskOperationRecord claim + durable result/receipt, frozen request expectations, GenericAgent mutation consumer, existing ShopifyService transport and postcondition Oracle",
+    "not_implemented": [
+      "shopify_create_blog",
+      "shopify_create_article",
+      "shopify_create_fulfillment"
+    ],
+    "no_new": [
+      "operation engine",
+      "provider router",
+      "table/store",
+      "approval lifecycle",
+      "title-based resource lookup"
+    ]
+  },
+  "environment": {
+    "python": "3.14.7",
+    "TESTING": "1",
+    "SECRET_KEY": "explicit synthetic value; not recorded",
+    "DATABASE_URL": "fresh scratch sqlite under this packet",
+    "ATOM_DATA_DIR": "packet scratch/data",
+    "LANCEDB_URI": "packet scratch/lancedb",
+    "LANCEDB_URI_BASE": "packet scratch/lancedb",
+    "ATOM_OUTPUT_DIR": "packet scratch/output",
+    "provider_credentials": "SHOPIFY_API_KEY, SHOPIFY_API_SECRET, SHOPIFY_SHOP_NAME and live model keys pinned to empty strings",
+    "live_effects": "none",
+    "external_transport_double": "ShopifyService.http only"
+  },
+  "failure_first": {
+    "command": [
+      "python",
+      "-m",
+      "pytest",
+      "tests/test_oracle_shopify_product_replay.py::test_known_success_replays_exact_resource_without_second_create",
+      "-q",
+      "--disable-warnings"
+    ],
+    "cwd": "/private/tmp/atom-agent-job-baseline/backend",
+    "code_source": "0b325c5f1e8de97a352f1d202cd1e8d13e21140b",
+    "head_at_capture": "556bc4e40c6955a433d4b439957a8423d88fe0f1",
+    "exit_code": 1,
+    "captured_from_shell_exit_status": true,
+    "log_sha256": "991b820f43e2ed389a9195c8d630c66c8fefc3bb456845788324b393da7691cd",
+    "log_bytes": 2945,
+    "observed_status": "committed_unverified",
+    "observed_action_result": "already_applied_unverified"
+  },
+  "result": {
+    "tests": 133,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "exit_code": 0
+  },
+  "artifacts": {
+    "README.md": "fce2e9db64e2eeec99997a69edd157bd9dab9886c5039fc3eb6ad3210b4b94d7",
+    "failure-first-exit.json": "5215e26815d95a835e745d38a578b8cc877aa5e1bcf0b90c6592d1a7c74db1c3",
+    "failure-first.log": "991b820f43e2ed389a9195c8d630c66c8fefc3bb456845788324b393da7691cd",
+    "failure-first.xml": "247b752927def80207ad09b19a8478424e1d52489720ebda982636a39384dff5",
+    "focused-exit.json": "706d01fccf1b712fff71b4af5c11bba2604f98a0fdef03e004f4eb45ae5c5a6f",
+    "focused-spec.json": "c3fe63fe374d479e8d1abedc937c0cb66ec1befb1c925cc0460551cffe5f29f9",
+    "focused.log": "13a3055785e29594bbb2e98e8238ed2be984c58245f3ca16cea93f1701cf7b14",
+    "focused.xml": "cdf63ed8dea5c63673171410906324219df384102de2c3c73ce677bb748c5f08",
+    "make_manifest.py": "4c4c4a0df0ac3099c1725fc5e42c827f49913e81b55b1609495ef814bcfeab71",
+    "run_and_capture.py": "d2f79a2bbb0bf6205165fd1e4b2e17b87d0d97a620d77a301e5d0a8dbc457883",
+    "verification.json": "d81fd9996f835bb40dcbeb2f3ebd5b6b644cd7fdb0b42cd9b2a3b2ff5465f592"
+  },
+  "artifact_details": [
+    {
+      "file": "README.md",
+      "sha256": "fce2e9db64e2eeec99997a69edd157bd9dab9886c5039fc3eb6ad3210b4b94d7",
+      "bytes": 5018
+    },
+    {
+      "file": "failure-first-exit.json",
+      "sha256": "5215e26815d95a835e745d38a578b8cc877aa5e1bcf0b90c6592d1a7c74db1c3",
+      "bytes": 664
+    },
+    {
+      "file": "failure-first.log",
+      "sha256": "991b820f43e2ed389a9195c8d630c66c8fefc3bb456845788324b393da7691cd",
+      "bytes": 2945
+    },
+    {
+      "file": "failure-first.xml",
+      "sha256": "247b752927def80207ad09b19a8478424e1d52489720ebda982636a39384dff5",
+      "bytes": 789
+    },
+    {
+      "file": "focused-exit.json",
+      "sha256": "706d01fccf1b712fff71b4af5c11bba2604f98a0fdef03e004f4eb45ae5c5a6f",
+      "bytes": 830
+    },
+    {
+      "file": "focused-spec.json",
+      "sha256": "c3fe63fe374d479e8d1abedc937c0cb66ec1befb1c925cc0460551cffe5f29f9",
+      "bytes": 1222
+    },
+    {
+      "file": "focused.log",
+      "sha256": "13a3055785e29594bbb2e98e8238ed2be984c58245f3ca16cea93f1701cf7b14",
+      "bytes": 23188
+    },
+    {
+      "file": "focused.xml",
+      "sha256": "cdf63ed8dea5c63673171410906324219df384102de2c3c73ce677bb748c5f08",
+      "bytes": 19857
+    },
+    {
+      "file": "make_manifest.py",
+      "sha256": "4c4c4a0df0ac3099c1725fc5e42c827f49913e81b55b1609495ef814bcfeab71",
+      "bytes": 5641
+    },
+    {
+      "file": "run_and_capture.py",
+      "sha256": "d2f79a2bbb0bf6205165fd1e4b2e17b87d0d97a620d77a301e5d0a8dbc457883",
+      "bytes": 3149
+    },
+    {
+      "file": "verification.json",
+      "sha256": "d81fd9996f835bb40dcbeb2f3ebd5b6b644cd7fdb0b42cd9b2a3b2ff5465f592",
+      "bytes": 4616
+    }
+  ],
+  "retained_scratch": "scratch (owned scratch; not part of the commit)"
+}
