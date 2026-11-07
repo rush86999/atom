@@ -204,6 +204,21 @@ jobs:
             tests/integration/journeys/test_mini_app_harness_journey.py \
             -q --tb=short --timeout=300 --timeout-method=thread
 
+      - name: Run real-process mini-app record restart control
+        env:
+          TESTING: "1"
+          DATABASE_URL: "sqlite:///:memory:"
+          SECRET_KEY: "ci-test-secret-key"
+          ENVIRONMENT: "development"
+          ATOM_DATA_DIR: "${{ runner.temp }}/mini04-parent-data"
+          LANCEDB_URI: "${{ runner.temp }}/mini04-parent-lance"
+          MINIAPP_ROOTFS_DIR: "${{ runner.temp }}/mini04-parent-rootfs"
+        run: |
+          mini04_run_root=$(mktemp -d "${RUNNER_TEMP}/mini04-run-XXXXXX")
+          python -m pytest tests/test_mini_app_records_process_restart.py \
+            -q --tb=short --timeout=360 --timeout-method=thread \
+            --basetemp="${mini04_run_root}/pytest"
+
   # -------------------------------------------------------------------
   # End-to-end user-journey suite: boots full app + frontend, runs
   # Playwright tests against them.
