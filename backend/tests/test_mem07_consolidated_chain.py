@@ -75,16 +75,21 @@ def env(tmp_path, monkeypatch):
         hashed_password="x", first_name="R", last_name="V",
         role="workspace_admin", status="active",
         workspace_id=workspace.id, tenant_id=tenant.id, is_active=True)
+    viewer = User(
+        id="viewer-mem07", email="viewer@example.invalid",
+        hashed_password="x", first_name="V", last_name="W",
+        role="viewer", status="active",
+        workspace_id=workspace.id, tenant_id=tenant.id, is_active=True)
     execution = AgentExecution(
         id="exec-mem07", agent_id=agent.id, tenant_id=tenant.id,
         workspace_id=workspace.id, status="running", metadata_json={})
-    db.add_all([tenant, workspace, agent, user, execution])
+    db.add_all([tenant, workspace, agent, user, viewer, execution])
     db.commit()
     try:
         yield {
             "db": db, "factory": factory, "engine": engine,
             "tenant": tenant, "workspace": workspace, "agent": agent,
-            "user": user, "execution_id": execution.id,
+            "user": user, "viewer": viewer, "execution_id": execution.id,
             "path": path, "tmp_path": tmp_path, "monkeypatch": monkeypatch,
         }
     finally:
@@ -120,70 +125,106 @@ def _controlled_memento_llm(monkeypatch, calls):
 
 
 def _pending_candidate_from_tool_error(env):
-    from core.auto_dev.event_hooks import TaskEvent
+    """Drive the real episode event through the registered consumer.
+
+    No EpisodeSegment is inserted and no TaskEvent/process_failure is authored
+    here: EpisodeService emits the failure event on the real event bus and the
+    real registered ReflectionEngine consumes it in a fresh session.  The whole
+    producer/consumer run is one asyncio loop; only the Memento model leaf is
+    doubled.
+    """
+    from core.auto_dev.event_hooks import event_bus
     from core.auto_dev.reflection_engine import ReflectionEngine
     from core.episode_service import EpisodeService
 
-    agent = _failing_agent(env)
-    context = {
-        "execution_id": env["execution_id"],
-        "tenant_id": env["tenant"].id,
-        "run_id": "run-mem07",
-        "operation_id": "op-mem07",
-    }
-    for _ in range(2):
-        result = asyncio.run(agent._step_act("unknown.tool", {}, context))
-        assert "Error" in result
-
-    db = env["db"]
-    db.expire_all()
-    execution = db.query(AgentExecution).filter(
-        AgentExecution.id == env["execution_id"]).one()
-    assert execution.metadata_json["tool_errors"]
-
-    episode = asyncio.run(EpisodeService(db).create_episode_from_execution(
-        env["execution_id"], TASK, outcome="success", success=True,
-        metadata={}))
-    assert episode.success is False
-    assert episode.outcome == "partial"
-    db.add(EpisodeSegment(
-        episode_id=episode.id, segment_type="error", sequence_order=1,
-        content="Tool call: unknown.tool - failed: 400 Syntax error"))
-    db.commit()
-
     calls = []
     _controlled_memento_llm(env["monkeypatch"], calls)
-    event = TaskEvent(
-        episode_id=episode.id, agent_id=env["agent"].id,
-        tenant_id=env["tenant"].id, task_description=TASK,
-        error_trace=str(episode.metadata_json.get("error") or ""),
-        outcome=episode.outcome, metadata=episode.metadata_json)
-    asyncio.run(ReflectionEngine(
-        db=db, failure_threshold=1).process_failure(event))
-    candidate = db.query(SkillCandidate).filter(
-        SkillCandidate.agent_id == env["agent"].id).one()
-    assert candidate.validation_status == "pending"
-    assert calls, "controlled model leaf was not reached"
-    return candidate, calls
+    env["monkeypatch"].setattr(event_bus, "_fail_handlers", [])
+    ReflectionEngine(db=None, failure_threshold=1).register()
+
+    async def _run():
+        agent = _failing_agent(env)
+        context = {
+            "execution_id": env["execution_id"],
+            "tenant_id": env["tenant"].id,
+            "run_id": "run-mem07-natural",
+            "operation_id": "op-mem07-natural",
+        }
+        for _ in range(2):
+            result = await agent._step_act("unknown.tool", {}, context)
+            assert "Error" in result
+
+        env["db"].expire_all()
+        execution = env["db"].query(AgentExecution).filter(
+            AgentExecution.id == env["execution_id"]).one()
+        assert execution.metadata_json["tool_errors"]
+
+        episode = await EpisodeService(
+            env["db"]).create_episode_from_execution(
+                env["execution_id"], TASK, outcome="success", success=True,
+                metadata={})
+        assert episode.success is False
+        assert episode.outcome == "partial"
+
+        # The emitted event is dispatched to the registered consumer on this
+        # loop; poll a fresh session for its durable candidate.
+        for _ in range(300):
+            await asyncio.sleep(0.01)
+            with env["factory"]() as fresh:
+                rows = fresh.query(SkillCandidate).filter(
+                    SkillCandidate.agent_id == env["agent"].id).all()
+                if rows:
+                    assert len(rows) == 1
+                    assert rows[0].validation_status == "pending"
+                    assert calls, "controlled Memento model leaf was not reached"
+                    return rows[0], calls
+        raise AssertionError(
+            "actual emitted failure event did not create a pending candidate")
+
+    return asyncio.run(_run())
 
 
-def _route_objects(env):
-    return dict(
-        tenant=env["tenant"], current_user=env["user"], db=env["db"])
+def _http_client(env, *, user=None):
+    """Actual mounted router + real normal JWT auth dependencies.
+
+    Only the persistence dependency is pointed at the scratch SQLite factory;
+    ``get_current_user``/``get_current_tenant`` run normally from the bearer
+    token, real User/Tenant rows and workspace authority.
+    """
+    from fastapi import FastAPI
+    from fastapi.testclient import TestClient
+    from api.autodev_review_routes import router as review_router
+    from core.auth import create_access_token
+    from core.database import get_db
+
+    app = FastAPI()
+    app.include_router(review_router)
+
+    def _db():
+        session = env["factory"]()
+        try:
+            yield session
+        finally:
+            session.close()
+
+    app.dependency_overrides[get_db] = _db
+    actor = user or env["user"]
+    token = create_access_token({"sub": actor.id})
+    return (
+        TestClient(app, raise_server_exceptions=False),
+        {"Authorization": f"Bearer {token}"},
+    )
 
 
 def _approve_and_apply(env, candidate):
-    from api.autodev_review_routes import (
-        apply_skill_candidate,
-        approve_skill_candidate,
-    )
-
-    approved = asyncio.run(approve_skill_candidate(
-        str(candidate.id), **_route_objects(env)))
-    assert approved["data"]["status"] == "validated"
-    applied = asyncio.run(apply_skill_candidate(
-        str(candidate.id), **_route_objects(env)))
-    return approved, applied
+    client, headers = _http_client(env)
+    approved = client.post(
+        f"/api/autodev/skills/{candidate.id}/approve", headers=headers)
+    assert approved.status_code == 200, approved.text
+    applied = client.post(
+        f"/api/autodev/skills/{candidate.id}/apply", headers=headers)
+    assert applied.status_code == 200, applied.text
+    return client, headers, approved.json()["data"], applied.json()["data"]
 
 
 def _fresh_prompt(env, query):
@@ -201,14 +242,17 @@ def _fresh_prompt(env, query):
 
 
 def test_consolidated_tool_error_to_fresh_session_consumption(env):
-    candidate, _calls = _pending_candidate_from_tool_error(env)
+    natural, _calls = _pending_candidate_from_tool_error(env)
+    candidate = env["db"].query(SkillCandidate).filter(
+        SkillCandidate.id == natural.id).one()
     original_config = dict(env["agent"].configuration)
     generated_code = candidate.generated_code
 
-    _approved, applied = _approve_and_apply(env, candidate)
+    client, headers, approved, applied = _approve_and_apply(env, candidate)
 
-    assert applied["data"]["status"] == "promoted", applied
-    assert applied["data"]["generated_code_applied"] is False, applied
+    assert approved["status"] == "validated", approved
+    assert applied["status"] == "promoted", applied
+    assert applied["generated_code_applied"] is False, applied
     env["db"].refresh(env["agent"])
     assert env["agent"].configuration == original_config
     env["db"].refresh(candidate)
@@ -217,28 +261,26 @@ def test_consolidated_tool_error_to_fresh_session_consumption(env):
     package = next((env["tmp_path"] / "skills" / env["tenant"].id / "skills").glob(
         f"{candidate.skill_name}_r*"))
     markdown = (package / "SKILL.md").read_text()
-    assert candidate.skill_description in markdown
+    assert candidate.skill_description.strip() in markdown
     assert generated_code not in markdown
     assert not list(package.rglob("*.py"))
 
     skill_row = env["db"].query(Skill).filter(
         Skill.name == f"{candidate.skill_name}_r"
         f"{candidate.validation_result['review']['review_revision']}").one()
-    assert candidate.skill_description in skill_row.long_description
+    assert candidate.skill_description.strip() in skill_row.long_description
     assert generated_code not in skill_row.long_description
 
     prompt = _fresh_prompt(env, candidate.skill_description or TASK)
     assert candidate.skill_name in prompt
     assert "look up the customer email in outlook" in prompt
-    assert "unknown.tool" in prompt
     assert generated_code not in prompt
 
     # Repeat apply is idempotent and does not create a second skill/execution.
-    from api.autodev_review_routes import apply_skill_candidate
-
-    second = asyncio.run(apply_skill_candidate(
-        str(candidate.id), **_route_objects(env)))
-    assert second["data"]["already_applied"] is True, second
+    second = client.post(
+        f"/api/autodev/skills/{candidate.id}/apply", headers=headers)
+    assert second.status_code == 200, second.text
+    assert second.json()["data"]["already_applied"] is True, second.text
     assert env["db"].query(Skill).count() == 1
     assert env["db"].query(SkillExecution).count() == 1
 
@@ -256,58 +298,69 @@ def _assert_no_promotion(env):
 
 
 def test_unreviewed_pending_candidate_cannot_apply(env):
-    from fastapi import HTTPException
-    from api.autodev_review_routes import apply_skill_candidate
-
     candidate, _calls = _pending_candidate_from_tool_error(env)
-    assert candidate.validation_status == "pending"
+    client, headers = _http_client(env)
 
-    with pytest.raises(HTTPException) as exc:
-        asyncio.run(apply_skill_candidate(
-            str(candidate.id), **_route_objects(env)))
-    assert exc.value.status_code == 409
+    response = client.post(
+        f"/api/autodev/skills/{candidate.id}/apply", headers=headers)
+    assert response.status_code == 409, response.text
     _assert_no_promotion(env)
 
 
 def test_rejected_candidate_cannot_apply(env):
-    from fastapi import HTTPException
-    from api.autodev_review_routes import (
-        apply_skill_candidate,
-        reject_skill_candidate,
-    )
-
     candidate, _calls = _pending_candidate_from_tool_error(env)
-    rejected = asyncio.run(reject_skill_candidate(
-        str(candidate.id), **_route_objects(env)))
-    assert rejected["data"]["status"] == "rejected"
+    client, headers = _http_client(env)
 
-    with pytest.raises(HTTPException) as exc:
-        asyncio.run(apply_skill_candidate(
-            str(candidate.id), **_route_objects(env)))
-    assert exc.value.status_code == 409
+    rejected = client.post(
+        f"/api/autodev/skills/{candidate.id}/reject", headers=headers)
+    assert rejected.status_code == 200, rejected.text
+    assert rejected.json()["data"]["status"] == "rejected"
+
+    response = client.post(
+        f"/api/autodev/skills/{candidate.id}/apply", headers=headers)
+    assert response.status_code == 409, response.text
     _assert_no_promotion(env)
 
 
 def test_changed_reviewed_material_cannot_apply(env):
-    from fastapi import HTTPException
-    from api.autodev_review_routes import (
-        apply_skill_candidate,
-        approve_skill_candidate,
-    )
-
     candidate, _calls = _pending_candidate_from_tool_error(env)
-    approved = asyncio.run(approve_skill_candidate(
-        str(candidate.id), **_route_objects(env)))
-    assert approved["data"]["status"] == "validated"
+    client, headers = _http_client(env)
+
+    approved = client.post(
+        f"/api/autodev/skills/{candidate.id}/approve", headers=headers)
+    assert approved.status_code == 200, approved.text
+    assert approved.json()["data"]["status"] == "validated"
 
     # The reviewer approved an exact snapshot.  Changing generated code after
     # review invalidates the binding even though no code is ever promoted.
-    candidate.generated_code = "def changed_after_review():\n    return 99"
+    current = env["db"].query(SkillCandidate).filter(
+        SkillCandidate.id == candidate.id).one()
+    current.generated_code = "def changed_after_review():\n    return 99"
     env["db"].commit()
 
-    with pytest.raises(HTTPException) as exc:
-        asyncio.run(apply_skill_candidate(
-            str(candidate.id), **_route_objects(env)))
-    assert exc.value.status_code == 409
-    assert "stale_review" in str(exc.value.detail)
+    response = client.post(
+        f"/api/autodev/skills/{candidate.id}/apply", headers=headers)
+    assert response.status_code == 409, response.text
+    assert "stale_review" in response.text
+    _assert_no_promotion(env)
+
+
+def test_http_review_apply_requires_real_authentication(env):
+    candidate, _calls = _pending_candidate_from_tool_error(env)
+    # No bearer token is rejected by the real get_current_user dependency.
+    unauthenticated, _headers = _http_client(env)
+    response = unauthenticated.post(
+        f"/api/autodev/skills/{candidate.id}/approve")
+    assert response.status_code == 401, response.text
+
+    # A real viewer JWT reaches the real router but lacks TEAM_LEAD authority.
+    viewer_client, viewer_headers = _http_client(env, user=env["viewer"])
+    response = viewer_client.post(
+        f"/api/autodev/skills/{candidate.id}/approve",
+        headers=viewer_headers)
+    assert response.status_code == 403, response.text
+
+    current = env["db"].query(SkillCandidate).filter(
+        SkillCandidate.id == candidate.id).one()
+    assert current.validation_status == "pending"
     _assert_no_promotion(env)
