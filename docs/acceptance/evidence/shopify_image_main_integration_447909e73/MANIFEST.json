@@ -1,6 +1,6 @@
 {
   "kind": "shopify_image_main_integration_manifest",
-  "executed_source": "447909e73ba9f7fd979b4e8a78e096cbf48119cc",
+  "executed_source": "6cf37cb7d53e39bc60e11cefe6a4683c06f0cb16",
   "execution_source": "6cf37cb7d53e39bc60e11cefe6a4683c06f0cb16",
   "tested_source": "6cf37cb7d53e39bc60e11cefe6a4683c06f0cb16",
   "merge_head": "447909e73ba9f7fd979b4e8a78e096cbf48119cc",
@@ -42,6 +42,12 @@
     "root-image-usability-verified.log": "e9df3a9ee47a16948100d602ddf3589d8c119093de5d2760ca6bdcade1d51f80",
     "root-usable-image-negative.log": "e82b33abde13a0e07f387853d259b007032ebe0fbda123e3c4cbcaa7936e761c",
     "runtime-identity.json": "d13f56d05804449f72ca67367333595ae6c73ce9969d2eccb1746e00ac36f569",
-    "verification.json": "f6cdecd3fae81663fd62cbe9e5f4833751dcf07ca9c1b9786a75bdd931a64afe"
+    "verification.json": "f6cdecd3fae81663fd62cbe9e5f4833751dcf07ca9c1b9786a75bdd931a64afe",
+    "ROOT_INTEGRATION_REVIEW.md": "23318e97af2d9af657fbed53b184ff4d37e72a0fe7546fe211d573c913f3a384"
+  },
+  "runtime_source": "447909e73ba9f7fd979b4e8a78e096cbf48119cc",
+  "packaging_correction": {
+    "superseded_executed_source": "447909e73ba9f7fd979b4e8a78e096cbf48119cc",
+    "reason": "No tests ran on merge447; native gate executed6cf and byte-identical runtime/tests were compared. Root independent33 gate separately executed3801b0da5/runtimeec0a98dc2. Original logs unchanged."
   }
 }
