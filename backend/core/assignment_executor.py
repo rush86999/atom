@@ -2137,10 +2137,19 @@ class AssignmentExecutor:
                     # IngestedDocument row, not a path handed in earlier.
                     from core.database import get_db_session
                     from core.models import IngestedDocument, User
+                    scope = binding.get("access_scope") if isinstance(
+                        binding.get("access_scope"), dict) else {}
+                    expected_user = str(
+                        scope.get("user_id") or context.get("actor_id")
+                        or context.get("employee_id") or "")
+                    expected_workspace = str(
+                        scope.get("workspace_id")
+                        or context.get("workspace_id") or "")
+                    expected_tenant = str(
+                        scope.get("tenant_id")
+                        or context.get("tenant_id") or "")
                     with get_db_session() as db:
-                        user_id = str(
-                            context.get("actor_id")
-                            or context.get("employee_id") or "")
+                        user_id = expected_user
                         if user_id:
                             user = db.query(User).filter(
                                 User.id == user_id).first()
@@ -2155,10 +2164,10 @@ class AssignmentExecutor:
                                 getattr(user, "workspace_id", "") or "default")
                             user_tenant = str(
                                 getattr(user, "tenant_id", "") or "default")
-                            if ((context.get("workspace_id")
-                                 and user_workspace != context["workspace_id"])
-                                or (context.get("tenant_id")
-                                    and user_tenant != context["tenant_id"])):
+                            if ((expected_workspace
+                                 and user_workspace != expected_workspace)
+                                or (expected_tenant
+                                    and user_tenant != expected_tenant)):
                                 return step, self._source_gap(
                                     binding, step,
                                     code="resource_workspace_mismatch",
@@ -2170,15 +2179,15 @@ class AssignmentExecutor:
                         return step, self._source_gap(
                             binding, step, code="resource_not_found",
                             detail="the authoritative uploaded document row is gone")
-                    if (context.get("workspace_id")
+                    if (expected_workspace
                             and str(row.workspace_id or "")
-                            and str(row.workspace_id) != context["workspace_id"]):
+                            and str(row.workspace_id) != expected_workspace):
                         return step, self._source_gap(
                             binding, step, code="resource_workspace_mismatch",
                             detail="the uploaded document moved workspace",
                             access=True)
-                    if (context.get("tenant_id") and row.tenant_id is not None
-                            and str(row.tenant_id) != context["tenant_id"]):
+                    if (expected_tenant and row.tenant_id is not None
+                            and str(row.tenant_id) != expected_tenant):
                         return step, self._source_gap(
                             binding, step, code="resource_workspace_mismatch",
                             detail="the uploaded document moved tenant",
@@ -2213,8 +2222,7 @@ class AssignmentExecutor:
                                 binding, step, code="source_unreadable",
                                 detail="the uploaded document file is unreadable")
                         pinned_sha = accepted_sha or expected
-                        if (re.fullmatch(r"[0-9a-fA-F]{64}", pinned_sha or "")
-                                and current != pinned_sha):
+                        if pinned_sha and current != pinned_sha:
                             return step, self._source_gap(
                                 binding, step, code="stale_source_version",
                                 detail="the uploaded document bytes changed after acceptance",
@@ -2236,8 +2244,7 @@ class AssignmentExecutor:
                             binding, step, code="source_unreadable",
                             detail="the accepted controlled source is unreadable")
                     pinned_sha = accepted_sha or expected
-                    if (re.fullmatch(r"[0-9a-fA-F]{64}", pinned_sha or "")
-                            and current != pinned_sha):
+                    if pinned_sha and current != pinned_sha:
                         return step, self._source_gap(
                             binding, step, code="stale_source_version",
                             detail="the accepted controlled source bytes changed",
