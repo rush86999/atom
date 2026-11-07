@@ -27,9 +27,7 @@
     "backend_export_hash_bound": true,
     "health_cwd_exact": true,
     "descriptor_export_exact": true,
-    "health_source_id_observed": true,
-    "manifest_source_revision_present": false,
-    "health_source_id_is_unknown": true
+    "health_source_id_observed": true
   },
   "expected_commit_file_count": 7723,
   "exported_backend_file_count": 7723,
@@ -49,5 +47,9 @@
     "sha256": "c0bab7c179d23679567bd8e4cde3e43886acd9417a35fb3adf3d9af3924a4bb3"
   },
   "manifest_source_revision_present": false,
-  "health_source_id": "unknown"
+  "health_source_id": "unknown",
+  "informational": {
+    "manifest_source_revision_present": false,
+    "health_source_id_is_unknown": true
+  }
 }

@@ -14,8 +14,8 @@
     },
     {
       "path": "actual-git-binding.json",
-      "sha256": "f82b31547c0355af7d06709214e0d0bd60e42511b8183080133aa8931a2df5cd",
-      "bytes": 2059
+      "sha256": "1d3894d027be8fcf71462d02ed5af5e371f1148431f147a138846bb973884b42",
+      "bytes": 2084
     },
     {
       "path": "compile-help-pyflakes.log",
