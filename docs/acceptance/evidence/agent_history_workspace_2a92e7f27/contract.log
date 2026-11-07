@@ -1,65 +1,76 @@
 
 tests/test_agent_read_scope_contract.py::test_member_history_exposes_only_the_same_workspace 
 -------------------------------- live log setup --------------------------------
-2026-11-07 06:25:50 [    INFO] Updated costs for 16 providers from dynamic pricing
-2026-11-07 06:25:50 [    INFO] EscalationManager initialized
-2026-11-07 06:25:50 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-07 06:25:50 [    INFO] EscalationManager initialized
-2026-11-07 06:25:50 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-07 06:25:50 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
-2026-11-07 06:25:50 [    INFO] AgentTaskRegistry initialized
+2026-11-07 06:30:23 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-07 06:30:23 [    INFO] EscalationManager initialized
+2026-11-07 06:30:23 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 06:30:23 [    INFO] EscalationManager initialized
+2026-11-07 06:30:23 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 06:30:23 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 06:30:23 [    INFO] AgentTaskRegistry initialized
 -------------------------------- live log call ---------------------------------
-2026-11-07 06:25:51 [    INFO] HTTP Request: GET http://testserver/api/agents/history "HTTP/1.1 200 OK"
-PASSED                                                                   [ 11%]
+2026-11-07 06:30:24 [    INFO] HTTP Request: GET http://testserver/api/agents/history "HTTP/1.1 200 OK"
+PASSED                                                                   [  9%]
 tests/test_agent_read_scope_contract.py::test_peer_workspace_reads_peer_history_but_not_old_workspace 
 -------------------------------- live log call ---------------------------------
-2026-11-07 06:25:51 [    INFO] HTTP Request: GET http://testserver/api/agents/history "HTTP/1.1 200 OK"
-PASSED                                                                   [ 22%]
+2026-11-07 06:30:24 [    INFO] HTTP Request: GET http://testserver/api/agents/history "HTTP/1.1 200 OK"
+PASSED                                                                   [ 18%]
 tests/test_agent_read_scope_contract.py::test_personal_principal_reads_only_explicit_personal_scope 
 -------------------------------- live log call ---------------------------------
-2026-11-07 06:25:52 [    INFO] HTTP Request: GET http://testserver/api/agents/history "HTTP/1.1 200 OK"
-PASSED                                                                   [ 33%]
+2026-11-07 06:30:25 [    INFO] HTTP Request: GET http://testserver/api/agents/history "HTTP/1.1 200 OK"
+PASSED                                                                   [ 27%]
 tests/test_agent_read_scope_contract.py::test_admin_current_workspace_is_a_normal_positive 
 -------------------------------- live log call ---------------------------------
-2026-11-07 06:25:53 [    INFO] HTTP Request: GET http://testserver/api/agents/history "HTTP/1.1 200 OK"
-PASSED                                                                   [ 44%]
+2026-11-07 06:30:26 [    INFO] HTTP Request: GET http://testserver/api/agents/history "HTTP/1.1 200 OK"
+PASSED                                                                   [ 36%]
 tests/test_agent_read_scope_contract.py::test_stale_actor_is_reloaded_from_the_authoritative_database 
 -------------------------------- live log call ---------------------------------
-2026-11-07 06:25:54 [    INFO] HTTP Request: GET http://testserver/api/agents/history "HTTP/1.1 200 OK"
-PASSED                                                                   [ 55%]
+2026-11-07 06:30:27 [    INFO] HTTP Request: GET http://testserver/api/agents/history "HTTP/1.1 200 OK"
+PASSED                                                                   [ 45%]
 tests/test_agent_read_scope_contract.py::test_deactivated_stale_principal_is_refused 
 -------------------------------- live log call ---------------------------------
-2026-11-07 06:25:55 [ WARNING] API Error: PERMISSION_DENIED - Permission denied: read agent data on Agent
-2026-11-07 06:25:55 [    INFO] HTTP Request: GET http://testserver/api/agents/history "HTTP/1.1 403 Forbidden"
-PASSED                                                                   [ 66%]
+2026-11-07 06:30:28 [ WARNING] API Error: PERMISSION_DENIED - Permission denied: read agent data on Agent
+2026-11-07 06:30:28 [    INFO] HTTP Request: GET http://testserver/api/agents/history "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 54%]
+tests/test_agent_read_scope_contract.py::test_stale_role_is_not_trusted_for_the_read 
+-------------------------------- live log call ---------------------------------
+2026-11-07 06:30:29 [ WARNING] API Error: PERMISSION_DENIED - Permission denied: read agent data on Agent
+2026-11-07 06:30:29 [    INFO] HTTP Request: GET http://testserver/api/agents/history "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 63%]
+tests/test_agent_read_scope_contract.py::test_unavailable_authority_store_is_not_a_successful_read 
+-------------------------------- live log call ---------------------------------
+2026-11-07 06:30:30 [ WARNING] Agent read authority unavailable: stage=actor error_class=OperationalError
+2026-11-07 06:30:30 [ WARNING] API Error: AGENT_READ_AUTHORITY_UNAVAILABLE - Agent data is temporarily unavailable; retry.
+2026-11-07 06:30:30 [    INFO] HTTP Request: GET http://testserver/api/agents/history "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 72%]
 tests/test_agent_read_scope_contract.py::test_agent_list_detail_status_and_graduation_are_workspace_scoped 
 -------------------------------- live log call ---------------------------------
-2026-11-07 06:25:56 [    INFO] HTTP Request: GET http://testserver/api/agents/ "HTTP/1.1 200 OK"
-2026-11-07 06:25:56 [    INFO] HTTP Request: GET http://testserver/api/agents/a1 "HTTP/1.1 200 OK"
-2026-11-07 06:25:56 [ WARNING] API Error: NOT_FOUND - Agent not found: a2
-2026-11-07 06:25:56 [    INFO] HTTP Request: GET http://testserver/api/agents/a2 "HTTP/1.1 404 Not Found"
-2026-11-07 06:25:56 [ WARNING] API Error: NOT_FOUND - Agent not found: a3
-2026-11-07 06:25:56 [    INFO] HTTP Request: GET http://testserver/api/agents/a3 "HTTP/1.1 404 Not Found"
-2026-11-07 06:25:56 [ WARNING] API Error: NOT_FOUND - Agent not found: a2
-2026-11-07 06:25:56 [    INFO] HTTP Request: GET http://testserver/api/agents/a2/status "HTTP/1.1 404 Not Found"
-2026-11-07 06:25:56 [ WARNING] API Error: NOT_FOUND - Agent not found: a3
-2026-11-07 06:25:56 [    INFO] HTTP Request: GET http://testserver/api/agents/a3/status "HTTP/1.1 404 Not Found"
-2026-11-07 06:25:56 [ WARNING] API Error: NOT_FOUND - Agent not found: a2
-2026-11-07 06:25:56 [    INFO] HTTP Request: GET http://testserver/api/agents/a2/graduation-progress "HTTP/1.1 404 Not Found"
-2026-11-07 06:25:56 [ WARNING] API Error: NOT_FOUND - Agent not found: a3
-2026-11-07 06:25:56 [    INFO] HTTP Request: GET http://testserver/api/agents/a3/graduation-progress "HTTP/1.1 404 Not Found"
-2026-11-07 06:25:56 [    INFO] HTTP Request: GET http://testserver/api/agents/a-shared/status "HTTP/1.1 200 OK"
-PASSED                                                                   [ 77%]
+2026-11-07 06:30:31 [    INFO] HTTP Request: GET http://testserver/api/agents/ "HTTP/1.1 200 OK"
+2026-11-07 06:30:31 [    INFO] HTTP Request: GET http://testserver/api/agents/a1 "HTTP/1.1 200 OK"
+2026-11-07 06:30:31 [ WARNING] API Error: NOT_FOUND - Agent not found: a2
+2026-11-07 06:30:31 [    INFO] HTTP Request: GET http://testserver/api/agents/a2 "HTTP/1.1 404 Not Found"
+2026-11-07 06:30:31 [ WARNING] API Error: NOT_FOUND - Agent not found: a3
+2026-11-07 06:30:31 [    INFO] HTTP Request: GET http://testserver/api/agents/a3 "HTTP/1.1 404 Not Found"
+2026-11-07 06:30:31 [ WARNING] API Error: NOT_FOUND - Agent not found: a2
+2026-11-07 06:30:31 [    INFO] HTTP Request: GET http://testserver/api/agents/a2/status "HTTP/1.1 404 Not Found"
+2026-11-07 06:30:31 [ WARNING] API Error: NOT_FOUND - Agent not found: a3
+2026-11-07 06:30:31 [    INFO] HTTP Request: GET http://testserver/api/agents/a3/status "HTTP/1.1 404 Not Found"
+2026-11-07 06:30:31 [ WARNING] API Error: NOT_FOUND - Agent not found: a2
+2026-11-07 06:30:31 [    INFO] HTTP Request: GET http://testserver/api/agents/a2/graduation-progress "HTTP/1.1 404 Not Found"
+2026-11-07 06:30:31 [ WARNING] API Error: NOT_FOUND - Agent not found: a3
+2026-11-07 06:30:31 [    INFO] HTTP Request: GET http://testserver/api/agents/a3/graduation-progress "HTTP/1.1 404 Not Found"
+2026-11-07 06:30:31 [    INFO] HTTP Request: GET http://testserver/api/agents/a-shared/status "HTTP/1.1 200 OK"
+PASSED                                                                   [ 81%]
 tests/test_agent_read_scope_contract.py::test_history_readback_does_not_change_durable_rows 
 -------------------------------- live log call ---------------------------------
-2026-11-07 06:25:57 [    INFO] HTTP Request: GET http://testserver/api/agents/history "HTTP/1.1 200 OK"
-2026-11-07 06:25:57 [    INFO] HTTP Request: GET http://testserver/api/agents/history "HTTP/1.1 200 OK"
-PASSED                                                                   [ 88%]
+2026-11-07 06:30:32 [    INFO] HTTP Request: GET http://testserver/api/agents/history "HTTP/1.1 200 OK"
+2026-11-07 06:30:32 [    INFO] HTTP Request: GET http://testserver/api/agents/history "HTTP/1.1 200 OK"
+PASSED                                                                   [ 90%]
 tests/test_agent_read_scope_contract.py::test_unavailable_history_store_is_not_a_successful_empty_list 
 -------------------------------- live log call ---------------------------------
-2026-11-07 06:25:57 [   ERROR] Agent history read unavailable: stage=query error_class=OperationalError
-2026-11-07 06:25:57 [ WARNING] API Error: AGENT_HISTORY_UNAVAILABLE - Agent history is temporarily unavailable; retry.
-2026-11-07 06:25:57 [    INFO] HTTP Request: GET http://testserver/api/agents/history "HTTP/1.1 503 Service Unavailable"
+2026-11-07 06:30:33 [   ERROR] Agent history read unavailable: stage=query error_class=OperationalError
+2026-11-07 06:30:33 [ WARNING] API Error: AGENT_HISTORY_UNAVAILABLE - Agent history is temporarily unavailable; retry.
+2026-11-07 06:30:33 [    INFO] HTTP Request: GET http://testserver/api/agents/history "HTTP/1.1 503 Service Unavailable"
 PASSED                                                                   [100%]
 
 =============================== warnings summary ===============================
@@ -75,7 +86,7 @@ PASSED                                                                   [100%]
   /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
     ref_error: type[Exception] = jsonschema.RefResolutionError,
 
-../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 18 warnings
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 22 warnings
   /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
     if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
 
@@ -101,4 +112,4 @@ PASSED                                                                   [100%]
   <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-======================= 9 passed, 25 warnings in 17.43s ========================
+======================= 11 passed, 29 warnings in 20.12s =======================

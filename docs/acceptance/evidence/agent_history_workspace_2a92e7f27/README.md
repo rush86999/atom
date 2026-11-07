@@ -1,7 +1,9 @@
 # Agents history and readback workspace scope
 
-Executed source: `2a92e7f271febd8bcd693b418d54650fd459ac99` (branch
-`codex/agent-history-scope-20261107`, based on main `accc53347`).
+Executed source: `4aef8e318e223df308993355a54dbd95fba8d91c` (branch
+`codex/agent-history-scope-20261107`, based on main `accc53347`). The
+implementation checkpoint is `2a92e7f27`; `4aef8e318` adds the authoritative
+role and unavailable-authority controls.
 
 The supplied confirmed negative at `dd871b2c6f771466eedea1b7e62866189b0273ee`
 showed a real member in workspace `ws1` receiving a `ws2` AgentExecution
@@ -38,18 +40,19 @@ text. Existing public response shapes are preserved where the row is visible.
 - New failure-first public-route contract:
   `backend/tests/test_agent_read_scope_contract.py`.
   Before the fix it was 1 passed / 8 failed; at executed source it is
-  **9 passed**, actual exit 0 (`contract.log`, `contract.xml`).
+  **11 passed**, actual exit 0 (`contract.log`, `contract.xml`).
 - Supplied counterexample rerun at executed source:
   **1 passed**, actual exit 0 (`supplied-probe.log`, `supplied-probe.xml`).
 - Focused preservation suite (read contract, history route, full agent route
   coverage, replace/admission writes):
-  **117 passed**, actual exit 0 (`focused.log`, `focused.xml`).
+  **119 passed**, actual exit 0 (`focused.log`, `focused.xml`).
 
 Controls include own current-workspace history, peer-workspace absence,
 same-tenant foreign workspace, foreign tenant, legacy personal/`default`
 positive, missing workspace exclusion, contradictory tenant exclusion, frozen
 old-workspace result after agent movement, stale moved principal, deactivated
-stale principal, admin current-workspace positive, and no-effect readback.
+stale principal, stale persisted role, unavailable authority store, admin
+current-workspace positive, and no-effect read/job readback.
 Detail/status/graduation peer and foreign agents answer 404 while shared and
 current-workspace agents remain readable.
 

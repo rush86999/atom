@@ -1,5 +1,6 @@
 {
-  "executed_source": "2a92e7f271febd8bcd693b418d54650fd459ac99",
+  "executed_source": "4aef8e318e223df308993355a54dbd95fba8d91c",
+  "implementation_checkpoint": "2a92e7f271febd8bcd693b418d54650fd459ac99",
   "branch": "codex/agent-history-scope-20261107",
   "original_negative": {
     "source": "dd871b2c6f771466eedea1b7e62866189b0273ee",
@@ -17,21 +18,21 @@
     "seconds": 2.41
   },
   "fixed_supplied_probe": {
-    "source": "2a92e7f271febd8bcd693b418d54650fd459ac99",
+    "source": "4aef8e318e223df308993355a54dbd95fba8d91c",
     "passed": 1,
     "failed": 0,
     "actual_exit_code": 0,
-    "seconds": 2.13
+    "seconds": 2.05
   },
   "new_contract": {
-    "source": "2a92e7f271febd8bcd693b418d54650fd459ac99",
+    "source": "4aef8e318e223df308993355a54dbd95fba8d91c",
     "test": "backend/tests/test_agent_read_scope_contract.py",
     "before_fix": {"passed": 1, "failed": 8, "actual_exit_code": 1},
-    "after_fix": {"passed": 9, "failed": 0, "actual_exit_code": 0}
+    "after_fix": {"passed": 11, "failed": 0, "actual_exit_code": 0}
   },
   "focused_preservation": {
-    "source": "2a92e7f271febd8bcd693b418d54650fd459ac99",
-    "passed": 117,
+    "source": "4aef8e318e223df308993355a54dbd95fba8d91c",
+    "passed": 119,
     "failed": 0,
     "actual_exit_code": 0
   },

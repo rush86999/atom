@@ -1,5 +1,5 @@
 {
-  "executed_source": "2a92e7f27",
+  "executed_source": "4aef8e318e223df308993355a54dbd95fba8d91c",
   "scope": "same-tenant workspace confidentiality for the real Agents read routes; scratch SQLite, controlled authentication leaf, no model/provider call",
   "command": [
     "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
@@ -15,7 +15,7 @@
   "environment": {
     "TESTING": "1",
     "SECRET_KEY": "synthetic non-provider test key (not recorded)",
-    "DATABASE_URL": "sqlite:////private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/agent-history-evidence-f_ys64sd/scratch.db",
-    "ATOM_DATA_DIR": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/agent-history-evidence-f_ys64sd/data"
+    "DATABASE_URL": "sqlite:////private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/agent-history-evidence-final-ego1igfo/scratch.db",
+    "ATOM_DATA_DIR": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/agent-history-evidence-final-ego1igfo/data"
   }
 }
