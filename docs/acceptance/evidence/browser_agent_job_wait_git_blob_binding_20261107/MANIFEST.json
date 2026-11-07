@@ -1,0 +1,51 @@
+{
+  "kind": "browser_agent_job_wait_git_blob_binding_evidence_manifest",
+  "source_commit": "a580933337b835faa7580a2e95d53a4eafa9e319",
+  "driver_sha256": "273e62d83c806604940ae3a5e401cd90f503b03e646e5e0e97b9427937754214",
+  "fixture_sha256": "d0d169c8eaa4e5c3d753072f808ff8ff822372674e24c029ef440ec25c43c7d5",
+  "preflight_ok": true,
+  "actual_git_binding_ok": true,
+  "actual_git_blob_files_checked": 7723,
+  "files": [
+    {
+      "path": "README.md",
+      "sha256": "c97a33cb5086ffcc23c7be970e0b43ec77201cb16dfd98a2814270ba8db8cc92",
+      "bytes": 4056
+    },
+    {
+      "path": "actual-git-binding.json",
+      "sha256": "f82b31547c0355af7d06709214e0d0bd60e42511b8183080133aa8931a2df5cd",
+      "bytes": 2059
+    },
+    {
+      "path": "compile-help-pyflakes.log",
+      "sha256": "50112e6c161180bb26d8d9997a67877e867ff6f3d997cac90198e651e094b7ef",
+      "bytes": 2181
+    },
+    {
+      "path": "identity-tests.log",
+      "sha256": "9158ae7397839f640d3ccb9d615b1ce72fa63332fc2ad00e1a93503825e688bd",
+      "bytes": 99
+    },
+    {
+      "path": "preflight-run.log",
+      "sha256": "17038c6c29e25957357b54df3d08c192c88433fc4b94f092d65b76056f801a34",
+      "bytes": 460
+    },
+    {
+      "path": "preflight.json",
+      "sha256": "1d4327d9965499d971dd174d2e2ec5ecf47656a62f15e54959038d1fa8e7c479",
+      "bytes": 8744
+    },
+    {
+      "path": "root-browser-source-binding-negative.log",
+      "sha256": "96bb1d4b1b47aef16e927ae88df3b807bb75f7fa2686a054557c429ec8cc8209",
+      "bytes": 1909
+    },
+    {
+      "path": "root-negative-after-fix.log",
+      "sha256": "b4eb7be9000651a3e89c6a77e8b346d05d1d706d620aa6f8193e574a39b3ced1",
+      "bytes": 98
+    }
+  ]
+}

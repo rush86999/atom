@@ -1,0 +1,53 @@
+{
+  "kind": "actual_working_tree_export_vs_frozen_git_blobs",
+  "frozen_source_sha": "a580933337b835faa7580a2e95d53a4eafa9e319",
+  "working_tree_snapshot_sha256": "004508e7de2b6013c539cbb343222d7335e8134cfef253dfa06a6ceebc314cdd",
+  "certified_by": "frozen_source+preflight_source+git_blob_bytes+exported_tree+backend_export+isolated_cwd+descriptor",
+  "ok": true,
+  "checks": {
+    "frozen_source_sha_present": true,
+    "frozen_source_matches_head": true,
+    "preflight_source_matches_frozen": true,
+    "git_repo_present": true,
+    "git_commit_resolved": true,
+    "tracked_backend_files_present": true,
+    "all_tracked_backend_files_exported": true,
+    "no_unexpected_backend_files": true,
+    "git_blob_read_ok": true,
+    "git_blob_bytes_match_export": true,
+    "code_manifest_matches_git_blobs": true,
+    "export_tree_matches_git_blobs": true,
+    "code_manifest_keys_match_export": true,
+    "export_tree_keys_match_export": true,
+    "all_git_modes_supported": true,
+    "manifest_export_hash_present": true,
+    "manifest_source_revision_not_conflicting": true,
+    "export_tree_matches_code_manifest": true,
+    "backend_export_hash_present": true,
+    "backend_export_hash_bound": true,
+    "health_cwd_exact": true,
+    "descriptor_export_exact": true,
+    "health_source_id_observed": true,
+    "manifest_source_revision_present": false,
+    "health_source_id_is_unknown": true
+  },
+  "expected_commit_file_count": 7723,
+  "exported_backend_file_count": 7723,
+  "git_blob_files_checked": 7723,
+  "git_blob_mismatches": [],
+  "missing_exported_files": [],
+  "unexpected_exported_files": [],
+  "launcher_generated_exported_files": [],
+  "git_backend_export": {
+    "prefix": "backend/",
+    "file_count": 7723,
+    "sha256": "c0bab7c179d23679567bd8e4cde3e43886acd9417a35fb3adf3d9af3924a4bb3"
+  },
+  "export_backend_export": {
+    "prefix": "backend/",
+    "file_count": 7723,
+    "sha256": "c0bab7c179d23679567bd8e4cde3e43886acd9417a35fb3adf3d9af3924a4bb3"
+  },
+  "manifest_source_revision_present": false,
+  "health_source_id": "unknown"
+}

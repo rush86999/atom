@@ -1,0 +1,4 @@
+[preflight] ok=True report=/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/atom-preflight-evidence-j4rig72d/report/preflight.json
+[preflight] schema=5 envelopes, tool=ReActStep, shim_keys=5
+[preflight] warning: backend/venv314/bin/python is absent in this worktree; --execute needs the prepared acceptance interpreter
+[preflight] warning: frontend-nextjs/node_modules is absent in this worktree; --execute must run from the installed capture worktree

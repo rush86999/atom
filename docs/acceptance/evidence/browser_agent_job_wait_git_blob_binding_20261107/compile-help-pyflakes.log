@@ -1,0 +1,40 @@
+$ /usr/local/opt/python@3.14/bin/python3.14 -m py_compile scripts/acceptance/browser_agent_job_wait.py
+rc=0
+
+$ /usr/local/opt/python@3.14/bin/python3.14 scripts/acceptance/browser_agent_job_wait.py --help
+rc=0
+usage: browser_agent_job_wait.py [-h] [--preflight] [--execute]
+                                 [--world WORLD] [--backend-port BACKEND_PORT]
+                                 [--frontend-port FRONTEND_PORT]
+                                 [--shim-port SHIM_PORT] [--out OUT]
+                                 [--report REPORT]
+                                 [--expect-source-sha EXPECT_SOURCE_SHA]
+                                 [--admin-password-file ADMIN_PASSWORD_FILE]
+                                 [--provision-admin-password] [--headed]
+                                 [--keep-stack]
+
+Thin preparation/execution driver for the Agents-page durable information-wait acceptance. Default is --preflight; root owns --execute.
+
+options:
+  -h, --help            show this help message and exit
+  --preflight           validate source/environment/schema only (default)
+  --execute             root-owned world/browser execution
+  --world WORLD         acceptance world name (default browser_wait_<HEAD10>)
+  --backend-port BACKEND_PORT
+  --frontend-port FRONTEND_PORT
+  --shim-port SHIM_PORT
+  --out OUT             evidence/report directory
+  --report REPORT       preflight JSON path (default <out>/preflight.json)
+  --expect-source-sha EXPECT_SOURCE_SHA
+                        require this exact HEAD
+  --admin-password-file ADMIN_PASSWORD_FILE
+                        0600 scratch admin password file (execute only)
+  --provision-admin-password
+                        provision a scratch admin password via app bootstrap
+  --headed              show the browser (execute only; default headless)
+  --keep-stack          leave the scratch stack running for inspection
+
+Preparation preflight needs TESTING=1 and explicit fresh scratch DATABASE_URL/ATOM_DATA_DIR/ATOM_OFFICE_DIR. It never launches a world, browser, app model/provider or live credential.
+
+$ /usr/local/opt/python@3.14/bin/python3.14 -m pyflakes scripts/acceptance/browser_agent_job_wait.py
+rc=0
