@@ -62,10 +62,16 @@ class GoalService:
         parent_goal_id: Optional[str] = None,
         target_date: Optional[datetime] = None,
         source: str = "api",
+        utility_target: Optional[Dict[str, Any]] = None,
     ) -> Dict[str, Any]:
         from core.models import GoalObjective
         if not title or not title.strip():
             raise ValueError("goal title is required")
+        metadata: Dict[str, Any] = {}
+        if utility_target is not None:
+            from core.goals.utility_target import normalize_utility_target
+            metadata["utility_target"] = normalize_utility_target(
+                utility_target)
         goal = GoalObjective(
             tenant_id=self.tenant_id,
             workspace_id=self.workspace_id,
@@ -73,6 +79,7 @@ class GoalService:
             description=description or "",
             criteria=list(criteria or []),
             key_results=list(key_results or []),
+            metadata_json=metadata,
             owner_id=owner_id,
             parent_goal_id=parent_goal_id,
             target_date=target_date,
@@ -101,6 +108,81 @@ class GoalService:
                 q = q.filter(GoalObjective.status.notin_(("achieved", "failed")))
             goals = q.order_by(GoalObjective.created_at.desc()).limit(500).all()
             return [self._to_dict(g) for g in goals]
+
+    # ------------------------------------------------------- utility target
+    # GOAL-02: the target is persisted on the existing GoalObjective row
+    # (metadata_json) — no schema change, no parallel goal store.
+
+    def set_utility_target(self, goal_id: str,
+                           target: Dict[str, Any]) -> Dict[str, Any]:
+        """Persist an explicit utility target for this goal.
+
+        The definition is validated before any write. Malformed targets are
+        rejected rather than becoming a silently unranked optimization signal.
+        """
+        from core.models import GoalObjective
+        from core.goals.utility_target import normalize_utility_target
+        normalized = normalize_utility_target(target)
+        with self._sessions()() as session:
+            goal = session.query(GoalObjective).filter(
+                GoalObjective.id == goal_id,
+                GoalObjective.workspace_id == self.workspace_id).first()
+            if not goal:
+                raise ValueError(f"goal {goal_id} not found")
+            metadata = dict(goal.metadata_json or {})
+            metadata["utility_target"] = normalized
+            goal.metadata_json = metadata
+            session.commit()
+            session.refresh(goal)
+            return self._to_dict(goal)
+
+    def clear_utility_target(self, goal_id: str) -> Dict[str, Any]:
+        from core.models import GoalObjective
+        with self._sessions()() as session:
+            goal = session.query(GoalObjective).filter(
+                GoalObjective.id == goal_id,
+                GoalObjective.workspace_id == self.workspace_id).first()
+            if not goal:
+                raise ValueError(f"goal {goal_id} not found")
+            metadata = dict(goal.metadata_json or {})
+            metadata.pop("utility_target", None)
+            goal.metadata_json = metadata
+            session.commit()
+            session.refresh(goal)
+            return self._to_dict(goal)
+
+    def get_utility_target(self, goal_id: str) -> Optional[Dict[str, Any]]:
+        goal = self.get_goal(goal_id)
+        return goal.get("utility_target") if goal else None
+
+    def utility_ranking(self, goal_id: str) -> Optional[Dict[str, Any]]:
+        """Deterministically rank this goal's terminal runs against its target.
+
+        Read-only: no goal status/progress mutation. Uses the existing GoalRun
+        rows as the accepted trajectory evidence. Returns None when the goal
+        has no persisted target (nothing to rank).
+        """
+        from core.models import GoalRun
+        from core.goals.goal_run_service import GoalRunService
+        from core.goals.utility_target import outcome_from_goal_run, rank_trajectories
+
+        goal = self.get_goal(goal_id)
+        if not goal:
+            return None
+        target = goal.get("utility_target")
+        if not target:
+            return None
+        with self._sessions()() as session:
+            runs = session.query(GoalRun).filter(
+                GoalRun.workspace_id == self.workspace_id,
+                GoalRun.goal_id == goal_id,
+                GoalRun.status.in_(("achieved", "failed", "cancelled")),
+            ).order_by(GoalRun.created_at.asc()).limit(100).all()
+            outcomes = [
+                outcome_from_goal_run(GoalRunService._to_dict(run))
+                for run in runs
+            ]
+        return rank_trajectories(target, outcomes)
 
     # -------------------------------------------------------- state machine
 
@@ -151,7 +233,7 @@ class GoalService:
 
             session.commit()
             session.refresh(goal)
-            return {
+            result = {
                 "goal_id": goal_id,
                 "status": goal.status,
                 "progress": goal.progress,
@@ -159,6 +241,12 @@ class GoalService:
                 "total": len(results),
                 "results": [r.to_dict() for r in results],
             }
+            # Read-only optimization summary: utility never changes status or
+            # progress above; it only ranks completed candidate trajectories.
+            utility = self.utility_ranking(goal_id)
+            if utility is not None:
+                result["utility"] = utility
+            return result
 
     def add_criteria(self, goal_id: str, criteria: List[Dict[str, Any]]) -> Dict[str, Any]:
         from core.models import GoalObjective
@@ -210,6 +298,8 @@ class GoalService:
             definition_of_done=_done,
             constraints={"goal_id": goal_id, "workspace_id": self.workspace_id},
             success_criteria=[c.get("type", "?") for c in (record.get("criteria") or [])],
+            workspace_id=self.workspace_id,
+            utility_target=record.get("utility_target"),
         )
 
     # ----------------------------------------------------------------- util
@@ -227,6 +317,7 @@ class GoalService:
             "owner_id": goal.owner_id,
             "parent_goal_id": goal.parent_goal_id,
             "source": goal.source,
+            "utility_target": (goal.metadata_json or {}).get("utility_target"),
             "target_date": goal.target_date.isoformat() if goal.target_date else None,
             "created_at": goal.created_at.isoformat() if goal.created_at else None,
         }

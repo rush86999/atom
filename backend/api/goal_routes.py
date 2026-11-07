@@ -55,6 +55,15 @@ def _require_runner(db: Session, current_user: User) -> None:
         )
 
 
+def _require_supervisor(db: Session, current_user: User) -> None:
+    if not _is_supervisor(db, current_user):
+        raise HTTPException(
+            status_code=403,
+            detail="This goal setting requires a supervisor "
+                   "(team_lead or higher)",
+        )
+
+
 def _service(current_user: User, db: Session):
     """GoalService bound to THIS request's session (same pattern as
     goal_run_routes._service — one session per request, closed by get_db)."""
@@ -77,6 +86,14 @@ class GoalCreate(BaseModel):
     criteria: Optional[List[dict]] = None
     key_results: Optional[List[dict]] = None
     target_date: Optional[str] = None
+    utility_target: Optional[dict] = None
+
+
+class UtilityTargetBody(BaseModel):
+    metric: str
+    direction: str
+    source: str
+    description: str = ""
 
 
 @router.get("")
@@ -103,6 +120,61 @@ async def get_goal(
     return goal
 
 
+@router.get("/{goal_id}/utility")
+async def get_goal_utility(
+    goal_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Durable utility target + deterministic ranking of completed runs.
+
+    Read-only. Ranking is computed from persisted GoalRun evidence; it never
+    changes the goal's status or progress.
+    """
+    svc = _service(current_user, db)
+    goal = svc.get_goal(goal_id)
+    if not goal:
+        raise router.not_found_error("Goal", goal_id)
+    ranking = svc.utility_ranking(goal_id)
+    if ranking is None:
+        return {"goal_id": goal_id, "target": None, "ranking": [],
+                "winner": None, "eligible_count": 0}
+    return {"goal_id": goal_id, **ranking}
+
+
+@router.put("/{goal_id}/utility")
+async def set_goal_utility(
+    goal_id: str,
+    payload: UtilityTargetBody,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Attach an explicit utility target to an existing goal (supervisor)."""
+    _require_supervisor(db, current_user)
+    try:
+        goal = _service(current_user, db).set_utility_target(
+            goal_id, payload.model_dump())
+    except ValueError as exc:
+        raise HTTPException(status_code=422, detail=str(exc))
+    return {"success": True, "goal_id": goal_id,
+            "utility_target": goal["utility_target"]}
+
+
+@router.delete("/{goal_id}/utility")
+async def clear_goal_utility(
+    goal_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    _require_supervisor(db, current_user)
+    try:
+        goal = _service(current_user, db).clear_utility_target(goal_id)
+    except ValueError as exc:
+        raise HTTPException(status_code=404, detail=str(exc))
+    return {"success": True, "goal_id": goal_id,
+            "utility_target": goal["utility_target"]}
+
+
 @router.post("")
 async def create_goal(
     payload: GoalCreate,
@@ -121,12 +193,13 @@ async def create_goal(
     if not title:
         raise HTTPException(status_code=422, detail="goal title is required")
     if not supervisor and (payload.criteria or payload.key_results
-                           or payload.target_date):
+                           or payload.target_date or payload.utility_target):
         raise HTTPException(
             status_code=403,
-            detail="criteria, key_results and target_date require a "
-                   "supervisor (team_lead or higher) — create the goal with "
-                   "a title and description, and a supervisor can enrich it")
+            detail="criteria, key_results, target_date and utility_target "
+                   "require a supervisor (team_lead or higher) — create the "
+                   "goal with a title and description, and a supervisor can "
+                   "enrich it")
     target_dt = None
     if payload.target_date:
         try:
@@ -145,6 +218,7 @@ async def create_goal(
             owner_id=str(current_user.id),
             target_date=target_dt,
             source="api",
+            utility_target=payload.utility_target,
         )
     except ValueError as exc:
         raise HTTPException(status_code=422, detail=str(exc))

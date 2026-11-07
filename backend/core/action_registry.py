@@ -1956,6 +1956,20 @@ _GOAL_CREATE_SCHEMA = {
         "key_results": {"type": "array", "items": {"type": "object"},
                         "description": "OKR key results [{description, metric, target}]"},
         "target_date": {"type": "string", "description": "ISO date"},
+        "utility_target": {
+            "type": "object",
+            "description": "Optional explicit optimization target. "
+                "{metric: human_interventions|steps_executed|replan_count, "
+                "direction: maximize|minimize, source: goal_run, description?}. "
+                "Ranks completed goal runs; never replaces goal criteria.",
+            "properties": {
+                "metric": {"type": "string"},
+                "direction": {"type": "string"},
+                "source": {"type": "string"},
+                "description": {"type": "string"},
+            },
+            "required": ["metric", "direction", "source"],
+        },
     },
     "required": ["title"],
 }
@@ -1987,6 +2001,7 @@ async def _goals_create(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[s
         owner_id=context.get("user_id"),
         target_date=target_dt,
         source="agent",
+        utility_target=args.get("utility_target"),
     )
     return {"success": True, "goal": goal}
 
@@ -2309,9 +2324,11 @@ async def _goal_runs_start(args: Dict[str, Any], context: Dict[str, Any]) -> Dic
 )
 async def _goal_runs_list(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     from core.goals.goal_run_service import GoalRunService
+    workspace_id = context.get("workspace_id") or "default"
+    tenant_id = context.get("tenant_id") or "default"
     svc = GoalRunService(
-        workspace_id=context.get("workspace_id") or "default",
-        tenant_id=context.get("tenant_id") or "default")
+        workspace_id=workspace_id,
+        tenant_id=tenant_id)
 
     run_id = str(args.get("run_id") or "").strip()
     if run_id:
@@ -2321,13 +2338,23 @@ async def _goal_runs_list(args: Dict[str, Any], context: Dict[str, Any]) -> Dict
                     "error": f"goal run '{run_id}' not found"}
         return {"success": True, "run": _goal_run_summary(run, detail=True)}
 
+    goal_id = str(args.get("goal_id") or "").strip() or None
     runs = svc.list_runs(
-        goal_id=str(args.get("goal_id") or "").strip() or None,
+        goal_id=goal_id,
         status=str(args.get("status") or "").strip() or None,
         include_terminal=bool(args.get("include_terminal", True)))
-    return {"success": True, "count": len(runs[:20]),
-            "truncated": len(runs) > 20,
-            "runs": [_goal_run_summary(r) for r in runs[:20]]}
+    result = {"success": True, "count": len(runs[:20]),
+              "truncated": len(runs) > 20,
+              "runs": [_goal_run_summary(r) for r in runs[:20]]}
+    if goal_id:
+        # Deterministic GOAL-02 comparison for the agent reading progress:
+        # completed runs ranked against the goal's persisted utility target.
+        from core.goals.goal_service import GoalService
+        utility = GoalService(workspace_id=workspace_id,
+                              tenant_id=tenant_id).utility_ranking(goal_id)
+        if utility is not None:
+            result["utility"] = utility
+    return result
 
 
 @register_action(

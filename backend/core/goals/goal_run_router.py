@@ -247,6 +247,9 @@ class GoalRunRouter:
             sections.append("RECENT DECISIONS (oldest first):\n" + self._json([
                 {k: d.get(k) for k in ("decision", "rationale", "event")
                  if d.get(k) is not None} for d in recent]))
+        utility_line = self._utility_context(goal)
+        if utility_line:
+            sections.append(utility_line)
         advisory = self._role_context(run)
         if advisory:
             sections.append(advisory)
@@ -266,6 +269,43 @@ class GoalRunRouter:
             "the goal.\n"
             "Return the JSON object.")
         return "\n\n".join(sections)
+
+    @staticmethod
+    def _utility_context(goal: Dict[str, Any]) -> str:
+        """Render the deterministic utility ranking for the model.
+
+        This is advisory only. The ranking is computed from durable GoalRun
+        evidence by GoalService; the model still chooses the next trajectory,
+        and utility never satisfies or overrides the goal's criteria.
+        """
+        utility = goal.get("utility") or {}
+        target = utility.get("target") or {}
+        if not target:
+            return ""
+        ranking = utility.get("ranking") or []
+        eligible = [entry for entry in ranking if entry.get("eligible")]
+        rendered = [
+            {k: entry.get(k) for k in ("id", "utility", "rank")}
+            for entry in eligible[:5]
+        ]
+        withheld = [
+            {k: entry.get(k) for k in ("id", "reason")}
+            for entry in ranking if not entry.get("eligible")
+        ][:5]
+        lines = [
+            "UTILITY TARGET (optimization signal only — never a substitute "
+            "for goal criteria, constraints or safety):",
+            f"- metric: {target.get('metric')} "
+            f"({target.get('direction')}); source: {target.get('source')}",
+            "- best completed trajectory: "
+            f"{utility.get('winner') or 'none yet'}",
+            "- ranked completed trajectories: " + (
+                GoalRunRouter._json(rendered) if rendered else "none yet"),
+        ]
+        if withheld:
+            lines.append("- not ranked (withheld): "
+                         + GoalRunRouter._json(withheld))
+        return "\n".join(lines)
 
     def _role_context(self, run: Dict[str, Any]) -> str:
         """Advisory role memory: this role's approved playbook steps + the

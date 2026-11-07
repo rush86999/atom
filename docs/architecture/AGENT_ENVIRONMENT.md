@@ -3,13 +3,16 @@
 > **Status:** Phase 5 (P5) implemented behind a feature flag. The
 > `GenericAgent` ReAct loop can terminate on a goal predicate instead of
 > always burning to `max_steps` (5a); the maturity success ratio is an
-> explicit utility target (5b); agents expose a maturity-gated custom
+> in-loop optimization hint (5b), and GOAL-02 adds a persisted per-goal
+> utility target that deterministically ranks completed `GoalRun`
+> trajectories; agents expose a maturity-gated custom
 > action surface with a stuck-detector (5c). **Flag defaults ON — kill
 > switch `ATOM_OBJECTIVE_LOOP_ENABLED=false` restores the exact
 > pre-P5 loop.**
 >
-> **Last Updated:** Aug 8, 2026
-> **Related code:** `backend/core/agent_objective.py`, `backend/core/generic_agent.py`
+> **Last Updated:** Nov 6, 2026
+> **Related code:** `backend/core/agent_objective.py`, `backend/core/generic_agent.py`,
+> `backend/core/goals/utility_target.py`, `backend/core/goals/goal_service.py`
 > **Cross-references:** [`STANFORD_VIRTUAL_BIOTECH_PAPERCLIP.md`](./STANFORD_VIRTUAL_BIOTECH_PAPERCLIP.md), [`REVIEWER_LOOP.md`](./REVIEWER_LOOP.md)
 
 ## TL;DR
@@ -50,15 +53,11 @@ if _objective is not None and _objective.is_satisfied(state):
 The `max_steps` bound remains as a hard ceiling; the objective is an *early
 exit*, not a replacement for the budget.
 
-## What this does NOT do (deferred — H10)
+## What this does NOT do
 
-- **Explicit utility/reward to optimize** — the `confidence` float is recorded
-  but not yet fed back into action selection (future: promote maturity ratios
-  from permission-gate to optimization target).
-- **Agent-extensible tool surface** — both registries are still static at
-  import; `agent.register_action(...)` + maturity-gated discovery is a future
-  phase.
-- **Stuck-detector** — same tool+args 3× → halt (UNU pattern) is a future add.
+- **Automatic trajectory selection** — the utility target ranks completed
+  trajectories deterministically; the model still chooses the next move. See
+  the GOAL-02 section below.
 
 ## P5b — explicit utility (maturity success ratio as optimization target)
 
@@ -95,6 +94,39 @@ tool is called 3× with identical tool+args (single-action path and parallel
 batches), instead of burning the step budget in a loop. Gated on
 `ATOM_OBJECTIVE_LOOP_ENABLED` (default true).
 
+## GOAL-02 — persisted utility target + deterministic ranking
+
+The maturity-success delta above is an in-loop optimization hint. GOAL-02 adds
+the durable, comparable contract the README claim requires:
+
+- The target lives on the existing `GoalObjective.metadata_json["utility_target"]`
+  (no new table): `{metric, direction, source, description?}`.
+  Accepted metrics are durable `GoalRun` counters (`human_interventions`,
+  `steps_executed`, `replan_count`); `source` must be `goal_run`.
+- `GoalService.set_utility_target` validates explicitly before writing.
+  Missing/malformed/non-finite definitions are rejected; unknown metrics never
+  silently become zero.
+- `GoalService.utility_ranking` projects the goal's terminal `GoalRun` rows and
+  ranks them with `core/goals/utility_target.py`. **Higher utility always ranks
+  higher** (a `minimize` target is normalized to negative utility).
+- Completion gates ranking before the metric: failed/cancelled runs are
+  ineligible (`utility=None`, no rank), and only `achieved` runs are
+  constraint-eligible in the durable projection. The pure ranking gate also
+  honors an explicit trusted `constraints_ok=False` candidate, so a caller
+  with real safety evidence can withhold it. Utility can never satisfy a goal
+  criterion or rescue a failed/cancelled run.
+- Metric evidence is a durable non-negative integral `GoalRun` counter.
+  Negative, fractional, string, non-finite, and float-overflowing huge counts
+  are unknown (`utility=None`, no rank) rather than zero or a crash.
+- Consumers: `GoalService.evaluate` returns the read-only ranking (without
+  changing status/progress), `GoalRunService`/`GoalRunRouter` receive it in the
+  router context, `goal_runs.list` exposes it to agents, and
+  `GET/PUT/DELETE /api/goals/{id}/utility` exposes set/read/clear at the API
+  boundary (supervisor-gated writes).
+
+The ranking is deterministic and evidence-bound; model trajectory choice stays
+separate. Controlled consumer evidence: `tests/test_goal_utility_target.py`.
+
 ## Verification
 
 `test_agent_objective.py` (7): Objective.is_satisfied (true/false/safe-on-error),
@@ -104,3 +136,9 @@ termination on a satisfied predicate).
 maturity-gated discovery, AVAILABLE TOOLS advertising, stuck-detector halt /
 flag-off parity / different-args-not-stuck, utility-delta threading, and the
 OPTIMIZATION TARGET prompt block.
+
+`test_goal_utility_target.py` (29): explicit-target validation/persistence,
+higher/lower utility ranking, goal/workspace scoping, failed/cancelled/
+constraint/missing/non-finite/negative/huge-count twins,
+`GoalService.evaluate` and GoalRun router consumption, fresh-session
+durability, flag-off parity, and the supervisor/member API boundary.
