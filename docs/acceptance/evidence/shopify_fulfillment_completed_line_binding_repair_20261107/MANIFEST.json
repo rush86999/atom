@@ -1,0 +1,28 @@
+{
+  "artifacts": {
+    "PR_BODY.md": "a3f79b73026e0f9e69b083c9ad463d443a36f0bb30972bf6a9cfc32339e02ca4",
+    "README.md": "b0c2937de91469fb39a1419f3b7b33558355e801677dfd9ebfbb333359fb873c",
+    "affected-exit.json": "d6fccdb3bd636528baa7b1f360f05f7fcd6169120356a5a67b07b2ab0098ad05",
+    "affected.log": "8059a6d6d94d829c95d00bcf8e89f5aac0987dcc26266285bda967f52cfe5b36",
+    "affected.xml": "f3cd5ca6b958816f3ae247faa1c20eb53bfc8942bd4d4f3a9fa99837dccf4565",
+    "exact7-exit.json": "9c82d14b22adfe6f53c7514354c79e56cdc5a9bc6838a6bb708a6feb6338b73a",
+    "exact7.log": "6b5f32cbf6441141deb83b213411e8e7ce5b5e12e89229c1d1937fc19008772e",
+    "exact7.xml": "417bc3e124479b2a500e0145b79b51d70fc59109f89db8eaa1d6940826ec917c",
+    "failure-first-completed-alias-exit.json": "5926a6c35e05886e99ec76a5d9b4c1ac5550046e6ffcf8b12e207fb6252f9720",
+    "failure-first-completed-alias.log": "7f1b8a11ac55e8918fb8f02f912143a46d500a61ab0438921f25b77e4aa268ed",
+    "failure-first-completed-alias.xml": "96a84490f793c1a3f3f957a867c3c73788734de1eea69f0a3c7bbbe0c9e4fb5f",
+    "matrix-exit.json": "a7549d99ea1c69c5949b75c501b74d5901e027611feae7ac8a3c2204557573a6",
+    "run_and_capture.py": "54ba3f840e7b7cd6fe322b8db8b9e0dab723d026a0fefe3fa7019f2d97830f0c",
+    "source-binding.json": "335150dd49074eaa5a304f6f54455bf148d48d7b6ed14901db2ecae8e76fde66",
+    "verification.json": "d6408d5d6f5e2555c6e45b9bd217fad780cc53e8e480be9e732588cdf2adea8e"
+  },
+  "executed_source": "0556c74787bf886164e92bb98b345d921563b48b",
+  "source_files": {
+    "backend/core/oracle/postcondition_verifiers.py": "148aae4d64572d58707875c75c2923e40e96ce8d295b4800c498d73e964c805e",
+    "backend/core/shopify_mutations.py": "0cf9241127839451955d641ec098cd3f287402d3272853c9963529bffce9d1c4",
+    "backend/integrations/shopify_service.py": "d4b6bc20a2f6abcc22ff110605aebd3108f9a89da49e4fab3029c1f6e7457aff",
+    "backend/tests/test_covpush_w95_shopify.py": "ffeb69548cbd72dd23c6621e6b590914cae761892eba41a09f6d3cc2d550ffd3",
+    "backend/tests/test_lead_shopify_fulfillment_rest_shape.py": "a2b028901f34c8fbf8ab7e8432f470f3f06ec6e9066dc8c670d2462139ad864a",
+    "backend/tests/test_oracle_shopify_fulfillment_create.py": "1cae4a7633af448265e2b3d3db9275486e286abe2c5b29f217c0d4b8f6cbd4ef"
+  }
+}

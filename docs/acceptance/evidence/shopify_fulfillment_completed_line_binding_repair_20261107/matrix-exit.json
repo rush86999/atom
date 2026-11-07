@@ -1,0 +1,10 @@
+{
+  "exact7_and_affected_exit": 0,
+  "expected_failure_first_exit": 1,
+  "overall_exit": 0,
+  "phases": {
+    "affected": 0,
+    "exact7": 0,
+    "failure-first-completed-alias": 1
+  }
+}
