@@ -1,0 +1,35 @@
+{
+  "runtime_commit": "039a24f4e",
+  "runtime_commit_time": "2026-11-06T23:30:03-05:00",
+  "retained_cli_events": [
+    {
+      "completed_at_epoch_ms": 1794025843058,
+      "command": "TESTING=1 DATABASE_URL=sqlite:////private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/qual_final3.db /Users/rushiparikh/projects/atom/backend/venv314/bin/python -m pytest tests/test_generic_oracle_mutation_contract.py ../LEAD_PROBES/test_lead_generic_draft_boundaries.py ../LEAD_PROBES/test_lead_generic_normal_identity.py ../LEAD_PROBES/test_lead_generic_reload_unavailable.py ../LEAD_PROBES/test_lead_generic_normal_changed_retry.py ../LEAD_PROBES/test_lead_generic_two_normal_writes.py -q --basetemp=/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/qual_base_final3 > /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/final_43.log 2>&1; echo \"EXIT:$?\"",
+      "tool_timing": {
+        "start": 1794025809209,
+        "end": 1794025843058
+      },
+      "exit_status": 0
+    },
+    {
+      "completed_at_epoch_ms": 1794025872812,
+      "command": "TESTING=1 DATABASE_URL=sqlite:////private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/qual_final3.db /Users/rushiparikh/projects/atom/backend/venv314/bin/python -m pytest tests/test_assignment_executor.py tests/test_oracle_registry_verification_gap.py tests/test_oracle_effect_families.py tests/test_oracle_connected_mutations.py tests/integration/journeys/test_oracle_registry_mutation_journey.py -q --basetemp=/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/qual_base_final3b > /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/final_156.log 2>&1; echo \"EXIT:$?\"",
+      "tool_timing": {
+        "start": 1794025845214,
+        "end": 1794025872812
+      },
+      "exit_status": 0
+    },
+    {
+      "completed_at_epoch_ms": 1794025917225,
+      "command": "TESTING=1 DATABASE_URL=sqlite:////private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/qual_final3.db /Users/rushiparikh/projects/atom/backend/venv314/bin/python -m pytest tests/test_generic_agent.py tests/core/agents_generic/test_generic_agent_coverage.py tests/core/test_generic_agent_worktime_lessons.py tests/test_covpush_w31_generic_agent.py tests/test_covpush_generic_agent.py tests/core/test_oracle_and_two_tier_confidence.py tests/test_oracle_connected_mutations.py tests/test_oracle_effect_families.py tests/test_tool_error_memento_lifecycle.py tests/test_agent_action_audit.py tests/test_assignment_executor.py tests/test_oracle_registry_verification_gap.py tests/integration/journeys/test_oracle_registry_mutation_journey.py -q --basetemp=/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/qual_base_final3c > /private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/final_341.log 2>&1; echo \"EXIT:$?\"",
+      "tool_timing": {
+        "start": 1794025875222,
+        "end": 1794025917225
+      },
+      "exit_status": 0
+    }
+  ],
+  "original_bytes_preserved": true,
+  "scope": "test execution attribution only; no native model/auth data exported"
+}

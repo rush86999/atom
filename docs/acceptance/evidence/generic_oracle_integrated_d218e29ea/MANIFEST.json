@@ -15,8 +15,9 @@
     "backend/api/agent_routes.py": "45e3ee073019c4ac880cbaf77064921052c458587138b2c88f23b70628437290"
   },
   "artifacts": {
-    "README.md": "04a187af7a85efbb51b8e3340984f044345511dfd86a9fb3f5c1e9dd35dcc693",
-    "RUN_SPEC.json": "5705334929ae0a6c146bcda50efdd70e6809bd778cc9124991d8f5bf19635948",
+    "README.md": "33eaf47986671f901d19eb7f9d5f33603223ae0e73b2aa943ed49f04c3566d08",
+    "RUN_SPEC.json": "5dcdb2f86c83ff776335a8af77f1334b52ad39a8e02d8379f0d0f303a57a8df5",
+    "WORKER_LOG_ATTRIBUTION.json": "bdc23a186bc5bf0ac18131961424cecd5afba3a8a0c12a080e1228890aa97123",
     "integrated-gate.log": "ee6c62d207620021cd30bdc0a73bdfc1681b2491a851f15594f7b587c6795b7f",
     "next-caller-outcome-baseline.log": "17844f46cf968d68cedd4409ed1974ce3b208613c33f35e4eff856716de15544",
     "original-reviewed-baseline.log": "fb369857c6607c4c6241e16914b34bbdcfb50f1be360901a8717aefeab975376",

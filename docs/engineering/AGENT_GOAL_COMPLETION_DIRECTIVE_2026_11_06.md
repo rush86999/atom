@@ -355,7 +355,7 @@ All implementation and verification agents: own the complete assigned delivery l
 
 ## Current November7 delivery amendment
 
-The dated `APP_COMPLETION_STATE_2026_11_07.md` supersedes earlier operational queue rows. PR714 is merged at `e3e9d8f6c`, with byte-identical reviewed/merged trees and green post-merge CI/Docker. The GenericAgent candidate at `d218e29ea` has228 local controls passing; hosted verification and scoped review still apply. Root retains the original negatives and the exact-source evidence. Do not replay unchanged browser/model campaigns to package this consumer-only repair.
+The dated `APP_COMPLETION_STATE_2026_11_07.md` supersedes earlier operational queue rows. PR714 is merged at `e3e9d8f6c`, with byte-identical reviewed/merged trees and green post-merge CI/Docker. The GenericAgent candidate at `ddc6de056` has229 local controls passing; hosted verification and scoped review still apply. Root retains the original negatives and the exact-source evidence. Do not replay unchanged browser/model campaigns to package this consumer-only repair.
 
 Agent1 continues the owned six MiniApp host producer/verifier gaps. Agent2 completes its coherent consumer push, then handles the confirmed admitted-execution outcome/trusted-context join before the prepared board-owner family. An execution result object is not proof of success; preserve failed/uncertain/waiting/cancelled outcomes through durable job and scoped user notifications. Freeze the authorized caller context server-side rather than deriving actor/scope/execution identity from business parameters. The new caller work does not reopen accepted admission mechanics or require live inference.
 
