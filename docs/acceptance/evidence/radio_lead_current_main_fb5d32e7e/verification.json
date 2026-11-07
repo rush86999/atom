@@ -1,0 +1,8 @@
+{
+  "runtime_source": "fb5d32e7eb2ad3224d4d4c201a6decfc2e6eee49",
+  "independent_passed": 47,
+  "actual_exit": 0,
+  "original_negative_failed": 1,
+  "source_changed_after_run": "CI test-list only; runtime unchanged",
+  "scope": "real scratch SQLite; exact registered radio consumer and independent readback"
+}

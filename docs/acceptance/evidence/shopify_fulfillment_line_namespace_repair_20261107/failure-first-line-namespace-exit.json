@@ -1,0 +1,26 @@
+{
+  "command": [
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "tests/test_lead_shopify_fulfillment_rest_shape.py::test_missing_order_line_identity_cannot_borrow_fulfillment_order_line_id",
+    "-q",
+    "--basetemp",
+    "/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/fulfillment-line-failure-first-line-namespace-yz3b3ag3/basetemp",
+    "-p",
+    "no:cacheprovider",
+    "--junitxml=/private/tmp/atom-shopify-product-lead-review/docs/acceptance/evidence/shopify_fulfillment_line_namespace_repair_20261107/failure-first-line-namespace.xml"
+  ],
+  "counts": {
+    "failed": 1
+  },
+  "cwd": "/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/fulfillment-line-failure-first-line-namespace-yz3b3ag3/source/backend",
+  "database_url": "sqlite:////var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/fulfillment-line-failure-first-line-namespace-yz3b3ag3/scratch.db",
+  "exit_code": 1,
+  "finished_utc": "2026-11-07T16:57:02.034520+00:00",
+  "phase": "failure-first-line-namespace",
+  "source_revision": "b813c2a1f",
+  "source_revision_meaning": "pre-repair source extracted from git",
+  "started_utc": "2026-11-07T16:56:45.005823+00:00",
+  "testing": "1"
+}

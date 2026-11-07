@@ -1,0 +1,26 @@
+{
+  "command": [
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "tests/test_lead_shopify_fulfillment_rest_shape.py",
+    "-q",
+    "--basetemp",
+    "/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/fulfillment-line-exact6-3dnwg264/basetemp",
+    "-p",
+    "no:cacheprovider",
+    "--junitxml=/private/tmp/atom-shopify-product-lead-review/docs/acceptance/evidence/shopify_fulfillment_line_namespace_repair_20261107/exact6.xml"
+  ],
+  "counts": {
+    "passed": 6
+  },
+  "cwd": "/private/tmp/atom-shopify-product-lead-review/backend",
+  "database_url": "sqlite:////var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/fulfillment-line-exact6-3dnwg264/scratch.db",
+  "exit_code": 0,
+  "finished_utc": "2026-11-07T16:57:23.414946+00:00",
+  "phase": "exact6",
+  "source_revision": "c37cfde0cc7e39c3f19201ffc88cecae9f18b9e5",
+  "source_revision_meaning": "clean committed repair source",
+  "started_utc": "2026-11-07T16:57:04.863509+00:00",
+  "testing": "1"
+}

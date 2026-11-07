@@ -2093,25 +2093,55 @@ async def _shopify_get_fulfillments(args: Dict[str, Any], context: Dict[str, Any
 @register_action(
     "shopify_create_fulfillment",
     description="Fulfill a Shopify order: ships every remaining line item of its open "
-                "fulfillment orders, optionally with tracking. Shopify derives the "
-                "ship-from location from the order's fulfillment orders.",
+                "fulfillment orders, optionally with tracking. A fulfillment is "
+                "per-location; when the order has actionable fulfillment orders at "
+                "multiple locations, pass location_id to select one.",
     parameters_schema=_SHOPIFY_FULFILLMENT_CREATE_SCHEMA,
     effects=[{"effect": "create", "scope": "external"}],
 )
 async def _shopify_create_fulfillment(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     token, shop = _resolve_shopify_store(context)
     if not token:
-        return {"success": False, "error": "no_shopify_store", "message": "No Shopify store connected to this workspace."}
-    from integrations.shopify_service import ShopifyService
-    fulfillment = await ShopifyService().create_fulfillment(
-        token, shop,
-        order_id=args["order_id"],
-        location_id=args.get("location_id"),
-        tracking_number=args.get("tracking_number"),
-        tracking_company=args.get("tracking_company"),
-        notify_customer=args.get("notify_customer", True),
+        return {
+            "status": "failed_before_effect",
+            "success": False,
+            "action_result": "proven_not_applied",
+            "effect_possible": False,
+            "error": "no_shopify_store",
+            "error_kind": "no_shopify_store",
+            "message": "No Shopify store connected to this workspace.",
+        }
+    selectors = _shopify_store_selector_arguments(args)
+    if selectors:
+        return {
+            "status": "failed_before_effect",
+            "success": False,
+            "action_result": "proven_not_applied",
+            "effect_possible": False,
+            "error": "store_override_refused",
+            "error_kind": "store_override_refused",
+            "message": (
+                "Store and credential selectors are server-owned; refusing "
+                "before dispatch: " + ", ".join(selectors)),
+        }
+    if not str((args or {}).get("order_id") or "").strip():
+        return {
+            "status": "failed_before_effect",
+            "success": False,
+            "action_result": "proven_not_applied",
+            "effect_possible": False,
+            "error": "invalid_request",
+            "error_kind": "invalid_request",
+            "message": "A Shopify order id is required.",
+        }
+    from core.shopify_mutations import create_fulfillment
+
+    return await create_fulfillment(
+        token, shop, args,
+        operation_id=str(
+            (context or {}).get("operation_id")
+            or (args or {}).get("operation_id") or ""),
     )
-    return {"success": True, "fulfillment": fulfillment}
 
 
 

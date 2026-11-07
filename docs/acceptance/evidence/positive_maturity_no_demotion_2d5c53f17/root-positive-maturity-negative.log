@@ -1,0 +1,65 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-07 11:12:10 [    INFO] MCP Service initialized
+
+backend/tests/test_positive_maturity_no_demotion.py::test_outcome_direction_preserves_authority_and_evidence_gates[autonomous-0.35-True-autonomous-0.36] 
+-------------------------------- live log setup --------------------------------
+2026-11-07 11:12:11 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-07 11:12:11 [    INFO] EscalationManager initialized
+2026-11-07 11:12:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 11:12:11 [    INFO] EscalationManager initialized
+2026-11-07 11:12:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 11:12:11 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 11:12:11 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:12:12 [    INFO] Agent Direction agent transitioned: autonomous -> student
+2026-11-07 11:12:12 [    INFO] Initialized global governance cache
+FAILED                                                                   [ 16%]
+backend/tests/test_positive_maturity_no_demotion.py::test_outcome_direction_preserves_authority_and_evidence_gates[autonomous-0.35-False-student-0.33] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:12:12 [    INFO] Agent Direction agent transitioned: autonomous -> student
+PASSED                                                                   [ 33%]
+backend/tests/test_positive_maturity_no_demotion.py::test_outcome_direction_preserves_authority_and_evidence_gates[autonomous-0.95-True-autonomous-0.96] PASSED [ 50%]
+backend/tests/test_positive_maturity_no_demotion.py::test_outcome_direction_preserves_authority_and_evidence_gates[student-0.49-True-student-0.5] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:12:14 [    INFO] Agent Direction agent evidence gate blocked intern: no pathway satisfied: [mentor_taught] needs 0/3 mentored sessions, 0/5 work episodes | [self_directed] needs 0/3 completed training sessions, 0/10 work episodes
+PASSED                                                                   [ 66%]
+backend/tests/test_positive_maturity_no_demotion.py::test_outcome_direction_preserves_authority_and_evidence_gates[paused-0.35-True-paused-0.36] PASSED [ 83%]
+backend/tests/test_positive_maturity_no_demotion.py::test_outcome_direction_preserves_authority_and_evidence_gates[stopped-0.35-True-stopped-0.36] PASSED [100%]
+
+=================================== FAILURES ===================================
+_ test_outcome_direction_preserves_authority_and_evidence_gates[autonomous-0.35-True-autonomous-0.36] _
+backend/tests/test_positive_maturity_no_demotion.py:32: in test_outcome_direction_preserves_authority_and_evidence_gates
+    assert row.status == expected_tier
+E   AssertionError: assert 'student' == 'autonomous'
+E     
+E     - autonomous
+E     + student
+------------------------------ Captured log setup ------------------------------
+INFO     core.byok_endpoints:byok_endpoints.py:877 Updated costs for 16 providers from dynamic pricing
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.embedding_service:embedding_service.py:131 Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+INFO     core.agent_task_registry:agent_task_registry.py:64 AgentTaskRegistry initialized
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_governance_service:agent_governance_service.py:587 Agent Direction agent transitioned: autonomous -> student
+INFO     core.governance_cache:governance_cache.py:542 Initialized global governance cache
+=============================== warnings summary ===============================
+../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 12 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED backend/tests/test_positive_maturity_no_demotion.py::test_outcome_direction_preserves_authority_and_evidence_gates[autonomous-0.35-True-autonomous-0.36]
+=================== 1 failed, 5 passed, 14 warnings in 5.21s ===================

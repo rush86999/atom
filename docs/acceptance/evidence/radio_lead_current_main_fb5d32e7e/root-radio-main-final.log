@@ -1,0 +1,164 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-07 11:57:41 [    INFO] MCP Service initialized
+
+tests/test_lead_radio_readback_identity.py::test_committed_message_identity_survives_readback_timeout 
+-------------------------------- live log setup --------------------------------
+2026-11-07 11:57:41 [    INFO] EscalationManager initialized
+2026-11-07 11:57:41 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 11:57:41 [    INFO] EscalationManager initialized
+2026-11-07 11:57:41 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 11:57:41 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 11:57:41 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:57:42 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+PASSED                                                                   [  2%]
+tests/test_oracle_radio_send.py::test_exact_send_is_independently_verified 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:57:44 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+PASSED                                                                   [  4%]
+tests/test_oracle_radio_send.py::test_to_agent_and_requires_response_are_verified 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:57:45 [    INFO] radio: agent-a -> ['agent-b', 'agent-c'] on thread-1
+PASSED                                                                   [  6%]
+tests/test_oracle_radio_send.py::test_pre_effect_refusals_do_not_write[missing_thread] PASSED [  8%]
+tests/test_oracle_radio_send.py::test_pre_effect_refusals_do_not_write[no_mentions] PASSED [ 10%]
+tests/test_oracle_radio_send.py::test_pre_effect_refusals_do_not_write[student_tier] PASSED [ 12%]
+tests/test_oracle_radio_send.py::test_pre_effect_refusals_do_not_write[disabled] PASSED [ 14%]
+tests/test_oracle_radio_send.py::test_known_success_replays_exact_message_without_second_send 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:57:50 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+PASSED                                                                   [ 17%]
+tests/test_oracle_radio_send.py::test_restart_fresh_session_reloads_exact_message 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:57:51 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+PASSED                                                                   [ 19%]
+tests/test_oracle_radio_send.py::test_replay_with_changed_current_material_is_committed_unverified[content] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:57:53 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+PASSED                                                                   [ 21%]
+tests/test_oracle_radio_send.py::test_replay_with_changed_current_material_is_committed_unverified[mentions] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:57:54 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+PASSED                                                                   [ 23%]
+tests/test_oracle_radio_send.py::test_replay_with_changed_current_material_is_committed_unverified[to_agent_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:57:55 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+PASSED                                                                   [ 25%]
+tests/test_oracle_radio_send.py::test_replay_with_changed_current_material_is_committed_unverified[requires_response] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:57:56 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+PASSED                                                                   [ 27%]
+tests/test_oracle_radio_send.py::test_replay_with_changed_current_material_is_committed_unverified[tenant_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:57:58 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+PASSED                                                                   [ 29%]
+tests/test_oracle_radio_send.py::test_replay_with_missing_message_is_committed_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:57:59 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+PASSED                                                                   [ 31%]
+tests/test_oracle_radio_send.py::test_changed_same_operation_material_refuses_before_send 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:58:00 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+PASSED                                                                   [ 34%]
+tests/test_oracle_radio_send.py::test_wrong_readback_id_is_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:58:01 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+PASSED                                                                   [ 36%]
+tests/test_oracle_radio_send.py::test_missing_readback_is_uncertain_not_success 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:58:03 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+PASSED                                                                   [ 38%]
+tests/test_oracle_radio_send.py::test_unavailable_readback_is_uncertain_not_success 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:58:04 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+PASSED                                                                   [ 40%]
+tests/test_oracle_radio_send.py::test_known_committed_id_survives_readback_failure[timeout] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:58:06 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+PASSED                                                                   [ 42%]
+tests/test_oracle_radio_send.py::test_known_committed_id_survives_readback_failure[runtime] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:58:08 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+PASSED                                                                   [ 44%]
+tests/test_oracle_radio_send.py::test_known_committed_id_survives_readback_failure[radio_error] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:58:09 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+PASSED                                                                   [ 46%]
+tests/test_oracle_radio_send.py::test_replay_after_readback_failure_does_not_resend 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:58:11 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+PASSED                                                                   [ 48%]
+tests/test_oracle_radio_send.py::test_unidentifiable_message_is_never_resent PASSED [ 51%]
+tests/test_oracle_radio_send.py::test_lost_confirmation_is_uncertain_and_never_resent 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:58:15 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+PASSED                                                                   [ 53%]
+tests/test_oracle_radio_send.py::test_failed_identity_receipt_is_not_rolled_back_or_resent 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:58:16 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+PASSED                                                                   [ 55%]
+tests/test_lead_shopify_article_rest_shape.py::test_official_rest_publication_readback_is_usable[True-2020-01-01T00:00:00Z] PASSED [ 57%]
+tests/test_lead_shopify_article_rest_shape.py::test_official_rest_publication_readback_is_usable[True-2020-01-01T00:00:00-05:00] PASSED [ 59%]
+tests/test_lead_shopify_article_rest_shape.py::test_official_rest_publication_readback_is_usable[False-None] PASSED [ 61%]
+tests/test_lead_shopify_article_rest_shape.py::test_future_published_at_is_scheduled_not_certified[True] PASSED [ 63%]
+tests/test_lead_shopify_article_rest_shape.py::test_future_published_at_is_scheduled_not_certified[False] PASSED [ 65%]
+tests/test_lead_shopify_article_rest_shape.py::test_missing_malformed_or_naive_published_at_stays_unknown[observed_at0] PASSED [ 68%]
+tests/test_lead_shopify_article_rest_shape.py::test_missing_malformed_or_naive_published_at_stays_unknown[] PASSED [ 70%]
+tests/test_lead_shopify_article_rest_shape.py::test_missing_malformed_or_naive_published_at_stays_unknown[not-a-date] PASSED [ 72%]
+tests/test_lead_shopify_article_rest_shape.py::test_missing_malformed_or_naive_published_at_stays_unknown[2020-01-01] PASSED [ 74%]
+tests/test_lead_shopify_article_rest_shape.py::test_missing_malformed_or_naive_published_at_stays_unknown[2020-01-01T00:00:00] PASSED [ 76%]
+tests/test_lead_shopify_article_rest_shape.py::test_contradictory_published_and_published_at_is_unknown[True-None-True] PASSED [ 78%]
+tests/test_lead_shopify_article_rest_shape.py::test_contradictory_published_and_published_at_is_unknown[False-2020-01-01T00:00:00Z-False] PASSED [ 80%]
+tests/test_lead_shopify_article_rest_shape.py::test_contradictory_published_and_published_at_is_unknown[True-2999-01-01T00:00:00Z-True] PASSED [ 82%]
+tests/test_lead_shopify_article_rest_shape.py::test_requested_published_but_null_readback_is_draft PASSED [ 85%]
+tests/test_lead_shopify_article_rest_shape.py::test_requested_draft_but_published_readback_is_unexpected PASSED [ 87%]
+tests/test_lead_shopify_article_rest_shape.py::test_published_only_readback_is_not_official_shape PASSED [ 89%]
+tests/test_lead_shopify_article_rest_shape.py::test_consistent_legacy_published_compatibility_is_justified[True-2020-01-01T00:00:00Z] PASSED [ 91%]
+tests/test_lead_shopify_article_rest_shape.py::test_consistent_legacy_published_compatibility_is_justified[False-None] PASSED [ 93%]
+tests/test_lead_shopify_article_rest_shape.py::test_official_rest_shape_replays_without_second_create PASSED [ 95%]
+tests/test_information_wait_maturity_neutral.py::test_repeated_waits_preserve_maturity_and_same_durable_execution PASSED [ 97%]
+tests/test_information_wait_maturity_neutral.py::test_terminal_success_and_failure_still_update_maturity 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:58:41 [    INFO] Recorded outcome for terminal-success: success
+2026-11-07 11:58:41 [    INFO] Initialized global governance cache
+2026-11-07 11:58:41 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-07 11:58:41 [    INFO] Recorded outcome for terminal-failed: failure
+2026-11-07 11:58:41 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 94 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================= 47 passed, 100 warnings in 71.68s (0:01:11) ==================

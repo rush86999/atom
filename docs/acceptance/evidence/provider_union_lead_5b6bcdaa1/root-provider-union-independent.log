@@ -1,0 +1,101 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-07 13:01:48 [    INFO] MCP Service initialized
+
+tests/test_lead_asset_usable_image.py::test_mime_and_matching_hash_cannot_certify_unusable_image[] 
+-------------------------------- live log setup --------------------------------
+2026-11-07 13:01:48 [    INFO] EscalationManager initialized
+2026-11-07 13:01:48 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 13:01:48 [    INFO] EscalationManager initialized
+2026-11-07 13:01:48 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 13:01:48 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 13:01:48 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  3%]
+tests/test_lead_asset_usable_image.py::test_mime_and_matching_hash_cannot_certify_unusable_image[<html>not an image</html>] PASSED [  6%]
+tests/test_lead_asset_usable_image.py::test_mime_and_matching_hash_cannot_certify_unusable_image[\x89PNG\r\n\x1a\ntruncated] PASSED [ 10%]
+tests/test_lead_asset_usable_image.py::test_real_decodable_png_with_matching_digest_is_supported PASSED [ 13%]
+tests/test_lead_shopify_fulfillment_rest_shape.py::test_official_fulfillment_rest_shape_is_usable PASSED [ 17%]
+tests/test_lead_shopify_fulfillment_rest_shape.py::test_wrong_fulfilled_quantity_cannot_borrow_remaining_quantity PASSED [ 20%]
+tests/test_lead_shopify_fulfillment_rest_shape.py::test_contradictory_fulfillment_order_parent_refuses_before_post PASSED [ 24%]
+tests/test_lead_shopify_fulfillment_rest_shape.py::test_failed_fulfillment_status_is_not_verified PASSED [ 27%]
+tests/test_lead_shopify_fulfillment_rest_shape.py::test_fulfillment_read_uses_documented_parent_order_endpoint PASSED [ 31%]
+tests/test_lead_shopify_fulfillment_rest_shape.py::test_missing_order_line_identity_cannot_borrow_fulfillment_order_line_id PASSED [ 34%]
+tests/test_lead_shopify_fulfillment_rest_shape.py::test_completed_official_line_id_cannot_be_overridden_by_optional_line_item_id PASSED [ 37%]
+tests/test_lead_radio_readback_identity.py::test_committed_message_identity_survives_readback_timeout 
+-------------------------------- live log call ---------------------------------
+2026-11-07 13:01:53 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+PASSED                                                                   [ 41%]
+tests/test_positive_maturity_no_demotion.py::test_outcome_direction_preserves_authority_and_evidence_gates[autonomous-0.35-True-autonomous-0.36] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 13:01:53 [    INFO] Initialized global governance cache
+PASSED                                                                   [ 44%]
+tests/test_positive_maturity_no_demotion.py::test_outcome_direction_preserves_authority_and_evidence_gates[autonomous-0.35-False-student-0.33] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 13:01:54 [    INFO] Agent Direction agent transitioned: autonomous -> student
+PASSED                                                                   [ 48%]
+tests/test_positive_maturity_no_demotion.py::test_outcome_direction_preserves_authority_and_evidence_gates[autonomous-0.95-True-autonomous-0.96] PASSED [ 51%]
+tests/test_positive_maturity_no_demotion.py::test_outcome_direction_preserves_authority_and_evidence_gates[student-0.49-True-student-0.5] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 13:01:55 [    INFO] Agent Direction agent evidence gate blocked intern: no pathway satisfied: [mentor_taught] needs 0/3 mentored sessions, 0/5 work episodes | [self_directed] needs 0/3 completed training sessions, 0/10 work episodes
+PASSED                                                                   [ 55%]
+tests/test_positive_maturity_no_demotion.py::test_outcome_direction_preserves_authority_and_evidence_gates[paused-0.35-True-paused-0.36] PASSED [ 58%]
+tests/test_positive_maturity_no_demotion.py::test_outcome_direction_preserves_authority_and_evidence_gates[stopped-0.35-True-stopped-0.36] PASSED [ 62%]
+tests/test_information_wait_maturity_neutral.py::test_repeated_waits_preserve_maturity_and_same_durable_execution PASSED [ 65%]
+tests/test_information_wait_maturity_neutral.py::test_terminal_success_and_failure_still_update_maturity 
+-------------------------------- live log call ---------------------------------
+2026-11-07 13:01:58 [    INFO] Recorded outcome for terminal-success: success
+2026-11-07 13:01:58 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-07 13:01:58 [    INFO] Recorded outcome for terminal-failed: failure
+2026-11-07 13:01:58 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+PASSED                                                                   [ 68%]
+tests/test_generic_request_expectations.py::test_builder_freezes_business_args_and_ignores_model_expected_fields PASSED [ 72%]
+tests/test_generic_request_expectations.py::test_plain_args_generic_and_assignment_produce_the_same_verified_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-07 13:01:58 [    INFO] Canvas type 'mini_app' auto-registered (generic defaults)
+PASSED                                                                   [ 75%]
+tests/test_generic_request_expectations.py::test_plain_args_non_miniapp_presentation_is_verified 
+-------------------------------- live log call ---------------------------------
+2026-11-07 13:01:59 [    INFO] Presented markdown content to user user-1
+PASSED                                                                   [ 79%]
+tests/test_generic_request_expectations.py::test_model_forged_expected_metadata_is_stripped_before_dispatch PASSED [ 82%]
+tests/test_generic_request_expectations.py::test_handler_result_cannot_overwrite_frozen_expectations PASSED [ 86%]
+tests/test_generic_request_expectations.py::test_model_forged_expected_metadata_cannot_rescue_wrong_server_scope PASSED [ 89%]
+tests/test_generic_request_expectations.py::test_uncertain_operation_reconciles_from_frozen_material_without_resend PASSED [ 93%]
+tests/test_generic_request_expectations.py::test_peer_claim_is_not_dispatched_or_stolen PASSED [ 96%]
+tests/test_generic_request_expectations.py::test_distinct_sequential_authorized_mutations_still_run PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 58 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 29 passed, 64 warnings in 25.69s =======================
