@@ -46,6 +46,40 @@ STARTER = (
 
 BAD_SYNTAX = "def broken(:"
 
+# R87-R89 hardening (d7c297222) made the canvas-logic governance gate
+# mandatory: PUT /api/canvas/{id}/logic requires an AUTONOMOUS agent id
+# (check_governance(None) now raises — the round-06 journey predated that
+# gate and its expectations decayed). The real harness (MiniAppHarness
+# handleSave/handleDevRun) sends the operating agent's id with every save,
+# so the journey must do the same — the gate stays exactly as production
+# ships it, we just provide the agent it legitimately accepts.
+def _autonomous_agent_for(email: str) -> str:
+    """Create a real AUTONOMOUS AgentRegistry row owned by the given user.
+
+    Mirrors how the production harness operates: the Monaco save/dev-run
+    path runs under an AUTONOMOUS agent. Scratch rows only — in-memory
+    journey DB.
+    """
+    from core.database import SessionLocal
+    from core.models import AgentRegistry, User
+
+    with SessionLocal() as s:
+        uid = str(s.query(User).filter(User.email == email).first().id)
+        agent = AgentRegistry(
+            id=f"ag-{uuid.uuid4().hex[:12]}",
+            name="Harness Authoring Agent",
+            description="Scratch AUTONOMOUS authoring agent for the mini-app journey",
+            category="Operations",
+            module_path="journeys.miniapp_harness",
+            class_name="HarnessAuthoringAgent",
+            user_id=uid,
+            status="AUTONOMOUS",
+            enabled=True,
+        )
+        s.add(agent)
+        s.commit()
+        return str(agent.id)
+
 
 def _auth(token):
     return {"Authorization": f"Bearer {token}"}
@@ -76,6 +110,8 @@ class TestMiniAppHarnessJourney:
     def test_full_authoring_journey(self, real_auth_client, registered_user):
         client = real_auth_client
         _, _, _, token = registered_user
+        # The harness save path runs under an AUTONOMOUS agent (R87-R89 gate).
+        agent = _autonomous_agent_for(registered_user[1])
 
         # 1) Scaffold — draft app + blueprint canvas + starter logic
         scaf = _rpc(client, token, "mini_app_scaffold", {
@@ -89,9 +125,10 @@ class TestMiniAppHarnessJourney:
         assert scaf["logic_source"]
 
         # 2) Harness save path — PUT/GET /api/canvas/{blueprint}/logic
+        # (the real harness sends the operating agent's id — R87-R89 gate).
         save = client.put(
             f"/api/canvas/{blueprint}/logic",
-            json={"source": STARTER, "language": "python"},
+            json={"source": STARTER, "language": "python", "agent_id": agent},
             headers=_auth(token),
         )
         assert save.status_code == 200, save.text
@@ -129,10 +166,37 @@ class TestMiniAppHarnessJourney:
         assert status["success"] is True
         assert "status" in status
 
-        # 7) Dev-run — FAIL CLOSED without Firecracker (no VM on macOS)
+        # 7) Dev-run — FAIL CLOSED without Firecracker (no VM on macOS).
+        # The runtime funnel sanitizes the provisioning details out of the
+        # response and keeps them server-side; the pointer stays actionable
+        # (probe mini_app_status + host-setup doc), matching the shipped
+        # run_stateful(RuntimeError) message.
         dev = _rpc(client, token, "mini_app_dev_run", {"app_id": app_id, "inputs": {}})
         assert dev["success"] is False
-        assert "Firecracker" in dev.get("error", "") or "Rootfs" in dev.get("error", "")
+        assert "Mini-app runtime unavailable" in dev.get("error", "")
+        assert "mini_app_status" in dev.get("error", "")
+
+        # 7b) run_tests — the MINI-03 "receive test feedback" half. Without a
+        # runtime the grading report still comes back, but every case fails
+        # closed with the SAME explicit unavailable message (no fabricated
+        # results, no stdout). This is the join the round-06 journey missed:
+        # mini_app_run_tests was only in the surface set, never exercised.
+        tests_run = client.post(
+            "/api/rpc/mini_app_run_tests",
+            json={"params": {"app_id": app_id}},
+            headers=_auth(token),
+        )
+        assert tests_run.status_code == 200, tests_run.text
+        tr_body = tests_run.json()
+        assert tr_body.get("success") is True, tr_body  # the report surface ran
+        tr = tr_body["data"]
+        assert tr["total"] == 1 and tr["passed"] == 0 and tr["all_passed"] is False
+        case = tr["results"][0]
+        assert case["name"] == "runs increments"
+        assert case["passed"] is False
+        assert "Mini-app runtime unavailable" in case["error"]
+        # No fabricated execution artifacts in the failed case.
+        assert "stdout" not in case and "state" not in case
 
         # 8) Publish — no deps → no rootfs gate → succeeds; blueprint credential-stripped
         pub = _rpc(client, token, "mini_app_publish", {"app_id": app_id})
@@ -154,10 +218,11 @@ class TestMiniAppHarnessJourney:
         assert gs["version"] == 1
         assert gs["state"] == {}
 
-        # 11) Stateful run — FAIL CLOSED without Firecracker
+        # 11) Stateful run — FAIL CLOSED without Firecracker (same sanitized
+        # funnel as step 7).
         run = _rpc(client, token, "mini_app_run", {"canvas_id": instance_canvas, "inputs": {}})
         assert run["success"] is False
-        assert "Firecracker" in run.get("error", "")
+        assert "Mini-app runtime unavailable" in run.get("error", "")
 
         # 12) Install-before-publish is rejected
         scaf2 = _rpc(client, token, "mini_app_scaffold", {"name": f"Unpublished {uuid.uuid4().hex[:6]}"})
@@ -188,6 +253,8 @@ class TestMiniAppHarnessJourney:
         from core.database import SessionLocal
         from core.models import Canvas, User
 
+        agent = _autonomous_agent_for(email_a)
+
         priv_id = f"priv-{uuid.uuid4().hex}"
         collab_id = f"collab-{uuid.uuid4().hex}"
         with SessionLocal() as s:
@@ -200,8 +267,9 @@ class TestMiniAppHarnessJourney:
                          name="collab", canvas_type="generic", is_collaborative=True, content={}))
             s.commit()
 
-        body = {"source": "x = 1", "language": "python"}
-        # B cannot overwrite A's private canvas logic.
+        body = {"source": "x = 1", "language": "python", "agent_id": agent}
+        # B cannot overwrite A's private canvas logic (403 is the ownership
+        # refusal — the AUTONOMOUS gate passes and the access gate denies).
         denied = client.put(f"/api/canvas/{priv_id}/logic", json=body, headers=_auth(token_b))
         assert denied.status_code == 403, denied.text
         # A can write their own private canvas.
