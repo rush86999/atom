@@ -1,0 +1,213 @@
+$ /usr/local/opt/python@3.14/bin/python3.14 -m pytest tests/test_oracle_radio_send.py -q --disable-warnings --junitxml=/private/tmp/atom-agent-job-baseline/docs/acceptance/evidence/oracle_radio_send_ed97452f8/failure-first.xml
+cwd=/private/tmp/atom-agent-job-baseline/backend
+
+STDOUT
+
+----------------------------- live log collection ------------------------------
+2026-11-07 11:35:26 [    INFO] MCP Service initialized
+
+tests/test_oracle_radio_send.py::test_exact_send_is_independently_verified 
+-------------------------------- live log setup --------------------------------
+2026-11-07 11:35:27 [    INFO] EscalationManager initialized
+2026-11-07 11:35:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 11:35:27 [    INFO] EscalationManager initialized
+2026-11-07 11:35:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 11:35:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 11:35:27 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:35:28 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+FAILED                                                                   [  4%]
+tests/test_oracle_radio_send.py::test_to_agent_and_requires_response_are_verified 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:35:29 [    INFO] radio: agent-a -> ['agent-b', 'agent-c'] on thread-1
+FAILED                                                                   [  9%]
+tests/test_oracle_radio_send.py::test_pre_effect_refusals_do_not_write[missing_thread] FAILED [ 14%]
+tests/test_oracle_radio_send.py::test_pre_effect_refusals_do_not_write[no_mentions] FAILED [ 19%]
+tests/test_oracle_radio_send.py::test_pre_effect_refusals_do_not_write[student_tier] FAILED [ 23%]
+tests/test_oracle_radio_send.py::test_pre_effect_refusals_do_not_write[disabled] FAILED [ 28%]
+tests/test_oracle_radio_send.py::test_known_success_replays_exact_message_without_second_send 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:35:33 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+FAILED                                                                   [ 33%]
+tests/test_oracle_radio_send.py::test_restart_fresh_session_reloads_exact_message 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:35:34 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+FAILED                                                                   [ 38%]
+tests/test_oracle_radio_send.py::test_replay_with_changed_current_material_is_committed_unverified[content] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:35:35 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+FAILED                                                                   [ 42%]
+tests/test_oracle_radio_send.py::test_replay_with_changed_current_material_is_committed_unverified[mentions] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:35:36 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+FAILED                                                                   [ 47%]
+tests/test_oracle_radio_send.py::test_replay_with_changed_current_material_is_committed_unverified[to_agent_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:35:37 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+FAILED                                                                   [ 52%]
+tests/test_oracle_radio_send.py::test_replay_with_changed_current_material_is_committed_unverified[requires_response] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:35:37 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+FAILED                                                                   [ 57%]
+tests/test_oracle_radio_send.py::test_replay_with_changed_current_material_is_committed_unverified[tenant_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:35:39 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+FAILED                                                                   [ 61%]
+tests/test_oracle_radio_send.py::test_replay_with_missing_message_is_committed_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:35:39 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+FAILED                                                                   [ 66%]
+tests/test_oracle_radio_send.py::test_changed_same_operation_material_refuses_before_send 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:35:40 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+FAILED                                                                   [ 71%]
+tests/test_oracle_radio_send.py::test_wrong_readback_id_is_unverified FAILED [ 76%]
+tests/test_oracle_radio_send.py::test_missing_readback_is_uncertain_not_success FAILED [ 80%]
+tests/test_oracle_radio_send.py::test_unavailable_readback_is_uncertain_not_success FAILED [ 85%]
+tests/test_oracle_radio_send.py::test_unidentifiable_message_is_never_resent 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:35:44 [ WARNING] radio.send_message failed: 'types.SimpleNamespace' object has no attribute 'thread_id'
+FAILED                                                                   [ 90%]
+tests/test_oracle_radio_send.py::test_lost_confirmation_is_uncertain_and_never_resent 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:35:45 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+2026-11-07 11:35:45 [ WARNING] radio.send_message failed: confirmation timed out
+PASSED                                                                   [ 95%]
+tests/test_oracle_radio_send.py::test_failed_identity_receipt_is_not_rolled_back_or_resent 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:35:46 [    INFO] radio: agent-a -> ['agent-b'] on thread-1
+FAILED                                                                   [100%]
+
+=================================== FAILURES ===================================
+E   AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+    assert False is True
+------------------------------ Captured log setup ------------------------------
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.embedding_service:embedding_service.py:131 Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+INFO     core.agent_task_registry:agent_task_registry.py:64 AgentTaskRegistry initialized
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_radio.radio_service:radio_service.py:209 radio: agent-a -> ['agent-b'] on thread-1
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_radio_send.py:208: AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+E   AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+    assert False is True
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_radio.radio_service:radio_service.py:209 radio: agent-a -> ['agent-b', 'agent-c'] on thread-1
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_radio_send.py:239: AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+E   AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+    assert 'uncertain' == 'proven_not_applied'
+      
+      - proven_not_applied
+      + uncertain
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_radio_send.py:271: AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+E   AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+    assert 'uncertain' == 'proven_not_applied'
+      
+      - proven_not_applied
+      + uncertain
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_radio_send.py:271: AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+E   AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+    assert 'uncertain' == 'proven_not_applied'
+      
+      - proven_not_applied
+      + uncertain
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_radio_send.py:271: AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+E   AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+    assert 'uncertain' == 'proven_not_applied'
+      
+      - proven_not_applied
+      + uncertain
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_radio_send.py:271: AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+E   AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+    assert False is True
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_radio.radio_service:radio_service.py:209 radio: agent-a -> ['agent-b'] on thread-1
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_radio_send.py:286: AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+E   KeyError: 'remote_id'
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_radio.radio_service:radio_service.py:209 radio: agent-a -> ['agent-b'] on thread-1
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_radio_send.py:303: KeyError: 'remote_id'
+E   AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+    assert False is True
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_radio.radio_service:radio_service.py:209 radio: agent-a -> ['agent-b'] on thread-1
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_radio_send.py:323: AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+E   AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+    assert False is True
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_radio.radio_service:radio_service.py:209 radio: agent-a -> ['agent-b'] on thread-1
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_radio_send.py:323: AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+E   AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+    assert False is True
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_radio.radio_service:radio_service.py:209 radio: agent-a -> ['agent-b'] on thread-1
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_radio_send.py:323: AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+E   AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+    assert False is True
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_radio.radio_service:radio_service.py:209 radio: agent-a -> ['agent-b'] on thread-1
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_radio_send.py:323: AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+E   AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+    assert False is True
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_radio.radio_service:radio_service.py:209 radio: agent-a -> ['agent-b'] on thread-1
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_radio_send.py:323: AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+E   KeyError: 'remote_id'
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_radio.radio_service:radio_service.py:209 radio: agent-a -> ['agent-b'] on thread-1
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_radio_send.py:362: KeyError: 'remote_id'
+E   AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+    assert False is True
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_radio.radio_service:radio_service.py:209 radio: agent-a -> ['agent-b'] on thread-1
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_radio_send.py:376: AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+E   ImportError: cannot import name 'radio_mutations' from 'core.agent_radio' (/private/tmp/atom-agent-job-baseline/backend/core/agent_radio/__init__.py)
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_radio_send.py:394: ImportError: cannot import name 'radio_mutations' from 'core.agent_radio' (/private/tmp/atom-agent-job-baseline/backend/core/agent_radio/__init__.py)
+E   ImportError: cannot import name 'radio_mutations' from 'core.agent_radio' (/private/tmp/atom-agent-job-baseline/backend/core/agent_radio/__init__.py)
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_radio_send.py:414: ImportError: cannot import name 'radio_mutations' from 'core.agent_radio' (/private/tmp/atom-agent-job-baseline/backend/core/agent_radio/__init__.py)
+E   ImportError: cannot import name 'radio_mutations' from 'core.agent_radio' (/private/tmp/atom-agent-job-baseline/backend/core/agent_radio/__init__.py)
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_radio_send.py:428: ImportError: cannot import name 'radio_mutations' from 'core.agent_radio' (/private/tmp/atom-agent-job-baseline/backend/core/agent_radio/__init__.py)
+E   KeyError: 'remote_id'
+------------------------------ Captured log call -------------------------------
+WARNING  core.agent_radio.radio_actions:radio_actions.py:267 radio.send_message failed: 'types.SimpleNamespace' object has no attribute 'thread_id'
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_radio_send.py:462: KeyError: 'remote_id'
+E   AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+    assert None is False
+     +  where None = <built-in method get of dict object at 0x1758af9c0>('identity_receipt_persisted')
+     +    where <built-in method get of dict object at 0x1758af9c0> = {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}.get
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_radio.radio_service:radio_service.py:209 radio: agent-a -> ['agent-b'] on thread-1
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_radio_send.py:515: AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+- generated xml file: /private/tmp/atom-agent-job-baseline/docs/acceptance/evidence/oracle_radio_send_ed97452f8/failure-first.xml -
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_oracle_radio_send.py::test_exact_send_is_independently_verified
+FAILED tests/test_oracle_radio_send.py::test_to_agent_and_requires_response_are_verified
+FAILED tests/test_oracle_radio_send.py::test_pre_effect_refusals_do_not_write[missing_thread]
+FAILED tests/test_oracle_radio_send.py::test_pre_effect_refusals_do_not_write[no_mentions]
+FAILED tests/test_oracle_radio_send.py::test_pre_effect_refusals_do_not_write[student_tier]
+FAILED tests/test_oracle_radio_send.py::test_pre_effect_refusals_do_not_write[disabled]
+FAILED tests/test_oracle_radio_send.py::test_known_success_replays_exact_message_without_second_send
+FAILED tests/test_oracle_radio_send.py::test_restart_fresh_session_reloads_exact_message
+FAILED tests/test_oracle_radio_send.py::test_replay_with_changed_current_material_is_committed_unverified[content]
+FAILED tests/test_oracle_radio_send.py::test_replay_with_changed_current_material_is_committed_unverified[mentions]
+FAILED tests/test_oracle_radio_send.py::test_replay_with_changed_current_material_is_committed_unverified[to_agent_id]
+FAILED tests/test_oracle_radio_send.py::test_replay_with_changed_current_material_is_committed_unverified[requires_response]
+FAILED tests/test_oracle_radio_send.py::test_replay_with_changed_current_material_is_committed_unverified[tenant_id]
+FAILED tests/test_oracle_radio_send.py::test_replay_with_missing_message_is_committed_unverified
+FAILED tests/test_oracle_radio_send.py::test_changed_same_operation_material_refuses_before_send
+FAILED tests/test_oracle_radio_send.py::test_wrong_readback_id_is_unverified
+FAILED tests/test_oracle_radio_send.py::test_missing_readback_is_uncertain_not_success
+FAILED tests/test_oracle_radio_send.py::test_unavailable_readback_is_uncertain_not_success
+FAILED tests/test_oracle_radio_send.py::test_unidentifiable_message_is_never_resent
+FAILED tests/test_oracle_radio_send.py::test_failed_identity_receipt_is_not_rolled_back_or_resent
+================== 20 failed, 1 passed, 6 warnings in 36.37s ===================
+
+STDERR

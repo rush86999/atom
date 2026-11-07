@@ -210,6 +210,14 @@ jobs:
             tests/test_oracle_shopify_product_replay.py \
             tests/test_oracle_shopify_blog_create.py \
             tests/test_oracle_shopify_article_create.py \
+            tests/test_oracle_radio_send.py \
+            tests/test_lead_radio_readback_identity.py \
+            tests/test_oracle_shopify_fulfillment_create.py \
+            tests/test_lead_shopify_fulfillment_rest_shape.py \
+            tests/test_shopify_fulfillment_actions.py \
+            tests/test_asset_content_receipt.py \
+            tests/test_lead_asset_usable_image.py \
+            tests/test_lead_shopify_image_content_receipt.py \
             tests/test_lead_shopify_article_rest_shape.py \
             tests/test_lead_shopify_error_privacy.py \
             tests/test_generic_request_expectations.py \
@@ -221,6 +229,7 @@ jobs:
             tests/test_oracle_mini_app_host_mutations.py \
             tests/test_agent_generic_information_wait.py \
             tests/test_information_wait_maturity_neutral.py \
+            tests/test_positive_maturity_no_demotion.py \
             ../scripts/tests/test_browser_agent_job_wait_identity.py \
             tests/test_agent_generic_information_wait_process.py \
             tests/test_generic_information_wait_recovery.py \

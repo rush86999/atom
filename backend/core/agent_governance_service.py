@@ -581,7 +581,17 @@ class AgentGovernanceService:
         elif new_score >= 0.7: banded = AgentStatus.SUPERVISED.value
         elif new_score >= 0.5: banded = AgentStatus.INTERN.value
         else: banded = AgentStatus.STUDENT.value
-        agent.status = self._resolve_promotion(agent, prev_status, banded)
+        # Positive evidence can increase confidence or earn a gated promotion;
+        # it cannot revoke an already granted tier just because an explicit
+        # promotion and the historical score occupy different bands. Negative
+        # evidence still demotes, and upward moves still use the same gates.
+        prior_rank = self._MATURITY_RANK.get(prev_status)
+        band_rank = self._MATURITY_RANK.get(banded)
+        if (positive and prior_rank is not None and band_rank is not None
+                and band_rank < prior_rank):
+            agent.status = prev_status
+        else:
+            agent.status = self._resolve_promotion(agent, prev_status, banded)
 
         if agent.status != prev_status:
             logger.info(f"Agent {agent.name} transitioned: {prev_status} -> {agent.status}")

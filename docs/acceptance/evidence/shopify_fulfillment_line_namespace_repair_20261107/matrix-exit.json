@@ -1,0 +1,10 @@
+{
+  "exact6_and_affected_exit": 0,
+  "expected_failure_first_exit": 1,
+  "overall_exit": 0,
+  "phases": {
+    "affected": 0,
+    "exact6": 0,
+    "failure-first-line-namespace": 1
+  }
+}

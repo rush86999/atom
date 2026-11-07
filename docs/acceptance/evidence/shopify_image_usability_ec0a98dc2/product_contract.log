@@ -1,0 +1,132 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-07 11:40:05 [    INFO] MCP Service initialized
+
+tests/test_oracle_shopify_product_authorized_material.py::test_accepted_field_is_forwarded_and_exactly_verified[images] 
+-------------------------------- live log setup --------------------------------
+2026-11-07 11:40:05 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-07 11:40:05 [    INFO] EscalationManager initialized
+2026-11-07 11:40:05 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 11:40:05 [    INFO] EscalationManager initialized
+2026-11-07 11:40:05 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 11:40:05 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 11:40:05 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  1%]
+tests/test_oracle_shopify_product_authorized_material.py::test_accepted_field_is_forwarded_and_exactly_verified[price] PASSED [  3%]
+tests/test_oracle_shopify_product_authorized_material.py::test_accepted_field_is_forwarded_and_exactly_verified[compare_at_price] PASSED [  5%]
+tests/test_oracle_shopify_product_authorized_material.py::test_provider_omission_or_rounding_is_not_verified[images] PASSED [  7%]
+tests/test_oracle_shopify_product_authorized_material.py::test_provider_omission_or_rounding_is_not_verified[price] PASSED [  8%]
+tests/test_oracle_shopify_product_authorized_material.py::test_provider_omission_or_rounding_is_not_verified[compare_at_price] PASSED [ 10%]
+tests/test_oracle_shopify_product_authorized_material.py::test_image_source_rewrite_is_not_content_proof PASSED [ 12%]
+tests/test_oracle_shopify_product_authorized_material.py::test_replay_respects_complete_field_proof[omit_or_round-images] PASSED [ 14%]
+tests/test_oracle_shopify_product_authorized_material.py::test_replay_respects_complete_field_proof[omit_or_round-price] PASSED [ 15%]
+tests/test_oracle_shopify_product_authorized_material.py::test_replay_respects_complete_field_proof[omit_or_round-compare_at_price] PASSED [ 17%]
+tests/test_oracle_shopify_product_authorized_material.py::test_replay_respects_complete_field_proof[material-images] PASSED [ 19%]
+tests/test_oracle_shopify_product_authorized_material.py::test_replay_respects_complete_field_proof[material-price] PASSED [ 21%]
+tests/test_oracle_shopify_product_authorized_material.py::test_replay_respects_complete_field_proof[material-compare_at_price] PASSED [ 22%]
+tests/test_oracle_shopify_product_authorized_material.py::test_replay_of_complete_material_verifies_without_second_create[images] PASSED [ 24%]
+tests/test_oracle_shopify_product_authorized_material.py::test_replay_of_complete_material_verifies_without_second_create[price] PASSED [ 26%]
+tests/test_oracle_shopify_product_authorized_material.py::test_replay_of_complete_material_verifies_without_second_create[compare_at_price] PASSED [ 28%]
+tests/test_oracle_shopify_product_create.py::test_exact_product_create_is_independently_verified PASSED [ 29%]
+tests/test_oracle_shopify_product_create.py::test_missing_store_refuses_before_transport PASSED [ 31%]
+tests/test_oracle_shopify_product_create.py::test_foreign_store_refuses_before_transport PASSED [ 33%]
+tests/test_oracle_shopify_product_create.py::test_moved_store_metadata_refuses_before_transport PASSED [ 35%]
+tests/test_oracle_shopify_product_create.py::test_inactive_store_refuses_before_transport PASSED [ 36%]
+tests/test_oracle_shopify_product_create.py::test_body_store_selector_refuses_before_transport[shop] PASSED [ 38%]
+tests/test_oracle_shopify_product_create.py::test_body_store_selector_refuses_before_transport[access_token] PASSED [ 40%]
+tests/test_oracle_shopify_product_create.py::test_body_store_selector_refuses_before_transport[tenant_id] PASSED [ 42%]
+tests/test_oracle_shopify_product_create.py::test_same_title_with_different_returned_id_is_not_success PASSED [ 43%]
+tests/test_oracle_shopify_product_create.py::test_same_title_with_wrong_material_is_not_success PASSED [ 45%]
+tests/test_oracle_shopify_product_create.py::test_store_moved_before_verification_refutes_original_authority PASSED [ 47%]
+tests/test_oracle_shopify_product_create.py::test_absent_readback_is_uncertain_not_success 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:40:22 [   ERROR] Shopify get product 500 failed: 404: {"errors":"not found"}
+PASSED                                                                   [ 49%]
+tests/test_oracle_shopify_product_create.py::test_contradictory_readback_is_uncertain_not_success PASSED [ 50%]
+tests/test_oracle_shopify_product_create.py::test_unidentifiable_effect_remains_uncertain_and_is_not_recreated PASSED [ 52%]
+tests/test_oracle_shopify_product_create.py::test_same_operation_same_material_has_one_effect PASSED [ 54%]
+tests/test_oracle_shopify_product_create.py::test_same_operation_changed_material_is_refused PASSED [ 56%]
+tests/test_oracle_shopify_product_create.py::test_lost_confirmation_retains_identity_and_never_resends 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:40:25 [   ERROR] Failed to create product: confirmation timed out
+PASSED                                                                   [ 57%]
+tests/test_oracle_shopify_product_create.py::test_supplied_payload_digest_mismatch_refuses_before_transport PASSED [ 59%]
+tests/test_oracle_shopify_product_replay.py::test_known_success_replays_exact_resource_without_second_create PASSED [ 61%]
+tests/test_oracle_shopify_product_replay.py::test_restart_fresh_session_reloads_exact_durable_identity PASSED [ 63%]
+tests/test_oracle_shopify_product_replay.py::test_failed_identity_receipt_is_not_rolled_back_or_resent PASSED [ 64%]
+tests/test_oracle_shopify_product_replay.py::test_replay_with_wrong_current_resource_material_stays_committed_unverified PASSED [ 66%]
+tests/test_oracle_shopify_product_replay.py::test_replay_with_missing_current_resource_stays_committed_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:40:29 [   ERROR] Shopify get product 500 failed: 404: {"errors":"not found"}
+PASSED                                                                   [ 68%]
+tests/test_oracle_shopify_product_replay.py::test_replay_after_store_changed_stays_committed_unverified PASSED [ 70%]
+tests/test_oracle_shopify_product_replay.py::test_replay_without_durable_identity_receipt_is_committed_unverified PASSED [ 71%]
+tests/test_oracle_shopify_product_replay.py::test_replay_with_unavailable_current_readback_is_committed_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:40:31 [   ERROR] Failed to get product 500: provider readback timed out
+PASSED                                                                   [ 73%]
+tests/test_oracle_shopify_product_replay.py::test_same_operation_changed_material_refuses_before_readback PASSED [ 75%]
+tests/test_oracle_shopify_product_replay.py::test_lost_confirmation_stays_uncertain_and_never_replays_as_success 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:40:32 [   ERROR] Failed to create product: confirmation timed out
+PASSED                                                                   [ 77%]
+tests/test_oracle_shopify_product_replay.py::test_strict_json_proof_rejects_unsupported_values[value0] PASSED [ 78%]
+tests/test_oracle_shopify_product_replay.py::test_strict_json_proof_rejects_unsupported_values[nan] PASSED [ 80%]
+tests/test_oracle_shopify_product_replay.py::test_strict_json_proof_rejects_unsupported_values[inf] PASSED [ 82%]
+tests/test_oracle_shopify_product_replay.py::test_strict_json_proof_rejects_unsupported_values[value3] PASSED [ 84%]
+tests/test_oracle_shopify_product_replay.py::test_strict_json_proof_rejects_unsupported_values[value4] PASSED [ 85%]
+tests/test_oracle_shopify_product_replay.py::test_strict_json_proof_rejects_unsupported_values[value5] PASSED [ 87%]
+tests/test_oracle_shopify_product_replay.py::test_strict_json_proof_rejects_unsupported_values[value6] PASSED [ 89%]
+tests/test_oracle_shopify_product_replay.py::test_strict_json_proof_rejects_unsupported_values[value7] PASSED [ 91%]
+tests/test_oracle_shopify_product_replay.py::test_durable_receipt_builder_rejects_lossy_proof PASSED [ 92%]
+tests/test_oracle_shopify_product_replay.py::test_lossy_proof_cannot_persist_a_succeeded_claim 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:40:33 [   ERROR] refusing claim status succeeded for a09cf1ec-69c1-47f9-866e-2190e881e8e4: receipt is not strictly JSON-serializable
+2026-11-07 11:40:33 [   ERROR] refusing claim status succeeded for a09cf1ec-69c1-47f9-866e-2190e881e8e4: receipt is not strictly JSON-serializable
+2026-11-07 11:40:33 [   ERROR] refusing claim status succeeded for a09cf1ec-69c1-47f9-866e-2190e881e8e4: receipt is not strictly JSON-serializable
+PASSED                                                                   [ 94%]
+tests/test_oracle_shopify_product_replay.py::test_existing_database_upgrade_and_replay_survives_restart 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:40:34 [    INFO] schema repair: added task_operation_records.result_json
+2026-11-07 11:40:34 [    INFO] schema repair: added marketing_channels.workspace_id
+2026-11-07 11:40:34 [    INFO] schema repair: added marketing_ad_spend.workspace_id
+2026-11-07 11:40:34 [    INFO] schema repair: added marketing_attribution_events.workspace_id
+PASSED                                                                   [ 96%]
+tests/test_oracle_shopify_product_replay.py::test_migration_revision_fits_alembic_version_column_and_parent_resolves PASSED [ 98%]
+tests/test_oracle_shopify_product_replay.py::test_alembic_upgrade_records_revision_keeps_old_claim_and_restart_replays_once PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 114 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+====================== 57 passed, 120 warnings in 47.36s =======================

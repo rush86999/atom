@@ -1,0 +1,21 @@
+{
+  "negative": {
+    "actual_exit": 1,
+    "passed": 5,
+    "failed": 1,
+    "source": "2016c90c4"
+  },
+  "fixed": {
+    "actual_exit": 0,
+    "passed": 17,
+    "source": "2d5c53f17dde357277be9ab29670446f06601680"
+  },
+  "adjacent": {
+    "passed": 1,
+    "deselected": 1
+  },
+  "feedback": {
+    "passed": 3
+  },
+  "tree_clean_at_run": false
+}

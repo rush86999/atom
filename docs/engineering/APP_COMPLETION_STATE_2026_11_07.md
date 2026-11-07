@@ -2,7 +2,32 @@
 
 This dated checkpoint supersedes operational queue rows in the November6 directive. Re-resolve current remote heads and ownership before acting. It records current progress, not whole-app acceptance. The product is single tenant with supported user/role/workspace safeguards. Historical 111/123, planner 5/5, goal router 1/2 and alignment gap 3.0 remain unchanged.
 
-## Leading delivery snapshot — 2026-11-07, main `cf351a5b0`
+## Current leading checkpoint — main `2d251acdf`
+
+This checkpoint supersedes every operational queue paragraph below. Re-resolve the remote head, actual worker handle and ownership before acting; historical plans are not new assignments. Full app completion and TASK-WAIT-01 remain OPEN.
+
+| Delivery | Current evidence and scope |
+|---|---|
+| Personal information answer, PR738 | Merged `cbbe029a5`; public bootstrap-user null/default scope repair, independent33 controls and strict4-source/6-artifact packet. |
+| Registered product, PR739 | Merged `e8187a0c2`; independently qualified136 integrated controls. Exact accepted material, durable JSON receipt, migration and Decimal-context repair; HTTP doubled. Raw URL-only image content remains unverified. |
+| Neutral waiting maturity, PR743 | Merged `e39e2af2f`; valid durable waits earn neither success nor failure. Independent failure preserved;37 affected controls; strict3-source/5-artifact packet. |
+| Blog and Article, PR746 | Merged `2d251acdf`; all8 required PR checks passed. Actual main tree matches prospective `58e661ff4`; six provider/runtime modules match independently tested `7a75ad486` (100 controls). Existing wait repairs retained. Blog PR741 is closed as redundant: reviewed blog tests/privacy/evidence retained, strict7-source/5-artifact packet passes on main. This does not claim PR741's later pending CI passed. |
+| Ordinary browser wait episode, PR744 | Submitted head `1f6018fd7`, not merged at this readback. Frozen runtime `d3f58d81d`: ordinary login/onboarding, one job, two questions, real backend/frontend restart, same-job answers, default-Oracle verified task, final UI;29 stages/162 assertions. Strict11-source/18-artifact packet. Controlled loopback provider transport with simulated model decisions, not served-model judgment. |
+| Positive maturity, PR745 | Submitted head `0664c9456`, not merged. A successful outcome must not demote a previously granted tier; failure and promotion evidence gates retained. Independent negative preserved;17 focused controls plus caller twins; current-main gate8 passed. The older browser trace is not relabelled as a replay of this repair. |
+
+### Actual ongoing work and next gates
+
+- **Image CLI workhorse:** runtime `ec0a98dc2`, evidence `3801b0da5`; root33 image/usability/security controls pass and strict7-source/8-artifact packet matches. Real decode replaces MIME/digest-only proof. Current-main integration is active; no concurrent root edits. Raw URL-only and provider byte-transform equivalence remain OPEN.
+- **Radio CLI workhorse:** candidate `5264f6242` withheld. Root permanent test `9aba74234` reproduces lost known message identity after a readback timeout. Repair must preserve original operation/message identity and no-resend uncertainty; root re-verifies the final consumer.
+- **Fulfillment CLI workhorse:** five original blockers repaired at `8055fae56`; root58 controls pass, with explicitly dirty test-tree attribution for the later-added probe. New permanent negative `b813c2a1f` reproduces missing order-line identity borrowing a distinct fulfillment-order-line ID before dispatch. Repair is active and withheld. Official response shapes, parent order, status, completed quantity and exact readback must all remain bound.
+- **Root:** independent engineering/product verification, source/receipt/usable-output scrutiny, normal expected-head merges and goal reconciliation. No self-acceptance, parallel router/store/task engine or authority expansion.
+- **CI:** bounded scripts, no model polling. PR744/745 require current-head green; post-merge main CI `42393469330` and Docker `42393469352` were running at this cut. A prior head's green is not inherited.
+
+Preserve the accepted browser run, source identities, original negatives and checksum-verified cold archives. Do not repeat model/browser campaigns solely for documentation or source-identical merges. A broader wait goal still needs requirement-by-requirement reconciliation of input relevance, authorization/revocation, both event orders, idle budgets/deadlines, concurrent delivery/cancellation, same-task continuation and verified output at their actual tested scopes. One controlled browser episode does not certify universal event-driven work or general adaptive judgment. Whole-app mutation coverage, live breadth, guest execution, PostgreSQL/multi-worker/soak and other unqualified claims remain separate.
+
+## Historical leading snapshot — superseded operational queue
+
+### Preserved delivery snapshot — 2026-11-07, main `cf351a5b0`
 
 This dated readback supersedes the operational owner rows below. Resolve current remote heads before acting; preserved historical evidence is not a request to replay closed work.
 

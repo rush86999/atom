@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="5" skipped="0" tests="5" time="10.644" timestamp="2026-11-07T11:52:32.585678-05:00" hostname="MacBook-Pro.local"><testcase classname="tests.test_lead_radio_readback_identity" name="test_committed_message_identity_survives_readback_timeout" time="2.741"><failure message="AssertionError: known committed identity was discarded&#10;assert '' == '931e102c-994...-56789df66c16'&#10;  &#10;  - 931e102c-9946-4823-b37f-56789df66c16">E   AssertionError: known committed identity was discarded
+    assert '' == '931e102c-994...-56789df66c16'
+      
+      - 931e102c-9946-4823-b37f-56789df66c16</failure></testcase><testcase classname="tests.test_oracle_radio_send" name="test_known_committed_id_survives_readback_failure[timeout]" time="1.505"><failure message="AssertionError: {'action_result': 'uncertain', 'effect_possible': True, 'error': 'internal_error', 'error_kind': 'provider_error', ...}&#10;assert '' == '72377e30-f45...-d18144975b23'&#10;  &#10;  - 72377e30-f454-4c19-807d-d18144975b23">E   AssertionError: {'action_result': 'uncertain', 'effect_possible': True, 'error': 'internal_error', 'error_kind': 'provider_error', ...}
+    assert '' == '72377e30-f45...-d18144975b23'
+      
+      - 72377e30-f454-4c19-807d-d18144975b23</failure></testcase><testcase classname="tests.test_oracle_radio_send" name="test_known_committed_id_survives_readback_failure[runtime]" time="1.398"><failure message="AssertionError: {'action_result': 'uncertain', 'effect_possible': True, 'error': 'internal_error', 'error_kind': 'provider_error', ...}&#10;assert '' == 'e8d31478-723...-92646f212138'&#10;  &#10;  - e8d31478-723e-4085-b390-92646f212138">E   AssertionError: {'action_result': 'uncertain', 'effect_possible': True, 'error': 'internal_error', 'error_kind': 'provider_error', ...}
+    assert '' == 'e8d31478-723...-92646f212138'
+      
+      - e8d31478-723e-4085-b390-92646f212138</failure></testcase><testcase classname="tests.test_oracle_radio_send" name="test_known_committed_id_survives_readback_failure[radio_error]" time="1.794"><failure message="AssertionError: {'action_result': 'proven_not_applied', 'effect_possible': False, 'error': 'radio_error', 'error_kind': 'radio_error', ...}&#10;assert 'failed_before_effect' == 'uncertain'&#10;  &#10;  - uncertain&#10;  + failed_before_effect">E   AssertionError: {'action_result': 'proven_not_applied', 'effect_possible': False, 'error': 'radio_error', 'error_kind': 'radio_error', ...}
+    assert 'failed_before_effect' == 'uncertain'
+      
+      - uncertain
+      + failed_before_effect</failure></testcase><testcase classname="tests.test_oracle_radio_send" name="test_replay_after_readback_failure_does_not_resend" time="1.989"><failure message="AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_possible': True, ...}&#10;assert '' == '3bec195f-449...-944427cd8f6a'&#10;  &#10;  - 3bec195f-4497-487f-aec7-944427cd8f6a">E   AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_possible': True, ...}
+    assert '' == '3bec195f-449...-944427cd8f6a'
+      
+      - 3bec195f-4497-487f-aec7-944427cd8f6a</failure></testcase></testsuite></testsuites>

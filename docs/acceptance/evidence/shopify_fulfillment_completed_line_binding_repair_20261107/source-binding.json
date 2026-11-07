@@ -1,0 +1,25 @@
+{
+  "credentials_used": false,
+  "generated_utc": "2026-11-07T17:10:50.473411+00:00",
+  "head": "0556c74787bf886164e92bb98b345d921563b48b",
+  "head_subject": "fix(shopify): make completed fulfillment line id authoritative",
+  "http_leaf_only_doubled": true,
+  "live_calls": false,
+  "main_merged": "2d251acdfddae2aca27c6b43dc3f0de97654a9cb",
+  "python": "3.14.7 (main, Sep  1 2026, 14:05:28) [Clang 22.1.3 ]",
+  "python_executable": "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+  "source_files": {
+    "backend/core/oracle/postcondition_verifiers.py": "148aae4d64572d58707875c75c2923e40e96ce8d295b4800c498d73e964c805e",
+    "backend/core/shopify_mutations.py": "0cf9241127839451955d641ec098cd3f287402d3272853c9963529bffce9d1c4",
+    "backend/integrations/shopify_service.py": "d4b6bc20a2f6abcc22ff110605aebd3108f9a89da49e4fab3029c1f6e7457aff",
+    "backend/tests/test_covpush_w95_shopify.py": "ffeb69548cbd72dd23c6621e6b590914cae761892eba41a09f6d3cc2d550ffd3",
+    "backend/tests/test_lead_shopify_fulfillment_rest_shape.py": "a2b028901f34c8fbf8ab7e8432f470f3f06ec6e9066dc8c670d2462139ad864a",
+    "backend/tests/test_oracle_shopify_fulfillment_create.py": "1cae4a7633af448265e2b3d3db9275486e286abe2c5b29f217c0d4b8f6cbd4ef"
+  },
+  "status_porcelain": [
+    "?? FULFILLMENT_LEAD_REPAIR.md",
+    "?? docs/acceptance/evidence/shopify_fulfillment_completed_line_binding_repair_20261107/",
+    "?? opencode.jsonc"
+  ],
+  "testing": "1"
+}

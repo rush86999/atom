@@ -1,0 +1,67 @@
+{
+  "packet": "shopify_fulfillment_completed_line_binding_repair_20261107",
+  "pre_repair_source": "147e66c298ea68fdc84fe567fa243ab89aa1c62c",
+  "repair_commit": "0556c74787bf886164e92bb98b345d921563b48b",
+  "main": "2d251acdfddae2aca27c6b43dc3f0de97654a9cb",
+  "branch": "codex/shopify-fulfillment-lead-review-20261107",
+  "new_permanent_probe": "backend/tests/test_lead_shopify_fulfillment_rest_shape.py::test_completed_official_line_id_cannot_be_overridden_by_optional_line_item_id",
+  "contract": {
+    "completed_fulfillment": {
+      "id": "required authoritative order-line identity",
+      "line_item_id": "optional echo, cannot override id",
+      "conflict": "two present different identities refute in either direction",
+      "missing": "missing required id is unknown even if an alias is present"
+    },
+    "source_fulfillment_order": {
+      "id": "FO-line id, not order-line identity",
+      "line_item_id": "required order-line identity before POST"
+    }
+  },
+  "implementation": [
+    "backend/core/shopify_mutations.py:_fulfillment_observed_line_identity",
+    "backend/core/shopify_mutations.py:_fulfillment_completed_line_binding",
+    "backend/core/shopify_mutations.py:fulfillment_plan_mismatches"
+  ],
+  "twins": [
+    "test_completed_fulfillment_line_id_is_order_line_identity",
+    "test_completed_fulfillment_matching_id_and_alias_is_valid",
+    "test_completed_fulfillment_wrong_official_id_rejects_matching_alias",
+    "test_completed_fulfillment_matching_official_id_rejects_wrong_alias",
+    "test_completed_fulfillment_missing_required_official_id_is_unverified[False]",
+    "test_completed_fulfillment_missing_required_official_id_is_unverified[True]",
+    "test_completed_official_line_id_cannot_be_overridden_by_optional_line_item_id"
+  ],
+  "process_results": {
+    "failure_first_completed_alias": {
+      "failed": 1,
+      "exit_code": 1,
+      "source_revision": "147e66c29"
+    },
+    "exact7": {
+      "passed": 7,
+      "exit_code": 0,
+      "source_revision": "0556c7478"
+    },
+    "affected": {
+      "passed": 77,
+      "exit_code": 0,
+      "source_revision": "0556c7478",
+      "note": "prior 72 controls plus five new binding twins"
+    }
+  },
+  "preserved": {
+    "permanent_controls": "backend/tests/test_lead_shopify_fulfillment_rest_shape.py",
+    "prior_packets": [
+      "docs/acceptance/evidence/shopify_fulfillment_lead_repair_20261107/",
+      "docs/acceptance/evidence/shopify_fulfillment_line_namespace_repair_20261107/"
+    ]
+  },
+  "safety": {
+    "testing": "1",
+    "scratch_sqlite_database": true,
+    "only_http_leaf_doubled": true,
+    "live_calls": false,
+    "credentials_used": false,
+    "root_acceptance_withheld": true
+  }
+}

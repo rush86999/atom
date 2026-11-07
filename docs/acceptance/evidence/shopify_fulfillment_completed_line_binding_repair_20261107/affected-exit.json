@@ -1,0 +1,32 @@
+{
+  "command": [
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "tests/test_oracle_shopify_fulfillment_create.py",
+    "tests/test_shopify_fulfillment_actions.py",
+    "tests/test_covpush_w95_shopify.py::TestFulfillments",
+    "tests/test_covpush_saaspair.py::test_shopify_fulfillments",
+    "tests/test_covpush_saaspair.py::test_shopify_create_fulfillment_minimal",
+    "tests/test_covpush_intgr_b.py::TestShopifyService::test_write_operations",
+    "tests/test_covpush_w87_freshdesk_trello_shopify.py::test_sh_write_endpoints",
+    "-q",
+    "--basetemp",
+    "/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/fulfillment-completed-affected-r8_t7of5/basetemp",
+    "-p",
+    "no:cacheprovider",
+    "--junitxml=/private/tmp/atom-shopify-product-lead-review/docs/acceptance/evidence/shopify_fulfillment_completed_line_binding_repair_20261107/affected.xml"
+  ],
+  "counts": {
+    "passed": 77
+  },
+  "cwd": "/private/tmp/atom-shopify-product-lead-review/backend",
+  "database_url": "sqlite:////var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/fulfillment-completed-affected-r8_t7of5/scratch.db",
+  "exit_code": 0,
+  "finished_utc": "2026-11-07T17:10:44.966001+00:00",
+  "phase": "affected",
+  "source_revision": "0556c74787bf886164e92bb98b345d921563b48b",
+  "source_revision_meaning": "clean committed repair source",
+  "started_utc": "2026-11-07T17:09:49.716358+00:00",
+  "testing": "1"
+}
