@@ -175,3 +175,101 @@ def test_source_answer_wrong_correlation_does_not_wake_or_read(
     assert job.status == "waiting"
     assert payload["wait_receipt"]["correlation_id"] == receipt["correlation_id"]
     assert len(calls) == 1
+
+
+def test_duplicate_exact_source_is_idempotent_and_changed_material_refuses(
+        real_env, tmp_path, monkeypatch):
+    board_id, column_id = _seed_board(real_env)
+    doc, version = _source_fixture(real_env, tmp_path, monkeypatch)
+
+    def wait(task_input, history, context):
+        return ReActStep(
+            thought="Need the authorized source.",
+            information_wait=InformationWaitRequest(
+                question="Which authorized source?",
+                missing_fact="source",
+            ),
+        )
+
+    def resumed(task_input, history, context):
+        return ReActStep(
+            thought="Create once.",
+            action=ToolCall(
+                tool="tasks.create",
+                params={
+                    "board_id": board_id,
+                    "column_id": column_id,
+                    "title": "Duplicate source task",
+                    "status": "backlog",
+                },
+            ),
+        )
+
+    def finished(task_input, history, context):
+        return ReActStep(
+            thought="Verified.",
+            final_answer="Created once.",
+        )
+
+    _install_model(monkeypatch, [wait, resumed, finished])
+    started = _run(
+        real_env, operation_id="generic-source-duplicate",
+        parameters={"sync": True, "task_input": "Create once"})
+    data = started.json()["data"]
+    body = {
+        "answer": "",
+        "correlation_id": data["wait_receipt"]["correlation_id"],
+        "source": {"document_id": doc.id, "source_version": version},
+    }
+    first = _client(real_env).post(
+        f"/api/agents/a1/jobs/{data['job_id']}/answer", json=body)
+    assert first.status_code == 200, first.text
+    with real_env.SessionLocal() as db:
+        assert db.query(BoardTask).filter(
+            BoardTask.title == "Duplicate source task").count() == 1
+
+    duplicate = _client(real_env).post(
+        f"/api/agents/a1/jobs/{data['job_id']}/answer", json=body)
+    assert duplicate.status_code in (200, 409), duplicate.text
+    with real_env.SessionLocal() as db:
+        assert db.query(BoardTask).filter(
+            BoardTask.title == "Duplicate source task").count() == 1
+
+    # Same resource, changed authoritative material/version: refuse, no new
+    # effect and no overwrite of the accepted snapshot.
+    changed_payload = {"po_id": "PO-SOURCE-1", "quantity": "3", "unit_price": "9.00"}
+    changed_path = tmp_path / "changed.json"
+    changed_path.write_text(json.dumps(changed_payload))
+    changed_version = "ev4:" + hashlib.sha256(changed_path.read_bytes()).hexdigest()
+    with real_env.SessionLocal() as db:
+        row = db.get(IngestedDocument, doc.id)
+        row.source_content_hash = changed_version
+        row.file_path = str(changed_path)
+        db.commit()
+    changed_indexed = {
+        "id": doc.id,
+        "text": json.dumps(changed_payload),
+        "source": changed_path.name,
+        "metadata": {
+            "source_content_hash": changed_version,
+            "pg_document_id": doc.id,
+            "workspace_id": "ws1",
+            "tenant_id": "t1",
+        },
+    }
+    monkeypatch.setattr(
+        lance, "get_lancedb_handler",
+        lambda workspace: SimpleNamespace(
+            get_document_by_id=lambda table, identity: changed_indexed))
+    changed = _client(real_env).post(
+        f"/api/agents/a1/jobs/{data['job_id']}/answer",
+        json={
+            "answer": "",
+            "correlation_id": data["wait_receipt"]["correlation_id"],
+            "source": {"document_id": doc.id, "source_version": changed_version},
+        },
+    )
+    assert changed.status_code == 409, changed.text
+    with real_env.SessionLocal() as db:
+        assert db.query(BoardTask).filter(
+            BoardTask.title == "Duplicate source task").count() == 1
