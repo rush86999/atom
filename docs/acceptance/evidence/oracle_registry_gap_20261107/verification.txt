@@ -1,0 +1,45 @@
+Final verification on source `bb807d62d58eb9a3e84a59f8598857e74358d5ac`
+(clean tracked tree; untracked LEAD/probe/PR files excluded).
+
+Environment: TESTING=1; unique scratch SQLite file; fresh pytest basetemp
+child under `<scratch>/opencode/oracle-final-20261107-a`; no live DB, world
+directory, network, model, provider, VM, credential or install.
+
+1. Supplied decisive negative probe
+   Command: python -m pytest ../LEAD_PROBES/test_lead_oracle_missing_verifier.py -q
+   Result: 2 passed (was 1 failed, 1 passed at base).
+   Covered: declared write without verifier cannot claim applied; read-only twin
+   still passes.
+
+2. New CI control step
+   Command: python -m pytest tests/test_oracle_registry_verification_gap.py \
+     tests/test_oracle_effect_families.py \
+     tests/test_oracle_connected_mutations.py \
+     tests/test_assignment_executor.py \
+     tests/integration/journeys/test_oracle_registry_mutation_journey.py -q
+   Result: 156 passed.
+   Covered: full AssignmentExecutor joins for missing verifier, verifier None,
+   verifier raise, verifier refute, positive independent verdict, read-only no
+   verifier, real tasks.create, real agents.list, plan-only goals.decompose,
+   changed request/subject, disabled oracle, restart/no second dispatch,
+   unqualified empty/unknown effects; the real mini-app journey; canvas/goal/
+   connected families.
+
+3. Affected-cluster regression run
+   Command: 20 affected backend files (action registry, canvas, goals,
+   employee work requests, Brennan connected effects, write-zero claims,
+   mini-app, oracle).
+   Result: 631 passed, 11 pre-existing unrelated failures (see
+   baseline-unrelated-failures.txt).
+
+4. Registry/verifier snapshot
+   Command: PYTHONPATH=backend python \
+     scripts/acceptance/oracle_mutation_surface_inventory.py --registry-only \
+     --source bb807d62d58eb9a3e84a59f8598857e74358d5ac \
+     --out docs/acceptance/evidence/oracle_registry_coverage_20261107
+   Result: 90 actions; 26 declared mutations (15 covered, 11 uncovered); 0
+   undeclared; goals.decompose classified as plan-output validation.
+
+Path sanitization: repository and interpreter paths are abbreviated as
+`<repo>` / `<python>`; scratch paths as `<scratch>`. No credentials or private
+outputs are included.
