@@ -27,3 +27,12 @@ def test_every_forwarded_business_field_must_match_readback(env, monkeypatch, fi
         assert result.get('business_success') is not True, result
     else:
         assert result.get('oracle_verified') is True, result
+
+
+@pytest.mark.parametrize('precision',[3,28])
+def test_money_normalization_cannot_round_under_callers_decimal_context(precision):
+    from decimal import Decimal, localcontext
+    from core.shopify_mutations import _normalized_number
+    with localcontext() as context:
+        context.prec=precision
+        assert Decimal(_normalized_number('1.005')) == Decimal('1.005')
