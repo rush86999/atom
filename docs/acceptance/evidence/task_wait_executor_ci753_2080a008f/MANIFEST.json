@@ -1,0 +1,24 @@
+{
+  "artifacts": {
+    "README.md": "a6dd3fa342234bb8abeb7b4e44ce268776c32452943df50fc6289ef3e820281a",
+    "RUNS.json": "1d74719b7adc3d08358f797d4b90413d40a326b9d6578af7137d98117f92b86d",
+    "after-12-pass.log": "ceaaf90fa8598aa9b0d27b761dd92de07cf2af0b6a36b3eb30c4334921e93470",
+    "after-35-pass.log": "1074341ea7aa3eb2bc578b913dc8ba21d6903884c3d10c51190e3082af532a1c",
+    "before-12-fail.log": "193ffc95752b0082ee48c4e87fe4429667724551c045187539f03ac05ee5288d",
+    "hosted-backend-209-failure.log": "b2d5a41f77512b3fd4fb2bd7f5ba09a01ecab4b597bff79d6a855e0510c25c2c"
+  },
+  "executed_source": "2080a008f",
+  "source_base": "20946867e2413530138a6370ed98ec5ada9ece1c",
+  "source_files": {
+    "backend/core/assignment_executor.py": "0e8212f7932a0f3100409cde7e6f3264a57e5a1bd05bf2f81413fcae836001a2",
+    "backend/core/assignment_plan.py": "b790afa84ce0c95fd01736dd76fdb3bbba3f63cb9b36127961a8ba48fe5bdd4b",
+    "backend/core/assignment_planner.py": "6f05808fa74c6194c08dbc601bf0edb99076cf7d5a8b4d63e9f544ea8c288151",
+    "backend/core/assignment_quote.py": "a1a5aeca6f4ad3f913952267fc288b01734fdc854e5cc75e798d92cb6772d5c5",
+    "backend/core/assignment_readiness.py": "1e85caa08b4c6d2188e0e45d82feced099a0440970f7c4d00d6c4c44d597bebc",
+    "backend/core/assignment_resources.py": "4f67e795a96999e12323173d5f84f6033deba27cf3a9c35c827ca790c53ad034",
+    "backend/core/quote_evidence.py": "961367a534252ad7aade74af6422742947206a7e98e5498ff4adae396a62d905",
+    "backend/core/quote_rows.py": "8e0fa9c0cba82380a85cdc60d3f49c0100d222eb1e80521e1bc2c9c2b5df5941",
+    "backend/tests/source_authority_fixtures.py": "fc84fc1d4b05bec0171bbe8c80e47e67e76dc3f1e9cd48687bba7f3faa3e2dad",
+    "backend/tests/test_assignment_executor.py": "7183ccf90ca40aef9530fc684b7628eb98bffa2639ae43469755816e79e667c1"
+  }
+}
