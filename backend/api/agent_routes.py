@@ -40,6 +40,7 @@ from core.models import (
     HITLActionStatus,
     NEW_AGENT_CONFIDENCE,
     User,
+    UserRole,
     UserStatus,
 )
 from core.notification_manager import notification_manager
@@ -2724,6 +2725,8 @@ def _claim_waiting_job_for_resume(
     actor_id: Optional[str],
     workspace_id: Optional[str],
     tenant_id: Optional[str],
+    reviewer_id: Optional[str] = None,
+    reviewer_authority: Optional[Dict[str, Any]] = None,
 ) -> bool:
     """CAS the SAME waiting job into a resumed run slot.
 
@@ -2742,6 +2745,8 @@ def _claim_waiting_job_for_resume(
     makes the authority predicate unsatisfiable instead of acting as a
     wildcard.
     """
+    if reviewer_id and not reviewer_authority:
+        return False
     session = Session(bind=bind)
     try:
         job = session.get(AgentJob, job_id)
@@ -2798,6 +2803,12 @@ def _claim_waiting_job_for_resume(
         if authority_conditions:
             conditions.append(
                 exists(select(User.id).where(*authority_conditions)))
+        if reviewer_authority:
+            from core.information_wait import reviewer_authority_conditions
+
+            conditions.append(exists(
+                select(User.id).where(
+                    *reviewer_authority_conditions(reviewer_authority))))
         claimed = session.execute(
             update(AgentJob)
             .where(*conditions)
@@ -2915,6 +2926,7 @@ async def resume_information_wait_action(
     """
     from core.information_wait import (
         current_actor_authority,
+        current_reviewer_authority,
         is_information_wait_action,
     )
 
@@ -2986,10 +2998,37 @@ async def resume_information_wait_action(
                 "status": "refused",
             }
 
-        # The original admitted actor remains the execution authority; an
-        # authorized answerer does not replace it. Accepted input is not
-        # perpetual authority: the same current User scope/status/RBAC check
-        # that guards startup recovery also guards the normal answer path.
+        # The original admitted actor remains the execution authority; a
+        # proxy answerer does not replace it. The actual proxy reviewer is a
+        # second authority: freeze its current SQL state before any source
+        # await and bind it into the same job claim below. A same-actor answer
+        # is already bound by the admitted-owner authority condition and keeps
+        # its established refusal semantics.
+        proxy_reviewer = bool(actor_id) and bool(reviewer_id) and (
+            str(reviewer_id) != str(actor_id))
+        reviewer_state = None
+        if proxy_reviewer:
+            reviewer_state, reviewer_reason = current_reviewer_authority(
+                session,
+                reviewer_id=reviewer_id,
+                admitted_actor_id=actor_id,
+                workspace_id=target_workspace,
+                tenant_id=target_tenant,
+                proxy_permission=Permission.AGENT_MANAGE,
+            )
+            if reviewer_reason:
+                return {
+                    "handled": True,
+                    "resumed": False,
+                    "reason": reviewer_reason,
+                    "status": "refused",
+                    "job_id": job_id,
+                    "execution_id": execution_id,
+                }
+
+        # Accepted input is not perpetual authority: the same current User
+        # scope/status/RBAC check that guards startup recovery also guards the
+        # normal answer path.
         _actor, authority_reason = current_actor_authority(
             session,
             actor_id=actor_id,
@@ -3065,6 +3104,8 @@ async def resume_information_wait_action(
             actor_id=actor_id or None,
             workspace_id=target_workspace,
             tenant_id=target_tenant,
+            reviewer_id=reviewer_id if proxy_reviewer else None,
+            reviewer_authority=reviewer_state,
         ):
             # The claim itself just refused. Explain authority drift if that
             # is the cause; otherwise the job/receipt changed concurrently.
@@ -3083,6 +3124,24 @@ async def resume_information_wait_action(
                     "job_id": job_id,
                     "execution_id": execution_id,
                 }
+            if proxy_reviewer:
+                _reviewer, reviewer_reason = current_reviewer_authority(
+                    session,
+                    reviewer_id=reviewer_id,
+                    admitted_actor_id=actor_id,
+                    workspace_id=target_workspace,
+                    tenant_id=target_tenant,
+                    proxy_permission=Permission.AGENT_MANAGE,
+                )
+                if reviewer_reason:
+                    return {
+                        "handled": True,
+                        "resumed": False,
+                        "reason": reviewer_reason,
+                        "status": "refused",
+                        "job_id": job_id,
+                        "execution_id": execution_id,
+                    }
             current = _job_outcome_projection(job_id, bind)
             return {
                 "handled": True,
@@ -3906,7 +3965,11 @@ async def answer_agent_job_information_wait(
     the actor-scoped input path (members have AGENT_RUN, not AGENT_MANAGE).
     The answer is a fact, never effect approval.
     """
-    from core.information_wait import is_information_wait_action
+    from core.information_wait import (
+        current_reviewer_authority,
+        is_information_wait_action,
+        reviewer_authority_conditions,
+    )
 
     job = db.get(AgentJob, str(job_id))
     if job is None or str(job.agent_id or "") != str(agent_id):
@@ -3968,14 +4031,39 @@ async def answer_agent_job_information_wait(
     wait_actor = str(
         snapshot.get("actor_id") or snapshot.get("user_id")
         or action.user_id or "")
-    if wait_actor and wait_actor != str(current_user.id):
-        from core.models import UserRole
+    # A real proxy (answerer != admitted owner) must currently be an admin.
+    # The same-actor case keeps the established admitted-owner actor authority
+    # path, including its existing 409 refusal semantics.
+    proxy_reviewer = bool(wait_actor) and wait_actor != str(current_user.id)
+    if proxy_reviewer:
         from core.security.rbac import user_meets_role
 
         if not user_meets_role(current_user, UserRole.ADMIN):
             raise HTTPException(
                 status_code=403,
                 detail="Only the waiting actor or an admin may answer this wait")
+    # Re-read the ACTUAL proxy reviewer from SQL before any source await. The
+    # dependency object may be stale, and the approved answer must remain a
+    # decision by a currently authorized reviewer, not only by the admitted
+    # owner. The raw fields are frozen for the same UPDATE as the wait claim.
+    # The admitted owner is already bound by the actor-authority condition.
+    reviewer_state = None
+    if proxy_reviewer:
+        reviewer_state, reviewer_reason = current_reviewer_authority(
+            db,
+            reviewer_id=current_user.id,
+            admitted_actor_id=wait_actor,
+            workspace_id=str(snapshot.get("workspace_id") or ""),
+            tenant_id=snapshot.get("tenant_id"),
+            proxy_role=UserRole.ADMIN,
+        )
+        if reviewer_reason:
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "code": reviewer_reason,
+                    "message": "Reviewer authority is no longer valid.",
+                })
     expected_correlation = str(
         snapshot.get("correlation_id")
         or (action.params or {}).get("correlation_id") or "")
@@ -4029,6 +4117,23 @@ async def answer_agent_job_information_wait(
                 status_code=409,
                 detail="This information wait changed concurrently; "
                        "reload the authoritative state")
+        if proxy_reviewer:
+            _current_reviewer, current_reviewer_reason = (
+                current_reviewer_authority(
+                    db,
+                    reviewer_id=current_user.id,
+                    admitted_actor_id=wait_actor,
+                    workspace_id=str(snapshot.get("workspace_id") or ""),
+                    tenant_id=snapshot.get("tenant_id"),
+                    proxy_role=UserRole.ADMIN,
+                ))
+            if current_reviewer_reason:
+                raise HTTPException(
+                    status_code=403,
+                    detail={
+                        "code": current_reviewer_reason,
+                        "message": "Reviewer authority is no longer valid.",
+                    })
         current_snapshot = (
             current.context_snapshot
             if isinstance(current.context_snapshot, dict) else {})
@@ -4065,6 +4170,10 @@ async def answer_agent_job_information_wait(
         authority_condition = _wait_actor_authority_condition(snapshot)
         if authority_condition is not None:
             conditions.append(authority_condition)
+        if reviewer_state is not None:
+            conditions.append(exists(
+                select(User.id).where(
+                    *reviewer_authority_conditions(reviewer_state))))
         claimed = db.execute(
             update(HITLAction)
             .where(*conditions)
@@ -4088,6 +4197,23 @@ async def answer_agent_job_information_wait(
                     status_code=409,
                     detail="This information wait changed concurrently; "
                            "reload the authoritative state")
+            if proxy_reviewer:
+                _current_reviewer, current_reviewer_reason = (
+                    current_reviewer_authority(
+                        db,
+                        reviewer_id=current_user.id,
+                        admitted_actor_id=wait_actor,
+                        workspace_id=str(snapshot.get("workspace_id") or ""),
+                        tenant_id=snapshot.get("tenant_id"),
+                        proxy_role=UserRole.ADMIN,
+                    ))
+                if current_reviewer_reason:
+                    raise HTTPException(
+                        status_code=403,
+                        detail={
+                            "code": current_reviewer_reason,
+                            "message": "Reviewer authority is no longer valid.",
+                        })
             current_snapshot = (
                 current.context_snapshot
                 if isinstance(current.context_snapshot, dict) else {})
