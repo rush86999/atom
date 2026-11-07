@@ -1,0 +1,109 @@
+
+tests/test_covpush_w79_logging.py::TestContextBind::test_bind_sets_all_context_vars 
+-------------------------------- live log setup --------------------------------
+2026-11-06 16:28:45 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-06 16:28:45 [    INFO] EscalationManager initialized
+2026-11-06 16:28:45 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 16:28:45 [    INFO] EscalationManager initialized
+2026-11-06 16:28:45 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 16:28:45 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 16:28:45 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  1%]
+tests/test_covpush_w79_logging.py::TestContextBind::test_bind_converts_to_str PASSED [  3%]
+tests/test_covpush_w79_logging.py::TestContextBind::test_bind_skips_none_values PASSED [  5%]
+tests/test_covpush_w79_logging.py::TestContextBind::test_get_context_unset_returns_empty_strings PASSED [  7%]
+tests/test_covpush_w79_logging.py::TestContextBind::test_get_context_lookup_error_branch_in_fresh_context PASSED [  8%]
+tests/test_covpush_w79_logging.py::TestContextBind::test_partial_bind_keeps_unset_vars_empty PASSED [ 10%]
+tests/test_covpush_w79_logging.py::TestContextBind::test_generate_correlation_id_is_uuid PASSED [ 12%]
+tests/test_covpush_w79_logging.py::TestContextBind::test_get_correlation_id_default_empty PASSED [ 14%]
+tests/test_covpush_w79_logging.py::TestColoredFormatter::test_default_format_contains_parts PASSED [ 16%]
+tests/test_covpush_w79_logging.py::TestColoredFormatter::test_level_colored PASSED [ 17%]
+tests/test_covpush_w79_logging.py::TestColoredFormatter::test_debug_and_critical_colors PASSED [ 19%]
+tests/test_covpush_w79_logging.py::TestColoredFormatter::test_colors_disabled PASSED [ 21%]
+tests/test_covpush_w79_logging.py::TestColoredFormatter::test_logger_name_hidden PASSED [ 23%]
+tests/test_covpush_w79_logging.py::TestColoredFormatter::test_context_hidden PASSED [ 25%]
+tests/test_covpush_w79_logging.py::TestColoredFormatter::test_context_shown_with_short_id PASSED [ 26%]
+tests/test_covpush_w79_logging.py::TestColoredFormatter::test_long_correlation_id_truncated_to_last_8 PASSED [ 28%]
+tests/test_covpush_w79_logging.py::TestColoredFormatter::test_user_id_truncated_to_8 PASSED [ 30%]
+tests/test_covpush_w79_logging.py::TestColoredFormatter::test_exception_info_appended PASSED [ 32%]
+tests/test_covpush_w79_logging.py::TestColoredFormatter::test_exception_info_appends_newline_when_needed PASSED [ 33%]
+tests/test_covpush_w79_logging.py::TestSetupLogging::test_default_level_info PASSED [ 35%]
+tests/test_covpush_w79_logging.py::TestSetupLogging::test_explicit_level PASSED [ 37%]
+tests/test_covpush_w79_logging.py::TestSetupLogging::test_env_level PASSED [ 39%]
+tests/test_covpush_w79_logging.py::TestSetupLogging::test_invalid_level_falls_back_to_info PASSED [ 41%]
+tests/test_covpush_w79_logging.py::TestSetupLogging::test_handlers_cleared_between_calls PASSED [ 42%]
+tests/test_covpush_w79_logging.py::TestSetupLogging::test_no_colors_flag PASSED [ 44%]
+tests/test_covpush_w79_logging.py::TestSetupLogging::test_logger_name_flag PASSED [ 46%]
+tests/test_covpush_w79_logging.py::TestSetupLogging::test_log_file_creates_file_with_plain_formatter PASSED [ 48%]
+tests/test_covpush_w79_logging.py::TestSetupLogging::test_log_file_env_var PASSED [ 50%]
+tests/test_covpush_w79_logging.py::TestSetupLogging::test_log_file_writes_records PASSED [ 51%]
+tests/test_covpush_w79_logging.py::TestLibraryLoggers::test_chatty_libraries_set_to_warning PASSED [ 53%]
+tests/test_covpush_w79_logging.py::TestGetLogger::test_returns_named_logger PASSED [ 55%]
+tests/test_covpush_w79_logging.py::TestLoggerContext::test_set_and_restore PASSED [ 57%]
+tests/test_covpush_w79_logging.py::TestLoggerContext::test_restore_on_exception PASSED [ 58%]
+tests/test_covpush_w79_logging.py::TestMiddleware::test_adds_correlation_header_and_state PASSED [ 60%]
+tests/test_covpush_w79_logging.py::TestMiddleware::test_context_bound_during_request PASSED [ 62%]
+tests/test_covpush_w79_logging.py::TestStructuredLogger::test_all_levels_invoke_underlying_logger 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:28:45 [    INFO] i-msg
+2026-11-06 16:28:45 [ WARNING] w-msg
+PASSED                                                                   [ 64%]
+tests/test_covpush_w79_logging.py::TestStructuredLogger::test_error_defaults_exc_info_true 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:28:45 [   ERROR] e-msg
+NoneType: None
+PASSED                                                                   [ 66%]
+tests/test_covpush_w79_logging.py::TestStructuredLogger::test_error_exc_info_false_override 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:28:45 [   ERROR] e-msg2
+PASSED                                                                   [ 67%]
+tests/test_covpush_w79_logging.py::TestStructuredLogger::test_critical_defaults_exc_info_true 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:28:45 [CRITICAL] c-msg
+NoneType: None
+PASSED                                                                   [ 69%]
+tests/test_covpush_w79_logging.py::TestStructuredLogger::test_extra_merged_with_context PASSED [ 71%]
+tests/test_covpush_w79_logging.py::TestStructuredLogger::test_extra_none_uses_context_only PASSED [ 73%]
+tests/test_log_redaction_jwt.py::test_websocket_query_and_repeated_values_are_redacted PASSED [ 75%]
+tests/test_log_redaction_jwt.py::test_encoded_sensitive_keys_and_values_are_redacted PASSED [ 76%]
+tests/test_log_redaction_jwt.py::test_ordinary_queries_and_paths_are_preserved PASSED [ 78%]
+tests/test_log_redaction_jwt.py::test_bearer_and_structured_assignments_are_redacted PASSED [ 80%]
+tests/test_log_redaction_jwt.py::test_uvicorn_websocket_logger_filter_redacts_preformatted_args PASSED [ 82%]
+tests/test_log_redaction_jwt.py::test_filter_replaces_record_message_before_formatting PASSED [ 83%]
+tests/test_log_redaction_jwt.py::test_setup_logging_accepts_the_main_app_format_keyword PASSED [ 85%]
+tests/test_log_redaction_jwt.py::test_malformed_record_is_frozen_before_handler_diagnostics PASSED [ 87%]
+tests/test_log_redaction_jwt.py::test_malformed_record_clears_args_and_exception_material PASSED [ 89%]
+tests/test_log_redaction_jwt.py::test_install_log_redaction_freezes_malformed_uvicorn_record PASSED [ 91%]
+tests/test_agent3_pr689_redaction_probes.py::test_malformed_record_does_not_break_the_logging_call_path PASSED [ 92%]
+tests/test_agent3_pr689_redaction_probes.py::test_single_encoded_key_redacted_double_encoded_boundary_pinned PASSED [ 94%]
+tests/test_agent3_pr689_redaction_probes.py::test_semicolon_separated_sensitive_query_pairs_are_redacted PASSED [ 96%]
+::test_secret_does_not_escape_either_logging_output[False] PASSED        [ 98%]
+::test_secret_does_not_escape_either_logging_output[True] PASSED         [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 56 passed, 5 warnings in 21.05s ========================
