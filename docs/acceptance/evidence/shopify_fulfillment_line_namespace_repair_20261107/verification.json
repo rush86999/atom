@@ -1,0 +1,69 @@
+{
+  "packet": "shopify_fulfillment_line_namespace_repair_20261107",
+  "pre_repair_source": "b813c2a1fce654e1b87759808be352a217d2e5a6",
+  "repair_commit": "eff0ff7b0",
+  "main_merge_commit": "c37cfde0cc7e39c3f19201ffc88cecae9f18b9e5",
+  "merged_main": "2d251acdf",
+  "branch": "codex/shopify-fulfillment-lead-review-20261107",
+  "new_permanent_probe": "backend/tests/test_lead_shopify_fulfillment_rest_shape.py::test_missing_order_line_identity_cannot_borrow_fulfillment_order_line_id",
+  "contracts": [
+    {
+      "namespace": "source FulfillmentOrder line",
+      "fields": {
+        "id": "fulfillment-order line id",
+        "line_item_id": "order line id"
+      },
+      "rule": "only line_item_id may bind dispatch; missing it refuses before POST",
+      "implementation": [
+        "backend/integrations/shopify_service.py:_validate_fulfillment_order_material",
+        "backend/core/shopify_mutations.py:_fulfillment_source_line_identity"
+      ]
+    },
+    {
+      "namespace": "completed Fulfillment line",
+      "fields": {
+        "id": "order line id",
+        "line_item_id": "optional provider echo"
+      },
+      "rule": "the documented completed id namespace must still verify",
+      "implementation": [
+        "backend/core/shopify_mutations.py:_fulfillment_observed_line_identity"
+      ]
+    }
+  ],
+  "twins": [
+    "test_completed_fulfillment_line_id_is_order_line_identity",
+    "test_contradictory_completed_order_line_binding_is_unverified",
+    "test_create_fulfillment_missing_order_line_id_never_posts[None]",
+    "test_create_fulfillment_missing_order_line_id_never_posts[]"
+  ],
+  "process_results": {
+    "failure_first_line_namespace": {
+      "failed": 1,
+      "exit_code": 1,
+      "source_revision": "b813c2a1f"
+    },
+    "exact6": {
+      "passed": 6,
+      "exit_code": 0,
+      "source_revision": "c37cfde0c"
+    },
+    "affected": {
+      "passed": 72,
+      "exit_code": 0,
+      "source_revision": "c37cfde0c"
+    }
+  },
+  "preserved": {
+    "original_five_negatives": "backend/tests/test_lead_shopify_fulfillment_rest_shape.py",
+    "previous_source_packet": "docs/acceptance/evidence/shopify_fulfillment_lead_repair_20261107/"
+  },
+  "safety": {
+    "testing": "1",
+    "scratch_sqlite_database": true,
+    "only_http_leaf_doubled": true,
+    "live_calls": false,
+    "credentials_used": false,
+    "root_acceptance_withheld": true
+  }
+}
