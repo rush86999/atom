@@ -1,0 +1,77 @@
+
+tests/test_generic_information_recovery_batch_contract.py::test_drain_counts_unanswered_rows_and_all_accepted_batches 
+-------------------------------- live log setup --------------------------------
+2026-11-07 06:03:51 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-07 06:03:51 [    INFO] EscalationManager initialized
+2026-11-07 06:03:51 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 06:03:51 [    INFO] EscalationManager initialized
+2026-11-07 06:03:51 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 06:03:51 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 06:03:51 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-07 06:03:52 [ WARNING] Accepted information wait drain: resumed=21 uncertain=0 skipped=0 refused=0 pages=5 complete=True
+FAILED                                                                   [ 50%]
+tests/test_generic_information_recovery_batch_contract.py::test_startup_drain_does_not_extend_to_later_admitted_jobs FAILED [100%]
+
+=================================== FAILURES ===================================
+__________ test_drain_counts_unanswered_rows_and_all_accepted_batches __________
+tests/test_generic_information_recovery_batch_contract.py:16: in test_drain_counts_unanswered_rows_and_all_accepted_batches
+    assert result["scanned_jobs"] == 31, result
+E   AssertionError: {'examined': 21, 'resumed': 21, 'skipped': 0, 'refused': 0, ...}
+E   assert 0 == 31
+------------------------------ Captured log setup ------------------------------
+INFO     core.byok_endpoints:byok_endpoints.py:877 Updated costs for 16 providers from dynamic pricing
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.embedding_service:embedding_service.py:131 Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+INFO     core.agent_task_registry:agent_task_registry.py:64 AgentTaskRegistry initialized
+------------------------------ Captured log call -------------------------------
+WARNING  core.information_wait:information_wait.py:646 Accepted information wait drain: resumed=21 uncertain=0 skipped=0 refused=0 pages=5 complete=True
+__________ test_startup_drain_does_not_extend_to_later_admitted_jobs ___________
+tests/test_generic_information_recovery_batch_contract.py:42: in test_startup_drain_does_not_extend_to_later_admitted_jobs
+    assert "zzzz-admitted-after-boot" not in visited, visited
+E   AssertionError: ['8d3517e8-7d90-424f-ad9b-7f2ae3ada693', 'zzzz-admitted-after-boot', 'zzzz-admitted-after-boot']
+E   assert 'zzzz-admitted-after-boot' not in ['8d3517e8-7d90-424f-ad9b-7f2ae3ada693', 'zzzz-admitted-after-boot', 'zzzz-admitted-after-boot']
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_generic_information_recovery_batch_contract.py::test_drain_counts_unanswered_rows_and_all_accepted_batches
+FAILED tests/test_generic_information_recovery_batch_contract.py::test_startup_drain_does_not_extend_to_later_admitted_jobs
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 2 failed, 10 warnings in 12.29s ========================
