@@ -40,10 +40,14 @@ from __future__ import annotations
 import asyncio
 import copy
 import json
+import os
 import re
 import sqlite3
+import subprocess
+import sys
 import uuid
 from contextlib import contextmanager
+from pathlib import Path
 from types import SimpleNamespace
 
 import httpx
@@ -59,6 +63,11 @@ from core.generic_agent import GenericAgent
 SHOP = "scratch-replay.myshopify.com"
 OTHER_SHOP = "scratch-replay-other.myshopify.com"
 TOKEN = "synthetic-not-a-secret"
+
+BACKEND_DIR = Path(__file__).resolve().parents[1]
+MIGRATION_FILE = "20261107_task_operation_result_json.py"
+MIGRATION_REVISION = "20261107_task_operation_result"
+MIGRATION_PARENT_REVISION = "a2f0c1d4e5b6"
 
 
 # ---------------------------------------------------------------------------
@@ -769,4 +778,205 @@ def test_existing_database_upgrade_and_replay_survives_restart(env, monkeypatch)
     assert second["action_result"] == "already_applied", second
     assert second["oracle_verified"] is True, second
     assert second["remote_id"] == "500", second
+    assert _claim_row(reborn, operation_id)[0] == "succeeded"
+
+
+# ---------------------------------------------------------------------------
+# Alembic revision identity + real existing-database upgrade
+# ---------------------------------------------------------------------------
+
+
+def _version_graph():
+    """Return ``{revision: (path, down_revision)}`` for every alembic version."""
+    import ast
+
+    revs = {}
+    duplicates = []
+    for path in sorted((BACKEND_DIR / "alembic" / "versions").glob("*.py")):
+        try:
+            tree = ast.parse(path.read_text())
+        except SyntaxError:
+            continue
+        values = {}
+        for node in tree.body:
+            if (isinstance(node, ast.Assign)
+                    and isinstance(node.targets[0], ast.Name)):
+                try:
+                    values[node.targets[0].id] = ast.literal_eval(node.value)
+                except (ValueError, SyntaxError):
+                    continue
+        revision = values.get("revision")
+        if not isinstance(revision, str):
+            continue
+        if revision in revs:
+            duplicates.append((revision, str(revs[revision][0]), str(path)))
+        revs[revision] = (path, values.get("down_revision"))
+    return revs, duplicates
+
+
+def test_migration_revision_fits_alembic_version_column_and_parent_resolves():
+    """The installed ``alembic_version.version_num`` is ``String(32)``.
+
+    SQLite does not enforce the declared length, so a longer revision only
+    fails on PostgreSQL.  Keep the identifier within the column and make sure
+    it is unique and attached to an existing parent revision.
+    """
+    import ast
+
+    path = BACKEND_DIR / "alembic" / "versions" / MIGRATION_FILE
+    values = {}
+    for node in ast.parse(path.read_text()).body:
+        if isinstance(node, ast.Assign) and isinstance(node.targets[0], ast.Name):
+            try:
+                values[node.targets[0].id] = ast.literal_eval(node.value)
+            except (ValueError, SyntaxError):
+                continue
+
+    assert values["revision"] == MIGRATION_REVISION
+    assert values["down_revision"] == MIGRATION_PARENT_REVISION
+    assert len(MIGRATION_REVISION) <= 32
+
+    revs, duplicates = _version_graph()
+    assert duplicates == []
+    assert revs[MIGRATION_REVISION][0] == path
+    assert MIGRATION_PARENT_REVISION in revs
+
+    children = {}
+    for revision, (_path, down) in revs.items():
+        parents = down if isinstance(down, (tuple, list)) else [down]
+        for parent in parents:
+            if parent is not None:
+                children.setdefault(parent, []).append(revision)
+    # This revision is a head (nothing descends from it), matching the repo's
+    # one-revision-per-line convention.
+    assert MIGRATION_REVISION not in children
+
+
+def _run_alembic_upgrade(db_path, revision, *, cwd):
+    """Run the REAL alembic upgrade in a subprocess against an owned scratch DB.
+
+    The runner drops ``''``/``backend`` from ``sys.path`` so the local
+    ``backend/alembic`` scripts directory cannot shadow the installed alembic
+    package (same pattern as ``test_auth_2fa_migration_upgrade``).
+    """
+    environment = os.environ.copy()
+    environment["TESTING"] = "1"
+    environment["DATABASE_URL"] = f"sqlite:///{db_path}"
+    # ``core.database`` substitutes backend/test_integration.db when TESTING=1
+    # unless its pytest guard sees an explicit non-dev DATABASE_URL.  This is a
+    # pytest-owned scratch file, so identify the run as such and keep the
+    # explicitly supplied scratch URL.
+    environment.setdefault(
+        "PYTEST_CURRENT_TEST", "scratch-task-operation-migration")
+    environment.pop("PYTHONPATH", None)
+    runner = (
+        "import sys\n"
+        "sys.path = [p for p in sys.path if p not in ('', '.') "
+        "and not p.rstrip('/').endswith('/backend')]\n"
+        "from alembic.config import main\n"
+        "main()\n"
+    )
+    result = subprocess.run(
+        [
+            sys.executable, "-c", runner,
+            "-c", str(BACKEND_DIR / "alembic.ini"),
+            "upgrade", revision,
+        ],
+        cwd=str(cwd),
+        env=environment,
+        capture_output=True,
+        text=True,
+        timeout=240,
+    )
+    assert result.returncode == 0, result.stdout + result.stderr
+    return result
+
+
+def _alembic_state(db_path):
+    with sqlite3.connect(db_path) as raw:
+        versions = [
+            row[0] for row in raw.execute(
+                "select version_num from alembic_version order by version_num")
+        ]
+        columns = {
+            row[1]: row[3] for row in raw.execute(
+                "pragma table_info(task_operation_records)")
+        }
+        return versions, columns
+
+
+def test_alembic_upgrade_records_revision_keeps_old_claim_and_restart_replays_once(
+        env, monkeypatch, tmp_path):
+    """Upgrade a genuine predecessor scratch DB through the real alembic path.
+
+    A pre-existing succeeded claim (created by the real consumer) is retained
+    with a NULL receipt; the chosen revision is recorded exactly once; a
+    repeated upgrade in a new process is a no-op; and after a process-style
+    restart the old claim replays without a second create.
+    """
+    _add_store(env)
+    transport = FakeShopifyTransport()
+    _install_transport(monkeypatch, transport)
+    operation_id = f"op-alembic-{uuid.uuid4().hex}"
+    context = _context(operation_id)
+    args = _product_args(operation_id)
+
+    first = _call(_agent(), args, context)
+    assert first["success"] is True, first
+    assert len(transport.posts) == 1
+    before = _claim_row(env, operation_id)
+    assert before[0] == "succeeded"
+    assert before[2] is not None
+    payload_sha = before[1]
+
+    # Turn the scratch world into an existing pre-migration installation:
+    # remove the new column and stamp its predecessor revision (the same state
+    # an older install has before the alembic revision runs).
+    env["engine"].dispose()
+    with sqlite3.connect(env["path"]) as raw:
+        raw.execute(
+            "alter table task_operation_records drop column result_json")
+        raw.execute(
+            "create table alembic_version "
+            "(version_num varchar(32) not null)")
+        raw.execute(
+            "insert into alembic_version (version_num) values (?)",
+            (MIGRATION_PARENT_REVISION,))
+        raw.commit()
+
+    _run_alembic_upgrade(
+        env["path"], MIGRATION_REVISION, cwd=tmp_path)
+
+    versions, columns = _alembic_state(env["path"])
+    assert versions == [MIGRATION_REVISION], versions
+    assert "result_json" in columns, columns
+    assert columns["result_json"] == 0, "result_json must stay nullable"
+    with sqlite3.connect(env["path"]) as raw:
+        retained = raw.execute(
+            "select status, payload_sha256, result_json "
+            "from task_operation_records where operation_id = ?",
+            (operation_id,)).fetchone()
+    assert retained == ("succeeded", payload_sha, None), retained
+
+    # A second upgrade in a fresh process is an idempotent no-op.
+    _run_alembic_upgrade(
+        env["path"], MIGRATION_REVISION, cwd=tmp_path)
+    assert _alembic_state(env["path"])[0] == [MIGRATION_REVISION]
+
+    # Process-style restart: new engine/session, re-run the same upgrade, then
+    # replay the retained predecessor claim.  It has no exact identity receipt,
+    # so it must stay committed_unverified and must never create a second
+    # product.
+    reborn = _bind_scratch(monkeypatch, env["path"])
+    _run_alembic_upgrade(
+        env["path"], MIGRATION_REVISION, cwd=tmp_path)
+    assert _alembic_state(env["path"])[0] == [MIGRATION_REVISION]
+
+    second = _call(_agent(), dict(args), dict(context))
+
+    assert len(transport.posts) == 1, "restart replay created a second product"
+    assert second["success"] is not True, second
+    assert second["status"] == "committed_unverified", second
+    assert second["action_result"] == "already_applied_unverified", second
+    assert second.get("retryable") is False, second
     assert _claim_row(reborn, operation_id)[0] == "succeeded"
