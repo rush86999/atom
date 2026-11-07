@@ -785,7 +785,21 @@ def _profile_probe() -> Dict[str, Any]:
             route_capability,
         )
         profile = active_profile()
-        applied = apply_runtime_defaults()
+        worker_keys = (
+            "ENABLE_SCHEDULER",
+            "ENABLE_INGESTION_SYNC",
+            "ATOM_AGENT_EVOLUTION_ENABLED",
+        )
+        saved_worker_env = {
+            key: os.environ.pop(key, None) for key in worker_keys}
+        try:
+            # Trace the core profile's intended defaults, not an operator
+            # shell override that launch_server would not forward anyway.
+            applied = apply_runtime_defaults()
+        finally:
+            for key, value in saved_worker_env.items():
+                if value is not None:
+                    os.environ[key] = value
         documents = capability_enabled("documents")
         search = capability_enabled("search")
         tasks = capability_enabled("tasks")
@@ -1779,6 +1793,7 @@ def _run_execute(args: argparse.Namespace) -> int:
         print(f"[execute] output refused: {output}", file=sys.stderr)
         return 2
     out.mkdir(parents=True, exist_ok=True)
+    exec_env = D3._prepare_execute_environment(args)
 
     source = _source_proof(args.expect_source_sha)
     _write_json(out / "source.json", source)
@@ -1815,6 +1830,7 @@ def _run_execute(args: argparse.Namespace) -> int:
             "kind": "browser_document_export_ui_prerequisite_blocker",
             "generated_at": _now(),
             "source": source,
+            "driver_environment": exec_env,
             "fastembed_cache": cache,
             "fastembed_runtime": fastembed_runtime,
             "not_executed": True,
@@ -1942,7 +1958,6 @@ def _run_execute(args: argparse.Namespace) -> int:
             raise DriverError(f"scenario check failed: {name}")
 
     try:
-        exec_env = D3._prepare_execute_environment(args)
         os.environ.setdefault("SECRET_KEY", secrets.token_urlsafe(32))
         scenario["driver_environment"] = exec_env
         scenario["ready"] = ready
