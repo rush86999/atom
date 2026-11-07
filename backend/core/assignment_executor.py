@@ -2452,6 +2452,7 @@ class AssignmentExecutor:
         """
         limit = max(1, min(int(max_steps or 50), 200))
         steps_run = 0
+        source_retry_checked = False
         while steps_run < limit:
             record = self.lifecycle.get_task(run_id)
             if record is None:
@@ -2469,10 +2470,16 @@ class AssignmentExecutor:
             expected_task_revision = None
 
             assignment = self._sync_assignment(record, assignment)
-            assignment, source_restored = self._revalidate_waiting_sources(
-                run_id, assignment)
-            if source_restored:
-                record = self.lifecycle.get_task(run_id) or record
+            if not source_retry_checked:
+                # A restoration retry is checked once per external advance,
+                # not repeatedly inside one execution loop. This clears a
+                # durable gap only when the same accepted version is valid
+                # again, while an unavailable source yields immediately.
+                assignment, source_restored = self._revalidate_waiting_sources(
+                    run_id, assignment)
+                source_retry_checked = True
+                if source_restored:
+                    record = self.lifecycle.get_task(run_id) or record
             source_problem = self._source_consumption_gap(assignment, record)
             if source_problem:
                 source_step, source_gap = source_problem
