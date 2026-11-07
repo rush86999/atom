@@ -1,7 +1,7 @@
 {
   "backend/api/agent_routes.py": {
-    "git_blob": "5de9af687d290b87a1a253719c73698656a33ab8",
-    "sha256": "29d8fab15243689c793d74754856b375abeb5c0efbe55c78560a2c2dc4b443ba"
+    "git_blob": "c0b4861a8404cf8338ba2aa82bcac516f71f5bb0",
+    "sha256": "168144a27ddae52e0bc86512793643b76248e5e30df0b30019e8c7d95557f094"
   },
   "backend/core/generic_agent.py": {
     "git_blob": "00faff465d0384cdf016b253b3a7048c1ae9ad00",
@@ -20,8 +20,8 @@
     "sha256": "b5f640423850a9f8949c53fde140e7b10cb77242f204baa224cd25c6b9028227"
   },
   "backend/tests/test_agent_run_outcome_join_contract.py": {
-    "git_blob": "5892ff61d05db5afb64052d52d5a71d1ba90f890",
-    "sha256": "37a702edf455f5c9333cf295b329c9ff1b6878829e61d39488e1b2cd047528e8"
+    "git_blob": "b15fe3313240c37f42a56610c8ecaf3e141403bb",
+    "sha256": "82ce15567ee3fe0df32ee3f7e2735aaca1e5f038ce8557c58a28fa1a1faa6cd1"
   },
   "backend/tests/test_covpush_w81b_api_routes.py": {
     "git_blob": "2ed1b04a5b21d96f1c77bc64905d87396144cc71",

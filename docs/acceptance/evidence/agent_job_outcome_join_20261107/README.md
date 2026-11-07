@@ -26,12 +26,16 @@ No new engine, table, operation store or schema.
   statuses. Uncertain/failed/blocked/cancelled/contradictory/empty/invalid
   results preserve the exact outcome, reason and next action and never
   complete the job. Result presence is not success.
-- A bare model/body `"waiting"` string is not a durable wait. Only a result
-  carrying an existing wait receipt (`hitl_action_id`, `wait_id`,
-  `question_id`, continuation id, …) becomes a non-terminal `waiting` job,
-  with the receipt/question and `await_information` preserved. Waiting does
-  not set `finished`/`end_time` and does not occupy the active-run slot; the
-  existing continuation owner can resume the same task.
+- A bare model/body `"waiting"` string is not a durable wait. A returned
+  reference becomes a non-terminal `waiting` job only when it resolves to an
+  existing **pending** `HITLAction` row bound to this exact agent and the
+  frozen workspace/tenant (and actor when the row names one), with
+  task/execution material checked when the row carries it. Invented, foreign,
+  other-agent and settled references remain explicit non-success. The real
+  review row is read back in the positive control. A durable wait preserves
+  its receipt and `await_information`, does not set `finished`/`end_time`,
+  and does not occupy the active-run slot; the existing continuation owner
+  can resume the same task.
 - The admission namespace is built from the durable job, the original
   admission `AuditLog` receipt, the frozen `parameters_digest` and the
   authenticated actor. A moved agent, changed parameters, foreign actor,
@@ -52,8 +56,9 @@ No new engine, table, operation store or schema.
   No scoped output is sprayed onto `workspace:default`.
 - `execute_agent_task` constructs the real Generic consumer with the frozen
   workspace/tenant and no raw-body authority. Sync failure/uncertain returns
-  truthful 409/503 detail; a durable wait returns 202; success returns the
-  whitelisted user-facing result (no `audit_report`/internal scores).
+  a truthful 409/503 envelope with top-level `data`; a durable wait returns
+  202; success returns the whitelisted user-facing result (no
+  `audit_report`/internal scores).
 - `GenericAgent._execute_impl` reuses the canonical
   `execution_id`/`run_id` for `_run_uuid`, so the audit bracket and the
   persisted `AgentExecution` row share one identity.
@@ -92,9 +97,9 @@ child under `/private/tmp/atom-job-join-gate-20261107-agent2/`.
 | Gate | Command / scope | Result |
 |---|---|---|
 | Supplied five-cell probe | `/private/tmp/test_lead_agent_job_outcome_join.py` (in `final-focused.log`) | **5 passed, exit 0** |
-| New candidate contracts | `test_agent_run_outcome_join_contract.py` + `test_agent_run_admission_contract.py` | **36 passed, exit 0** |
-| Supplied lead probes | `LEAD_PROBES/test_lead_agent_job_claim_race.py` + `..._draft_bindings.py` | **11 passed, exit 0** |
-| Combined focused gate | 47 tests, `final-focused.log` | **exit 0** |
+| New candidate contracts | `test_agent_run_outcome_join_contract.py` + `test_agent_run_admission_contract.py` | **41 passed, exit 0** |
+| Supplied lead probes | `LEAD_PROBES/test_lead_agent_job_claim_race.py` + `..._draft_bindings.py` + `test_lead_job_wait_authority.py` | **15 passed, exit 0** |
+| Combined focused gate | 56 tests, `final-focused.log` | **exit 0** |
 | Actual affected gate | 13 files, `final-affected.log` | **exit 1; 36 failure IDs** |
 | Failure identity | `final-failure-identity.json` | **36/36 exactly the root actual baseline; zero new IDs** |
 | Generic consumer follow-through | `test_generic_agent.py`, `test_agent_action_audit.py`, `test_generic_oracle_mutation_contract.py`, `test_objective_loop_termination.py` | **passed** |
