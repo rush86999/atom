@@ -1,0 +1,94 @@
+{
+  "claim": "GOAL-02",
+  "title": "Persisted utility target with deterministic trajectory ranking",
+  "status": "submitted_for_independent_review",
+  "branch": "codex/goal02-utility-target-20261106",
+  "original_checkpoint": "e0469141c884bfd37ebd152ade00f1e13b91fe91",
+  "source_commit": "0839733ceb4ea0f4513b967a1db1bfb46625d760",
+  "baseline_commit": "248a2329623b433e68104c4d89d2965683d81013",
+  "interpreter": "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+  "world": {
+    "testing_env": "1",
+    "database": "per-test scratch SQLite files",
+    "live_db_touched": false,
+    "model_provider_inference": false
+  },
+  "source_blobs": {
+    "backend/core/goals/utility_target.py": "c6d45de025361072887c37751fbe1c9ead26e56e",
+    "backend/core/agent_objective.py": "246e6529bf6b12b38e7a91d6e9f8f55a21a9f7c2",
+    "backend/core/goals/goal_service.py": "5fc000ef7561c34305546f78c1a6fb607406256d",
+    "backend/core/goals/goal_run_router.py": "c06b55e5324015be44277b63fcae72ce56875013",
+    "backend/api/goal_routes.py": "5f69c4c1ea8b2dc93c79f0ea68d37238f9b74d0e",
+    "backend/core/action_registry.py": "7d1e1a4cf6c68776f22d1142e6e8dc72370bb72f",
+    "backend/tests/test_goal_utility_target.py": "f486b2715350bc5642a510995b9b635c9cb4e865",
+    "docs/architecture/AGENT_ENVIRONMENT.md": "1afec0eec3657f2a1ddac4bd2f54ddaf7a625c4f",
+    "CLAUDE.md": "a16ddaff4ce83c95840f39ba445a3e9d1d157c6d"
+  },
+  "review_finding": {
+    "id": "PR707-utility-ranking-hidden-cap",
+    "original_checkpoint": "e0469141c884bfd37ebd152ade00f1e13b91fe91",
+    "summary": "utility_ranking ordered created_at ASC then limit(100); with 100 older achieved runs plus a newer best run the 101st candidate was omitted and the wrong winner was reported.",
+    "negative_preserved": true,
+    "correction": "Complete candidate coverage for all terminal runs scoped to the requested goal/workspace; no hidden cap."
+  },
+  "results": {
+    "focused_review2": {
+      "command": "python -m pytest tests/test_goal_utility_target.py tests/test_goal_run_service.py tests/test_goal_journey_gaps.py tests/test_goal_run_routes.py tests/core/test_agent_objective.py tests/core/test_agent_environment_harness.py tests/test_goal_run_loop.py -q --tb=short --junitxml=.../focused-review2-junit.xml",
+      "passed": 111,
+      "failed": 0,
+      "skipped": 0,
+      "new_goal02_controls": 31,
+      "existing_baseline_controls": 80,
+      "artifact": "focused-review2-junit.xml"
+    },
+    "original_focused": {
+      "passed": 109,
+      "failed": 0,
+      "skipped": 0,
+      "artifact": "focused-junit.xml"
+    },
+    "unrelated_baseline_comparison": {
+      "file": "tests/test_objective_evidence_flow.py",
+      "changed_tree": {
+        "passed": 41,
+        "failed": 12,
+        "artifact": "changed-objective-evidence-junit.xml"
+      },
+      "baseline_tree": {
+        "passed": 41,
+        "failed": 12,
+        "artifact": "baseline-objective-evidence-junit.xml"
+      },
+      "classification": "same pre-existing failures on both trees; unrelated to GOAL-02; reused for the review fix"
+    }
+  },
+  "covered_contracts": [
+    "explicit target validation and persistence on GoalObjective.metadata_json",
+    "target survives a fresh engine/service",
+    "higher normalized utility ranks higher for maximize and minimize",
+    "complete candidate coverage beyond 100 terminal runs",
+    "invalid 101st candidate included but withheld as unknown",
+    "failed/cancelled/completion/constraint gates precede utility",
+    "missing/malformed/non-finite/negative/fractional/overflowing count evidence stays unknown",
+    "goal/workspace scoping of ranked runs",
+    "GoalService.evaluate exposes ranking without changing status/progress",
+    "GoalRunService and GoalRunRouter consume the durable ranking",
+    "flag-off objective loop parity",
+    "supervisor set/clear and member read API boundary"
+  ],
+  "limitations": [
+    "controlled deterministic consumer tests, not served inference",
+    "utility metrics are durable GoalRun counters, not arbitrary business metrics",
+    "lead probe external-path execution was denied in this shell; equivalent in-tree controls cover its huge-int OverflowError and negative-count eligibility defects",
+    "PR707 100+ candidate finding is covered by in-tree valid and invalid boundary controls"
+  ],
+  "artifacts": [
+    "README.md",
+    "TEST_RESULTS.md",
+    "MANIFEST.json",
+    "focused-junit.xml",
+    "focused-review2-junit.xml",
+    "changed-objective-evidence-junit.xml",
+    "baseline-objective-evidence-junit.xml"
+  ]
+}

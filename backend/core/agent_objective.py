@@ -37,6 +37,9 @@ class Objective:
     ``criteria`` (see core/goals/criterion_evaluator.py) are evaluated as
     the done-predicate. When both are None, the loop falls back to
     max_steps (current behavior).
+
+    ``utility_target`` is a separate optimization signal, not a done-predicate:
+    see core/goals/utility_target.py and ``rank_outcomes``.
     """
 
     goal: str
@@ -45,6 +48,32 @@ class Objective:
     success_criteria: List[str] = field(default_factory=list)
     criteria: List[Dict[str, Any]] = field(default_factory=list)
     workspace_id: str = "default"
+    # Explicit persisted optimization signal (GOAL-02). None → no utility
+    # ranking at all. The target never participates in is_satisfied: utility
+    # ranks completed trajectories but cannot make an unsatisfied goal done.
+    utility_target: Optional[Dict[str, Any]] = None
+
+    def score_outcome(self, outcome: Dict[str, Any]) -> Optional[float]:
+        """Deterministically score one candidate outcome, or None if unknown.
+
+        Higher is always better, regardless of the target's raw direction.
+        Missing/malformed/non-finite evidence and constraint/completion
+        failures return None — they never earn a utility score.
+        """
+        if not self.utility_target:
+            return None
+        from core.goals.utility_target import rank_trajectories
+        ranked = rank_trajectories(self.utility_target, [outcome])
+        entry = (ranked.get("ranking") or [None])[0]
+        return entry.get("utility") if entry and entry.get("eligible") else None
+
+    def rank_outcomes(self, outcomes: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Rank candidate trajectories against the durable utility target."""
+        if not self.utility_target:
+            return {"target": None, "ranking": [], "winner": None,
+                    "eligible_count": 0}
+        from core.goals.utility_target import rank_trajectories
+        return rank_trajectories(self.utility_target, outcomes)
 
     def is_satisfied(self, state: Dict[str, Any]) -> bool:
         """True when the objective's definition_of_done evaluates true."""
@@ -99,8 +128,10 @@ def objective_from_context(context: Dict[str, Any]) -> Optional[Objective]:
     goal = context.get("objective_goal")
     done = context.get("objective_done")
     if goal and callable(done):
-        return Objective(goal=goal, definition_of_done=done,
-                         success_criteria=context.get("objective_criteria", []))
+        return Objective(
+            goal=goal, definition_of_done=done,
+            success_criteria=context.get("objective_criteria", []),
+            utility_target=context.get("objective_utility_target"))
     criteria = context.get("objective_criteria") or []
     if goal and criteria:
         return Objective(
@@ -108,5 +139,6 @@ def objective_from_context(context: Dict[str, Any]) -> Optional[Objective]:
             criteria=list(criteria),
             success_criteria=[c.get("type", "?") for c in criteria],
             workspace_id=context.get("workspace_id", "default"),
+            utility_target=context.get("objective_utility_target"),
         )
     return None
