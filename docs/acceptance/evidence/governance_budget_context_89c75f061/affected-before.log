@@ -1,0 +1,373 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-07 02:27:04 [    INFO] MCP Service initialized
+
+::test_real_mcp_registry_context_and_capability_boundary[allowed] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:27:05 [ WARNING] can_perform_action() called from a running event loop (agent=scratch-agent action=mini_app_scaffold); budget not checked synchronously — use can_perform_action_async() to enforce the budget
+2026-11-07 02:27:05 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant ws-1: Tenant ws-1 not found
+2026-11-07 02:27:05 [    INFO] Canvas type 'mini_app' auto-registered (generic defaults)
+PASSED                                                                   [  1%]
+::test_real_mcp_registry_context_and_capability_boundary[capability_denied] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:27:06 [ WARNING] can_perform_action() called from a running event loop (agent=scratch-agent action=mini_app_scaffold); budget not checked synchronously — use can_perform_action_async() to enforce the budget
+2026-11-07 02:27:06 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant ws-1: Tenant ws-1 not found
+2026-11-07 02:27:06 [    INFO] Capability gate BLOCKED tool mini_app_scaffold for agent scratch-agent (tier=autonomous)
+PASSED                                                                   [  2%]
+::test_real_mcp_registry_context_and_capability_boundary[hard_stop] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:27:06 [ WARNING] can_perform_action() called from a running event loop (agent=scratch-agent action=mini_app_scaffold); budget not checked synchronously — use can_perform_action_async() to enforce the budget
+2026-11-07 02:27:06 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant ws-1: Tenant ws-1 not found
+FAILED                                                                   [  3%]
+::test_budget_scope_uses_existing_personal_account_resolution[explicit] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:27:07 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant ws-1: Tenant ws-1 not found
+FAILED                                                                   [  4%]
+::test_budget_scope_uses_existing_personal_account_resolution[agent_fallback] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:27:08 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant ws-1: Tenant ws-1 not found
+FAILED                                                                   [  5%]
+::test_budget_scope_uses_existing_personal_account_resolution[workspace_fallback] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:27:08 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant ws-1: Tenant ws-1 not found
+FAILED                                                                   [  6%]
+::test_budget_scope_uses_existing_personal_account_resolution[personal_null] PASSED [  7%]
+::test_budget_scope_uses_existing_personal_account_resolution[wrong_tenant] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:27:10 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant ws-1: Tenant ws-1 not found
+FAILED                                                                   [  8%]
+::test_budget_scope_uses_existing_personal_account_resolution[wrong_workspace] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:27:11 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant different-workspace: Tenant different-workspace not found
+FAILED                                                                   [  9%]
+::test_budget_scope_uses_existing_personal_account_resolution[unconfigured] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:27:11 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant ws-1: Tenant ws-1 not found
+PASSED                                                                   [ 10%]
+tests/test_budget_control.py::TestEnforcementModeDefault::test_unset_mode_defaults_to_soft_stop 
+-------------------------------- live log setup --------------------------------
+2026-11-07 02:27:11 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-07 02:27:12 [    INFO] EscalationManager initialized
+2026-11-07 02:27:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 02:27:12 [    INFO] EscalationManager initialized
+2026-11-07 02:27:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 02:27:12 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 02:27:12 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [ 11%]
+tests/test_budget_control.py::TestEnforcementModeDefault::test_empty_setting_defaults_to_soft_stop PASSED [ 12%]
+tests/test_budget_control.py::TestEnforcementModeDefault::test_invalid_mode_falls_back_to_soft_stop 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:27:12 [ WARNING] [BudgetEnforcementService] Invalid enforcement mode 'bogus' for tenant t1, defaulting to soft_stop
+PASSED                                                                   [ 13%]
+tests/test_budget_control.py::TestEnforcementModeDefault::test_explicit_alert_only_is_respected PASSED [ 14%]
+tests/test_budget_control.py::TestEnforcementModeDefault::test_explicit_hard_stop_is_respected PASSED [ 15%]
+tests/test_budget_control.py::TestEnforcementModeDefault::test_json_error_defaults_to_soft_stop 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:27:12 [ WARNING] [BudgetEnforcementService] Error reading enforcement mode: Expecting value: line 1 column 1 (char 0)
+PASSED                                                                   [ 17%]
+tests/test_budget_control.py::TestEnforcementModeDefault::test_mode_constants_unchanged PASSED [ 18%]
+tests/test_budget_control.py::TestAgentBudgetGate::test_gate_returns_allowed_when_budget_ok PASSED [ 19%]
+tests/test_budget_control.py::TestAgentBudgetGate::test_gate_returns_denied_under_hard_stop PASSED [ 20%]
+tests/test_budget_control.py::TestAgentBudgetGate::test_gate_fails_open_on_exception 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:27:12 [ WARNING] Budget pre-check failed (fail-open): DB down
+PASSED                                                                   [ 21%]
+tests/test_budget_control.py::TestAgentBudgetGate::test_budget_exceeded_status_maps_to_failed PASSED [ 22%]
+tests/test_budget_control.py::TestBudgetExitStatusContract::test_execute_returns_valid_status_when_budget_denied 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:27:12 [    INFO] Agent TestAgent (agent-1) starting task: do something
+2026-11-07 02:27:12 [    INFO] EscalationManager initialized
+2026-11-07 02:27:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 02:27:12 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 02:27:12 [    INFO] LanceDBHandler initialized. ID: 5012531600. LANCEDB_AVAILABLE: True
+2026-11-07 02:27:12 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 02:27:12 [    INFO] Connecting to LanceDB at /private/tmp/atom-cli-agent-job-join/backend/data/atom_memory with storage_options=None
+2026-11-07 02:27:12 [    INFO] LanceDB connected successfully
+2026-11-07 02:27:12 [ WARNING] Budget gate halted agent TestAgent at step 1: Budget exceeded. All operations halted immediately.
+2026-11-07 02:27:12 [ WARNING] Failed to generate self-critique: 'Mock' object can't be awaited
+PASSED                                                                   [ 23%]
+tests/test_budget_control.py::TestSoftStopDefaultBehavior::test_unset_tenant_blocks_new_episode_when_over_budget PASSED [ 24%]
+tests/test_budget_control.py::TestSoftStopDefaultBehavior::test_unset_tenant_allows_active_episode_when_over_budget PASSED [ 25%]
+tests/test_budget_control.py::TestBudgetExceededMessageContract::test_message_mentions_budget_limit PASSED [ 26%]
+tests/test_budget_control.py::TestBudgetExceededMessageContract::test_message_includes_the_underlying_reason PASSED [ 27%]
+tests/test_budget_control.py::TestBudgetExceededMessageContract::test_message_has_safe_default_when_reason_missing PASSED [ 28%]
+tests/test_agent_governance_service.py::TestAgentRegistration::test_register_new_agent 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:27:12 [    INFO] Registered new agent: Test Agent
+PASSED                                                                   [ 29%]
+tests/test_agent_governance_service.py::TestAgentRegistration::test_update_existing_agent PASSED [ 30%]
+tests/test_agent_governance_service.py::TestActionPermissions::test_student_can_perform_level_1_actions 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:27:12 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-07 02:27:12 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-07 02:27:12 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant test: '>' not supported between instances of 'Mock' and 'datetime.date'
+PASSED                                                                   [ 31%]
+tests/test_agent_governance_service.py::TestActionPermissions::test_student_blocked_from_level_3_actions PASSED [ 32%]
+tests/test_agent_governance_service.py::TestActionPermissions::test_autonomous_can_perform_critical_actions 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:27:12 [ WARNING] Budget check failed (non-fatal, allowing): 'dict' object can't be awaited
+PASSED                                                                   [ 34%]
+tests/test_agent_governance_service.py::TestActionPermissions::test_supervised_requires_approval_for_critical_actions PASSED [ 35%]
+tests/test_agent_governance_service.py::TestActionComplexity::test_action_complexity_mapping PASSED [ 36%]
+tests/test_agent_governance_service.py::TestMaturityRequirements::test_maturity_requirements_mapping PASSED [ 37%]
+tests/test_agent_governance_service.py::TestWorkspaceHandling::test_initialization_with_default_workspace PASSED [ 38%]
+tests/test_agent_governance_service.py::TestWorkspaceHandling::test_initialization_with_custom_workspace PASSED [ 39%]
+tests/test_agent_governance_service.py::TestListAgentsWorkspaceScope::test_list_agents_returns_unscoped_agents PASSED [ 40%]
+tests/test_agent_governance_service.py::TestListAgentsWorkspaceScope::test_list_agents_keeps_legacy_default_rows PASSED [ 41%]
+tests/test_agent_governance_service.py::TestListAgentsWorkspaceScope::test_list_agents_still_scopes_custom_workspaces PASSED [ 42%]
+tests/test_agent_governance_service.py::TestListAgentsWorkspaceScope::test_list_agents_filters_by_category 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:27:13 [    INFO] Registered new agent: Sales Agent
+2026-11-07 02:27:13 [    INFO] Registered new agent: Ops Agent
+PASSED                                                                   [ 43%]
+tests/test_agent_governance_service.py::TestErrorHandling::test_agent_not_found_returns_denied PASSED [ 44%]
+tests/test_agent_governance_service.py::TestErrorHandling::test_paused_agent_blocked_from_actions PASSED [ 45%]
+tests/test_covpush_w29_governance.py::TestRegistry::test_list_agents_filter PASSED [ 46%]
+tests/test_covpush_w29_governance.py::TestRegistry::test_register_new_agent 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:27:14 [    INFO] Registered new agent: New Agent
+FAILED                                                                   [ 47%]
+tests/test_covpush_w29_governance.py::TestRegistry::test_register_updates_existing 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:27:15 [    INFO] Registered new agent: Old
+PASSED                                                                   [ 48%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_agent_not_found PASSED [ 50%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_paused_denied PASSED [ 51%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_stopped_denied PASSED [ 52%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_student_blocked_low_complexity PASSED [ 53%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_autonomous_allowed 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:27:18 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant ws-1: Tenant ws-1 not found
+PASSED                                                                   [ 54%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_supervised_high_complexity_needs_approval PASSED [ 55%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_demo_agent_bypass_complexity_2 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:27:20 [    INFO] Governance demo_agent bypass: agent=agent-7c211764 action=canvas_presentation complexity=2 tier=student
+2026-11-07 02:27:20 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant ws-1: Tenant ws-1 not found
+PASSED                                                                   [ 56%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_demo_agent_bypass_capped_at_complexity_2 PASSED [ 57%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_budget_exceeded_blocks PASSED [ 58%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_budget_service_unavailable_passthrough 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:27:22 [ WARNING] Budget check failed (non-fatal, allowing): down
+PASSED                                                                   [ 59%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_can_perform_action_async 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:27:23 [ WARNING] can_perform_action() called from a running event loop (agent=agent-470ca19c action=read_memory); budget not checked synchronously — use can_perform_action_async() to enforce the budget
+2026-11-07 02:27:23 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant ws-1: Tenant ws-1 not found
+PASSED                                                                   [ 60%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_can_perform_action_async_budget_blocked 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:27:24 [ WARNING] can_perform_action() called from a running event loop (agent=agent-0de7c3df action=read_memory); budget not checked synchronously — use can_perform_action_async() to enforce the budget
+PASSED                                                                   [ 61%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_recursion_depth_blocks 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:27:25 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant ws-1: Tenant ws-1 not found
+2026-11-07 02:27:25 [ WARNING] Recursion depth limit reached (chain: chain-1, depth=2, max=2). Blocking recruitment.
+PASSED                                                                   [ 62%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_get_agent_capabilities PASSED [ 63%]
+tests/test_covpush_w29_governance.py::TestEnforceAndApproval::test_enforce_blocked PASSED [ 64%]
+tests/test_covpush_w29_governance.py::TestEnforceAndApproval::test_enforce_pending_approval 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:27:27 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant ws-1: Tenant ws-1 not found
+PASSED                                                                   [ 65%]
+tests/test_covpush_w29_governance.py::TestEnforceAndApproval::test_enforce_arbor_code_gate_blocked 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:27:28 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant ws-1: Tenant ws-1 not found
+2026-11-07 02:27:28 [ WARNING] [Arbor/Governance] Code quality gate BLOCKED agent=agent-b1f40ebf action=write_code_file reason=SyntaxError in proposed code: invalid syntax (<unknown>, line 1) node=08bab1e4-2c42-4153-bf5d-c033e5f1dd11
+PASSED                                                                   [ 67%]
+tests/test_covpush_w29_governance.py::TestEnforceAndApproval::test_enforce_approved 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:27:29 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant ws-1: Tenant ws-1 not found
+PASSED                                                                   [ 68%]
+tests/test_covpush_w29_governance.py::TestEnforceAndApproval::test_find_relevant_policies PASSED [ 69%]
+tests/test_covpush_w29_governance.py::TestEnforceAndApproval::test_request_approval_and_status PASSED [ 70%]
+tests/test_covpush_w29_governance.py::TestEnforceAndApproval::test_request_approval_with_chain_snapshot PASSED [ 71%]
+tests/test_covpush_w29_governance.py::TestArborAndGuardrails::test_arbor_syntax_error_blocked 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:27:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant ws-1: Tenant ws-1 not found
+2026-11-07 02:27:33 [ WARNING] [Arbor/Governance] Code quality gate BLOCKED agent=agent-fceb84e6 action=write_code_file reason=SyntaxError in proposed code: invalid syntax (<unknown>, line 1) node=c50455cf-ab1e-4954-b80c-44cc0452fc26
+PASSED                                                                   [ 72%]
+tests/test_covpush_w29_governance.py::TestArborAndGuardrails::test_arbor_high_complexity_blocked 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:27:34 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant ws-1: Tenant ws-1 not found
+2026-11-07 02:27:34 [ WARNING] [Arbor/Governance] Code quality gate BLOCKED agent=agent-a354f672 action=write_code_file reason=Code complexity too high (61 branches). Refactor before approval. node=02391d1f-39aa-4496-931f-5381ba34a966
+PASSED                                                                   [ 73%]
+tests/test_covpush_w29_governance.py::TestArborAndGuardrails::test_arbor_non_python_language_passes 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:27:35 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant ws-1: Tenant ws-1 not found
+PASSED                                                                   [ 74%]
+tests/test_covpush_w29_governance.py::TestArborAndGuardrails::test_guardrail_blocks_autonomous 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:27:36 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant ws-1: Tenant ws-1 not found
+PASSED                                                                   [ 75%]
+tests/test_covpush_w29_governance.py::TestArborAndGuardrails::test_guardrail_downgrade_handles_violation 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:27:36 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant ws-1: Tenant ws-1 not found
+PASSED                                                                   [ 76%]
+tests/test_covpush_w29_governance.py::TestArborAndGuardrails::test_nesting_depth_helpers PASSED [ 77%]
+tests/test_covpush_w29_governance.py::TestArborAndGuardrails::test_submit_feedback_missing_agent_raises 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:27:38 [   ERROR] API Error: NOT_FOUND - Agent with ID 'missing' not found
+PASSED                                                                   [ 78%]
+tests/test_covpush_w29_governance.py::TestArborAndGuardrails::test_adjudicate_non_trusted_pending 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:27:39 [    INFO] Initialized global governance cache
+2026-11-07 02:27:39 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-07 02:27:39 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-1'. type='maturity_update'
+PASSED                                                                   [ 79%]
+tests/test_covpush_w29_governance.py::TestOutcomeAndEvolution::test_record_outcome_updates_confidence 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:27:40 [    INFO] Recorded outcome for agent-2b30ffa7: success
+2026-11-07 02:27:40 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-07 02:27:40 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-1'. type='maturity_update'
+PASSED                                                                   [ 80%]
+tests/test_covpush_w29_governance.py::TestOutcomeAndEvolution::test_validate_directive_danger_pattern 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:27:41 [ WARNING] Evolution directive REJECTED for tenant t-1: danger pattern in system_prompt: 'ignore all rules'
+PASSED                                                                   [ 81%]
+tests/test_covpush_w29_governance.py::TestOutcomeAndEvolution::test_validate_directive_danger_in_directive_list 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:27:41 [ WARNING] Evolution directive REJECTED for tenant t-1: danger pattern in directive: 'bypass guardrails'
+PASSED                                                                   [ 82%]
+tests/test_covpush_w29_governance.py::TestOutcomeAndEvolution::test_validate_directive_protected_key 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:27:42 [ WARNING] Evolution directive REJECTED for tenant t-1: self-referential mutation of protected config key: 'sandbox_config'
+PASSED                                                                   [ 84%]
+tests/test_covpush_w29_governance.py::TestOutcomeAndEvolution::test_validate_directive_harness_patches_allowed PASSED [ 85%]
+tests/test_covpush_w29_governance.py::TestOutcomeAndEvolution::test_validate_directive_privilege_escalation 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:27:44 [ WARNING] Evolution directive REJECTED for tenant t-1: self-referential mutation of protected config key: 'elevated_privileges'; privilege escalation: elevated_privileges=True set by evolution (must go through maturity graduation, not auto-tuning)
+PASSED                                                                   [ 86%]
+tests/test_covpush_w29_governance.py::TestOutcomeAndEvolution::test_validate_directive_clean_pass PASSED [ 87%]
+tests/test_generic_request_expectations.py::test_builder_freezes_business_args_and_ignores_model_expected_fields PASSED [ 88%]
+tests/test_generic_request_expectations.py::test_plain_args_generic_and_assignment_produce_the_same_verified_effect PASSED [ 89%]
+tests/test_generic_request_expectations.py::test_plain_args_non_miniapp_presentation_is_verified 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:27:46 [    INFO] Presented markdown content to user user-1
+PASSED                                                                   [ 90%]
+tests/test_generic_request_expectations.py::test_model_forged_expected_metadata_is_stripped_before_dispatch PASSED [ 91%]
+tests/test_generic_request_expectations.py::test_handler_result_cannot_overwrite_frozen_expectations PASSED [ 92%]
+tests/test_generic_request_expectations.py::test_model_forged_expected_metadata_cannot_rescue_wrong_server_scope PASSED [ 93%]
+tests/test_generic_request_expectations.py::test_uncertain_operation_reconciles_from_frozen_material_without_resend PASSED [ 94%]
+tests/test_generic_request_expectations.py::test_peer_claim_is_not_dispatched_or_stolen PASSED [ 95%]
+tests/test_generic_request_expectations.py::test_distinct_sequential_authorized_mutations_still_run PASSED [ 96%]
+tests/test_generic_reconcile_commit_contract.py::test_reconcile_cannot_report_committed_success_if_transition_loses[refused] PASSED [ 97%]
+tests/test_generic_reconcile_commit_contract.py::test_reconcile_cannot_report_committed_success_if_transition_loses[peer_changed] PASSED [ 98%]
+tests/test_generic_reconcile_commit_contract.py::test_reconcile_cannot_report_committed_success_if_transition_loses[peer_payload] PASSED [100%]
+
+=================================== FAILURES ===================================
+______ test_real_mcp_registry_context_and_capability_boundary[hard_stop] _______
+../../test_lead_budget_scope_contract.py:45: in test_real_mcp_registry_context_and_capability_boundary
+    assert not effects and not receipts,result
+E   AssertionError: {'success': True, 'app_id': 'dee0b2c3-df45-4704-bf10-11d5f17d705b', 'canvas_id': '9ead7b3e-51c6-4be2-8e29-547321d1fc48', 'name': 'Actual MCP app', ...}
+E   assert (not [<core.models.MiniApp object at 0x12b0270b0>])
+------------------------------ Captured log call -------------------------------
+WARNING  core.agent_governance_service:agent_governance_service.py:847 can_perform_action() called from a running event loop (agent=scratch-agent action=mini_app_scaffold); budget not checked synchronously — use can_perform_action_async() to enforce the budget
+WARNING  core.budget_enforcement_service:budget_enforcement_service.py:100 [BudgetEnforcementService] Unable to verify spend for tenant ws-1: Tenant ws-1 not found
+____ test_budget_scope_uses_existing_personal_account_resolution[explicit] _____
+../../test_lead_budget_scope_contract.py:97: in test_budget_scope_uses_existing_personal_account_resolution
+    assert result["allowed"] is False, result
+E   AssertionError: {'allowed': True, 'reason': 'Unable to verify spend', 'enforcement_mode': 'unknown', 'current_spend_usd': 0.0, ...}
+E   assert True is False
+------------------------------ Captured log call -------------------------------
+WARNING  core.budget_enforcement_service:budget_enforcement_service.py:100 [BudgetEnforcementService] Unable to verify spend for tenant ws-1: Tenant ws-1 not found
+_ test_budget_scope_uses_existing_personal_account_resolution[agent_fallback] __
+../../test_lead_budget_scope_contract.py:97: in test_budget_scope_uses_existing_personal_account_resolution
+    assert result["allowed"] is False, result
+E   AssertionError: {'allowed': True, 'reason': 'Unable to verify spend', 'enforcement_mode': 'unknown', 'current_spend_usd': 0.0, ...}
+E   assert True is False
+------------------------------ Captured log call -------------------------------
+WARNING  core.budget_enforcement_service:budget_enforcement_service.py:100 [BudgetEnforcementService] Unable to verify spend for tenant ws-1: Tenant ws-1 not found
+_ test_budget_scope_uses_existing_personal_account_resolution[workspace_fallback] _
+../../test_lead_budget_scope_contract.py:97: in test_budget_scope_uses_existing_personal_account_resolution
+    assert result["allowed"] is False, result
+E   AssertionError: {'allowed': True, 'reason': 'Unable to verify spend', 'enforcement_mode': 'unknown', 'current_spend_usd': 0.0, ...}
+E   assert True is False
+------------------------------ Captured log call -------------------------------
+WARNING  core.budget_enforcement_service:budget_enforcement_service.py:100 [BudgetEnforcementService] Unable to verify spend for tenant ws-1: Tenant ws-1 not found
+__ test_budget_scope_uses_existing_personal_account_resolution[wrong_tenant] ___
+../../test_lead_budget_scope_contract.py:97: in test_budget_scope_uses_existing_personal_account_resolution
+    assert result["allowed"] is False, result
+E   AssertionError: {'allowed': True, 'reason': 'Unable to verify spend', 'enforcement_mode': 'unknown', 'current_spend_usd': 0.0, ...}
+E   assert True is False
+------------------------------ Captured log call -------------------------------
+WARNING  core.budget_enforcement_service:budget_enforcement_service.py:100 [BudgetEnforcementService] Unable to verify spend for tenant ws-1: Tenant ws-1 not found
+_ test_budget_scope_uses_existing_personal_account_resolution[wrong_workspace] _
+../../test_lead_budget_scope_contract.py:97: in test_budget_scope_uses_existing_personal_account_resolution
+    assert result["allowed"] is False, result
+E   AssertionError: {'allowed': True, 'reason': 'Unable to verify spend', 'enforcement_mode': 'unknown', 'current_spend_usd': 0.0, ...}
+E   assert True is False
+------------------------------ Captured log call -------------------------------
+WARNING  core.budget_enforcement_service:budget_enforcement_service.py:100 [BudgetEnforcementService] Unable to verify spend for tenant different-workspace: Tenant different-workspace not found
+_____________________ TestRegistry.test_register_new_agent _____________________
+tests/test_covpush_w29_governance.py:82: in test_register_new_agent
+    assert agent.confidence_score == 0.5
+E   assert 0.35 == 0.5
+E    +  where 0.35 = <core.models.AgentRegistry object at 0x12c3c5090>.confidence_score
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_governance_service:agent_governance_service.py:399 Registered new agent: New Agent
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 188 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_budget_control.py::TestBudgetExitStatusContract::test_execute_returns_valid_status_when_budget_denied
+  /private/tmp/atom-cli-agent-job-join/backend/core/lancedb_handler.py:407: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    names = set(self.db.table_names())
+
+tests/test_budget_control.py::TestBudgetExitStatusContract::test_execute_returns_valid_status_when_budget_denied
+tests/test_budget_control.py::TestBudgetExitStatusContract::test_execute_returns_valid_status_when_budget_denied
+  /Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/asyncio/events.py:94: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    self._context.run(self._callback, *self._args)
+
+tests/test_budget_control.py::TestBudgetExitStatusContract::test_execute_returns_valid_status_when_budget_denied
+  /private/tmp/atom-cli-agent-job-join/backend/core/lancedb_handler.py:620: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    if table_name in self.db.table_names():
+
+tests/test_agent_governance_service.py::TestListAgentsWorkspaceScope::test_list_agents_returns_unscoped_agents
+tests/test_agent_governance_service.py::TestListAgentsWorkspaceScope::test_list_agents_keeps_legacy_default_rows
+tests/test_agent_governance_service.py::TestListAgentsWorkspaceScope::test_list_agents_still_scopes_custom_workspaces
+tests/test_agent_governance_service.py::TestListAgentsWorkspaceScope::test_list_agents_filters_by_category
+  /private/tmp/atom-cli-agent-job-join/backend/tests/test_agent_governance_service.py:355: SAWarning: Can't sort tables for DROP; an unresolvable foreign key dependency exists between tables: agent_divisions, agent_registry, canvases, mini_apps; and backend does not support ALTER.  To restore at least a partial sort, apply use_alter=True to ForeignKey and ForeignKeyConstraint objects involved in the cycle to mark these as known cycles that will be ignored.
+    Base.metadata.drop_all(engine)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-budget-scope-baseline-wtjr3o3_/result.xml -
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED ::test_real_mcp_registry_context_and_capability_boundary[hard_stop] - ...
+FAILED ::test_budget_scope_uses_existing_personal_account_resolution[explicit]
+FAILED ::test_budget_scope_uses_existing_personal_account_resolution[agent_fallback]
+FAILED ::test_budget_scope_uses_existing_personal_account_resolution[workspace_fallback]
+FAILED ::test_budget_scope_uses_existing_personal_account_resolution[wrong_tenant]
+FAILED ::test_budget_scope_uses_existing_personal_account_resolution[wrong_workspace]
+FAILED tests/test_covpush_w29_governance.py::TestRegistry::test_register_new_agent
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======= 7 failed, 87 passed, 1 skipped, 202 warnings in 63.87s (0:01:03) =======

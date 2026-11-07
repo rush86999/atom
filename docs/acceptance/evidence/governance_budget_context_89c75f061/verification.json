@@ -1,0 +1,40 @@
+{
+  "real_mcp_negative": {
+    "runtime_source": "2e95a94cf",
+    "test_source": "2dafb82dd",
+    "failed": 1,
+    "passed": 2,
+    "actual_exit_code": 1,
+    "product_failure": "configured hard_stop allowed actual host effect",
+    "fixture_note": "earlier first prototype referenced nonexistent MiniApp.creator_user_id; corrected to actual created_by before the valid negative run. Not product evidence."
+  },
+  "affected_before": {
+    "runtime_source": "5ff044ef6",
+    "runtime_tests_ci_identical_to": "2e95a94cf",
+    "external_controls": "baseline-external-controls.py, later tracked at a5cabd207",
+    "passed": 87,
+    "failed": 7,
+    "skipped": 1,
+    "actual_exit_code": 1
+  },
+  "affected_after": {
+    "source": "a5cabd207",
+    "passed": 93,
+    "failed": 1,
+    "skipped": 1,
+    "actual_exit_code": 1,
+    "baseline_failure": "test_covpush_w29_governance.py::TestRegistry::test_register_new_agent (stale confidence0.5 expectation)",
+    "new_failure_ids": []
+  },
+  "final_ci_gate": {
+    "source": "89c75f061",
+    "passed": 31,
+    "failed": 0,
+    "skipped": 0,
+    "actual_exit_code": 0,
+    "new_real_mcp_scope_mode_controls": 14,
+    "existing_budget_controls": 17
+  },
+  "scope": "real Generic governance->real MCP->registry host writer with real scratch ledger and billing rows; no pre_approved bypass or doubled MCP/Governance. Single-tenant personal resolver retained. No live model/provider/guest/browser/financial spending or PostgreSQL/multiworker claim.",
+  "remaining": "existing budget-service failure-degradation policy, concurrent spend reservations and broad governance/financial guarantees are not qualified by this scope"
+}

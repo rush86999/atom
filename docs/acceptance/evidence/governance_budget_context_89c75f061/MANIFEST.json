@@ -1,0 +1,36 @@
+{
+  "executed_source": "89c75f061c85a577b9ef09abdb6fb5c27319cdfb",
+  "source_files": {
+    "backend/core/agent_governance_service.py": "e6babf04d5f90eef46ecc7c934db8ee49461544d15e3c1744d3475bb14c95b30",
+    "backend/core/personal_scope.py": "f07dd35cf6eedb674ec9afbb06e10776cd4039e64ad7dd0a3427b7e0df31f78f",
+    "backend/core/budget_enforcement_service.py": "d05e5a86bd7cb840d6783e342913fcdd64f60c29eeb94cb3fffc09a0f4b2da31",
+    "backend/core/spend_aggregation_service.py": "28c73623b72102d035a9bb04b2bea053c278ad26e12fb090847b65f33060a4ec",
+    "backend/core/generic_agent.py": "fbb0c7c4662226b0e7daeb7c3ef3efcccc1c477b06917046daa1ce295c8367b2",
+    "backend/integrations/mcp_service.py": "235c89f416b862c217284d73f9d4f2d8b20ae752b8cbf7ce60a47ddb5527dc10",
+    "backend/core/action_registry.py": "16cfc4c9e6bc31d350b78ba5300e35f1a6d1944c98f1cf6a8efed261c1aad44a",
+    "backend/tests/test_generic_real_mcp_budget_contract.py": "3c838ddf829eebf4371ffcb02db21562588aef60ff186fdc2e1d38cd5d5919ba",
+    "backend/tests/test_budget_control.py": "1d7ff9891fbc88f2eaaeff0614fab10bdc8769bd46a6adeec37b8980cab9d9f1",
+    ".github/workflows/ci.yml": "acb4906251d01073c29b1f0760ef55f9777c23ff1b8e5086737ea4ce95b86345"
+  },
+  "artifacts": {
+    "README.md": "834706d20f4cb991e203689446957f7b78bf657f6b6dd70471d35a163f009b97",
+    "affected-after-exit.json": "de7753f2d2f8d632ef7883ca6b01b1506321f50d6bc630dd8a2bb5247399ab59",
+    "affected-after-spec.json": "2354c6b61d3b865d0a37d15e8532a61a1025f96c87673d31b6dd5e05b9ec44c4",
+    "affected-after.log": "df02501d8dbbbb7bd018f46dce0ed4f6b979e01ebe8721b68239481e0f18ac94",
+    "affected-after.xml": "544450452908df4099a5ca2cb9e334c900b56c6c9a56570f0b84d0e46f55ba5a",
+    "affected-before-exit.json": "5da81dc6819ac7cb4bec004d3aa1dc59e4fced1fa9f2ef4c18a94befe5806680",
+    "affected-before-spec.json": "59d8b8ae96183cd34545fcff964db2821d5f9a899e1307cf8334ad22af81f97a",
+    "affected-before.log": "8567718055175d60a5d2d442a58ac8606a4fb48bea55eeaf988adf73d48df976",
+    "affected-before.xml": "7d28f986bdd9196eb55ce6b8804efe4ee46b5fe38fd61c3cbd4dd2b3d9963e3e",
+    "baseline-external-controls.py": "f833158d712f949666d45f5ed18f13ad1360e6b26b39b64494410f8b09c018b2",
+    "failure-comparison.json": "d5646ff2dd676d575146b80d1368d2cefc948870127389ffc17f4a2cb5add46d",
+    "final-ci-exit.json": "6ca88edac057118549c3d0e4ef374bb9e682331e4ec2bb238af747b35fb4c220",
+    "final-ci-gate.log": "fcdf707c9f54fbc5efdcc7784adc3f47cf56c14d38f19c51cdd84f1c87843626",
+    "final-ci-spec.json": "327064d501fd8834da8a6acbea387596713477227a47664a8301c61be6ac1e54",
+    "final-ci.xml": "f523f6c9db638d0a3e8f0fb4c44b464440499fbd8e06dc9e5da8ac61ff9e2540",
+    "real-mcp-negative-exit.json": "627356e7aa2f1f6e49ff67fbbb5760b5f2bb467a2fb5cab55c8f0452434ef612",
+    "real-mcp-negative-probe.py": "cec58edd1be33c6fcb926bb8c962e8afe751b18108275a4c66915f6b9d9f8ee1",
+    "real-mcp-negative.log": "218a79a695adf65243038e11ae1dcb92e5aad32fab08e208baa19e1f923606ad",
+    "verification.json": "dee1fd9087e2579e24697ff13ac7a1e127a100935bfd281c58bc93539ef3cf63"
+  }
+}
