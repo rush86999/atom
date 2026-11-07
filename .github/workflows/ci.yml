@@ -259,7 +259,13 @@ jobs:
           SECRET_KEY: "ci-test-secret-key"
           ENVIRONMENT: "development"
         run: |
-          python -m pytest             ../scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/tests/test_release_restore.py             ../scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/tests/test_deploy_release_contract.py             -q --tb=short --timeout=300 --timeout-method=thread
+          python -m pytest \
+            ../scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/tests/test_release_restore.py \
+            ../scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/tests/test_deploy_release_contract.py \
+            ../scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/tests/test_lead_restore_integrity.py \
+            ../scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/tests/test_lead_restore_binding_interleavings.py \
+            ../scripts/tests/test_restore_child_smoke_contract.py \
+            -q --tb=short --timeout=300 --timeout-method=thread
       - name: Run natural reviewed-improvement lifecycle controls
         env:
           TESTING: "1"
