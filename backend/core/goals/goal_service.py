@@ -173,11 +173,17 @@ class GoalService:
         if not target:
             return None
         with self._sessions()() as session:
+            # Complete candidate coverage: every terminal run for this
+            # goal/workspace participates. A hidden limit here silently
+            # omitted the true winner once a goal accumulated 100+ runs
+            # (review finding on PR707). Pagination, if ever needed, must be
+            # explicit end-to-end with honest coverage metadata — not an
+            # invisible cap on the comparison set.
             runs = session.query(GoalRun).filter(
                 GoalRun.workspace_id == self.workspace_id,
                 GoalRun.goal_id == goal_id,
                 GoalRun.status.in_(("achieved", "failed", "cancelled")),
-            ).order_by(GoalRun.created_at.asc()).limit(100).all()
+            ).order_by(GoalRun.created_at.asc(), GoalRun.id.asc()).all()
             outcomes = [
                 outcome_from_goal_run(GoalRunService._to_dict(run))
                 for run in runs

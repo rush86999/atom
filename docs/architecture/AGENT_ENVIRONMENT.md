@@ -106,9 +106,10 @@ the durable, comparable contract the README claim requires:
 - `GoalService.set_utility_target` validates explicitly before writing.
   Missing/malformed/non-finite definitions are rejected; unknown metrics never
   silently become zero.
-- `GoalService.utility_ranking` projects the goal's terminal `GoalRun` rows and
-  ranks them with `core/goals/utility_target.py`. **Higher utility always ranks
-  higher** (a `minimize` target is normalized to negative utility).
+- `GoalService.utility_ranking` projects every terminal `GoalRun` row for the
+  scoped goal/workspace (no hidden candidate cap) and ranks them with
+  `core/goals/utility_target.py`. **Higher utility always ranks higher** (a
+  `minimize` target is normalized to negative utility).
 - Completion gates ranking before the metric: failed/cancelled runs are
   ineligible (`utility=None`, no rank), and only `achieved` runs are
   constraint-eligible in the durable projection. The pure ranking gate also
@@ -137,8 +138,8 @@ maturity-gated discovery, AVAILABLE TOOLS advertising, stuck-detector halt /
 flag-off parity / different-args-not-stuck, utility-delta threading, and the
 OPTIMIZATION TARGET prompt block.
 
-`test_goal_utility_target.py` (29): explicit-target validation/persistence,
-higher/lower utility ranking, goal/workspace scoping, failed/cancelled/
-constraint/missing/non-finite/negative/huge-count twins,
-`GoalService.evaluate` and GoalRun router consumption, fresh-session
+`test_goal_utility_target.py` (31): explicit-target validation/persistence,
+higher/lower utility ranking, complete >100-candidate coverage, goal/workspace
+scoping, failed/cancelled/constraint/missing/non-finite/negative/huge-count
+twins, `GoalService.evaluate` and GoalRun router consumption, fresh-session
 durability, flag-off parity, and the supervisor/member API boundary.

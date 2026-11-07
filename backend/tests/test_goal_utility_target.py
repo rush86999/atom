@@ -17,6 +17,7 @@ provider call.
 import math
 import os
 import uuid
+from datetime import datetime, timedelta, timezone
 
 import pytest
 from sqlalchemy import create_engine
@@ -60,7 +61,7 @@ def _add_goal(factory, goal_id="g-1", criteria=None, metadata=None):
 
 def _add_run(factory, run_id, goal_id="g-1", status="achieved",
              human_interventions=0, steps_executed=1, replan_count=0,
-             decision_log=None, workspace_id="ws"):
+             decision_log=None, workspace_id="ws", created_at=None):
     with factory() as session:
         session.add(GoalRun(
             id=run_id, tenant_id="t", workspace_id=workspace_id,
@@ -68,7 +69,8 @@ def _add_run(factory, run_id, goal_id="g-1", status="achieved",
             status=status, supervision_mode="shadow",
             plan=[], parameters={}, decision_log=list(decision_log or []),
             human_interventions=human_interventions,
-            steps_executed=steps_executed, replan_count=replan_count))
+            steps_executed=steps_executed, replan_count=replan_count,
+            created_at=created_at))
         session.commit()
 
 
@@ -305,6 +307,59 @@ class TestDeterministicRanking:
         ranking = svc.utility_ranking("g-1")
         assert ranking["winner"] == "run-own"
         assert [e["id"] for e in ranking["ranking"]] == ["run-own"]
+
+    def test_complete_coverage_beyond_the_old_hundred_run_cap(self, world):
+        """PR707 finding: the 101st (latest, best) run was silently omitted.
+
+        Complete coverage means every terminal run for the scoped goal is
+        compared; the winner is not an artifact of insertion order plus a
+        hidden cap.
+        """
+        _add_goal(world["factory"], goal_id="g-1")
+        started = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+        for index in range(100):
+            _add_run(world["factory"], f"run-old-{index:03d}",
+                     human_interventions=10,
+                     created_at=started + timedelta(seconds=index))
+        # The best candidate is intentionally the 101st row by time.
+        _add_run(world["factory"], "run-latest-best",
+                 human_interventions=0,
+                 created_at=started + timedelta(seconds=100))
+        svc = _service(world)
+        svc.set_utility_target("g-1", TARGET_MIN_INTERVENTIONS)
+
+        ranking = svc.utility_ranking("g-1")
+        assert ranking["eligible_count"] == 101
+        assert len(ranking["ranking"]) == 101
+        assert ranking["winner"] == "run-latest-best"
+        assert ranking["ranking"][0]["id"] == "run-latest-best"
+        assert ranking["ranking"][0]["rank"] == 1
+        assert ranking["ranking"][0]["utility"] == 0.0
+
+    def test_invalid_latest_candidate_beyond_cap_cannot_win(self, world):
+        """Negative boundary twin: complete coverage still withholds unknown
+        evidence at the 101st position; it cannot displace a known better-than
+        nothing completed run."""
+        _add_goal(world["factory"], goal_id="g-1")
+        started = datetime(2026, 1, 1, 12, 0, tzinfo=timezone.utc)
+        for index in range(100):
+            _add_run(world["factory"], f"run-old-{index:03d}",
+                     human_interventions=10,
+                     created_at=started + timedelta(seconds=index))
+        _add_run(world["factory"], "run-latest-invalid",
+                 human_interventions=-1,
+                 created_at=started + timedelta(seconds=100))
+        svc = _service(world)
+        svc.set_utility_target("g-1", TARGET_MIN_INTERVENTIONS)
+
+        ranking = svc.utility_ranking("g-1")
+        assert ranking["winner"] == "run-old-000"
+        invalid = next(e for e in ranking["ranking"]
+                       if e["id"] == "run-latest-invalid")
+        assert invalid["eligible"] is False
+        assert invalid["rank"] is None
+        assert invalid["reason"] == "metric_unknown"
+        assert ranking["eligible_count"] == 100
 
 
 class TestProductionConsumers:
