@@ -1,0 +1,1304 @@
+diff --git a/backend/api/document_routes.py b/backend/api/document_routes.py
+index 2474f6e58..d31d56590 100644
+--- a/backend/api/document_routes.py
++++ b/backend/api/document_routes.py
+@@ -3,13 +3,17 @@ Document Routes - API endpoints for document ingestion and search
+ """
+ import asyncio
+ from datetime import datetime, timezone
++import hashlib
+ import logging
+ import os
+ from pathlib import Path
++import re
++import unicodedata
++from urllib.parse import quote
+ from typing import Any, Dict, List, Optional
+ import uuid
+ import json
+-from fastapi import Depends, File, HTTPException, Request, UploadFile, Query
++from fastapi import Depends, File, HTTPException, Request, Response, UploadFile, Query
+ from pydantic import BaseModel, Field
+ from sqlalchemy.orm import Session
+ 
+@@ -146,6 +150,208 @@ async def _upsert_document(
+     return result
+ 
+ 
++# Stored-document export (NEXT03). This is an export of the text already
++# stored in the document index, not a download of original binary bytes.
++MAX_DOCUMENT_EXPORT_BYTES = 2 * 1024 * 1024
++DOCUMENT_EXPORT_FORMATS = ("text", "markdown", "json")
++_FORBIDDEN_EXPORT_PARAMS = (
++    "path", "url", "file_path", "locator", "download", "kind",
++    "content_kind", "original",
++)
++_CONTENT_DISPOSITION_SAFE = re.compile(r"[^A-Za-z0-9._-]+")
++
++
++def _safe_header_value(value: Any, max_length: int = 240) -> str:
++    """Strip header-breaking/control characters from a server-owned value."""
++    text = str(value or "").replace("\r", "").replace("\n", "")
++    text = "".join(ch for ch in text if 0x20 <= ord(ch) < 0x7F)
++    return text[:max_length]
++
++
++def _safe_display_name(value: Any, doc_id: str) -> str:
++    """A display-only name with no path, CR/LF or control material."""
++    text = str(value or "").replace("\r", "").replace("\n", "")
++    text = text.replace("\\", "/").rsplit("/", 1)[-1]
++    text = "".join(ch for ch in text if ord(ch) >= 0x20).strip()
++    return (text or f"document-{doc_id[:12]}")[:200]
++
++
++def _safe_export_disposition(stored_name: str, extension: str,
++                             doc_id: str) -> str:
++    """RFC 6266/5987 attachment header with an ASCII fallback.
++
++    The stored title/filename is used for display only; document identity is
++    always the canonical doc id. CR/LF and path separators never reach the
++    header. Unicode names use filename* exactly as Starlette's FileResponse
++    does, with a sanitized ASCII filename fallback.
++    """
++    raw = str(stored_name or "").replace("\r", "").replace("\n", "")
++    raw = raw.replace("\\", "/").rsplit("/", 1)[-1]
++    raw = "".join(ch for ch in raw if ord(ch) >= 0x20).strip()
++    stem = raw
++    for suffix in (".txt", ".md", ".json"):
++        if stem.lower().endswith(suffix):
++            stem = stem[:-len(suffix)]
++            break
++    stem = stem.strip(" ._-") or f"document-{doc_id[:12]}"
++    stem = stem[:100]
++    full = f"{stem}.{extension}"
++    ascii_stem = unicodedata.normalize("NFKD", stem).encode(
++        "ascii", "ignore").decode("ascii")
++    ascii_stem = _CONTENT_DISPOSITION_SAFE.sub("_", ascii_stem).strip("._-")
++    ascii_stem = ascii_stem or f"document-{doc_id[:12]}"
++    ascii_full = f"{ascii_stem}.{extension}"
++    encoded = quote(full, safe="")
++    if encoded != full:
++        return (
++            f'attachment; filename="{ascii_full}"; '
++            f"filename*=utf-8''{encoded}"
++        )
++    return f'attachment; filename="{ascii_full}"'
++
++
++def _export_not_found(doc_id: str) -> HTTPException:
++    # Unknown, foreign, and removed all look the same to avoid an existence
++    # oracle across workspaces.
++    return router.not_found_error("Document", doc_id)
++
++
++def _export_identity_failure(code: str, message: str) -> HTTPException:
++    return router.error_response(
++        error_code=code, message=message, status_code=409)
++
++
++def _document_export_provenance(
++    db: Session, workspace_id: Optional[str], doc_id: str,
++    document: Dict[str, Any],
++) -> Dict[str, Any]:
++    """Validate the indexed/SQL identity before any export body is produced.
++
++    Current automated/versioned evidence must match the authoritative SQL
++    revision through the existing strict matcher. A missing/contradictory
++    revision on a known indexed binding refuses. Only producer-marked
++    manual/legacy vector rows with no SQL/index binding may be exported as an
++    explicitly snapshot-only, unknown-source-version document.
++    """
++    from core.doc_freshness_service import (
++        ExtractionIdentityError,
++        NON_FRESH_STATUSES,
++        current_extraction_revision,
++        extraction_identity,
++    )
++    from core.models import IngestedDocument
++
++    metadata = document.get("metadata") if isinstance(
++        document.get("metadata"), dict) else {}
++    indexed_doc_id = str(metadata.get("pg_document_id") or "").strip()
++    if indexed_doc_id and indexed_doc_id != str(doc_id):
++        raise _export_identity_failure(
++            "DOCUMENT_IDENTITY_MISMATCH",
++            "The indexed extraction belongs to a different document.",
++        )
++
++    indexed_version = str(
++        metadata.get("source_content_hash") or "").strip()
++    row = db.query(IngestedDocument).filter(
++        IngestedDocument.id == str(doc_id)).first()
++    if row is not None and workspace_id and str(
++            row.workspace_id or "") != str(workspace_id):
++        raise _export_not_found(str(doc_id))
++
++    row_version = str(
++        getattr(row, "source_content_hash", "") or "").strip() if row else ""
++    freshness = str(
++        getattr(row, "freshness_status", "") or "").strip().lower() if row else ""
++    if freshness == "removed":
++        raise _export_not_found(str(doc_id))
++    if freshness in NON_FRESH_STATUSES:
++        raise router.error_response(
++            error_code="DOCUMENT_NOT_CURRENT",
++            message=(
++                "The authoritative document is not current; refresh or "
++                "re-ingest it before exporting."),
++            details={"freshness_status": freshness},
++            status_code=409,
++        )
++
++    stored_source = str(document.get("source") or "")
++    manual_source = (
++        stored_source.startswith("upload:")
++        or stored_source.startswith("api:")
++    )
++    pg_manual = bool(row is not None and (
++        str(getattr(row, "integration_id", "") or "").lower()
++        == "manual_upload"
++        or str(getattr(row, "external_id", "") or "").startswith("upload_")
++    ))
++    known_binding = bool(indexed_doc_id or indexed_version or row is not None)
++
++    if indexed_version and row_version:
++        try:
++            source_version = current_extraction_revision(
++                indexed_version, row_version)
++        except ExtractionIdentityError:
++            raise _export_identity_failure(
++                "DOCUMENT_REVISION_INVALID",
++                "The stored document revision is missing, stale, or does not "
++                "match its authoritative record. Re-index or re-upload it "
++                "before exporting.",
++            ) from None
++        kind = extraction_identity(source_version)["kind"]
++        return {
++            "provenance_status": "authoritative",
++            "source_version": source_version,
++            "source_version_kind": kind,
++            "source_version_status": "matched",
++            "freshness_status": freshness or None,
++            "source_label": (
++                str(getattr(row, "integration_id", "") or "")
++                if row is not None else "unknown"),
++        }
++
++    if indexed_version or row_version:
++        # A known binding with only one side is not legacy: it is an
++        # incomplete/contradictory identity and must fail closed.
++        raise _export_identity_failure(
++            "DOCUMENT_IDENTITY_UNVERIFIABLE",
++            "This document has a known index or SQL binding but no matching "
++            "source revision on both sides. Re-index or re-upload it before "
++            "exporting.",
++        )
++
++    if known_binding and not (manual_source and pg_manual):
++        raise _export_identity_failure(
++            "DOCUMENT_IDENTITY_UNVERIFIABLE",
++            "This document's source revision cannot be verified. Re-index or "
++            "re-upload it before exporting.",
++        )
++    if not known_binding and not manual_source:
++        raise _export_identity_failure(
++            "DOCUMENT_IDENTITY_UNVERIFIABLE",
++            "This document's source revision cannot be verified. Re-index or "
++            "re-upload it before exporting.",
++        )
++    if indexed_doc_id:
++        # A join-key-bearing row is a known indexed binding, never a manual
++        # legacy snapshot.
++        raise _export_identity_failure(
++            "DOCUMENT_IDENTITY_UNVERIFIABLE",
++            "This document's source revision cannot be verified. Re-index or "
++            "re-upload it before exporting.",
++        )
++
++    return {
++        "provenance_status": "snapshot_only",
++        "source_version": None,
++        "source_version_kind": "missing",
++        "source_version_status": "unknown",
++        "freshness_status": None,
++        "source_label": (
++            str(getattr(row, "integration_id", "") or "manual_upload")
++            if row is not None else "manual_upload"),
++    }
++
++
+ @router.post("/ingest", response_model=DocumentResponse)
+ async def ingest_document(
+     request: DocumentIngestRequest,
+@@ -506,6 +712,173 @@ async def get_document(
+         logger.error(f"Failed to get document {doc_id}: {e}")
+         raise router.internal_error(message="Internal error")
+ 
++@router.get("/{doc_id}/export")
++async def export_document(
++    doc_id: str,
++    request: Request,
++    format: str = Query("text", description="text, markdown or json"),
++    db: Session = Depends(get_db),
++    current_user: User = Depends(get_current_user),
++):
++    """Export the currently stored extracted text of one authorized document.
++
++    This is not an original-binary download. Identity/freshness are validated
++    against the durable SQL row and the indexed revision with the existing
++    strict revision matcher; the export body is the full stored text, not the
++    model reader's 20k context window.
++    """
++    for param in _FORBIDDEN_EXPORT_PARAMS:
++        if param in request.query_params:
++            raise router.error_response(
++                error_code="CLIENT_PATH_NOT_ALLOWED",
++                message=(
++                    "Export accepts only a document id and a supported format; "
++                    "client paths, URLs and original-binary modes are not "
++                    "accepted."),
++                details={"parameter": param},
++                status_code=422,
++            )
++    export_format = str(format or "text").strip().lower()
++    if export_format not in DOCUMENT_EXPORT_FORMATS:
++        raise router.error_response(
++            error_code="UNSUPPORTED_EXPORT_FORMAT",
++            message=(
++                "Unsupported export format. Supported formats are text, "
++                "markdown and json."),
++            details={"allowed_formats": list(DOCUMENT_EXPORT_FORMATS)},
++            status_code=422,
++        )
++
++    workspace_id = _resolve_ws_id(current_user)
++    try:
++        handler = get_lancedb_handler(workspace_id)
++        if not handler:
++            raise router.error_response(
++                error_code="DOCUMENT_STORE_UNAVAILABLE",
++                message="The document store is unavailable; retry.",
++                status_code=503,
++            )
++        document = handler.get_document_by_id("documents", str(doc_id))
++        if not document:
++            raise _export_not_found(str(doc_id))
++        provenance = _document_export_provenance(
++            db, workspace_id, str(doc_id), document)
++        text = str(document.get("text") or "")
++        if not text.strip():
++            raise router.error_response(
++                error_code="DOCUMENT_EMPTY",
++                message="The selected document has no stored text to export.",
++                status_code=422,
++            )
++        text_bytes = text.encode("utf-8")
++        if len(text_bytes) > MAX_DOCUMENT_EXPORT_BYTES:
++            raise router.error_response(
++                error_code="EXPORT_TOO_LARGE",
++                message=(
++                    "The stored document text exceeds the bounded export "
++                    "size; select a smaller document."),
++                details={"max_bytes": MAX_DOCUMENT_EXPORT_BYTES},
++                status_code=413,
++            )
++
++        metadata = document.get("metadata") if isinstance(
++            document.get("metadata"), dict) else {}
++        stored_name = _safe_display_name(
++            metadata.get("file_name")
++            or metadata.get("filename")
++            or metadata.get("title")
++            or str(doc_id),
++            str(doc_id),
++        )
++        stored_text_sha = hashlib.sha256(text_bytes).hexdigest()
++        truncation = metadata.get("truncated")
++        if truncation is None:
++            truncation = metadata.get("extraction_truncated")
++        truncated = bool(truncation) if truncation is not None else None
++
++        if export_format == "text":
++            body = text_bytes
++            media_type = "text/plain; charset=utf-8"
++            extension = "txt"
++        elif export_format == "markdown":
++            body = text_bytes
++            media_type = "text/markdown; charset=utf-8"
++            extension = "md"
++        else:
++            payload = {
++                "schema_version": 1,
++                "document_id": str(doc_id),
++                "title": _safe_display_name(
++                    metadata.get("title") or stored_name, str(doc_id)),
++                "file_name": stored_name,
++                "file_type": _safe_header_value(
++                    metadata.get("file_type") or "unknown", 40) or "unknown",
++                "source": _safe_header_value(
++                    provenance["source_label"] or "unknown", 80) or "unknown",
++                "source_version": provenance["source_version"],
++                "source_version_kind": provenance["source_version_kind"],
++                "source_version_status": provenance["source_version_status"],
++                "freshness_status": provenance["freshness_status"],
++                "provenance_status": provenance["provenance_status"],
++                "content_kind": "extracted_text",
++                "format": "json",
++                "reader": "lancedb.documents.get_document_by_id",
++                "stored_text_bytes": len(text_bytes),
++                "stored_text_truncated": truncated,
++                "stored_text_sha256": stored_text_sha,
++                "content": text,
++            }
++            body = json.dumps(
++                payload, ensure_ascii=False, sort_keys=True,
++                separators=(",", ":"),
++            ).encode("utf-8")
++            if len(body) > MAX_DOCUMENT_EXPORT_BYTES:
++                raise router.error_response(
++                    error_code="EXPORT_TOO_LARGE",
++                    message=(
++                        "The stored document text exceeds the bounded export "
++                        "size; select a smaller document."),
++                    details={"max_bytes": MAX_DOCUMENT_EXPORT_BYTES},
++                    status_code=413,
++                )
++            media_type = "application/json; charset=utf-8"
++            extension = "json"
++
++        headers = {
++            "Cache-Control": "no-store",
++            "X-Content-Type-Options": "nosniff",
++            "Content-Disposition": _safe_export_disposition(
++                str(stored_name), extension, str(doc_id)),
++            "X-Document-Id": _safe_header_value(doc_id),
++            "X-Document-Content-Kind": "extracted_text",
++            "X-Document-Provenance": provenance["provenance_status"],
++            "X-Document-Source-Version-Kind": provenance["source_version_kind"],
++            "X-Document-Source-Version-Status": provenance["source_version_status"],
++            "X-Document-Stored-Text-Sha256": stored_text_sha,
++        }
++        if provenance["source_version"]:
++            headers["X-Document-Source-Version"] = _safe_header_value(
++                provenance["source_version"])
++        if provenance["freshness_status"]:
++            headers["X-Document-Freshness"] = _safe_header_value(
++                provenance["freshness_status"])
++        if export_format == "markdown":
++            headers["X-Document-Export-Transform"] = "none"
++        headers["X-Document-Export-Sha256"] = hashlib.sha256(body).hexdigest()
++        return Response(content=body, media_type=media_type, headers=headers)
++    except HTTPException:
++        raise
++    except Exception as exc:  # noqa: BLE001 - no content/params in logs
++        logger.error(
++            "Document export failed for %s (%s)",
++            doc_id, type(exc).__name__)
++        raise router.error_response(
++            error_code="DOCUMENT_EXPORT_FAILED",
++            message="The document export failed. Retry after refreshing.",
++            status_code=500,
++        ) from None
++
++
+ @router.delete("/{doc_id}")
+ @require_governance(
+     action_complexity=ActionComplexity.HIGH,
+diff --git a/backend/core/product_profile.py b/backend/core/product_profile.py
+index 27d93c97c..6e30f0410 100644
+--- a/backend/core/product_profile.py
++++ b/backend/core/product_profile.py
+@@ -40,7 +40,7 @@ CAPABILITIES: Dict[str, Dict[str, Any]] = {
+     "documents": {
+         "label": "Data",
+         "enabled": True,
+-        "job": "Upload, find and inspect company records.",
++        "job": "Upload, find, inspect and export company records.",
+     },
+     "canvas": {
+         "label": "Workspace",
+diff --git a/backend/tests/test_document_export.py b/backend/tests/test_document_export.py
+new file mode 100644
+index 000000000..0a50cf48e
+--- /dev/null
++++ b/backend/tests/test_document_export.py
+@@ -0,0 +1,584 @@
++"""Stored-document export contract (NEXT03).
++
++Mounted real Document Hub router over a scratch SQLite + real LanceDB store.
++The only doubled leaf is EmbeddingService.generate_embedding (a deterministic
++vector); parsing, upload, storage, SQL mirroring, auth/workspace resolution,
++the strict revision matcher and response bytes are the production paths.
++No model/provider/browser/live database is used.
++"""
++from __future__ import annotations
++
++import hashlib
++import json
++import os
++import uuid
++from types import SimpleNamespace
++
++import numpy as np
++import pytest
++from fastapi import FastAPI
++from fastapi.testclient import TestClient
++from sqlalchemy import create_engine
++from sqlalchemy.orm import sessionmaker
++
++import core.models  # noqa: F401 - register the model graph
++import api.document_routes as dr
++import api.document_ingestion_routes as di
++from core.database import Base, get_db
++from core.models import IngestedDocument, User
++from core.lancedb_handler import LanceDBHandler
++
++
++def _sha(text: str) -> str:
++    return hashlib.sha256(text.encode("utf-8")).hexdigest()
++
++
++def _error_envelope(response):
++    body = response.json()
++    detail = body.get("detail", body)
++    return detail.get("error", detail)
++
++
++def _error_code(response):
++    return _error_envelope(response)["code"]
++
++
++@pytest.fixture()
++def exported(tmp_path, monkeypatch):
++    """Fresh workspace, real LanceDB handler, scratch SQLite session/client."""
++    monkeypatch.setenv("EMBEDDING_PROVIDER", "fastembed")
++    from core.embedding_service import EmbeddingService
++
++    async def _deterministic_embedding(self, text):
++        return np.zeros(384, dtype=float).tolist()
++
++    monkeypatch.setattr(
++        EmbeddingService, "generate_embedding", _deterministic_embedding)
++
++    workspace = f"ws-next03-{uuid.uuid4().hex[:8]}"
++    handler = LanceDBHandler(workspace_id=workspace)
++    monkeypatch.setattr(
++        dr, "get_lancedb_handler", lambda ws=None: handler)
++    monkeypatch.setattr(
++        di, "get_lancedb_handler", lambda ws=None: handler)
++
++    db_url = os.environ.get("DATABASE_URL")
++    assert db_url, "bounded gate must supply a scratch DATABASE_URL"
++    engine = create_engine(
++        db_url, connect_args={"check_same_thread": False})
++    Base.metadata.create_all(engine)
++    SessionLocal = sessionmaker(bind=engine, expire_on_commit=False)
++    session = SessionLocal()
++    user = User(
++        id=f"next03-{uuid.uuid4().hex[:8]}",
++        tenant_id="t1", workspace_id=workspace,
++        email=f"next03-{uuid.uuid4().hex[:10]}@example.com", first_name="N", last_name="3",
++        role="member", status="active", is_active=True)
++    session.add(user)
++    session.commit()
++
++    app = FastAPI()
++    app.include_router(dr.router)
++    app.include_router(di.router)
++    app.dependency_overrides[get_db] = lambda: session
++    app.dependency_overrides[dr.get_current_user] = lambda: user
++    app.dependency_overrides[di.get_current_user] = lambda: user
++    client = TestClient(app)
++    yield SimpleNamespace(
++        client=client, handler=handler, workspace=workspace,
++        session=session, user=user, engine=engine)
++    session.close()
++    engine.dispose()
++
++
++def _upload(ctx, text: str, name: str = "next03.txt",
++            content_type: str = "text/plain"):
++    response = ctx.client.post(
++        "/api/documents/upload",
++        files={"file": (name, text.encode("utf-8"), content_type)})
++    assert response.status_code == 200, response.text
++    body = response.json()
++    assert body.get("id"), body
++    return body["id"]
++
++
++def _read(ctx, doc_id: str) -> dict:
++    response = ctx.client.get(f"/api/documents/{doc_id}")
++    assert response.status_code == 200, response.text
++    return response.json()["data"]
++
++
++def _seed_vector(ctx, *, text: str, doc_id: str | None = None,
++                 metadata: dict | None = None, source: str = "upload:seed.txt"):
++    doc_id = doc_id or f"doc-{uuid.uuid4().hex[:16]}"
++    meta = dict(metadata or {})
++    ok = ctx.handler.add_document(
++        table_name="documents",
++        text=text,
++        source=source,
++        metadata=meta,
++        user_id=ctx.user.id,
++        workspace_id=ctx.workspace,
++        doc_id=doc_id,
++        extra_columns={"freshness_status": meta.get("freshness_status", "fresh")},
++    )
++    assert ok is True
++    return doc_id
++
++
++def _seed_sql(ctx, doc_id: str, *, version: str | None,
++              freshness: str = "fresh", workspace: str | None = None,
++              integration: str = "manual_upload",
++              external_id: str | None = None,
++              file_name: str = "seed.txt"):
++    row = IngestedDocument(
++        id=doc_id,
++        workspace_id=workspace or ctx.workspace,
++        tenant_id="t1",
++        file_name=file_name,
++        file_path=f"upload:{file_name}",
++        file_type="txt",
++        integration_id=integration,
++        external_id=external_id or f"upload_{doc_id}",
++        source_content_hash=version,
++        freshness_status=freshness,
++    )
++    ctx.session.add(row)
++    ctx.session.commit()
++    return row
++
++
++def test_export_requires_authentication():
++    app = FastAPI()
++    app.include_router(dr.router)
++    client = TestClient(app)
++    response = client.get("/api/documents/anything/export")
++    assert response.status_code in (401, 403), response.text
++
++
++@pytest.mark.parametrize("fmt", ["text", "markdown", "json"])
++def test_normal_upload_open_export_matches_current_stored_content(exported, fmt):
++    text = (
++        f"NEXT03 normal upload ({fmt}).\n"
++        "Unicode: café / 東京.\n"
++        "This must be the same current stored content the reader sees.\n"
++    )
++    doc_id = _upload(exported, text)
++    opened = _read(exported, doc_id)
++    assert opened["id"] == doc_id
++    assert opened["content"] == text
++
++    response = exported.client.get(
++        f"/api/documents/{doc_id}/export", params={"format": fmt})
++    assert response.status_code == 200, response.text
++
++    if fmt in ("text", "markdown"):
++        assert response.content.decode("utf-8") == opened["content"]
++    else:
++        body = json.loads(response.content)
++        assert body["content"] == opened["content"]
++        assert body["document_id"] == doc_id
++        assert body["content_kind"] == "extracted_text"
++        assert body["provenance_status"] == "authoritative"
++        assert body["source_version_status"] == "matched"
++        assert body["stored_text_sha256"] == _sha(opened["content"])
++        assert "export_sha256" not in body
++        assert "file_path" not in body
++        assert "source_url" not in body
++
++    headers = {k.lower(): v for k, v in response.headers.items()}
++    assert headers["cache-control"] == "no-store"
++    assert headers["x-content-type-options"] == "nosniff"
++    assert headers["content-disposition"].startswith("attachment;")
++    assert "inline" not in headers["content-disposition"].lower()
++    assert headers["x-document-id"] == doc_id
++    assert headers["x-document-content-kind"] == "extracted_text"
++    assert headers["x-document-provenance"] == "authoritative"
++    assert headers["x-document-stored-text-sha256"] == _sha(opened["content"])
++    assert headers["x-document-export-sha256"] == hashlib.sha256(
++        response.content).hexdigest()
++    assert headers["x-document-source-version"]
++    assert headers["x-document-source-version-status"] == "matched"
++    assert headers["x-document-source-version-kind"] == "versioned"
++    assert headers["x-document-source-version"] != (
++        headers["x-document-stored-text-sha256"])
++    if fmt == "json":
++        assert headers["x-document-export-sha256"] != (
++            headers["x-document-stored-text-sha256"])
++
++
++def test_document_ingestion_upload_uses_opaque_revision_and_canonical_id(exported):
++    text = '{"b": 2, "a": 1, "note": "Document-ingestion upload stores an opaque raw revision."}'
++    response = exported.client.post(
++        "/api/document-ingestion/upload",
++        files={"file": ("ingested.json", text.encode("utf-8"), "application/json")},
++    )
++    assert response.status_code == 200, response.text
++    doc_id = response.json()["data"]["document_id"]
++    opened = _read(exported, doc_id)
++    assert opened["content"] != text  # JSON extraction is normalized
++    assert "Document-ingestion upload stores an opaque raw revision." in opened["content"]
++
++    export = exported.client.get(
++        f"/api/documents/{doc_id}/export", params={"format": "json"})
++    assert export.status_code == 200, export.text
++    body = json.loads(export.content)
++    assert body["document_id"] == doc_id
++    assert body["content"] == opened["content"]
++    assert body["source_version_kind"] == "opaque"
++    assert body["source_version_status"] == "matched"
++    assert body["provenance_status"] == "authoritative"
++    assert body["source_version"] != body["stored_text_sha256"]
++
++
++def test_full_stored_content_over_model_reader_20k_is_not_truncated(exported):
++    text = ("line-" + "x" * 80 + "\n") * 350
++    assert len(text) > 20_000
++    doc_id = _upload(exported, text)
++    opened = _read(exported, doc_id)
++    assert opened["content"] == text
++
++    response = exported.client.get(
++        f"/api/documents/{doc_id}/export", params={"format": "text"})
++    assert response.status_code == 200, response.text
++    assert response.content.decode("utf-8") == text
++    assert len(response.content) > 20_000
++    body = exported.client.get(
++        f"/api/documents/{doc_id}/export", params={"format": "json"})
++    payload = json.loads(body.content)
++    assert payload["content"] == text
++    assert payload["stored_text_bytes"] == len(text.encode("utf-8"))
++
++
++def test_non_txt_stored_document_exports_current_text(exported):
++    text = "# Markdown source\n\nThis is not a TXT-only export.\n"
++    doc_id = _upload(
++        exported, text, name="next03-source.md",
++        content_type="text/markdown")
++    opened = _read(exported, doc_id)
++    response = exported.client.get(
++        f"/api/documents/{doc_id}/export", params={"format": "markdown"})
++    assert response.status_code == 200, response.text
++    assert response.content.decode("utf-8") == opened["content"]
++
++
++def test_manual_opaque_identity_matches_exactly(exported):
++    text = "Manual opaque revision content.\n"
++    doc_id = f"manual-{uuid.uuid4().hex[:12]}"
++    version = "manual-opaque-v1"
++    _seed_vector(
++        exported, text=text, doc_id=doc_id,
++        metadata={"title": "manual.txt", "file_name": "manual.txt",
++                  "source_content_hash": version,
++                  "pg_document_id": doc_id},
++        source="upload:manual.txt",
++    )
++    _seed_sql(exported, doc_id, version=version)
++    response = exported.client.get(
++        f"/api/documents/{doc_id}/export", params={"format": "json"})
++    assert response.status_code == 200, response.text
++    body = json.loads(response.content)
++    assert body["source_version"] == version
++    assert body["source_version_kind"] == "opaque"
++    assert body["source_version_status"] == "matched"
++    assert body["provenance_status"] == "authoritative"
++
++
++def test_vector_only_manual_legacy_is_explicit_snapshot_only(exported):
++    text = "Genuine vector-only manual legacy text.\n"
++    doc_id = _seed_vector(
++        exported, text=text,
++        metadata={"title": "legacy.txt", "file_name": "legacy.txt"},
++        source="upload:legacy.txt",
++    )
++    assert exported.session.query(IngestedDocument).filter(
++        IngestedDocument.id == doc_id).first() is None
++
++    response = exported.client.get(
++        f"/api/documents/{doc_id}/export", params={"format": "json"})
++    assert response.status_code == 200, response.text
++    body = json.loads(response.content)
++    assert body["content"] == text
++    assert body["provenance_status"] == "snapshot_only"
++    assert body["source_version"] is None
++    assert body["source_version_kind"] == "missing"
++    assert body["source_version_status"] == "unknown"
++    assert body["freshness_status"] is None
++    headers = {k.lower(): v for k, v in response.headers.items()}
++    assert headers["x-document-provenance"] == "snapshot_only"
++    assert headers["x-document-source-version-status"] == "unknown"
++    assert "x-document-source-version" not in headers
++
++
++def test_manual_sql_row_with_missing_version_is_snapshot_only(exported):
++    text = "Manual SQL row without a stored revision.\n"
++    doc_id = f"manual-sql-{uuid.uuid4().hex[:12]}"
++    _seed_vector(
++        exported, text=text, doc_id=doc_id,
++        metadata={"title": "manual-sql.txt", "file_name": "manual-sql.txt"},
++        source="upload:manual-sql.txt",
++    )
++    _seed_sql(exported, doc_id, version=None)
++    response = exported.client.get(
++        f"/api/documents/{doc_id}/export", params={"format": "json"})
++    assert response.status_code == 200, response.text
++    body = json.loads(response.content)
++    assert body["provenance_status"] == "snapshot_only"
++    assert body["source_version"] is None
++    assert body["source_version_status"] == "unknown"
++
++
++def test_automated_sql_row_with_missing_version_refuses(exported):
++    text = "Automated SQL row without a stored revision.\n"
++    doc_id = f"auto-sql-{uuid.uuid4().hex[:12]}"
++    _seed_vector(
++        exported, text=text, doc_id=doc_id,
++        metadata={"title": "auto.txt", "file_name": "auto.txt"},
++        source="gdrive:auto.txt",
++    )
++    _seed_sql(exported, doc_id, version=None, integration="google_drive")
++    response = exported.client.get(
++        f"/api/documents/{doc_id}/export", params={"format": "text"})
++    assert response.status_code == 409, response.text
++    assert _error_code(response) == "DOCUMENT_IDENTITY_UNVERIFIABLE"
++    assert text not in response.text
++
++
++def test_known_indexed_binding_without_sql_row_refuses(exported):
++    text = "Known indexed binding without SQL row.\n"
++    doc_id = f"indexed-{uuid.uuid4().hex[:12]}"
++    _seed_vector(
++        exported, text=text, doc_id=doc_id,
++        metadata={"title": "indexed.txt", "file_name": "indexed.txt",
++                  "source_content_hash": "ev4:" + "a" * 64,
++                  "pg_document_id": doc_id},
++    )
++    response = exported.client.get(
++        f"/api/documents/{doc_id}/export", params={"format": "text"})
++    assert response.status_code == 409, response.text
++    assert _error_code(response) == (
++        "DOCUMENT_IDENTITY_UNVERIFIABLE")
++    assert text not in response.text
++
++
++def test_known_indexed_binding_without_index_version_refuses(exported):
++    text = "Known SQL binding without indexed version.\n"
++    doc_id = f"sqlonly-{uuid.uuid4().hex[:12]}"
++    _seed_vector(
++        exported, text=text, doc_id=doc_id,
++        metadata={"title": "sqlonly.txt", "file_name": "sqlonly.txt",
++                  "pg_document_id": doc_id},
++    )
++    _seed_sql(exported, doc_id, version="ev4:" + "b" * 64)
++    response = exported.client.get(
++        f"/api/documents/{doc_id}/export", params={"format": "text"})
++    assert response.status_code == 409, response.text
++    assert _error_code(response) == (
++        "DOCUMENT_IDENTITY_UNVERIFIABLE")
++
++
++def test_wrong_indexed_identity_refuses(exported):
++    text = "Wrong indexed identity.\n"
++    doc_id = f"wrongid-{uuid.uuid4().hex[:12]}"
++    _seed_vector(
++        exported, text=text, doc_id=doc_id,
++        metadata={"title": "wrongid.txt", "file_name": "wrongid.txt",
++                  "source_content_hash": "ev4:" + "c" * 64,
++                  "pg_document_id": "different-document"},
++    )
++    response = exported.client.get(
++        f"/api/documents/{doc_id}/export", params={"format": "text"})
++    assert response.status_code == 409, response.text
++    assert _error_code(response) == "DOCUMENT_IDENTITY_MISMATCH"
++    assert text not in response.text
++
++
++def test_contradictory_versions_refuse(exported):
++    text = "Contradictory versions.\n"
++    doc_id = f"contradict-{uuid.uuid4().hex[:12]}"
++    _seed_vector(
++        exported, text=text, doc_id=doc_id,
++        metadata={"title": "contradict.txt", "file_name": "contradict.txt",
++                  "source_content_hash": "ev4:" + "d" * 64,
++                  "pg_document_id": doc_id},
++    )
++    _seed_sql(exported, doc_id, version="ev4:" + "e" * 64)
++    response = exported.client.get(
++        f"/api/documents/{doc_id}/export", params={"format": "json"})
++    assert response.status_code == 409, response.text
++    assert _error_code(response) == "DOCUMENT_REVISION_INVALID"
++    assert text not in response.text
++
++
++def test_old_extractor_version_refuses(exported):
++    text = "Old extractor version.\n"
++    doc_id = f"oldext-{uuid.uuid4().hex[:12]}"
++    _seed_vector(
++        exported, text=text, doc_id=doc_id,
++        metadata={"title": "oldext.txt", "file_name": "oldext.txt",
++                  "source_content_hash": "ev3:" + "f" * 64,
++                  "pg_document_id": doc_id},
++    )
++    _seed_sql(exported, doc_id, version="ev3:" + "f" * 64)
++    response = exported.client.get(
++        f"/api/documents/{doc_id}/export", params={"format": "text"})
++    assert response.status_code == 409, response.text
++    assert _error_code(response) == "DOCUMENT_REVISION_INVALID"
++    assert text not in response.text
++
++
++@pytest.mark.parametrize("freshness,status,code", [
++    ("stale", 409, "DOCUMENT_NOT_CURRENT"),
++    ("outdated", 409, "DOCUMENT_NOT_CURRENT"),
++    ("superseded", 409, "DOCUMENT_NOT_CURRENT"),
++    ("removed", 404, "NOT_FOUND"),
++])
++def test_explicit_non_fresh_authority_refuses(exported, freshness, status, code):
++    text = f"Non-fresh {freshness} content.\n"
++    doc_id = f"fresh-{uuid.uuid4().hex[:12]}"
++    version = "ev4:" + "a" * 64
++    _seed_vector(
++        exported, text=text, doc_id=doc_id,
++        metadata={"title": "fresh.txt", "file_name": "fresh.txt",
++                  "source_content_hash": version,
++                  "pg_document_id": doc_id},
++    )
++    _seed_sql(exported, doc_id, version=version, freshness=freshness)
++    response = exported.client.get(
++        f"/api/documents/{doc_id}/export", params={"format": "text"})
++    assert response.status_code == status, response.text
++    assert _error_code(response) == code
++    assert text not in response.text
++
++
++def test_foreign_workspace_and_unknown_document_are_not_found(exported):
++    text = "Foreign workspace content.\n"
++    doc_id = f"foreign-{uuid.uuid4().hex[:12]}"
++    version = "ev4:" + "a" * 64
++    _seed_vector(
++        exported, text=text, doc_id=doc_id,
++        metadata={"title": "foreign.txt", "file_name": "foreign.txt",
++                  "source_content_hash": version,
++                  "pg_document_id": doc_id},
++    )
++    _seed_sql(exported, doc_id, version=version, workspace="other-workspace")
++    response = exported.client.get(
++        f"/api/documents/{doc_id}/export", params={"format": "text"})
++    assert response.status_code == 404, response.text
++    assert text not in response.text
++    unknown = exported.client.get(
++        f"/api/documents/unknown-next03/export", params={"format": "text"})
++    assert unknown.status_code == 404, unknown.text
++
++
++def test_empty_content_and_unsupported_formats_refuse(exported, monkeypatch):
++    doc_id = _upload(exported, "placeholder content that will be emptied.")
++    real_get = exported.handler.get_document_by_id
++
++    def _empty_document(table_name, identity):
++        doc = real_get(table_name, identity)
++        if isinstance(doc, dict):
++            doc = dict(doc)
++            doc["text"] = ""
++        return doc
++
++    monkeypatch.setattr(exported.handler, "get_document_by_id",
++                        _empty_document)
++    empty = exported.client.get(
++        f"/api/documents/{doc_id}/export", params={"format": "text"})
++    assert empty.status_code == 422, empty.text
++    assert _error_code(empty) == "DOCUMENT_EMPTY"
++
++    text = "Unsupported format content.\n"
++    good_id = _upload(exported, text)
++    for fmt in ("html", "pdf", "docx", "original", "binary"):
++        response = exported.client.get(
++            f"/api/documents/{good_id}/export", params={"format": fmt})
++        assert response.status_code == 422, (fmt, response.text)
++        assert _error_code(response) == (
++            "UNSUPPORTED_EXPORT_FORMAT")
++        assert "text" in _error_envelope(response).get("details", {}).get(
++            "allowed_formats", [])
++
++
++def test_client_path_url_and_original_parameters_refuse(exported):
++    doc_id = _upload(exported, "Client authority must not be accepted.\n")
++    for params in (
++        {"format": "text", "path": "/etc/passwd"},
++        {"format": "text", "url": "https://example.com/file"},
++        {"format": "text", "file_path": "/etc/passwd"},
++        {"format": "text", "locator": "remote"},
++        {"format": "text", "download": "original"},
++        {"format": "text", "original": "true"},
++    ):
++        response = exported.client.get(
++            f"/api/documents/{doc_id}/export", params=params)
++        assert response.status_code == 422, (params, response.text)
++        assert _error_code(response) == "CLIENT_PATH_NOT_ALLOWED"
++
++
++def test_unicode_and_header_injection_names_are_safe(exported):
++    text = "Unicode filename content.\n"
++    doc_id = f"name-{uuid.uuid4().hex[:12]}"
++    version = "ev4:" + "a" * 64
++    name = '../../etc/pa"ss\r\nX-Injected: yes 日本語.txt'
++    _seed_vector(
++        exported, text=text, doc_id=doc_id,
++        metadata={"title": name, "file_name": name,
++                  "source_content_hash": version,
++                  "pg_document_id": doc_id},
++        source="upload:name.txt",
++    )
++    _seed_sql(exported, doc_id, version=version, file_name=name)
++    response = exported.client.get(
++        f"/api/documents/{doc_id}/export", params={"format": "text"})
++    assert response.status_code == 200, response.text
++    values = [v for k, v in response.headers.items() if k.lower() == "x-injected"]
++    assert values == []
++    disposition = response.headers["content-disposition"]
++    assert "\r" not in disposition and "\n" not in disposition
++    assert "filename*=" in disposition
++    assert "../" not in disposition
++
++    body = exported.client.get(
++        f"/api/documents/{doc_id}/export", params={"format": "json"})
++    assert body.status_code == 200, body.text
++    payload = json.loads(body.content)
++    assert "../" not in payload["file_name"]
++    assert "../" not in payload["title"]
++    assert "\r" not in payload["file_name"]
++    assert "\n" not in payload["file_name"]
++
++
++def test_source_version_header_is_not_injectable(exported):
++    text = "Source-version header safety.\n"
++    doc_id = f"vname-{uuid.uuid4().hex[:12]}"
++    version = "opaque-rev\r\nX-Injected: yes"
++    _seed_vector(
++        exported, text=text, doc_id=doc_id,
++        metadata={"title": "vname.txt", "file_name": "vname.txt",
++                  "source_content_hash": version,
++                  "pg_document_id": doc_id},
++        source="upload:vname.txt",
++    )
++    _seed_sql(exported, doc_id, version=version)
++    response = exported.client.get(
++        f"/api/documents/{doc_id}/export", params={"format": "text"})
++    assert response.status_code == 200, response.text
++    assert not any(k.lower() == "x-injected" for k in response.headers)
++    source_header = response.headers.get("x-document-source-version", "")
++    assert "\r" not in source_header and "\n" not in source_header
++
++
++def test_large_stored_text_refuses_without_truncation(exported):
++    # 2 MiB is the explicit export bound; it is not the model 20k window.
++    text = "x" * (2 * 1024 * 1024 + 1)
++    doc_id = _seed_vector(
++        exported, text=text, source="upload:large.txt",
++        metadata={"title": "large.txt", "file_name": "large.txt"},
++    )
++    response = exported.client.get(
++        f"/api/documents/{doc_id}/export", params={"format": "text"})
++    assert response.status_code == 413, response.text
++    assert _error_code(response) == "EXPORT_TOO_LARGE"
++    assert len(response.content) < len(text)
+diff --git a/frontend-nextjs/pages/documents/[docId].tsx b/frontend-nextjs/pages/documents/[docId].tsx
+index c80ae9f99..73cbda5f2 100644
+--- a/frontend-nextjs/pages/documents/[docId].tsx
++++ b/frontend-nextjs/pages/documents/[docId].tsx
+@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../..
+ import { Button } from '../../components/ui/button';
+ import { Badge } from '../../components/ui/badge';
+ import { Spinner } from '../../components/ui/spinner';
+-import { ArrowLeft, Calendar, FileText, User, Tag } from 'lucide-react';
++import { ArrowLeft, Calendar, Download, FileText, User, Tag } from 'lucide-react';
+ import { Alert, AlertDescription } from '../../components/ui/alert';
+ import api from '../../lib/api';
+ 
+@@ -24,6 +24,9 @@ export default function DocumentDetailsPage() {
+     const [document, setDocument] = useState<DocumentDetails | null>(null);
+     const [loading, setLoading] = useState(true);
+     const [error, setError] = useState<string | null>(null);
++    const [exportFormat, setExportFormat] = useState<'text' | 'markdown' | 'json'>('text');
++    const [exporting, setExporting] = useState(false);
++    const [exportError, setExportError] = useState<string | null>(null);
+ 
+     useEffect(() => {
+         if (!docId) return;
+@@ -47,6 +50,51 @@ export default function DocumentDetailsPage() {
+         fetchDocument();
+     }, [docId]);
+ 
++    const exportStoredText = async () => {
++        if (!document || exporting) return;
++        setExporting(true);
++        setExportError(null);
++        try {
++            const response = await api.get(
++                `/api/documents/${encodeURIComponent(document.id)}/export`,
++                {
++                    params: { format: exportFormat },
++                    responseType: 'blob',
++                },
++            );
++            const blob = response.data instanceof Blob
++                ? response.data
++                : new Blob([response.data]);
++            const link = window.document.createElement('a');
++            const url = window.URL.createObjectURL(blob);
++            const extension = exportFormat === 'json'
++                ? 'json'
++                : exportFormat === 'markdown' ? 'md' : 'txt';
++            const baseTitle = String(document.title || 'document')
++                .replace(/\.[a-z0-9]{1,8}$/i, '')
++                .replace(/[\\/:*?"<>|\r\n]+/g, '_')
++                .trim()
++                .slice(0, 100) || `document-${document.id.slice(0, 12)}`;
++            link.href = url;
++            link.download = `${baseTitle}.${extension}`;
++            link.rel = 'noopener';
++            window.document.body.appendChild(link);
++            link.click();
++            link.remove();
++            window.URL.revokeObjectURL(url);
++        } catch (err: any) {
++            const detail = err?.response?.data?.detail;
++            const message = typeof detail === 'string'
++                ? detail
++                : detail?.error?.message
++                    || detail?.message
++                    || 'The stored document could not be exported. Refresh and retry.';
++            setExportError(message);
++        } finally {
++            setExporting(false);
++        }
++    };
++
+     if (loading) {
+         return (
+             <div className="flex justify-center items-center h-[50vh]">
+@@ -113,6 +161,55 @@ export default function DocumentDetailsPage() {
+                     </div>
+                 </div>
+ 
++                <div
++                    className="flex flex-wrap items-end gap-2 rounded-md border bg-muted/20 p-3"
++                    data-testid="document-export"
++                >
++                    <div className="space-y-1">
++                        <p className="text-sm font-medium">Export stored text</p>
++                        <p className="text-xs text-muted-foreground">
++                            Downloads the extracted text Atom stores for this
++                            document. Original file bytes are not included.
++                        </p>
++                    </div>
++                    <label className="sr-only" htmlFor="document-export-format">
++                        Export format
++                    </label>
++                    <select
++                        id="document-export-format"
++                        data-testid="document-export-format"
++                        aria-label="Export format"
++                        className="rounded border bg-background px-2 py-1 text-sm"
++                        value={exportFormat}
++                        onChange={(event) =>
++                            setExportFormat(event.target.value as 'text' | 'markdown' | 'json')
++                        }
++                        disabled={exporting}
++                    >
++                        <option value="text">Text (.txt)</option>
++                        <option value="markdown">Markdown (.md)</option>
++                        <option value="json">JSON (.json)</option>
++                    </select>
++                    <Button
++                        type="button"
++                        variant="outline"
++                        data-testid="document-export-submit"
++                        onClick={exportStoredText}
++                        disabled={exporting}
++                    >
++                        <Download className="mr-2 h-4 w-4" />
++                        {exporting ? 'Exporting…' : 'Download'}
++                    </Button>
++                    {exportError && (
++                        <p
++                            data-testid="document-export-error"
++                            className="w-full text-sm text-red-700"
++                        >
++                            {exportError}
++                        </p>
++                    )}
++                </div>
++
+                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                     {/* Main Content */}
+                     <div className="lg:col-span-2 space-y-6">
+diff --git a/frontend-nextjs/tests/pages/document-detail.test.tsx b/frontend-nextjs/tests/pages/document-detail.test.tsx
+new file mode 100644
+index 000000000..fb194213a
+--- /dev/null
++++ b/frontend-nextjs/tests/pages/document-detail.test.tsx
+@@ -0,0 +1,158 @@
++/**
++ * Documents detail export control (NEXT03).
++ * Real detail component; only the shared API client is mocked.
++ */
++import React from "react";
++import { render, screen, fireEvent, waitFor } from "@testing-library/react";
++import DocumentDetailsPage from "@/pages/documents/[docId]";
++import { FALLBACK_PROFILE } from "@/lib/product-profile";
++
++const mockGet = jest.fn();
++
++jest.mock("next/router", () => ({
++  useRouter: () => ({
++    query: { docId: "doc-1" },
++    push: jest.fn(),
++    replace: jest.fn(),
++    prefetch: jest.fn(),
++    back: jest.fn(),
++    reload: jest.fn(),
++    pathname: "/documents/doc-1",
++    asPath: "/documents/doc-1",
++    events: { on: jest.fn(), off: jest.fn(), emit: jest.fn() },
++  }),
++}));
++
++jest.mock("../../lib/api", () => ({
++  __esModule: true,
++  default: {
++    get: (...args: any[]) => mockGet(...args),
++  },
++}));
++
++const DOCUMENT = {
++  id: "doc-1",
++  title: "Onboarding Guide",
++  content: "Stored extracted text for the onboarding guide.",
++  type: "txt",
++  metadata: { source: "manual_upload", file_name: "onboarding.txt" },
++  ingested_at: "2026-11-07T00:00:00Z",
++};
++
++const originalCreateObjectURL = window.URL.createObjectURL;
++const originalRevokeObjectURL = window.URL.revokeObjectURL;
++
++function mockRead() {
++  mockGet.mockImplementation(async (url: string) => {
++    if (url.includes("/export")) {
++      return {
++        data: new Blob(["exported"], { type: "text/plain" }),
++        headers: { "content-type": "text/plain" },
++      };
++    }
++    return { data: { success: true, data: DOCUMENT } };
++  });
++}
++
++describe("DocumentDetailsPage export", () => {
++  beforeEach(() => {
++    jest.clearAllMocks();
++    mockRead();
++    (window.URL as any).createObjectURL = jest.fn(() => "blob:next03");
++    (window.URL as any).revokeObjectURL = jest.fn();
++  });
++
++  afterEach(() => {
++    (window.URL as any).createObjectURL = originalCreateObjectURL;
++    (window.URL as any).revokeObjectURL = originalRevokeObjectURL;
++  });
++
++  test("renders one Export stored text control over the enabled Data profile", async () => {
++    expect(FALLBACK_PROFILE.capabilities.documents.enabled).toBe(true);
++    expect(Boolean(FALLBACK_PROFILE.capabilities.search?.enabled)).toBe(false);
++
++    render(<DocumentDetailsPage />);
++    await waitFor(() => expect(screen.getByText("Onboarding Guide")).toBeInTheDocument());
++
++    expect(screen.getByTestId("document-export")).toBeInTheDocument();
++    expect(screen.getByText("Export stored text")).toBeInTheDocument();
++    expect(screen.getByTestId("document-export-format")).toHaveValue("text");
++    expect(screen.getByTestId("document-export-submit")).toHaveTextContent("Download");
++    expect(screen.getByRole("option", { name: "Text (.txt)" })).toBeInTheDocument();
++    expect(screen.getByRole("option", { name: "Markdown (.md)" })).toBeInTheDocument();
++    expect(screen.getByRole("option", { name: "JSON (.json)" })).toBeInTheDocument();
++  });
++
++  test("download uses the existing API client, blob and auth-compatible request", async () => {
++    let clicked: HTMLAnchorElement | null = null;
++    const clickSpy = jest
++      .spyOn(HTMLAnchorElement.prototype, "click")
++      .mockImplementation(function (this: HTMLAnchorElement) {
++        clicked = this;
++      });
++
++    render(<DocumentDetailsPage />);
++    await waitFor(() => expect(screen.getByTestId("document-export-submit")).toBeInTheDocument());
++
++    fireEvent.change(screen.getByTestId("document-export-format"), {
++      target: { value: "json" },
++    });
++    fireEvent.click(screen.getByTestId("document-export-submit"));
++
++    await waitFor(() =>
++      expect(mockGet).toHaveBeenCalledWith(
++        "/api/documents/doc-1/export",
++        expect.objectContaining({
++          params: { format: "json" },
++          responseType: "blob",
++        }),
++      ),
++    );
++    await waitFor(() => expect(clickSpy).toHaveBeenCalled());
++    expect(clicked).not.toBeNull();
++    expect(clicked!.download).toBe("Onboarding Guide.json");
++    expect((window.URL as any).createObjectURL).toHaveBeenCalled();
++    expect((window.URL as any).revokeObjectURL).toHaveBeenCalled();
++    expect(screen.queryByTestId("document-export-error")).not.toBeInTheDocument();
++
++    clickSpy.mockRestore();
++  });
++
++  test("export failure shows inline bounded error and does not download", async () => {
++    let clicked = false;
++    const clickSpy = jest
++      .spyOn(HTMLAnchorElement.prototype, "click")
++      .mockImplementation(() => {
++        clicked = true;
++      });
++    mockGet.mockImplementation(async (url: string) => {
++      if (url.includes("/export")) {
++        const error: any = new Error("conflict");
++        error.response = {
++          data: {
++            detail: {
++              error: {
++                message: "The authoritative document is not current.",
++              },
++            },
++          },
++        };
++        throw error;
++      }
++      return { data: { success: true, data: DOCUMENT } };
++    });
++
++    render(<DocumentDetailsPage />);
++    await waitFor(() => expect(screen.getByTestId("document-export-submit")).toBeInTheDocument());
++    fireEvent.click(screen.getByTestId("document-export-submit"));
++
++    await waitFor(() =>
++      expect(screen.getByTestId("document-export-error")).toHaveTextContent(
++        "The authoritative document is not current.",
++      ),
++    );
++    expect(clicked).toBe(false);
++    expect((window.URL as any).createObjectURL).not.toHaveBeenCalled();
++    clickSpy.mockRestore();
++  });
++});
