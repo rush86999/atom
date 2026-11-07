@@ -33,7 +33,11 @@ from pathlib import Path
 import pytest
 
 MAIN_APP = Path(__file__).resolve().parents[1] / "main_api_app.py"
-RECOVERY_CALLS = ("reconcile_orphaned_executions", "notify_recovered_continuations")
+RECOVERY_CALLS = (
+    "reconcile_orphaned_executions",
+    "notify_recovered_continuations",
+    "recover_active_assignments_at_startup",
+)
 
 
 def _lifespan(tree: ast.Module) -> ast.AsyncFunctionDef:
@@ -114,6 +118,8 @@ async def lifespan(app):
         reconcile_orphaned_executions()
         from core.async_turn_continuation import notify_recovered_continuations
         notify_recovered_continuations()
+        from core.assignment_recovery import recover_active_assignments_at_startup
+        recover_active_assignments_at_startup()
 '''
 
 
