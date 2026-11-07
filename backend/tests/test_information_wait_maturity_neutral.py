@@ -37,3 +37,24 @@ def test_repeated_waits_preserve_maturity_and_same_durable_execution(scratch_db)
             assert execution.completed_at is None
             assert db.query(AgentExecution).count() == 1
     assert agent.world_model.record_experience.await_count == 2
+
+
+def test_terminal_success_and_failure_still_update_maturity(scratch_db):
+    Session = sessionmaker(bind=scratch_db['engine'])
+    for status, expected in [('success', 0.96), ('failed', 0.93)]:
+        identity = 'terminal-' + status
+        with Session() as db:
+            db.add(AgentRegistry(id=identity, name=identity, category='acceptance',
+                module_path='core.generic_agent', class_name='GenericAgent',
+                workspace_id='default', tenant_id='default', status='autonomous',
+                confidence_score=0.95, configuration={}))
+            db.commit()
+        agent = GenericAgent.__new__(GenericAgent)
+        agent.id, agent.workspace_id, agent.tenant_id = identity, 'default', 'default'
+        agent.config = {}
+        agent.world_model = SimpleNamespace(record_experience=AsyncMock())
+        asyncio.run(agent._record_execution('A terminal task',
+            {'status': status, 'output': status, 'steps': []},
+            {'session_id': 'existing-session'}))
+        with Session() as db:
+            assert db.get(AgentRegistry, identity).confidence_score == expected

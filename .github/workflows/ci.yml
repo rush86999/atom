@@ -209,6 +209,7 @@ jobs:
             tests/test_generic_normal_retry_identity.py \
             tests/test_oracle_mini_app_host_mutations.py \
             tests/test_agent_generic_information_wait.py \
+            tests/test_information_wait_maturity_neutral.py \
             tests/test_agent_generic_information_wait_process.py \
             tests/test_generic_information_wait_recovery.py \
             tests/test_generic_information_wait_recovery_authority.py \

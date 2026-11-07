@@ -3124,6 +3124,12 @@ What is your next step?"""
             except Exception as exec_err:
                 logger.debug(f"execution persistence skipped: {exec_err}")
 
+        # A durable pause has no evaluated business outcome yet. Keep its
+        # experience/execution above, but award neither maturity success nor
+        # failure (including on repeated questions for the same execution).
+        if persisted_status == "waiting":
+            return
+
         # 2. Update Governance Maturity
         success = result["status"] in _SUCCESS_STATUSES
         with get_db_session() as db:
