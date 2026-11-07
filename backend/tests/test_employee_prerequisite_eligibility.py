@@ -138,6 +138,58 @@ def test_retain_with_missing_prerequisite_is_repaired_and_obligated():
     assert question["inputs"]["missing"] == ["invoice"]
 
 
+def test_clarification_role_scope_uses_only_explicit_typed_roles():
+    from core.employee_job_runner import scoped_missing_roles
+
+    chosen = {"operation": "invoice_reconciliation",
+              "missing": ["invoice", "receiving"]}
+    # Prose names the capability ("invoice reconciliation") while the typed
+    # request asks for receiving; the typed role wins.
+    scoped = scoped_missing_roles(chosen, {
+        "question": (
+            "Which source has the receiving record for this invoice "
+            "reconciliation?"),
+        "missing_roles": ["receiving"],
+    })
+    assert scoped == ["receiving"]
+    # Ambiguous/undeclared scope does not narrow: under-settle, never settle
+    # an undeclared obligation.
+    assert scoped_missing_roles(chosen, {
+        "question": "Which source has the receiving record?",
+    }) == ["invoice", "receiving"]
+    assert scoped_missing_roles(chosen, {
+        "question": "Which source has the invoice?",
+        "missing_roles": ["invoice", "approval"],
+    }) == ["invoice", "receiving"]
+
+
+def test_clarification_rejects_undeclared_role_scope():
+    from core.employee_adaptation import _adaptation_errors
+    from core.employee_proposal import ClarificationProposal
+
+    context = {
+        "missing_prerequisites": [{
+            "operation": "invoice_reconciliation",
+            "missing": ["invoice", "receiving"],
+        }],
+    }
+    invalid = WorkAdaptationProposal(
+        decision="clarify",
+        clarification=ClarificationProposal(
+            question="Which source has the approval?",
+            missing_roles=["approval"]),
+    )
+    errors = _adaptation_errors(invalid, {}, context)
+    assert any("missing_roles" in error for error in errors), errors
+    valid = WorkAdaptationProposal(
+        decision="clarify",
+        clarification=ClarificationProposal(
+            question="Which source has the invoice?",
+            missing_roles=["invoice"]),
+    )
+    assert _adaptation_errors(valid, {}, context) == []
+
+
 def test_empty_clarification_is_not_accepted_as_progress():
     from core.employee_adaptation import _adaptation_errors
     from core.employee_adaptation import AdaptationProposal

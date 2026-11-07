@@ -244,6 +244,62 @@ def missing_prerequisite_question(
     }
 
 
+def scoped_missing_roles(
+    chosen: Mapping[str, Any], clarification: Any,
+) -> List[str]:
+    """The declared role(s) one clarification explicitly asks for.
+
+    A capability may be missing several declared roles at once. The proposal's
+    ``missing_roles`` is the only narrowing signal; it is intersected with the
+    capability contract so the model can never settle an undeclared role. No
+    substring inference is made from human wording, which could name the
+    capability ("invoice reconciliation") while requesting another role.
+    Without a valid explicit scope the full declared set stays in force, so an
+    ambiguous question under-settles rather than settling too much.
+    """
+    roles = [
+        str(role) for role in chosen.get("missing") or []
+        if str(role).strip()
+    ]
+    supplied = (
+        clarification.get("missing_roles")
+        if isinstance(clarification, Mapping) else None)
+    if not isinstance(supplied, (list, tuple)) or not supplied:
+        return roles
+    requested: List[str] = []
+    for raw in supplied:
+        role = str(raw or "").strip()
+        if role not in roles:
+            # An undeclared/typoed role makes the explicit scope untrustworthy.
+            return roles
+        if role not in requested:
+            requested.append(role)
+    return requested or roles
+
+
+def capability_roles_satisfied(
+    capability: Mapping[str, Any], roles: Sequence[str],
+) -> bool:
+    """Whether accepted evidence now supplies exactly the requested roles.
+
+    The capability's role -> accepted-step mapping is the compiler-owned
+    role binding. An empty role set keeps the legacy whole-capability
+    readiness meaning, so older or broad questions are unchanged.
+    """
+    requested = [str(role) for role in roles or [] if str(role).strip()]
+    ready = str(capability.get("status") or "") == "ready"
+    if not requested:
+        return ready
+    role_map = (
+        capability.get("roles")
+        if isinstance(capability.get("roles"), Mapping) else {})
+    if not role_map or any(role not in role_map for role in requested):
+        # The capability does not publish role bindings for this granularity
+        # (for example quote evidence). Keep whole-capability readiness.
+        return ready
+    return all(bool(role_map.get(role)) for role in requested)
+
+
 def _source_binding_identity(source: Mapping[str, Any]) -> str:
     binding = source.get("binding") if isinstance(
         source.get("binding"), Mapping) else {}

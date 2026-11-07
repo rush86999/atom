@@ -1,0 +1,85 @@
+
+tests/test_task_wait_two_job_isolation.py::test_two_same_workspace_jobs_keep_questions_and_receipts_isolated 
+-------------------------------- live log setup --------------------------------
+2026-11-07 06:52:47 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-07 06:52:47 [    INFO] EscalationManager initialized
+2026-11-07 06:52:47 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 06:52:47 [    INFO] EscalationManager initialized
+2026-11-07 06:52:47 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 06:52:47 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 06:52:47 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-07 06:52:48 [    INFO] runtime identity: source_id=cb13bee875ee revision=cb13bee875ee dirty=False (0 modified, 0 untracked)
+2026-11-07 06:52:48 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 06:52:48 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 06:52:48 [    INFO] HTTP Request: POST http://testserver/api/assignments/db1874e6-0281-41df-b4f5-fccb294e0ec8/sources "HTTP/1.1 200 OK"
+2026-11-07 06:52:48 [    INFO] HTTP Request: POST http://testserver/api/assignments/b5b5dfa7-830d-4bb6-a741-0e520a10e3aa/sources "HTTP/1.1 200 OK"
+2026-11-07 06:52:48 [    INFO] HTTP Request: POST http://testserver/api/assignments/db1874e6-0281-41df-b4f5-fccb294e0ec8/sources "HTTP/1.1 200 OK"
+2026-11-07 06:52:48 [    INFO] HTTP Request: POST http://testserver/api/assignments/b5b5dfa7-830d-4bb6-a741-0e520a10e3aa/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [ 10%]
+tests/test_task_wait_two_fact_events.py::test_two_missing_facts_settle_sequentially_and_complete 
+-------------------------------- live log call ---------------------------------
+2026-11-07 06:52:49 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 06:52:49 [    INFO] HTTP Request: POST http://testserver/api/assignments/9205c2f7-5b23-4ac4-9d66-de6cabd032ae/sources "HTTP/1.1 200 OK"
+2026-11-07 06:52:49 [    INFO] HTTP Request: POST http://testserver/api/assignments/9205c2f7-5b23-4ac4-9d66-de6cabd032ae/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [ 20%]
+tests/test_task_wait_two_fact_events.py::test_wrong_subject_invoice_does_not_settle_the_invoice_question 
+-------------------------------- live log call ---------------------------------
+2026-11-07 06:52:50 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 06:52:50 [    INFO] HTTP Request: POST http://testserver/api/assignments/5e1752e2-51b6-470b-baf2-a1f136d8a7b2/sources "HTTP/1.1 200 OK"
+2026-11-07 06:52:50 [    INFO] HTTP Request: POST http://testserver/api/assignments/5e1752e2-51b6-470b-baf2-a1f136d8a7b2/sources "HTTP/1.1 200 OK"
+2026-11-07 06:52:50 [    INFO] HTTP Request: POST http://testserver/api/assignments/5e1752e2-51b6-470b-baf2-a1f136d8a7b2/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [ 30%]
+tests/test_employee_prerequisite_eligibility.py::test_unfamiliar_headers_are_tabular_evidence_without_aliases PASSED [ 40%]
+tests/test_employee_prerequisite_eligibility.py::test_missing_invoice_keeps_capability_and_names_po_identity PASSED [ 50%]
+tests/test_employee_prerequisite_eligibility.py::test_retain_with_missing_prerequisite_is_repaired_and_obligated PASSED [ 60%]
+tests/test_employee_prerequisite_eligibility.py::test_clarification_role_scope_uses_only_explicit_typed_roles PASSED [ 70%]
+tests/test_employee_prerequisite_eligibility.py::test_clarification_rejects_undeclared_role_scope PASSED [ 80%]
+tests/test_employee_prerequisite_eligibility.py::test_empty_clarification_is_not_accepted_as_progress PASSED [ 90%]
+tests/test_sequential_fact_completion_contract.py::test_answering_all_facts_without_business_work_does_not_complete 
+-------------------------------- live log call ---------------------------------
+2026-11-07 06:52:51 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 06:52:51 [    INFO] HTTP Request: POST http://testserver/api/assignments/76d13fd2-affd-46a8-bc97-78cdca483cc4/sources "HTTP/1.1 200 OK"
+2026-11-07 06:52:51 [    INFO] HTTP Request: POST http://testserver/api/assignments/76d13fd2-affd-46a8-bc97-78cdca483cc4/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 20 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-two-job-isolation-s3ms5g76/result.xml -
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 10 passed, 27 warnings in 15.55s =======================

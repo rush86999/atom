@@ -1,0 +1,116 @@
+{
+  "run_id": "6ced0976-66ad-4a28-aff2-307c31d8a417",
+  "durable_run_status": "achieved",
+  "assignment_id": "asg-f850cb13b52b4657",
+  "assignment_status": "completed",
+  "questions": [
+    {
+      "question_id": "79250fd1-91b5-461e-9433-d398311751ae",
+      "question": "Which authorized source contains the missing invoice record for purchase order PO-TWO-1?",
+      "status": "resolved",
+      "missing_roles": [
+        "invoice"
+      ],
+      "known_identities": {
+        "purchase_order.po_id": "PO-TWO-1",
+        "purchase_order.vendor_id": "V-1"
+      }
+    },
+    {
+      "question_id": "8309cbb0-6857-4e7c-8099-809196bfd663",
+      "question": "Which authorized source contains the missing receiving record for purchase order PO-TWO-1?",
+      "status": "resolved",
+      "missing_roles": [
+        "receiving"
+      ],
+      "known_identities": {
+        "invoice.po_id": "PO-TWO-1",
+        "invoice.invoice_id": "INV-TWO-1",
+        "purchase_order.po_id": "PO-TWO-1",
+        "purchase_order.vendor_id": "V-1"
+      }
+    }
+  ],
+  "steps": [
+    {
+      "step_id": "source-1",
+      "adapter": "document.read",
+      "status": "applied",
+      "operation_id": "c7d5efc5-9b86-4cc7-8c41-4844cd00d91d",
+      "verification_status": "verified",
+      "value": null,
+      "requires": []
+    },
+    {
+      "step_id": "source-2",
+      "adapter": "document.read",
+      "status": "applied",
+      "operation_id": "b5623000-0101-43ba-a44d-8c2ca8ae2b6c",
+      "verification_status": "verified",
+      "value": null,
+      "requires": []
+    },
+    {
+      "step_id": "source-3",
+      "adapter": "document.read",
+      "status": "applied",
+      "operation_id": "b49858d8-5f30-4def-a048-8eaf20e3ee05",
+      "verification_status": "verified",
+      "value": null,
+      "requires": []
+    },
+    {
+      "step_id": "invoice-reconcile",
+      "adapter": "invoice.reconcile",
+      "status": "applied",
+      "operation_id": "5d1394d4-41ad-4301-a7b2-668089a792b3",
+      "verification_status": "verified",
+      "value": "130.00",
+      "requires": [
+        {
+          "kind": "receipt",
+          "step_id": "source-2",
+          "require": "verified"
+        },
+        {
+          "kind": "receipt",
+          "step_id": "source-1",
+          "require": "verified"
+        },
+        {
+          "kind": "receipt",
+          "step_id": "source-3",
+          "require": "verified"
+        }
+      ]
+    },
+    {
+      "step_id": "requested-artifact",
+      "adapter": "artifact.document",
+      "status": "applied",
+      "operation_id": "c03d0c28-11a0-4473-b2ab-0704cd3875d6",
+      "verification_status": null,
+      "value": null,
+      "requires": [
+        {
+          "kind": "receipt",
+          "step_id": "invoice-reconcile",
+          "require": "verified"
+        }
+      ]
+    }
+  ],
+  "artifact": {
+    "sha256": "01eaf1acda273d2268ecbc1665691867a002d5133c72d34984abff831b0077be",
+    "published_filename": "verified-reconciliation.docx",
+    "contains_expected_total": true,
+    "contains_required_purchase_order": true
+  },
+  "provenance": {
+    "kind": "allowlisted read-only retained scratch DB projection",
+    "db_path": "/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-sequential-facts-final-idx4am9i/pytest/test_two_missing_facts_settle_0/routes.db",
+    "journal_mode": "delete",
+    "executed_source": "5d7609d8f9d888cd1c22f6a9c2a9a762c151446a",
+    "no_reexecution_or_regeneration": true
+  }
+}

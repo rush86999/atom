@@ -1109,7 +1109,8 @@ async def _advance_employee_work(
     from core.employee_job_runner import (
         action_views, compile_evidence_read_patch,
         deterministic_unread_evidence_proposal, evidence_observations,
-        missing_prerequisite_question, unread_authorized_sources,
+        missing_prerequisite_question, scoped_missing_roles,
+        unread_authorized_sources,
     )
     from core.employee_proposal import operation_capabilities
     from core.task_lifecycle import open_unresolved_questions
@@ -1420,20 +1421,28 @@ async def _advance_employee_work(
                     "next_retrieval": clarification.get("unblocks") or None,
                 }
                 if chosen:
+                    # Scope the durable obligation to the fact this question
+                    # explicitly requests. A capability missing two roles keeps
+                    # the unrequested role blocking (it is still absent from
+                    # the compiler's role binding); it must not become part of
+                    # this question's settlement identity.
+                    requested_roles = scoped_missing_roles(
+                        chosen, clarification)
                     entry["kind"] = "missing_evidence"
                     entry["concept"] = (
                         entry["concept"] or chosen.get("operation"))
                     entry["item"] = chosen.get("label")
+                    entry["missing_roles"] = list(requested_roles)
                     entry["inputs"] = {
                         "operation": chosen.get("operation"),
-                        "missing": list(chosen.get("missing") or []),
+                        "missing": list(requested_roles),
                         "known_identities": dict(
                             chosen.get("known_identities") or {}),
                     }
                     entry["reason"] = (
                         entry["reason"] or (
                             "missing prerequisite: "
-                            + ", ".join(chosen.get("missing") or [])))
+                            + ", ".join(requested_roles)))
                     entry["next_retrieval"] = (
                         chosen.get("question_hint")
                         or entry["next_retrieval"])
@@ -2250,14 +2259,14 @@ async def add_assignment_source(
     # Settle only obligations that this accepted source actually made ready.
     current = executor.lifecycle.get_task(run_id) or {}
     current_assignment = current.get("assignment") or {}
+    from core.employee_job_runner import capability_roles_satisfied
     from core.employee_proposal import operation_capabilities
     from core.task_lifecycle import (
         open_unresolved_questions, resolve_unresolved_questions,
     )
-    ready_operations = {
-        str(item.get("operation") or "")
+    capabilities = {
+        str(item.get("operation") or ""): item
         for item in operation_capabilities(current_assignment)
-        if item.get("status") == "ready"
     }
     added_step = next((
         item for item in current_assignment.get("steps") or []
@@ -2275,7 +2284,8 @@ async def add_assignment_source(
             continue
         operation = str(
             question.get("operation") or question.get("concept") or "")
-        if operation not in ready_operations:
+        capability = capabilities.get(operation)
+        if capability is None:
             continue
         inputs = question.get("inputs") if isinstance(
             question.get("inputs"), dict) else {}
@@ -2285,6 +2295,20 @@ async def add_assignment_source(
         if expected_po and observed_po and expected_po != observed_po:
             mismatched.append(question.get("question_id"))
             continue
+        requested_roles = [
+            str(role) for role in (
+                inputs.get("missing")
+                or question.get("missing_roles")
+                or [])
+            if str(role).strip()
+        ]
+        # Role-scoped settlement: an answer settles the question whose named
+        # role(s) it actually supplied. A capability still missing another
+        # declared role stays non-ready, so dependent execution remains
+        # blocked and the same consumer asks for the next fact. Legacy broad
+        # questions (no role scope) keep whole-capability readiness.
+        if not capability_roles_satisfied(capability, requested_roles):
+            continue
         question_ids.append(str(question.get("question_id")))
     if question_ids:
         settled = resolve_unresolved_questions(
@@ -2292,7 +2316,8 @@ async def add_assignment_source(
             resolution=(
                 "authorized source "
                 f"{resolved.get('resource_id')} version "
-                f"{resolved.get('source_version')} made the capability ready"))
+                f"{resolved.get('source_version')} supplied the requested "
+                "evidence role(s)"))
         status = executor.status(run_id)
     # Source-triggered continuation. A source answer that settled a targeted
     # obligation is itself the wake-up: hand the fresh accepted evidence to

@@ -1,0 +1,21 @@
+{
+  "executed_source": "cb13bee875ee5561e36a491ad871b675d454812d",
+  "native_test_source": "250d91f0b641ad1ffdae034f23ba494ea86cb384",
+  "scratch": "/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-two-job-isolation-s3ms5g76",
+  "command": [
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "tests/test_task_wait_two_job_isolation.py",
+    "tests/test_task_wait_two_fact_events.py",
+    "tests/test_employee_prerequisite_eligibility.py",
+    "tests/test_sequential_fact_completion_contract.py",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-two-job-isolation-s3ms5g76/pytest",
+    "--junitxml=/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-two-job-isolation-s3ms5g76/result.xml",
+    "-q",
+    "--tb=short"
+  ],
+  "scope": "real public assignment/compiler/executor/lifecycle; high-level proposal and auth choices controlled; no served model"
+}
