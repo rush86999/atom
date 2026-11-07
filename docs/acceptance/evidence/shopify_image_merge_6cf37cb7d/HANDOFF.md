@@ -2,7 +2,7 @@
 
 - Branch: `codex/shopify-image-content-receipt-20261107`
 - Merge head: `6cf37cb7d53e39bc60e11cefe6a4683c06f0cb16`
-- PR: #748 — https://github.com/rush86999/atom/pull/748 (base article prerequisite branch; head `e89061d24`)
+- PR: #748 — https://github.com/rush86999/atom/pull/748 (base article prerequisite branch; merge head `6cf37cb7d`)
 - Merge parents: `3801b0da5` (image usability/evidence) and `e39e2af2f`
   (`origin/main` PR739 + wait repairs)
 - Base image source: `197f054c8`
