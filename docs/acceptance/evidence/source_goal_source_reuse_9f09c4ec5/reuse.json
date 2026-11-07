@@ -1,0 +1,59 @@
+{
+  "integration_head": "9f09c4ec5b4c60726d3c02475cfdc5760ebc88cf",
+  "checks": [
+    {
+      "path": "backend",
+      "reference": "f179c73ce",
+      "equal": true,
+      "current_blob_or_tree": "24103b0b36d48a120cb6b1bd4dd1eb1ca911f167",
+      "reference_blob_or_tree": "24103b0b36d48a120cb6b1bd4dd1eb1ca911f167"
+    },
+    {
+      "path": "frontend-nextjs/pages/agents/index.tsx",
+      "reference": "f179c73ce",
+      "equal": true,
+      "current_blob_or_tree": "c662d90bce0d25e681b08c2e02cec8acf289d8b1",
+      "reference_blob_or_tree": "c662d90bce0d25e681b08c2e02cec8acf289d8b1"
+    },
+    {
+      "path": "frontend-nextjs/components/Agents/AgentJobWaitPanel.tsx",
+      "reference": "f179c73ce",
+      "equal": true,
+      "current_blob_or_tree": "bc81725b0b859e62a2106b8a184ecff9dd77ac3f",
+      "reference_blob_or_tree": "bc81725b0b859e62a2106b8a184ecff9dd77ac3f"
+    },
+    {
+      "path": "scripts/acceptance/browser_agent_source_answer.py",
+      "reference": "f179c73ce",
+      "equal": true,
+      "current_blob_or_tree": "7635e96ccbed004f4cbf6aebd359a532835453cf",
+      "reference_blob_or_tree": "7635e96ccbed004f4cbf6aebd359a532835453cf"
+    },
+    {
+      "path": "frontend-nextjs/pages/goal-runs/[id].tsx",
+      "reference": "5145d5eab",
+      "equal": true,
+      "current_blob_or_tree": "a34e0459f1ff062ba02a6bb803dac972c31bbfe4",
+      "reference_blob_or_tree": "a34e0459f1ff062ba02a6bb803dac972c31bbfe4"
+    },
+    {
+      "path": "backend/api/goal_routes.py",
+      "reference": "5145d5eab",
+      "equal": true,
+      "current_blob_or_tree": "53fad2a43b3fcb48ea47376c3eb24b0b014b95b3",
+      "reference_blob_or_tree": "53fad2a43b3fcb48ea47376c3eb24b0b014b95b3"
+    },
+    {
+      "path": "backend/core/goals/goal_service.py",
+      "reference": "5145d5eab",
+      "equal": true,
+      "current_blob_or_tree": "64581cc066dc9e98d391b1076d34d2cb91c892bd",
+      "reference_blob_or_tree": "64581cc066dc9e98d391b1076d34d2cb91c892bd"
+    }
+  ],
+  "kind": "static relevant-source equivalence; no new browser execution",
+  "source_episode": "f17930stages195assertions",
+  "goal_episode": "514518stages107assertions",
+  "only_new_work": "Goal harness observation, evidence, reviewed test sync758",
+  "raw_negative_eof": "original negative episode log has trailing blank line; preserved bytes, not a clean diff-check claim"
+}
