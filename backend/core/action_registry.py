@@ -2022,18 +2022,56 @@ async def _shopify_create_blog(args: Dict[str, Any], context: Dict[str, Any]) ->
 async def _shopify_create_article(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     token, shop = _resolve_shopify_store(context)
     if not token:
-        return {"success": False, "error": "no_shopify_store", "message": "No Shopify store connected to this workspace."}
-    from integrations.shopify_service import ShopifyService
-    article = await ShopifyService().create_article(
-        token, shop,
-        blog_id=args["blog_id"],
-        title=args["title"],
-        body_html=args.get("body_html", ""),
-        author=args.get("author"),
-        tags=args.get("tags"),
-        published=args.get("published", True),
+        return {
+            "status": "failed_before_effect",
+            "success": False,
+            "action_result": "proven_not_applied",
+            "effect_possible": False,
+            "error": "no_shopify_store",
+            "error_kind": "no_shopify_store",
+            "message": "No Shopify store connected to this workspace.",
+        }
+    selectors = _shopify_store_selector_arguments(args)
+    if selectors:
+        return {
+            "status": "failed_before_effect",
+            "success": False,
+            "action_result": "proven_not_applied",
+            "effect_possible": False,
+            "error": "store_override_refused",
+            "error_kind": "store_override_refused",
+            "message": (
+                "Store and credential selectors are server-owned; refusing "
+                "before dispatch: " + ", ".join(selectors)),
+        }
+    if not str((args or {}).get("blog_id") or "").strip():
+        return {
+            "status": "failed_before_effect",
+            "success": False,
+            "action_result": "proven_not_applied",
+            "effect_possible": False,
+            "error": "invalid_request",
+            "error_kind": "invalid_request",
+            "message": "A target blog id is required.",
+        }
+    if not str((args or {}).get("title") or "").strip():
+        return {
+            "status": "failed_before_effect",
+            "success": False,
+            "action_result": "proven_not_applied",
+            "effect_possible": False,
+            "error": "invalid_request",
+            "error_kind": "invalid_request",
+            "message": "An article title is required.",
+        }
+    from core.shopify_mutations import create_article
+
+    return await create_article(
+        token, shop, args,
+        operation_id=str(
+            (context or {}).get("operation_id")
+            or (args or {}).get("operation_id") or ""),
     )
-    return {"success": True, "article": article}
 
 
 @register_action(
