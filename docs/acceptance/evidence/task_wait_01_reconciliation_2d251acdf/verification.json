@@ -1,0 +1,62 @@
+{
+  "kind": "task_wait_01_evidence_reconciliation",
+  "executed_source": "2d251acdfddae2aca27c6b43dc3f0de97654a9cb",
+  "source_tree_clean_at_execution": true,
+  "runtime_files_changed": false,
+  "targeted_controls": [
+    {
+      "name": "assignment_public_routes",
+      "passed": 6,
+      "exit": 0,
+      "log": "targeted-assignment-routes.log"
+    },
+    {
+      "name": "assignment_restart_budget_replay",
+      "passed": 21,
+      "exit": 0,
+      "log": "targeted-assignment-recovery.log",
+      "real_os_process_cases": 3
+    },
+    {
+      "name": "generic_wait_answer_recovery_authority",
+      "passed": 55,
+      "exit": 0,
+      "log": "targeted-generic-waits.log",
+      "real_os_process_cases": 6
+    }
+  ],
+  "total_targeted_passed": 82,
+  "browser_episode": {
+    "declared_source": "d3f58d81d8ec8c728f331d5511b8710853ef4fe3",
+    "packet_pr": 744,
+    "packet_head": "1f6018fd7c8c33c2af6dc4182037a3f23b75fef3",
+    "packet_on_current_main": false,
+    "stages": 29,
+    "assertions": 162,
+    "driver_exit": 0,
+    "source_files_equal_current_main": 8,
+    "source_files_total": 11,
+    "missing_on_main": 3,
+    "runtime_health_source_id": "ec69e24f4385-dirty.d48cacd2123b",
+    "health_badge_matches_declared_source": false,
+    "accept_from_health_badge_alone": false
+  },
+  "gaps": {
+    "G1": "Generic/framework active-vs-absolute wait budget not evidenced; assignment only",
+    "G2": "Changed source after acceptance before consumption not directly exercised",
+    "G3": "Generic source upload/selection event not evidenced; answer event only",
+    "G4": "Symmetric Generic two-job isolation not evidenced; assignment only",
+    "G5": "Browser packet health identity ec69e24f4-dirty vs declared d3f58d81d; per-file binding only",
+    "G6": "No browser cancellation/deadline/revocation/long-idle/both-order capture"
+  },
+  "reproduced_runtime_failure": false,
+  "claim_denominator": 143,
+  "historical_scores_unchanged": true,
+  "task_wait_01": "open",
+  "live_actions": false,
+  "prs": {
+    "744": "open/pending CI",
+    "745": "open/pending CI",
+    "747": "guidance"
+  }
+}
