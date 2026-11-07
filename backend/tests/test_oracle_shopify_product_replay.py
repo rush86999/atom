@@ -92,7 +92,9 @@ def _bind_scratch(monkeypatch, path):
     engine, Session, _session = _session_factory(path)
     monkeypatch.setattr(ga, "get_db_session", _session)
     monkeypatch.setattr("core.database.SessionLocal", Session)
-    return {"path": str(path), "Session": Session, "engine": engine}
+    monkeypatch.setattr("core.database.get_db_session", _session)
+    return {"path": str(path), "Session": Session, "engine": engine,
+            "_session": _session}
 
 
 @pytest.fixture
@@ -105,7 +107,9 @@ def env(tmp_path, monkeypatch):
     Base.metadata.create_all(engine)
     monkeypatch.setattr(ga, "get_db_session", _session)
     monkeypatch.setattr("core.database.SessionLocal", Session)
-    return {"path": str(path), "Session": Session, "engine": engine}
+    monkeypatch.setattr("core.database.get_db_session", _session)
+    return {"path": str(path), "Session": Session, "engine": engine,
+            "_session": _session}
 
 
 def _ensure_tenant(session, tenant_id):
@@ -581,3 +585,188 @@ def test_lost_confirmation_stays_uncertain_and_never_replays_as_success(
     assert second["status"] == "uncertain", second
     assert second.get("requires_reconciliation") is True, second
     assert "do not retry" in str(second.get("message") or "").lower()
+
+
+# ---------------------------------------------------------------------------
+# Fail-closed proof serialization (no lossy durable receipt)
+# ---------------------------------------------------------------------------
+
+
+def _valid_durable_result():
+    return {
+        "success": True,
+        "action_result": "applied",
+        "provider": "shopify",
+        "operation": "create_product",
+        "remote_id": "500",
+        "payload_sha256": "a" * 64,
+        "provider_receipt": {
+            "provider": "shopify",
+            "operation_id": "op-proof",
+            "payload_sha256": "a" * 64,
+            "shop": SHOP,
+        },
+        "read_receipt": {
+            "provider": "shopify",
+            "resource_id": "500",
+            "coverage": "single",
+            "account_id": SHOP,
+            "fields": {"title": "Durable Replay Widget"},
+        },
+        "verification": {
+            "status": "verified",
+            "missing_fields": [],
+            "mismatches": [],
+            "payload_sha256": "a" * 64,
+        },
+    }
+
+
+@pytest.mark.parametrize("value", [
+    object(),
+    float("nan"),
+    float("inf"),
+    {1: "non-string-key"},
+    {"tuple": (1, 2)},
+    {"bytes": b"raw"},
+    {1, 2},
+    {"set": {1, 2}},
+])
+def test_strict_json_proof_rejects_unsupported_values(value):
+    from core.outbound_operation_claim import (
+        strict_json_roundtrip,
+        strict_json_value,
+    )
+
+    assert strict_json_value(value) is False
+    assert strict_json_roundtrip(value) is None
+
+
+def test_durable_receipt_builder_rejects_lossy_proof(env):
+    from decimal import Decimal
+
+    from core.oracle import build_durable_effect_result
+
+    expected = {
+        "_oracle_expected_operation_id": "op-proof",
+        "_oracle_expected_shopify_product": {
+            "title": "Durable Replay Widget",
+            "body_html": "<p>Exact authorized body</p>",
+            "vendor": "Scratch Vendor",
+            "product_type": "Gadget",
+            "status": "draft",
+            "tags": ["alpha", "beta"],
+        },
+    }
+    assert build_durable_effect_result(
+        "shopify_create_product", _valid_durable_result(), expected) is not None
+
+    for bad in (
+        {"verification": {"status": object()}},
+        {"verification": {"status": float("nan")}},
+        {"read_receipt": {"fields": {"title": Decimal("1.00")}}},
+    ):
+        result = _valid_durable_result()
+        result.update(bad)
+        assert build_durable_effect_result(
+            "shopify_create_product", result, expected) is None, bad
+
+    bad_expected = dict(expected)
+    bad_expected["_oracle_expected_shopify_product"] = {
+        "title": object()}
+    assert build_durable_effect_result(
+        "shopify_create_product", _valid_durable_result(), bad_expected) is None
+
+
+def test_lossy_proof_cannot_persist_a_succeeded_claim(env):
+    from core import outbound_operation_claim as claims
+
+    operation_id = f"op-lossy-{uuid.uuid4().hex}"
+    claim = claims.claim_generic_operation(
+        workspace_id="ws-shop",
+        tenant_id="tenant-shop",
+        operation_id=operation_id,
+        action="shopify_create_product",
+        payload_hash="a" * 64,
+        execution_id="exec-shop",
+        db_factory=env["_session"],
+    )
+    assert claim["won"] is True, claim
+    record_id = claim["record_id"]
+    assert claims.mark_status(
+        record_id, claims.DISPATCHING,
+        expected_status=claims.CLAIMED,
+        db_factory=env["_session"]) is True
+
+    for bad_result in (
+        {"verification": {"status": object()}},
+        {"verification": {"status": float("nan")}},
+        {"read_receipt": {"fields": {"title": (1, 2)}}},
+    ):
+        assert claims.mark_status(
+            record_id, claims.SUCCEEDED,
+            expected_status=claims.DISPATCHING,
+            result=bad_result,
+            db_factory=env["_session"]) is False, bad_result
+        row = _claim_row(env, operation_id)
+        assert row[0] == "dispatching", row
+        assert row[2] in (None, "null"), row
+
+
+# ---------------------------------------------------------------------------
+# Existing scratch database upgrade + restart
+# ---------------------------------------------------------------------------
+
+
+def test_existing_database_upgrade_and_replay_survives_restart(env, monkeypatch):
+    """A pre-existing scratch DB (no ``result_json``) is upgraded by the real
+    guarded repair, not by ``create_all``, and the durable identity survives a
+    process-style restart with no second create."""
+    from core import sqlite_schema_repair as repair
+
+    repair._REPAIRED.clear()
+    with sqlite3.connect(env["path"]) as raw:
+        raw.execute(
+            "alter table task_operation_records drop column result_json")
+        raw.commit()
+        before = {
+            row[1] for row in raw.execute(
+                "pragma table_info(task_operation_records)")
+        }
+    assert "result_json" not in before
+
+    repair.repair_known_drift()
+    with sqlite3.connect(env["path"]) as raw:
+        after = {
+            row[1] for row in raw.execute(
+                "pragma table_info(task_operation_records)")
+        }
+    assert "result_json" in after
+
+    _add_store(env)
+    transport = FakeShopifyTransport()
+    _install_transport(monkeypatch, transport)
+    operation_id = f"op-upgrade-{uuid.uuid4().hex}"
+    context = _context(operation_id)
+    args = _product_args(operation_id)
+
+    first = _call(_agent(), args, context)
+    assert first["success"] is True, first
+    assert len(transport.posts) == 1
+    assert _claim_row(env, operation_id)[2] is not None
+
+    # Process-style restart: dispose the engine, rebind a new session factory,
+    # and run the guarded repair again (it must be idempotent on restart).
+    env["engine"].dispose()
+    reborn = _bind_scratch(monkeypatch, env["path"])
+    repair._REPAIRED.clear()
+    repair.repair_known_drift()
+
+    second = _call(_agent(), dict(args), dict(context))
+
+    assert len(transport.posts) == 1, "restart replay created a second product"
+    assert second["success"] is True, second
+    assert second["action_result"] == "already_applied", second
+    assert second["oracle_verified"] is True, second
+    assert second["remote_id"] == "500", second
+    assert _claim_row(reborn, operation_id)[0] == "succeeded"

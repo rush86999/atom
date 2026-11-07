@@ -30,6 +30,7 @@ from __future__ import annotations
 import hashlib
 import json
 import logging
+import math
 import uuid
 from typing import Any, Dict, Optional
 
@@ -70,6 +71,52 @@ def _factory(db_factory=None):
     from core.database import get_db_session
 
     return get_db_session
+
+
+def strict_json_value(value: Any, *, _depth: int = 0) -> bool:
+    """True only when ``value`` round-trips through JSON without conversion.
+
+    Durable claim receipts are proof material: an arbitrary object must never
+    be turned into certifying receipt text.  Only JSON scalars, finite
+    numbers, lists and string-keyed dicts are accepted.  Tuples, sets, bytes,
+    datetimes, Decimal, non-finite floats and non-string dict keys are all
+    rejected rather than silently coerced by ``json.dumps``.
+    """
+    if _depth > 64:  # cyclic/deeply nested proof is not a valid receipt
+        return False
+    if value is None or isinstance(value, bool):
+        return True
+    if isinstance(value, str):
+        return True
+    if isinstance(value, int):
+        return True
+    if isinstance(value, float):
+        return math.isfinite(value)
+    if isinstance(value, list):
+        return all(
+            strict_json_value(item, _depth=_depth + 1) for item in value)
+    if isinstance(value, dict):
+        return all(
+            isinstance(key, str)
+            and strict_json_value(item, _depth=_depth + 1)
+            for key, item in value.items()
+        )
+    return False
+
+
+def strict_json_roundtrip(value: Any) -> Optional[Any]:
+    """Return a detached strict JSON copy, or ``None`` if it is lossy.
+
+    The caller treats ``None`` as "no durable receipt could be committed".
+    There is deliberately no ``default=str`` fallback.
+    """
+    if not strict_json_value(value):
+        return None
+    try:
+        return json.loads(json.dumps(
+            value, allow_nan=False, sort_keys=True, separators=(",", ":")))
+    except (TypeError, ValueError, OverflowError):
+        return None
 
 
 def operation_payload_sha256(
@@ -306,7 +353,10 @@ def mark_status(
     can never exist without the identity a replay needs, and a peer's result
     can never be replaced by a stale writer. Passing ``None`` leaves any
     existing receipt untouched (an ambiguous/lost confirmation is never
-    silently "rolled back" by a status write).
+    silently "rolled back" by a status write).  A receipt that is not strict
+    JSON (an object, non-finite number, non-string key, ...) is refused before
+    the write: nothing is persisted and the caller must treat the effect as
+    uncertain rather than commit lossy proof.
 
     Existing callers that pass no expectation keep the historical
     unconditional primary-key update; that path is NOT a CAS.
@@ -319,6 +369,14 @@ def mark_status(
             allowed = {str(expected_status)}
         else:
             allowed = {str(item) for item in expected_status}
+    if result is not None:
+        normalized = strict_json_roundtrip(result)
+        if normalized is None:
+            logger.error(
+                "refusing claim status %s for %s: receipt is not strictly "
+                "JSON-serializable", status, record_id)
+            return False
+        result = normalized
     try:
         with _factory(db_factory)() as db:
             row = db.query(TaskOperationRecord).filter(
