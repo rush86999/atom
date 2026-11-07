@@ -1261,6 +1261,15 @@ _TRUSTED_CONTEXT_KEYS = (
     "proposal_id",
     "goal_id",
     "trigger",
+    # Missing-information continuation material is also server-owned. The
+    # same reservation strips it from initial business parameters and their
+    # durable replay snapshot; actual resume loads it from trusted rows.
+    "information_answer",
+    "answered_wait",
+    "resume_history",
+    "resume_steps",
+    "information_wait_resume",
+    "reviewer_id",
 )
 
 
@@ -1589,19 +1598,6 @@ def _scoped_agent_context(
     namespace = _execution_namespace(agent, trusted)
     for key in _TRUSTED_CONTEXT_KEYS:
         context[key] = namespace.get(key)
-    # A resumed information wait carries the authorized answer and the useful
-    # prior work. These are server-produced continuation material, never
-    # request-body authority; preserve them beside the frozen namespace.
-    for key in (
-        "information_answer",
-        "answered_wait",
-        "resume_history",
-        "resume_steps",
-        "information_wait_resume",
-        "reviewer_id",
-    ):
-        if key in trusted:
-            context[key] = trusted.get(key)
     return context
 
 
