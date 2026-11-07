@@ -1,0 +1,40 @@
+{
+  "executed_source": "f179c73ce2bc6feae38c3641c5a11d4a8db52386",
+  "scope": "ordinary UI / real backend; simulated model decisions",
+  "source_files": {
+    "scripts/acceptance/browser_agent_source_answer.py": "300e7c9284167a55645f892e1e33e13ea18c02c5282fbafe21f165c0caca9bc9",
+    "scripts/acceptance/browser_agent_job_wait.py": "66431e44bc36ce28adace7409b72a291e5fd626ecf1d472364aa33b53333850e",
+    "scripts/acceptance/browser_goal_utility_ui.py": "af47275a59bae88da003e2f7eb52516706e0262ea4a7b285da82aacafed3a5e9",
+    "scripts/tests/test_browser_agent_source_answer_preflight.py": "7936857f6dde196e11e66b7690a49f117b2b7b34ac4999d0e8a1338167951841",
+    "scripts/tests/test_lead_source_redirect_evidence.py": "d6d8ce466e2770f219344489feafacd0a1baaecb5a23f1c1d2a6a6ce00eec779",
+    "frontend-nextjs/pages/agents/index.tsx": "7ae1b3d8619b642a2669c96601fe3b8f601fcefe8ecf37ec95a2c428ed538103",
+    "frontend-nextjs/tests/pages/agents-information-job.test.tsx": "ca5992d20bfe75c2ab14e486532ec3d8b775d11adc5a31354105cd7df970c2c1",
+    "frontend-nextjs/tests/pages/agents-index.test.tsx": "982d9a0e54e9dcf21e3806e2c4336207f594b537ab1241641f17087718e240bf",
+    "backend/api/agent_routes.py": "11fa2a877571c76bba573d9b51b0187e74d7ccbe25a931ccccc5ecda64f34790",
+    "backend/core/information_wait.py": "7b16e3d678c7bffa51e721c364d5d1473a36fdcaf04a6983f640d084130fdd17",
+    "backend/core/generic_agent.py": "2440ed15152ae6b0200831b6f2c07f8eb923e2ee34cae93dba9dbc4bef8d668a",
+    "frontend-nextjs/components/Agents/AgentJobWaitPanel.tsx": "30c6055f0af72e2a5108e0fb9aa1ccbc9c56ba14b4e938462f44c724f2fa6301"
+  },
+  "artifacts": {
+    "episode.log": "6a10c8b978a876320d326f059a410ad51a16cd9acad37bf0ad1805c3536acdfb",
+    "README.md": "e228979a3bc09105d510aaec4297f8b6f9a6ccf0fc7022f2791ae10bb678cd59",
+    "episode.exit.json": "0183ab26664aaa2f3a3dc176f591b361c0fa25e70af78b0a1a53aee3ef279d35",
+    "episode.spec.json": "21b6cbab194f90935f4af0ef97318818acee440ac039e153b6714c0e4543d0ab",
+    "capture/stack.json": "b573610598aedd8ce7f074881049597db9bb7584365fad2054d82e7274a69429",
+    "capture/durable.json": "94dced8895cb20446854ac506a8c39c3b8dafcfc4d6f199f99a4bd2c7d6cbb77",
+    "capture/source.json": "eb7714c5e6971c46f695caceac81bded439cbc25dd036af492894bcd5dcff775",
+    "capture/source_catalog.json": "185dc182c2656f3bd6df1ec5d6ec61565b12a65976e03ae2a3aaf5adf9607d77",
+    "capture/prompt_evidence.json": "f093bd02ea3d96d701cb04bdbbd07ff935fd09ba30b80831cc41c61cf351d986",
+    "capture/shim_capture.jsonl": "a8e753a59090e440742702eadb5f15d9f4458c75188a40de68f7f72cd2177e84",
+    "capture/scenario.json": "4eb23a310bbdac4c53b7c29256f689d33e94b182ac7d0a149d3353d739c3d6aa",
+    "capture/MANIFEST.json": "028060852163f2f06f6187712244e337fb2095ed8806e37e04bc09580aeb784f",
+    "capture/capture/requests.jsonl": "d5dc13868b2b3de4e48e6080b727d83747b0da600a8e13a2bddd853909735770",
+    "capture/screenshots/00_onboarding_completed.png": "8990a32da97a1e15eb0bb36586ffc1cbc7743d2a832913485ea3c728d63dff61",
+    "capture/screenshots/00_login.png": "4207aaecf19c9667aeb46667143f144622b891b49300df67310e53e02b10161d",
+    "capture/screenshots/04_after_restart_source_ready.png": "29f2d28b6b7efea6f0a77be737fabd2adbb15dc6c41f6d9d8d7444fe424510be",
+    "capture/screenshots/01_first_source_question.png": "97684f21b82c2206f2cb3ef4e9da8bb100c6a1506a2deeb706780c62e2b94a01",
+    "capture/screenshots/05_verified_source_result.png": "f90b24d982bf4b4cd93cf476bbe9cc256eebe6b24fc002ce9a8c11b98a561e00",
+    "capture/screenshots/03_source_selected.png": "1af4d6163772286f8d3d91cd37ef73f5220c44f5c78a07def52683d1c1bfb2fa",
+    "capture/screenshots/02_uploaded_source_only.png": "4c514a46225131aee8db0352932880a41fa7ba3dc3d3c8dc094fd6380ec7835b"
+  }
+}

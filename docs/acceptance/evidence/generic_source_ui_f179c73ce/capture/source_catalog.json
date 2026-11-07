@@ -1,0 +1,13 @@
+{
+  "status": 200,
+  "count": 1,
+  "selected": {
+    "document_id": "doc_31ce5238e581512e726f0424",
+    "dataset_name": null,
+    "file_name": "authorized-ui-source.txt",
+    "source": "manual_upload",
+    "external_id": "upload_doc_31ce5238e581512e726f0424",
+    "source_version": "ev4:31ce5238e581512e726f0424c32a3ae9ac846ef5867c270a4e208d0d12d758f8",
+    "kind": "document"
+  }
+}
