@@ -451,6 +451,33 @@ def test_explicit_non_fresh_authority_refuses(exported, freshness, status, code)
     assert text not in response.text
 
 
+@pytest.mark.parametrize("freshness", ["", "unknown", "revoked", "pending"])
+def test_unrecognized_or_revoked_freshness_is_never_authoritative(
+        exported, freshness):
+    """Only an explicit ``fresh`` SQL row can carry authoritative provenance.
+
+    The old gate checked only NON_FRESH_STATUSES, so an empty/unknown/revoked
+    status fell through as authoritative. These are distinct unknown states,
+    not ``fresh`` and not a legacy snapshot: refuse before any body is made.
+    """
+    text = f"Unrecognized freshness {freshness!r} content.\n"
+    doc_id = f"unknownfresh-{uuid.uuid4().hex[:12]}"
+    version = "ev4:" + "a" * 64
+    _seed_vector(
+        exported, text=text, doc_id=doc_id,
+        metadata={"title": "unknown-fresh.txt", "file_name": "unknown-fresh.txt",
+                  "source_content_hash": version,
+                  "pg_document_id": doc_id},
+        source="upload:unknown-fresh.txt",
+    )
+    _seed_sql(exported, doc_id, version=version, freshness=freshness)
+    response = exported.client.get(
+        f"/api/documents/{doc_id}/export", params={"format": "json"})
+    assert response.status_code == 409, response.text
+    assert _error_code(response) == "DOCUMENT_NOT_CURRENT"
+    assert text not in response.text
+
+
 def test_foreign_workspace_and_unknown_document_are_not_found(exported):
     text = "Foreign workspace content.\n"
     doc_id = f"foreign-{uuid.uuid4().hex[:12]}"

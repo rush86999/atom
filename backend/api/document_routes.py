@@ -222,20 +222,21 @@ def _export_identity_failure(code: str, message: str) -> HTTPException:
 
 
 def _document_export_provenance(
-    db: Session, workspace_id: Optional[str], doc_id: str,
-    document: Dict[str, Any],
+    db: Session, workspace_id: Optional[str], tenant_id: Optional[str],
+    doc_id: str, document: Dict[str, Any],
 ) -> Dict[str, Any]:
     """Validate the indexed/SQL identity before any export body is produced.
 
     Current automated/versioned evidence must match the authoritative SQL
-    revision through the existing strict matcher. A missing/contradictory
-    revision on a known indexed binding refuses. Only producer-marked
+    revision through the existing strict matcher. Indexed/SQL document,
+    workspace and tenant identity must agree wherever both sides are present.
+    A missing/contradictory revision or scope on a known binding refuses, and
+    only an explicit ``fresh`` SQL row is authoritative. Only producer-marked
     manual/legacy vector rows with no SQL/index binding may be exported as an
     explicitly snapshot-only, unknown-source-version document.
     """
     from core.doc_freshness_service import (
         ExtractionIdentityError,
-        NON_FRESH_STATUSES,
         current_extraction_revision,
         extraction_identity,
     )
@@ -249,14 +250,59 @@ def _document_export_provenance(
             "DOCUMENT_IDENTITY_MISMATCH",
             "The indexed extraction belongs to a different document.",
         )
+    indexed_row_id = str(document.get("id") or "").strip()
+    if indexed_row_id and indexed_row_id != str(doc_id):
+        raise _export_identity_failure(
+            "DOCUMENT_IDENTITY_MISMATCH",
+            "The indexed extraction row identity does not match the requested "
+            "document.",
+        )
+
+    # Scope is part of identity wherever it is present. An indexed metadata
+    # workspace/tenant that disagrees with the request scope or its SQL row is
+    # a contradictory extraction, never an authoritative export source. The
+    # existing Personal-Edition null/default policy is preserved by comparing
+    # only values that are actually present on both sides.
+    indexed_workspace = str(metadata.get("workspace_id") or "").strip()
+    if indexed_workspace and workspace_id and (
+            indexed_workspace != str(workspace_id)):
+        raise _export_not_found(str(doc_id))
 
     indexed_version = str(
         metadata.get("source_content_hash") or "").strip()
+    indexed_tenant = str(metadata.get("tenant_id") or "").strip()
     row = db.query(IngestedDocument).filter(
         IngestedDocument.id == str(doc_id)).first()
     if row is not None and workspace_id and str(
             row.workspace_id or "") != str(workspace_id):
         raise _export_not_found(str(doc_id))
+    if row is not None and indexed_workspace and str(
+            row.workspace_id or "") and (
+            indexed_workspace != str(row.workspace_id)):
+        raise _export_identity_failure(
+            "DOCUMENT_SCOPE_MISMATCH",
+            "The indexed extraction workspace does not match its authoritative "
+            "document record.",
+        )
+    if row is not None and tenant_id and str(
+            row.tenant_id or "") and str(row.tenant_id) != str(tenant_id):
+        raise _export_identity_failure(
+            "DOCUMENT_SCOPE_MISMATCH",
+            "The authoritative document record belongs to a different tenant.",
+        )
+    if indexed_tenant:
+        # When a SQL row exists, its tenant is the authoritative comparison.
+        # A NULL/legacy tenant is absent, not a contradictory value; only a
+        # vector-only row falls back to the request's Personal-Edition tenant.
+        reference_tenant = (
+            str(row.tenant_id or "") if row is not None
+            else str(tenant_id or ""))
+        if reference_tenant and indexed_tenant != reference_tenant:
+            raise _export_identity_failure(
+                "DOCUMENT_SCOPE_MISMATCH",
+                "The indexed extraction tenant does not match the authoritative "
+                "scope.",
+            )
 
     row_version = str(
         getattr(row, "source_content_hash", "") or "").strip() if row else ""
@@ -264,13 +310,16 @@ def _document_export_provenance(
         getattr(row, "freshness_status", "") or "").strip().lower() if row else ""
     if freshness == "removed":
         raise _export_not_found(str(doc_id))
-    if freshness in NON_FRESH_STATUSES:
+    # Only an explicit ``fresh`` SQL row can carry authoritative provenance.
+    # Empty/NULL/unknown/revoked and every other non-fresh status fail closed
+    # here; checking only NON_FRESH_STATUSES let unknown values through.
+    if row is not None and freshness != "fresh":
         raise router.error_response(
             error_code="DOCUMENT_NOT_CURRENT",
             message=(
                 "The authoritative document is not current; refresh or "
                 "re-ingest it before exporting."),
-            details={"freshness_status": freshness},
+            details={"freshness_status": freshness or None},
             status_code=409,
         )
 
@@ -761,8 +810,11 @@ async def export_document(
         document = handler.get_document_by_id("documents", str(doc_id))
         if not document:
             raise _export_not_found(str(doc_id))
+        from core.personal_scope import resolve_tenant_id
+
         provenance = _document_export_provenance(
-            db, workspace_id, str(doc_id), document)
+            db, workspace_id, resolve_tenant_id(current_user),
+            str(doc_id), document)
         text = str(document.get("text") or "")
         if not text.strip():
             raise router.error_response(
