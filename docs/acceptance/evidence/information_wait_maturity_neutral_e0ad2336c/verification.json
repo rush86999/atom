@@ -1,0 +1,16 @@
+{
+  "negative": {
+    "source": "86ad98ef1",
+    "actual_exit": 1,
+    "failed": 1
+  },
+  "fixed": {
+    "source": "e0ad2336c8769ff98f9d0dabcb96053c2e7fd4d9",
+    "actual_exit": 0,
+    "passed": 37
+  },
+  "tree_clean_at_run": false,
+  "scope": "real recording/governance/SQLite + affected public waits; only world-model storage is doubled in independent predicate control; existing API model seams retained",
+  "browser_fixed_episode": "NOT YET RUN",
+  "terminal_success_failure": "real score updates preserved"
+}
