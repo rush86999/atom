@@ -1,0 +1,8 @@
+{
+  "executed_source": "cb13bee875ee5561e36a491ad871b675d454812d",
+  "native_source": "250d91f0b641ad1ffdae034f23ba494ea86cb384",
+  "passed": 10,
+  "actual_exit": 0,
+  "runtime_change": false,
+  "scope": "real public routes/compiler/executor; high-level reasoning/auth controlled; symmetric same-workspace task isolation"
+}
