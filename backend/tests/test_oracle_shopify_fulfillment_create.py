@@ -187,12 +187,14 @@ class FakeShopifyTransport:
         self.shop = shop
         self.fulfillment_orders = _default_fulfillment_orders()
         self.fulfillments = {}
+        self.fulfillment_links = {}
         self.posts = []
         self.gets = []
         self.next_id = 1100
         self.create_response = None
         self.read_override = None
         self.fo_override = None
+        self.fo_fulfillments_override = None
         self.post_raises_after_create = None
         self.after_post = None
         self.enforce_shop = True
@@ -231,10 +233,15 @@ class FakeShopifyTransport:
                     quantity = line.get("fulfillable_quantity")
                 if quantity is None:
                     quantity = line.get("quantity")
+                line_item_id = str(line.get("line_item_id") or "")
                 line_items.append({
-                    "id": str(line.get("line_item_id") or ""),
-                    "fulfillment_order_id": fo_id,
+                    "id": line_item_id,
+                    "line_item_id": line_item_id,
                     "quantity": quantity,
+                    # Official Fulfillment line items expose the fulfilled and
+                    # currently fulfillable quantity; the latter is commonly 0
+                    # after completion and is not the completed quantity.
+                    "fulfillable_quantity": 0,
                 })
         tracking_info = payload.get("tracking_info") or {}
         fulfillment = {
@@ -244,8 +251,6 @@ class FakeShopifyTransport:
             "location_id": (
                 sorted(location_ids)[0] if len(location_ids) == 1 else ""),
             "line_items": line_items,
-            "fulfillment_orders": [
-                {"fulfillment_order_id": fo_id} for fo_id in fo_ids],
         }
         if tracking_info.get("number") is not None:
             fulfillment["tracking_number"] = tracking_info.get("number")
@@ -258,6 +263,12 @@ class FakeShopifyTransport:
         self.posts.append({"url": url, "json": copy.deepcopy(json)})
         fulfillment = self._materialize((json or {}).get("fulfillment") or {})
         self.fulfillments[fulfillment["id"]] = fulfillment
+        for entry in ((json or {}).get("fulfillment") or {}).get(
+                "line_items_by_fulfillment_order") or []:
+            fo_id = str(entry.get("fulfillment_order_id") or "")
+            if fo_id:
+                self.fulfillment_links.setdefault(fo_id, set()).add(
+                    fulfillment["id"])
         if self.after_post is not None:
             self.after_post()
         if self.post_raises_after_create is not None:
@@ -271,10 +282,18 @@ class FakeShopifyTransport:
         self.gets.append(url)
         if self.enforce_shop and self._url_shop(url) != self.shop:
             return self._response(404, url, payload={"errors": "not found"})
-        match = re.search(r"/fulfillments/([^/.]+)\.json", url)
+        # Exact read must be the documented order-scoped resource.  The old
+        # overbroad global ``/fulfillments/{id}.json`` match is deliberately
+        # gone so a regression to that path fails the endpoint control.
+        match = re.search(
+            r"/orders/([^/]+)/fulfillments/([^/.]+)\.json", url)
         if match:
-            fulfillment_id = match.group(1)
+            parent_order_id, fulfillment_id = match.groups()
             fulfillment = self.fulfillments.get(fulfillment_id)
+            if fulfillment is not None and str(
+                    fulfillment.get("order_id") or "") != parent_order_id:
+                return self._response(
+                    404, url, payload={"errors": "not found"})
             if callable(self.read_override):
                 result = self.read_override(fulfillment_id, fulfillment)
                 if isinstance(result, Exception):
@@ -289,6 +308,23 @@ class FakeShopifyTransport:
                     404, url, payload={"errors": "not found"})
             return self._response(
                 200, url, payload={"fulfillment": fulfillment})
+        # Official FO-scoped association read.
+        fo_link = re.search(
+            r"/fulfillment_orders/([^/.]+)/fulfillments\.json", url)
+        if fo_link:
+            fo_id = fo_link.group(1)
+            linked_ids = sorted(self.fulfillment_links.get(fo_id, set()))
+            items = [
+                copy.deepcopy(self.fulfillments[fid])
+                for fid in linked_ids if fid in self.fulfillments
+            ]
+            if callable(self.fo_fulfillments_override):
+                result = self.fo_fulfillments_override(fo_id, items)
+                if isinstance(result, Exception):
+                    raise result
+                items = result
+            return self._response(
+                200, url, payload={"fulfillments": items})
         if re.search(r"/orders/[^/]+/fulfillment_orders\.json", url):
             orders = self.fulfillment_orders
             if callable(self.fo_override):
@@ -403,25 +439,34 @@ def test_exact_fulfillment_create_is_independently_verified(
     assert fields["tracking_number"] == "TRACK-123", fields
     assert fields["tracking_company"] == "UPS", fields
     assert fields["location_id"] == LOCATION_ID, fields
+    assert fields["status"] == "success", fields
     assert fields["fulfillment_order_ids"] == ["fo-1", "fo-2"], fields
+    # The official Fulfillment resource reports completed ``quantity`` but no
+    # fulfillment-order id on its line items; association comes from the
+    # documented FO-scoped collection read.
     assert fields["line_items"] == [
-        {"fulfillment_order_id": "fo-1", "line_item_id": "line-1",
-         "quantity": "2"},
-        {"fulfillment_order_id": "fo-2", "line_item_id": "line-2",
-         "quantity": "1"},
+        {"line_item_id": "line-1", "quantity": "2"},
+        {"line_item_id": "line-2", "quantity": "1"},
     ], fields
     assert len(transport.posts) == 1
     posted = transport.posts[0]
     assert posted["url"].endswith("/fulfillments.json"), posted
     assert f"/orders/{ORDER_ID}/fulfillments.json" not in posted["url"], posted
-    # Current contract readbacks: order-scoped fulfillment orders, then the
-    # exact by-id fulfillment (producer + Oracle).
+    # Current contract readbacks: order-scoped fulfillment orders, the exact
+    # parent-order-scoped fulfillment (producer + Oracle), and the authoritative
+    # FO association collections.
     assert any(
         url.endswith(f"/orders/{ORDER_ID}/fulfillment_orders.json")
         for url in transport.gets), transport.gets
     assert sum(
-        url.endswith("/fulfillments/1100.json")
+        url.endswith(f"/orders/{ORDER_ID}/fulfillments/1100.json")
         for url in transport.gets) == 2, transport.gets
+    assert any(
+        url.endswith("/fulfillment_orders/fo-1/fulfillments.json")
+        for url in transport.gets), transport.gets
+    assert any(
+        url.endswith("/fulfillment_orders/fo-2/fulfillments.json")
+        for url in transport.gets), transport.gets
     body = posted["json"]["fulfillment"]
     assert body["line_items_by_fulfillment_order"] == [
         {"fulfillment_order_id": "fo-1"},
@@ -591,8 +636,7 @@ def test_location_filter_selects_exact_fulfillment_order(env, monkeypatch):
     assert result["read_receipt"]["fields"]["fulfillment_order_ids"] == [
         "fo-2"], result
     assert result["read_receipt"]["fields"]["line_items"] == [
-        {"fulfillment_order_id": "fo-2", "line_item_id": "line-2",
-         "quantity": "1"},
+        {"line_item_id": "line-2", "quantity": "1"},
     ], result
     assert transport.posts[0]["json"]["fulfillment"][
         "line_items_by_fulfillment_order"] == [
@@ -664,10 +708,10 @@ def test_dispatch_material_must_match_readback(env, monkeypatch, change):
     def _corrupt(fid, fulfillment, mode=change):
         item = copy.deepcopy(fulfillment)
         if mode == "fulfillment_order_id":
-            item["fulfillment_orders"][0]["fulfillment_order_id"] = "fo-other"
-            item["line_items"][0]["fulfillment_order_id"] = "fo-other"
-        elif mode == "line_item_id":
+            return item
+        if mode == "line_item_id":
             item["line_items"][0]["id"] = "line-other"
+            item["line_items"][0]["line_item_id"] = "line-other"
         elif mode == "line_item_quantity":
             item["line_items"][0]["quantity"] = 99
         else:
@@ -675,6 +719,11 @@ def test_dispatch_material_must_match_readback(env, monkeypatch, change):
         return item
 
     transport.read_override = _corrupt
+    if change == "fulfillment_order_id":
+        # The official read has no FO id; the authoritative association is the
+        # FO-scoped collection.  Make fo-1's collection omit this fulfillment.
+        transport.fo_fulfillments_override = (
+            lambda fo_id, items: [] if fo_id == "fo-1" else items)
     _install_transport(monkeypatch, transport)
     operation_id = f"op-fulfillment-plan-{change}-{uuid.uuid4().hex}"
 
@@ -706,6 +755,29 @@ def test_missing_tracking_proof_is_explicitly_unverified(
     assert result["success"] is not True, result
     assert result["oracle_verified"] is False, result
     assert "tracking_number" in result["verification"]["mismatches"], result
+
+
+@pytest.mark.parametrize("status", ["pending", "open", "failure", "cancelled"])
+def test_non_success_fulfillment_status_is_not_business_success(
+        env, monkeypatch, status):
+    _add_store(env)
+    transport = FakeShopifyTransport()
+
+    def _status(fid, fulfillment, value=status):
+        item = copy.deepcopy(fulfillment)
+        item["status"] = value
+        return item
+
+    transport.read_override = _status
+    _install_transport(monkeypatch, transport)
+    operation_id = f"op-fulfillment-status-{status}-{uuid.uuid4().hex}"
+
+    result = _call(
+        _agent(), _fulfillment_args(operation_id), _context(operation_id))
+
+    assert len(transport.posts) == 1, result
+    assert result["success"] is not True, result
+    assert result["oracle_verified"] is not True, result
 
 
 def test_absent_readback_is_uncertain_not_success(env, monkeypatch):
@@ -834,8 +906,7 @@ def test_replay_with_changed_current_material_stays_committed_unverified(
 
     item = transport.fulfillments["1100"]
     if change == "fulfillment_order_id":
-        item["fulfillment_orders"][0]["fulfillment_order_id"] = "fo-other"
-        item["line_items"][0]["fulfillment_order_id"] = "fo-other"
+        transport.fulfillment_links["fo-1"] = {"999"}
     elif change == "line_item_quantity":
         item["line_items"][0]["quantity"] = 99
     elif change == "tracking_number":

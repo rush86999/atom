@@ -481,18 +481,24 @@ class ShopifyService(IntegrationService):
             raise HTTPException(status_code=500, detail="Internal error")
 
     async def get_fulfillment(
-        self, access_token: str, shop: str, fulfillment_id: str,
+        self, access_token: str, shop: str, order_id: str,
+        fulfillment_id: str,
     ) -> Dict[str, Any]:
-        """Read exactly one fulfillment by id from the authoritative shop.
+        """Read exactly one fulfillment from its declared parent order.
 
         Official contract (verified 2026-11-07):
-        ``GET /admin/api/{version}/fulfillments/{fulfillment_id}.json``
+        ``GET /admin/api/{version}/orders/{order_id}/fulfillments/{id}.json``
+
+        The order-scoped read is the documented exact-resource shape.  The
+        global ``/fulfillments/{id}.json`` path is not used: without the
+        parent order a returned id cannot be bound to the authorized order.
+
         https://shopify.dev/docs/api/admin-rest/2026-07/resources/fulfillment
         """
         try:
             url = (
                 f"{self._get_base_url(shop)}"
-                f"/fulfillments/{fulfillment_id}.json"
+                f"/orders/{order_id}/fulfillments/{fulfillment_id}.json"
             )
             headers = self._get_headers(access_token)
             response = await self.http.get(
@@ -501,13 +507,56 @@ class ShopifyService(IntegrationService):
             return response.json().get("fulfillment", {})
         except httpx.HTTPStatusError as e:
             logger.error(
-                f"Shopify get fulfillment {fulfillment_id} failed: "
+                f"Shopify get fulfillment {fulfillment_id} for order "
+                f"{order_id} failed: "
                 f"{e.response.status_code}: {e.response.text[:500]}")
             raise HTTPException(
                 status_code=502, detail="Shopify get fulfillment failed")
         except Exception as e:
             logger.error(
-                f"Failed to get fulfillment {fulfillment_id}: {e}")
+                f"Failed to get fulfillment {fulfillment_id} for order "
+                f"{order_id}: {e}")
+            raise HTTPException(status_code=500, detail="Internal error")
+
+    async def get_fulfillment_order_fulfillments(
+        self, access_token: str, shop: str, fulfillment_order_id: str,
+    ) -> List[Dict[str, Any]]:
+        """Read the fulfillments authoritatively linked to one FO.
+
+        Official contract (verified 2026-11-07):
+        ``GET /admin/api/{version}/fulfillment_orders/{fulfillment_order_id}/fulfillments.json``
+
+        The Fulfillment resource does not carry a trustworthy
+        ``fulfillment_order_id`` on its line items (and has no
+        ``fulfillment_orders`` array).  This documented FO-scoped collection is
+        the authoritative association between a fulfillment order and a
+        fulfillment, so callers never infer it from the submitted request or a
+        fabricated response field.
+
+        https://shopify.dev/docs/api/admin-rest/2026-07/resources/fulfillment
+        """
+        try:
+            url = (
+                f"{self._get_base_url(shop)}"
+                f"/fulfillment_orders/{fulfillment_order_id}/fulfillments.json"
+            )
+            headers = self._get_headers(access_token)
+            response = await self.http.get(
+                "shopify", url, headers=headers)
+            response.raise_for_status()
+            return response.json().get("fulfillments", [])
+        except httpx.HTTPStatusError as e:
+            logger.error(
+                "Shopify get fulfillments for fulfillment order "
+                f"{fulfillment_order_id} failed: "
+                f"{e.response.status_code}: {e.response.text[:500]}")
+            raise HTTPException(
+                status_code=502,
+                detail="Shopify get fulfillment order fulfillments failed")
+        except Exception as e:
+            logger.error(
+                "Failed to get fulfillments for fulfillment order "
+                f"{fulfillment_order_id}: {e}")
             raise HTTPException(status_code=500, detail="Internal error")
 
     async def get_fulfillment_orders(self, access_token: str, shop: str, order_id: str) -> List[Dict[str, Any]]:
@@ -528,6 +577,54 @@ class ShopifyService(IntegrationService):
         except Exception as e:
             logger.error(f"Failed to get fulfillment orders for order {order_id}: {e}")
             raise HTTPException(status_code=500, detail="Internal error")
+
+    @staticmethod
+    def _validate_fulfillment_order_material(fulfillment_orders, order_id):
+        """Refuse contradictory source fulfillment orders before any POST.
+
+        Shopify returns each fulfillment order with its parent ``order_id``,
+        its own id, an assigned location and its remaining line items.  Those
+        server-owned identities are the dispatch material: a source order from
+        another parent, a missing location/line identity or a line without a
+        usable order-line id must never be combined into a write.
+        """
+        for fo in fulfillment_orders:
+            fo_id = str(fo.get("id") or "").strip()
+            source_order = str(fo.get("order_id") or "").strip()
+            if not fo_id:
+                raise ShopifyFulfillmentPreflightError(
+                    "A source fulfillment order carries no id",
+                    error_kind="fulfillment_order_identity_missing",
+                )
+            if source_order != str(order_id or "").strip():
+                raise ShopifyFulfillmentPreflightError(
+                    (f"Fulfillment order {fo_id} belongs to order "
+                     f"{source_order or '<missing>'}, not the authorized "
+                     f"order {order_id}"),
+                    error_kind="fulfillment_order_parent_mismatch",
+                )
+            if not str(fo.get("assigned_location_id") or "").strip():
+                raise ShopifyFulfillmentPreflightError(
+                    (f"Fulfillment order {fo_id} has no assigned location; "
+                     "its dispatch location is unproven"),
+                    error_kind="fulfillment_order_location_missing",
+                )
+            lines = fo.get("line_items") or []
+            if not lines:
+                raise ShopifyFulfillmentPreflightError(
+                    (f"Fulfillment order {fo_id} has no remaining line "
+                     "material to bind"),
+                    error_kind="fulfillment_order_lines_missing",
+                )
+            for line in lines:
+                if not isinstance(line, dict) or not str(
+                    line.get("line_item_id") or line.get("id") or ""
+                ).strip():
+                    raise ShopifyFulfillmentPreflightError(
+                        (f"Fulfillment order {fo_id} carries a line without "
+                         "an order-line identity"),
+                        error_kind="fulfillment_order_line_identity_missing",
+                    )
 
     async def create_fulfillment(
         self,
@@ -562,6 +659,7 @@ class ShopifyService(IntegrationService):
                 access_token, shop, order_id)
             actionable = [fo for fo in fulfillment_orders
                           if fo.get("status") in self._FULFILLABLE_FO_STATUSES]
+            self._validate_fulfillment_order_material(actionable, order_id)
             if location_id and actionable:
                 at_location = [fo for fo in actionable
                                if str(fo.get("assigned_location_id")) == str(location_id)]
@@ -594,6 +692,15 @@ class ShopifyService(IntegrationService):
                     (f"Order {order_id} has actionable fulfillment orders at "
                      "multiple locations; specify location_id"),
                     error_kind="ambiguous_fulfillment_location",
+                )
+            if not resolved_location or any(
+                str(fo.get("assigned_location_id")) != resolved_location
+                for fo in actionable
+            ):
+                raise ShopifyFulfillmentPreflightError(
+                    (f"Fulfillment orders for order {order_id} do not share "
+                     "the resolved dispatch location"),
+                    error_kind="fulfillment_order_location_mismatch",
                 )
 
             fulfillment: Dict[str, Any] = {

@@ -805,7 +805,9 @@ async def _verify_shopify_create_fulfillment(
     contradictory proof stays unverified.
     """
     from core.shopify_mutations import (
+        authoritative_fulfillment_order_ids,
         fulfillment_plan_mismatches,
+        fulfillment_status_issue,
         material_mismatches,
         observed_fulfillment_material,
     )
@@ -883,11 +885,13 @@ async def _verify_shopify_create_fulfillment(
             "read_receipt carries no complete material mapping")
     receipt_mismatches = material_mismatches(
         expected_material, receipt_material)
+    receipt_mismatches.extend(fulfillment_plan_mismatches(
+        dispatch_plan, receipt_material))
     if receipt_mismatches:
         return OracleResult(
             action, False,
-            "producer readback does not match the authorized material: "
-            + ", ".join(receipt_mismatches))
+            "producer readback does not match the authorized/dispatched "
+            "material: " + ", ".join(receipt_mismatches))
 
     # Re-read the exact resource from the CURRENT workspace store.  This is
     # the independent system-of-record check; the producer's receipt is only
@@ -913,9 +917,15 @@ async def _verify_shopify_create_fulfillment(
 
     from integrations.shopify_service import ShopifyService
 
+    service = ShopifyService()
+    parent_order_id = str(expected_material.get("order_id") or "").strip()
+    if not parent_order_id:
+        return OracleResult(
+            action, False,
+            "no frozen parent order for the exact fulfillment read")
     try:
-        observed = await ShopifyService().get_fulfillment(
-            token, shop, remote_id)
+        observed = await service.get_fulfillment(
+            token, shop, parent_order_id, remote_id)
     except Exception as exc:  # noqa: BLE001 - unavailable is not verified
         return OracleResult(
             action, False,
@@ -931,21 +941,46 @@ async def _verify_shopify_create_fulfillment(
         return OracleResult(
             action, False,
             "independent Shopify readback returned a different fulfillment id")
+    try:
+        linked_fulfillment_order_ids = await authoritative_fulfillment_order_ids(
+            service, token, shop,
+            dispatch_plan.get("fulfillment_order_ids") or [],
+            remote_id)
+    except Exception as exc:  # noqa: BLE001 - unavailable is not verified
+        return OracleResult(
+            action, False,
+            "independent fulfillment-order association readback unavailable: "
+            f"{type(exc).__name__}: {str(exc)[:200]}")
+    if sorted(linked_fulfillment_order_ids) != sorted(
+        str(value).strip() for value in (
+            dispatch_plan.get("fulfillment_order_ids") or [])
+    ):
+        return OracleResult(
+            action, False,
+            "independent fulfillment-order association does not match the "
+            "server-resolved dispatch plan")
 
-    observed_material = observed_fulfillment_material(observed)
+    observed_material = observed_fulfillment_material(
+        observed,
+        fulfillment_order_ids=linked_fulfillment_order_ids,
+    )
     mismatches = material_mismatches(
         expected_material, observed_material)
     mismatches.extend(fulfillment_plan_mismatches(
         dispatch_plan, observed_material))
+    status_issue = fulfillment_status_issue(observed)
+    if status_issue:
+        mismatches.append("status")
     if mismatches:
         return OracleResult(
             action, False,
             "independent Shopify readback contradicts the authorized/"
-            "dispatched material: " + ", ".join(mismatches))
+            "dispatched material: " + ", ".join(mismatches)
+            + (f" ({status_issue})" if status_issue else ""))
     return OracleResult(
         action, True,
-        f"Shopify fulfillment {remote_id} re-read from {shop}; order "
-        f"{expected_material.get('order_id')} and dispatch material match "
+        f"Shopify fulfillment {remote_id} re-read from {shop} for order "
+        f"{parent_order_id}; order and dispatch material match "
         f"(payload {expected_digest[:12]})")
 
 

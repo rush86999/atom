@@ -38,12 +38,14 @@ def _fulfillment_response():
         "location_id": "loc-1",
         "tracking_number": "TN1",
         "tracking_company": "UPS",
+        # Official Fulfillment line items carry completed quantity and no
+        # fulfillment-order association; the FO collection is read separately.
         "line_items": [{
             "id": "line-1",
-            "fulfillment_order_id": "fo-1",
+            "line_item_id": "line-1",
             "quantity": 1,
+            "fulfillable_quantity": 0,
         }],
-        "fulfillment_orders": [{"fulfillment_order_id": "fo-1"}],
     }
 
 
@@ -55,6 +57,7 @@ def _configure_verified_fulfillment(service):
         if meta_out is not None:
             meta_out["fulfillment_orders"] = [{
                 "id": "fo-1",
+                "order_id": "o1",
                 "assigned_location_id": "loc-1",
                 "line_items": [{
                     "id": "foli-1",
@@ -71,7 +74,9 @@ def _configure_verified_fulfillment(service):
 
     service.create_fulfillment = AsyncMock(side_effect=_create)
     service.get_fulfillment = AsyncMock(
-        side_effect=lambda token, shop, fid: _fulfillment_response())
+        side_effect=lambda token, shop, order_id, fid: _fulfillment_response())
+    service.get_fulfillment_order_fulfillments = AsyncMock(
+        return_value=[_fulfillment_response()])
 
 
 class TestRegistryDefinition:
@@ -115,7 +120,9 @@ class TestCreateFulfillmentAction:
             notify_customer=False, meta_out=ANY,
         )
         service.get_fulfillment.assert_awaited_once_with(
-            "tok", "shop.myshopify.com", "11")
+            "tok", "shop.myshopify.com", "o1", "11")
+        service.get_fulfillment_order_fulfillments.assert_awaited_once_with(
+            "tok", "shop.myshopify.com", "fo-1")
 
     @pytest.mark.asyncio
     async def test_notify_customer_defaults_true(self, monkeypatch):

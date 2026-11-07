@@ -731,7 +731,13 @@ def accepted_fulfillment_material(
     return material
 
 
-def _fulfillment_line_quantity(line_item: Mapping[str, Any]) -> str:
+def _fulfillment_planned_quantity(line_item: Mapping[str, Any]) -> str:
+    """Quantity still to be fulfilled in a source fulfillment order.
+
+    This is the planning namespace.  It may fall back through the source FO
+    line's remaining/fulfillable quantity; it is never the completed quantity
+    observed on a Fulfillment resource.
+    """
     for field in ("remaining_quantity", "fulfillable_quantity", "quantity"):
         value = line_item.get(field)
         if value is not None:
@@ -739,20 +745,36 @@ def _fulfillment_line_quantity(line_item: Mapping[str, Any]) -> str:
     return ""
 
 
+def _fulfillment_completed_quantity(line_item: Mapping[str, Any]) -> str:
+    """Quantity completed by a Fulfillment line item.
+
+    The Fulfillment resource reports the fulfilled ``quantity``; its
+    ``fulfillable_quantity`` is commonly 0 after the fact and must never be
+    borrowed as the completed amount.
+    """
+    value = line_item.get("quantity")
+    return "" if value is None else _normalized_number(value)
+
+
 def _fulfillment_line_material(
     line_item: Mapping[str, Any],
     *,
     fulfillment_order_id: Any = None,
+    completed: bool = False,
 ) -> Dict[str, Any]:
     entry = {
-        "fulfillment_order_id": _text(
-            line_item.get("fulfillment_order_id")
-            if fulfillment_order_id is None else fulfillment_order_id
-        ).strip(),
         "line_item_id": _text(
             line_item.get("line_item_id") or line_item.get("id")).strip(),
-        "quantity": _fulfillment_line_quantity(line_item),
+        "quantity": (
+            _fulfillment_completed_quantity(line_item)
+            if completed else _fulfillment_planned_quantity(line_item)),
     }
+    fo_id = _text(
+        line_item.get("fulfillment_order_id")
+        if fulfillment_order_id is None else fulfillment_order_id
+    ).strip()
+    if fo_id:
+        entry["fulfillment_order_id"] = fo_id
     return entry
 
 
@@ -786,7 +808,7 @@ def fulfillment_dispatch_plan(
                 line_items.append(_fulfillment_line_material(
                     line_item, fulfillment_order_id=fo_id))
     line_items.sort(key=lambda item: (
-        item["fulfillment_order_id"], item["line_item_id"],
+        item.get("fulfillment_order_id", ""), item["line_item_id"],
         item["quantity"]))
     return {
         "fulfillment_order_ids": sorted(set(fulfillment_order_ids)),
@@ -813,12 +835,25 @@ def _tracking_number(item: Mapping[str, Any]) -> Optional[str]:
 
 def observed_fulfillment_material(
     fulfillment: Mapping[str, Any] | None,
+    *,
+    fulfillment_order_ids: Optional[Sequence[Any]] = None,
 ) -> Dict[str, Any]:
-    """Comparable material of an exact Fulfillment readback."""
+    """Comparable material of an exact Fulfillment readback.
+
+    The official Fulfillment resource carries completed line ``quantity`` but
+    no trustworthy fulfillment-order association.  ``fulfillment_order_ids``
+    is the authoritative association read from the documented FO-scoped
+    fulfillments endpoint; it is never inferred from the request.  Completed
+    quantities are read from ``quantity`` only, never from
+    ``fulfillable_quantity``/``remaining_quantity``.
+    """
     item = fulfillment if isinstance(fulfillment, Mapping) else {}
     material: Dict[str, Any] = {
         "order_id": _text(item.get("order_id")).strip(),
     }
+    status = _text(item.get("status")).strip()
+    if status:
+        material["status"] = status
     if item.get("location_id") not in (None, ""):
         material["location_id"] = _text(item.get("location_id")).strip()
     tracking_number = _tracking_number(item)
@@ -828,7 +863,7 @@ def observed_fulfillment_material(
         material["tracking_company"] = _text(
             item.get("tracking_company")).strip()
 
-    fulfillment_order_ids = set()
+    fulfillment_order_ids_set = set()
     line_items = []
     for line_item in item.get("line_items") or []:
         if not isinstance(line_item, Mapping):
@@ -836,9 +871,9 @@ def observed_fulfillment_material(
         fo_id = _text(
             line_item.get("fulfillment_order_id")).strip()
         if fo_id:
-            fulfillment_order_ids.add(fo_id)
+            fulfillment_order_ids_set.add(fo_id)
         line_items.append(_fulfillment_line_material(
-            line_item, fulfillment_order_id=fo_id))
+            line_item, fulfillment_order_id=fo_id, completed=True))
     for order in item.get("fulfillment_orders") or []:
         if isinstance(order, Mapping):
             fo_id = _text(
@@ -847,28 +882,129 @@ def observed_fulfillment_material(
         else:
             fo_id = _text(order).strip()
         if fo_id:
-            fulfillment_order_ids.add(fo_id)
+            fulfillment_order_ids_set.add(fo_id)
+    if fulfillment_order_ids is not None:
+        fulfillment_order_ids_set = {
+            _text(value).strip() for value in fulfillment_order_ids
+            if _text(value).strip()
+        }
     line_items.sort(key=lambda entry: (
-        entry["fulfillment_order_id"], entry["line_item_id"],
+        entry.get("fulfillment_order_id", ""), entry["line_item_id"],
         entry["quantity"]))
-    material["fulfillment_order_ids"] = sorted(fulfillment_order_ids)
+    material["fulfillment_order_ids"] = sorted(fulfillment_order_ids_set)
     material["line_items"] = line_items
     return material
+
+
+def fulfillment_status_issue(
+    fulfillment: Mapping[str, Any] | None,
+) -> str:
+    """Why a Fulfillment readback is not completed business success.
+
+    ``success`` is the only completed state.  ``failure``/``cancelled``/
+    ``error`` are contradictory; ``pending``/``open``/missing are honestly
+    unresolved.  None of them may be reported as verified success and none
+    may trigger a resend.
+    """
+    item = fulfillment if isinstance(fulfillment, Mapping) else {}
+    status = _text(item.get("status")).strip().lower()
+    if status == "success":
+        return ""
+    if not status:
+        return "fulfillment status is missing"
+    if status in {"failure", "failed", "cancelled", "canceled", "error"}:
+        return f"fulfillment status is {status}"
+    return f"fulfillment status {status} is not completed success"
+
+
+def _fulfillment_line_identity(line: Mapping[str, Any]) -> tuple:
+    return (
+        _text(line.get("line_item_id")).strip(),
+        _normalized_number(line.get("quantity")),
+    )
 
 
 def fulfillment_plan_mismatches(
     plan: Mapping[str, Any] | None,
     observed: Mapping[str, Any] | None,
 ) -> List[str]:
-    """Fields where the readback contradicts the server-resolved plan."""
+    """Fields where the readback contradicts the server-resolved plan.
+
+    Fulfillment-order association is compared as the exact authoritative id
+    set.  Completed line identity is compared by order-line id plus completed
+    quantity.  The official line item has no fulfillment-order id, so a
+    per-line FO id is only compared when the provider actually supplied one.
+    """
     if not isinstance(plan, Mapping) or not plan:
         return ["dispatch_plan"]
     got = observed if isinstance(observed, Mapping) else {}
     reasons: List[str] = []
-    for field in ("fulfillment_order_ids", "line_items", "location_id"):
+    for field in ("fulfillment_order_ids", "location_id"):
         if not _field_matches(field, plan.get(field), got.get(field)):
             reasons.append(field)
+
+    planned_lines = [
+        line for line in (plan.get("line_items") or [])
+        if isinstance(line, Mapping)
+    ]
+    observed_lines = [
+        line for line in (got.get("line_items") or [])
+        if isinstance(line, Mapping)
+    ]
+    observed_has_fo_ids = bool(observed_lines) and all(
+        _text(line.get("fulfillment_order_id")).strip()
+        for line in observed_lines)
+    if observed_has_fo_ids:
+        planned_identity = sorted(
+            (line.get("fulfillment_order_id", ""),
+             _text(line.get("line_item_id")).strip(),
+             _normalized_number(line.get("quantity")))
+            for line in planned_lines
+        )
+        observed_identity = sorted(
+            (line.get("fulfillment_order_id", ""),
+             _text(line.get("line_item_id")).strip(),
+             _normalized_number(line.get("quantity")))
+            for line in observed_lines
+        )
+    else:
+        planned_identity = sorted(
+            _fulfillment_line_identity(line) for line in planned_lines)
+        observed_identity = sorted(
+            _fulfillment_line_identity(line) for line in observed_lines)
+    if planned_identity != observed_identity:
+        reasons.append("line_items")
     return reasons
+
+
+async def authoritative_fulfillment_order_ids(
+    service: Any,
+    token: str,
+    shop: str,
+    planned_fulfillment_order_ids: Sequence[Any],
+    fulfillment_id: str,
+) -> List[str]:
+    """FO ids whose documented FO-scoped collection links this fulfillment.
+
+    The association is read from
+    ``GET /fulfillment_orders/{id}/fulfillments.json`` for every planned FO.
+    A missing/contradictory link is returned as an absent id, so the caller's
+    plan comparison stays unverified instead of inventing the association.
+    """
+    linked: List[str] = []
+    for raw_id in planned_fulfillment_order_ids or []:
+        fo_id = _text(raw_id).strip()
+        if not fo_id:
+            continue
+        items = await service.get_fulfillment_order_fulfillments(
+            token, shop, fo_id)
+        for item in items or []:
+            if isinstance(item, Mapping) and str(
+                item.get("id") or ""
+            ).strip() == str(fulfillment_id):
+                linked.append(fo_id)
+                break
+    return linked
 
 
 def durable_fulfillment_receipt_projection(
@@ -1852,7 +1988,8 @@ async def create_fulfillment(
     )
     try:
         observed = await service.get_fulfillment(
-            token, shop, fulfillment_id)
+            token, shop, expected_material.get("order_id") or "",
+            fulfillment_id)
     except Exception as exc:  # noqa: BLE001 - absent readback is not success
         return _fulfillment_uncertain(
             shop=shop,
@@ -1877,12 +2014,28 @@ async def create_fulfillment(
         )
 
     observed = observed if isinstance(observed, dict) else {}
-    observed_material = observed_fulfillment_material(observed)
+    unknown_association = False
+    try:
+        linked_fulfillment_order_ids = await authoritative_fulfillment_order_ids(
+            service, token, shop,
+            dispatch_plan.get("fulfillment_order_ids") or [],
+            fulfillment_id)
+    except Exception as exc:  # noqa: BLE001 - association is proof input
+        linked_fulfillment_order_ids = []
+        unknown_association = True
+        association_error = f"{type(exc).__name__}: {str(exc)[:300]}"
+    observed_material = observed_fulfillment_material(
+        observed,
+        fulfillment_order_ids=linked_fulfillment_order_ids,
+    )
     observed_id = str(observed.get("id") or "").strip()
     mismatches = material_mismatches(
         expected_material, observed_material)
     mismatches.extend(fulfillment_plan_mismatches(
         dispatch_plan, observed_material))
+    status_issue = fulfillment_status_issue(observed)
+    if status_issue:
+        mismatches.append("status")
     if observed_id != fulfillment_id:
         mismatches.append("remote_id")
     read_receipt = {
@@ -1894,9 +2047,24 @@ async def create_fulfillment(
         "coverage": "single",
         "account_id": shop,
         "shop": shop,
+        "parent_order_id": expected_material.get("order_id") or "",
         "fields": observed_material,
     }
     if mismatches:
+        missing_fields = (
+            ["fulfillment_order_association"] if unknown_association
+            else ["status"] if status_issue and len(mismatches) == 1
+            else [])
+        evidence = {
+            "kind": "shopify_create_fulfillment_readback_mismatch",
+            "remote_id": fulfillment_id,
+            "observed_remote_id": observed_id,
+            "mismatches": mismatches,
+        }
+        if status_issue:
+            evidence["status_issue"] = status_issue
+        if unknown_association:
+            evidence["association_error"] = association_error
         return _fulfillment_uncertain(
             shop=shop,
             operation_id=operation,
@@ -1906,19 +2074,15 @@ async def create_fulfillment(
             error_kind="readback_mismatch",
             message=(
                 "The Shopify fulfillment readback did not match the "
-                "authorized/dispatched material: " + ", ".join(mismatches)),
+                "authorized/dispatched material: " + ", ".join(mismatches)
+                + (f" ({status_issue})" if status_issue else "")),
             verification={
                 "status": "mismatch",
-                "missing_fields": [],
+                "missing_fields": missing_fields,
                 "mismatches": mismatches,
             },
             read_receipt=read_receipt,
-            evidence={
-                "kind": "shopify_create_fulfillment_readback_mismatch",
-                "remote_id": fulfillment_id,
-                "observed_remote_id": observed_id,
-                "mismatches": mismatches,
-            },
+            evidence=evidence,
         )
 
     return _fulfillment_applied(

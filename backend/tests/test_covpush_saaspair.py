@@ -959,7 +959,12 @@ async def test_shopify_get_customer_and_search():
 async def test_shopify_fulfillments():
     svc = make_shopify(script={
         "GET": [FakeResponse(json_data={"fulfillments": [{"id": 1}]}),
-                FakeResponse(json_data={"fulfillment_orders": [{"id": 11, "status": "open", "assigned_location_id": 3}]})],
+                FakeResponse(json_data={"fulfillment_orders": [{
+                    "id": 11, "order_id": "o1", "status": "open",
+                    "assigned_location_id": 3,
+                    "line_items": [{
+                        "id": "foli-11", "line_item_id": "line-11",
+                        "quantity": 1, "remaining_quantity": 1}]}]})],
         "POST": [FakeResponse(json_data={"fulfillment": {"id": 2}})]})
     assert await svc.get_fulfillments("t", "acme", "o1") == [{"id": 1}]
     assert svc.http.calls[0][1].endswith("/orders/o1/fulfillments.json")
@@ -976,7 +981,12 @@ async def test_shopify_fulfillments():
 
 async def test_shopify_create_fulfillment_minimal():
     svc = make_shopify(script={
-        "GET": [FakeResponse(json_data={"fulfillment_orders": [{"id": 11, "status": "open"}]})],
+        "GET": [FakeResponse(json_data={"fulfillment_orders": [{
+            "id": 11, "order_id": "o1", "status": "open",
+            "assigned_location_id": 3,
+            "line_items": [{
+                "id": "foli-11", "line_item_id": "line-11",
+                "quantity": 1, "remaining_quantity": 1}]}]})],
         "POST": [FakeResponse(json_data={"fulfillment": {"id": 2}})]})
     await svc.create_fulfillment("t", "acme", "o1")
     body = svc.http.calls[1][2]["json"]

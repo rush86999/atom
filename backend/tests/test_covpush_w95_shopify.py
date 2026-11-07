@@ -320,10 +320,18 @@ class TestFulfillments:
 
     async def test_create_fulfillment_full(self):
         svc = _svc()
+        def _fo(fo_id, status):
+            return {
+                "id": fo_id, "order_id": "o1", "status": status,
+                "assigned_location_id": 2,
+                "line_items": [{
+                    "id": f"foli-{fo_id}", "line_item_id": f"line-{fo_id}",
+                    "quantity": 1, "remaining_quantity": 1,
+                }],
+            }
+
         svc.http.get = AsyncMock(return_value=_resp(200, {"fulfillment_orders": [
-            {"id": 7, "status": "open", "assigned_location_id": 2},
-            {"id": 8, "status": "in_progress", "assigned_location_id": 2},
-            {"id": 9, "status": "closed", "assigned_location_id": 2},
+            _fo(7, "open"), _fo(8, "in_progress"), _fo(9, "closed"),
         ]}))
         svc.http.post = AsyncMock(return_value=_resp(201, {"fulfillment": {"id": 1}}))
         out = await svc.create_fulfillment("tok", "shop", "o1", "2",
@@ -339,8 +347,12 @@ class TestFulfillments:
 
     async def test_create_fulfillment_minimal(self):
         svc = _svc()
-        svc.http.get = AsyncMock(return_value=_resp(200, {"fulfillment_orders": [
-            {"id": 7, "status": "open"}]}))
+        svc.http.get = AsyncMock(return_value=_resp(200, {"fulfillment_orders": [{
+            "id": 7, "order_id": "o1", "status": "open",
+            "assigned_location_id": 2,
+            "line_items": [{"id": "foli-7", "line_item_id": "line-7",
+                            "quantity": 1, "remaining_quantity": 1}],
+        }]}))
         svc.http.post = AsyncMock(return_value=_resp(201, {}))
         await svc.create_fulfillment("tok", "shop", "o1")
         body = svc.http.post.call_args.kwargs["json"]["fulfillment"]
@@ -349,8 +361,12 @@ class TestFulfillments:
 
     async def test_create_fulfillment_notify_customer_opt_out(self):
         svc = _svc()
-        svc.http.get = AsyncMock(return_value=_resp(200, {"fulfillment_orders": [
-            {"id": 7, "status": "open"}]}))
+        svc.http.get = AsyncMock(return_value=_resp(200, {"fulfillment_orders": [{
+            "id": 7, "order_id": "o1", "status": "open",
+            "assigned_location_id": 2,
+            "line_items": [{"id": "foli-7", "line_item_id": "line-7",
+                            "quantity": 1, "remaining_quantity": 1}],
+        }]}))
         svc.http.post = AsyncMock(return_value=_resp(201, {}))
         await svc.create_fulfillment("tok", "shop", "o1", notify_customer=False)
         body = svc.http.post.call_args.kwargs["json"]["fulfillment"]
@@ -358,8 +374,12 @@ class TestFulfillments:
 
     async def test_create_fulfillment_location_mismatch_422(self):
         svc = _svc()
-        svc.http.get = AsyncMock(return_value=_resp(200, {"fulfillment_orders": [
-            {"id": 7, "status": "open", "assigned_location_id": 2}]}))
+        svc.http.get = AsyncMock(return_value=_resp(200, {"fulfillment_orders": [{
+            "id": 7, "order_id": "o1", "status": "open",
+            "assigned_location_id": 2,
+            "line_items": [{"id": "foli-7", "line_item_id": "line-7",
+                            "quantity": 1, "remaining_quantity": 1}],
+        }]}))
         with pytest.raises(HTTPException) as ei:
             await svc.create_fulfillment("tok", "shop", "o1", "999")
         assert ei.value.status_code == 422
@@ -372,6 +392,22 @@ class TestFulfillments:
         with pytest.raises(HTTPException) as ei:
             await svc.create_fulfillment("tok", "shop", "o1")
         assert ei.value.status_code == 422
+
+    @pytest.mark.parametrize("source_order", ["foreign-order", None])
+    async def test_create_fulfillment_contradictory_parent_never_posts(
+            self, source_order):
+        svc = _svc()
+        svc.http.get = AsyncMock(return_value=_resp(200, {"fulfillment_orders": [{
+            "id": 7, "order_id": source_order, "status": "open",
+            "assigned_location_id": 2,
+            "line_items": [{"id": "foli-7", "line_item_id": "line-7",
+                            "quantity": 1, "remaining_quantity": 1}],
+        }]}))
+        svc.http.post = AsyncMock(return_value=_resp(201, {}))
+        with pytest.raises(HTTPException) as ei:
+            await svc.create_fulfillment("tok", "shop", "o1")
+        assert ei.value.status_code == 422
+        svc.http.post.assert_not_called()
 
     async def test_create_fulfillment_error(self):
         svc = _svc()
