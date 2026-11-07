@@ -102,13 +102,14 @@ def test_budget_scope_uses_existing_personal_account_resolution(host, case):
                 assert result["current_spend_usd"] == 2, result
 
 
+@pytest.mark.parametrize("caller", ["async", "sync", "sync_in_async"])
 @pytest.mark.parametrize("mode,allowed,review", [
     ("hard_stop", False, False),
     ("soft_stop", False, False),
     ("approval", False, True),
     ("alert_only", True, False),
 ])
-def test_only_configured_approval_mode_proposes_budget_review(host, mode, allowed, review):
+def test_only_configured_approval_mode_proposes_budget_review(host, mode, allowed, review, caller):
     from core.agent_governance_service import AgentGovernanceService
     with host.Session() as db:
         db.add(Tenant(id=TENANT, name="Operator", subdomain="budget-modes"))
@@ -128,7 +129,14 @@ def test_only_configured_approval_mode_proposes_budget_review(host, mode, allowe
             cost_usd=2, timestamp=datetime.now()))
         db.commit()
         service = AgentGovernanceService(db, workspace_id=WORKSPACE, tenant_id=TENANT)
-        result = asyncio.run(service.can_perform_action_async(
-            "budget-agent", "mini_app_scaffold"))
+        if caller == "async":
+            result = asyncio.run(service.can_perform_action_async(
+                "budget-agent", "mini_app_scaffold"))
+        elif caller == "sync":
+            result = service.can_perform_action("budget-agent", "mini_app_scaffold")
+        else:
+            async def sync_consumer_in_async_route():
+                return service.can_perform_action("budget-agent", "mini_app_scaffold")
+            result = asyncio.run(sync_consumer_in_async_route())
         assert result["allowed"] is allowed, result
         assert bool(result.get("requires_human_approval")) is review, result
