@@ -325,7 +325,7 @@ def _audit_result(db_path: Path, baseline: Mapping[str, Any],
         "forbidden_markers_present": markers,
         "ok": bool(
             columns_exact and original_unchanged and len(restore_rows) == 1
-            and not non_restore_new_rows and all(provenance_checks.values())
+            and not non_restore_new and all(provenance_checks.values())
             and all(event_scope_checks.values()) and not forbidden_keys and not markers
         ),
     }

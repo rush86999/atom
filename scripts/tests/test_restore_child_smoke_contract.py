@@ -390,3 +390,35 @@ def test_readback_parquet_helper_requires_real_rows(tmp_path):
     assert result["rows_exact"] is True
     result = readback._parquet_check(path, ["value"], [[9], [9]])
     assert result["rows_exact"] is False
+
+
+@pytest.mark.parametrize("extra_action", [None, "update"])
+def test_audit_result_checks_real_rows_and_rejects_extra_effect(tmp_path, extra_action):
+    import json
+    import sqlite3
+    db = tmp_path / "audit.db"
+    con = sqlite3.connect(db)
+    columns = ["id", "action_type", "details_json", "tenant_id", "canvas_id",
+               "user_id", "agent_id", "session_id", "episode_id"]
+    con.execute("CREATE TABLE canvas_audit (" + ",".join(c + " TEXT" for c in columns) + ")")
+    original = dict(zip(columns, ["old", "create", "{}", "t", "c", "u", None, None, None]))
+    provenance = {"audit_id": "old", "restore_event_id": "new", "manifest_sha256": "manifest",
+                  "original_details_sha256": "details", "source_data_dir": "/source",
+                  "target_data_dir": "/target", "binding": "rebased_to_target",
+                  "source_canvas_tenant_id": "t", "source_audit_tenant_id": "t"}
+    con.execute("INSERT INTO canvas_audit VALUES (?,?,?,?,?,?,?,?,?)", list(original.values()))
+    con.execute("INSERT INTO canvas_audit VALUES (?,?,?,?,?,?,?,?,?)",
+                ["new", "restore", json.dumps({"restored_from": provenance}), "t", "c", None, None, None, None])
+    if extra_action:
+        con.execute("INSERT INTO canvas_audit VALUES (?,?,?,?,?,?,?,?,?)",
+                    ["extra", extra_action, "{}", "t", "c", "u", None, None, None])
+    con.commit(); con.close()
+    baseline = {"audit": {"rows": [original], "columns": columns,
+                          "original_rows_sha256": readback._canonical_hash([original]),
+                          "original_details_sha256": "details"},
+                "restore": {"manifest_sha256": "manifest", "source_data_dir": "/source",
+                            "target_data_dir": "/target"}}
+    result = readback._audit_result(db, baseline, {"audit_id": "old", "tenant_id": "t", "canvas_id": "c"})
+    assert result["original_unchanged"] is True
+    assert result["non_restore_new_rows"] == (1 if extra_action else 0)
+    assert result["ok"] is (extra_action is None)
