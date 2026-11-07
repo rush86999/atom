@@ -1423,16 +1423,12 @@ class TestListAgentsResilience:
     cause instead of a blank failure."""
 
     def test_list_agents_governance_error_returns_500_json(self, client: TestClient, monkeypatch):
-        """Governance service raising must yield a structured 500, not a crash."""
-        def _boom(db, *a, **k):
+        """A read-scope/database failure yields a structured, safe 500."""
+        def _boom(*args, **kwargs):
             raise RuntimeError("agent_registry table missing")
 
         monkeypatch.setattr(
-            "api.agent_routes.AgentGovernanceService",
-            lambda db, *a, **k: type("Gov", (), {
-                "list_agents": lambda self, category=None: (_ for _ in ()).throw(
-                    RuntimeError("agent_registry table missing"))
-            })())
+            "api.agent_routes._agent_reader_condition", _boom)
         response = client.get("/api/agents/")
         assert response.status_code == 500
         body = response.json()
@@ -1441,7 +1437,8 @@ class TestListAgentsResilience:
         assert payload.get("success") is False
         error = payload.get("error") or {}
         assert error.get("code") == "AGENT_LIST_FAILED"
-        assert "agent_registry" in error.get("message", "")
+        assert error.get("message") == "Failed to load agents; retry."
+        assert "agent_registry" not in error.get("message", "")
         assert "Traceback" not in str(body)
 
     def test_list_agents_job_query_error_returns_500_json(self, client: TestClient, test_agent_factory, monkeypatch):
@@ -1459,4 +1456,6 @@ class TestListAgentsResilience:
         payload = body.get("detail") or body
         assert payload.get("success") is False
         error = payload.get("error") or {}
-        assert "start_time" in error.get("message", "")
+        assert error.get("code") == "AGENT_LIST_FAILED"
+        assert error.get("message") == "Failed to load agents; retry."
+        assert "start_time" not in error.get("message", "")

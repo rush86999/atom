@@ -10,7 +10,7 @@ from advanced_workflow_orchestrator import AdvancedWorkflowOrchestrator
 from fastapi import BackgroundTasks, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
-from sqlalchemy import update
+from sqlalchemy import and_, or_, update
 from sqlalchemy.orm import Session
 
 from core.agent_governance_service import AgentGovernanceService
@@ -28,6 +28,7 @@ from core.base_routes import BaseAPIRouter
 from core.database import SessionLocal, get_db, get_db_session
 from core.enterprise_security import AuditEvent, EventType, SecurityLevel, enterprise_security
 from core.models import (
+    AgentExecution,
     AgentFeedback,
     AgentJob,
     AgentJobStatus,
@@ -38,9 +39,11 @@ from core.models import (
     HITLActionStatus,
     NEW_AGENT_CONFIDENCE,
     User,
+    UserStatus,
 )
 from core.notification_manager import notification_manager
-from core.rbac_service import Permission
+from core.personal_scope import PERSONAL_TENANT_ID, PERSONAL_WORKSPACE_ID
+from core.rbac_service import Permission, RBACService
 from core.security_dependencies import require_permission
 from core.websockets import manager as ws_manager
 
@@ -202,6 +205,161 @@ def _raise_agent_decision(result: Dict[str, Any]) -> None:
         raise HTTPException(status_code=503, detail=detail)
 
 
+def _authoritative_reader(
+    db: Session,
+    current_user: User,
+) -> User:
+    """Return the active User row for a read, re-read from the database.
+
+    Token age must not preserve a role, workspace or active flag that has
+    since changed. The caller's body is never consulted: only the persisted
+    User row is authority for the read scope.
+    """
+    actor_id = str(getattr(current_user, "id", "") or "")
+    if not actor_id:
+        raise router.unauthorized_error("Authentication required")
+    try:
+        actor = (
+            db.query(User)
+            .filter(User.id == actor_id)
+            .populate_existing()
+            .first()
+        )
+    except Exception as exc:  # noqa: BLE001 — unreadable authority fails closed
+        logger.warning(
+            "Agent read authority unavailable: stage=actor error_class=%s",
+            type(exc).__name__)
+        raise router.error_response(
+            error_code="AGENT_READ_AUTHORITY_UNAVAILABLE",
+            message="Agent data is temporarily unavailable; retry.",
+            status_code=503,
+        ) from exc
+
+    if actor is None:
+        raise router.unauthorized_error("Authentication required")
+    if (
+        str(getattr(actor, "status", "") or "") != UserStatus.ACTIVE.value
+        or getattr(actor, "is_active", None) is False
+    ):
+        raise router.permission_denied_error("read agent data", "Agent")
+    if not RBACService.check_permission(actor, Permission.AGENT_VIEW):
+        raise router.permission_denied_error("read agent data", "Agent")
+    return actor
+
+
+def _reader_scope(actor: User) -> Dict[str, Any]:
+    """Resolve the supported read scope from the authoritative User row.
+
+    A real workspace/tenant stays exact. An explicitly personal/null actor
+    keeps the documented Personal-Edition default compatibility; a request
+    body can never manufacture that compatibility.
+    """
+    raw_workspace = getattr(actor, "workspace_id", None)
+    raw_tenant = getattr(actor, "tenant_id", None)
+    workspace = (
+        str(raw_workspace).strip()
+        if raw_workspace not in (None, "") else PERSONAL_WORKSPACE_ID)
+    tenant = (
+        str(raw_tenant).strip()
+        if raw_tenant not in (None, "") else PERSONAL_TENANT_ID)
+    return {
+        "workspace_id": workspace,
+        "tenant_id": tenant,
+        "personal": (
+            raw_workspace in (None, "")
+            or workspace == PERSONAL_WORKSPACE_ID),
+    }
+
+
+def _legacy_or_exact(column, value: str):
+    """Match an exact scope value plus legacy unscoped rows.
+
+    A contradictory real value never matches. Missing value, the empty string
+    and the Personal-Edition ``default`` alias remain legacy-compatible;
+    the caller supplies the workspace boundary that makes those rows belong
+    to this read.
+    """
+    return or_(
+        column.is_(None),
+        column == "",
+        column == PERSONAL_TENANT_ID,
+        column == value,
+    )
+
+
+def _agent_reader_condition(scope: Dict[str, Any]):
+    """Scope AgentRegistry reads to the current workspace and shared agents.
+
+    Personal/null and ``default`` registry entries are the existing shared
+    surface. Current-workspace agents are included; peer workspace and foreign
+    tenant rows are not. No administrator-wide bypass is invented here.
+    """
+    workspace = scope["workspace_id"]
+    if scope["personal"]:
+        workspace_condition = or_(
+            AgentRegistry.workspace_id.is_(None),
+            AgentRegistry.workspace_id == "",
+            AgentRegistry.workspace_id == workspace,
+        )
+    else:
+        workspace_condition = or_(
+            AgentRegistry.workspace_id.is_(None),
+            AgentRegistry.workspace_id == "",
+            AgentRegistry.workspace_id == PERSONAL_WORKSPACE_ID,
+            AgentRegistry.workspace_id == workspace,
+        )
+    # Personal/default is an existing shared-registry alias, not a foreign
+    # tenant. A contradictory real tenant still does not match.
+    tenant_condition = or_(
+        AgentRegistry.tenant_id.is_(None),
+        AgentRegistry.tenant_id == "",
+        AgentRegistry.tenant_id == PERSONAL_TENANT_ID,
+        AgentRegistry.tenant_id == scope["tenant_id"],
+    )
+    return and_(workspace_condition, tenant_condition)
+
+
+def _execution_reader_condition(scope: Dict[str, Any]):
+    """Scope AgentExecution history by its frozen, authoritative scope.
+
+    A real-workspace actor sees only executions stamped with that workspace.
+    Moving the agent afterwards must not relabel the old result, and a missing
+    execution workspace is unknown rather than the caller's/agent's current
+    workspace. Personal/null compatibility is limited to an explicitly
+    personal principal; it never becomes an unfiltered read.
+    """
+    workspace = scope["workspace_id"]
+    if scope["personal"]:
+        workspace_condition = or_(
+            AgentExecution.workspace_id.is_(None),
+            AgentExecution.workspace_id == "",
+            AgentExecution.workspace_id == workspace,
+        )
+    else:
+        workspace_condition = AgentExecution.workspace_id == workspace
+    return and_(
+        workspace_condition,
+        _legacy_or_exact(AgentExecution.tenant_id, scope["tenant_id"]),
+    )
+
+
+def _scoped_agent(
+    db: Session,
+    actor: User,
+    agent_id: str,
+) -> Optional[AgentRegistry]:
+    """Load one AgentRegistry row inside the actor's read scope."""
+    return (
+        db.query(AgentRegistry)
+        .filter(
+            AgentRegistry.id == str(agent_id),
+            _agent_reader_condition(_reader_scope(actor)),
+        )
+        .populate_existing()
+        .first()
+    )
+
+
 @router.get("/history")
 async def get_agent_execution_history(
     limit: int = Query(50, ge=1, le=100, description="Max results (capped at 100)"),
@@ -210,9 +368,11 @@ async def get_agent_execution_history(
     db: Session = Depends(get_db)
 ):
     """Get recent agent execution history (for the Agents page history panel)."""
-    from core.models import AgentExecution, ExecutionStatus
     try:
-        executions = db.query(AgentExecution).order_by(
+        actor = _authoritative_reader(db, current_user)
+        executions = db.query(AgentExecution).filter(
+            _execution_reader_condition(_reader_scope(actor))
+        ).order_by(
             AgentExecution.started_at.desc()
         ).limit(limit).all()
         return [
@@ -229,9 +389,17 @@ async def get_agent_execution_history(
             }
             for e in executions
         ]
-    except Exception as e:
-        logger.error(f"Failed to fetch agent history: {e}")
-        return []
+    except HTTPException:
+        raise
+    except Exception as exc:  # noqa: BLE001 — unavailable is not empty
+        logger.error(
+            "Agent history read unavailable: stage=query error_class=%s",
+            type(exc).__name__)
+        raise router.error_response(
+            error_code="AGENT_HISTORY_UNAVAILABLE",
+            message="Agent history is temporarily unavailable; retry.",
+            status_code=503,
+        ) from exc
 
 
 @router.get("/")
@@ -249,8 +417,12 @@ async def list_agents(
     # Catch, log the real cause server-side, and return a structured error so
     # the page can show what actually went wrong.
     try:
-        governance_service = AgentGovernanceService(db)
-        agents_db = governance_service.list_agents(category)
+        actor = _authoritative_reader(db, current_user)
+        query = db.query(AgentRegistry).filter(
+            _agent_reader_condition(_reader_scope(actor)))
+        if category:
+            query = query.filter(AgentRegistry.category == category)
+        agents_db = query.all()
 
         # Get last run times
         from sqlalchemy import func
@@ -274,13 +446,17 @@ async def list_agents(
             data=agents_list,
             message=f"Retrieved {len(agents_list)} agents"
         )
-    except Exception as e:
-        logger.error(f"Failed to list agents: {e}", exc_info=True)
+    except HTTPException:
+        raise
+    except Exception as exc:  # noqa: BLE001 — keep internals out of the reply
+        logger.error(
+            "Failed to list agents: stage=list error_class=%s",
+            type(exc).__name__)
         raise router.error_response(
             error_code="AGENT_LIST_FAILED",
-            message=f"Failed to load agents: {e}",
+            message="Failed to load agents; retry.",
             status_code=500,
-        ) from e
+        ) from exc
 
 # --- Endpoints ---
 
@@ -293,7 +469,8 @@ async def get_agent(
     db: Session = Depends(get_db)
 ):
     """Get a specific agent by ID"""
-    agent = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+    actor = _authoritative_reader(db, current_user)
+    agent = _scoped_agent(db, actor, agent_id)
     if not agent:
         raise router.not_found_error("Agent", agent_id)
 
@@ -348,7 +525,8 @@ async def get_agent_status(
     db: Session = Depends(get_db)
 ):
     """Get the current status of an agent"""
-    agent = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+    actor = _authoritative_reader(db, current_user)
+    agent = _scoped_agent(db, actor, agent_id)
     if not agent:
         raise router.not_found_error("Agent", agent_id)
 
@@ -386,7 +564,8 @@ async def get_agent_graduation_progress(
     db: Session = Depends(get_db),
 ):
     """Get tier + episode progress for an agent."""
-    agent = db.query(AgentRegistry).filter(AgentRegistry.id == agent_id).first()
+    actor = _authoritative_reader(db, current_user)
+    agent = _scoped_agent(db, actor, agent_id)
     if not agent:
         raise router.not_found_error("Agent", agent_id)
 
