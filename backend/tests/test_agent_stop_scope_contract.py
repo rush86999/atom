@@ -275,6 +275,68 @@ def test_receipt_failure_reports_effect_unknown_after_cancel(env):
     detail = response.json()["detail"]
     assert detail["error"]["code"] == "AGENT_EFFECT_UNKNOWN"
     assert detail["verification"]["effect"] == "unknown"
+    assert detail["verification"]["replay"] == "do_not_repeat"
+    # The known cancellation is preserved through the public error envelope.
+    assert detail["data"] == {"agent_id": "a1", "cancelled_tasks": 2}
+    assert env.fake.cancel_calls == ["a1"]
+    assert _audits(env) == []
+
+
+def test_readback_failure_reports_known_cancelled_count(env):
+    original = service._verify_audit
+
+    def refuted(*args, **kwargs):
+        return {"status": "refuted", "audit_id": "agent:stop:unverified-stop"}
+
+    env.monkeypatch.setattr(service, "_verify_audit", refuted)
+    response = _stop(env, "admin-1", "a1", "unverified-stop")
+    assert response.status_code == 503, response.text
+    detail = response.json()["detail"]
+    assert detail["error"]["code"] == "AGENT_COMMITTED_UNVERIFIED"
+    assert detail["verification"]["effect"] == "committed"
+    assert detail["verification"]["replay"] == "do_not_repeat"
+    assert detail["data"] == {"agent_id": "a1", "cancelled_tasks": 2}
+    assert env.fake.cancel_calls == ["a1"]
+    assert len(_audits(env, "agent:stop:unverified-stop")) == 1
+    # Restore for any later assertion in this session.
+    env.monkeypatch.setattr(service, "_verify_audit", original)
+
+
+def test_unreadable_task_state_is_unavailable_before_dispatch(env):
+    def unreadable(_agent_id):
+        raise RuntimeError("synthetic registry read failure")
+
+    env.monkeypatch.setattr(env.fake, "get_agent_tasks", unreadable)
+    response = _stop(env, "admin-1", "a1", "unreadable-state")
+    assert response.status_code == 503, response.text
+    detail = response.json()["detail"]
+    assert detail["error"]["code"] == "AGENT_TASK_STATE_UNAVAILABLE"
+    assert detail["verification"]["effect"] == "none"
+    assert detail["verification"]["replay"] == "safe_after_refresh"
+    assert env.fake.cancel_calls == []
+    assert len(env.fake.tasks["a1"]) == 2
+    assert _audits(env) == []
+
+
+def test_cancellation_exception_after_dispatch_is_effect_unknown(env):
+    async def partial_then_raise(agent_id):
+        env.fake.cancel_calls.append(agent_id)
+        env.fake.tasks[agent_id].pop()
+        raise RuntimeError("synthetic failure after one cancellation")
+
+    env.monkeypatch.setattr(
+        env.fake, "cancel_agent_tasks", partial_then_raise)
+    response = _stop(env, "admin-1", "a1", "partial-cancel")
+    assert response.status_code == 503, response.text
+    detail = response.json()["detail"]
+    assert detail["error"]["code"] == "AGENT_EFFECT_UNKNOWN"
+    assert detail["verification"]["effect"] == "unknown"
+    assert detail["verification"]["replay"] == "do_not_repeat"
+    assert detail["verification"]["error"] == "CANCEL_CONFIRMATION_UNKNOWN"
+    # Never invent a count from an exception; preserve only the known target.
+    assert detail.get("data") == {"agent_id": "a1"}
+    assert "cancelled_tasks" not in detail.get("data", {})
+    assert len(env.fake.tasks["a1"]) == 1
     assert env.fake.cancel_calls == ["a1"]
     assert _audits(env) == []
 

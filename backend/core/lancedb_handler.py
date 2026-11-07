@@ -1589,6 +1589,58 @@ class LanceDBHandler:
             logger.error(f"Failed to list ids by prefix in '{table_name}': {e}")
             return []
 
+    def count_document_rows_by_id(self, table_name: str, doc_id: str) -> int:
+        """Count rows whose id equals ``doc_id`` exactly.
+
+        ``delete_documents_by_id`` removes every append-only version of a
+        document id, so a presence check (``get_document_by_id``) cannot tell
+        one row from five. The verified-delete receipt records exact pre/post
+        counts. Returns ``-1`` when the table could not be read, which is a
+        different fact from "zero rows" and must not be reported as absence.
+        """
+        self._ensure_db()
+        if self.db is None:
+            return -1
+        try:
+            table = self.get_table(table_name)
+            if table is None:
+                return 0
+            import pyarrow as _pa
+            import pyarrow.compute as _pc
+
+            column = table.to_arrow().column("id")
+            mask = _pc.equal(column, str(doc_id))
+            return int(_pc.sum(_pc.cast(mask, _pa.int64())).as_py() or 0)
+        except Exception as e:
+            logger.error(
+                f"Failed to count document {doc_id} in '{table_name}': {e}")
+            return -1
+
+    def count_document_rows_by_prefix(self, table_name: str, id_prefix: str) -> int:
+        """Count rows whose id starts with ``id_prefix`` (chunk family).
+
+        Same availability contract as ``count_document_rows_by_id``: ``-1``
+        means the count is unknown, never "the family is gone".
+        """
+        self._ensure_db()
+        if self.db is None:
+            return -1
+        try:
+            table = self.get_table(table_name)
+            if table is None:
+                return 0
+            import pyarrow as _pa
+            import pyarrow.compute as _pc
+
+            column = table.to_arrow().column("id")
+            mask = _pc.starts_with(column, pattern=str(id_prefix))
+            return int(_pc.sum(_pc.cast(mask, _pa.int64())).as_py() or 0)
+        except Exception as e:
+            logger.error(
+                f"Failed to count documents by prefix {id_prefix} in "
+                f"'{table_name}': {e}")
+            return -1
+
     def delete_documents_by_id(self, table_name: str, doc_id: str) -> bool:
         """Delete ALL rows whose id equals ``doc_id`` from a table.
 

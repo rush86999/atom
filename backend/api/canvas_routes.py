@@ -134,7 +134,10 @@ async def list_recordings(
     current_user: User = Depends(get_current_user)
 ):
     """List canvas recordings."""
-    service = ServiceFactory.get_canvas_recording_service(db, tenant_id=current_user.tenant_id)
+    service = ServiceFactory.get_canvas_recording_service(
+        db, tenant_id=current_user.tenant_id,
+        workspace_id=getattr(current_user, "workspace_id", None) or "default",
+    )
 
     recordings = await service.list_recordings(
         user_id=str(current_user.id),
@@ -156,7 +159,10 @@ async def get_recording(
     SECURITY: Verifies the recording belongs to the authenticated user
     before returning data (prevents IDOR).
     """
-    service = ServiceFactory.get_canvas_recording_service(db, tenant_id=current_user.tenant_id)
+    service = ServiceFactory.get_canvas_recording_service(
+        db, tenant_id=current_user.tenant_id,
+        workspace_id=getattr(current_user, "workspace_id", None) or "default",
+    )
 
     recording = await service.get_recording(recording_id)
     if not recording:
@@ -1363,7 +1369,10 @@ async def start_recording(
     current_user: User = Depends(get_current_user)
 ):
     """Start recording a canvas session."""
-    service = ServiceFactory.get_canvas_recording_service(db, tenant_id=current_user.tenant_id)
+    service = ServiceFactory.get_canvas_recording_service(
+        db, tenant_id=current_user.tenant_id,
+        workspace_id=getattr(current_user, "workspace_id", None) or "default",
+    )
     
     recording_id = await service.start_recording(
         user_id=str(current_user.id),
