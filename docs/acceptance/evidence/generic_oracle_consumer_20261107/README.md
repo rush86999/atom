@@ -3,7 +3,7 @@
 Source base: `8bbad92cbef69a5e540afd30d0e748139590030f`
 (fail-first reviewed matrix checkpoint on
 `codex/generic-oracle-consumer-20261107`).
-Code/test commit: `ec9dede00` on the same branch.
+Code/test commit: `039a24f4e` on the same branch.
 
 ## Defect reproduced at the checkpoint
 
