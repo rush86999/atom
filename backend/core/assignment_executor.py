@@ -2202,11 +2202,33 @@ class AssignmentExecutor:
                             version=True)
                     authoritative = str(
                         getattr(row, "source_content_hash", "") or "")
-                    if expected and authoritative and expected != authoritative:
+                    indexed = str(
+                        result.get("source_version")
+                        or ((result.get("extraction") or {}).get(
+                            "indexed_version")
+                            if isinstance(result.get("extraction"), dict)
+                            else "")
+                        or "")
+                    accepted_revision = str(
+                        binding.get("source_version")
+                        or result.get("source_version")
+                        or "")
+                    if not accepted_revision:
+                        return step, self._source_gap(
+                            binding, step, code="source_revision_missing",
+                            detail="the accepted source receipt has no revision pin",
+                            version=True)
+                    from core.doc_freshness_service import (
+                        ExtractionIdentityError,
+                        current_extraction_revision,
+                    )
+                    try:
+                        current_extraction_revision(
+                            indexed, authoritative, accepted_revision)
+                    except ExtractionIdentityError as exc:
                         return step, self._source_gap(
                             binding, step, code="stale_source_version",
-                            detail="the authoritative upload version no longer matches the accepted pin",
-                            version=True)
+                            detail=str(exc), version=True)
                     path = str(
                         getattr(row, "file_path", "")
                         or inputs.get("path") or binding.get("path") or "")
