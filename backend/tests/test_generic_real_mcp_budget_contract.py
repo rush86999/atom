@@ -43,4 +43,60 @@ def test_real_mcp_registry_context_and_capability_boundary(host,monkeypatch,case
         assert receipts[0].details_json["operation_id"]==result["operation_id"]
     else:
         assert not effects and not receipts,result
-        assert result.get("success") is not True,result
+        if isinstance(result, dict):
+            assert result.get("success") is not True,result
+        else:
+            assert case == "hard_stop" and "budget" in result.lower(), result
+        if case == "hard_stop":
+            from core.models import HITLAction
+            with host.Session() as db:
+                assert db.query(HITLAction).filter(
+                    HITLAction.agent_id == agent.id).count() == 0
+
+
+@pytest.mark.parametrize("case", [
+    "explicit", "agent_fallback", "workspace_fallback", "personal_null",
+    "wrong_tenant", "wrong_workspace", "unconfigured",
+])
+def test_budget_scope_uses_existing_personal_account_resolution(host, case):
+    from core.agent_governance_service import AgentGovernanceService
+    personal = case == "personal_null"
+    tenant = "default" if personal else TENANT
+    workspace_id = "default" if personal else WORKSPACE
+    agent_workspace = None if personal else WORKSPACE
+    agent_tenant = None if case in ("personal_null", "workspace_fallback") else TENANT
+    with host.Session() as db:
+        db.add(Tenant(id=tenant, name="Operator", subdomain="budget-operator"))
+        db.add(Workspace(id=workspace_id, name="Operator workspace", tenant_id=tenant))
+        db.add(AgentRegistry(
+            id="budget-agent", name="Budget actor", category="Operations",
+            module_path="core.generic_agent", class_name="GenericAgent",
+            user_id=USER, workspace_id=agent_workspace, tenant_id=agent_tenant,
+            status="autonomous", confidence_score=0.99))
+        if case != "unconfigured":
+            db.add(TenantSetting(
+                tenant_id=tenant, setting_key="billing",
+                setting_value=json.dumps({"budget_limit_usd":1,
+                    "enforcement":{"mode":"hard_stop"}})))
+            db.add(TokenUsage(
+                agent_id="budget-agent", workspace_id=agent_workspace,
+                tenant_id=tenant, model_name="controlled-no-provider",
+                cost_usd=2, timestamp=datetime.now()))
+        db.commit()
+        selected_tenant = TENANT if case in ("explicit", "unconfigured") else None
+        if case == "wrong_tenant":
+            selected_tenant = "different-account"
+        selected_workspace = "different-workspace" if case == "wrong_workspace" else workspace_id
+        service = AgentGovernanceService(
+            db, workspace_id=selected_workspace, tenant_id=selected_tenant)
+        result = asyncio.run(service._check_budget_async(
+            "budget-agent", "mini_app_scaffold", None))
+        if case == "unconfigured":
+            assert result["allowed"] is True, result
+        else:
+            assert result["allowed"] is False, result
+            if case in ("wrong_tenant", "wrong_workspace"):
+                assert "scope" in result["reason"].lower(), result
+            else:
+                assert result["enforcement_mode"] == "hard_stop", result
+                assert result["current_spend_usd"] == 2, result

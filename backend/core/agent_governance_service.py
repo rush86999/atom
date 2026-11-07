@@ -722,9 +722,39 @@ class AgentGovernanceService:
         """
         try:
             from core.budget_enforcement_service import BudgetEnforcementService
+            from core.models import Workspace
+            from core.personal_scope import resolve_tenant_id
+
+            # Billing is keyed by tenant/account, not by workspace. The two
+            # happen to match in the legacy personal bootstrap, but ordinary
+            # registrations have distinct opaque ids. Resolve through the
+            # existing personal-scope contract and authoritative scoped rows.
+            agent = self.db.query(AgentRegistry).filter(
+                AgentRegistry.id == agent_id,
+                self._workspace_scope_condition(),
+            ).first()
+            if agent is None:
+                return {
+                    "allowed": False,
+                    "reason": "Agent scope is unavailable for budget verification",
+                }
+            workspace = (
+                self.db.query(Workspace).filter(
+                    Workspace.id == agent.workspace_id).first()
+                if agent.workspace_id else None)
+            tenants = {
+                str(value) for value in (
+                    self.tenant_id, agent.tenant_id,
+                    getattr(workspace, "tenant_id", None)) if value
+            }
+            if len(tenants) > 1:
+                return {
+                    "allowed": False,
+                    "reason": "Agent/account scope changed before budget verification",
+                }
             budget_svc = BudgetEnforcementService(self.db)
             return await budget_svc.check_budget_before_action(
-                tenant_id=self.workspace_id,
+                tenant_id=resolve_tenant_id(self, agent, workspace),
                 agent_id=agent_id,
                 action=action_type,
                 chain_id=chain_id,
@@ -761,7 +791,12 @@ class AgentGovernanceService:
             return {
                 "allowed": False,
                 "reason": budget_check.get("reason"),
-                "requires_human_approval": True,
+                # Only the configured approval mode is reviewable. A hard
+                # stop or unresolved scope cannot become permission to spend
+                # merely because an ordinary action review was approved.
+                "requires_human_approval": (
+                    budget_check.get("enforcement_mode") == "approval"),
+                "enforcement_mode": budget_check.get("enforcement_mode"),
                 "status_code": "BUDGET_EXCEEDED",
             }
         return decision
