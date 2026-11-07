@@ -1,4 +1,4 @@
-Final verification on source 882713a0a (branch
+Final verification on source ec9dede00 (branch
 codex/generic-oracle-consumer-20261107).
 
 Environment: TESTING=1; explicit scratch SQLite
@@ -11,8 +11,10 @@ model, provider, VM, credential, install, send or spend.
    <python> -m pytest tests/test_generic_oracle_mutation_contract.py \
      ../LEAD_PROBES/test_lead_generic_draft_boundaries.py \
      ../LEAD_PROBES/test_lead_generic_normal_identity.py \
-     ../LEAD_PROBES/test_lead_generic_reload_unavailable.py -q
-   Result: 41 passed.
+     ../LEAD_PROBES/test_lead_generic_reload_unavailable.py \
+     ../LEAD_PROBES/test_lead_generic_normal_changed_retry.py \
+     ../LEAD_PROBES/test_lead_generic_two_normal_writes.py -q
+   Result: 43 passed.
    Covered: root negatives/read twin (landed-row version with complete server
    context), missing/None/raising/refuting verdicts, positive independent
    readback, disabled oracle, plan/read twins, frozen request/operation
@@ -20,7 +22,8 @@ model, provider, VM, credential, install, send or spend.
    conflict, uncertain timeout no-resend across fresh agents, fresh-session
    replay refutation, same-slot changed-args/action, explicit-id-without-
    workspace refusal, normal no-operation-id no-repeat, cold resume reload,
-   unreadable claim store, zero-claim read-only success, forced-interleaving
+   unreadable claim store, zero-claim read-only success, normal changed-retry
+   no-repeat, two verified sequential same-action writes, forced-interleaving
    mark_status CAS, and public execute() finalization.
 
 2. Shared assignment/oracle regression

@@ -3,7 +3,7 @@
 Source base: `8bbad92cbef69a5e540afd30d0e748139590030f`
 (fail-first reviewed matrix checkpoint on
 `codex/generic-oracle-consumer-20261107`).
-Code/test commit: `882713a0a` on the same branch.
+Code/test commit: `ec9dede00` on the same branch.
 
 ## Defect reproduced at the checkpoint
 
@@ -38,7 +38,11 @@ passed.
   intent slot is the identity by itself (model action/material cannot re-mint
   it); without a slot, action + frozen material scope the operation inside the
   execution (identical retry dedupes, a genuinely different request is a new
-  intent, not a forever payload cache).
+  intent, not a forever payload cache). If the same action already has an
+  unresolved (claimed/dispatching/uncertain) claim in the execution, a
+  slotless model retry reuses that pending operation even when the model
+  varies an incidental parameter; a distinct server slot or explicit operation
+  id remains independent authority.
 - The server operation id is carried into the handler's context copy so a
   durable producer receipt can bind to it, while caller/model args and
   result-owned expected fields stay untouched.
@@ -68,11 +72,13 @@ passed.
 Fresh scratch SQLite and basetemp roots; `TESTING=1`; no live DB, world,
 network, model, provider, VM, credential, install, send or spend.
 
-- Reviewed matrix + all supplied normal-identity/reload probes: **41 passed**
-  (`tests/test_generic_oracle_mutation_contract.py`,
+- Reviewed matrix + all supplied normal-identity/reload/retry probes: **43
+  passed** (`tests/test_generic_oracle_mutation_contract.py`,
   `LEAD_PROBES/test_lead_generic_draft_boundaries.py`,
   `LEAD_PROBES/test_lead_generic_normal_identity.py`,
-  `LEAD_PROBES/test_lead_generic_reload_unavailable.py`).
+  `LEAD_PROBES/test_lead_generic_reload_unavailable.py`,
+  `LEAD_PROBES/test_lead_generic_normal_changed_retry.py`,
+  `LEAD_PROBES/test_lead_generic_two_normal_writes.py`).
 - Shared assignment/oracle regression command: **156 passed**.
 - Generic/oracle/fleet focused cluster: **341 passed, 4 skipped**; unrelated
   baseline failures are listed in `baseline-unrelated-failures.txt`.
