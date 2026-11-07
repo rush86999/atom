@@ -1,0 +1,3 @@
+# Page fixture cleanup repair
+
+Hosted frontend job128420424055 at2d60f569b failed the retained no-unhandled-network assertion: a page graduation-progress effect escaped after fetch restoration. Cleanup now drains pending React effects while controlled fetch remains installed. No production code, assertion deletion, warning suppression or role/profile change. The same four-suite CI selection passes53/53 locally, actualexit0. Run occurred before commit; executed test bytes match source850d4bd9d18a9b22eb88e06a6f6768841b0557ac. Source tree was not clean at run. No browser or hosted-success claim until fresh exact-head CI. Prior evidence remains unchanged.

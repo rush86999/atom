@@ -1,0 +1,16 @@
+{
+  "executed_source": "63500058903f5786a9b395bdb77bc66e96e22e93",
+  "jest": {
+    "actual_exit": 0,
+    "passed": 53,
+    "suites": 4,
+    "original_page_tests_retained": 35,
+    "unhandled_request_warnings": 0
+  },
+  "tsc": {
+    "actual_exit": 0
+  },
+  "browser_acceptance": "open",
+  "prior_backend_proof": "generic_information_ui_335c2204a:113; backend bytes unchanged by UI successor",
+  "preserved_negative": "bf805077b:52 passed/1 failed; overbroad child mock removed required template link; repaired without deleting assertion"
+}

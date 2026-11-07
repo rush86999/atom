@@ -162,7 +162,10 @@ describe("AgentsDashboard", () => {
     global.fetch = mockFetch;
   });
 
-  afterEach(() => {
+  afterEach(async () => {
+    // Drain page-owned effects while the controlled fetch is still installed.
+    // Restoring it first lets a delayed graduation request escape into MSW.
+    await act(async () => { await Promise.resolve(); });
     global.fetch = originalFetch;
   });
 
@@ -789,3 +792,30 @@ describe("AgentsDashboard", () => {
     );
   });
 });
+
+
+// These child flows have their own controls; page wiring tests must not call
+// a developer backend for onboarding, OAuth or maturity proposals.
+jest.mock("@/components/Agents/MaturityApprovalPanel", () => ({ __esModule: true, default: () => null }));
+jest.mock("@/components/Agents/GuidedAgentCreator", () => ({ GuidedAgentCreator: () => null }));
+jest.mock("@/components/Agents/AutomationSuggestionsPanel", () => ({ AutomationSuggestionsPanel: () => null }));
+jest.mock("@/components/Agents/AgentMaturityGuide", () => ({ AgentMaturityGuideDialog: () => null }));
+let unhandledRequestWarnings: jest.SpyInstance;
+beforeEach(() => { unhandledRequestWarnings = jest.spyOn(console, "warn"); });
+afterEach(() => {
+  const unhandled = unhandledRequestWarnings.mock.calls.filter(
+    (args) => args.some((arg) => typeof arg === "string" && arg.includes("captured a request without a matching request handler")));
+  unhandledRequestWarnings.mockRestore();
+  expect(unhandled).toEqual([]);
+});
+
+// Keep the real launch/onboarding UI while isolating its unrelated transports.
+jest.mock("@/lib/api", () => ({ apiClient: {
+  get: async (path: string) => {
+    if (path === "/api/v1/auth/oauth/tokens") return { data: { integrations: [] } };
+    if (path === "/api/v1/auth/oauth/config-status") return { data: {} };
+    if (path === "/api/data-ingestion/available-integrations") return { data: { data: [] } };
+    throw new Error(`Unexpected launch-guide request: ${path}`);
+  },
+} }));
+jest.mock("@/lib/maturity-api", () => ({ listTrainingProposals: async () => [] }));

@@ -12,6 +12,13 @@ import AgentLaunchGuide from "@/components/Agents/AgentLaunchGuide";
 import { GuidedAgentCreator } from "@/components/Agents/GuidedAgentCreator";
 import { AutomationSuggestionsPanel } from "@/components/Agents/AutomationSuggestionsPanel";
 import { AgentMaturityGuideDialog } from "@/components/Agents/AgentMaturityGuide";
+import AgentJobWaitPanel from "@/components/Agents/AgentJobWaitPanel";
+import { getCurrentUser } from "@/lib/identity";
+import {
+    rememberAgentJob,
+    loadLastAgentJob,
+    forgetAgentJobIfCurrent,
+} from "@/lib/agent-job-ref";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { LayoutDashboard, Sparkles, GraduationCap } from "lucide-react";
@@ -97,6 +104,31 @@ const AgentsDashboard = () => {
     const [selectedAgentId, setSelectedAgentId] = useState<string | null>(null);
     const [runInstructions, setRunInstructions] = useState("");
     const [isRunning, setIsRunning] = useState(false);
+
+    // The last admitted job for this signed-in user/agent. Only an opaque
+    // locator is persisted; the panel rehydrates the question/result from the
+    // authorized server read and never trusts cached text as authority.
+    const [activeJob, setActiveJob] = useState<{ agentId: string; jobId: string } | null>(null);
+    useEffect(() => {
+        const userId = getCurrentUser()?.id;
+        if (!userId) return;
+        const ref = loadLastAgentJob(userId);
+        if (ref) setActiveJob({ agentId: ref.agentId, jobId: ref.jobId });
+    }, []);
+
+    const rememberActiveJob = useCallback((agentId: string, jobId: string) => {
+        const userId = getCurrentUser()?.id;
+        if (userId) rememberAgentJob(userId, agentId, jobId);
+        setActiveJob({ agentId, jobId });
+    }, []);
+
+    const forgetActiveJob = useCallback(() => {
+        const userId = getCurrentUser()?.id;
+        if (userId && activeJob) {
+            forgetAgentJobIfCurrent(userId, activeJob.agentId, activeJob.jobId);
+        }
+        setActiveJob(null);
+    }, [activeJob]);
     
     // Reasoning Modal State
     const [isReasoningModalOpen, setIsReasoningModalOpen] = useState(false);
@@ -289,11 +321,33 @@ const AgentsDashboard = () => {
             });
 
             if (res.ok) {
-                toast({
-                    title: "Agent Started Successfully",
-                    description: `Agent ${selectedAgentId} is now running with your instructions.`,
-                    duration: 5000
-                });
+                // Retain the returned job identity and show the exact wait
+                // state instead of claiming the run finished from HTTP 200.
+                let payload: any = null;
+                try {
+                    payload = await res.json();
+                } catch {
+                    payload = null;
+                }
+                const data = payload?.data ?? payload ?? {};
+                const jobId = typeof data.job_id === "string" ? data.job_id : "";
+                if (jobId) {
+                    rememberActiveJob(selectedAgentId, jobId);
+                }
+                const waiting = data.job_status === "waiting" || Boolean(data.wait_receipt);
+                if (waiting) {
+                    toast({
+                        title: "Agent needs information",
+                        description: "Answer the question in the job panel to continue the same task.",
+                        duration: 6000
+                    });
+                } else {
+                    toast({
+                        title: "Agent Started Successfully",
+                        description: `Agent ${selectedAgentId} is now running with your instructions.`,
+                        duration: 5000
+                    });
+                }
                 setIsRunDialogOpen(false); // Close dialog on success
             } else {
                 if (res.status === 401 || res.status === 403) {
@@ -627,6 +681,14 @@ const AgentsDashboard = () => {
                             logs={logs}
                             status={activeAgentStatus}
                         />
+                        {activeJob && (
+                            <AgentJobWaitPanel
+                                key={`${activeJob.agentId}:${activeJob.jobId}`}
+                                agentId={activeJob.agentId}
+                                jobId={activeJob.jobId}
+                                onForget={forgetActiveJob}
+                            />
+                        )}
                         <Tabs defaultValue="career">
                             <TabsList className="w-full grid grid-cols-3">
                                 <TabsTrigger value="career">Career path</TabsTrigger>

@@ -2219,6 +2219,170 @@ def _job_outcome_projection(job_id: str, bind) -> Optional[Dict[str, Any]]:
         session.close()
 
 
+def _job_read_scope_allows(user: User, namespace: Dict[str, Any]) -> bool:
+    """Current principal must still match the admitted job scope.
+
+    Personal deployments intentionally carry nullable workspace/tenant values;
+    a null on either side cannot invent scope, but two concrete values must be
+    equal.  The admitted actor is checked separately against the durable
+    admission receipt, so this is a compatibility check, not the authority.
+    """
+    user_workspace = getattr(user, "workspace_id", None)
+    job_workspace = namespace.get("workspace_id")
+    if (
+        user_workspace is not None
+        and job_workspace is not None
+        and str(user_workspace) != str(job_workspace)
+    ):
+        return False
+    user_tenant = getattr(user, "tenant_id", None)
+    job_tenant = namespace.get("tenant_id")
+    if (
+        user_tenant is not None
+        and job_tenant is not None
+        and str(user_tenant) != str(job_tenant)
+    ):
+        return False
+    return True
+
+
+def _public_information_wait(
+    payload: Dict[str, Any],
+    *,
+    bind,
+    job_id: str,
+    agent_id: str,
+    execution_id: str,
+    namespace: Dict[str, Any],
+) -> Optional[Dict[str, Any]]:
+    """Project the exact current wait, re-verified against its durable row.
+
+    The job receipt alone is not read authority: the referenced HITLAction must
+    still exist, still be an information wait, and still name this same
+    job/agent/execution in the same admitted workspace/tenant/actor.  Only the
+    question, what it blocks, the opaque correlation and the wait state leave
+    the server.  Resume history, claim tokens, raw parameters and the context
+    snapshot stay private.
+    """
+    from core.information_wait import is_information_wait_action
+
+    action_id = _wait_receipt_action_id(payload)
+    if not action_id or not execution_id:
+        return None
+    action = _safe_get(bind, HITLAction, action_id)
+    if action is None or not is_information_wait_action(action.action_type):
+        return None
+    snapshot = getattr(action, "context_snapshot", None)
+    snapshot = dict(snapshot) if isinstance(snapshot, dict) else {}
+    params = getattr(action, "params", None)
+    params = dict(params) if isinstance(params, dict) else {}
+    action_execution = str(
+        snapshot.get("execution_id") or snapshot.get("run_id") or "")
+    if (
+        str(snapshot.get("job_id") or "") != str(job_id)
+        or str(snapshot.get("agent_id") or "") != str(agent_id)
+        or action_execution != str(execution_id)
+    ):
+        return None
+    # The durable wait must also live in the same admitted scope. Nullable
+    # personal/legacy values stay compatible; two concrete values must match.
+    ns_workspace = namespace.get("workspace_id")
+    action_workspace = getattr(action, "workspace_id", None)
+    if (
+        action_workspace is not None
+        and ns_workspace is not None
+        and str(action_workspace) != str(ns_workspace)
+    ):
+        return None
+    ns_tenant = namespace.get("tenant_id")
+    action_tenant = getattr(action, "tenant_id", None)
+    if (
+        action_tenant is not None
+        and ns_tenant is not None
+        and str(action_tenant) != str(ns_tenant)
+    ):
+        return None
+    ns_actor = str(
+        namespace.get("actor_id") or namespace.get("user_id") or "")
+    action_actor = getattr(action, "user_id", None)
+    if (
+        action_actor is not None
+        and ns_actor
+        and str(action_actor) != ns_actor
+    ):
+        return None
+    question = str(
+        snapshot.get("question") or params.get("question")
+        or getattr(action, "reason", "") or "").strip()
+    correlation_id = str(
+        snapshot.get("correlation_id") or params.get("correlation_id")
+        or "").strip()
+    if not question or not correlation_id:
+        return None
+    subject = snapshot.get("subject")
+    if not isinstance(subject, dict):
+        subject = params.get("subject")
+    subject_label = str(params.get("requested_subject") or "").strip()
+    if not subject_label and isinstance(subject, dict):
+        subject_label = str(subject.get("label") or "").strip()
+    subject_label = subject_label[:200] or None
+    status = str(getattr(action, "status", "") or "")
+    missing_fact = str(params.get("missing_fact") or "").strip()[:200] or None
+    return {
+        "id": str(action.id),
+        "kind": "information_request",
+        "status": status,
+        "question": question[:400],
+        "missing_fact": missing_fact,
+        "subject": {"label": subject_label} if subject_label else None,
+        "correlation_id": correlation_id[:120],
+        "can_answer": status == HITLActionStatus.PENDING.value,
+    }
+
+
+def _durable_public_result(
+    bind,
+    execution_id: str,
+    *,
+    agent_id: str,
+    namespace: Dict[str, Any],
+) -> Optional[Dict[str, Any]]:
+    """Return the durable, public-facing output of a completed execution.
+
+    The admitted job row carries status/outcome truth but not the final text;
+    the execution row is the durable public output.  It must still belong to
+    the same agent and admitted scope.  Internal scores, audit payloads and
+    resume material are never projected.
+    """
+    from core.models import AgentExecution
+
+    if not execution_id:
+        return None
+    execution = _safe_get(bind, AgentExecution, execution_id)
+    if execution is None or str(execution.agent_id or "") != str(agent_id):
+        return None
+    ns_workspace = namespace.get("workspace_id")
+    execution_workspace = getattr(execution, "workspace_id", None)
+    if (
+        execution_workspace is not None
+        and ns_workspace is not None
+        and str(execution_workspace) != str(ns_workspace)
+    ):
+        return None
+    ns_tenant = namespace.get("tenant_id")
+    execution_tenant = getattr(execution, "tenant_id", None)
+    if (
+        execution_tenant is not None
+        and ns_tenant is not None
+        and str(execution_tenant) != str(ns_tenant)
+    ):
+        return None
+    output = str(getattr(execution, "output_summary", "") or "").strip()
+    if not output:
+        return None
+    return {"status": "success", "output": output[:20000]}
+
+
 def _begin_job(
     job_id: str,
     bind,
@@ -3387,4 +3551,128 @@ async def answer_agent_job_information_wait(
         message=_public_outcome_message(current) if current else (
             "The resumed agent run did not succeed"),
         data=data,
+    )
+
+
+@router.get("/{agent_id}/jobs/{job_id}")
+async def read_agent_job(
+    agent_id: str,
+    job_id: str,
+    user: User = Depends(require_permission(Permission.AGENT_RUN)),
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Read one admitted job's current state for its own actor.
+
+    This is a pure read: it never claims the job, settles a wait, dispatches a
+    continuation or invokes a model.  The exact admitted actor, job, agent,
+    execution and frozen workspace/tenant are re-verified from durable rows;
+    a peer, a wrong scope or a forged/legacy identity resolves as not found.
+    Only status/outcome/next action, the exact currently-open question and the
+    public result are projected.
+    """
+    bind = db.get_bind()
+    job = db.get(AgentJob, str(job_id))
+    if job is None or str(job.agent_id or "") != str(agent_id):
+        raise HTTPException(status_code=404, detail="Agent job not found")
+    # Re-read the principal: a token must not preserve a role, workspace or
+    # active flag that changed since issuance. The persisted row is authority.
+    persisted = (
+        db.query(User)
+        .filter(User.id == str(current_user.id))
+        .populate_existing()
+        .first()
+    )
+    if (
+        persisted is None
+        or str(getattr(persisted, "status", "") or "") != UserStatus.ACTIVE.value
+        or getattr(persisted, "is_active", None) is False
+        or not RBACService.check_permission(persisted, Permission.AGENT_VIEW)
+        or not RBACService.check_permission(persisted, Permission.AGENT_RUN)
+    ):
+        raise HTTPException(
+            status_code=403, detail="Not authorized to read this agent job")
+    actor_id = str(persisted.id)
+    try:
+        payload = json.loads(job.result_summary or "{}")
+    except (TypeError, ValueError):
+        payload = {}
+    if not isinstance(payload, dict):
+        payload = {}
+    operation_id = str(payload.get("operation_id") or "").strip()
+    execution_id = str(
+        payload.get("execution_id")
+        or payload.get("dispatch_execution_id") or "").strip()
+    # The current authenticated user is not authority for an admitted run.
+    # Require the original admission receipt to name this exact job/agent and
+    # this caller; legacy jobs without a receipt are not readable here.
+    if not operation_id:
+        raise HTTPException(status_code=404, detail="Agent job not found")
+    receipt = _admission_receipt_metadata(
+        bind,
+        job_id=job_id,
+        agent_id=agent_id,
+        actor_id=actor_id,
+        operation_id=operation_id,
+    )
+    if receipt is None:
+        raise HTTPException(status_code=404, detail="Agent job not found")
+    namespace = _trusted_execution_context(
+        bind,
+        agent_id=agent_id,
+        job_id=job_id,
+        actor_id=actor_id,
+        execution_id=execution_id,
+    )
+    if namespace is None or not _job_read_scope_allows(
+            persisted, namespace):
+        raise HTTPException(status_code=404, detail="Agent job not found")
+
+    projection = _job_outcome_projection(job_id, bind)
+    if projection is None:
+        raise HTTPException(status_code=404, detail="Agent job not found")
+    job_status = str(projection.get("job_status") or "")
+    data: Dict[str, Any] = {
+        "agent_id": agent_id,
+        "job_id": str(job_id),
+        "execution_id": (
+            str(projection.get("execution_id"))
+            if projection.get("execution_id") else None),
+        "job_status": job_status,
+        "outcome": projection.get("outcome"),
+        "reason": projection.get("reason"),
+        "next_action": projection.get("next_action"),
+        "requires_reconciliation": bool(
+            projection.get("requires_reconciliation")),
+    }
+    if job_status in _JOB_WAITING_STATUSES:
+        wait = _public_information_wait(
+            payload,
+            bind=bind,
+            job_id=str(job_id),
+            agent_id=str(agent_id),
+            execution_id=execution_id,
+            namespace=namespace,
+        )
+        if wait is None:
+            # A waiting status without a re-verifiable current wait is not a
+            # question we may show. Keep the durable status truthful (do not
+            # invent a terminal failure) and send the caller to review.
+            data["next_action"] = "review_execution"
+            data["wait_unavailable"] = True
+        else:
+            data["wait"] = wait
+            data["next_action"] = "await_information"
+    elif job_status == AgentJobStatus.SUCCESS.value:
+        result = _durable_public_result(
+            bind,
+            str(data.get("execution_id") or ""),
+            agent_id=str(agent_id),
+            namespace=namespace,
+        )
+        if result is not None:
+            data["result"] = result
+    return router.success_response(
+        data=data,
+        message="Agent job state retrieved",
     )

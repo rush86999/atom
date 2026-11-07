@@ -1,0 +1,16 @@
+{
+  "source": "850d4bd9d18a9b22eb88e06a6f6768841b0557ac",
+  "runtime_bytes_match_committed_source": true,
+  "tree_clean_at_run": false,
+  "actual_exit": 0,
+  "tests": 53,
+  "suites": 4,
+  "retained_network_warning_assertion": true,
+  "hosted_negative": {
+    "run": 42378319425,
+    "job": 128420424055,
+    "head": "2d60f569b",
+    "result": "52 pass/1 fail: delayed graduation-progress fetch after fixture restoration"
+  },
+  "browser_acceptance": "open"
+}
