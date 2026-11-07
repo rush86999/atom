@@ -175,6 +175,31 @@ class ShopifyService(IntegrationService):
             logger.error(f"Failed to create blog: {e}")
             raise HTTPException(status_code=500, detail="Internal error")
 
+    async def get_blog(
+        self, access_token: str, shop: str, blog_id: str,
+    ) -> Dict[str, Any]:
+        """Read one blog by its exact id from the authoritative shop.
+
+        Official contract (verified 2026-11-07):
+        ``GET /admin/api/{version}/blogs/{blog_id}.json``
+        https://shopify.dev/docs/api/admin-rest/2026-07/resources/blog
+        """
+        try:
+            url = f"{self._get_base_url(shop)}/blogs/{blog_id}.json"
+            headers = self._get_headers(access_token)
+            response = await self.http.get("shopify", url, headers=headers)
+            response.raise_for_status()
+            return response.json().get("blog", {})
+        except httpx.HTTPStatusError as e:
+            logger.error(
+                f"Shopify get blog {blog_id} failed: "
+                f"{e.response.status_code}: {e.response.text[:500]}")
+            raise HTTPException(
+                status_code=502, detail="Shopify get blog failed")
+        except Exception as e:
+            logger.error(f"Failed to get blog {blog_id}: {e}")
+            raise HTTPException(status_code=500, detail="Internal error")
+
     async def list_articles(self, access_token: str, shop: str, blog_id: str, limit: int = 20) -> List[Dict[str, Any]]:
         """List articles (posts) in a blog."""
         try:
@@ -216,6 +241,39 @@ class ShopifyService(IntegrationService):
             return response.json().get("article", {})
         except Exception as e:
             logger.error(f"Failed to create article: {e}")
+            raise HTTPException(status_code=500, detail="Internal error")
+
+    async def get_article(
+        self,
+        access_token: str,
+        shop: str,
+        blog_id: str,
+        article_id: str,
+    ) -> Dict[str, Any]:
+        """Read one article by its exact blog/id from the authoritative shop.
+
+        Official contract (verified 2026-11-07):
+        ``GET /admin/api/{version}/blogs/{blog_id}/articles/{article_id}.json``
+        https://shopify.dev/docs/api/admin-rest/2026-07/resources/article
+        """
+        try:
+            url = (
+                f"{self._get_base_url(shop)}/blogs/{blog_id}"
+                f"/articles/{article_id}.json"
+            )
+            headers = self._get_headers(access_token)
+            response = await self.http.get("shopify", url, headers=headers)
+            response.raise_for_status()
+            return response.json().get("article", {})
+        except httpx.HTTPStatusError as e:
+            logger.error(
+                f"Shopify get article {article_id} in blog {blog_id} failed: "
+                f"{e.response.status_code}: {e.response.text[:500]}")
+            raise HTTPException(
+                status_code=502, detail="Shopify get article failed")
+        except Exception as e:
+            logger.error(
+                f"Failed to get article {article_id} in blog {blog_id}: {e}")
             raise HTTPException(status_code=500, detail="Internal error")
 
     async def get_orders(

@@ -1,0 +1,34 @@
+{
+  "kind": "shopify_article_rest_publication_evidence",
+  "base_source": "1d7b0ec83",
+  "failure_first_commit": "a1ffa57ec",
+  "fix_commit": "5a391f355",
+  "official_docs": "https://shopify.dev/docs/api/admin-rest/latest/resources/article",
+  "mapping": {
+    "published_at_null": "draft",
+    "published_at_timezone_aware_past": "published",
+    "published_at_future": "scheduled_not_published",
+    "published_at_missing_malformed_naive": "unknown",
+    "published_and_published_at_conflict": "unknown",
+    "published_only_readback": "unknown",
+    "consistent_published_and_published_at": "compatibility_confirmed"
+  },
+  "tests": {
+    "independent": {
+      "rc": 0,
+      "passed": 19,
+      "failed": 0
+    },
+    "article_contract": {
+      "rc": 0,
+      "passed": 36,
+      "failed": 0
+    }
+  },
+  "live_calls": false,
+  "http_leaves_doubled": [
+    "Shopify article POST/GET"
+  ],
+  "shared_module_behavior_change": "backend/core/shopify_mutations.py observed_article_material",
+  "final_test_commit": "7b03d6e61"
+}
