@@ -335,6 +335,45 @@ def resolve_tool_source(tool_name: str) -> str | None:
     return None
 
 
+def _live_fix_opted_in(agent_id: str, tenant_id: str) -> bool:
+    """The workspace Auto-Dev opt-in gate for the REAL-TIME live trigger.
+
+    The live trigger proposes while a task is still running, so it must ride
+    the SAME workspace gate the episode-time path uses
+    (ReflectionEngine._should_process_agent): auto_dev must be enabled on the
+    workspace and the agent must hold the alpha_evolver maturity (SUPERVISED).
+    Otherwise a disabled default world (ATOM_AGENT_EVOLUTION_ENABLED=false)
+    would still get real-time LLM mutation proposals. Fail-closed like every
+    capture-side guard: a gate failure must never propose a fix."""
+    try:
+        from core.auto_dev.capability_gate import AutoDevCapabilityService
+        from core.database import SessionLocal
+
+        with SessionLocal() as db:
+            workspace = None
+            try:
+                from core.models import Workspace
+
+                workspace = (
+                    db.query(Workspace)
+                    .filter(Workspace.tenant_id == tenant_id)
+                    .first()
+                )
+            except Exception:
+                workspace = None
+            settings = (
+                workspace.metadata_json
+                if workspace and workspace.metadata_json else {}
+            )
+            return AutoDevCapabilityService(db).can_use(
+                agent_id=agent_id,
+                capability="auto_dev.alpha_evolver",
+                workspace_settings=settings,
+            )
+    except Exception:
+        return False
+
+
 async def trigger_live_tool_fix(
     agent_id: str,
     tenant_id: str,
@@ -350,6 +389,12 @@ async def trigger_live_tool_fix(
     AlphaEvolver's generate_tool_mutation needs only the tool source + the
     error, so a fix candidate can exist while the task is still running.
     Returns True when a mutation candidate was proposed."""
+    if not _live_fix_opted_in(agent_id, tenant_id):
+        logger.debug(
+            f"live evolution trigger: Auto-Dev not opted in for agent "
+            f"{agent_id} — episode-time path remains the only candidate feed"
+        )
+        return False
     tool_name = tool_error_signature(service, action)
     base_code = resolve_tool_source(tool_name)
     if not base_code:
