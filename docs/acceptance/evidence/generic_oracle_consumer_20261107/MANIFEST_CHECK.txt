@@ -1,6 +1,6 @@
 MANIFEST_CHECK for docs/acceptance/evidence/generic_oracle_consumer_20261107
 
-Checked at evidence update commit 5d3bdcfe4 (HEAD of
+Checked at evidence update commit 73689ecec (HEAD of
 codex/generic-oracle-consumer-20261107 at check time).
 
 Command:
@@ -15,9 +15,9 @@ Result: every path reported its MANIFEST.json blob id.
   backend/tests/test_generic_oracle_mutation_contract.py
     7e1c66bda64bcc60a289d9f913408d3ea400f31e
   docs/acceptance/evidence/generic_oracle_consumer_20261107/README.md
-    63c24e20dca265ee46719c2beed04ced551cd9e3
+    45bbfe9345a99b01781f83f7a86ee4220c176f74
   docs/acceptance/evidence/generic_oracle_consumer_20261107/verification.txt
-    958dfa40a96b046c91d514a788058ce476dcd389
+    7501680802e0d88d08e654c1dea6e462c4c8fab6
   docs/acceptance/evidence/generic_oracle_consumer_20261107/baseline-unrelated-failures.txt
     71e75a148db4dd740abd0d56f856a6b8641cb575
 
