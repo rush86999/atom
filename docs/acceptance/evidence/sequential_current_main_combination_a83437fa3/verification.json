@@ -1,0 +1,10 @@
+{
+  "executed_source": "a83437fa3ad1f82dffd703c679de339093007ab5",
+  "candidate_tree": "1bc24c4eb7e427350175815e9c34afd8e791b707",
+  "main": "31346bfb936ab59987f1e2a9ee67bc57c600aa3a",
+  "pr730_head": "750953499c8c228dc66b7425e74bdd1697b8bf39",
+  "passed": 57,
+  "actual_exit": 0,
+  "known_open_failure": "root-recovery-actor-workspace-valid 1fail1pass remains active Agent1 repair; not qualified by this passing selection",
+  "scope": "exact combined candidate: privacy readers, repeated assignment waits, two-job isolation, Generic wait/recovery/process controls; high-level reasoning/auth controlled; no provider/browser"
+}
