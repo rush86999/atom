@@ -184,6 +184,19 @@ def build_request_expectations(
         except Exception:  # noqa: BLE001 - verifier refuses absent binding
             expected_shopify_product = None
 
+    expected_radio_message = None
+    if name == "radio.send_message":
+        try:
+            from core.agent_radio.radio_mutations import radio_payload
+
+            expected_radio_message = radio_payload(
+                args, agent_id=agent_id, tenant_id=expected_tenant_id)
+            # The producer binds the same canonical message material, not the
+            # whole argument map (which also carries operation metadata).
+            expected_digest = approved_payload_sha256(expected_radio_message)
+        except Exception:  # noqa: BLE001 - verifier refuses absent binding
+            expected_radio_message = None
+
     # Presentation material is frozen from the authorized arguments, not from
     # the handler's returned envelope.  Both consumers and the canvas producer
     # derive it through ``core.presentation_material`` so the digests cannot
@@ -281,6 +294,7 @@ def build_request_expectations(
         "_oracle_expected_task_title": expected_task_title,
         "_oracle_expected_board_id": expected_board_id,
         "_oracle_expected_shopify_product": expected_shopify_product,
+        "_oracle_expected_radio_message": expected_radio_message,
         "_oracle_expected_app_id": expected_app_id,
         "_oracle_expected_tests": expected_tests,
         "_oracle_expected_tests_sha256": expected_tests_sha256,
