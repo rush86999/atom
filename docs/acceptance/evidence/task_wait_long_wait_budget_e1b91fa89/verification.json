@@ -1,0 +1,81 @@
+{
+  "result": "prolonged_information_wait_excluded_from_active_wall_budget_at_e1b91fa89",
+  "executed_source": "e1b91fa89",
+  "previous_packet_source": "223a286a4 / f55f83668",
+  "source_state": "tracked tree clean; only untracked worker guidance files present and not part of the run",
+  "runtime": {
+    "python": "3.14.7",
+    "platform": "darwin",
+    "testing": "1",
+    "database": "fresh private scratch SQLite",
+    "data_lancedb": "fresh private scratch roots",
+    "basetemp": "new owned pytest basetemp"
+  },
+  "failure_first_probe": {
+    "test": "tests/test_task_wait_source_continuation_regressions.py::test_prolonged_information_wait_does_not_consume_active_wall_budget",
+    "baseline_source": "f55f83668 plus only the new probe",
+    "result": "1 failed at the missing durable idle interval, exit 1",
+    "log": "baseline-probe.log",
+    "observed_defect": {
+      "wait_representation": "open unresolved prerequisite on a blocked assignment, not assignment.wait",
+      "idle_interval_opened": false,
+      "controlled_wait_seconds": 7200,
+      "active_wall_budget_seconds": 900,
+      "authorized_invoice_read_status": "failed",
+      "failure_reason": "assignment_budget_exhausted",
+      "reconciliations": 0,
+      "task_completed": false
+    }
+  },
+  "repair": {
+    "executor_boundary": "AssignmentExecutor.execute opens the existing assignment-level idle ledger when an information obligation is open and no branch is ready",
+    "route_boundary": "_record_information_wait records the durable question through the same executor boundary so the idle clock starts at the wait",
+    "independent_work": "a ready independent branch still runs first and closes the idle interval",
+    "status_semantics": "unchanged; blocked remains the unresolved-prerequisite assignment state",
+    "new_authority": false,
+    "new_table": false,
+    "new_daemon": false,
+    "new_task_engine": false,
+    "model_calls_added": 0
+  },
+  "verification": {
+    "command": "python -m pytest -p no:cacheprovider --basetemp=<fresh> tests/test_task_wait_process_recovery.py tests/test_task_wait_source_continuation_regressions.py -q --tb=short",
+    "passed": 21,
+    "failed": 0,
+    "pytest_exit_code": 0,
+    "elapsed_seconds": 59.43,
+    "log": "final.log",
+    "actual_process_cases": [
+      "restart while genuinely missing: 0 adaptation calls, no result",
+      "accept/read/settle then hard exit 17: startup recovery completes once",
+      "claim then hard exit 17 before expiry: bounded lease wake takes over with a new token"
+    ],
+    "long_wait_probe": {
+      "controlled_clock_seconds": 7200,
+      "active_wall_budget_seconds": 900,
+      "idle_interval_recorded": true,
+      "adaptation_calls": 1,
+      "reconciliations": 1,
+      "verified_value": "140.25",
+      "active_elapsed_under_60_seconds": true,
+      "status": "completed"
+    },
+    "related_targeted_run": {
+      "passed": 206,
+      "failed": 0,
+      "elapsed_seconds": 96.52,
+      "suites": [
+        "tests/test_assignment_routes.py",
+        "tests/test_assignment_executor.py",
+        "tests/test_employee_durable_wait_g5.py",
+        "tests/test_employee_evidence_change_g5.py",
+        "tests/test_employee_prerequisite_eligibility.py",
+        "tests/test_employee_wait_choice.py",
+        "tests/test_boot_recovery_not_gated_by_scheduler.py"
+      ]
+    }
+  },
+  "transport": "controlled proposal fixture; no inference, provider or spend",
+  "authority": "controlled authenticated-user fixture; private scratch SQLite/data/Lance",
+  "scope": "TASK-WAIT-01 employee-objective /sources + restart-recovery seam; controlled clock, not soak; Generic/GenericAgent, workflow and other entrypoints remain OPEN"
+}

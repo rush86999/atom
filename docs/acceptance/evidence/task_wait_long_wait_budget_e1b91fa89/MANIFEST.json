@@ -1,0 +1,48 @@
+{
+  "executed_source": "e1b91fa89",
+  "previous_packet_source": "223a286a4 / f55f83668",
+  "source_state": "tracked tree clean at execution; only untracked worker guidance files present and not part of the run",
+  "failure_first": {
+    "source_basis": "f55f83668 plus only the new probe",
+    "result": "1 failed at the missing idle interval",
+    "actual_exit_code": 1,
+    "log": "baseline-probe.log"
+  },
+  "verification": {
+    "passed": 21,
+    "failed": 0,
+    "actual_exit_code": 0,
+    "elapsed_seconds": 59.43,
+    "log": "final.log",
+    "related_targeted_run": {
+      "passed": 206,
+      "failed": 0,
+      "elapsed_seconds": 96.52
+    }
+  },
+  "source_files": {
+    "backend/core/assignment_executor.py": "dd54fc845453aa222a25dd4dc265355cf4cbf0265e2d55ddc63701b95a02a732",
+    "backend/api/assignment_routes.py": "806e732e22abd41068aa70b5dd50e841f5a322c26c1056d8e69c781ae8cbb611",
+    "backend/tests/test_task_wait_source_continuation_regressions.py": "486cd74543e6b5a79fe11836933fed385c5d0b72698e2b65ac0e072aac942d74",
+    "backend/tests/test_task_wait_process_recovery.py": "b0f80b550b18b5f8b88770bc5b20498f4fc2769abee7d51e536c782d39a0fa3a"
+  },
+  "acceptance_map": {
+    "path": "docs/acceptance/TASK_WAIT_01_ASSIGNMENT_ACCEPTANCE_MAP_2026_11_07.md",
+    "sha256": "ab9bcf1b59f84f0269a06e79b66284d4cc1eaee69eaf2b1e49e5b56410210ee5"
+  },
+  "artifacts": {
+    "README.md": "9bc4ce97315742077f7327ad72f20e66b8243320dcef766c41b633c184b0bdc1",
+    "baseline-probe.log": "2653acd1cd81e7f32cdc179b4e040179f317c58a7243eb7b87b4ea36aa0f0d74",
+    "final.log": "dc03d6dd5e0be844adcbb07bd0ef7fbed64bce0c38d6a188bebfdf0285d1826e",
+    "related-targeted.log": "4f3048bd5ba8e6451e95142d289d9d156356007f8df18c12fee8ff968cc00207",
+    "verification.json": "8323fd9b60152006e2cc8d1de5fc21d2b47b64b1a78183ca0b9bd6d4651a3146"
+  },
+  "preserved_prior_packets": [
+    "docs/acceptance/evidence/task_wait_recovery_generation_repair_223a286a4/",
+    "docs/acceptance/evidence/task_wait_process_recovery_repair_e9e43ea60/",
+    "docs/acceptance/evidence/task_wait_process_recovery_baseline_a966bca18/",
+    "docs/acceptance/evidence/task_wait_source_continuation_6d08b1c4b/",
+    "docs/acceptance/evidence/task_wait_source_trigger_baseline_bc4970f97/"
+  ],
+  "scope": "employee-objective /sources + restart-recovery seam; controlled clock, not soak; Generic/GenericAgent, workflow and other entrypoints remain OPEN"
+}
