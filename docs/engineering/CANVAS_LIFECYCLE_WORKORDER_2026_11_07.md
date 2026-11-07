@@ -136,7 +136,11 @@ For the ordinary self-owner or same-scope co-editor:
   (undelete) are optional optimistic tokens; a mismatch refuses before effect.
 - **Tombstone/content:** delete stores the exact prior audit id and content
   digest; undelete stores the exact tombstone id, source content-row id, content
-  digest, canvas type/title provenance, and `restored_from_delete`.
+  digest, canvas type/title provenance, and `restored_from_delete`. New rows are
+  stamped with the authoritative `Canvas` tenant/workspace snapshot when the
+  mirror exists (as update/restore already do); audit-only canvases use the
+  latest audit tenant and record workspace as legacy. A foreign audit tenant is
+  never inherited into a new row.
 - **Receipt:** include `canvas_id`, `audit_id`, `operation_id`, `write_outcome`,
   `status`, `verification`, and the prior/tombstone/source identity. Unknown
   commit outcome keeps identity and says `effect_unknown` / `do_not_repeat`.

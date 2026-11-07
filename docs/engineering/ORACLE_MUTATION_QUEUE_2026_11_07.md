@@ -1,8 +1,9 @@
 # ORACLE mutation queue — current-main static reconciliation (2026-11-07)
 
 Status: **read-only static inventory and finite work order preparation. Not a
-qualification run, not an acceptance, not a merge.** All 143 claim dispositions
-remain with the root audit; whole-app ORACLE-01 remains open.
+qualification run, not an acceptance, not a merge.** The 143-claim campaign
+scope remains **OPEN** with the root audit; no claim is closed or rescored here.
+Whole-app ORACLE-01 remains open.
 
 Evidence cut: remote `origin/main` = `8ded00232c30961a990e675e06ec672ef6a43910`
 (PR #754 merge). Audit head `33a9b541a` is docs-only on top of `8ded`; the code
@@ -62,8 +63,10 @@ Added routes (all source-bound, none removed):
 | PUT | `/{goal_id}/utility` | `set_goal_utility` | `backend/api/goal_routes.py` |
 | DELETE | `/{goal_id}/utility` | `clear_goal_utility` | `backend/api/goal_routes.py` |
 
-High-risk additions are the five assignment routes above. Provider write methods
-did not change. No route was removed.
+The route column is the decorator's declared path under its router prefix; the
+static scanner does not resolve mount prefixes. High-risk additions are the five
+assignment routes above. Provider write methods did not change. No route was
+removed.
 
 **Boundary:** this is a declaration-surface denominator. It is not mounted-route
 proof, not runtime reachability, not effect proof and not coverage acceptance.
