@@ -86,3 +86,17 @@ def test_fulfillment_read_uses_documented_parent_order_endpoint(env, monkeypatch
     _call(_agent(), _fulfillment_args(op, notify_customer=False), _context(op))
     reads = [url for url in transport.gets if '/fulfillments/' in url]
     assert reads and all('/orders/' in url for url in reads), reads
+
+
+def test_missing_order_line_identity_cannot_borrow_fulfillment_order_line_id(env, monkeypatch):
+    _oracle(monkeypatch)
+    _add_store(env)
+    transport = FakeShopifyTransport()
+    for order in transport.fulfillment_orders:
+        for line in order['line_items']:
+            line.pop('line_item_id', None)
+    _install_transport(monkeypatch, transport)
+    op = 'missing-order-line-' + uuid.uuid4().hex
+    result = _call(_agent(), _fulfillment_args(op, notify_customer=False), _context(op))
+    assert len(transport.posts) == 0, 'FO-line id was substituted for missing order-line identity before dispatch'
+    assert result.get('success') is not True, result
