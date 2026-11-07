@@ -39,6 +39,24 @@ import uuid
 import pytest
 
 
+@pytest.fixture(autouse=True)
+def no_runtime_execution(monkeypatch):
+    """Fail immediately if a refusal accidentally dispatches guest/host work.
+
+    The production factory and service stay real; these are unsafe external
+    execution tripwires, not a replacement unavailable result.
+    """
+    from core.sandbox_runtime.firecracker_runner import FirecrackerRuntime
+    from core.sandbox_runtime.miniapp_dev_runner import MiniAppDevRuntime
+
+    async def forbidden_dispatch(*args, **kwargs):
+        pytest.fail("Unavailable-runtime flow dispatched executable work")
+
+    for runtime in (FirecrackerRuntime, MiniAppDevRuntime):
+        monkeypatch.setattr(runtime, "execute_python", forbidden_dispatch)
+        monkeypatch.setattr(runtime, "execute_command", forbidden_dispatch)
+
+
 def _auth(token):
     return {"Authorization": f"Bearer {token}"}
 
@@ -200,11 +218,19 @@ class TestMiniAppRuntimeBoundaryJourney:
 
         client, _, _, token = registered_user
         app_id = _scaffold_app(client, token)
+        before = _world_counts()
 
+        def forbidden_daemon_probe():
+            pytest.fail("Production docker-dev refusal contacted the daemon")
+
+        monkeypatch.setattr(
+            "core.sandbox_runtime.miniapp_dev_runner.is_available",
+            forbidden_daemon_probe,
+        )
         dev = _raw(client, token, "mini_app_dev_run", {"app_id": app_id, "inputs": {}})
         assert dev.get("success") is False, dev
         assert "Mini-app runtime unavailable" in dev["error"]
-        after = _world_counts()
+        assert _world_counts() == before
 
         # The owner-only probe is where the refused mode is named explicitly.
         rt = _status_runtime(client, token, app_id)
@@ -212,13 +238,14 @@ class TestMiniAppRuntimeBoundaryJourney:
         assert "refused" in rt["reason"]
         assert "production" in rt["reason"]
         # No accidental instance/state registration while refused.
-        assert after == _world_counts()
+        assert _world_counts() == before
 
         # The same refusal applies to the acceptance-test path.
         _rpc(client, token, "mini_app_set_tests", {"app_id": app_id, "tests": TESTS[:1]})
         tr = _raw(client, token, "mini_app_run_tests", {"app_id": app_id})
         assert tr["passed"] == 0 and tr["total"] == 1
         assert "Mini-app runtime unavailable" in tr["results"][0]["error"]
+        assert _world_counts() == before
 
     def test_docker_dev_fails_closed_without_daemon(self, real_auth_client, registered_user, monkeypatch):
         """Dev-mode docker-dev with an unreachable daemon fail-closes at the
