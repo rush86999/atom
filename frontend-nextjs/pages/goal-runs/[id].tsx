@@ -11,8 +11,10 @@ import { Loader2, ArrowLeft, Check, X, Play, Ban, FileText, Sparkles, Info, Tren
 import {
     getGoalRun, getGoalRunCanvases, resumeGoalRun, resolveCheckpoint,
     advanceGoalRun, cancelGoalRun, distillGoalRun, setSupervisionMode,
-    getPromotionEvidence, getGoal, isAssignmentOwnedRun,
+    getPromotionEvidence, getGoal, getGoalUtility, setGoalUtility,
+    clearGoalUtility, isAssignmentOwnedRun,
     GoalRun, GoalRunCanvas, DecisionEntry, PromotionEvidence, SupervisionMode, Goal,
+    GoalUtility, UtilityMetric, UtilityDirection, UtilityTarget,
     AgentLesson, listAgentLessons, teachAgentFromRun,
 } from "@/lib/goal-run-api";
 import { useUserRole } from "@/lib/user-role";
@@ -104,6 +106,20 @@ export function guidanceFor(run: GoalRun): RunGuidance {
 
 const MODES: SupervisionMode[] = ["training", "shadow", "autonomous"];
 
+const UTILITY_METRICS: Array<{ value: UtilityMetric; label: string }> = [
+    { value: "human_interventions", label: "Human interventions" },
+    { value: "steps_executed", label: "Steps executed" },
+    { value: "replan_count", label: "Replans" },
+];
+
+const UTILITY_DIRECTIONS: Array<{
+    value: UtilityDirection;
+    label: string;
+}> = [
+    { value: "minimize", label: "Lower is better" },
+    { value: "maximize", label: "Higher is better" },
+];
+
 const MODE_HINT: Record<SupervisionMode, string> = {
     training: "every decision waits for approval",
     shadow: "decisions execute; guardrails pause for you",
@@ -124,6 +140,19 @@ export default function GoalRunDetailPage() {
     const [goal, setGoal] = useState<Goal | null>(null);
     const [canvases, setCanvases] = useState<GoalRunCanvas[]>([]);
     const [promotion, setPromotion] = useState<PromotionEvidence | null>(null);
+    // GOAL-02 utility target/ranking. Read is workspace-scoped on the backend
+    // and available to any signed-in member; mutation is team_lead+ only.
+    const [utility, setUtility] = useState<GoalUtility | null>(null);
+    const [utilityLoading, setUtilityLoading] = useState(false);
+    const [utilityError, setUtilityError] = useState<string | null>(null);
+    const [utilityBusy, setUtilityBusy] = useState(false);
+    const [utilityNotice, setUtilityNotice] = useState<string | null>(null);
+    const [utilityNoticeError, setUtilityNoticeError] = useState(false);
+    const [utilityMetric, setUtilityMetric] = useState<UtilityMetric>(
+        "human_interventions");
+    const [utilityDirection, setUtilityDirection] = useState<UtilityDirection>(
+        "minimize");
+    const [utilityDescription, setUtilityDescription] = useState("");
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [guidance, setGuidance] = useState("");
@@ -168,6 +197,77 @@ export default function GoalRunDetailPage() {
     }, [id]);
 
     useEffect(() => { void load(); }, [load]);
+
+    const loadUtility = useCallback(async (goalId: string) => {
+        setUtilityLoading(true);
+        setUtilityError(null);
+        try {
+            const next = await getGoalUtility(goalId);
+            setUtility(next);
+            if (next.target) {
+                setUtilityMetric(next.target.metric);
+                setUtilityDirection(next.target.direction);
+                setUtilityDescription(next.target.description || "");
+            }
+        } catch (e: any) {
+            setUtility(null);
+            setUtilityError(
+                e?.message || "Could not load the goal's utility target.");
+        } finally {
+            setUtilityLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (run?.goal_id) void loadUtility(run.goal_id);
+    }, [run?.goal_id, loadUtility]);
+
+    const saveUtility = useCallback(async () => {
+        if (!run || !canSupervise) return;
+        setUtilityBusy(true);
+        setUtilityNotice(null);
+        setUtilityNoticeError(false);
+        try {
+            const target: UtilityTarget = {
+                metric: utilityMetric,
+                direction: utilityDirection,
+                source: "goal_run",
+                ...(utilityDescription.trim()
+                    ? { description: utilityDescription.trim() }
+                    : {}),
+            };
+            await setGoalUtility(run.goal_id, target);
+            setUtilityNotice(
+                "Utility target saved. Completed trajectories will rank on reload.");
+            await loadUtility(run.goal_id);
+        } catch (e: any) {
+            setUtilityNotice(e?.message || "Could not save the utility target.");
+            setUtilityNoticeError(true);
+        } finally {
+            setUtilityBusy(false);
+        }
+    }, [
+        run, canSupervise, utilityMetric, utilityDirection, utilityDescription,
+        loadUtility,
+    ]);
+
+    const clearUtility = useCallback(async () => {
+        if (!run || !canSupervise) return;
+        setUtilityBusy(true);
+        setUtilityNotice(null);
+        setUtilityNoticeError(false);
+        try {
+            await clearGoalUtility(run.goal_id);
+            setUtilityNotice(
+                "Utility target cleared. No trajectory is ranked until a supervisor sets one.");
+            await loadUtility(run.goal_id);
+        } catch (e: any) {
+            setUtilityNotice(e?.message || "Could not clear the utility target.");
+            setUtilityNoticeError(true);
+        } finally {
+            setUtilityBusy(false);
+        }
+    }, [run, canSupervise, loadUtility]);
 
     // A long-running run advances on its own (wake, timer, canvas edit
     // elsewhere). Poll quietly while non-terminal so the timeline — and the
@@ -291,6 +391,9 @@ export default function GoalRunDetailPage() {
         }
         : null;
     const terminal = ["achieved", "failed", "cancelled"].includes(run.status);
+    const utilityTarget = utility?.target ?? null;
+    const utilityEligible = (utility?.ranking || []).filter((e) => e.eligible);
+    const utilityWithheld = (utility?.ranking || []).filter((e) => !e.eligible);
     const pendingCheckpointHitl = run.status === "waiting" &&
         (run.waiting_on as { event?: string; match?: { hitl_id?: string } } | null)?.event === "human_checkpoint"
         ? (run.waiting_on as { match?: { hitl_id?: string } }).match?.hitl_id
@@ -547,6 +650,221 @@ export default function GoalRunDetailPage() {
                             </ul>
                         )}
                     </div>
+                </CardContent>
+            </Card>
+
+            {/* GOAL-02: the goal's persisted optimization signal. Members can
+                read the ranking; only a supervisor may change the target. The
+                card is deliberately separate from run status: utility never
+                completes a goal, it only ranks completed trajectories. */}
+            <Card className="mb-6" data-testid="goal-utility-card">
+                <CardHeader className="pb-2">
+                    <CardTitle className="text-base flex items-center gap-2">
+                        <TrendingUp className="h-4 w-4" /> Goal utility target
+                    </CardTitle>
+                </CardHeader>
+                <CardContent className="space-y-3">
+                    <p className="text-xs text-muted-foreground">
+                        An optional supervisor signal for comparing completed runs
+                        of this goal. It never changes the goal&apos;s status or
+                        progress and is not a substitute for the goal criteria.
+                    </p>
+
+                    {utilityLoading ? (
+                        <p className="flex items-center gap-2 text-sm text-muted-foreground"
+                           data-testid="goal-utility-loading">
+                            <Loader2 className="h-4 w-4 animate-spin" /> Loading utility target…
+                        </p>
+                    ) : utilityError ? (
+                        <div className="space-y-2" data-testid="goal-utility-error">
+                            <p className="text-sm text-destructive">{utilityError}</p>
+                            <Button size="sm" variant="outline"
+                                    onClick={() => {
+                                        if (run?.goal_id) void loadUtility(run.goal_id);
+                                    }}
+                                    data-testid="goal-utility-retry">
+                                Retry
+                            </Button>
+                        </div>
+                    ) : (
+                        <>
+                            {utilityTarget ? (
+                                <div className="flex flex-wrap items-center gap-2 text-sm"
+                                     data-testid="goal-utility-target">
+                                    <Badge variant="secondary">
+                                        {UTILITY_METRICS.find(
+                                            (m) => m.value === utilityTarget.metric,
+                                        )?.label || utilityTarget.metric}
+                                    </Badge>
+                                    <span className="text-muted-foreground">
+                                        {utilityTarget.direction === "minimize"
+                                            ? "lower is better"
+                                            : "higher is better"}
+                                        {" · "}
+                                        {utilityTarget.source}
+                                    </span>
+                                    {utilityTarget.description ? (
+                                        <span className="text-muted-foreground">
+                                            · {utilityTarget.description}
+                                        </span>
+                                    ) : null}
+                                </div>
+                            ) : (
+                                <p className="text-sm text-muted-foreground"
+                                   data-testid="goal-utility-no-target">
+                                    No utility target is set. Completed runs are not
+                                    ranked until a supervisor sets one.
+                                </p>
+                            )}
+
+                            {canSupervise ? (
+                                <div className="grid gap-2 sm:grid-cols-2"
+                                     data-testid="goal-utility-editor">
+                                    <label className="text-xs text-muted-foreground">
+                                        Measure
+                                        <select
+                                            className="mt-1 w-full rounded border bg-background p-2 text-sm"
+                                            value={utilityMetric}
+                                            onChange={(e) => setUtilityMetric(
+                                                e.target.value as UtilityMetric)}
+                                            data-testid="goal-utility-metric">
+                                            {UTILITY_METRICS.map((metric) => (
+                                                <option key={metric.value}
+                                                        value={metric.value}>
+                                                    {metric.label}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </label>
+                                    <label className="text-xs text-muted-foreground">
+                                        Preference
+                                        <select
+                                            className="mt-1 w-full rounded border bg-background p-2 text-sm"
+                                            value={utilityDirection}
+                                            onChange={(e) => setUtilityDirection(
+                                                e.target.value as UtilityDirection)}
+                                            data-testid="goal-utility-direction">
+                                            {UTILITY_DIRECTIONS.map((direction) => (
+                                                <option key={direction.value}
+                                                        value={direction.value}>
+                                                    {direction.label}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </label>
+                                    <label className="text-xs text-muted-foreground sm:col-span-2">
+                                        Description (optional)
+                                        <input
+                                            className="mt-1 w-full rounded border bg-background p-2 text-sm"
+                                            value={utilityDescription}
+                                            onChange={(e) => setUtilityDescription(
+                                                e.target.value)}
+                                            placeholder="e.g. prefer runs that need less supervision"
+                                            data-testid="goal-utility-description" />
+                                    </label>
+                                    <div className="flex flex-wrap gap-2 sm:col-span-2">
+                                        <Button size="sm" disabled={utilityBusy}
+                                                onClick={() => void saveUtility()}
+                                                data-testid="goal-utility-save">
+                                            {utilityBusy ? (
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                            ) : null}
+                                            Save target
+                                        </Button>
+                                        {utilityTarget ? (
+                                            <Button size="sm" variant="outline"
+                                                    disabled={utilityBusy}
+                                                    onClick={() => void clearUtility()}
+                                                    data-testid="goal-utility-clear">
+                                                Clear target
+                                            </Button>
+                                        ) : null}
+                                    </div>
+                                </div>
+                            ) : (
+                                <p className="text-xs text-muted-foreground"
+                                   data-testid="goal-utility-readonly">
+                                    Only a supervisor (team lead or higher) can change
+                                    the utility target. You can still see the ranking.
+                                </p>
+                            )}
+
+                            {utilityNotice ? (
+                                <p className={`text-xs ${utilityNoticeError
+                                    ? "text-destructive"
+                                    : "text-muted-foreground"}`}
+                                   role="status"
+                                   data-testid="goal-utility-notice">
+                                    {utilityNotice}
+                                </p>
+                            ) : null}
+
+                            {utilityTarget ? (
+                                <div className="rounded-md border border-border p-3"
+                                     data-testid="goal-utility-ranking">
+                                    <p className="text-xs font-medium text-muted-foreground">
+                                        Ranked completed trajectories{" "}
+                                        <span className="font-normal">
+                                            ({utility?.eligible_count ?? 0} eligible)
+                                        </span>
+                                    </p>
+                                    {utilityEligible.length === 0 ? (
+                                        <p className="mt-1 text-sm text-muted-foreground"
+                                           data-testid="goal-utility-no-eligible">
+                                            No eligible completed trajectory yet.
+                                            Achieved runs with a known metric appear
+                                            here.
+                                        </p>
+                                    ) : (
+                                        <ol className="mt-2 space-y-1">
+                                            {utilityEligible.map((entry) => (
+                                                <li key={entry.id}
+                                                    className="flex items-center justify-between gap-3 text-sm"
+                                                    data-testid="goal-utility-entry">
+                                                    <span className="flex items-center gap-2">
+                                                        <Badge variant="outline">
+                                                            #{entry.rank}
+                                                        </Badge>
+                                                        <span className="font-mono text-xs">
+                                                            {entry.id}
+                                                        </span>
+                                                        {entry.id === utility?.winner ? (
+                                                            <Badge variant="secondary"
+                                                                   data-testid="goal-utility-winner">
+                                                                best
+                                                            </Badge>
+                                                        ) : null}
+                                                    </span>
+                                                    <span className="text-muted-foreground">
+                                                        utility {entry.utility ?? "unknown"}
+                                                    </span>
+                                                </li>
+                                            ))}
+                                        </ol>
+                                    )}
+                                    {utilityWithheld.length > 0 ? (
+                                        <div className="mt-3 border-t pt-2"
+                                             data-testid="goal-utility-withheld">
+                                            <p className="text-xs font-medium text-muted-foreground">
+                                                Not ranked
+                                            </p>
+                                            <ul className="mt-1 space-y-1 text-xs text-muted-foreground">
+                                                {utilityWithheld.map((entry) => (
+                                                    <li key={entry.id}>
+                                                        <span className="font-mono">
+                                                            {entry.id}
+                                                        </span>
+                                                        {" · "}
+                                                        {entry.reason.replace(/_/g, " ")}
+                                                    </li>
+                                                ))}
+                                            </ul>
+                                        </div>
+                                    ) : null}
+                                </div>
+                            ) : null}
+                        </>
+                    )}
                 </CardContent>
             </Card>
 
