@@ -1,0 +1,112 @@
+{
+  "result": "actual_process_accepted_source_recovery_verified",
+  "pytest_exit_code": 0,
+  "passed": 199,
+  "failed": 0,
+  "executed_source": "c0d85d7dc246c56fe202d03558443089cff83a07",
+  "implementation_source": "1f4001dcb",
+  "source_state": "clean tracked worktree; 0 modified, 0 untracked tracked-tree changes",
+  "runtime": {
+    "python": "3.14.7",
+    "platform": "darwin",
+    "testing": "1",
+    "database": "fresh private scratch SQLite",
+    "data_lancedb": "fresh private scratch roots",
+    "basetemp": "new owned pytest basetemp"
+  },
+  "actual_process_evidence": {
+    "scenario_a_restart_while_missing": {
+      "status": "passed",
+      "child_sequence": ["start", "startup-recover", "source-complete"],
+      "child_exits": [0, 0, 0],
+      "successor_entrypoint": "core.assignment_recovery.recover_active_assignments_at_startup",
+      "adaptation_calls_while_missing": 0,
+      "missing_obligation_open_after_restart": true,
+      "source_delivery_after_restart": "public /sources on the same run",
+      "final_status": "completed",
+      "reconciliations": 1,
+      "verified_value": "140.25"
+    },
+    "scenario_b_accept_then_process_exit_then_startup_recovery": {
+      "status": "passed",
+      "child_sequence": [
+        "start",
+        "source-interrupt",
+        "startup-recover",
+        "duplicate-source"
+      ],
+      "child_exits": [0, 17, 0, 0],
+      "interrupted_stage": "after durable source acceptance/read and obligation settlement, before business adaptation",
+      "pre_exit_committed_checkpoint": {
+        "run_id_preserved": true,
+        "objective_preserved": true,
+        "assignment_id_preserved": true,
+        "open_questions": 0,
+        "invoice_source_status": "applied",
+        "invoice_source_operation_id": "63a137e8-600d-4f77-adba-84e742e6b99d",
+        "invoice_source_version": "3bad6e9388d0efabbcec678dc95c21d6e4721c031ae24374501a2166d3a58d9f",
+        "unconsumed_evidence_observations": 3,
+        "reconciliations": 0,
+        "status_not_completed": true,
+        "adaptation_calls_before_exit": 0
+      },
+      "recovery": {
+        "entrypoint": "core.assignment_recovery.recover_active_assignments_at_startup",
+        "second_source_post": false,
+        "advance_call": false,
+        "new_objective": false,
+        "injected_plan_or_result": false,
+        "adaptation_calls": 1,
+        "recovery_claim": {
+          "status": "completed",
+          "ttl_seconds": 120.0,
+          "decision": "replan",
+          "adoption_status": "applied",
+          "execution_status": "completed"
+        },
+        "final_status": "completed",
+        "reconciliations": 1,
+        "verified_value": "140.25",
+        "same_reconciliation_operation_id_on_duplicate": "f6c8ff7c-a915-4ad4-a6be-02d726780ff0"
+      },
+      "preserved_receipts": {
+        "source-1": {
+          "operation_id": "d6637c4c-b764-4940-9a73-bf4e65de330e",
+          "source_version": "c9eff4050eefaa424619c80976beec0b9515aaffdc733933fcab2c5745e3d5a1",
+          "status": "applied"
+        },
+        "source-2": {
+          "operation_id": "adb36a23-280a-4a8c-ac36-67c0d9f8d2ef",
+          "source_version": "0e0babec0f1797bf8624dbb34653ab0c7b91d3e8ea1c728858b536bfee1e2b81",
+          "status": "applied"
+        },
+        "source-3": {
+          "operation_id": "63a137e8-600d-4f77-adba-84e742e6b99d",
+          "source_version": "3bad6e9388d0efabbcec678dc95c21d6e4721c031ae24374501a2166d3a58d9f",
+          "status": "applied",
+          "reread_under_new_operation": false
+        }
+      },
+      "duplicate_delivery": {
+        "status": "already_present",
+        "adaptation_calls": 0,
+        "reconciliations": 1,
+        "task_status": "completed"
+      }
+    }
+  },
+  "controls": {
+    "no_suitable_or_missing_obligation": "no model call, no completion",
+    "concurrent_second_successor": "fresh bounded claim makes it inert",
+    "repeat_boot_same_evidence_set": "one-shot marker makes it inert",
+    "second_open_prerequisite": "recovery sleeps until resolved, then completes once",
+    "expired_absolute_deadline": "blocked; restart does not wake the model",
+    "cancellation": "terminal; restart does not revive",
+    "boot_wiring_outside_scheduler_gate": "structurally verified with negative control",
+    "prior_source_route_regressions": "green (wrong/partial/unrelated, model retain, use_model=false, cancellation, deadline)"
+  },
+  "transport": "controlled proposal fixture; no inference, provider or spend",
+  "authority": "controlled authenticated-user fixture; private scratch SQLite/data/Lance",
+  "frontend_execution": "not_run_node_modules_absent",
+  "scope": "TASK-WAIT-01 employee-objective /sources and restart-recovery seam only; generic/workflow/other entrypoints remain OPEN"
+}

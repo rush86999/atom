@@ -1,0 +1,55 @@
+{
+  "scenario_a_restart_while_missing_then_source": [
+    {
+      "checkpoint": null,
+      "exit": 0,
+      "phase": "start",
+      "pid": 17983,
+      "report": "start-17945-1794037181695890000.json"
+    },
+    {
+      "checkpoint": null,
+      "exit": 0,
+      "phase": "startup-recover",
+      "pid": 17989,
+      "report": "startup-recover-17945-1794037183489909000.json"
+    },
+    {
+      "checkpoint": null,
+      "exit": 0,
+      "phase": "source-complete",
+      "pid": 17995,
+      "report": "source-complete-17945-1794037184861379000.json"
+    }
+  ],
+  "scenario_b_accept_interrupt_then_startup_recover": [
+    {
+      "checkpoint": null,
+      "exit": 0,
+      "phase": "start",
+      "pid": 17998,
+      "report": "start-17945-1794037186424093000.json"
+    },
+    {
+      "checkpoint": "source-interrupt-17945-1794037188184493000-checkpoint.json",
+      "exit": 17,
+      "phase": "source-interrupt",
+      "pid": 18001,
+      "report": "source-interrupt-17945-1794037188184493000.json"
+    },
+    {
+      "checkpoint": null,
+      "exit": 0,
+      "phase": "startup-recover",
+      "pid": 18004,
+      "report": "startup-recover-17945-1794037189199160000.json"
+    },
+    {
+      "checkpoint": null,
+      "exit": 0,
+      "phase": "duplicate-source",
+      "pid": 18009,
+      "report": "duplicate-source-17945-1794037190742218000.json"
+    }
+  ]
+}

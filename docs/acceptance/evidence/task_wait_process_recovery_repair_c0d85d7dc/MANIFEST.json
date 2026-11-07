@@ -1,0 +1,25 @@
+{
+  "executed_source": "c0d85d7dc246c56fe202d03558443089cff83a07",
+  "implementation_source": "1f4001dcb",
+  "source_state": "clean tracked worktree (0 modified, 0 untracked tracked-tree changes)",
+  "source_files": {
+    "backend/api/assignment_routes.py": "902ae62533b3355d54be68fb5b1d712eb85c0310c54f49271415748ddb1f5dd1",
+    "backend/core/assignment_executor.py": "01d93ac60c8eedebfd969e9d73643b36d9d4b08fe3e861d7b090d3090048a06e",
+    "backend/core/assignment_recovery.py": "c1c9f2182c19860ca3eedaedb17f9bb636f2ca25b9d3c1186627a36e4335dba0",
+    "backend/main_api_app.py": "0d47bc2fcab89c5a53ac32b2ae3d1760396ce8adcaa2f68acb959c778683db86",
+    "backend/tests/process_support/task_wait_process_worker.py": "9c35237c56ed56b13255c0b95ebf6aa53709780cedcfb429a2f4ee1e53dc14e0",
+    "backend/tests/test_boot_recovery_not_gated_by_scheduler.py": "cdc399440de90fed57ce3aa23f33b25d7e8b828c2c37511a3fff34ef9161e2bb",
+    "backend/tests/test_task_wait_process_recovery.py": "54c74a46a26cce0afaf0089053d421baeb8ba61f343b9aae8cf1d3bf45fcef29",
+    "backend/tests/test_task_wait_source_continuation_regressions.py": "da3047bd3103322ee2a783b657c5026d51e38cf591fdd9f95e4974978a6ac645"
+  },
+  "scope_correction_files": {
+    "docs/acceptance/evidence/task_wait_source_continuation_6d08b1c4b/README.md": "1fe15d0a69ab3f9c2de671de5af9ba49645146bf552b946328d65b45c1bb7086",
+    "docs/acceptance/evidence/task_wait_source_continuation_6d08b1c4b/MANIFEST.json": "dd1169bdf72751aabcd98b00fa56c2418ea698bc25d201322e324669649aea08"
+  },
+  "artifacts": {
+    "README.md": "e066e6cac9e63e08d901eac3f9c4b2b2a2b5c65270ae0074b3bb530656343732",
+    "verification.json": "e7ea7363568964d9e5646318de32f3f79a2248302d8a53ce2337bad8e6884ce1",
+    "processes.json": "56bfe76503d6ad41f0fc19ae8ab9139927fb1030c0c699da8d0f128bd3e0a2c8",
+    "final.log": "a656585aed7c62bf94b75da941d7f158920ec9e9ed18e04d0dbc253ddd097e37"
+  }
+}

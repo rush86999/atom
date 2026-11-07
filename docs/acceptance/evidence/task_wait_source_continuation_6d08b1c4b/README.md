@@ -1,5 +1,15 @@
 # TASK-WAIT-01 source-answer continuation
 
+**Scope correction (2026-11-07).** In this historical packet, "restart" means
+rebuilding a NEW `AssignmentExecutor`/`TaskLifecycle` object in the SAME Python
+process from durable state, followed by an explicit replay of the source POST.
+"Order A" and "Order B" are engine/session rebuilds, not OS process exits or
+relaunches. This packet does **not** prove an actual process restart or
+autonomous startup consumption of already-accepted input. Those are covered
+only by the later successor packet
+`docs/acceptance/evidence/task_wait_process_recovery_repair_c0d85d7dc/`; the
+original log below is preserved unchanged.
+
 This packet records the repaired delivery for the failure-first checkpoint at
 `docs/acceptance/evidence/task_wait_source_trigger_baseline_bc4970f97/`. The
 original negative log and its checks are preserved unchanged.
@@ -45,7 +55,9 @@ duplicate call is absent (Jest was not executable in this sandbox because
 - Interruption after durable source acceptance and before adaptation: the
   first delivery resolves the question but the continuation is interrupted;
   a restart/replay through `already_present` recovers exactly once.
-- Restart while waiting (order A) and accept-then-restart-then-replay (order B).
+- In-process engine/session rebuild while waiting (order A) and
+  accept-then-engine-rebuild-then-explicit-replay (order B); these are not OS
+  process restarts.
 - Explicit `use_model=false`: no adaptation is started from the source answer.
 - Cancellation and an explicit past absolute deadline stay terminal; a late
   source answer cannot resurrect or extend them.
