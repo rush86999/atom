@@ -1914,7 +1914,7 @@ def _run_scenario(args: argparse.Namespace) -> int:
                 page.get_by_role(
                     "button", name="Start Automating", exact=True).click()
                 welcome.wait_for(state="hidden", timeout=30000)
-                me_response = api.get("/api/auth/me")
+                me_response = api.get("/api/onboarding/status")
                 me = me_response.json() if me_response.status_code == 200 else {}
                 me_user = me.get("user") or me.get("data") or me
                 step("ordinary_onboarding_completed", {
