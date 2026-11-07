@@ -890,7 +890,7 @@ def _provision_admin(world: Path, db_path: Path, run_dir: Path,
         "from core.admin_bootstrap import ensure_admin_user; "
         "ensure_admin_user()")
     proc = subprocess.run(
-        [sys.executable, "-c", code], cwd=str(BACKEND), env=env,
+        [str(R.VENV_PY), "-c", code], cwd=str(BACKEND), env=env,
         capture_output=True, text=True, timeout=180)
     if proc.returncode != 0:
         tail = (proc.stderr or proc.stdout or "")[-800:]
@@ -1025,6 +1025,22 @@ def _capture_contains(capture_path: Path, needles: List[str]) -> bool:
             continue
         blob = json.dumps(entry.get("messages_full") or entry)
         if any(needle and needle in blob for needle in needles):
+            return True
+    return False
+
+
+def _capture_has_full_messages(capture_path: Path) -> bool:
+    if not capture_path.exists():
+        return False
+    for line in capture_path.read_text(encoding="utf-8").splitlines():
+        if not line.strip():
+            continue
+        try:
+            entry = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        messages = entry.get("messages_full")
+        if isinstance(messages, list) and messages:
             return True
     return False
 
@@ -1572,6 +1588,8 @@ def _run_scenario(args: argparse.Namespace) -> int:
                     "no_provider_call": shim1b["calls"] == shim1["calls"],
                 }, details={"calls": shim1b["calls"]})
                 step("wait_authority_not_in_prompt", {
+                    "capture_has_full_messages": _capture_has_full_messages(
+                        shim_capture_path),
                     "correlation_absent": not _capture_contains(
                         shim_capture_path,
                         [str(wait1.get("correlation_id") or "___none___")]),
