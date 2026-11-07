@@ -3,12 +3,22 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import io
 
 import pytest
+from PIL import Image
 
 import core.asset_content_receipt as acr
 
-PNG = b"\x89PNG\r\n\x1a\nbounded-image-bytes"
+
+def _png(size=(2, 3), color="blue"):
+    buffer = io.BytesIO()
+    Image.new("RGB", size, color=color).save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
+PNG = _png()
+TRANSFORMED = _png((4, 5), "red")
 DIGEST = hashlib.sha256(PNG).hexdigest()
 PUBLIC_IP = "93.184.216.34"
 
@@ -121,15 +131,18 @@ def test_exact_digest_and_bytes_are_verified(monkeypatch):
     assert result["sha256"] == DIGEST
     assert result["bytes"] == len(PNG)
     assert result["read_receipt"]["fields"]["sha256"] == DIGEST
+    assert result["image_format"] == "PNG"
+    assert result["width"] == 2
+    assert result["height"] == 3
+    assert result["read_receipt"]["fields"]["width"] == 2
     assert fetched[0][1] == "cdn.shopify.com"
     assert fetched[0][2] == PUBLIC_IP
 
 
 def test_provider_transform_remains_unknown(monkeypatch):
-    transformed = b"provider-transformed-bytes"
     monkeypatch.setattr(
         acr, "_http_get_pinned",
-        lambda *a, **k: _response(body=transformed))
+        lambda *a, **k: _response(body=TRANSFORMED))
     result = _run(
         "https://cdn.shopify.com/a.png",
         expected_sha256=DIGEST,
@@ -207,3 +220,37 @@ def test_http_request_carries_no_credentials_or_cookies(monkeypatch):
     assert "authorization" not in headers
     assert "cookie" not in headers
     assert captured["method"] == "GET"
+
+
+def test_mime_must_match_decoded_format(monkeypatch):
+    monkeypatch.setattr(
+        acr, "_http_get_pinned",
+        lambda *a, **k: _response(content_type="image/jpeg", body=PNG))
+    with pytest.raises(acr.AssetContentError) as exc:
+        _run("https://cdn.shopify.com/a.png", expected_sha256=DIGEST)
+    assert exc.value.reason == "image_mime_mismatch"
+
+
+def test_pixel_bound_refuses_before_full_decode(monkeypatch):
+    monkeypatch.setattr(acr, "MAX_IMAGE_PIXELS", 1)
+    monkeypatch.setattr(
+        acr, "_http_get_pinned", lambda *a, **k: _response(body=PNG))
+    with pytest.raises(acr.AssetContentError) as exc:
+        _run("https://cdn.shopify.com/a.png", expected_sha256=DIGEST)
+    assert exc.value.reason == "image_pixel_bound"
+
+
+def test_real_jpeg_is_supported(monkeypatch):
+    buffer = io.BytesIO()
+    Image.new("RGB", (4, 2), color="green").save(buffer, format="JPEG")
+    jpeg = buffer.getvalue()
+    digest = hashlib.sha256(jpeg).hexdigest()
+    monkeypatch.setattr(
+        acr, "_http_get_pinned",
+        lambda *a, **k: _response(content_type="image/jpeg", body=jpeg))
+    result = _run(
+        "https://cdn.shopify.com/a.jpg", expected_sha256=digest,
+        expected_bytes=len(jpeg))
+    assert result["verified"] is True
+    assert result["image_format"] == "JPEG"
+    assert result["width"] == 4 and result["height"] == 2

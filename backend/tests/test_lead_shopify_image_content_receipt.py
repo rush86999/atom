@@ -8,11 +8,13 @@ from __future__ import annotations
 
 import copy
 import hashlib
+import io
 import re
 import uuid
 
 import httpx
 import pytest
+from PIL import Image
 
 from tests.test_oracle_shopify_product_replay import (
     FakeShopifyTransport,
@@ -26,9 +28,20 @@ from tests.test_oracle_shopify_product_replay import (
 )
 
 SOURCE = "https://assets.example.invalid/authorized.png"
-IMAGE_BYTES = b"\x89PNG\r\n\x1a\n" + b"authorized-image-content"
-IMAGE_SHA = hashlib.sha256(IMAGE_BYTES).hexdigest()
 CDN_HOST = "cdn.shopify.com"
+IMAGE_WIDTH, IMAGE_HEIGHT = 320, 240
+
+
+def _png(color="blue", size=(IMAGE_WIDTH, IMAGE_HEIGHT)):
+    buffer = io.BytesIO()
+    Image.new("RGB", size, color=color).save(buffer, format="PNG")
+    return buffer.getvalue()
+
+
+# Real deterministic, decodable images; provider metadata below is 320x240.
+IMAGE_BYTES = _png()
+TRANSFORMED_IMAGE_BYTES = _png(color="red")
+IMAGE_SHA = hashlib.sha256(IMAGE_BYTES).hexdigest()
 
 
 EXPLICIT_IMAGE = {
@@ -87,8 +100,8 @@ class ImageReceiptTransport(FakeShopifyTransport):
                 "product_id": product_id,
                 "position": index + 1,
                 "src": f"https://{CDN_HOST}/rewritten/{image_id}.png",
-                "width": 320,
-                "height": 180,
+                "width": IMAGE_WIDTH,
+                "height": IMAGE_HEIGHT,
             })
             self.images[(product_id, image_id)] = image
             images.append(image)
@@ -131,14 +144,21 @@ class AssetDouble:
         if verified and expected_bytes is not None and len(self.body) != int(expected_bytes):
             verified = False
             reason = "byte_count_mismatch"
-        fields = {"sha256": digest, "bytes": len(self.body),
-                  "content_type": self.content_type, "url_host": CDN_HOST}
+        fields = {
+            "sha256": digest, "bytes": len(self.body),
+            "content_type": self.content_type, "url_host": CDN_HOST,
+            "image_format": "PNG", "width": IMAGE_WIDTH,
+            "height": IMAGE_HEIGHT,
+        }
         return {
             "verified": verified,
             "reason": reason,
             "sha256": digest,
             "bytes": len(self.body),
             "content_type": self.content_type,
+            "image_format": "PNG",
+            "width": IMAGE_WIDTH,
+            "height": IMAGE_HEIGHT,
             "host": CDN_HOST,
             "read_receipt": {
                 "provider": "shopify_cdn",
@@ -442,7 +462,7 @@ def test_replay_provider_transform_stays_committed_unverified(
     assert first.get("oracle_verified") is True, first
     assert len(transport.posts) == 1
 
-    asset.body = b"provider-transformed-image-bytes"
+    asset.body = TRANSFORMED_IMAGE_BYTES
     second = _call(_agent(), dict(args), dict(context))
 
     assert len(transport.posts) == 1, "a transformed replay recreated the product"
@@ -481,3 +501,28 @@ def test_authorized_image_qualifier_mismatch_is_not_certified(
     assert result.get("oracle_verified") is not True, result
     assert result.get("business_success") is not True, result
     assert f"images[0].{field}" in result["verification"]["mismatches"], result
+
+
+def test_provider_metadata_dimensions_must_match_decoded_image(
+        env, monkeypatch):
+    _add_store(env)
+
+    class _WrongDimensions(ImageReceiptTransport):
+        def _materialize(self, product, product_id):
+            item = super()._materialize(product, product_id)
+            if item.get("images"):
+                item["images"][0]["width"] = IMAGE_WIDTH + 1
+            return item
+
+    transport = _WrongDimensions()
+    _install_transport(monkeypatch, transport)
+    asset = AssetDouble()
+    _install_asset(monkeypatch, asset)
+    operation_id = f"img-dims-{uuid.uuid4().hex}"
+
+    result = _call(_agent(), _image_args(operation_id), _context(operation_id))
+
+    assert len(transport.posts) == 1, result
+    assert result.get("oracle_verified") is not True, result
+    assert result.get("business_success") is not True, result
+    assert "images[0].width" in result["verification"]["mismatches"], result

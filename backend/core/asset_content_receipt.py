@@ -28,14 +28,27 @@ from __future__ import annotations
 import asyncio
 import hashlib
 import http.client
+import io
 import ipaddress
 import socket
 import ssl
+import warnings
 from dataclasses import dataclass
 from typing import Any, Dict, Mapping, Optional, Sequence, Tuple
 from urllib.parse import urlparse
 
 DEFAULT_MAX_BYTES = 8 * 1024 * 1024
+#: Decode bound for the image-usability sub-contract.  Dimensions are checked
+#: before a full load, so a compressed decompression bomb is refused before it
+#: allocates the decoded buffer.  This is a proof-read bound, not a product API
+#: image-count cap.
+MAX_IMAGE_PIXELS = 40_000_000
+_IMAGE_FORMAT_MIME = {
+    "PNG": "image/png",
+    "JPEG": "image/jpeg",
+    "WEBP": "image/webp",
+    "GIF": "image/gif",
+}
 SHOPIFY_IMAGE_CDN_HOSTS: Tuple[str, ...] = (
     "cdn.shopify.com",
     "*.shopifycdn.com",
@@ -168,6 +181,72 @@ def _http_get_pinned(
         connection.close()
 
 
+def _decode_supported_image(body: bytes, content_type: str) -> Dict[str, Any]:
+    """Fully decode one supported image with bounded pixels/decompression.
+
+    MIME labels and digests are not usability proof.  ``Image.open`` alone may
+    accept a header-only/truncated file, so this verifies integrity and then
+    reopens/loads the bytes, checking the declared dimensions against a pixel
+    cap before decode.  Animated images are refused in this sub-contract rather
+    than claiming first-frame usability.
+    """
+    try:
+        from PIL import Image, UnidentifiedImageError
+    except ImportError as exc:  # pragma: no cover - Pillow is a requirement
+        raise AssetContentError(
+            "image_decoder_unavailable", "Pillow is required for image proof") from exc
+    declared_mime = content_type.split(";", 1)[0].strip().lower()
+    if declared_mime == "image/jpg":
+        declared_mime = "image/jpeg"
+    try:
+        with warnings.catch_warnings():
+            warnings.simplefilter("error", Image.DecompressionBombWarning)
+            with Image.open(io.BytesIO(body)) as probe:
+                width, height = int(probe.width), int(probe.height)
+                image_format = str(probe.format or "").upper()
+                frames = int(getattr(probe, "n_frames", 1) or 1)
+                if width <= 0 or height <= 0:
+                    raise AssetContentError(
+                        "unusable_image", "image has non-positive dimensions")
+                if width * height > MAX_IMAGE_PIXELS:
+                    raise AssetContentError(
+                        "image_pixel_bound",
+                        f"image dimensions {width}x{height} exceed the pixel bound")
+                if frames > 1:
+                    raise AssetContentError(
+                        "unsupported_animated_image",
+                        "animated images are unsupported by the content sub-contract")
+                probe.verify()
+            with Image.open(io.BytesIO(body)) as decoded:
+                if int(decoded.width) != width or int(decoded.height) != height:
+                    raise AssetContentError(
+                        "unusable_image", "image dimensions changed while decoding")
+                decoded.load()
+    except AssetContentError:
+        raise
+    except Image.DecompressionBombError as exc:
+        raise AssetContentError(
+            "image_pixel_bound", "image decoder rejected a decompression bomb") from exc
+    except (UnidentifiedImageError, OSError, ValueError, EOFError) as exc:
+        raise AssetContentError(
+            "unusable_image", f"image bytes are not decodable: {type(exc).__name__}") from exc
+    expected_mime = _IMAGE_FORMAT_MIME.get(image_format)
+    if expected_mime is None:
+        raise AssetContentError(
+            "unsupported_image_format",
+            f"image format {image_format!r} is not supported")
+    if declared_mime != expected_mime:
+        raise AssetContentError(
+            "image_mime_mismatch",
+            f"declared {declared_mime!r} does not match decoded {expected_mime!r}")
+    return {
+        "format": image_format,
+        "mime": expected_mime,
+        "width": width,
+        "height": height,
+    }
+
+
 def _content_type(headers: Mapping[str, str]) -> str:
     return str(headers.get("content-type") or "").split(";", 1)[0].strip().lower()
 
@@ -175,6 +254,7 @@ def _content_type(headers: Mapping[str, str]) -> str:
 def _receipt_shape(
     *, provider: str, resource_id: str, account_id: str,
     digest: str, size: int, content_type: str, host: str,
+    image_format: str, width: int, height: int,
 ) -> Dict[str, Any]:
     """Reuse the existing authorized-read receipt builder."""
     from core.connected_actions import _receipt
@@ -189,6 +269,9 @@ def _receipt_shape(
             "bytes": size,
             "content_type": content_type,
             "url_host": host,
+            "image_format": image_format,
+            "width": width,
+            "height": height,
         },
         evidence=[{
             "kind": "asset_content",
@@ -196,6 +279,9 @@ def _receipt_shape(
             "sha256": digest,
             "bytes": size,
             "host": host,
+            "image_format": image_format,
+            "width": width,
+            "height": height,
         }],
     )
 
@@ -268,6 +354,7 @@ async def read_provider_asset(
     body = response.body or b""
     if len(body) > int(max_bytes):
         raise AssetContentError("oversize", "asset body exceeds byte bound")
+    decoded = _decode_supported_image(body, content_type)
     digest = hashlib.sha256(body).hexdigest()
     verified = True
     reason = ""
@@ -279,13 +366,18 @@ async def read_provider_asset(
         reason = reason or "byte_count_mismatch"
     receipt = _receipt_shape(
         provider=provider, resource_id=resource_id, account_id=account_id,
-        digest=digest, size=len(body), content_type=content_type, host=host)
+        digest=digest, size=len(body), content_type=content_type, host=host,
+        image_format=decoded["format"], width=decoded["width"],
+        height=decoded["height"])
     return {
         "verified": verified,
         "reason": reason,
         "sha256": digest,
         "bytes": len(body),
         "content_type": content_type,
+        "image_format": decoded["format"],
+        "width": decoded["width"],
+        "height": decoded["height"],
         "host": host,
         "read_receipt": receipt,
     }

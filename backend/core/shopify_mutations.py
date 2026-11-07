@@ -1080,12 +1080,33 @@ async def verify_product_image_content(
             "image_id": image_id,
             "position": image.get("position"),
             "alt": image.get("alt"),
-            "width": image.get("width"),
-            "height": image.get("height"),
+            "provider_width": image.get("width"),
+            "provider_height": image.get("height"),
+            "width": asset.get("width"),
+            "height": asset.get("height"),
+            "content_format": asset.get("image_format"),
+            "content_type": asset.get("content_type"),
             "verified": bool(asset.get("verified")),
             "reason": asset.get("reason") or "",
         })
         receipts.append(receipt)
+        provider_width = image.get("width")
+        provider_height = image.get("height")
+        try:
+            provider_width = int(provider_width)
+            provider_height = int(provider_height)
+        except (TypeError, ValueError):
+            mismatches.extend([
+                f"images[{index}].width", f"images[{index}].height"])
+            continue
+        if provider_width <= 0 or provider_height <= 0:
+            mismatches.extend([
+                f"images[{index}].width", f"images[{index}].height"])
+            continue
+        if (int(asset.get("width") or 0) != provider_width
+                or int(asset.get("height") or 0) != provider_height):
+            mismatches.extend([
+                f"images[{index}].width", f"images[{index}].height"])
         if not asset.get("verified"):
             reason = str(asset.get("reason") or "content_mismatch")
             field = (
