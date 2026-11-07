@@ -1,7 +1,7 @@
 # Generic source-answer repair — full accepted material and snapshot CAS
 
 **Successor branch:** `codex/generic-source-answer-20261107`
-**Executed source:** `960b8c5a225b637eb383df2678af42e139013260` (clean).
+**Executed source:** `6cc5075ace971682d08c9dfd044ef64fb665a057` (clean).
 **Stack base:** `7d38d2ac9`; root probes `c58340b18`; previous checkpoint
 `323e40507` (withheld, preserved).
 
@@ -33,17 +33,17 @@
 - Existing shared CAS/binding mechanics only; no new revision store/engine/
   lifecycle. Current actor authority checks retained.
 
-## Completed focused coverage
+## Completed focused coverage (clean executed source)
 
 | Log | Selection | Actual |
 |---|---|---:|
-| `focused-backend-11.log` | root material replay and peer snapshot CAS probes; source-only valid; wrong correlation; duplicate exact + changed material; missing/foreign/stale/revoked source; dataset valid; offline actor-authority replay; existing text contracts | **11 passed**, exit 0 |
-| `focused-ui-11.log` | all panel text journeys + authorized-source picker bound to exact wait | **11 passed**, exit 0 |
+| `focused-backend-11-clean.log` | root material replay and peer snapshot CAS probes; source-only valid; wrong correlation; duplicate exact + changed material; missing/foreign/stale/revoked source; dataset valid; offline actor-authority replay; existing text contracts | **11 passed**, exit 0 |
+| `focused-ui-11-clean.log` | all panel text journeys + authorized-source picker bound to exact wait | **11 passed**, exit 0 |
 
 Dataset, Generic-specific authority failures, offline-authority refusal,
 duplicate/changed material, text compatibility and UI selection are now locally
-exercised. Backend/UI source is clean at `960b8c5a2`; only the existing model
-transport and indexed/read fixtures are doubled.
+exercised. Only the existing model transport and indexed/read fixtures are
+doubled.
 
 ## Remaining independent verification
 

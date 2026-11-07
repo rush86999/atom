@@ -3,7 +3,7 @@
   "branch": "codex/generic-source-answer-20261107",
   "base_source": "7d38d2ac946ca8b4470bde8edd72ed00ef49497d",
   "root_probe_source": "c58340b1805b13602f169c113abd5b9727056fa3",
-  "executed_source": "960b8c5a225b637eb383df2678af42e139013260",
+  "executed_source": "6cc5075ace971682d08c9dfd044ef64fb665a057",
   "source_tree_clean": true,
   "root_negatives": {
     "material_failed": 1,
