@@ -1,0 +1,32 @@
+executed_source: bd4d8f253f3ab38c64d8945b2fddb0cfcd3a67f2
+base_main: 213e75c436044634df2a0c2e7a88faf6d03c5797
+branch: codex/oracle01-log-stderr-redaction-20261106
+predecessor: merged #689 normal WebSocket/request redaction
+status_short:
+A  docs/acceptance/evidence/security_log_stderr_fallback_bd4d8f2/README.md
+A  docs/acceptance/evidence/security_log_stderr_fallback_bd4d8f2/TEST_RESULTS.md
+A  docs/acceptance/evidence/security_log_stderr_fallback_bd4d8f2/affected-311.log
+A  docs/acceptance/evidence/security_log_stderr_fallback_bd4d8f2/affected-314.log
+A  docs/acceptance/evidence/security_log_stderr_fallback_bd4d8f2/baseline-main-311.log
+A  docs/acceptance/evidence/security_log_stderr_fallback_bd4d8f2/focused-311.log
+A  docs/acceptance/evidence/security_log_stderr_fallback_bd4d8f2/focused-314.log
+A  docs/acceptance/evidence/security_log_stderr_fallback_bd4d8f2/formatter-probe-base-311.txt
+A  docs/acceptance/evidence/security_log_stderr_fallback_bd4d8f2/formatter-probe-base-314.txt
+A  docs/acceptance/evidence/security_log_stderr_fallback_bd4d8f2/formatter-probe-fixed-311.txt
+A  docs/acceptance/evidence/security_log_stderr_fallback_bd4d8f2/formatter-probe-fixed-314.txt
+A  docs/acceptance/evidence/security_log_stderr_fallback_bd4d8f2/formatter_fallback_probe.py
+A  docs/acceptance/evidence/security_log_stderr_fallback_bd4d8f2/server-base-result.txt
+A  docs/acceptance/evidence/security_log_stderr_fallback_bd4d8f2/server-base-sanitized.log
+A  docs/acceptance/evidence/security_log_stderr_fallback_bd4d8f2/server-fixed-result.txt
+A  docs/acceptance/evidence/security_log_stderr_fallback_bd4d8f2/server-fixed.log
+A  docs/acceptance/evidence/security_log_stderr_fallback_bd4d8f2/supplied-base-311.log
+A  docs/acceptance/evidence/security_log_stderr_fallback_bd4d8f2/supplied-base-314.log
+A  docs/acceptance/evidence/security_log_stderr_fallback_bd4d8f2/supplied-fixed-311.log
+A  docs/acceptance/evidence/security_log_stderr_fallback_bd4d8f2/supplied-fixed-314.log
+A  docs/acceptance/evidence/security_log_stderr_fallback_bd4d8f2/verification.json
+A  docs/acceptance/evidence/security_log_stderr_fallback_bd4d8f2/verifier_probe.py
+log:
+bd4d8f253 fix(logging): freeze malformed records before stderr diagnostics
+213e75c43 Agent3: independent review of #689 credential-safe log redaction (#694)
+66e09c5ee Security: redact JWTs from WebSocket and request logs (#689)
+aadb75ec1 Auth: preserve protected deep links through login (#687)

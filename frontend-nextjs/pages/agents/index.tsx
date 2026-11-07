@@ -34,6 +34,7 @@ import ReasoningChainViewer from "@/components/ReasoningChainViewer";
 import { useProviderStatus } from "@/hooks/useProviderStatus";
 import { ProviderRequiredBanner } from "@/components/shared/ProviderRequiredBanner";
 import { handleSessionExpired } from "@/lib/auth-headers";
+import { useProductProfile } from "@/lib/product-profile";
 
 const API_BASE = getApiBase();
 
@@ -64,6 +65,9 @@ const MAX_LOG_LINES = 200;
 const AgentsDashboard = () => {
     const routerPush = useRouter().push;
     const providerStatus = useProviderStatus();
+    const { isCapabilityEnabled } = useProductProfile();
+    const marketplaceEnabled = isCapabilityEnabled("marketplace");
+    const automationsEnabled = isCapabilityEnabled("automations");
     const [agents, setAgents] = useState<AgentInfo[]>([]);
     const [progressByAgent, setProgressByAgent] = useState<Record<string, GraduationProgress | null>>({});
     const [activeAgentId, setActiveAgentId] = useState<string | null>(null);
@@ -557,15 +561,24 @@ const AgentsDashboard = () => {
 
                             {!isLoading && !error && agents.length === 0 && (
                                 <div className="col-span-1 md:col-span-2 py-12 text-center text-gray-500 dark:text-gray-400 bg-white dark:bg-gray-800 rounded border border-dashed border-gray-300 dark:border-gray-600">
-                                    <p>No agents found. Create your first agent or spawn from a template.</p>
-                                    {/* P1.5: actionable CTA so the empty state is not a dead end. */}
+                                    <p>
+                                        No agents found. Create your first agent
+                                        {marketplaceEnabled ? ' or spawn from a template.' : '.'}
+                                    </p>
+                                    {/* P1.5: actionable CTA so the empty state is not a dead end.
+                                        Marketplace/automation links follow the release profile;
+                                        Chat remains the supported next action in core. */}
                                     <div className="mt-4 flex flex-wrap justify-center gap-2">
-                                        <Link href="/marketplace">
-                                            <Button size="sm">Browse templates</Button>
-                                        </Link>
-                                        <Link href="/automations">
-                                            <Button size="sm" variant="outline">Describe a workflow</Button>
-                                        </Link>
+                                        {marketplaceEnabled && (
+                                            <Link href="/marketplace">
+                                                <Button size="sm">Browse templates</Button>
+                                            </Link>
+                                        )}
+                                        {automationsEnabled && (
+                                            <Link href="/automations">
+                                                <Button size="sm" variant="outline">Describe a workflow</Button>
+                                            </Link>
+                                        )}
                                         <Link href="/chat">
                                             <Button size="sm" variant="outline">Chat with an agent</Button>
                                         </Link>

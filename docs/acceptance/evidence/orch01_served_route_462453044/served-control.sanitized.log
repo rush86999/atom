@@ -1,0 +1,27 @@
+
+backend/tests/test_orch01_served_route_http.py::test_served_http_route_persists_and_reads_back_across_fresh_sessions 
+-------------------------------- live log setup --------------------------------
+2026-11-06 19:07:09 [    INFO] EscalationManager initialized
+2026-11-06 19:07:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:07:09 [    INFO] EscalationManager initialized
+2026-11-06 19:07:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 19:07:09 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 19:07:09 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../..<test-venv>/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  <test-venv>/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../..<test-venv>/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  <test-venv>/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../..<test-venv>/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../..<test-venv>/lib/python3.14/site-packages/pytest_freezegun.py:17
+  <test-venv>/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 1 passed, 4 warnings in 2.99s =========================

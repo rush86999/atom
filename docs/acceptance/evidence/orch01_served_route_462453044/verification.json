@@ -1,0 +1,61 @@
+{
+  "executed_source": "462453044",
+  "base_runtime": "248a23296",
+  "source_files": [
+    {
+      "path": "backend/tests/test_orch01_served_route_http.py",
+      "blob_prefix": "fd7ce577d6a1",
+      "matches_executed_source": true
+    },
+    {
+      "path": "backend/advanced_workflow_api.py",
+      "blob_prefix": "7da8c51d0985",
+      "matches_executed_source": true
+    },
+    {
+      "path": "backend/core/agents/queen_agent.py",
+      "blob_prefix": "336cbceb70c9",
+      "matches_executed_source": true
+    },
+    {
+      "path": "backend/core/agents/workflow_blueprint.py",
+      "blob_prefix": "9b8efaa18de1",
+      "matches_executed_source": true
+    },
+    {
+      "path": "backend/core/auth.py",
+      "blob_prefix": "e580b31d367f",
+      "matches_executed_source": true
+    },
+    {
+      "path": "backend/core/database.py",
+      "blob_prefix": "d8c8f628bb8c",
+      "matches_executed_source": true
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/acceptance/evidence/orch01_served_route_462453044/served-control.sanitized.log",
+      "blob_prefix": "bf703580e0af",
+      "provenance": "retained test log; only explicit local path prefixes replaced for disclosure",
+      "bytes": 2127
+    },
+    {
+      "path": "docs/acceptance/evidence/orch01_served_route_462453044/neighborhood.sanitized.log",
+      "blob_prefix": "840f57240e0e",
+      "provenance": "retained test log; only explicit local path prefixes replaced for disclosure",
+      "bytes": 19078
+    }
+  ],
+  "results": {
+    "served_control": "1 passed",
+    "neighborhood": "18 passed"
+  },
+  "disclosure_check": "JWT, Bearer, credential-query and known test secret absent; inspected API/test messages; local paths sanitized",
+  "limits": [
+    "mounted production router, not main-app bootstrap",
+    "production JWT validation but no ordinary login",
+    "model leaf/classifier and observing orchestrator doubled",
+    "no live app model/provider, PostgreSQL or multiworker claim"
+  ]
+}
