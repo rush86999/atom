@@ -186,6 +186,45 @@ def _utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+#: One-shot bounded wakes for accepted-evidence claims whose recorded owner
+#: cannot finish them (crashed after claiming, before continuation). Keyed by
+#: run id so concurrent boots do not pile up duplicate waits. This is an
+#: in-memory scheduling aid, NOT durable authority: the lease/marker on the
+#: assignment remains the only claim truth, and a restarted process reschedules
+#: from that marker. It is pruned as each task completes.
+_EVIDENCE_RECOVERY_WAKES: Dict[str, "asyncio.Task[Any]"] = {}
+
+
+def pending_evidence_recovery_wakes() -> List[str]:
+    """Run ids with a live bounded recovery wake in this process."""
+    return sorted(
+        run_id for run_id, task in _EVIDENCE_RECOVERY_WAKES.items()
+        if task is not None and not task.done())
+
+
+async def await_evidence_recovery_wakes(timeout: float = 0.0) -> None:
+    """Wait for bounded recovery wakes (startup-owner/test drain point).
+
+    Production starts these as background work and never awaits them; the
+    actual-process acceptance runs the startup owner in a long-lived child and
+    needs an explicit boundary to observe the wake. Tasks from a different
+    event loop are ignored rather than awaited across loops.
+    """
+    loop = asyncio.get_running_loop()
+    tasks = [
+        task for task in list(_EVIDENCE_RECOVERY_WAKES.values())
+        if task is not None and not task.done() and task.get_loop() is loop
+    ]
+    if not tasks:
+        return
+    try:
+        await asyncio.wait_for(
+            asyncio.gather(*tasks, return_exceptions=True),
+            timeout=(timeout if timeout > 0 else None))
+    except asyncio.TimeoutError:
+        return
+
+
 def _sha256_file(path: str) -> str:
     digest = hashlib.sha256()
     with open(path, "rb") as handle:
@@ -2360,15 +2399,91 @@ class AssignmentExecutor:
             state = str(marker.get("status") or "")
             if state in ("attempted", "completed", "model_unavailable"):
                 return None
-            if state == "claimed":
-                try:
-                    claimed_at = float(marker.get("at"))
-                    ttl = float(marker.get("ttl") or 0)
-                except (TypeError, ValueError):
-                    claimed_at = ttl = 0.0
-                if ttl > 0 and (time.time() - claimed_at) < ttl:
-                    return None
+            if state == "claimed" and not self._evidence_recovery_takeover_ready(
+                    marker):
+                # Fresh lease, or a DIFFERENT live owner still adapting.
+                return None
         return {**base, "marker": marker}
+
+    def _evidence_recovery_deferral(
+        self, record: Dict[str, Any],
+    ) -> Optional[Dict[str, Any]]:
+        """The bounded wake a boot owes a claim whose owner cannot finish it.
+
+        A one-shot boot that merely skips a fresh claim would strand accepted
+        evidence when the claim's process died before continuation. When the
+        recorded owner is dead/unknown, return the remaining lease so the same
+        recovery owner can re-enter once at expiry (never a hot model poll).
+        A live owner is left alone: it still owns its adaptation.
+        """
+        base = self._unconsumed_evidence_key(record)
+        if base is None:
+            return None
+        marker = (record.get("assignment") or {}).get("evidence_recovery")
+        marker = marker if isinstance(marker, dict) else {}
+        if str(marker.get("key") or "") != base["key"]:
+            return None
+        if str(marker.get("status") or "") != "claimed":
+            return None
+        owner_state = self._evidence_recovery_owner_state(marker)
+        if owner_state in ("live", "self"):
+            # A live owner (including this process) still owns the lease.
+            return None
+        try:
+            claimed_at = float(marker.get("at"))
+            ttl = float(marker.get("ttl") or 0)
+        except (TypeError, ValueError):
+            return None
+        if ttl <= 0:
+            return None
+        remaining = max(0.0, (claimed_at + ttl) - time.time())
+        return {
+            "key": base["key"],
+            "owner_state": owner_state,
+            "remaining": remaining,
+            "claim_token": marker.get("claim_token"),
+        }
+
+    @staticmethod
+    def _evidence_recovery_owner_state(marker: Dict[str, Any]) -> str:
+        """Classify the claim owner with the existing process-liveness probe.
+
+        ``live`` is decisive: another live process may still be adapting the
+        accepted evidence, so a lease expiry is not permission to run a second
+        model call behind it. ``self`` is the same process and may own a
+        different, stale lease (a process fingerprint is not a generation).
+        ``dead``/``unknown`` may be taken over only once the bounded TTL has
+        elapsed -- the TTL bounds when takeover may happen; it never claims the
+        old provider/process physically stopped.
+        """
+        from core.execution_ownership import owner_liveness
+
+        owner_process = marker.get("owner_process")
+        if not isinstance(owner_process, dict) or not owner_process.get("pid"):
+            return "unknown"
+        try:
+            state, _detail = owner_liveness({"owner": owner_process})
+        except Exception:  # noqa: BLE001 — inconclusive is not proof of death
+            return "unknown"
+        return str(state or "unknown")
+
+    def _evidence_recovery_takeover_ready(
+        self, marker: Dict[str, Any],
+    ) -> bool:
+        """May a successor replace this claim, per lease AND liveness?"""
+        if str(marker.get("status") or "") != "claimed":
+            return False
+        try:
+            claimed_at = float(marker.get("at"))
+            ttl = float(marker.get("ttl") or 0)
+        except (TypeError, ValueError):
+            return False
+        if ttl <= 0 or (time.time() - claimed_at) < ttl:
+            return False
+        # The lease has elapsed. A live owner is never displaced merely because
+        # its adaptation outlived the claim; the claim token, not the clock,
+        # remains the cleanup authority.
+        return self._evidence_recovery_owner_state(marker) != "live"
 
     def _claim_evidence_recovery(
         self, run_id: str, key: str,
@@ -2376,31 +2491,50 @@ class AssignmentExecutor:
         """CAS-claim one accepted-evidence recovery attempt.
 
         The claim is stored on the assignment plan (not a new table/daemon)
-        and is bounded by its own recorded TTL. A different successor that
-        loses the CAS, or sees a fresh claim, performs no model call.
+        and is bounded by its own recorded TTL. Every successful claim carries
+        an opaque ``claim_token`` -- the generation proof used by finish,
+        retain and cleanup. Two leases in the SAME process therefore remain
+        distinguishable; a process fingerprint is not a generation.
+
+        A different successor that loses the CAS, sees a fresh claim, or sees
+        a live owner performs no model call.
         """
+        from core.execution_ownership import record_os_start
         from core.task_lifecycle import _current_worker_fingerprint
 
         ttl = float(os.getenv(
             "ATOM_ASSIGNMENT_EVIDENCE_RECOVERY_CLAIM_TTL", "120") or 120)
         owner = _current_worker_fingerprint()
+        owner_process = dict(
+            (record_os_start({}) or {}).get("owner") or {})
+        # Same opaque generation pattern as the runtime model-attempt claim:
+        # cleanup is bound to this exact claim, never to a key or a pid.
+        claim_token = uuid.uuid4().hex
 
         def compute(record, assignment):
             plan = self._evidence_recovery_plan(record)
             if plan is None or plan["key"] != key:
                 raise TaskLifecycleError(
                     "accepted evidence changed before the recovery claim")
+            claimed_at = time.time()
             updated = copy.deepcopy(assignment)
             updated["evidence_recovery"] = {
                 "key": key,
                 "status": "claimed",
                 "owner": owner,
-                "at": time.time(),
+                "owner_process": owner_process,
+                "claim_token": claim_token,
+                "at": claimed_at,
                 "ttl": ttl,
                 "claimed_at": _utc_now_iso(),
                 "observation_ids": list(plan["observation_ids"])[:20],
             }
-            return updated, {"key": key, "owner": owner, "ttl": ttl}
+            return updated, {
+                "key": key,
+                "owner": owner,
+                "ttl": ttl,
+                "claim_token": claim_token,
+            }
 
         try:
             return self.lifecycle.mutate_assignment(
@@ -2409,19 +2543,79 @@ class AssignmentExecutor:
         except TaskLifecycleError:
             return None
 
+    def _retain_evidence_recovery(
+        self,
+        run_id: str,
+        key: str,
+        claim_token: Optional[str],
+        *,
+        seconds: float,
+    ) -> bool:
+        """Extend the EXACT live claim for an adaptation still in flight.
+
+        The claim TTL is deliberately shorter than an adaptation deadline, so
+        a live owner extends its own lease before calling the consumer. A
+        stale token cannot extend a successor's claim, and an already-finished
+        claim is never resurrected.
+        """
+        result: Dict[str, Any] = {"retained": False}
+
+        def compute(record, assignment):
+            marker = dict(assignment.get("evidence_recovery") or {})
+            if (
+                not claim_token
+                or str(marker.get("key") or "") != key
+                or str(marker.get("status") or "") != "claimed"
+                or str(marker.get("claim_token") or "") != str(claim_token)
+            ):
+                return assignment, {"retained": False, "status": "stale"}
+            try:
+                keep = max(1.0, float(seconds))
+            except (TypeError, ValueError):
+                keep = max(1.0, float(marker.get("ttl") or 0))
+            # Keep the original claim clock; the lease is at + ttl. A retain
+            # can only widen the duration, never reset ownership.
+            marker["ttl"] = max(float(marker.get("ttl") or 0), keep)
+            marker["retained_at"] = _utc_now_iso()
+            updated = copy.deepcopy(assignment)
+            updated["evidence_recovery"] = marker
+            result["retained"] = True
+            return updated, {"retained": True, "ttl": marker["ttl"]}
+
+        try:
+            self.lifecycle.mutate_assignment(
+                run_id, compute,
+                rationale="accepted-evidence recovery claim retained")
+        except TaskLifecycleError:
+            return False
+        return bool(result.get("retained"))
+
     def _finish_evidence_recovery(
         self,
         run_id: str,
         key: str,
         status: str,
         *,
+        claim_token: Optional[str],
         rounds: Optional[List[Dict[str, Any]]] = None,
         error: Optional[str] = None,
     ) -> None:
-        """Record the one-shot recovery outcome without widening authority."""
+        """Record the one-shot recovery outcome for ONE claim generation.
+
+        The token is required and authoritative. A late finish from an expired
+        claim must do nothing: overwriting the successor's ``claimed`` marker
+        would make the next boot treat unconsumed accepted evidence as already
+        attempted and strand it. Key/status/token are checked inside the same
+        lifecycle CAS that writes the outcome.
+        """
         def compute(record, assignment):
             marker = dict(assignment.get("evidence_recovery") or {})
-            if str(marker.get("key") or "") != key:
+            if (
+                not claim_token
+                or str(marker.get("key") or "") != key
+                or str(marker.get("status") or "") != "claimed"
+                or str(marker.get("claim_token") or "") != str(claim_token)
+            ):
                 return assignment, {"status": "stale"}
             marker["status"] = status
             marker["finished_at"] = _utc_now_iso()
@@ -2480,6 +2674,124 @@ class AssignmentExecutor:
                 deadline_seconds=deadline_seconds,
                 provider_model=_employee_provider_model())
 
+    async def _recover_accepted_evidence(
+        self, run_id: str, *, deadline_seconds: float = 180.0,
+    ) -> Optional[Dict[str, Any]]:
+        """Claim and continue ONE run's durable accepted evidence.
+
+        A fresh claim is skipped. If its recorded owner is dead/unknown, a
+        bounded wake is scheduled for lease expiry so a one-shot boot cannot
+        strand the accepted input forever. A live owner is left alone.
+        """
+        record = self.lifecycle.get_task(run_id)
+        if record is None or record.get("assignment") is None:
+            return None
+        if str((record.get("assignment") or {}).get("status") or "") in (
+                TERMINAL_ASSIGNMENT_STATES):
+            return None
+        plan = self._evidence_recovery_plan(record)
+        if plan is None:
+            deferral = self._evidence_recovery_deferral(record)
+            if deferral is not None:
+                grace = 0.05
+                self._schedule_evidence_recovery_wake(
+                    run_id, float(deferral["remaining"]) + grace)
+            return None
+        claim = self._claim_evidence_recovery(run_id, plan["key"])
+        if claim is None:
+            return None
+        claim_token = claim.get("claim_token")
+        if not claim_token:
+            return None
+        # The adaptation deadline can legitimately exceed the base claim TTL.
+        # Retain THIS generation before the consumer so a slow live owner is
+        # never displaced by the lease while it is still adapting. If the
+        # generation already changed, do NOT make the model call: the newer
+        # owner is responsible for the accepted evidence.
+        retained = self._retain_evidence_recovery(
+            run_id, plan["key"], claim_token,
+            seconds=max(float(claim.get("ttl") or 0.0),
+                        float(deadline_seconds) + 60.0))
+        if not retained:
+            logger.info(
+                "assignment %s: accepted-evidence claim generation changed "
+                "before retention; leaving it to the current owner", run_id)
+            return {"key": plan["key"], "status": "stale",
+                    "claim_token": claim_token}
+        try:
+            rounds = await self._continue_accepted_evidence(
+                run_id, deadline_seconds=deadline_seconds)
+            remaining = self._unconsumed_evidence_key(
+                self.lifecycle.get_task(run_id) or {})
+            status = (
+                "completed" if remaining is None
+                or remaining["key"] != plan["key"] else "attempted")
+            self._finish_evidence_recovery(
+                run_id, plan["key"], status,
+                claim_token=claim_token, rounds=rounds)
+            return {"key": plan["key"], "status": status,
+                    "claim_token": claim_token, "rounds": rounds}
+        except Exception as exc:  # noqa: BLE001 — per-run isolation
+            logger.warning(
+                "assignment %s: accepted-evidence recovery failed: %s",
+                run_id, exc)
+            self._finish_evidence_recovery(
+                run_id, plan["key"], "attempted",
+                claim_token=claim_token,
+                error=f"{type(exc).__name__}: {exc}")
+            return {"key": plan["key"], "status": "attempted",
+                    "claim_token": claim_token, "error": str(exc)}
+
+    def _schedule_evidence_recovery_wake(
+        self, run_id: str, delay: float,
+    ) -> bool:
+        """Schedule one bounded re-entry after a claim lease expires.
+
+        Reuses the existing recovery owner; it is not a polling daemon and it
+        never invents an advance/new task. The durable marker stays the only
+        claim authority, so a process that dies before the wake simply leaves
+        the same marker for the next boot to reschedule.
+        """
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            return False
+        existing = _EVIDENCE_RECOVERY_WAKES.get(run_id)
+        if (existing is not None and not existing.done()
+                and existing.get_loop() is loop):
+            return False
+        task = loop.create_task(
+            self._deferred_evidence_recovery(run_id, max(0.0, delay)))
+
+        def _forget(done: "asyncio.Task[Any]") -> None:
+            if _EVIDENCE_RECOVERY_WAKES.get(run_id) is done:
+                _EVIDENCE_RECOVERY_WAKES.pop(run_id, None)
+
+        _EVIDENCE_RECOVERY_WAKES[run_id] = task
+        task.add_done_callback(_forget)
+        return True
+
+    async def _deferred_evidence_recovery(
+        self, run_id: str, delay: float,
+    ) -> None:
+        """Bounded wake: re-enter the existing recovery owner once at expiry."""
+        try:
+            await asyncio.sleep(max(0.0, delay))
+            record = self.lifecycle.get_task(run_id)
+            if record is None or record.get("assignment") is None:
+                return
+            if str((record.get("assignment") or {}).get("status") or "") in (
+                    TERMINAL_ASSIGNMENT_STATES):
+                return
+            await self._recover_accepted_evidence(run_id)
+            await self.execute(run_id, max_steps=20)
+        except asyncio.CancelledError:
+            raise
+        except Exception as exc:  # noqa: BLE001 — the loop must survive
+            logger.warning(
+                "assignment %s: deferred accepted-evidence recovery failed: "
+                "%s", run_id, exc)
+
     async def recover_ready_assignments(
         self, *, limit: int = 50, max_steps_per_assignment: int = 20,
     ) -> List[Dict[str, Any]]:
@@ -2494,7 +2806,8 @@ class AssignmentExecutor:
         committed before a process died is handed to the same employee
         adaptation consumer used by the source route (explicitly claimed and
         one-shot per evidence set). A genuinely missing prerequisite has an
-        open obligation and is never model-polled here.
+        open obligation and is never model-polled here. A claim whose owner
+        died after claiming is deferred to a bounded wake at lease expiry.
         """
         results: List[Dict[str, Any]] = []
         runs = self.lifecycle.runs.list_runs(
@@ -2507,28 +2820,7 @@ class AssignmentExecutor:
             if assignment.get("status") in TERMINAL_ASSIGNMENT_STATES:
                 continue
             self.replay_pending_wake(run["id"])
-            plan = self._evidence_recovery_plan(record)
-            if plan is not None:
-                claim = self._claim_evidence_recovery(run["id"], plan["key"])
-                if claim is not None:
-                    try:
-                        rounds = await self._continue_accepted_evidence(
-                            run["id"])
-                        remaining = self._unconsumed_evidence_key(
-                            self.lifecycle.get_task(run["id"]) or {})
-                        self._finish_evidence_recovery(
-                            run["id"], plan["key"],
-                            ("completed" if remaining is None
-                             or remaining["key"] != plan["key"]
-                             else "attempted"),
-                            rounds=rounds)
-                    except Exception as exc:  # noqa: BLE001 — per-run isolation
-                        logger.warning(
-                            "assignment %s: accepted-evidence recovery "
-                            "failed: %s", run["id"], exc)
-                        self._finish_evidence_recovery(
-                            run["id"], plan["key"], "attempted",
-                            error=f"{type(exc).__name__}: {exc}")
+            await self._recover_accepted_evidence(run["id"])
             execution = await self.execute(
                 run["id"], max_steps=max_steps_per_assignment)
             results.append(execution)
