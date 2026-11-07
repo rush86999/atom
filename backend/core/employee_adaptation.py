@@ -429,6 +429,24 @@ def _adaptation_errors(
             return [
                 "clarify requires one specific clarification question the "
                 "user can answer"]
+        requested = [
+            str(role or "").strip()
+            for role in (getattr(clarification, "missing_roles", None) or [])
+            if str(role or "").strip()
+        ]
+        if requested:
+            declared = {
+                str(role or "").strip()
+                for item in context.get("missing_prerequisites") or []
+                if isinstance(item, Mapping)
+                for role in (item.get("missing") or [])
+                if str(role or "").strip()
+            }
+            invalid = [role for role in requested if role not in declared]
+            if invalid:
+                return [
+                    "clarify missing_roles must name only the trusted missing "
+                    f"prerequisite role(s) {sorted(declared)}: {invalid}"]
         return []
     if normalized.decision == "retain" and context.get(
             "missing_prerequisites"):
@@ -798,6 +816,7 @@ def _compact_wait_choice_context(
         clarification_question=(Optional[str], None),
         clarification_unblocks=(Optional[str], None),
         clarification_concept=(Optional[str], None),
+        clarification_missing_roles=(Optional[List[str]], None),
     )
     candidate_evidence = []
     operation_entries = {
@@ -879,7 +898,7 @@ def _compact_wait_choice_context(
         "Return JSON only with this shape: {decision, reason, observation_ids, "
         "fact, subject, expected_from, expected_answer_type, blocks_operation, "
         "clarification_question, clarification_unblocks, "
-        "clarification_concept}.\n"
+        "clarification_concept, clarification_missing_roles}.\n"
         "Return concrete VALUES, not the JSON schema. Never output $defs, "
         "properties, required, title or type.\n"
         "Field rules: decision='replan' only for a material external fact "
@@ -898,7 +917,11 @@ def _compact_wait_choice_context(
         "when no material work remains.\n"
         "For clarify, clarification_question must name the exact record or "
         "choice the user must resolve and clarification_unblocks should name "
-        "the blocked business result. observation_ids may repeat the opaque "
+        "the blocked business result. When a capability is missing several "
+        "declared roles, set clarification_missing_roles to only the role(s) "
+        "this one question requests, copied exactly from "
+        "missing_prerequisites[].missing; omit it otherwise. observation_ids "
+        "may repeat the opaque "
         "observation handles above; they are lifecycle plumbing, not a "
         "business choice.\n"
         "CONTEXT:\n" + json.dumps(payload, sort_keys=True, default=str)
@@ -942,6 +965,11 @@ def _expand_compact_wait_payload(
                     payload.get("clarification_unblocks") or "")[:300],
                 "expected_answer_type": str(
                     payload.get("expected_answer_type") or "text")[:80],
+                "missing_roles": [
+                    str(role) for role in (
+                        payload.get("clarification_missing_roles") or [])
+                    if str(role or "").strip()
+                ][:8],
             }
         return expanded
     if decision != "replan":
@@ -1072,6 +1100,10 @@ def _adaptation_prompt(
         "bounded response to the observation(s).\n"
         "Rules:\n"
         + business_rule
+        + "- For a clarify proposal, clarification.missing_roles is optional: "
+        "when context.missing_prerequisites lists several roles for the same "
+        "operation, set it to exactly the role(s) this one question requests. "
+        "Use only declared role names; never infer scope from prose.\n"
         + decisions
         + "- Bind evidence by existing durable step_id. Do not invent rows, "
         "prices, totals, facts or authority.\n"
