@@ -9,6 +9,12 @@ submitted evidence at `origin/main` `248a2329623b433e68104c4d89d2965683d81013`
 acceptance, changes no claim denominator, and does not re-score the historical
 **111/123 (90.2%)** result.
 
+## Current queue overlay — 2026-11-07
+
+The November6 audit/evidence cut below is historical, not a fresh work queue. The current execution checkpoint is [APP_COMPLETION_STATE_2026_11_07.md](../engineering/APP_COMPLETION_STATE_2026_11_07.md). At main611b6b6f8: document deletionPR705/440723e20, utilityPR707/4c1bd507d, controlled workflow HTTPPR708/317c1a105 and alignment-loopPR710/555e4aafa are merged at their recorded bounded scopes. Do not repeat their old implementation slices. General model judgment, live breadth and whole-app ORACLE are not inferred from them.
+
+TASK-WAIT-01 remains an explicit app goal. Active work: Agent1 normal Generic information wait/answer; Agent2 remaining assignment acceptance rows after generation-bound crash recovery. Root reviews budgetPR722/07904c136 (142controls), boardPR723/929b9e77b (100controls), and process recoveryPR724/03c033fae (94integration+3portable process controls), all submitted rather than self-accepted at this snapshot. Re-resolve exact heads before acceptance. Ready work continues while model-free CI observers run; no stable inference/browser campaign repeats merely because a source commit changed.
+
 ## 0. Baseline, evidence cut, and rules
 
 | Item | Value |
@@ -160,7 +166,7 @@ source remains the current main behavior until #702 is owner-merged.
 | Original requirement | Oracle enabled by default and covering the documented mutation classes; README wording “every mutating action is re-derived” is the broad target (`CLAIM_INVENTORY` ORACLE-01). |
 | Current evidence | Scoped oracle repair accepted at `0f9796401` (`VERIFIER_ORACLE_SCOPED_RESULT.md`); exact canvas/presentation binding at `0d8767e3a`; whole-app inventory at `95454de7a` / `docs/acceptance/evidence/oracle_whole_app_inventory_20261102/`. Merged local mutation families now include document settings `703efedd2`, agent decision `9c6ac2b39`, memory write `b721d2313`, skill review `f2fdde97e`, community skill `28e524b32`, evolution review `c1871e064`/`60a1171b8`, workflow template `d5137ef0b`, marketplace `d7280b04f`, chat `71f9e22b4`, chat fork `05a9d69d7`, agent delete `184639a28`, agent run `93e19ed78`, agent replace `c7f581af5`, stop/cancel `e93982eec`, and direct HTTP canvas `326534847`. |
 | Current disposition | `open` at the whole-app promise; scoped mechanisms are accepted. The inventory remains discovery evidence, not runtime coverage. |
-| Remaining gap | The inventory recorded **827 mutating HTTP routes**, **366 high-risk names/paths** and **311 provider-adapter write methods** unqualified (`oracle_whole_app_inventory_20261102/README.md:14-18,48-50`). The inventory has not been re-based after the later merged families. A real uncovered local family is knowledge-document deletion (§6). Do not call full ORACLE complete. |
+| Remaining gap | The inventory recorded **827 mutating HTTP routes**, **366 high-risk names/paths** and **311 provider-adapter write methods** unqualified (`oracle_whole_app_inventory_20261102/README.md:14-18,48-50`). The inventory has not been re-based after the later merged families. The old knowledge-document deletion proposal (§6) was implemented in PR705/440723e20; retain its bounded evidence and inspect current code before selecting a new missing family. Do not call full ORACLE complete. |
 | Owner | Agent2. |
 
 ### 3.5 TEAM-05 — opt-in nightly alignment sweep
@@ -284,9 +290,11 @@ vocabulary; “Gap” distinguishes local engineering from external/owner gates.
 | Installation, compatibility and operations | Supported build/documented versions; backup/isolated restore/rollback; paths/data survive restart | Historical install evidence; COMPAT-01 guard `6a7e85c6d`; restart evidence in several accepted families | open | COMPAT-01 full install/run; PostgreSQL runtime; mobile/menubar; backup/restore/rollback; KVM. Shared/owner. |
 | Performance and comparative promises | Reproducible measurement with declared environment/workload/sample sizes/sources; comparative claims supported | None new | unverified | PERF-01/02/03 and MKT-01/05 measurement/source work; no invented numbers. Product/lead. |
 
-## 6. Next local mutation family — knowledge-document deletion (read-only trace)
+## 6. Historical mutation-family proposal — knowledge-document deletion
 
-This is the one bounded family traced in this audit. It is chosen because it is
+This historical proposal was implemented and merged as PR705/440723e20. The trace below records the original negative and desired contract, not current missing code or a new assignment. The retained evidence is `document_delete_truth_20261106`; broader independent qualification remains distinct.
+
+This was the one bounded family traced in the November6 audit. It was chosen because it was
 local, reachable through an ordinary authenticated API, not owned by Agent1’s
 recording-review slice, and currently reports a success state without an
 independent effect receipt.
@@ -377,9 +385,9 @@ needs a small helper), `backend/tests/test_document_vector_family_cleanup.py`
 (update the old “cleanup failure is success” expectation) and one new focused
 contract test.
 
-## 7. Three highest-impact unblocked engineering slices
+## 7. Historical proposed slices (use the current queue overlay first)
 
-### Slice A — ORCH-01 served production boundary (Agent1)
+### Slice A — ORCH-01 served production boundary (controlled HTTP process delivered in PR708)
 
 - **Impact:** closes the largest remaining evidence gap on a headline workflow
   promise; reuses the accepted `0fae2d46c` blueprint/binding/checkpoint work and
@@ -400,7 +408,7 @@ contract test.
 - **Owner / sequence:** Agent1 after the #703 recording-review slice; do not
   take #703 or touch its files.
 
-### Slice B — ORACLE-01 knowledge-document deletion truth (Agent2)
+### Slice B — ORACLE-01 knowledge-document deletion truth (implemented in PR705)
 
 - **Impact:** closes a concrete local data-integrity/safety defect: a deletion
   can report success while searchable chunks survive. It is the next reachable
@@ -439,8 +447,7 @@ contract test.
 
 ### Next after these (do not start in parallel)
 
-`GOAL-02` two-outcome utility ranking/persistence (Agent1) and `TEAM-05` real
-transport/scheduled fire (Agent1) are the next bounded claim-closing slices.
+`GOAL-02` utility controls and the `TEAM-05` controlled alignment-loop join were subsequently delivered in PR707 and PR710. Their original broader model-quality/operational promises remain separate; do not start these old implementation assignments again. Use the current queue overlay and current source/evidence for the next genuinely unproven row.
 `ORCH-02`/`ORCH-07` served-quality work and `MEM-07` consolidated evidence are
 prepared but remain separate; `INT-09`/`ROUTE-07`/`MINI-*` stay external or
 environment-gated.

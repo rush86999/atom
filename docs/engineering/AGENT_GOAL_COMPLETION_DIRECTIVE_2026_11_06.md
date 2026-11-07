@@ -8,6 +8,12 @@ Agent 3 supports integration and independent verification under [its separate wo
 
 Agent 4 supports ordinary-user journey and usability verification under [its separate work order](AGENT4_PRODUCT_JOURNEY_GUIDANCE_2026_11_06.md). It first examines the fresh-browser account-return/session-recovery gap, after checking matching evidence. Agent 3 retains code-contract/integration review; neither support role transfers the lead's engineering/product or final acceptance authority.
 
+## Active execution overlay — 2026-11-07
+
+Use the current execution snapshot and goal-map overlay before older numbered slices. Agent1 owns normal Generic missing-information wait/answer; Agent2 owns source-bound generation repair evidence and remaining assignment TASK-WAIT-01 acceptance gaps. Root owns independent consumer/integration review plus budget/board/recovery PR722/723/724, not self-acceptance by the workhorses. Support agents take only a complete frozen exact-head review/journey; no duplicate monitor or browser run against unchanged relevant code. Preserve old negatives and proof scopes.
+
+Hints for faster reliable closure: recheck the actual producer before copying a scope fix between services; compatibility columns may deliberately store workspace identity. Keep failure-first controls at the consumer boundary; a doubled `_react_step` is controlled-choice/mechanics evidence, not a proof of the real structured model consumer. At least one controlled transport twin should exercise that real consumer when it is part of the claim. Process tests must default to the active interpreter and fail honestly rather than silently skip because a developer-machine path is absent on CI. Preserve caller transaction ownership and exact claim generations. Push coherent phases, delegate model-free exact-head CI, and continue the next independent owned requirement; CI pending is not a stop condition. Completed document/utility/workflow/alignment implementation rows must not be reassigned from stale goal-map text.
+
 ## Owner clarification: single-tenant delivery and worker costs
 
 This clarification supersedes conflicting scope or worker-model instructions below.

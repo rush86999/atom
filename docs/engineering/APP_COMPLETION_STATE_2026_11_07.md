@@ -2,13 +2,15 @@
 
 This dated checkpoint supersedes operational queue rows in the November6 directive. Re-resolve current remote heads and ownership before acting. It records current progress, not whole-app acceptance. The product is single tenant with supported user/role/workspace safeguards. Historical 111/123, planner 5/5, goal router 1/2 and alignment gap 3.0 remain unchanged.
 
-## Current execution snapshot (resolve remote heads before acting)
+## Current execution snapshot (2026-11-07; resolve remote heads before acting)
 
-- Main is now PR720 mergee26b5a332; its tree equals the reviewed2e95a94cf. PR719 foundation8cbc99cc9 post-mergeCI/Docker are green. Older sections below preserve source history rather than active assignments.
-- Root source-answer PR721 preserves the74-backend/9-component controlled proof and explicitly leaves actualprocess/no-owner-replay recovery open. Its current head must requalify after this main integration; no hosted green is inherited.
-- Agent1 nativeCLI owns the reproduced board-owner API/service boundary. Agent2 nativeCLI owns actualprocess automatic recovery of accepted information. Both continue without waiting for hostedCI; observers are model-free.
-- Root real MCP/governance probing found a configured hard-stop budget bypass (workspace id used as account id): two valid/denied twins pass and the budget negative fails. The bounded existing-governance repair is sourcea5cabd207;31 final budget-mode/real-MCP controls pass at89c75f061, with the same one known baseline governance failure in the broader comparison. It is not yet merged or a general budget/financial assurance.
-- Full app completion, general adaptive judgment, actualprocess TASK-WAIT-01 recovery and broader runtime/provider/guest/operations claims remain unproven. Historical scores and accepted evidence identities stay unchanged.
+- Main at this snapshot is PR721 merge `611b6b6f8`; post-merge CI42353092070 and Docker42353092022 passed. PR720 `e26b5a332` and PR719 `8cbc99cc9` remain preserved. These are integrated foundations, not whole-app acceptance.
+- Budget PR722 successor `07904c136` is submitted: independently found ordinary maturity review before configured budget refusal is repaired at171ba856d; real Generic/MCP twin5adcd9dd3 and the policy matrix pass142 controls. Existing governance callers54pass plus the same knownw29 baseline failure. Oldhead25115124b green does not certify its successor; new hosted checks are pending.
+- Board PR723 `929b9e77b` is submitted: first-write actor/owner claim closes the confirmed SQLite read-check race. Independent original2fail/8pass and fixed38pass are preserved; clean-main integrationb905b1372 passes100 controls in normal CI. Its packet checks26source+13artifact hashes. No new sharing model or deferred-feature activation.
+- Task recovery PR724 `03c033fae` is submitted: clean-mainbe92e7ee3 passes94 controls (92 normal-CI cases plus2 external generation probes); final test-only227579321 makes child processes use the active interpreter and reruns3 process cases successfully. Packet9source+18artifact checks. This proves only controlled assignment source/restart recovery; Generic/framework-wide TASK-WAIT-01 remains open.
+- Agent1 is actively implementing the normal Generic same-task information wait/answer consumer. Agent2 has pushed generation repairc3e695ff4/223a286a4, is packaging its source-bound evidence and auditing genuinely missing assignment TASK-WAIT-01 rows. They continue while model-free observers monitor exact PR heads. Root owns integration/independent verification and normal authorized merges.
+- The old §6/SliceB knowledge-document deletion proposal is historical: runtime `document_delete_service.py` and PR705 merge440723e20 already exist. Preserve its controlled evidence; do not implement the obsolete proposal again or confuse merge with full family qualification. ORCH controlled HTTP process PR708, utility PR707 and alignment-loop PR710 also supersede old proposed slices at their recorded scopes.
+- Full app completion, general adaptive judgment, framework-wide automatic information-trigger resumption, guest/provider breadth and operational qualification remain unproven. Historical scores and accepted identities remain unchanged. Open submission state must be re-resolved, not inherited from this dated snapshot.
 
 ## Delivered since the older guide
 
