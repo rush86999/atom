@@ -59,7 +59,7 @@
     "The uncovered names above remain explicit; add a verifier or keep them out of mutating assignment dispatch.",
     "HTTP mutation routes remain outside the registered action registry; this slice does not qualify them."
   ],
-  "generated_at": "2026-11-07T06:24:36.735415+00:00",
+  "generated_at": "2026-11-07T06:32:54.204731+00:00",
   "http_mutation_routes": {
     "skipped": true
   },
@@ -1044,5 +1044,5 @@
   "registry_only": true,
   "schema": "atom-oracle-mutation-surface-2",
   "scope": "Source-bound inventory of registered action effect declarations and independent postcondition verifiers. It is not a qualification run; uncovered declarations remain explicit.",
-  "source": "af97665c7"
+  "source": "b205fc151"
 }

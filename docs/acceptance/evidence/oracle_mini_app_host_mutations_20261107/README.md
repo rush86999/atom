@@ -1,8 +1,10 @@
 # Six supported mini-app host mutations — producer/verifier evidence
 
 Activated source: `2b53eda29d9d357b3b613c1f1633bf79c1bc7cbe` (PR714's finished
-integrated candidate). Code/test commit: `af97665c73112b96e2bbc5a13ecbcafa72cc023c`
-on `codex/oracle-mini-host-proofs-20261107`. No merge/rebase was performed.
+integrated candidate). Qualified code/test commit: `b205fc151` (the
+implementation commit `af97665c7` plus the restart-shaped fresh-engine readback
+control) on `codex/oracle-mini-host-proofs-20261107`. No merge/rebase was
+performed.
 
 This is a bounded ORACLE-01 subfamily, not whole-app acceptance. It adds
 supported host-side write proof for six registered actions that need no guest
@@ -79,23 +81,25 @@ The earlier three mock-shape `mini_app_set_tests` failures identified by root
 are pre-existing on accepted main and are unchanged/not weakened; the immutable
 `mini_app_set_tests` receipt code is untouched.
 
-## Measured qualification at `af97665c7`
+## Measured qualification at `b205fc151`
 
-Fresh owned basetemp children under `<scratch>/opencode/.../qualify/`; the
+Fresh owned basetemp children under `<scratch>/opencode/.../qualify2/`; the
 affected cluster used a pre-created scratch SQLite file because three
-chat-orchestrator controls create real session/execution rows.
+chat-orchestrator controls create real session/execution rows. The focused
+evidence includes a restart-shaped fresh-engine readback (producer session
+closed, new engine/session reads the same scratch file).
 
-- extended ORACLE control step: **208 passed** (`focused-gate.log`, exit 0);
+- extended ORACLE control step: **209 passed** (`focused-gate.log`, exit 0);
 - supplied logic-CAS probe: **2 passed** (`supplied-logic-cas.log`, exit 0);
 - supplied publish-preparation probe: **2 passed**
   (`supplied-publish-preparation.log`, exit 0);
-- affected 22-file cluster: **784 passed, 9 pre-existing unrelated failures**
+- affected 22-file cluster: **785 passed, 9 pre-existing unrelated failures**
   (`affected-cluster.log`, exit 1; IDs/root causes in
   `baseline-unrelated-failures.txt`).
 
 ## Registry snapshot
 
-`coverage/inventory.json` (registry-only, source `af97665c7`):
+`coverage/inventory.json` (registry-only, source `b205fc151`):
 
 - 90 registered actions, 26 declared mutations;
 - **21 covered, 5 explicitly uncovered**:

@@ -4,14 +4,14 @@ exit_code=0
 
 tests/test_oracle_registry_verification_gap.py::test_declared_mutation_without_verifier_is_uncertain_and_not_reapplied 
 -------------------------------- live log setup --------------------------------
-2026-11-07 01:21:56 [    INFO] AgentTaskRegistry initialized
+2026-11-07 01:28:31 [    INFO] AgentTaskRegistry initialized
 -------------------------------- live log call ---------------------------------
-2026-11-07 01:21:56 [    INFO] runtime identity: source_id=af97665c7311-dirty.6951f43c890e revision=af97665c7311 dirty=True (0 modified, 7 untracked)
+2026-11-07 01:28:31 [    INFO] runtime identity: source_id=b205fc151803-dirty.1e359b081b69 revision=b205fc151803 dirty=True (0 modified, 7 untracked)
 PASSED                                                                   [  0%]
 tests/test_oracle_registry_verification_gap.py::test_unusable_verifier_is_uncertain_with_receipt[none] PASSED [  0%]
 tests/test_oracle_registry_verification_gap.py::test_unusable_verifier_is_uncertain_with_receipt[raise] 
 -------------------------------- live log call ---------------------------------
-2026-11-07 01:21:56 [ WARNING] [Oracle] postcondition check for test.gap.raise.3890ed98 failed: readback store unavailable
+2026-11-07 01:28:31 [ WARNING] [Oracle] postcondition check for test.gap.raise.cb41a5cd failed: readback store unavailable
 PASSED                                                                   [  1%]
 tests/test_oracle_registry_verification_gap.py::test_unusable_verifier_is_uncertain_with_receipt[refute] PASSED [  1%]
 tests/test_oracle_registry_verification_gap.py::test_positive_independent_verdict_applies_with_receipt PASSED [  2%]
@@ -34,7 +34,7 @@ tests/test_oracle_registry_verification_gap.py::test_malformed_effect_metadata_c
 tests/test_oracle_registry_verification_gap.py::test_malformed_effect_metadata_cannot_certify_write[read-unknown-name] PASSED [ 10%]
 tests/test_oracle_registry_verification_gap.py::test_clean_non_mutating_metadata_still_applies[read] PASSED [ 11%]
 tests/test_oracle_registry_verification_gap.py::test_clean_non_mutating_metadata_still_applies[read-only] PASSED [ 11%]
-tests/test_oracle_registry_verification_gap.py::test_clean_non_mutating_metadata_still_applies[plan] PASSED [ 12%]
+tests/test_oracle_registry_verification_gap.py::test_clean_non_mutating_metadata_still_applies[plan] PASSED [ 11%]
 tests/test_oracle_registry_verification_gap.py::test_malformed_declaration_is_never_a_read_or_plan_exemption[missing-entry] PASSED [ 12%]
 tests/test_oracle_registry_verification_gap.py::test_malformed_declaration_is_never_a_read_or_plan_exemption[blank-name] PASSED [ 12%]
 tests/test_oracle_registry_verification_gap.py::test_malformed_declaration_is_never_a_read_or_plan_exemption[non-string-name] PASSED [ 13%]
@@ -57,11 +57,11 @@ tests/test_oracle_registry_verification_gap.py::test_mini_app_set_tests_authorit
 tests/test_oracle_registry_verification_gap.py::test_mini_app_set_tests_authoritative_scope_contradiction_refutes[audit_tenant] PASSED [ 21%]
 tests/test_oracle_registry_verification_gap.py::test_mini_app_set_tests_authoritative_scope_contradiction_refutes[audit_actor] PASSED [ 22%]
 tests/test_oracle_registry_verification_gap.py::test_mini_app_set_tests_fresh_read_refutes_dirty_request_object PASSED [ 22%]
-tests/test_oracle_registry_verification_gap.py::test_mini_app_set_tests_fresh_read_accepts_committed_valid_state PASSED [ 23%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_set_tests_fresh_read_accepts_committed_valid_state PASSED [ 22%]
 tests/test_oracle_registry_verification_gap.py::test_mini_app_set_tests_verifier_binds_exact_tests_and_operation PASSED [ 23%]
-tests/test_oracle_effect_families.py::test_canvas_present_family_verifies_exact_material_and_operation PASSED [ 24%]
+tests/test_oracle_effect_families.py::test_canvas_present_family_verifies_exact_material_and_operation PASSED [ 23%]
 tests/test_oracle_effect_families.py::test_canvas_update_family_verifies_content_and_mirror PASSED [ 24%]
-tests/test_oracle_effect_families.py::test_canvas_restore_family_verifies_original_target PASSED [ 25%]
+tests/test_oracle_effect_families.py::test_canvas_restore_family_verifies_original_target PASSED [ 24%]
 tests/test_oracle_effect_families.py::test_goal_create_and_evaluate_families PASSED [ 25%]
 tests/test_oracle_effect_families.py::test_goal_run_and_plan_families PASSED [ 25%]
 tests/test_oracle_effect_families.py::test_tasks_create_family_accepts_nested_task_payload PASSED [ 26%]
@@ -79,20 +79,20 @@ tests/test_oracle_connected_mutations.py::test_connected_mutation_binding_matrix
 tests/test_oracle_connected_mutations.py::test_action_registry_consumer_downgrades_when_verifier_returns_none PASSED [ 32%]
 tests/test_oracle_connected_mutations.py::test_action_registry_consumer_downgrades_when_oracle_raises 
 -------------------------------- live log call ---------------------------------
-2026-11-07 01:21:58 [ WARNING] [Oracle] postcondition check for test.oracle.raises.def9019d failed: oracle transport unavailable
+2026-11-07 01:28:34 [ WARNING] [Oracle] postcondition check for test.oracle.raises.87b311b8 failed: oracle transport unavailable
 PASSED                                                                   [ 32%]
 tests/test_oracle_connected_mutations.py::test_action_registry_consumer_keeps_read_only_outcome PASSED [ 33%]
 tests/test_oracle_connected_mutations.py::test_request_snapshot_is_frozen_before_handler_mutation[body] PASSED [ 33%]
-tests/test_oracle_connected_mutations.py::test_request_snapshot_is_frozen_before_handler_mutation[nested_recipient] PASSED [ 34%]
+tests/test_oracle_connected_mutations.py::test_request_snapshot_is_frozen_before_handler_mutation[nested_recipient] PASSED [ 33%]
 tests/test_oracle_connected_mutations.py::test_request_snapshot_is_frozen_before_handler_mutation[subject] PASSED [ 34%]
-tests/test_oracle_connected_mutations.py::test_request_snapshot_is_frozen_before_handler_mutation[operation_id] PASSED [ 35%]
+tests/test_oracle_connected_mutations.py::test_request_snapshot_is_frozen_before_handler_mutation[operation_id] PASSED [ 34%]
 tests/test_oracle_connected_mutations.py::test_unchanged_connected_request_still_verifies PASSED [ 35%]
-tests/test_oracle_connected_mutations.py::test_supplied_digest_mismatch_refuses_before_dispatch PASSED [ 36%]
+tests/test_oracle_connected_mutations.py::test_supplied_digest_mismatch_refuses_before_dispatch PASSED [ 35%]
 tests/test_oracle_connected_mutations.py::test_unavailable_binding_refuses_before_dispatch PASSED [ 36%]
-tests/test_oracle_connected_mutations.py::test_connected_estimate_organization_mutation_is_uncertain PASSED [ 37%]
+tests/test_oracle_connected_mutations.py::test_connected_estimate_organization_mutation_is_uncertain PASSED [ 36%]
 tests/test_oracle_mini_app_host_mutations.py::test_supported_host_flow_is_independently_verified 
 -------------------------------- live log call ---------------------------------
-2026-11-07 01:21:59 [    INFO] Canvas type 'mini_app' auto-registered (generic defaults)
+2026-11-07 01:28:34 [    INFO] Canvas type 'mini_app' auto-registered (generic defaults)
 PASSED                                                                   [ 37%]
 tests/test_oracle_mini_app_host_mutations.py::test_same_operation_is_not_dispatched_twice PASSED [ 37%]
 tests/test_oracle_mini_app_host_mutations.py::test_scaffold_receipt_twins PASSED [ 38%]
@@ -109,11 +109,12 @@ tests/test_oracle_mini_app_host_mutations.py::test_db_write_receipt_twins PASSED
 tests/test_oracle_mini_app_host_mutations.py::test_db_write_missing_receipt_and_wrong_target PASSED [ 43%]
 tests/test_oracle_mini_app_host_mutations.py::test_db_write_update_binds_prior_material PASSED [ 44%]
 tests/test_oracle_mini_app_host_mutations.py::test_stale_publish_is_proven_not_applied_and_writes_no_receipt PASSED [ 44%]
-tests/test_oracle_mini_app_host_mutations.py::test_logic_cas_binds_prior_language[False] PASSED [ 45%]
+tests/test_oracle_mini_app_host_mutations.py::test_logic_cas_binds_prior_language[False] PASSED [ 44%]
 tests/test_oracle_mini_app_host_mutations.py::test_logic_cas_binds_prior_language[True] PASSED [ 45%]
-tests/test_oracle_mini_app_host_mutations.py::test_publish_precondition_failure_does_not_commit_preparation[None] PASSED [ 46%]
+tests/test_oracle_mini_app_host_mutations.py::test_publish_precondition_failure_does_not_commit_preparation[None] PASSED [ 45%]
 tests/test_oracle_mini_app_host_mutations.py::test_publish_precondition_failure_does_not_commit_preparation[retained-rootfs.img] PASSED [ 46%]
-tests/test_oracle_mini_app_host_mutations.py::test_stale_record_write_raises_conflict_and_preserves_peer PASSED [ 47%]
+tests/test_oracle_mini_app_host_mutations.py::test_stale_record_write_raises_conflict_and_preserves_peer PASSED [ 46%]
+tests/test_oracle_mini_app_host_mutations.py::test_fresh_engine_readback_certifies_after_producer_session_closes PASSED [ 47%]
 tests/test_oracle_mini_app_host_mutations.py::test_registered_host_mutations_have_verifiers PASSED [ 47%]
 tests/test_assignment_executor.py::test_two_materially_different_assignments_same_executor PASSED [ 48%]
 tests/test_assignment_executor.py::test_changed_artifact_invalidates_approval PASSED [ 48%]
@@ -121,15 +122,15 @@ tests/test_assignment_executor.py::test_provider_accepted_then_worker_lost_is_re
 tests/test_assignment_executor.py::test_cancellation_prevents_unstarted_effect PASSED [ 49%]
 tests/test_assignment_executor.py::test_external_reply_matches_exact_correlation_once PASSED [ 50%]
 tests/test_assignment_executor.py::test_action_dispatched_alone_is_not_provider_acceptance PASSED [ 50%]
-tests/test_assignment_executor.py::test_assignment_approval_binding_cannot_be_rebound PASSED [ 50%]
+tests/test_assignment_executor.py::test_assignment_approval_binding_cannot_be_rebound PASSED [ 51%]
 tests/test_assignment_executor.py::test_stale_task_revision_prevents_dispatch PASSED [ 51%]
-tests/test_assignment_executor.py::test_failed_prerequisite_blocks_downstream_effect PASSED [ 51%]
+tests/test_assignment_executor.py::test_failed_prerequisite_blocks_downstream_effect PASSED [ 52%]
 tests/test_assignment_executor.py::test_crash_after_wake_before_advance_recovers PASSED [ 52%]
-tests/test_assignment_executor.py::test_approval_after_cancellation_is_refused PASSED [ 52%]
+tests/test_assignment_executor.py::test_approval_after_cancellation_is_refused PASSED [ 53%]
 tests/test_assignment_executor.py::test_ordinary_resume_leaves_healthy_running_operation_intact PASSED [ 53%]
-tests/test_assignment_executor.py::test_recovery_without_worker_proof_does_not_assert_loss PASSED [ 53%]
+tests/test_assignment_executor.py::test_recovery_without_worker_proof_does_not_assert_loss PASSED [ 54%]
 tests/test_assignment_executor.py::test_recovery_names_previous_worker_and_marks_uncertain PASSED [ 54%]
-tests/test_assignment_executor.py::test_liveness_probe_true_keeps_running_operation PASSED [ 54%]
+tests/test_assignment_executor.py::test_liveness_probe_true_keeps_running_operation PASSED [ 55%]
 tests/test_assignment_executor.py::test_two_concurrent_resume_requests_dispatch_once PASSED [ 55%]
 tests/test_assignment_executor.py::test_send_prepare_binds_attachment_bytes_not_just_ids PASSED [ 55%]
 tests/test_assignment_executor.py::test_send_prepare_refuses_attachment_ids_without_hashes PASSED [ 56%]
@@ -146,48 +147,48 @@ tests/test_assignment_executor.py::test_mixed_currency_values_require_record_spe
 tests/test_assignment_executor.py::test_substring_replies_do_not_confirm_established_values PASSED [ 61%]
 tests/test_assignment_executor.py::test_numeric_substring_reply_is_not_agreement PASSED [ 62%]
 tests/test_assignment_executor.py::test_explicit_typed_value_can_confirm_with_explanatory_text PASSED [ 62%]
-tests/test_assignment_executor.py::test_fact_resolution_uses_only_accepted_rows PASSED [ 62%]
+tests/test_assignment_executor.py::test_fact_resolution_uses_only_accepted_rows PASSED [ 63%]
 tests/test_assignment_executor.py::test_unreadable_evidence_is_not_treated_as_missing PASSED [ 63%]
-tests/test_assignment_executor.py::test_incomplete_coverage_does_not_allow_ordinary_resolution PASSED [ 63%]
+tests/test_assignment_executor.py::test_incomplete_coverage_does_not_allow_ordinary_resolution PASSED [ 64%]
 tests/test_assignment_executor.py::test_fact_evidence_branch_matrix PASSED [ 64%]
-tests/test_assignment_executor.py::test_bounded_standing_authority_covers_two_sends_without_approval PASSED [ 64%]
+tests/test_assignment_executor.py::test_bounded_standing_authority_covers_two_sends_without_approval PASSED [ 65%]
 tests/test_assignment_executor.py::test_standing_authority_bound_falls_back_to_approval PASSED [ 65%]
-tests/test_assignment_executor.py::test_recipient_outside_the_grant_requires_approval PASSED [ 65%]
+tests/test_assignment_executor.py::test_recipient_outside_the_grant_requires_approval PASSED [ 66%]
 tests/test_assignment_executor.py::test_expired_standing_authority_requires_approval PASSED [ 66%]
 tests/test_assignment_executor.py::test_cost_budget_stops_before_the_next_step PASSED [ 66%]
 tests/test_assignment_executor.py::test_post_effect_runtime_error_is_uncertain_not_failed_before_effect 
 -------------------------------- live log call ---------------------------------
-2026-11-07 01:22:14 [   ERROR] Failed to request intervention: (sqlite3.OperationalError) no such table: hitl_actions
+2026-11-07 01:28:51 [   ERROR] Failed to request intervention: (sqlite3.OperationalError) no such table: hitl_actions
 [SQL: INSERT INTO hitl_actions (id, workspace_id, tenant_id, agent_id, action_type, platform, params, chain_id, context_snapshot, status, reason, priority, notified_channel_id, user_id, confidence_score, user_feedback, reviewed_at, reviewed_by, required_role, required_confidence, meta_guidance) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING created_at]
-[parameters: ('97bee854-9074-4127-9200-fc84f640fd9d', 'ws_assign', 'tenant_assign', None, 'assignment_approval', 'assignment', '{"run_id": "8f839dab-ab6f-485e-a80e-e193bd4844e1", "assignment_id": "asg-e234bb6bc79a49fb", "step_id": "send", "operation_id": "897e1cbd-250b-4cf2-b1 ... (102 characters truncated) ... , "artifact_revision": null, "authorization_revision": "dc72cc28d1b049075d4b1491865bb12e", "workspace_id": "ws_assign", "summary": "External effect"}', None, 'null', 'pending', 'Send the effect', 'MEDIUM', None, 'user-1', 0.0, None, None, None, None, 0.7, None)]
+[parameters: ('7f2cb611-f934-4562-8129-38e94b8c2589', 'ws_assign', 'tenant_assign', None, 'assignment_approval', 'assignment', '{"run_id": "7f70ca41-af26-4fc7-b685-27ecfd06021a", "assignment_id": "asg-b073fb5dc8314323", "step_id": "send", "operation_id": "d2b3a370-dae5-462a-bc ... (102 characters truncated) ... , "artifact_revision": null, "authorization_revision": "2c057e85cbe4bf1e9ce239bda256a4d6", "workspace_id": "ws_assign", "summary": "External effect"}', None, 'null', 'pending', 'Send the effect', 'MEDIUM', None, 'user-1', 0.0, None, None, None, None, 0.7, None)]
 (Background on this error at: https://sqlalche.me/e/20/e3q8)
 PASSED                                                                   [ 67%]
 tests/test_assignment_executor.py::test_post_effect_timeout_is_uncertain_and_does_not_resend 
 -------------------------------- live log call ---------------------------------
-2026-11-07 01:22:14 [   ERROR] Failed to request intervention: (sqlite3.OperationalError) no such table: hitl_actions
+2026-11-07 01:28:51 [   ERROR] Failed to request intervention: (sqlite3.OperationalError) no such table: hitl_actions
 [SQL: INSERT INTO hitl_actions (id, workspace_id, tenant_id, agent_id, action_type, platform, params, chain_id, context_snapshot, status, reason, priority, notified_channel_id, user_id, confidence_score, user_feedback, reviewed_at, reviewed_by, required_role, required_confidence, meta_guidance) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING created_at]
-[parameters: ('d0437974-66b4-4f78-90d8-a9d0610dfbae', 'ws_assign', 'tenant_assign', None, 'assignment_approval', 'assignment', '{"run_id": "56823668-1189-4927-b65f-3ebecb8909bd", "assignment_id": "asg-1d59cc7f205241bb", "step_id": "send", "operation_id": "3ea5fd90-ee73-4d3f-9a ... (102 characters truncated) ... , "artifact_revision": null, "authorization_revision": "74bf15ea1c0c116497452defe6f0983b", "workspace_id": "ws_assign", "summary": "External effect"}', None, 'null', 'pending', 'Send the effect', 'MEDIUM', None, 'user-1', 0.0, None, None, None, None, 0.7, None)]
+[parameters: ('8519d72e-f34d-4dea-b27d-c197ce1bca47', 'ws_assign', 'tenant_assign', None, 'assignment_approval', 'assignment', '{"run_id": "244ebc7f-03dd-4f07-b530-6957ac8269f2", "assignment_id": "asg-3d6f1c96a86749c7", "step_id": "send", "operation_id": "dcc97381-5e8e-463a-a4 ... (102 characters truncated) ... , "artifact_revision": null, "authorization_revision": "69ee0a1551a5567cb58db61c89c5e0e1", "workspace_id": "ws_assign", "summary": "External effect"}', None, 'null', 'pending', 'Send the effect', 'MEDIUM', None, 'user-1', 0.0, None, None, None, None, 0.7, None)]
 (Background on this error at: https://sqlalche.me/e/20/e3q8)
 PASSED                                                                   [ 67%]
 tests/test_assignment_executor.py::test_post_effect_parse_error_is_uncertain 
 -------------------------------- live log call ---------------------------------
-2026-11-07 01:22:15 [   ERROR] Failed to request intervention: (sqlite3.OperationalError) no such table: hitl_actions
+2026-11-07 01:28:52 [   ERROR] Failed to request intervention: (sqlite3.OperationalError) no such table: hitl_actions
 [SQL: INSERT INTO hitl_actions (id, workspace_id, tenant_id, agent_id, action_type, platform, params, chain_id, context_snapshot, status, reason, priority, notified_channel_id, user_id, confidence_score, user_feedback, reviewed_at, reviewed_by, required_role, required_confidence, meta_guidance) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING created_at]
-[parameters: ('ef1a2604-cf9e-407e-a4c6-46a5e3377a0b', 'ws_assign', 'tenant_assign', None, 'assignment_approval', 'assignment', '{"run_id": "c7f7fd1a-a534-4cef-b2e7-a565ab61dafd", "assignment_id": "asg-a86456a1e38841f6", "step_id": "send", "operation_id": "8164c37a-a602-4948-b0 ... (102 characters truncated) ... , "artifact_revision": null, "authorization_revision": "873c3465e208a4cb7e581ed1bccfb3a4", "workspace_id": "ws_assign", "summary": "External effect"}', None, 'null', 'pending', 'Send the effect', 'MEDIUM', None, 'user-1', 0.0, None, None, None, None, 0.7, None)]
+[parameters: ('c5d805e9-ef8c-4997-9534-7c82e435bb8e', 'ws_assign', 'tenant_assign', None, 'assignment_approval', 'assignment', '{"run_id": "30334466-55d8-4dac-9fba-a6bb4c161876", "assignment_id": "asg-4b6ca966b92f4ab2", "step_id": "send", "operation_id": "0c1f10f6-8ca1-4858-ae ... (102 characters truncated) ... , "artifact_revision": null, "authorization_revision": "0fd25125f4422852fa114bb634781923", "workspace_id": "ws_assign", "summary": "External effect"}', None, 'null', 'pending', 'Send the effect', 'MEDIUM', None, 'user-1', 0.0, None, None, None, None, 0.7, None)]
 (Background on this error at: https://sqlalche.me/e/20/e3q8)
 PASSED                                                                   [ 68%]
 tests/test_assignment_executor.py::test_post_effect_cancellation_is_uncertain 
 -------------------------------- live log call ---------------------------------
-2026-11-07 01:22:15 [   ERROR] Failed to request intervention: (sqlite3.OperationalError) no such table: hitl_actions
+2026-11-07 01:28:52 [   ERROR] Failed to request intervention: (sqlite3.OperationalError) no such table: hitl_actions
 [SQL: INSERT INTO hitl_actions (id, workspace_id, tenant_id, agent_id, action_type, platform, params, chain_id, context_snapshot, status, reason, priority, notified_channel_id, user_id, confidence_score, user_feedback, reviewed_at, reviewed_by, required_role, required_confidence, meta_guidance) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING created_at]
-[parameters: ('c1439067-43fe-4eb9-8d7c-da56ff220f30', 'ws_assign', 'tenant_assign', None, 'assignment_approval', 'assignment', '{"run_id": "7ddb1550-aa15-4fc6-b326-12c38f12e2aa", "assignment_id": "asg-3c54885ce5924870", "step_id": "send", "operation_id": "66500440-ecde-4efc-b6 ... (102 characters truncated) ... , "artifact_revision": null, "authorization_revision": "ba8749f56066adeefb23c331d6a1663c", "workspace_id": "ws_assign", "summary": "External effect"}', None, 'null', 'pending', 'Send the effect', 'MEDIUM', None, 'user-1', 0.0, None, None, None, None, 0.7, None)]
+[parameters: ('f74784de-1032-4f47-9e37-4e5afb931e26', 'ws_assign', 'tenant_assign', None, 'assignment_approval', 'assignment', '{"run_id": "a0763baf-bbae-4f79-81ae-c4fa8ed1eaf5", "assignment_id": "asg-e998ecaa550f417a", "step_id": "send", "operation_id": "b5be09fd-a2bd-4e56-89 ... (102 characters truncated) ... , "artifact_revision": null, "authorization_revision": "63ad0e103ca7d6e8d86d3886c8b3d50d", "workspace_id": "ws_assign", "summary": "External effect"}', None, 'null', 'pending', 'Send the effect', 'MEDIUM', None, 'user-1', 0.0, None, None, None, None, 0.7, None)]
 (Background on this error at: https://sqlalche.me/e/20/e3q8)
 PASSED                                                                   [ 68%]
 tests/test_assignment_executor.py::test_trusted_before_effect_error_remains_retryable 
 -------------------------------- live log call ---------------------------------
-2026-11-07 01:22:15 [   ERROR] Failed to request intervention: (sqlite3.OperationalError) no such table: hitl_actions
+2026-11-07 01:28:52 [   ERROR] Failed to request intervention: (sqlite3.OperationalError) no such table: hitl_actions
 [SQL: INSERT INTO hitl_actions (id, workspace_id, tenant_id, agent_id, action_type, platform, params, chain_id, context_snapshot, status, reason, priority, notified_channel_id, user_id, confidence_score, user_feedback, reviewed_at, reviewed_by, required_role, required_confidence, meta_guidance) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING created_at]
-[parameters: ('6bcce08e-275e-4e18-83b9-47733fdc6f61', 'ws_assign', 'tenant_assign', None, 'assignment_approval', 'assignment', '{"run_id": "48c09802-1fe6-4f97-bafd-f6bf4b7dcf24", "assignment_id": "asg-10f9a2fbe4f04d45", "step_id": "send", "operation_id": "165fe793-7f36-486c-97 ... (102 characters truncated) ... , "artifact_revision": null, "authorization_revision": "dd5aa7560f3734163710052ca4aba907", "workspace_id": "ws_assign", "summary": "External effect"}', None, 'null', 'pending', 'Send the effect', 'MEDIUM', None, 'user-1', 0.0, None, None, None, None, 0.7, None)]
+[parameters: ('dcf7d500-c56d-4a84-a630-ec16c4ac25c4', 'ws_assign', 'tenant_assign', None, 'assignment_approval', 'assignment', '{"run_id": "e5684197-5a30-41eb-9d96-257ef5969ff4", "assignment_id": "asg-2667ec92a7914d4a", "step_id": "send", "operation_id": "e85a471f-d0a8-446c-af ... (102 characters truncated) ... , "artifact_revision": null, "authorization_revision": "bbd6481fe15fc7765f5394f8a0c70028", "workspace_id": "ws_assign", "summary": "External effect"}', None, 'null', 'pending', 'Send the effect', 'MEDIUM', None, 'user-1', 0.0, None, None, None, None, 0.7, None)]
 (Background on this error at: https://sqlalche.me/e/20/e3q8)
 PASSED                                                                   [ 69%]
 tests/test_assignment_executor.py::test_hard_cost_budget_refuses_before_dispatch PASSED [ 69%]
@@ -203,9 +204,9 @@ tests/test_assignment_executor.py::test_idle_budget_unions_overlapping_waits_acr
 tests/test_assignment_executor.py::test_legacy_open_wait_migration_does_not_invent_a_second_credit PASSED [ 74%]
 tests/test_assignment_executor.py::test_absolute_deadline_expires_through_wait_and_restart PASSED [ 75%]
 tests/test_assignment_executor.py::test_concurrent_retries_credit_a_legacy_wait_once PASSED [ 75%]
-tests/test_assignment_executor.py::test_genuine_active_work_exhaustion_is_refused PASSED [ 75%]
+tests/test_assignment_executor.py::test_genuine_active_work_exhaustion_is_refused PASSED [ 76%]
 tests/test_assignment_executor.py::test_legacy_open_wait_is_not_subtracted_twice PASSED [ 76%]
-tests/test_assignment_executor.py::test_legacy_credit_clears_matching_active_wait PASSED [ 76%]
+tests/test_assignment_executor.py::test_legacy_credit_clears_matching_active_wait PASSED [ 77%]
 tests/test_assignment_executor.py::test_legacy_retry_keeps_genuine_active_exhaustion PASSED [ 77%]
 tests/test_assignment_executor.py::test_recorded_credit_with_stale_open_wait_is_not_double_subtracted PASSED [ 77%]
 tests/test_assignment_executor.py::test_concurrent_external_responses_credit_the_wait_once PASSED [ 78%]
@@ -216,13 +217,13 @@ tests/test_assignment_executor.py::test_non_sales_policy_plan_uses_the_same_exec
 tests/test_assignment_executor.py::test_discount_clarification_is_durable_and_resumes_the_same_work PASSED [ 80%]
 tests/test_assignment_executor.py::test_uncertain_action_envelope_blocks_dependents_until_reconciled 
 -------------------------------- live log call ---------------------------------
-2026-11-07 01:22:17 [   ERROR] Failed to request intervention: (sqlite3.OperationalError) no such table: hitl_actions
+2026-11-07 01:28:53 [   ERROR] Failed to request intervention: (sqlite3.OperationalError) no such table: hitl_actions
 [SQL: INSERT INTO hitl_actions (id, workspace_id, tenant_id, agent_id, action_type, platform, params, chain_id, context_snapshot, status, reason, priority, notified_channel_id, user_id, confidence_score, user_feedback, reviewed_at, reviewed_by, required_role, required_confidence, meta_guidance) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING created_at]
-[parameters: ('dcc7295c-0edf-4bab-bc45-825932c8d370', 'ws_assign', 'tenant_assign', None, 'assignment_approval', 'assignment', '{"run_id": "9f464a89-8faa-4e53-9bda-bb5c0617202c", "assignment_id": "asg-d7cd1d68413b4f83", "step_id": "create-estimate", "operation_id": "4671ff0d-8 ... (117 characters truncated) ... rtifact_revision": null, "authorization_revision": "b11d51726bf1975b2f1d29971a3c2c40", "workspace_id": "ws_assign", "summary": "Create the estimate"}', None, 'null', 'pending', 'Create the estimate in the accounting system', 'MEDIUM', None, 'user-1', 0.0, None, None, None, None, 0.7, None)]
+[parameters: ('130b5480-2d68-4660-92cf-5bf9e5c09f33', 'ws_assign', 'tenant_assign', None, 'assignment_approval', 'assignment', '{"run_id": "034ae481-cf00-43a9-a500-d575d2886dac", "assignment_id": "asg-f6501097b12643a6", "step_id": "create-estimate", "operation_id": "a51a00ad-1 ... (117 characters truncated) ... rtifact_revision": null, "authorization_revision": "02371a68c995c3028612dd1f4ef8ea66", "workspace_id": "ws_assign", "summary": "Create the estimate"}', None, 'null', 'pending', 'Create the estimate in the accounting system', 'MEDIUM', None, 'user-1', 0.0, None, None, None, None, 0.7, None)]
 (Background on this error at: https://sqlalche.me/e/20/e3q8)
-2026-11-07 01:22:17 [   ERROR] Failed to request intervention: (sqlite3.OperationalError) no such table: hitl_actions
+2026-11-07 01:28:53 [   ERROR] Failed to request intervention: (sqlite3.OperationalError) no such table: hitl_actions
 [SQL: INSERT INTO hitl_actions (id, workspace_id, tenant_id, agent_id, action_type, platform, params, chain_id, context_snapshot, status, reason, priority, notified_channel_id, user_id, confidence_score, user_feedback, reviewed_at, reviewed_by, required_role, required_confidence, meta_guidance) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING created_at]
-[parameters: ('0471ae48-bf0d-4b02-90be-f62f5c4bc9b4', 'ws_assign', 'tenant_assign', None, 'assignment_approval', 'assignment', '{"run_id": "9f464a89-8faa-4e53-9bda-bb5c0617202c", "assignment_id": "asg-d7cd1d68413b4f83", "step_id": "send-draft", "operation_id": "8e582c7a-6660-4 ... (116 characters truncated) ... act_revision": null, "authorization_revision": "b11d51726bf1975b2f1d29971a3c2c40", "workspace_id": "ws_assign", "summary": "Send the customer email"}', None, 'null', 'pending', 'Send the prepared customer email', 'MEDIUM', None, 'user-1', 0.0, None, None, None, None, 0.7, None)]
+[parameters: ('4700291b-8d51-4807-be89-ef4bc35bb2ee', 'ws_assign', 'tenant_assign', None, 'assignment_approval', 'assignment', '{"run_id": "034ae481-cf00-43a9-a500-d575d2886dac", "assignment_id": "asg-f6501097b12643a6", "step_id": "send-draft", "operation_id": "5ae13137-a4ca-4 ... (116 characters truncated) ... act_revision": null, "authorization_revision": "02371a68c995c3028612dd1f4ef8ea66", "workspace_id": "ws_assign", "summary": "Send the customer email"}', None, 'null', 'pending', 'Send the prepared customer email', 'MEDIUM', None, 'user-1', 0.0, None, None, None, None, 0.7, None)]
 (Background on this error at: https://sqlalche.me/e/20/e3q8)
 PASSED                                                                   [ 81%]
 tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result0-effects0-external-uncertain] PASSED [ 81%]
@@ -238,19 +239,19 @@ tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result9-
 tests/test_assignment_executor.py::test_mutation_exception_after_dispatch_is_uncertain_not_ordinary_failure PASSED [ 86%]
 tests/test_assignment_executor.py::test_trusted_proof_of_no_effect_is_before_effect_failure 
 -------------------------------- live log call ---------------------------------
-2026-11-07 01:22:17 [   ERROR] Failed to request intervention: (sqlite3.OperationalError) no such table: hitl_actions
+2026-11-07 01:28:54 [   ERROR] Failed to request intervention: (sqlite3.OperationalError) no such table: hitl_actions
 [SQL: INSERT INTO hitl_actions (id, workspace_id, tenant_id, agent_id, action_type, platform, params, chain_id, context_snapshot, status, reason, priority, notified_channel_id, user_id, confidence_score, user_feedback, reviewed_at, reviewed_by, required_role, required_confidence, meta_guidance) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING created_at]
-[parameters: ('8d2201da-5095-40ac-a818-09f1de8bf8e8', 'ws_assign', 'tenant_assign', None, 'assignment_approval', 'assignment', '{"run_id": "06aaa299-9018-4f58-be71-270a8f96f768", "assignment_id": "asg-d4a1f1ff05624f62", "step_id": "action", "operation_id": "f57f6185-934f-439c- ... (105 characters truncated) ...  "artifact_revision": null, "authorization_revision": "b647ad9f79eafe651d75bddbd1a74153", "workspace_id": "ws_assign", "summary": "Apply the action"}', None, 'null', 'pending', 'Apply the controlled action', 'MEDIUM', None, 'user-1', 0.0, None, None, None, None, 0.7, None)]
+[parameters: ('28ac9544-a1f6-44d0-b931-5740009a08e0', 'ws_assign', 'tenant_assign', None, 'assignment_approval', 'assignment', '{"run_id": "0f9f28da-60cf-4a8e-9e99-5989d51bb463", "assignment_id": "asg-8aaced47eb2b4ca6", "step_id": "action", "operation_id": "81a9bd60-96d8-4e6b- ... (105 characters truncated) ...  "artifact_revision": null, "authorization_revision": "7bbcdcdf246fc76288e07e62cc14d034", "workspace_id": "ws_assign", "summary": "Apply the action"}', None, 'null', 'pending', 'Apply the controlled action', 'MEDIUM', None, 'user-1', 0.0, None, None, None, None, 0.7, None)]
 (Background on this error at: https://sqlalche.me/e/20/e3q8)
 PASSED                                                                   [ 87%]
 tests/test_assignment_executor.py::test_unavailable_read_is_reported_without_fabricated_data PASSED [ 87%]
 tests/test_assignment_executor.py::test_readback_conflict_preserves_remote_identity_and_blocks_dependents 
 -------------------------------- live log call ---------------------------------
-2026-11-07 01:22:17 [   ERROR] Failed to request intervention: (sqlite3.OperationalError) no such table: hitl_actions
+2026-11-07 01:28:54 [   ERROR] Failed to request intervention: (sqlite3.OperationalError) no such table: hitl_actions
 [SQL: INSERT INTO hitl_actions (id, workspace_id, tenant_id, agent_id, action_type, platform, params, chain_id, context_snapshot, status, reason, priority, notified_channel_id, user_id, confidence_score, user_feedback, reviewed_at, reviewed_by, required_role, required_confidence, meta_guidance) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING created_at]
-[parameters: ('b35147c1-1e45-4ba4-aa83-060cffea8c77', 'ws_assign', 'tenant_assign', None, 'assignment_approval', 'assignment', '{"run_id": "878d117a-be70-4cbe-b4c6-7f3774276333", "assignment_id": "asg-66f4af6db8b34360", "step_id": "create", "operation_id": "c0ccda37-e7b7-46a4- ... (108 characters truncated) ... rtifact_revision": null, "authorization_revision": "90864d98f51a7474d69c4db519a6eda6", "workspace_id": "ws_assign", "summary": "Create the estimate"}', None, 'null', 'pending', 'Create the estimate', 'MEDIUM', None, 'user-1', 0.0, None, None, None, None, 0.7, None)]
+[parameters: ('08fa4b09-f9c7-4e76-b6b5-3a894bdc2000', 'ws_assign', 'tenant_assign', None, 'assignment_approval', 'assignment', '{"run_id": "15b4d391-47e1-4c43-810d-cd6eac97c710", "assignment_id": "asg-9492d0cdbaaf4c1b", "step_id": "create", "operation_id": "5de46886-585c-4308- ... (108 characters truncated) ... rtifact_revision": null, "authorization_revision": "f1ad05aeb00dff29f62e055498c3f770", "workspace_id": "ws_assign", "summary": "Create the estimate"}', None, 'null', 'pending', 'Create the estimate', 'MEDIUM', None, 'user-1', 0.0, None, None, None, None, 0.7, None)]
 (Background on this error at: https://sqlalche.me/e/20/e3q8)
-PASSED                                                                   [ 87%]
+PASSED                                                                   [ 88%]
 tests/test_assignment_executor.py::test_plan_shape_output_is_not_a_durable_mutation PASSED [ 88%]
 tests/test_assignment_executor.py::test_verified_receipt_gates_dependent_execution[proof0-verified_proof_missing] PASSED [ 88%]
 tests/test_assignment_executor.py::test_verified_receipt_gates_dependent_execution[proof1-verified_proof_refuted] PASSED [ 89%]
@@ -260,30 +261,30 @@ tests/test_assignment_executor.py::test_verified_receipt_gates_dependent_executi
 tests/test_assignment_executor.py::test_verified_receipt_positive_twin_executes_dependent PASSED [ 91%]
 tests/test_assignment_executor.py::test_provider_acceptance_never_confirms_sent_items_through_executor 
 -------------------------------- live log call ---------------------------------
-2026-11-07 01:22:17 [   ERROR] Failed to request intervention: (sqlite3.OperationalError) no such table: hitl_actions
+2026-11-07 01:28:54 [   ERROR] Failed to request intervention: (sqlite3.OperationalError) no such table: hitl_actions
 [SQL: INSERT INTO hitl_actions (id, workspace_id, tenant_id, agent_id, action_type, platform, params, chain_id, context_snapshot, status, reason, priority, notified_channel_id, user_id, confidence_score, user_feedback, reviewed_at, reviewed_by, required_role, required_confidence, meta_guidance) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING created_at]
-[parameters: ('f69ba7d6-240d-46f1-a16d-9354699f4a27', 'ws_assign', 'tenant_assign', None, 'assignment_approval', 'assignment', '{"run_id": "dfc1a76a-95cd-4efe-8164-c2eebb391c87", "assignment_id": "asg-be8dede425b04163", "step_id": "send", "operation_id": "fd6db804-c100-4128-a1 ... (101 characters truncated) ... ", "artifact_revision": null, "authorization_revision": "9ca87accb017eafd93a78ca3d7240f11", "workspace_id": "ws_assign", "summary": "Send the reply"}', None, 'null', 'pending', 'Send the reply', 'MEDIUM', None, 'user-1', 0.0, None, None, None, None, 0.7, None)]
+[parameters: ('f0dc9c27-40c9-4a6b-ac31-a96313eec980', 'ws_assign', 'tenant_assign', None, 'assignment_approval', 'assignment', '{"run_id": "dfb13351-865f-4128-b93c-f2ee2dcaa90e", "assignment_id": "asg-d4930486d0f74c42", "step_id": "send", "operation_id": "b9d4ce51-57b1-4387-82 ... (101 characters truncated) ... ", "artifact_revision": null, "authorization_revision": "141c2bb6121db10116355ff7671136d7", "workspace_id": "ws_assign", "summary": "Send the reply"}', None, 'null', 'pending', 'Send the reply', 'MEDIUM', None, 'user-1', 0.0, None, None, None, None, 0.7, None)]
 (Background on this error at: https://sqlalche.me/e/20/e3q8)
 PASSED                                                                   [ 91%]
 tests/test_assignment_executor.py::test_sent_items_minimum_schema_gates_executor[operation_only] 
 -------------------------------- live log call ---------------------------------
-2026-11-07 01:22:17 [   ERROR] Failed to request intervention: (sqlite3.OperationalError) no such table: hitl_actions
+2026-11-07 01:28:54 [   ERROR] Failed to request intervention: (sqlite3.OperationalError) no such table: hitl_actions
 [SQL: INSERT INTO hitl_actions (id, workspace_id, tenant_id, agent_id, action_type, platform, params, chain_id, context_snapshot, status, reason, priority, notified_channel_id, user_id, confidence_score, user_feedback, reviewed_at, reviewed_by, required_role, required_confidence, meta_guidance) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING created_at]
-[parameters: ('935c3f53-999f-45ba-8106-3904b2b2b275', 'ws_assign', 'tenant_assign', None, 'assignment_approval', 'assignment', '{"run_id": "45633d89-a852-4940-a659-8843684c20e9", "assignment_id": "asg-c6c4c96743ea4323", "step_id": "send", "operation_id": "c5893f3b-89e5-4e97-b8 ... (101 characters truncated) ... ", "artifact_revision": null, "authorization_revision": "a52327bf10f177a655ea55baed5bfbbb", "workspace_id": "ws_assign", "summary": "Send the reply"}', None, 'null', 'pending', 'Send the reply', 'MEDIUM', None, 'user-1', 0.0, None, None, None, None, 0.7, None)]
+[parameters: ('061f049b-fd6c-465d-8047-b3e1f0cebc72', 'ws_assign', 'tenant_assign', None, 'assignment_approval', 'assignment', '{"run_id": "b7e468a5-5328-4dd6-a405-03d2a3cc1758", "assignment_id": "asg-9bb0b0c127904f86", "step_id": "send", "operation_id": "aa03c046-e307-4039-88 ... (101 characters truncated) ... ", "artifact_revision": null, "authorization_revision": "4174f1448bd00328c4b07b48ee2eb5e0", "workspace_id": "ws_assign", "summary": "Send the reply"}', None, 'null', 'pending', 'Send the reply', 'MEDIUM', None, 'user-1', 0.0, None, None, None, None, 0.7, None)]
 (Background on this error at: https://sqlalche.me/e/20/e3q8)
 PASSED                                                                   [ 92%]
 tests/test_assignment_executor.py::test_sent_items_minimum_schema_gates_executor[message_only] 
 -------------------------------- live log call ---------------------------------
-2026-11-07 01:22:17 [   ERROR] Failed to request intervention: (sqlite3.OperationalError) no such table: hitl_actions
+2026-11-07 01:28:54 [   ERROR] Failed to request intervention: (sqlite3.OperationalError) no such table: hitl_actions
 [SQL: INSERT INTO hitl_actions (id, workspace_id, tenant_id, agent_id, action_type, platform, params, chain_id, context_snapshot, status, reason, priority, notified_channel_id, user_id, confidence_score, user_feedback, reviewed_at, reviewed_by, required_role, required_confidence, meta_guidance) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING created_at]
-[parameters: ('aa7912da-4ec4-4090-97a6-07b5a89ab5f7', 'ws_assign', 'tenant_assign', None, 'assignment_approval', 'assignment', '{"run_id": "22e1af7f-f771-4b2c-92a9-06c9f4ca0bc3", "assignment_id": "asg-0cb5733b160a458b", "step_id": "send", "operation_id": "651d31d9-ab6e-4c0f-9b ... (101 characters truncated) ... ", "artifact_revision": null, "authorization_revision": "5747679487bb9e386fe823d9701437fb", "workspace_id": "ws_assign", "summary": "Send the reply"}', None, 'null', 'pending', 'Send the reply', 'MEDIUM', None, 'user-1', 0.0, None, None, None, None, 0.7, None)]
+[parameters: ('6e7af25c-55fa-421a-8381-715a6b7903d7', 'ws_assign', 'tenant_assign', None, 'assignment_approval', 'assignment', '{"run_id": "59d3125b-4820-4094-9e19-c5125cff5b49", "assignment_id": "asg-85ca5f50156f4973", "step_id": "send", "operation_id": "b07bc9f9-9c56-4d36-b7 ... (101 characters truncated) ... ", "artifact_revision": null, "authorization_revision": "86e102d09b86a7d52856ef3978e4be98", "workspace_id": "ws_assign", "summary": "Send the reply"}', None, 'null', 'pending', 'Send the reply', 'MEDIUM', None, 'user-1', 0.0, None, None, None, None, 0.7, None)]
 (Background on this error at: https://sqlalche.me/e/20/e3q8)
 PASSED                                                                   [ 92%]
 tests/test_assignment_executor.py::test_explicit_sent_items_readback_confirms_through_executor 
 -------------------------------- live log call ---------------------------------
-2026-11-07 01:22:17 [   ERROR] Failed to request intervention: (sqlite3.OperationalError) no such table: hitl_actions
+2026-11-07 01:28:54 [   ERROR] Failed to request intervention: (sqlite3.OperationalError) no such table: hitl_actions
 [SQL: INSERT INTO hitl_actions (id, workspace_id, tenant_id, agent_id, action_type, platform, params, chain_id, context_snapshot, status, reason, priority, notified_channel_id, user_id, confidence_score, user_feedback, reviewed_at, reviewed_by, required_role, required_confidence, meta_guidance) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) RETURNING created_at]
-[parameters: ('2ac65cd5-f9b8-4fc9-aaa7-9bb83002bdce', 'ws_assign', 'tenant_assign', None, 'assignment_approval', 'assignment', '{"run_id": "6e133901-606d-41f9-91e2-1204eb90ceb3", "assignment_id": "asg-a253a44f9f804c9c", "step_id": "send", "operation_id": "eb4bbd8d-af72-4680-97 ... (101 characters truncated) ... ", "artifact_revision": null, "authorization_revision": "648d4343eb9a4dc0a76561439ac940b0", "workspace_id": "ws_assign", "summary": "Send the reply"}', None, 'null', 'pending', 'Send the reply', 'MEDIUM', None, 'user-1', 0.0, None, None, None, None, 0.7, None)]
+[parameters: ('b3ecbe7a-d8a6-4f01-bd35-43ccc8770c28', 'ws_assign', 'tenant_assign', None, 'assignment_approval', 'assignment', '{"run_id": "12ee729e-25e7-4733-903f-9a59d6637102", "assignment_id": "asg-13b2e8b1c3d1400d", "step_id": "send", "operation_id": "c057bee4-c6a0-4a4c-ac ... (101 characters truncated) ... ", "artifact_revision": null, "authorization_revision": "3774027fc87b6a88e609b3347d271ce6", "workspace_id": "ws_assign", "summary": "Send the reply"}', None, 'null', 'pending', 'Send the reply', 'MEDIUM', None, 'user-1', 0.0, None, None, None, None, 0.7, None)]
 (Background on this error at: https://sqlalche.me/e/20/e3q8)
 PASSED                                                                   [ 93%]
 tests/test_assignment_executor.py::test_business_readiness_blocks_dependent_while_independent_runs PASSED [ 93%]
@@ -300,98 +301,98 @@ tests/test_assignment_executor.py::test_plan_patch_validation_refuses_weakening_
 tests/test_assignment_executor.py::test_approval_clears_the_matching_human_input_wait PASSED [ 99%]
 tests/integration/journeys/test_oracle_registry_mutation_journey.py::test_registered_mini_app_manifest_write_is_independently_verified 
 -------------------------------- live log setup --------------------------------
-2026-11-07 01:22:18 [    INFO] ============================================================
-2026-11-07 01:22:18 [    INFO] ATOM Platform Starting (Hybrid Mode)
-2026-11-07 01:22:18 [    INFO] ============================================================
-2026-11-07 01:22:18 [    INFO] faulthandler: SIGUSR1 dumps thread stacks to stderr
-2026-11-07 01:22:18 [ WARNING] Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
-2026-11-07 01:22:18 [    INFO] Initializing database tables...
-2026-11-07 01:22:18 [    INFO] ⊘ Skipping table creation in test mode (fixture managed)
-2026-11-07 01:22:18 [    INFO] ⊘ Skipping admin bootstrap in test mode (fixture managed)
-2026-11-07 01:22:18 [    INFO] Loaded integrations so far: ['twilio', 'monday', 'oauth', 'whatsapp', 'zoho_workdrive', 'outlook', 'salesforce', 'asana', 'mailchimp', 'microsoft365', 'notion', 'auth']
-2026-11-07 01:22:18 [    INFO] Crash recovery: no orphaned executions found
-2026-11-07 01:22:18 [    INFO] Terminal-delivery recovery task started (outside the scheduler gate)
-2026-11-07 01:22:18 [    INFO] Research continuation worker started (outside the scheduler gate)
-2026-11-07 01:22:18 [    INFO] ⊘ Skipping Schedulers and Workers in test mode
-2026-11-07 01:22:18 [    INFO] ⊘ Skipping Postgres Event Bus in test mode
-2026-11-07 01:22:18 [    INFO] ✓ AI Workflow Service initialized
-2026-11-07 01:22:18 [    INFO] ⏩ Skipping redundant QStash schedule cleanup
-2026-11-07 01:22:18 [    INFO] ReflectionEngine registered on event bus
-2026-11-07 01:22:18 [    INFO] ✓ Auto-Dev ReflectionEngine registered on event bus
-2026-11-07 01:22:18 [    INFO] ============================================================
-2026-11-07 01:22:18 [    INFO] ✓ Server Ready
-2026-11-07 01:22:18 [    INFO] [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
-2026-11-07 01:22:18 [    INFO] [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
-2026-11-07 01:22:18 [    INFO] [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
-2026-11-07 01:22:18 [    INFO] 🚀 [ULTRA LOUD] POST /api/auth/register
-2026-11-07 01:22:18 [    INFO] 🏁 [ULTRA LOUD] POST /api/auth/register -> 200
-2026-11-07 01:22:18 [    INFO] 🚀 [ULTRA LOUD] POST /api/auth/login
-2026-11-07 01:22:18 [    INFO] 🏁 [ULTRA LOUD] POST /api/auth/login -> 200
+2026-11-07 01:28:55 [    INFO] ============================================================
+2026-11-07 01:28:55 [    INFO] ATOM Platform Starting (Hybrid Mode)
+2026-11-07 01:28:55 [    INFO] ============================================================
+2026-11-07 01:28:55 [    INFO] faulthandler: SIGUSR1 dumps thread stacks to stderr
+2026-11-07 01:28:55 [ WARNING] Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
+2026-11-07 01:28:55 [    INFO] Initializing database tables...
+2026-11-07 01:28:55 [    INFO] ⊘ Skipping table creation in test mode (fixture managed)
+2026-11-07 01:28:55 [    INFO] ⊘ Skipping admin bootstrap in test mode (fixture managed)
+2026-11-07 01:28:55 [    INFO] Loaded integrations so far: ['twilio', 'zoho_workdrive', 'auth', 'microsoft365', 'monday', 'notion', 'asana', 'whatsapp', 'outlook', 'oauth', 'mailchimp', 'salesforce']
+2026-11-07 01:28:55 [    INFO] Crash recovery: no orphaned executions found
+2026-11-07 01:28:55 [    INFO] Terminal-delivery recovery task started (outside the scheduler gate)
+2026-11-07 01:28:55 [    INFO] Research continuation worker started (outside the scheduler gate)
+2026-11-07 01:28:55 [    INFO] ⊘ Skipping Schedulers and Workers in test mode
+2026-11-07 01:28:55 [    INFO] ⊘ Skipping Postgres Event Bus in test mode
+2026-11-07 01:28:55 [    INFO] ✓ AI Workflow Service initialized
+2026-11-07 01:28:55 [    INFO] ⏩ Skipping redundant QStash schedule cleanup
+2026-11-07 01:28:55 [    INFO] ReflectionEngine registered on event bus
+2026-11-07 01:28:55 [    INFO] ✓ Auto-Dev ReflectionEngine registered on event bus
+2026-11-07 01:28:55 [    INFO] ============================================================
+2026-11-07 01:28:55 [    INFO] ✓ Server Ready
+2026-11-07 01:28:55 [    INFO] [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+2026-11-07 01:28:55 [    INFO] [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+2026-11-07 01:28:55 [    INFO] [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+2026-11-07 01:28:55 [    INFO] 🚀 [ULTRA LOUD] POST /api/auth/register
+2026-11-07 01:28:55 [    INFO] 🏁 [ULTRA LOUD] POST /api/auth/register -> 200
+2026-11-07 01:28:55 [    INFO] 🚀 [ULTRA LOUD] POST /api/auth/login
+2026-11-07 01:28:55 [    INFO] 🏁 [ULTRA LOUD] POST /api/auth/login -> 200
 -------------------------------- live log call ---------------------------------
-2026-11-07 01:22:18 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_scaffold
-2026-11-07 01:22:19 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_scaffold -> 200
+2026-11-07 01:28:55 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_scaffold
+2026-11-07 01:28:56 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_scaffold -> 200
 PASSED                                                                   [ 99%]
 ------------------------------ live log teardown -------------------------------
-2026-11-07 01:22:19 [    INFO] [async-continuation] terminal-delivery recovery task stopping
-2026-11-07 01:22:19 [    INFO] Shutting down ATOM Platform...
-2026-11-07 01:22:19 [    INFO] ✓ Workflow Scheduler stopped
-2026-11-07 01:22:19 [    INFO] ℹ️ Initializing AgentEventBus in Postgres mode (Fallback)
-2026-11-07 01:22:19 [    INFO] ✓ Postgres Event Bus listener stopped
-2026-11-07 01:22:19 [    INFO] ✓ AI Workflow Service sessions cleaned up
+2026-11-07 01:28:56 [    INFO] [async-continuation] terminal-delivery recovery task stopping
+2026-11-07 01:28:56 [    INFO] Shutting down ATOM Platform...
+2026-11-07 01:28:56 [    INFO] ✓ Workflow Scheduler stopped
+2026-11-07 01:28:56 [    INFO] ℹ️ Initializing AgentEventBus in Postgres mode (Fallback)
+2026-11-07 01:28:56 [    INFO] ✓ Postgres Event Bus listener stopped
+2026-11-07 01:28:56 [    INFO] ✓ AI Workflow Service sessions cleaned up
 
 tests/integration/journeys/test_mini_app_host_receipts_journey.py::test_public_rpc_producers_write_bound_receipts 
 -------------------------------- live log setup --------------------------------
-2026-11-07 01:22:19 [    INFO] ============================================================
-2026-11-07 01:22:19 [    INFO] ATOM Platform Starting (Hybrid Mode)
-2026-11-07 01:22:19 [    INFO] ============================================================
-2026-11-07 01:22:19 [    INFO] faulthandler: SIGUSR1 dumps thread stacks to stderr
-2026-11-07 01:22:19 [ WARNING] Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
-2026-11-07 01:22:19 [    INFO] Initializing database tables...
-2026-11-07 01:22:19 [    INFO] ⊘ Skipping table creation in test mode (fixture managed)
-2026-11-07 01:22:19 [    INFO] ⊘ Skipping admin bootstrap in test mode (fixture managed)
-2026-11-07 01:22:19 [    INFO] Loaded integrations so far: ['twilio', 'monday', 'oauth', 'whatsapp', 'zoho_workdrive', 'outlook', 'salesforce', 'asana', 'mailchimp', 'microsoft365', 'notion', 'auth']
-2026-11-07 01:22:19 [   ERROR] Execution recovery sweep failed: (sqlite3.OperationalError) no such table: workflow_executions
+2026-11-07 01:28:56 [    INFO] ============================================================
+2026-11-07 01:28:56 [    INFO] ATOM Platform Starting (Hybrid Mode)
+2026-11-07 01:28:56 [    INFO] ============================================================
+2026-11-07 01:28:56 [    INFO] faulthandler: SIGUSR1 dumps thread stacks to stderr
+2026-11-07 01:28:56 [ WARNING] Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
+2026-11-07 01:28:56 [    INFO] Initializing database tables...
+2026-11-07 01:28:56 [    INFO] ⊘ Skipping table creation in test mode (fixture managed)
+2026-11-07 01:28:56 [    INFO] ⊘ Skipping admin bootstrap in test mode (fixture managed)
+2026-11-07 01:28:56 [    INFO] Loaded integrations so far: ['twilio', 'zoho_workdrive', 'auth', 'microsoft365', 'monday', 'notion', 'asana', 'whatsapp', 'outlook', 'oauth', 'mailchimp', 'salesforce']
+2026-11-07 01:28:56 [   ERROR] Execution recovery sweep failed: (sqlite3.OperationalError) no such table: workflow_executions
 [SQL: SELECT workflow_executions.execution_id AS workflow_executions_execution_id, workflow_executions.tenant_id AS workflow_executions_tenant_id, workflow_executions.workflow_id AS workflow_executions_workflow_id, workflow_executions.status AS workflow_executions_status, workflow_executions.input_data AS workflow_executions_input_data, workflow_executions.steps AS workflow_executions_steps, workflow_executions.outputs AS workflow_executions_outputs, workflow_executions.context AS workflow_executions_context, workflow_executions.version AS workflow_executions_version, workflow_executions.created_at AS workflow_executions_created_at, workflow_executions.updated_at AS workflow_executions_updated_at, workflow_executions.error AS workflow_executions_error, workflow_executions.completed_at AS workflow_executions_completed_at, workflow_executions.user_id AS workflow_executions_user_id, workflow_executions.visibility AS workflow_executions_visibility, workflow_executions.owner_id AS workflow_executions_owner_id, workflow_executions.team_id AS workflow_executions_team_id 
 FROM workflow_executions 
 WHERE workflow_executions.status = ?]
 [parameters: ('RUNNING',)]
 (Background on this error at: https://sqlalche.me/e/20/e3q8)
-2026-11-07 01:22:19 [    INFO] Terminal-delivery recovery task started (outside the scheduler gate)
-2026-11-07 01:22:19 [    INFO] Research continuation worker started (outside the scheduler gate)
-2026-11-07 01:22:19 [    INFO] ⊘ Skipping Schedulers and Workers in test mode
-2026-11-07 01:22:19 [    INFO] ⊘ Skipping Postgres Event Bus in test mode
-2026-11-07 01:22:19 [    INFO] ✓ AI Workflow Service initialized
-2026-11-07 01:22:19 [    INFO] ⏩ Skipping redundant QStash schedule cleanup
-2026-11-07 01:22:19 [    INFO] ✓ Auto-Dev ReflectionEngine registered on event bus
-2026-11-07 01:22:19 [    INFO] ============================================================
-2026-11-07 01:22:19 [    INFO] ✓ Server Ready
-2026-11-07 01:22:19 [    INFO] [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
-2026-11-07 01:22:19 [    INFO] [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
-2026-11-07 01:22:19 [    INFO] [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
-2026-11-07 01:22:19 [    INFO] 🚀 [ULTRA LOUD] POST /api/auth/register
-2026-11-07 01:22:19 [    INFO] 🏁 [ULTRA LOUD] POST /api/auth/register -> 200
-2026-11-07 01:22:19 [    INFO] 🚀 [ULTRA LOUD] POST /api/auth/login
-2026-11-07 01:22:19 [    INFO] 🏁 [ULTRA LOUD] POST /api/auth/login -> 200
+2026-11-07 01:28:56 [    INFO] Terminal-delivery recovery task started (outside the scheduler gate)
+2026-11-07 01:28:56 [    INFO] Research continuation worker started (outside the scheduler gate)
+2026-11-07 01:28:56 [    INFO] ⊘ Skipping Schedulers and Workers in test mode
+2026-11-07 01:28:56 [    INFO] ⊘ Skipping Postgres Event Bus in test mode
+2026-11-07 01:28:56 [    INFO] ✓ AI Workflow Service initialized
+2026-11-07 01:28:56 [    INFO] ⏩ Skipping redundant QStash schedule cleanup
+2026-11-07 01:28:56 [    INFO] ✓ Auto-Dev ReflectionEngine registered on event bus
+2026-11-07 01:28:56 [    INFO] ============================================================
+2026-11-07 01:28:56 [    INFO] ✓ Server Ready
+2026-11-07 01:28:56 [    INFO] [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+2026-11-07 01:28:56 [    INFO] [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+2026-11-07 01:28:56 [    INFO] [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+2026-11-07 01:28:56 [    INFO] 🚀 [ULTRA LOUD] POST /api/auth/register
+2026-11-07 01:28:56 [    INFO] 🏁 [ULTRA LOUD] POST /api/auth/register -> 200
+2026-11-07 01:28:56 [    INFO] 🚀 [ULTRA LOUD] POST /api/auth/login
+2026-11-07 01:28:56 [    INFO] 🏁 [ULTRA LOUD] POST /api/auth/login -> 200
 -------------------------------- live log call ---------------------------------
-2026-11-07 01:22:19 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_scaffold
-2026-11-07 01:22:19 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_scaffold -> 200
-2026-11-07 01:22:19 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_write_logic
-2026-11-07 01:22:19 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_write_logic -> 200
-2026-11-07 01:22:19 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_revert_logic
-2026-11-07 01:22:19 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_revert_logic -> 200
-2026-11-07 01:22:19 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_publish
-2026-11-07 01:22:19 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_publish -> 200
-2026-11-07 01:22:19 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_install
-2026-11-07 01:22:19 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_install -> 200
-2026-11-07 01:22:19 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_db_write
-2026-11-07 01:22:19 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_db_write -> 200
+2026-11-07 01:28:56 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_scaffold
+2026-11-07 01:28:56 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_scaffold -> 200
+2026-11-07 01:28:56 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_write_logic
+2026-11-07 01:28:56 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_write_logic -> 200
+2026-11-07 01:28:56 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_revert_logic
+2026-11-07 01:28:56 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_revert_logic -> 200
+2026-11-07 01:28:56 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_publish
+2026-11-07 01:28:56 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_publish -> 200
+2026-11-07 01:28:56 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_install
+2026-11-07 01:28:56 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_install -> 200
+2026-11-07 01:28:56 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_db_write
+2026-11-07 01:28:56 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_db_write -> 200
 PASSED                                                                   [100%]
 ------------------------------ live log teardown -------------------------------
-2026-11-07 01:22:19 [    INFO] [async-continuation] terminal-delivery recovery task stopping
-2026-11-07 01:22:19 [    INFO] Shutting down ATOM Platform...
-2026-11-07 01:22:19 [    INFO] ✓ Workflow Scheduler stopped
-2026-11-07 01:22:19 [    INFO] ✓ Postgres Event Bus listener stopped
-2026-11-07 01:22:19 [    INFO] ✓ AI Workflow Service sessions cleaned up
+2026-11-07 01:28:56 [    INFO] [async-continuation] terminal-delivery recovery task stopping
+2026-11-07 01:28:56 [    INFO] Shutting down ATOM Platform...
+2026-11-07 01:28:56 [    INFO] ✓ Workflow Scheduler stopped
+2026-11-07 01:28:56 [    INFO] ✓ Postgres Event Bus listener stopped
+2026-11-07 01:28:56 [    INFO] ✓ AI Workflow Service sessions cleaned up
 
 
 =============================== warnings summary ===============================
@@ -439,7 +440,7 @@ api/admin_routes.py:1017
   <home>/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
     ref_error: type[Exception] = jsonschema.RefResolutionError,
 
-../../../..<home>/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 416 warnings
+../../../..<home>/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 418 warnings
   <home>/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
     if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
 
@@ -464,5 +465,5 @@ api/admin_routes.py:1017
   <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-====================== 208 passed, 431 warnings in 34.39s ======================
+====================== 209 passed, 433 warnings in 37.05s ======================
 

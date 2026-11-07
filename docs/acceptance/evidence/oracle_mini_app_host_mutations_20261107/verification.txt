@@ -1,7 +1,9 @@
 Frozen source
 - branch: codex/oracle-mini-host-proofs-20261107
 - activated source: 2b53eda29d9d357b3b613c1f1633bf79c1bc7cbe
-- code/test commit: af97665c73112b96e2bbc5a13ecbcafa72cc023c
+- implementation commit: af97665c73112b96e2bbc5a13ecbcafa72cc023c
+- qualified code/test commit: b205fc151 (adds restart-shaped fresh-engine
+  readback control)
 - interpreter: existing venv314 CPython 3.14 (no installs)
 - tracked tree: clean at commit
 - untracked non-artifact inputs left untracked as instructed: CLI_WORK_ORDER.md,
@@ -17,7 +19,7 @@ Commands and actual exit status (logs beside this file)
      tests/integration/journeys/test_oracle_registry_mutation_journey.py
      tests/integration/journeys/test_mini_app_host_receipts_journey.py
      -q --tb=short --timeout=300 --timeout-method=thread --color=no
-   exit 0 — 208 passed
+   exit 0 — 209 passed
    log: focused-gate.log
 
 2. Root-supplied logic CAS material probe:
@@ -31,13 +33,13 @@ Commands and actual exit status (logs beside this file)
    log: supplied-publish-preparation.log
 
 4. Affected 22-file cluster, pre-created scratch SQLite file, fresh basetemp:
-   exit 1 — 784 passed, 9 pre-existing unrelated failures
+   exit 1 — 785 passed, 9 pre-existing unrelated failures
    log: affected-cluster.log
    failures: baseline-unrelated-failures.txt
 
-5. Registry-only inventory at af97665c7:
+5. Registry-only inventory at b205fc151:
    existing scripts/acceptance/oracle_mutation_surface_inventory.py
-   --registry-only --out .../coverage --source af97665c7
+   --registry-only --out .../coverage --source b205fc151
    exit 0
    log: coverage/inventory-run.log
    result: 90 actions, 26 mutations, 21 covered, 5 uncovered
