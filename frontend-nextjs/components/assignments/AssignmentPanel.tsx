@@ -15,6 +15,7 @@ import {
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useProductProfile } from "@/lib/product-profile";
 import {
   approveAssignmentStep,
   AssignmentAgent,
@@ -114,6 +115,8 @@ export function AssignmentPanel({
   className?: string;
   agentId?: string | null;
 }) {
+  const { isCapabilityEnabled } = useProductProfile();
+  const connectorsEnabled = isCapabilityEnabled("connectors");
   const [summaries, setSummaries] = useState<AssignmentSummary[]>([]);
   const [selected, setSelected] = useState<string | null>(null);
   const [detail, setDetail] = useState<AssignmentDetail | null>(null);
@@ -634,11 +637,17 @@ export function AssignmentPanel({
             <a className="text-indigo-600 underline" href="/documents">
               Data
             </a>{" "}
-            first, or connect a source in{" "}
-            <a className="text-indigo-600 underline" href="/integrations">
-              Integrations
-            </a>
-            .
+            first{connectorsEnabled ? (
+              <>
+                , or connect a source in{" "}
+                <a className="text-indigo-600 underline" href="/integrations">
+                  Integrations
+                </a>
+                .
+              </>
+            ) : (
+              "."
+            )}
           </p>
         ) : null}
         <div className="flex gap-1">

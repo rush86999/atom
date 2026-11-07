@@ -1,0 +1,54 @@
+{
+  "executed_source": "bf28b07f3",
+  "packaging_predecessor": "8f8e0f260",
+  "source_files": [
+    {
+      "path": "backend/api/document_routes.py",
+      "blob_prefix": "2474f6e58936",
+      "matches_executed_ref": true
+    },
+    {
+      "path": "backend/core/document_delete_service.py",
+      "blob_prefix": "87847e4b6f56",
+      "matches_executed_ref": true
+    },
+    {
+      "path": "backend/core/lancedb_handler.py",
+      "blob_prefix": "52847d508fdd",
+      "matches_executed_ref": true
+    },
+    {
+      "path": "backend/tests/test_document_delete_truth.py",
+      "blob_prefix": "3c18be340575",
+      "matches_executed_ref": true
+    },
+    {
+      "path": "backend/tests/test_document_vector_family_cleanup.py",
+      "blob_prefix": "6cf5b84e5cf2",
+      "matches_executed_ref": true
+    },
+    {
+      "path": "backend/tests/api/test_document_routes_coverage_w52.py",
+      "blob_prefix": "c9cb35c0e635",
+      "matches_executed_ref": true
+    }
+  ],
+  "artifacts": [
+    {
+      "path": "docs/acceptance/evidence/document_delete_truth_20261106/focused-delete-truth-314.log",
+      "blob_prefix": "6d8976e65d52",
+      "matches_retained_git_bytes": true
+    }
+  ],
+  "verification_method": "git show exact-byte comparison; source blob prefixes verified uniquely resolve",
+  "lead_independent_results": {
+    "focused_function_store_controls": "16 passed",
+    "mounted_http_partial_twins": "2 passed; identity overridden; no ordinary-login claim"
+  },
+  "limits": [
+    "No PostgreSQL or multiworker qualification",
+    "No ordinary login or full governance qualification",
+    "No cross-store atomicity claim",
+    "No general model-judgment evidence"
+  ]
+}

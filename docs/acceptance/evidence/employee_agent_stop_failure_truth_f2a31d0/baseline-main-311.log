@@ -1,0 +1,1648 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-06 17:15:03 [    INFO] AgentTaskRegistry initialized
+
+tests/test_agent_stop_scope_contract.py::test_member_stops_own_agent_and_writes_receipt 
+-------------------------------- live log setup --------------------------------
+2026-11-06 17:15:04 [    INFO] EscalationManager initialized
+2026-11-06 17:15:04 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 17:15:04 [    INFO] EscalationManager initialized
+2026-11-06 17:15:04 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 17:15:04 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:15:05 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/stop?operation_id=stop-one "HTTP/1.1 200 OK"
+PASSED                                                                   [  0%]
+tests/test_agent_stop_scope_contract.py::test_cross_tenant_and_cross_workspace_stop_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:15:07 [    INFO] HTTP Request: POST http://testserver/api/agents/a2/stop "HTTP/1.1 404 Not Found"
+2026-11-06 17:15:07 [    INFO] HTTP Request: POST http://testserver/api/agents/a3/stop "HTTP/1.1 404 Not Found"
+2026-11-06 17:15:07 [    INFO] HTTP Request: POST http://testserver/api/agents/a2/stop?operation_id=cross-ws "HTTP/1.1 200 OK"
+2026-11-06 17:15:07 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/stop "HTTP/1.1 404 Not Found"
+PASSED                                                                   [  0%]
+tests/test_agent_stop_scope_contract.py::test_no_tasks_is_no_change_without_receipt 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:15:08 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/stop?operation_id=no-tasks "HTTP/1.1 200 OK"
+PASSED                                                                   [  0%]
+tests/test_agent_stop_scope_contract.py::test_replay_does_not_cancel_new_tasks 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:15:09 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/stop?operation_id=stop-replay "HTTP/1.1 200 OK"
+2026-11-06 17:15:09 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/stop?operation_id=stop-replay "HTTP/1.1 200 OK"
+PASSED                                                                   [  1%]
+tests/test_agent_stop_scope_contract.py::test_authority_change_before_claim_refuses[deactivate] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:15:11 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/stop?operation_id=authority-stop "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  1%]
+tests/test_agent_stop_scope_contract.py::test_authority_change_before_claim_refuses[demote] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:15:12 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/stop?operation_id=authority-stop "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  1%]
+tests/test_agent_stop_scope_contract.py::test_target_change_before_claim_refuses 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:15:12 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/stop?operation_id=stale-stop "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  1%]
+tests/test_agent_stop_scope_contract.py::test_receipt_failure_reports_effect_unknown_after_cancel 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:15:15 [   ERROR] agent stop receipt failed after cancellation: operation_id=agent:stop:unknown-stop target=a1 error_class=IntegrityError
+2026-11-06 17:15:15 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/stop?operation_id=unknown-stop "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [  2%]
+tests/test_agent_stop_scope_contract.py::test_missing_agent_is_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:15:15 [    INFO] HTTP Request: POST http://testserver/api/agents/missing/stop?operation_id=missing-stop "HTTP/1.1 404 Not Found"
+PASSED                                                                   [  2%]
+tests/test_agent_run_admission_contract.py::test_member_admits_own_agent_and_dispatch_completes 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:15:16 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=run-one "HTTP/1.1 200 OK"
+PASSED                                                                   [  2%]
+tests/test_agent_run_admission_contract.py::test_member_cross_workspace_and_tenant_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:15:19 [    INFO] HTTP Request: POST http://testserver/api/agents/a2/run "HTTP/1.1 404 Not Found"
+2026-11-06 17:15:19 [    INFO] HTTP Request: POST http://testserver/api/agents/a3/run "HTTP/1.1 404 Not Found"
+2026-11-06 17:15:19 [    INFO] HTTP Request: POST http://testserver/api/agents/a2/run?operation_id=cross-ws "HTTP/1.1 200 OK"
+2026-11-06 17:15:19 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run "HTTP/1.1 404 Not Found"
+PASSED                                                                   [  2%]
+tests/test_agent_run_admission_contract.py::test_deprecated_paused_and_running_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:15:20 [    INFO] HTTP Request: POST http://testserver/api/agents/a-deprecated/run "HTTP/1.1 400 Bad Request"
+2026-11-06 17:15:20 [    INFO] HTTP Request: POST http://testserver/api/agents/a-paused/run "HTTP/1.1 400 Bad Request"
+2026-11-06 17:15:20 [    INFO] HTTP Request: POST http://testserver/api/agents/a-running/run "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  3%]
+tests/test_agent_run_admission_contract.py::test_active_job_blocks_second_admission 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:15:22 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=active-job "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  3%]
+tests/test_agent_run_admission_contract.py::test_target_change_before_claim_refuses 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:15:23 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=stale-run "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  3%]
+tests/test_agent_run_admission_contract.py::test_authority_change_before_claim_refuses[deactivate] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:15:24 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=authority-run "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  4%]
+tests/test_agent_run_admission_contract.py::test_authority_change_before_claim_refuses[demote] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:15:24 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=authority-run "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  4%]
+tests/test_agent_run_admission_contract.py::test_replay_same_operation_no_second_dispatch 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:15:26 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=run-replay "HTTP/1.1 200 OK"
+2026-11-06 17:15:26 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=run-replay "HTTP/1.1 200 OK"
+2026-11-06 17:15:26 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=run-replay "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  4%]
+tests/test_agent_run_admission_contract.py::test_audit_rollback_preserves_agent_and_job 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:15:27 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=rollback-run "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  4%]
+tests/test_agent_run_admission_contract.py::test_readback_failure_is_committed_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:15:28 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=readback-run "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [  5%]
+tests/test_agent_run_admission_contract.py::test_execution_failure_marks_job_failed_and_restores_status 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:15:29 [   ERROR] Admitted agent run failed: agent=a1 job=9e2cdd76-ab05-4568-995d-9ca5b87b4b47 error_class=RuntimeError
+2026-11-06 17:15:29 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=failed-run "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [  5%]
+tests/test_agent_run_admission_contract.py::test_sync_run_returns_stub_result_and_success_job 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:15:31 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=sync-run "HTTP/1.1 200 OK"
+PASSED                                                                   [  5%]
+tests/test_agent_delete_scope_contract.py::test_cross_tenant_and_cross_workspace_delete_is_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:15:32 [    INFO] HTTP Request: DELETE http://testserver/api/agents/a3?operation_id=cross-tenant "HTTP/1.1 404 Not Found"
+2026-11-06 17:15:32 [    INFO] HTTP Request: DELETE http://testserver/api/agents/a2?operation_id=cross-ws "HTTP/1.1 404 Not Found"
+2026-11-06 17:15:32 [    INFO] HTTP Request: DELETE http://testserver/api/agents/a1 "HTTP/1.1 403 Forbidden"
+2026-11-06 17:15:32 [    INFO] HTTP Request: DELETE http://testserver/api/agents/a1 "HTTP/1.1 403 Forbidden"
+2026-11-06 17:15:32 [    INFO] HTTP Request: DELETE http://testserver/api/agents/a2?operation_id=own-ws "HTTP/1.1 200 OK"
+2026-11-06 17:15:32 [    INFO] HTTP Request: DELETE http://testserver/api/agents/a-keep?operation_id=cross-ws-admin "HTTP/1.1 200 OK"
+PASSED                                                                   [  5%]
+tests/test_agent_delete_scope_contract.py::test_admin_delete_cleans_dependents_and_writes_receipt 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:15:34 [    INFO] HTTP Request: DELETE http://testserver/api/agents/a1?operation_id=delete-a1 "HTTP/1.1 200 OK"
+PASSED                                                                   [  6%]
+tests/test_agent_delete_scope_contract.py::test_stale_target_before_claim_refuses 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:15:35 [    INFO] HTTP Request: DELETE http://testserver/api/agents/a1?operation_id=stale-delete "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  6%]
+tests/test_agent_delete_scope_contract.py::test_authority_change_before_claim_refuses[deactivate] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:15:36 [    INFO] HTTP Request: DELETE http://testserver/api/agents/a1?operation_id=authority-delete "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  6%]
+tests/test_agent_delete_scope_contract.py::test_authority_change_before_claim_refuses[demote] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:15:38 [    INFO] HTTP Request: DELETE http://testserver/api/agents/a1?operation_id=authority-delete "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  7%]
+tests/test_agent_delete_scope_contract.py::test_replay_and_changed_target 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:15:39 [    INFO] HTTP Request: DELETE http://testserver/api/agents/a1?operation_id=replay-delete "HTTP/1.1 200 OK"
+2026-11-06 17:15:39 [    INFO] HTTP Request: DELETE http://testserver/api/agents/a1?operation_id=replay-delete "HTTP/1.1 200 OK"
+2026-11-06 17:15:39 [    INFO] HTTP Request: DELETE http://testserver/api/agents/a-keep?operation_id=replay-delete "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  7%]
+tests/test_agent_delete_scope_contract.py::test_audit_rollback_preserves_agent_and_dependents 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:15:40 [    INFO] HTTP Request: DELETE http://testserver/api/agents/a1?operation_id=rollback-delete "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  7%]
+tests/test_agent_delete_scope_contract.py::test_post_commit_readback_is_committed_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:15:42 [    INFO] HTTP Request: DELETE http://testserver/api/agents/a1?operation_id=readback-delete "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [  7%]
+tests/test_agent_delete_scope_contract.py::test_lost_confirmation_is_effect_unknown 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:15:43 [   ERROR] agent decision outcome unknown: operation_id=agent:delete:lost-delete target=a1 error_class=RuntimeError
+PASSED                                                                   [  8%]
+tests/test_agent_delete_scope_contract.py::test_main_agent_and_running_tasks_are_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:15:44 [    INFO] HTTP Request: DELETE http://testserver/api/agents/atom_main?operation_id=main-delete "HTTP/1.1 400 Bad Request"
+2026-11-06 17:15:44 [    INFO] HTTP Request: DELETE http://testserver/api/agents/a1?operation_id=running-delete "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [  8%]
+tests/test_agent_delete_scope_contract.py::test_demo_tombstone_is_durable_across_replay 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:15:46 [    INFO] HTTP Request: DELETE http://testserver/api/agents/a-demo?operation_id=demo-delete "HTTP/1.1 200 OK"
+2026-11-06 17:15:46 [    INFO] HTTP Request: DELETE http://testserver/api/agents/a-demo?operation_id=demo-delete "HTTP/1.1 200 OK"
+PASSED                                                                   [  8%]
+tests/test_agent_delete_scope_contract.py::test_wrong_audit_receipt_never_verifies 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:15:47 [    INFO] HTTP Request: DELETE http://testserver/api/agents/a1?operation_id=tamper-delete "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [  8%]
+tests/test_agent_delete_cascade.py::test_delete_agent_cleans_dependent_rows 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:15:48 [    INFO] HTTP Request: DELETE http://testserver/api/agents/agent-cascade-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [  9%]
+tests/test_agent_delete_cascade.py::test_delete_agent_spares_other_agents_rows 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:15:50 [    INFO] HTTP Request: DELETE http://testserver/api/agents/agent-cascade-drop "HTTP/1.1 200 OK"
+PASSED                                                                   [  9%]
+tests/test_agent_delete_cascade.py::test_delete_agent_protects_main_agent 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:15:51 [    INFO] HTTP Request: DELETE http://testserver/api/agents/atom_main "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [  9%]
+tests/test_agent_delete_cascade.py::test_delete_demo_agent_writes_tombstone 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:15:52 [    INFO] HTTP Request: DELETE http://testserver/api/agents/agent-cascade-demo "HTTP/1.1 200 OK"
+PASSED                                                                   [ 10%]
+tests/test_agent_delete_cascade.py::test_delete_non_demo_agent_writes_no_tombstone 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:15:54 [    INFO] HTTP Request: DELETE http://testserver/api/agents/agent-cascade-plain "HTTP/1.1 200 OK"
+PASSED                                                                   [ 10%]
+tests/test_agent_delete_cascade.py::test_deleted_demo_agent_stays_deleted_across_boots 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:15:55 [    INFO] BOOTSTRAP: Created onboarding Demo Assistant agent (id=32b2f5ad-a5f6-4f70-a072-5771b0ca5539)
+2026-11-06 17:15:55 [    INFO] HTTP Request: DELETE http://testserver/api/agents/32b2f5ad-a5f6-4f70-a072-5771b0ca5539 "HTTP/1.1 200 OK"
+2026-11-06 17:15:55 [    INFO] BOOTSTRAP: Demo Assistant was deleted by the operator; respecting tombstone (no re-creation).
+PASSED                                                                   [ 10%]
+tests/test_agent_delete_cascade.py::test_delete_agent_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:15:56 [    INFO] HTTP Request: DELETE http://testserver/api/agents/agent-cascade-nope "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 10%]
+tests/test_agent_decision_contract.py::test_workspace_admin_updates_own_agent_with_audit 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:15:58 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=update-one "HTTP/1.1 200 OK"
+PASSED                                                                   [ 11%]
+tests/test_agent_decision_contract.py::test_cross_tenant_and_cross_workspace_targets_are_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:15:59 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a2 "HTTP/1.1 404 Not Found"
+2026-11-06 17:15:59 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a3 "HTTP/1.1 404 Not Found"
+2026-11-06 17:15:59 [    INFO] HTTP Request: POST http://testserver/api/agents/a2/promote "HTTP/1.1 404 Not Found"
+2026-11-06 17:15:59 [    INFO] HTTP Request: POST http://testserver/api/agents/a3/promote "HTTP/1.1 404 Not Found"
+2026-11-06 17:15:59 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a2 "HTTP/1.1 200 OK"
+2026-11-06 17:15:59 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a3 "HTTP/1.1 404 Not Found"
+2026-11-06 17:15:59 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a3 "HTTP/1.1 200 OK"
+2026-11-06 17:15:59 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 11%]
+tests/test_agent_decision_contract.py::test_non_manager_roles_cannot_update_or_promote[member-1] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:16:00 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1 "HTTP/1.1 403 Forbidden"
+2026-11-06 17:16:00 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/promote "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 11%]
+tests/test_agent_decision_contract.py::test_non_manager_roles_cannot_update_or_promote[lead-1] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:16:02 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1 "HTTP/1.1 403 Forbidden"
+2026-11-06 17:16:02 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/promote "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 11%]
+tests/test_agent_decision_contract.py::test_empty_and_matching_updates_are_no_change 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:16:03 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1 "HTTP/1.1 200 OK"
+2026-11-06 17:16:03 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 12%]
+tests/test_agent_decision_contract.py::test_stale_peer_edit_before_update_claim_refuses 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:16:05 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=stale-update "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 12%]
+tests/test_agent_decision_contract.py::test_update_replay_changed_material_and_later_revision 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:16:06 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=replay-update "HTTP/1.1 200 OK"
+2026-11-06 17:16:06 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=replay-update "HTTP/1.1 200 OK"
+2026-11-06 17:16:06 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=replay-update "HTTP/1.1 409 Conflict"
+2026-11-06 17:16:06 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=replay-update "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 12%]
+tests/test_agent_decision_contract.py::test_promote_transitions_replay_and_stale 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:16:07 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/promote?operation_id=promote-one "HTTP/1.1 200 OK"
+2026-11-06 17:16:07 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/promote?operation_id=promote-one "HTTP/1.1 200 OK"
+2026-11-06 17:16:07 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/promote?operation_id=promote-two "HTTP/1.1 200 OK"
+2026-11-06 17:16:07 [    INFO] HTTP Request: POST http://testserver/api/agents/a2/promote?operation_id=stale-promote "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 13%]
+tests/test_agent_decision_contract.py::test_authority_change_before_claim_refuses[deactivate-update] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:16:09 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=authority "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 13%]
+tests/test_agent_decision_contract.py::test_authority_change_before_claim_refuses[deactivate-promote] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:16:11 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/promote?operation_id=authority "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 13%]
+tests/test_agent_decision_contract.py::test_authority_change_before_claim_refuses[tenant_move-update] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:16:12 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=authority "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 13%]
+tests/test_agent_decision_contract.py::test_authority_change_before_claim_refuses[tenant_move-promote] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:16:15 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/promote?operation_id=authority "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 14%]
+tests/test_agent_decision_contract.py::test_confirmed_audit_rollback_reports_effect_none[update] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:16:15 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=rollback-update "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 14%]
+tests/test_agent_decision_contract.py::test_confirmed_audit_rollback_reports_effect_none[promote] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:16:16 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/promote?operation_id=rollback-promote "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 14%]
+tests/test_agent_decision_contract.py::test_post_commit_readback_is_committed_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:16:19 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=readback "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 14%]
+tests/test_agent_decision_contract.py::test_lost_confirmation_is_effect_unknown_with_identity 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:16:20 [   ERROR] agent decision outcome unknown: operation_id=agent:update:lost-confirmation target=a1 error_class=RuntimeError
+PASSED                                                                   [ 15%]
+tests/test_agent_decision_contract.py::test_wrong_audit_receipt_is_never_verified[action] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:16:22 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=audit-action "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 15%]
+tests/test_agent_decision_contract.py::test_wrong_audit_receipt_is_never_verified[user_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:16:23 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=audit-user_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 15%]
+tests/test_agent_decision_contract.py::test_wrong_audit_receipt_is_never_verified[tenant_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:16:25 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=audit-tenant_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 16%]
+tests/test_agent_decision_contract.py::test_wrong_audit_receipt_is_never_verified[workspace_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:16:26 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=audit-workspace_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 16%]
+tests/test_agent_decision_contract.py::test_wrong_audit_receipt_is_never_verified[success] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:16:29 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=audit-success "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 16%]
+tests/test_agent_decision_contract.py::test_wrong_audit_receipt_is_never_verified[security_level] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:16:30 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=audit-security_level "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 16%]
+tests/test_agent_decision_contract.py::test_wrong_audit_receipt_is_never_verified[resource] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:16:32 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=audit-resource "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 17%]
+tests/test_agent_decision_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_target_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:16:34 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=audit-metadata_target_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 17%]
+tests/test_agent_decision_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_target_tenant_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:16:36 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=audit-metadata_target_tenant_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 17%]
+tests/test_agent_decision_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_target_workspace_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:16:37 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=audit-metadata_target_workspace_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 17%]
+tests/test_agent_decision_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_actor_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:16:39 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=audit-metadata_actor_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 18%]
+tests/test_agent_decision_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_prior_status] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:16:40 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=audit-metadata_prior_status "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 18%]
+tests/test_agent_decision_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_result_status] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:16:41 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=audit-metadata_result_status "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 18%]
+tests/test_agent_decision_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_request_digest] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:16:44 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=audit-metadata_request_digest "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 19%]
+tests/test_agent_decision_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_prior_digest] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:16:45 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=audit-metadata_prior_digest "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 19%]
+tests/test_agent_decision_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_result_digest] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:16:47 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=audit-metadata_result_digest "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 19%]
+tests/test_agent_decision_contract.py::test_raw_capabilities_are_absent_from_audit_and_logs 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:16:48 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1?operation_id=cap-secret "HTTP/1.1 200 OK"
+PASSED                                                                   [ 19%]
+tests/test_agent_decision_contract.py::test_anonymous_requests_are_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:16:49 [    INFO] HTTP Request: PATCH http://testserver/api/agents/a1 "HTTP/1.1 401 Unauthorized"
+2026-11-06 17:16:49 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/promote "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 20%]
+tests/test_agent_replace_scope_contract.py::test_cross_tenant_and_cross_workspace_replace_is_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:16:52 [    INFO] HTTP Request: PUT http://testserver/api/agents/a3 "HTTP/1.1 404 Not Found"
+2026-11-06 17:16:52 [    INFO] HTTP Request: PUT http://testserver/api/agents/a2 "HTTP/1.1 404 Not Found"
+2026-11-06 17:16:52 [    INFO] HTTP Request: PUT http://testserver/api/agents/a1 "HTTP/1.1 403 Forbidden"
+2026-11-06 17:16:52 [    INFO] HTTP Request: PUT http://testserver/api/agents/a2?operation_id=cross-ws "HTTP/1.1 200 OK"
+2026-11-06 17:16:52 [    INFO] HTTP Request: PUT http://testserver/api/agents/a1 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 20%]
+tests/test_agent_replace_scope_contract.py::test_replace_agent_persists_fields_and_receipt 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:16:54 [    INFO] HTTP Request: PUT http://testserver/api/agents/a1?operation_id=replace-one "HTTP/1.1 200 OK"
+PASSED                                                                   [ 20%]
+tests/test_agent_replace_scope_contract.py::test_stale_target_before_claim_refuses 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:16:56 [    INFO] HTTP Request: PUT http://testserver/api/agents/a1?operation_id=stale-replace "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 20%]
+tests/test_agent_replace_scope_contract.py::test_authority_change_before_claim_refuses[deactivate] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:16:57 [    INFO] HTTP Request: PUT http://testserver/api/agents/a1?operation_id=authority-replace "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 21%]
+tests/test_agent_replace_scope_contract.py::test_authority_change_before_claim_refuses[demote] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:00 [    INFO] HTTP Request: PUT http://testserver/api/agents/a1?operation_id=authority-replace "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 21%]
+tests/test_agent_replace_scope_contract.py::test_replay_same_operation_and_changed_material 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:01 [    INFO] HTTP Request: PUT http://testserver/api/agents/a1?operation_id=replay-replace "HTTP/1.1 200 OK"
+2026-11-06 17:17:01 [    INFO] HTTP Request: PUT http://testserver/api/agents/a1?operation_id=replay-replace "HTTP/1.1 200 OK"
+2026-11-06 17:17:01 [    INFO] HTTP Request: PUT http://testserver/api/agents/a1?operation_id=replay-replace "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 21%]
+tests/test_agent_replace_scope_contract.py::test_audit_rollback_preserves_agent 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:04 [    INFO] HTTP Request: PUT http://testserver/api/agents/a1?operation_id=rollback-replace "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 22%]
+tests/test_agent_replace_scope_contract.py::test_readback_failure_is_committed_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:05 [    INFO] HTTP Request: PUT http://testserver/api/agents/a1?operation_id=readback-replace "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 22%]
+tests/test_agent_replace_scope_contract.py::test_matching_replacement_is_no_change 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:07 [    INFO] HTTP Request: PUT http://testserver/api/agents/a1?operation_id=no-change "HTTP/1.1 200 OK"
+PASSED                                                                   [ 22%]
+tests/test_agent_replace_scope_contract.py::test_missing_agent_is_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:08 [    INFO] HTTP Request: PUT http://testserver/api/agents/missing?operation_id=missing-replace "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 22%]
+tests/test_agent_replace_scope_contract.py::test_unchanged_nullable_material_succeeds[json-fields0] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:10 [    INFO] HTTP Request: PUT http://testserver/api/agents/a1?operation_id=nullable-json-configuration "HTTP/1.1 200 OK"
+PASSED                                                                   [ 23%]
+tests/test_agent_replace_scope_contract.py::test_unchanged_nullable_material_succeeds[json-fields1] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:11 [    INFO] HTTP Request: PUT http://testserver/api/agents/a1?operation_id=nullable-json-schedule_config "HTTP/1.1 200 OK"
+PASSED                                                                   [ 23%]
+tests/test_agent_replace_scope_contract.py::test_unchanged_nullable_material_succeeds[json-fields2] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:12 [    INFO] HTTP Request: PUT http://testserver/api/agents/a1?operation_id=nullable-json-configuration-schedule_config "HTTP/1.1 200 OK"
+PASSED                                                                   [ 23%]
+tests/test_agent_replace_scope_contract.py::test_unchanged_nullable_material_succeeds[sql-fields0] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:15 [    INFO] HTTP Request: PUT http://testserver/api/agents/a1?operation_id=nullable-sql-configuration "HTTP/1.1 200 OK"
+PASSED                                                                   [ 23%]
+tests/test_agent_replace_scope_contract.py::test_unchanged_nullable_material_succeeds[sql-fields1] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:16 [    INFO] HTTP Request: PUT http://testserver/api/agents/a1?operation_id=nullable-sql-schedule_config "HTTP/1.1 200 OK"
+PASSED                                                                   [ 24%]
+tests/test_agent_replace_scope_contract.py::test_unchanged_nullable_material_succeeds[sql-fields2] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:18 [    INFO] HTTP Request: PUT http://testserver/api/agents/a1?operation_id=nullable-sql-configuration-schedule_config "HTTP/1.1 200 OK"
+PASSED                                                                   [ 24%]
+tests/test_agent_replace_scope_contract.py::test_empty_object_nullable_material_succeeds 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:19 [    INFO] HTTP Request: PUT http://testserver/api/agents/a1?operation_id=empty-object "HTTP/1.1 200 OK"
+PASSED                                                                   [ 24%]
+tests/test_agent_replace_scope_contract.py::test_null_configuration_peer_change_refuses 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:21 [    INFO] HTTP Request: PUT http://testserver/api/agents/a1?operation_id=null-peer-change "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 25%]
+tests/unit/api/test_agent_routes.py::TestGetAgent::test_get_agent_success 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:22 [    INFO] HTTP Request: GET http://testserver/api/agents/test-agent-123 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 25%]
+tests/unit/api/test_agent_routes.py::TestGetAgent::test_get_agent_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:24 [ WARNING] API Error: NOT_FOUND - Agent not found: nonexistent-agent
+2026-11-06 17:17:24 [    INFO] HTTP Request: GET http://testserver/api/agents/nonexistent-agent "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 25%]
+tests/unit/api/test_agent_routes.py::TestGetAgentStatus::test_get_agent_status_success 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:25 [    INFO] HTTP Request: GET http://testserver/api/agents/test-agent-123/status "HTTP/1.1 200 OK"
+PASSED                                                                   [ 25%]
+tests/unit/api/test_agent_routes.py::TestGetAgentStatus::test_get_agent_status_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:27 [ WARNING] API Error: NOT_FOUND - Agent not found: nonexistent
+2026-11-06 17:17:27 [    INFO] HTTP Request: GET http://testserver/api/agents/nonexistent/status "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 26%]
+tests/unit/api/test_agent_routes.py::TestUpdateAgent::test_update_agent_name 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:29 [    INFO] HTTP Request: PATCH http://testserver/api/agents/test-agent-123 "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 26%]
+tests/unit/api/test_agent_routes.py::TestUpdateAgent::test_update_agent_description 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:31 [    INFO] HTTP Request: PATCH http://testserver/api/agents/test-agent-123 "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 26%]
+tests/unit/api/test_agent_routes.py::TestUpdateAgent::test_update_agent_both_fields 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:32 [    INFO] HTTP Request: PATCH http://testserver/api/agents/test-agent-123 "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 26%]
+tests/unit/api/test_agent_routes.py::TestDeleteAgent::test_delete_agent_success 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:33 [    INFO] HTTP Request: DELETE http://testserver/api/agents/test-agent-123 "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 27%]
+tests/unit/api/test_agent_routes.py::TestDeleteAgent::test_delete_agent_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:36 [    INFO] HTTP Request: DELETE http://testserver/api/agents/nonexistent "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 27%]
+tests/unit/api/test_agent_routes.py::TestRunAgent::test_run_agent_background 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:37 [    INFO] HTTP Request: POST http://testserver/api/agents/test-agent-123/run "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 27%]
+tests/unit/api/test_agent_routes.py::TestRunAgent::test_run_agent_synchronously 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:39 [    INFO] HTTP Request: POST http://testserver/api/agents/test-agent-123/run "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 27%]
+tests/unit/api/test_agent_routes.py::TestRunAgent::test_run_agent_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:40 [    INFO] HTTP Request: POST http://testserver/api/agents/nonexistent/run "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 28%]
+tests/api/test_agent_routes.py::test_list_agents_success 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:40 [    INFO] HTTP Request: GET http://testserver/api/agents/ "HTTP/1.1 200 OK"
+PASSED                                                                   [ 28%]
+tests/api/test_agent_routes.py::test_list_agents_with_category_filter 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:41 [    INFO] HTTP Request: GET http://testserver/api/agents/?category=testing "HTTP/1.1 200 OK"
+PASSED                                                                   [ 28%]
+tests/api/test_agent_routes.py::test_run_agent_success 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:41 [   ERROR] Agent 4719a891-09c2-4869-bccb-f47e89ae773b not found in background task
+2026-11-06 17:17:41 [    INFO] HTTP Request: POST http://testserver/api/agents/4719a891-09c2-4869-bccb-f47e89ae773b/run "HTTP/1.1 200 OK"
+PASSED                                                                   [ 29%]
+tests/api/test_agent_routes.py::test_run_agent_sync_mode 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:41 [    INFO] HTTP Request: POST http://testserver/api/agents/fcfad8b1-c55a-434c-816d-d044f34f9fe7/run "HTTP/1.1 200 OK"
+PASSED                                                                   [ 29%]
+tests/api/test_agent_routes.py::test_run_agent_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:41 [    INFO] HTTP Request: POST http://testserver/api/agents/nonexistent-agent/run "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 29%]
+tests/api/test_agent_routes.py::test_submit_agent_feedback 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:41 [    INFO] HTTP Request: POST http://testserver/api/agents/2e18ea3f-f8d1-4193-9a56-ba3d87f016d1/feedback "HTTP/1.1 200 OK"
+PASSED                                                                   [ 29%]
+tests/api/test_agent_routes.py::test_promote_agent_to_autonomous 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:41 [    INFO] HTTP Request: POST http://testserver/api/agents/ada06546-4b04-4541-bc04-cf04646b80b3/promote "HTTP/1.1 200 OK"
+PASSED                                                                   [ 30%]
+tests/api/test_agent_routes.py::test_list_pending_approvals 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:41 [    INFO] HTTP Request: GET http://testserver/api/agents/approvals/pending "HTTP/1.1 200 OK"
+PASSED                                                                   [ 30%]
+tests/api/test_agent_routes.py::test_approve_hitl_action 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:41 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/65922f31-9adb-4f37-a61f-efcbd4e41583 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 30%]
+tests/api/test_agent_routes.py::test_reject_hitl_action 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:41 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/24b48f9d-936f-46e8-86c8-bafd126f1189 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 30%]
+tests/api/test_agent_routes.py::test_execute_atom_meta_agent 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:41 [    INFO] MCP Service initialized
+2026-11-06 17:17:41 [    INFO] HTTP Request: POST http://testserver/api/agents/atom/execute "HTTP/1.1 200 OK"
+PASSED                                                                   [ 31%]
+tests/api/test_agent_routes.py::test_spawn_custom_agent 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:41 [    INFO] HTTP Request: POST http://testserver/api/agents/spawn "HTTP/1.1 200 OK"
+PASSED                                                                   [ 31%]
+tests/api/test_agent_routes.py::test_trigger_atom_with_data 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:41 [    INFO] HTTP Request: POST http://testserver/api/agents/atom/trigger "HTTP/1.1 200 OK"
+PASSED                                                                   [ 31%]
+tests/api/test_agent_routes.py::test_create_custom_agent 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:41 [    INFO] HTTP Request: POST http://testserver/api/agents/custom "HTTP/1.1 201 Created"
+PASSED                                                                   [ 32%]
+tests/api/test_agent_routes.py::test_update_agent 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:41 [    INFO] HTTP Request: PUT http://testserver/api/agents/5974bf92-9d66-4603-80ee-10f00d0de920 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 32%]
+tests/api/test_agent_routes.py::test_update_agent_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:41 [    INFO] HTTP Request: PUT http://testserver/api/agents/nonexistent-agent "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 32%]
+tests/api/test_agent_routes.py::test_stop_running_agent 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:41 [    INFO] HTTP Request: POST http://testserver/api/agents/cefccd1c-c26c-49be-b6b8-aafdbcc7a9bf/stop "HTTP/1.1 200 OK"
+PASSED                                                                   [ 32%]
+tests/api/test_agent_routes.py::test_stop_agent_no_tasks 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:41 [    INFO] HTTP Request: POST http://testserver/api/agents/bd8b8191-7cd7-4e59-8cdf-8103271df140/stop "HTTP/1.1 200 OK"
+PASSED                                                                   [ 33%]
+tests/api/test_agent_routes.py::test_get_agent_success 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:41 [    INFO] HTTP Request: GET http://testserver/api/agents/425b2f6e-0a7b-46f8-af56-239d0c0c95d5 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 33%]
+tests/api/test_agent_routes.py::test_get_agent_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:41 [ WARNING] API Error: NOT_FOUND - Agent not found: nonexistent-agent
+2026-11-06 17:17:41 [    INFO] HTTP Request: GET http://testserver/api/agents/nonexistent-agent "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 33%]
+tests/api/test_agent_routes.py::test_get_agent_with_last_run 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:41 [    INFO] HTTP Request: GET http://testserver/api/agents/1a1f0143-c808-4dd4-b0bb-f1d8e9ff9d56 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 33%]
+tests/api/test_agent_routes.py::test_get_agent_status_success 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:41 [    INFO] HTTP Request: GET http://testserver/api/agents/ebc457e8-dc1f-41dc-b7c3-abe0cbc036ec/status "HTTP/1.1 200 OK"
+PASSED                                                                   [ 34%]
+tests/api/test_agent_routes.py::test_get_agent_status_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:42 [ WARNING] API Error: NOT_FOUND - Agent not found: nonexistent-agent
+2026-11-06 17:17:42 [    INFO] HTTP Request: GET http://testserver/api/agents/nonexistent-agent/status "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 34%]
+tests/api/test_agent_routes.py::test_delete_agent_success 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:42 [    INFO] HTTP Request: DELETE http://testserver/api/agents/b0c3faa4-23f0-4ee6-b5c2-b71026505aaf "HTTP/1.1 200 OK"
+PASSED                                                                   [ 34%]
+tests/api/test_agent_routes.py::test_delete_agent_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:42 [    INFO] HTTP Request: DELETE http://testserver/api/agents/nonexistent-agent "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 35%]
+tests/api/test_agent_routes.py::test_delete_agent_with_running_tasks 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:42 [    INFO] HTTP Request: DELETE http://testserver/api/agents/fc8453ab-7f71-4064-a1d9-783f45496323 "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 35%]
+tests/api/test_agent_routes.py::test_patch_agent_name 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:42 [    INFO] HTTP Request: PATCH http://testserver/api/agents/56a38b80-3ea2-4a4c-8fca-afc2a48b98d0 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 35%]
+tests/api/test_agent_routes.py::test_patch_agent_description 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:42 [    INFO] HTTP Request: PATCH http://testserver/api/agents/f163c3e7-d393-4306-aff0-8409b207deb9 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 35%]
+tests/api/test_agent_routes.py::test_patch_agent_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:42 [    INFO] HTTP Request: PATCH http://testserver/api/agents/nonexistent-agent "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 36%]
+tests/api/test_agent_routes.py::test_create_custom_agent_invalid_name_empty 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:42 [    INFO] HTTP Request: POST http://testserver/api/agents/custom "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 36%]
+tests/api/test_agent_routes.py::test_create_custom_agent_invalid_name_whitespace 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:42 [    INFO] HTTP Request: POST http://testserver/api/agents/custom "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 36%]
+tests/api/test_agent_routes.py::test_create_custom_agent_invalid_category 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:42 [    INFO] HTTP Request: POST http://testserver/api/agents/custom "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 36%]
+tests/api/test_agent_routes.py::test_create_custom_agent_with_schedule 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:42 [    INFO] HTTP Request: POST http://testserver/api/agents/custom "HTTP/1.1 201 Created"
+PASSED                                                                   [ 37%]
+tests/api/test_agent_routes.py::test_replace_agent_success 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:42 [    INFO] HTTP Request: PUT http://testserver/api/agents/3bcb299d-8c57-4b5a-b681-94d3365c4733 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 37%]
+tests/api/test_agent_routes.py::test_replace_agent_missing_required_field 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:42 [    INFO] HTTP Request: PUT http://testserver/api/agents/50c03b29-3268-40d8-ba02-41a67f0dafe1 "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 37%]
+tests/api/test_agent_routes.py::test_replace_agent_invalid_name 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:42 [    INFO] HTTP Request: PUT http://testserver/api/agents/a8674d28-901f-4990-bb68-ffca4ca732a4 "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 38%]
+tests/api/test_agent_routes.py::test_replace_agent_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:42 [    INFO] HTTP Request: PUT http://testserver/api/agents/nonexistent-agent "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 38%]
+tests/api/test_agent_routes.py::test_run_agent_deprecated_state 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:42 [    INFO] HTTP Request: POST http://testserver/api/agents/201fc06a-1a6a-429f-a014-0eaab8732a5b/run "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 38%]
+tests/api/test_agent_routes.py::test_run_agent_paused_state 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:42 [    INFO] HTTP Request: POST http://testserver/api/agents/f57ede94-8f65-4b4c-a9b2-5209a0b0a0a4/run "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 38%]
+tests/api/test_agent_routes.py::test_run_agent_already_running 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:42 [    INFO] HTTP Request: POST http://testserver/api/agents/32c23030-77ac-41e4-8ae9-f92faa794b01/run "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 39%]
+tests/api/test_agent_routes.py::test_submit_feedback_minimal_data 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:42 [    INFO] HTTP Request: POST http://testserver/api/agents/3b3965d4-6736-46c1-b005-de904d243871/feedback "HTTP/1.1 200 OK"
+PASSED                                                                   [ 39%]
+tests/api/test_agent_routes.py::test_approve_action_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:42 [ WARNING] API Error: NOT_FOUND - HITLAction not found: nonexistent-action
+2026-11-06 17:17:42 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/nonexistent-action "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 39%]
+tests/api/test_agent_routes.py::test_reject_action_with_feedback 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:42 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/38aa4432-c8ab-4616-90d7-d76eec350699 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 39%]
+tests/api/test_agent_routes.py::test_execute_atom_with_context 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:43 [    INFO] HTTP Request: POST http://testserver/api/agents/atom/execute "HTTP/1.1 200 OK"
+PASSED                                                                   [ 40%]
+tests/api/test_agent_routes.py::test_execute_atom_empty_request 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:43 [    INFO] HTTP Request: POST http://testserver/api/agents/atom/execute "HTTP/1.1 200 OK"
+PASSED                                                                   [ 40%]
+tests/api/test_agent_routes.py::test_spawn_agent_persist_true 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:43 [    INFO] HTTP Request: POST http://testserver/api/agents/spawn "HTTP/1.1 200 OK"
+PASSED                                                                   [ 40%]
+tests/api/test_agent_routes.py::test_spawn_agent_unknown_template 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:43 [    INFO] HTTP Request: POST http://testserver/api/agents/spawn "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 41%]
+tests/api/test_agent_routes.py::test_trigger_atom_with_complex_data 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:43 [    INFO] HTTP Request: POST http://testserver/api/agents/atom/trigger "HTTP/1.1 200 OK"
+PASSED                                                                   [ 41%]
+tests/api/test_agent_routes.py::test_trigger_atom_empty_data 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:43 [    INFO] HTTP Request: POST http://testserver/api/agents/atom/trigger "HTTP/1.1 200 OK"
+PASSED                                                                   [ 41%]
+tests/api/test_agent_routes.py::test_stop_agent_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:43 [    INFO] HTTP Request: POST http://testserver/api/agents/nonexistent-agent/stop "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 41%]
+tests/api/test_agent_routes.py::test_stop_agent_multiple_tasks 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:43 [    INFO] HTTP Request: POST http://testserver/api/agents/11f17c0a-a0a4-4814-bb41-fd63160cb6aa/stop "HTTP/1.1 200 OK"
+PASSED                                                                   [ 42%]
+tests/api/test_agent_routes.py::test_list_agents_unauthorized 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:43 [    INFO] HTTP Request: GET http://testserver/api/agents/ "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 42%]
+tests/api/test_agent_routes.py::test_create_custom_agent_member_forbidden 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:43 [    INFO] HTTP Request: POST http://testserver/api/agents/custom "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 42%]
+tests/api/test_agent_routes.py::test_delete_agent_member_forbidden 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:43 [    INFO] HTTP Request: DELETE http://testserver/api/agents/74752d81-8f01-49c1-a5fe-64e385065478 "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 42%]
+tests/api/test_agent_routes.py::test_promote_agent_member_forbidden 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:43 [    INFO] HTTP Request: POST http://testserver/api/agents/07eddc31-313e-4a90-953b-4dcc8af5be37/promote "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 43%]
+tests/api/test_agent_routes.py::test_agent_crud_end_to_end 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:43 [    INFO] HTTP Request: POST http://testserver/api/agents/custom "HTTP/1.1 201 Created"
+2026-11-06 17:17:43 [    INFO] HTTP Request: GET http://testserver/api/agents/25dfdbc4-b446-4ac6-ab9b-604682c8477a "HTTP/1.1 200 OK"
+2026-11-06 17:17:43 [    INFO] HTTP Request: PATCH http://testserver/api/agents/25dfdbc4-b446-4ac6-ab9b-604682c8477a "HTTP/1.1 200 OK"
+2026-11-06 17:17:43 [    INFO] HTTP Request: DELETE http://testserver/api/agents/25dfdbc4-b446-4ac6-ab9b-604682c8477a "HTTP/1.1 200 OK"
+2026-11-06 17:17:43 [ WARNING] API Error: NOT_FOUND - Agent not found: 25dfdbc4-b446-4ac6-ab9b-604682c8477a
+2026-11-06 17:17:43 [    INFO] HTTP Request: GET http://testserver/api/agents/25dfdbc4-b446-4ac6-ab9b-604682c8477a "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 43%]
+tests/api/test_agent_routes.py::test_list_agents_with_pagination 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:43 [    INFO] HTTP Request: GET http://testserver/api/agents/ "HTTP/1.1 200 OK"
+PASSED                                                                   [ 43%]
+tests/api/test_agent_routes.py::test_run_agent_with_large_parameters 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:43 [    INFO] HTTP Request: POST http://testserver/api/agents/e8f262df-be49-461d-a421-6ebc6d782e8f/run "HTTP/1.1 200 OK"
+PASSED                                                                   [ 44%]
+tests/api/test_agent_routes.py::test_list_agents_performance 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:43 [    INFO] HTTP Request: GET http://testserver/api/agents/ "HTTP/1.1 200 OK"
+PASSED                                                                   [ 44%]
+tests/api/test_agent_routes.py::test_get_agent_performance 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:43 [    INFO] HTTP Request: GET http://testserver/api/agents/5553881a-6b73-4802-9c8f-6663ee5d2663 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 44%]
+tests/api/test_agent_routes.py::test_agent_with_unicode_name 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:43 [    INFO] HTTP Request: POST http://testserver/api/agents/custom "HTTP/1.1 201 Created"
+PASSED                                                                   [ 44%]
+tests/api/test_agent_routes.py::test_agent_with_special_characters 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:43 [    INFO] HTTP Request: POST http://testserver/api/agents/custom "HTTP/1.1 201 Created"
+PASSED                                                                   [ 45%]
+tests/api/test_agent_routes.py::test_agent_with_very_long_description 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:43 [    INFO] HTTP Request: POST http://testserver/api/agents/custom "HTTP/1.1 201 Created"
+PASSED                                                                   [ 45%]
+tests/test_agent_routes_coverage.py::TestAgentFixtures::test_db_fixture PASSED [ 45%]
+tests/test_agent_routes_coverage.py::TestAgentFixtures::test_admin_user_fixture PASSED [ 45%]
+tests/test_agent_routes_coverage.py::TestAgentFixtures::test_agent_factory_creates_agent PASSED [ 46%]
+tests/test_agent_routes_coverage.py::TestAgentFixtures::test_client_fixture_works 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:43 [    INFO] HTTP Request: GET http://testserver/api/agents/ "HTTP/1.1 200 OK"
+PASSED                                                                   [ 46%]
+tests/test_agent_routes_coverage.py::TestAgentListOperations::test_list_agents_empty 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:43 [    INFO] HTTP Request: GET http://testserver/api/agents/ "HTTP/1.1 200 OK"
+PASSED                                                                   [ 46%]
+tests/test_agent_routes_coverage.py::TestAgentListOperations::test_list_agents_with_agents 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:43 [    INFO] HTTP Request: GET http://testserver/api/agents/ "HTTP/1.1 200 OK"
+PASSED                                                                   [ 47%]
+tests/test_agent_routes_coverage.py::TestAgentListOperations::test_list_agents_by_category 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:43 [    INFO] HTTP Request: GET http://testserver/api/agents/?category=finance "HTTP/1.1 200 OK"
+PASSED                                                                   [ 47%]
+tests/test_agent_routes_coverage.py::TestAgentListOperations::test_list_agents_structure 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:43 [    INFO] HTTP Request: GET http://testserver/api/agents/ "HTTP/1.1 200 OK"
+PASSED                                                                   [ 47%]
+tests/test_agent_routes_coverage.py::TestAgentGetOperations::test_get_agent_success 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:43 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-7fbe22eb-a29f-4481-82b2-91b7a1264ed2 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 47%]
+tests/test_agent_routes_coverage.py::TestAgentGetOperations::test_get_agent_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:44 [ WARNING] API Error: NOT_FOUND - Agent not found: nonexistent-agent-123
+2026-11-06 17:17:44 [    INFO] HTTP Request: GET http://testserver/api/agents/nonexistent-agent-123 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 48%]
+tests/test_agent_routes_coverage.py::TestAgentGetOperations::test_get_agent_includes_metadata 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:44 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-e0472631-f766-42c2-af2c-0769fcbfb6d0 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 48%]
+tests/test_agent_routes_coverage.py::TestAgentUpdateOperations::test_update_agent_name 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:44 [    INFO] HTTP Request: PATCH http://testserver/api/agents/agent-bae84e45-4605-4b60-8628-ce25e35ff3d4 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 48%]
+tests/test_agent_routes_coverage.py::TestAgentUpdateOperations::test_update_agent_description 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:44 [    INFO] HTTP Request: PATCH http://testserver/api/agents/agent-cfb75897-dd19-4b3c-b7bb-6f36e997dd56 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 48%]
+tests/test_agent_routes_coverage.py::TestAgentUpdateOperations::test_update_agent_both_fields 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:44 [    INFO] HTTP Request: PATCH http://testserver/api/agents/agent-4de23855-3cb3-44c7-8c3a-78bdc03985ac "HTTP/1.1 200 OK"
+PASSED                                                                   [ 49%]
+tests/test_agent_routes_coverage.py::TestAgentUpdateOperations::test_update_agent_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:44 [    INFO] HTTP Request: PATCH http://testserver/api/agents/nonexistent-agent "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 49%]
+tests/test_agent_routes_coverage.py::TestAgentUpdateOperations::test_update_agent_empty_fields 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:44 [    INFO] HTTP Request: PATCH http://testserver/api/agents/agent-ff9716e3-8463-4837-afae-77f1346f3cb1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 49%]
+tests/test_agent_routes_coverage.py::TestAgentDeleteOperations::test_delete_agent_success 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:44 [    INFO] HTTP Request: DELETE http://testserver/api/agents/agent-392e5c6a-d1c5-470d-8716-3c1b97b300ae "HTTP/1.1 200 OK"
+PASSED                                                                   [ 50%]
+tests/test_agent_routes_coverage.py::TestAgentDeleteOperations::test_delete_agent_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:44 [    INFO] HTTP Request: DELETE http://testserver/api/agents/nonexistent-agent "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 50%]
+tests/test_agent_routes_coverage.py::TestAgentDeleteOperations::test_delete_agent_with_running_tasks_blocked 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:44 [    INFO] HTTP Request: DELETE http://testserver/api/agents/agent-989b35a5-3e2c-4b55-bb47-609c5c717406 "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 50%]
+tests/test_agent_routes_coverage.py::TestAgentRunOperations::test_run_agent_background 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:44 [   ERROR] Agent agent-cc9e5f70-3af6-4bd9-a674-25d588a9ad60 not found in background task
+2026-11-06 17:17:44 [    INFO] HTTP Request: POST http://testserver/api/agents/agent-cc9e5f70-3af6-4bd9-a674-25d588a9ad60/run "HTTP/1.1 200 OK"
+PASSED                                                                   [ 50%]
+tests/test_agent_routes_coverage.py::TestAgentRunOperations::test_run_agent_sync 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:44 [   ERROR] Agent agent-8b996def-a321-4515-b5ea-75df3cd29251 not found in background task
+2026-11-06 17:17:44 [    INFO] HTTP Request: POST http://testserver/api/agents/agent-8b996def-a321-4515-b5ea-75df3cd29251/run "HTTP/1.1 200 OK"
+PASSED                                                                   [ 51%]
+tests/test_agent_routes_coverage.py::TestAgentRunOperations::test_run_agent_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:44 [    INFO] HTTP Request: POST http://testserver/api/agents/nonexistent/run "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 51%]
+tests/test_agent_routes_coverage.py::TestAgentRunOperations::test_run_agent_deprecated_blocked 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:44 [    INFO] HTTP Request: POST http://testserver/api/agents/agent-f92cfcdf-113f-471f-8428-c1c7cb8710e1/run "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 51%]
+tests/test_agent_routes_coverage.py::TestAgentRunOperations::test_run_agent_paused_blocked 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:44 [    INFO] HTTP Request: POST http://testserver/api/agents/agent-61bef234-d654-46d6-8695-126857cf0104/run "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 51%]
+tests/test_agent_routes_coverage.py::TestAgentRunOperations::test_run_agent_already_running_conflict 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:44 [    INFO] HTTP Request: POST http://testserver/api/agents/agent-94fce030-8db3-4346-a3c0-fe7e8e81e045/run "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 52%]
+tests/test_agent_routes_coverage.py::TestAgentStatusEndpoint::test_get_agent_status_success 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:44 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-da3478ca-fb5a-46a0-a02d-98446c485442/status "HTTP/1.1 200 OK"
+PASSED                                                                   [ 52%]
+tests/test_agent_routes_coverage.py::TestAgentStatusEndpoint::test_get_agent_status_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:44 [ WARNING] API Error: NOT_FOUND - Agent not found: nonexistent
+2026-11-06 17:17:44 [    INFO] HTTP Request: GET http://testserver/api/agents/nonexistent/status "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 52%]
+tests/test_agent_routes_coverage.py::TestAgentStatusEndpoint::test_get_agent_status_with_running_tasks 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:44 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-1d64894b-142e-40d2-8a54-a86e704a0746/status "HTTP/1.1 200 OK"
+PASSED                                                                   [ 52%]
+tests/test_agent_routes_coverage.py::TestAgentFeedbackEndpoint::test_submit_feedback_success 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:44 [    INFO] HTTP Request: POST http://testserver/api/agents/agent-0a58cd5c-2ba4-4d6a-81f3-13ad63426f1f/feedback "HTTP/1.1 200 OK"
+PASSED                                                                   [ 53%]
+tests/test_agent_routes_coverage.py::TestAgentFeedbackEndpoint::test_submit_feedback_minimal_data 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:45 [    INFO] HTTP Request: POST http://testserver/api/agents/agent-89a3706f-83df-4ba1-bed0-cb14c10a66fd/feedback "HTTP/1.1 200 OK"
+PASSED                                                                   [ 53%]
+tests/test_agent_routes_coverage.py::TestAgentPromoteEndpoint::test_promote_agent_success 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:45 [    INFO] HTTP Request: POST http://testserver/api/agents/agent-5a6f10e9-08f8-4d87-b2da-2d94162522f3/promote "HTTP/1.1 200 OK"
+PASSED                                                                   [ 53%]
+tests/test_agent_routes_coverage.py::TestHITLApprovalEndpoints::test_list_pending_approvals_empty 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:45 [    INFO] HTTP Request: GET http://testserver/api/agents/approvals/pending "HTTP/1.1 200 OK"
+PASSED                                                                   [ 54%]
+tests/test_agent_routes_coverage.py::TestHITLApprovalEndpoints::test_list_pending_approvals_with_actions 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:45 [    INFO] HTTP Request: GET http://testserver/api/agents/approvals/pending "HTTP/1.1 200 OK"
+PASSED                                                                   [ 54%]
+tests/test_agent_routes_coverage.py::TestHITLApprovalEndpoints::test_approve_hitl_action 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:45 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-06 17:17:45 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/action-approve "HTTP/1.1 200 OK"
+PASSED                                                                   [ 54%]
+tests/test_agent_routes_coverage.py::TestHITLApprovalEndpoints::test_reject_hitl_action 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:45 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='hitl_decision'
+2026-11-06 17:17:45 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/action-reject "HTTP/1.1 200 OK"
+PASSED                                                                   [ 54%]
+tests/test_agent_routes_coverage.py::TestHITLApprovalEndpoints::test_decide_nonexistent_action 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:45 [ WARNING] API Error: NOT_FOUND - HITLAction not found: nonexistent
+2026-11-06 17:17:45 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/nonexistent "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 55%]
+tests/test_agent_routes_coverage.py::TestCustomAgentEndpoints::test_create_custom_agent_success 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:45 [    INFO] HTTP Request: POST http://testserver/api/agents/custom "HTTP/1.1 201 Created"
+PASSED                                                                   [ 55%]
+tests/test_agent_routes_coverage.py::TestCustomAgentEndpoints::test_create_custom_agent_with_schedule 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:45 [    INFO] Scheduler started
+2026-11-06 17:17:45 [    INFO] AgentScheduler started.
+2026-11-06 17:17:45 [ WARNING] No cron expression for agent 8b02cf7e-d527-484e-aef1-0f34bef8089f
+2026-11-06 17:17:45 [    INFO] HTTP Request: POST http://testserver/api/agents/custom "HTTP/1.1 201 Created"
+PASSED                                                                   [ 55%]
+tests/test_agent_routes_coverage.py::TestCustomAgentEndpoints::test_update_agent_put_success 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:45 [    INFO] HTTP Request: PUT http://testserver/api/agents/agent-2687f6ed-6d1c-498b-9d78-740d58571605 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 55%]
+tests/test_agent_routes_coverage.py::TestCustomAgentEndpoints::test_update_agent_put_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:45 [    INFO] HTTP Request: PUT http://testserver/api/agents/nonexistent "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 56%]
+tests/test_agent_routes_coverage.py::TestAgentStopEndpoint::test_stop_agent_success 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:45 [    INFO] HTTP Request: POST http://testserver/api/agents/agent-4142a91b-571f-4e59-a83c-20496207b37e/stop "HTTP/1.1 200 OK"
+PASSED                                                                   [ 56%]
+tests/test_agent_routes_coverage.py::TestAgentStopEndpoint::test_stop_agent_no_tasks 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:45 [    INFO] HTTP Request: POST http://testserver/api/agents/agent-dfd89ec9-3c0c-4b3a-9e55-d184637a104d/stop "HTTP/1.1 200 OK"
+PASSED                                                                   [ 56%]
+tests/test_agent_routes_coverage.py::TestAgentStopEndpoint::test_stop_agent_not_found 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:45 [    INFO] HTTP Request: POST http://testserver/api/agents/nonexistent/stop "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 57%]
+tests/test_agent_routes_coverage.py::TestAtomMetaAgentEndpoints::test_execute_atom_success 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:45 [    INFO] HTTP Request: POST http://testserver/api/agents/atom/execute "HTTP/1.1 200 OK"
+PASSED                                                                   [ 57%]
+tests/test_agent_routes_coverage.py::TestAtomMetaAgentEndpoints::test_execute_atom_minimal_request 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:45 [    INFO] HTTP Request: POST http://testserver/api/agents/atom/execute "HTTP/1.1 200 OK"
+PASSED                                                                   [ 57%]
+tests/test_agent_routes_coverage.py::TestAtomMetaAgentEndpoints::test_spawn_agent_success 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:45 [    INFO] HTTP Request: POST http://testserver/api/agents/spawn "HTTP/1.1 200 OK"
+PASSED                                                                   [ 57%]
+tests/test_agent_routes_coverage.py::TestAtomMetaAgentEndpoints::test_spawn_agent_minimal 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:45 [    INFO] HTTP Request: POST http://testserver/api/agents/spawn "HTTP/1.1 200 OK"
+PASSED                                                                   [ 58%]
+tests/test_agent_routes_coverage.py::TestAtomMetaAgentEndpoints::test_trigger_atom_with_data 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:45 [    INFO] HTTP Request: POST http://testserver/api/agents/atom/trigger "HTTP/1.1 200 OK"
+PASSED                                                                   [ 58%]
+tests/test_agent_routes_coverage.py::TestBoundaryConditions::test_agent_name_max_length 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:45 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-d0a8a780-1875-4be2-b695-649bb467cdef "HTTP/1.1 200 OK"
+PASSED                                                                   [ 58%]
+tests/test_agent_routes_coverage.py::TestBoundaryConditions::test_agent_name_too_long_fails PASSED [ 58%]
+tests/test_agent_routes_coverage.py::TestBoundaryConditions::test_empty_agent_description 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:45 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-6a2d502b-31d1-431f-878d-4e927757d9fb "HTTP/1.1 200 OK"
+PASSED                                                                   [ 59%]
+tests/test_agent_routes_coverage.py::TestBoundaryConditions::test_agent_with_none_description 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:45 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-05cec758-e845-4957-9f4b-5eefa793820f "HTTP/1.1 200 OK"
+PASSED                                                                   [ 59%]
+tests/test_agent_routes_coverage.py::TestBoundaryConditions::test_confidence_score_boundary_low 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:45 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-aadd57f2-e7a8-400d-852a-05fbb6b36eb3 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 59%]
+tests/test_agent_routes_coverage.py::TestBoundaryConditions::test_confidence_score_boundary_high 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:45 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-e7f19dce-4c4f-4119-8ace-fbaa25fa928a "HTTP/1.1 200 OK"
+PASSED                                                                   [ 60%]
+tests/test_agent_routes_coverage.py::TestBoundaryConditions::test_invalid_confidence_score_rejected PASSED [ 60%]
+tests/test_agent_routes_coverage.py::TestBoundaryConditions::test_agent_configuration_empty 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:45 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-80408dc6-d967-40e0-86b7-2bc8eff7e2dc "HTTP/1.1 200 OK"
+PASSED                                                                   [ 60%]
+tests/test_agent_routes_coverage.py::TestBoundaryConditions::test_agent_configuration_complex 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:45 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-861017b7-9d80-4de5-9866-9057475d5b6d "HTTP/1.1 200 OK"
+PASSED                                                                   [ 60%]
+tests/test_agent_routes_coverage.py::TestBoundaryConditions::test_update_agent_with_same_values 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:45 [    INFO] HTTP Request: PATCH http://testserver/api/agents/agent-cf28492b-474e-4b49-913b-4f4bb7d4c593 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 61%]
+tests/test_agent_routes_coverage.py::TestBoundaryConditions::test_concurrent_agent_updates 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:45 [    INFO] HTTP Request: PATCH http://testserver/api/agents/agent-0c647e27-5885-427b-9d16-5fefc2cccee3 "HTTP/1.1 200 OK"
+2026-11-06 17:17:45 [    INFO] HTTP Request: PATCH http://testserver/api/agents/agent-0c647e27-5885-427b-9d16-5fefc2cccee3 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 61%]
+tests/test_agent_routes_coverage.py::TestInvalidInputs::test_update_with_invalid_field 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:46 [    INFO] HTTP Request: PATCH http://testserver/api/agents/agent-bc248ef5-685c-4ba3-a1d6-0c230e6a48e8 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 61%]
+tests/test_agent_routes_coverage.py::TestInvalidInputs::test_run_with_empty_parameters 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:46 [   ERROR] Agent agent-ac0223e9-e756-4e2d-8e4a-8351c8b6624d not found in background task
+2026-11-06 17:17:46 [    INFO] HTTP Request: POST http://testserver/api/agents/agent-ac0223e9-e756-4e2d-8e4a-8351c8b6624d/run "HTTP/1.1 200 OK"
+PASSED                                                                   [ 61%]
+tests/test_agent_routes_coverage.py::TestInvalidInputs::test_feedback_missing_required_field 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:46 [    INFO] HTTP Request: POST http://testserver/api/agents/agent-34b0a434-6709-4255-84ca-9b3498f321a9/feedback "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 62%]
+tests/test_agent_routes_coverage.py::TestInvalidInputs::test_create_custom_agent_missing_name 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:46 [    INFO] HTTP Request: POST http://testserver/api/agents/custom "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 62%]
+tests/test_agent_routes_coverage.py::TestInvalidInputs::test_create_custom_agent_missing_category 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:46 [    INFO] HTTP Request: POST http://testserver/api/agents/custom "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 62%]
+tests/test_agent_routes_coverage.py::TestStateTransitions::test_status_values 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:46 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-35b955d6-d131-4498-a8cb-011406ab776e/status "HTTP/1.1 200 OK"
+2026-11-06 17:17:46 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-c3b5dc71-ee33-45c5-a6a3-abb9a7f77749/status "HTTP/1.1 200 OK"
+2026-11-06 17:17:46 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-b74647b2-5a8b-49da-a0a2-94f7675ff5ec/status "HTTP/1.1 200 OK"
+2026-11-06 17:17:46 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-e3dc4d53-e3ee-4f86-8a6f-3139235570ac/status "HTTP/1.1 200 OK"
+2026-11-06 17:17:46 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-c7f359e9-ab83-4048-9177-8e8c5ba1ad73/status "HTTP/1.1 200 OK"
+2026-11-06 17:17:46 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-107b9bf5-a606-4aac-9458-0cd3f4dfef12/status "HTTP/1.1 200 OK"
+PASSED                                                                   [ 63%]
+tests/test_agent_routes_coverage.py::TestStateTransitions::test_agent_enabled_true 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:46 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-e3de79a8-bb01-4de9-85c2-f2889759f24b "HTTP/1.1 200 OK"
+PASSED                                                                   [ 63%]
+tests/test_agent_routes_coverage.py::TestStateTransitions::test_agent_enabled_false 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:46 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-4dfff43d-98d2-450b-a9a4-9a73e08b079f "HTTP/1.1 200 OK"
+PASSED                                                                   [ 63%]
+tests/test_agent_routes_coverage.py::TestStateTransitions::test_confidence_score_progression 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:46 [    INFO] HTTP Request: GET http://testserver/api/agents/agent-e74374f7-5d6c-4520-b7f0-5196c397fbc3 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 63%]
+tests/test_agent_routes_coverage.py::TestErrorResponseFormats::test_404_response_format 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:46 [ WARNING] API Error: NOT_FOUND - Agent not found: nonexistent-agent-404
+2026-11-06 17:17:46 [    INFO] HTTP Request: GET http://testserver/api/agents/nonexistent-agent-404 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 64%]
+tests/test_agent_routes_coverage.py::TestErrorResponseFormats::test_400_response_format 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:46 [    INFO] HTTP Request: POST http://testserver/api/agents/agent-9dba89c6-c479-4a90-8d43-8150f5fbfae0/run "HTTP/1.1 400 Bad Request"
+PASSED                                                                   [ 64%]
+tests/test_agent_routes_coverage.py::TestErrorResponseFormats::test_409_response_format 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:46 [    INFO] HTTP Request: POST http://testserver/api/agents/agent-2d7f7e75-b6ea-4169-a5e3-ab4415195d93/run "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 64%]
+tests/test_agent_routes_coverage.py::TestErrorResponseFormats::test_422_validation_error_format 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:46 [    INFO] HTTP Request: POST http://testserver/api/agents/custom "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 64%]
+tests/test_agent_routes_coverage.py::TestAgentIntegrationPoints::test_agent_run_with_world_model 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:46 [    INFO] Starting agent WM Agent (ID: agent-28ddd599-4a18-4d85-bdb9-fe131aa831de)...
+2026-11-06 17:17:46 [    INFO] Agents WM Agent found 1 relevant past experiences.
+2026-11-06 17:17:46 [    INFO]   [Memory] Past task -> Lesson (Success)
+2026-11-06 17:17:46 [    INFO] Executing Agent WM Agent with ReAct Loop. Input: Test
+2026-11-06 17:17:46 [    INFO] HTTP Request: POST http://testserver/api/agents/agent-28ddd599-4a18-4d85-bdb9-fe131aa831de/run "HTTP/1.1 200 OK"
+PASSED                                                                   [ 65%]
+tests/test_agent_routes_coverage.py::TestAgentIntegrationPoints::test_agent_run_broadcasts_to_websocket 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:46 [    INFO] Starting agent WS Agent (ID: agent-4391ef2c-d3e1-40ba-8548-e3605c732a7d)...
+2026-11-06 17:17:46 [    INFO] Executing Agent WS Agent with ReAct Loop. Input: Test
+2026-11-06 17:17:46 [    INFO] HTTP Request: POST http://testserver/api/agents/agent-4391ef2c-d3e1-40ba-8548-e3605c732a7d/run "HTTP/1.1 200 OK"
+PASSED                                                                   [ 65%]
+tests/test_agent_routes_coverage.py::TestAgentIntegrationPoints::test_agent_failure_sends_notification 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:46 [    INFO] Starting agent Failing Agent (ID: agent-bcd8b7cd-fb69-442e-adac-79820da11634)...
+2026-11-06 17:17:46 [    INFO] Executing Agent Failing Agent with ReAct Loop. Input: Test
+2026-11-06 17:17:46 [   ERROR] Agent agent-bcd8b7cd-fb69-442e-adac-79820da11634 logic failed: Test failure
+2026-11-06 17:17:46 [CRITICAL] !!! CRITICAL AGENT ERROR !!!
+Agent execution FAILED: Test failure
+Traceback (most recent call last):
+  File "/private/tmp/stop-truth-base/backend/api/agent_routes.py", line 925, in execute_agent_task
+    raise e
+  File "/private/tmp/stop-truth-base/backend/api/agent_routes.py", line 861, in execute_agent_task
+    result_obj = await runner.execute(task_input, context=params, step_callback=streaming_callback)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/unittest/mock.py", line 2240, in _execute_mock_call
+    raise effect
+Exception: Test failure
+
+2026-11-06 17:17:46 [   ERROR] Agent agent-bcd8b7cd-fb69-442e-adac-79820da11634 execution wrapper failed: Test failure
+2026-11-06 17:17:46 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='agent_status_change'
+2026-11-06 17:17:46 [    INFO] HTTP Request: POST http://testserver/api/agents/agent-bcd8b7cd-fb69-442e-adac-79820da11634/run "HTTP/1.1 200 OK"
+PASSED                                                                   [ 65%]
+tests/test_agent_routes_coverage.py::TestListAgentsResilience::test_list_agents_governance_error_returns_500_json 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:46 [   ERROR] Failed to list agents: agent_registry table missing
+Traceback (most recent call last):
+  File "/private/tmp/stop-truth-base/backend/api/agent_routes.py", line 212, in list_agents
+    agents_db = governance_service.list_agents(category)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/stop-truth-base/backend/tests/test_agent_routes_coverage.py", line 1432, in <lambda>
+    "list_agents": lambda self, category=None: (_ for _ in ()).throw(
+                                               ^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/stop-truth-base/backend/tests/test_agent_routes_coverage.py", line 1432, in <genexpr>
+    "list_agents": lambda self, category=None: (_ for _ in ()).throw(
+RuntimeError: agent_registry table missing
+2026-11-06 17:17:46 [ WARNING] API Error: AGENT_LIST_FAILED - Failed to load agents: agent_registry table missing
+2026-11-06 17:17:46 [    INFO] HTTP Request: GET http://testserver/api/agents/ "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 66%]
+tests/test_agent_routes_coverage.py::TestListAgentsResilience::test_list_agents_job_query_error_returns_500_json 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:46 [   ERROR] Failed to list agents: no such column: agent_jobs.start_time
+Traceback (most recent call last):
+  File "/private/tmp/stop-truth-base/backend/api/agent_routes.py", line 216, in list_agents
+    latest_jobs = db.query(AgentJob.agent_id, func.max(AgentJob.start_time).label('last_run'))\
+                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/stop-truth-base/backend/tests/test_agent_routes_coverage.py", line 1451, in _boom_max
+    raise RuntimeError("no such column: agent_jobs.start_time")
+RuntimeError: no such column: agent_jobs.start_time
+2026-11-06 17:17:46 [ WARNING] API Error: AGENT_LIST_FAILED - Failed to load agents: no such column: agent_jobs.start_time
+2026-11-06 17:17:46 [    INFO] HTTP Request: GET http://testserver/api/agents/ "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 66%]
+tests/test_agent_execution_service.py::TestExecutionOrchestration::test_execute_agent_success 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:46 [    INFO] Executing agent chat with openai/gpt-4 (agent: Test Agent)
+2026-11-06 17:17:46 [    INFO] Recorded $0.0017 spend for execution 9dffa99b-9773-475c-9031-08723b3a6324. Total this month: $0.00
+PASSED                                                                   [ 66%]
+tests/test_agent_execution_service.py::TestExecutionOrchestration::test_execute_agent_with_governance_check 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:46 [    INFO] Executing agent chat with openai/gpt-4 (agent: Test Agent)
+2026-11-06 17:17:46 [    INFO] Recorded $0.0017 spend for execution 6c76e6d7-ea0f-4cfe-8108-eb585f2dea7b. Total this month: $0.00
+PASSED                                                                   [ 66%]
+tests/test_agent_execution_service.py::TestExecutionOrchestration::test_execute_agent_governance_denied 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:46 [ WARNING] Governance blocked agent chat: Insufficient maturity
+PASSED                                                                   [ 67%]
+tests/test_agent_execution_service.py::TestExecutionOrchestration::test_orchestration_context_building 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:47 [    INFO] Executing agent chat with openai/gpt-4 (agent: Test Agent)
+2026-11-06 17:17:47 [    INFO] Recorded $0.0017 spend for execution 8368b439-61aa-4af9-a5c2-e9b02c8f60ed. Total this month: $0.00
+PASSED                                                                   [ 67%]
+tests/test_agent_execution_service.py::TestStateManagement::test_execution_record_created 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:47 [    INFO] Executing agent chat with openai/gpt-4 (agent: Test Agent)
+2026-11-06 17:17:47 [    INFO] Recorded $0.0017 spend for execution b5d9e9dd-9050-415f-8f64-0f09cfa96f9e. Total this month: $0.00
+PASSED                                                                   [ 67%]
+tests/test_agent_execution_service.py::TestStateManagement::test_execution_state_completed 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:47 [    INFO] Executing agent chat with openai/gpt-4 (agent: Test Agent)
+2026-11-06 17:17:47 [    INFO] Recorded $0.0017 spend for execution 7398b835-300a-4cb5-ac6d-c13c14d6b0b1. Total this month: $0.00
+PASSED                                                                   [ 67%]
+tests/test_agent_execution_service.py::TestStateManagement::test_execution_persistence_to_db 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:47 [    INFO] Executing agent chat with openai/gpt-4 (agent: Test Agent)
+2026-11-06 17:17:47 [    INFO] Recorded $0.0017 spend for execution ba04419b-830a-4c8e-8176-88c1f664b0af. Total this month: $0.00
+PASSED                                                                   [ 68%]
+tests/test_agent_execution_service.py::TestErrorHandling::test_llm_error_handling 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:47 [   ERROR] Agent chat execution failed: LLM API Error
+Traceback (most recent call last):
+  File "/private/tmp/stop-truth-base/backend/core/agent_execution_service.py", line 244, in execute_agent_chat
+    provider_id, model = llm_service.get_optimal_provider(
+                         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/unittest/mock.py", line 1124, in __call__
+    return self._mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/unittest/mock.py", line 1128, in _mock_call
+    return self._execute_mock_call(*args, **kwargs)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/unittest/mock.py", line 1183, in _execute_mock_call
+    raise effect
+Exception: LLM API Error
+PASSED                                                                   [ 68%]
+tests/test_agent_execution_service.py::TestErrorHandling::test_database_error_handling 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:47 [    INFO] Executing agent chat with openai/gpt-4 (agent: Test Agent)
+2026-11-06 17:17:47 [    INFO] Recorded $0.0017 spend for execution 6f207a04-a9a7-4a4b-9988-7eeca7004f4d. Total this month: $0.00
+PASSED                                                                   [ 68%]
+tests/test_agent_execution_service.py::TestErrorHandling::test_agent_resolution_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:47 [ WARNING] Agent resolution failed for agent_id=nonexistent, using system default
+2026-11-06 17:17:47 [    INFO] Executing agent chat with openai/gpt-4
+2026-11-06 17:17:47 [    INFO] Recorded $0.0011 spend for execution 88ee405a-1ebb-47da-b2dd-8ca062979ffa. Total this month: $0.00
+2026-11-06 17:17:47 [    INFO] EscalationManager initialized
+2026-11-06 17:17:47 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 17:17:47 [   ERROR] Failed to create episode: (sqlite3.ProgrammingError) Error binding parameter 1: type 'Mock' is not supported
+[SQL: SELECT chat_sessions.id AS chat_sessions_id, chat_sessions.user_id AS chat_sessions_user_id, chat_sessions.title AS chat_sessions_title, chat_sessions.metadata_json AS chat_sessions_metadata_json, chat_sessions.channel_id AS chat_sessions_channel_id, chat_sessions.thread_id AS chat_sessions_thread_id, chat_sessions.created_at AS chat_sessions_created_at, chat_sessions.updated_at AS chat_sessions_updated_at, chat_sessions.message_count AS chat_sessions_message_count 
+FROM chat_sessions 
+WHERE chat_sessions.id = ?
+ LIMIT ? OFFSET ?]
+[parameters: (<Mock name='mock.create_session()' id='5718986512'>, 1, 0)]
+(Background on this error at: https://sqlalche.me/e/20/f405)
+PASSED                                                                   [ 69%]
+tests/test_agent_execution_service.py::TestStreaming::test_streaming_enabled 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:47 [    INFO] Executing agent chat with openai/gpt-4 (agent: Test Agent)
+2026-11-06 17:17:47 [    INFO] Recorded $0.0017 spend for execution 3af6ce5f-bb74-4072-bdbd-adab3ebd3cc1. Total this month: $0.00
+PASSED                                                                   [ 69%]
+tests/test_agent_execution_service.py::TestStreaming::test_streaming_sends_tokens 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:47 [    INFO] Executing agent chat with openai/gpt-4 (agent: Test Agent)
+2026-11-06 17:17:47 [    INFO] Recorded $0.0017 spend for execution bb6d7c9b-a97a-4693-86ee-88b82f4441e9. Total this month: $0.00
+PASSED                                                                   [ 69%]
+tests/test_agent_execution_service.py::TestConversationHistory::test_conversation_history_passed_to_llm 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:47 [    INFO] Executing agent chat with openai/gpt-4 (agent: Test Agent)
+2026-11-06 17:17:47 [    INFO] Recorded $0.0017 spend for execution 413db1ba-0e25-4a83-939d-fa68e9c5872b. Total this month: $0.00
+PASSED                                                                   [ 69%]
+tests/test_agent_execution_service.py::TestConversationHistory::test_chat_history_persistence 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:47 [    INFO] Executing agent chat with openai/gpt-4 (agent: Test Agent)
+2026-11-06 17:17:47 [    INFO] Recorded $0.0017 spend for execution afb2f66f-9a44-4d06-a459-31ee1705b4ac. Total this month: $0.00
+PASSED                                                                   [ 70%]
+tests/test_agent_execution_service.py::TestSessionManagement::test_session_creation 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:47 [    INFO] Executing agent chat with openai/gpt-4 (agent: Test Agent)
+2026-11-06 17:17:47 [    INFO] Recorded $0.0017 spend for execution c095e926-3e70-48e9-ba5c-26aa0f27a6e1. Total this month: $0.00
+PASSED                                                                   [ 70%]
+tests/test_agent_execution_service.py::TestSessionManagement::test_session_reuse 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:47 [    INFO] Executing agent chat with openai/gpt-4 (agent: Test Agent)
+2026-11-06 17:17:47 [    INFO] Recorded $0.0017 spend for execution 34611a67-54db-4ca9-8f7d-7aab1581d31c. Total this month: $0.00
+PASSED                                                                   [ 70%]
+tests/test_agent_execution_service.py::TestEpisodeTriggering::test_episode_creation_triggered 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:47 [    INFO] Executing agent chat with openai/gpt-4 (agent: Test Agent)
+2026-11-06 17:17:47 [    INFO] Recorded $0.0017 spend for execution f1585fc4-7b0c-4735-9812-6994b597a7ac. Total this month: $0.00
+PASSED                                                                   [ 70%]
+tests/test_agent_execution_service.py::TestSyncWrapper::test_execute_agent_chat_sync 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:47 [    INFO] Executing agent chat with openai/gpt-4 (agent: Test Agent)
+2026-11-06 17:17:47 [    INFO] Recorded $0.0017 spend for execution f9c8f036-e893-4f6d-8f45-24d778decb62. Total this month: $0.00
+PASSED                                                                   [ 71%]
+tests/test_agent_execution_service.py::TestSyncWrapper::test_sync_wrapper_disables_streaming 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:47 [    INFO] Executing agent chat with openai/gpt-4 (agent: Test Agent)
+2026-11-06 17:17:47 [    INFO] Recorded $0.0017 spend for execution a455ed12-1e31-4b0f-986a-725b4f43d355. Total this month: $0.00
+PASSED                                                                   [ 71%]
+tests/test_agent_execution_service.py::TestChatMessage::test_chat_message_creation PASSED [ 71%]
+tests/test_agent_execution_service.py::TestChatMessage::test_chat_message_attributes PASSED [ 72%]
+tests/test_agent_execution_service.py::TestFeatureFlags::test_governance_disabled_flag 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:47 [    INFO] Executing agent chat with openai/gpt-4
+2026-11-06 17:17:47 [    INFO] Recorded $0.0017 spend for execution be43e496-1488-4b49-9c08-4365bea27869. Total this month: $0.00
+PASSED                                                                   [ 72%]
+tests/test_agent_execution_service.py::TestFeatureFlags::test_emergency_bypass_flag 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:47 [    INFO] Executing agent chat with openai/gpt-4
+2026-11-06 17:17:47 [    INFO] Recorded $0.0017 spend for execution ce392ab7-5988-4c07-868b-903dac975e43. Total this month: $0.00
+PASSED                                                                   [ 72%]
+tests/test_agent_governance_service.py::TestAgentRegistration::test_register_new_agent 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:47 [    INFO] Registered new agent: Test Agent
+PASSED                                                                   [ 72%]
+tests/test_agent_governance_service.py::TestAgentRegistration::test_update_existing_agent PASSED [ 73%]
+tests/test_agent_governance_service.py::TestActionPermissions::test_student_can_perform_level_1_actions 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:47 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-06 17:17:47 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-06 17:17:47 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant test: '>' not supported between instances of 'Mock' and 'datetime.date'
+PASSED                                                                   [ 73%]
+tests/test_agent_governance_service.py::TestActionPermissions::test_student_blocked_from_level_3_actions PASSED [ 73%]
+tests/test_agent_governance_service.py::TestActionPermissions::test_autonomous_can_perform_critical_actions 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:47 [ WARNING] Budget check failed (non-fatal, allowing): object dict can't be used in 'await' expression
+PASSED                                                                   [ 73%]
+tests/test_agent_governance_service.py::TestActionPermissions::test_supervised_requires_approval_for_critical_actions PASSED [ 74%]
+tests/test_agent_governance_service.py::TestActionComplexity::test_action_complexity_mapping PASSED [ 74%]
+tests/test_agent_governance_service.py::TestMaturityRequirements::test_maturity_requirements_mapping PASSED [ 74%]
+tests/test_agent_governance_service.py::TestWorkspaceHandling::test_initialization_with_default_workspace PASSED [ 75%]
+tests/test_agent_governance_service.py::TestWorkspaceHandling::test_initialization_with_custom_workspace PASSED [ 75%]
+tests/test_agent_governance_service.py::TestListAgentsWorkspaceScope::test_list_agents_returns_unscoped_agents PASSED [ 75%]
+tests/test_agent_governance_service.py::TestListAgentsWorkspaceScope::test_list_agents_keeps_legacy_default_rows PASSED [ 75%]
+tests/test_agent_governance_service.py::TestListAgentsWorkspaceScope::test_list_agents_still_scopes_custom_workspaces PASSED [ 76%]
+tests/test_agent_governance_service.py::TestListAgentsWorkspaceScope::test_list_agents_filters_by_category 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:48 [    INFO] Registered new agent: Sales Agent
+2026-11-06 17:17:48 [    INFO] Registered new agent: Ops Agent
+PASSED                                                                   [ 76%]
+tests/test_agent_governance_service.py::TestErrorHandling::test_agent_not_found_returns_denied PASSED [ 76%]
+tests/test_agent_governance_service.py::TestErrorHandling::test_paused_agent_blocked_from_actions PASSED [ 76%]
+tests/test_covpush_w29_governance.py::TestRegistry::test_list_agents_filter PASSED [ 77%]
+tests/test_covpush_w29_governance.py::TestRegistry::test_register_new_agent 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:50 [    INFO] Registered new agent: New Agent
+FAILED                                                                   [ 77%]
+tests/test_covpush_w29_governance.py::TestRegistry::test_register_updates_existing 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:51 [    INFO] Registered new agent: Old
+PASSED                                                                   [ 77%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_agent_not_found PASSED [ 77%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_paused_denied PASSED [ 78%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_stopped_denied PASSED [ 78%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_student_blocked_low_complexity PASSED [ 78%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_autonomous_allowed 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:55 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant ws-1: Tenant ws-1 not found
+PASSED                                                                   [ 79%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_supervised_high_complexity_needs_approval PASSED [ 79%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_demo_agent_bypass_complexity_2 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:56 [    INFO] Governance demo_agent bypass: agent=agent-747f58ed action=canvas_presentation complexity=2 tier=student
+2026-11-06 17:17:56 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant ws-1: Tenant ws-1 not found
+PASSED                                                                   [ 79%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_demo_agent_bypass_capped_at_complexity_2 PASSED [ 79%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_budget_exceeded_blocks PASSED [ 80%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_budget_service_unavailable_passthrough 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:58 [ WARNING] Budget check failed (non-fatal, allowing): down
+PASSED                                                                   [ 80%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_can_perform_action_async 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:17:59 [ WARNING] can_perform_action() called from a running event loop (agent=agent-7fbe5895 action=read_memory); budget not checked synchronously — use can_perform_action_async() to enforce the budget
+2026-11-06 17:17:59 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant ws-1: Tenant ws-1 not found
+PASSED                                                                   [ 80%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_can_perform_action_async_budget_blocked 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:18:01 [ WARNING] can_perform_action() called from a running event loop (agent=agent-12972a04 action=read_memory); budget not checked synchronously — use can_perform_action_async() to enforce the budget
+PASSED                                                                   [ 80%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_recursion_depth_blocks 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:18:02 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant ws-1: Tenant ws-1 not found
+2026-11-06 17:18:02 [ WARNING] Recursion depth limit reached (chain: chain-1, depth=2, max=2). Blocking recruitment.
+PASSED                                                                   [ 81%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_get_agent_capabilities PASSED [ 81%]
+tests/test_covpush_w29_governance.py::TestEnforceAndApproval::test_enforce_blocked PASSED [ 81%]
+tests/test_covpush_w29_governance.py::TestEnforceAndApproval::test_enforce_pending_approval 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:18:07 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant ws-1: Tenant ws-1 not found
+PASSED                                                                   [ 82%]
+tests/test_covpush_w29_governance.py::TestEnforceAndApproval::test_enforce_arbor_code_gate_blocked 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:18:08 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant ws-1: Tenant ws-1 not found
+2026-11-06 17:18:08 [ WARNING] [Arbor/Governance] Code quality gate BLOCKED agent=agent-67406860 action=write_code_file reason=SyntaxError in proposed code: invalid syntax (<unknown>, line 1) node=4295e016-6505-4907-83d1-c38286ba8878
+PASSED                                                                   [ 82%]
+tests/test_covpush_w29_governance.py::TestEnforceAndApproval::test_enforce_approved 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:18:09 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant ws-1: Tenant ws-1 not found
+PASSED                                                                   [ 82%]
+tests/test_covpush_w29_governance.py::TestEnforceAndApproval::test_find_relevant_policies PASSED [ 82%]
+tests/test_covpush_w29_governance.py::TestEnforceAndApproval::test_request_approval_and_status PASSED [ 83%]
+tests/test_covpush_w29_governance.py::TestEnforceAndApproval::test_request_approval_with_chain_snapshot PASSED [ 83%]
+tests/test_covpush_w29_governance.py::TestArborAndGuardrails::test_arbor_syntax_error_blocked 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:18:15 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant ws-1: Tenant ws-1 not found
+2026-11-06 17:18:15 [ WARNING] [Arbor/Governance] Code quality gate BLOCKED agent=agent-b01e8fcd action=write_code_file reason=SyntaxError in proposed code: invalid syntax (<unknown>, line 1) node=e16cb7b1-bb68-4bb2-825d-12e3af7dff11
+PASSED                                                                   [ 83%]
+tests/test_covpush_w29_governance.py::TestArborAndGuardrails::test_arbor_high_complexity_blocked 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:18:16 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant ws-1: Tenant ws-1 not found
+2026-11-06 17:18:16 [ WARNING] [Arbor/Governance] Code quality gate BLOCKED agent=agent-e383dbcd action=write_code_file reason=Code complexity too high (61 branches). Refactor before approval. node=86fd288e-cdd5-4828-9b02-d682025e4dfb
+PASSED                                                                   [ 83%]
+tests/test_covpush_w29_governance.py::TestArborAndGuardrails::test_arbor_non_python_language_passes 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:18:18 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant ws-1: Tenant ws-1 not found
+PASSED                                                                   [ 84%]
+tests/test_covpush_w29_governance.py::TestArborAndGuardrails::test_guardrail_blocks_autonomous 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:18:19 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant ws-1: Tenant ws-1 not found
+PASSED                                                                   [ 84%]
+tests/test_covpush_w29_governance.py::TestArborAndGuardrails::test_guardrail_downgrade_handles_violation 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:18:22 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant ws-1: Tenant ws-1 not found
+PASSED                                                                   [ 84%]
+tests/test_covpush_w29_governance.py::TestArborAndGuardrails::test_nesting_depth_helpers PASSED [ 85%]
+tests/test_covpush_w29_governance.py::TestArborAndGuardrails::test_submit_feedback_missing_agent_raises 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:18:24 [   ERROR] API Error: NOT_FOUND - Agent with ID 'missing' not found
+PASSED                                                                   [ 85%]
+tests/test_covpush_w29_governance.py::TestArborAndGuardrails::test_adjudicate_non_trusted_pending 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:18:26 [    INFO] Initialized global governance cache
+2026-11-06 17:18:26 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-06 17:18:26 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-1'. type='maturity_update'
+PASSED                                                                   [ 85%]
+tests/test_covpush_w29_governance.py::TestOutcomeAndEvolution::test_record_outcome_updates_confidence 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:18:28 [    INFO] Recorded outcome for agent-167b0b49: success
+2026-11-06 17:18:28 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-06 17:18:28 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-1'. type='maturity_update'
+PASSED                                                                   [ 85%]
+tests/test_covpush_w29_governance.py::TestOutcomeAndEvolution::test_validate_directive_danger_pattern 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:18:30 [ WARNING] Evolution directive REJECTED for tenant t-1: danger pattern in system_prompt: 'ignore all rules'
+PASSED                                                                   [ 86%]
+tests/test_covpush_w29_governance.py::TestOutcomeAndEvolution::test_validate_directive_danger_in_directive_list 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:18:31 [ WARNING] Evolution directive REJECTED for tenant t-1: danger pattern in directive: 'bypass guardrails'
+PASSED                                                                   [ 86%]
+tests/test_covpush_w29_governance.py::TestOutcomeAndEvolution::test_validate_directive_protected_key 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:18:33 [ WARNING] Evolution directive REJECTED for tenant t-1: self-referential mutation of protected config key: 'sandbox_config'
+PASSED                                                                   [ 86%]
+tests/test_covpush_w29_governance.py::TestOutcomeAndEvolution::test_validate_directive_harness_patches_allowed PASSED [ 86%]
+tests/test_covpush_w29_governance.py::TestOutcomeAndEvolution::test_validate_directive_privilege_escalation 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:18:37 [ WARNING] Evolution directive REJECTED for tenant t-1: self-referential mutation of protected config key: 'elevated_privileges'; privilege escalation: elevated_privileges=True set by evolution (must go through maturity graduation, not auto-tuning)
+PASSED                                                                   [ 87%]
+tests/test_covpush_w29_governance.py::TestOutcomeAndEvolution::test_validate_directive_clean_pass PASSED [ 87%]
+tests/test_audit_logger.py::TestIntegrationAuditLog::test_audit_log_creates_with_required_fields PASSED [ 87%]
+tests/test_audit_logger.py::TestIntegrationAuditLog::test_audit_log_to_dict_is_structured PASSED [ 88%]
+tests/test_audit_logger.py::TestIntegrationAuditLog::test_audit_log_includes_timestamp PASSED [ 88%]
+tests/test_audit_logger.py::TestIntegrationAuditLog::test_audit_log_sanitizes_sensitive_params PASSED [ 88%]
+tests/test_audit_logger.py::TestIntegrationAuditLog::test_audit_log_sanitizes_nested_sensitive_params PASSED [ 88%]
+tests/test_audit_logger.py::TestLogIntegrationCall::test_log_integration_call_creates_audit_log 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:18:37 [    INFO] Integration call: gmail.send_email
+PASSED                                                                   [ 89%]
+tests/test_audit_logger.py::TestLogIntegrationCall::test_log_integration_call_captures_metadata 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:18:37 [    INFO] Integration call: jira.get_issue
+PASSED                                                                   [ 89%]
+tests/test_audit_logger.py::TestLogIntegrationError::test_log_integration_error_creates_audit_log 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:18:37 [   ERROR] Integration error: slack.send_message: API rate limit exceeded
+NoneType: None
+PASSED                                                                   [ 89%]
+tests/test_audit_logger.py::TestLogIntegrationError::test_log_integration_error_captures_error 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:18:37 [   ERROR] Integration error: jira.create_issue: Invalid credentials
+NoneType: None
+PASSED                                                                   [ 89%]
+tests/test_audit_logger.py::TestLogIntegrationTiming::test_log_integration_attempt_creates_context PASSED [ 90%]
+tests/test_audit_logger.py::TestLogIntegrationTiming::test_log_integration_complete_calculates_duration 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:18:37 [    INFO] Integration call: slack.send_message
+PASSED                                                                   [ 90%]
+tests/test_audit_logger.py::TestLogIntegrationTiming::test_log_integration_complete_handles_error 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:18:37 [   ERROR] Integration error: jira.get_issue: Issue not found
+NoneType: None
+PASSED                                                                   [ 90%]
+tests/test_audit_logger.py::TestAuditLogFormatting::test_audit_log_format_is_structured PASSED [ 91%]
+tests/test_audit_logger.py::TestAuditLogFormatting::test_multiple_audit_logs_have_unique_timestamps PASSED [ 91%]
+tests/test_covpush_w103_audit_logger.py::TestRotateAuditLogsDeterministic::test_same_day_utc_mtime_no_rotation 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:18:37 [    INFO] AuditLogger initialized
+PASSED                                                                   [ 91%]
+tests/test_covpush_w103_audit_logger.py::TestRotateAuditLogsDeterministic::test_yesterday_utc_mtime_rotates 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:18:37 [    INFO] AuditLogger initialized
+2026-11-06 17:18:37 [    INFO] Audit log rotated and compressed
+PASSED                                                                   [ 91%]
+tests/test_covpush_w103_audit_logger.py::TestRotateAuditLogsDeterministic::test_two_day_old_mtime_rotates 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:18:37 [    INFO] AuditLogger initialized
+2026-11-06 17:18:37 [    INFO] Audit log rotated and compressed
+PASSED                                                                   [ 92%]
+tests/test_covpush_w103_audit_logger.py::TestRotateAuditLogsDeterministic::test_missing_log_file_noop 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:18:37 [    INFO] AuditLogger initialized
+PASSED                                                                   [ 92%]
+tests/test_covpush_w103_audit_logger.py::TestRotateAuditLogsDeterministic::test_rotated_filename_uses_utc_date 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:18:37 [    INFO] AuditLogger initialized
+2026-11-06 17:18:37 [    INFO] Audit log rotated and compressed
+PASSED                                                                   [ 92%]
+tests/test_covpush_w103_audit_logger.py::TestRotateAuditLogsDeterministic::test_writes_after_rotation_land_in_fresh_log 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:18:37 [    INFO] AuditLogger initialized
+2026-11-06 17:18:37 [    INFO] Audit log rotated and compressed
+PASSED                                                                   [ 92%]
+tests/test_covpush_w103_audit_logger.py::TestCleanupOldAuditLogsDeterministic::test_removes_old_rotated_logs_keeps_fresh 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:18:37 [    INFO] AuditLogger initialized
+2026-11-06 17:18:37 [    INFO] Old audit log removed
+2026-11-06 17:18:37 [    INFO] Old audit log removed
+2026-11-06 17:18:37 [    INFO] Audit log cleanup complete
+PASSED                                                                   [ 93%]
+tests/test_covpush_w103_audit_logger.py::TestCleanupOldAuditLogsDeterministic::test_keeps_logs_within_retention 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:18:37 [    INFO] AuditLogger initialized
+PASSED                                                                   [ 93%]
+tests/test_covpush_w103_audit_logger.py::TestCleanupOldAuditLogsDeterministic::test_cleanup_unreadable_file_logs_error_not_raise 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:18:37 [    INFO] AuditLogger initialized
+2026-11-06 17:18:37 [   ERROR] Failed to remove old audit log
+PASSED                                                                   [ 93%]
+tests/test_agent_marketplace_publish_contract.py::test_owner_publishes_listing_with_audit_and_no_raw_prompt 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:18:38 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-06 17:18:38 [    INFO] packaged agent agent-quota as template 5d000ad2-05a0-44fc-9371-1e68802adfe8 (achieved=1, steps=1)
+2026-11-06 17:18:38 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish?operation_id=publish-one "HTTP/1.1 200 OK"
+PASSED                                                                   [ 94%]
+tests/test_agent_marketplace_publish_contract.py::test_admin_can_publish_and_member_cannot 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:18:41 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-06 17:18:41 [    INFO] packaged agent agent-quota as template 4d81be1c-e1c3-4f5b-a913-8eab1d7dfddd (achieved=1, steps=1)
+2026-11-06 17:18:41 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish?operation_id=admin-publish "HTTP/1.1 200 OK"
+2026-11-06 17:18:41 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish?operation_id=denied "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 94%]
+tests/test_agent_marketplace_publish_contract.py::test_missing_managed_and_paid_gate 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:18:42 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/missing/publish?operation_id=missing "HTTP/1.1 404 Not Found"
+2026-11-06 17:18:42 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-06 17:18:42 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-managed/publish?operation_id=managed "HTTP/1.1 409 Conflict"
+2026-11-06 17:18:42 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-06 17:18:42 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-fresh/publish?operation_id=paid-gate "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 94%]
+tests/test_agent_marketplace_publish_contract.py::test_paid_publish_with_achieved_run_succeeds 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:18:44 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-06 17:18:44 [    INFO] packaged agent agent-quota as template 1b5361e8-bfb5-46df-a9a6-725c4c9cd1c4 (achieved=1, steps=1)
+2026-11-06 17:18:44 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish?operation_id=paid "HTTP/1.1 200 OK"
+PASSED                                                                   [ 94%]
+tests/test_agent_marketplace_publish_contract.py::test_replay_changed_material_and_missing_listing 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:18:47 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-06 17:18:47 [    INFO] packaged agent agent-quota as template 640e2914-4c9f-4cbb-8112-5ed542d0a46f (achieved=1, steps=1)
+2026-11-06 17:18:47 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish?operation_id=replay "HTTP/1.1 200 OK"
+2026-11-06 17:18:47 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish?operation_id=replay "HTTP/1.1 200 OK"
+2026-11-06 17:18:47 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish?operation_id=replay "HTTP/1.1 409 Conflict"
+2026-11-06 17:18:47 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish?operation_id=replay "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 95%]
+tests/test_agent_marketplace_publish_contract.py::test_stale_source_before_claim_refuses 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:18:47 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish?operation_id=stale "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 95%]
+tests/test_agent_marketplace_publish_contract.py::test_authority_change_before_claim_refuses[deactivate] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:18:48 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish?operation_id=authority "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 95%]
+tests/test_agent_marketplace_publish_contract.py::test_authority_change_before_claim_refuses[demote] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:18:51 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish?operation_id=authority "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 95%]
+tests/test_agent_marketplace_publish_contract.py::test_audit_rollback_reports_effect_none 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:18:52 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-06 17:18:52 [    INFO] packaged agent agent-quota as template 2c0375b9-22dd-438e-ac54-38b5a2e5c331 (achieved=1, steps=1)
+2026-11-06 17:18:52 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish?operation_id=rollback "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 96%]
+tests/test_agent_marketplace_publish_contract.py::test_post_commit_readback_is_committed_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:18:54 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-06 17:18:54 [    INFO] packaged agent agent-quota as template 8c5117c5-b845-4e88-89a7-4cca7cd7684f (achieved=1, steps=1)
+2026-11-06 17:18:54 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish?operation_id=readback "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 96%]
+tests/test_agent_marketplace_publish_contract.py::test_lost_confirmation_is_effect_unknown_with_identity 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:18:55 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-06 17:18:55 [    INFO] packaged agent agent-quota as template f9a81024-7b7e-47ee-9583-97177e650d8b (achieved=1, steps=1)
+2026-11-06 17:18:55 [   ERROR] agent-marketplace decision outcome unknown: operation_id=agent-marketplace:publish:lost-confirmation target=f9a81024-7b7e-47ee-9583-97177e650d8b error_class=RuntimeError
+PASSED                                                                   [ 96%]
+tests/test_agent_marketplace_publish_contract.py::test_wrong_audit_receipt_is_never_verified[action] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:18:57 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-06 17:18:57 [    INFO] packaged agent agent-quota as template 22b5e3f6-59ae-4c54-bd54-a60c88f0a8ac (achieved=1, steps=1)
+2026-11-06 17:18:57 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish?operation_id=audit-action "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 97%]
+tests/test_agent_marketplace_publish_contract.py::test_wrong_audit_receipt_is_never_verified[user_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:18:58 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-06 17:18:58 [    INFO] packaged agent agent-quota as template fd1b1c71-c8dc-4ec8-9494-9d576ed0d6c7 (achieved=1, steps=1)
+2026-11-06 17:18:58 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish?operation_id=audit-user_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 97%]
+tests/test_agent_marketplace_publish_contract.py::test_wrong_audit_receipt_is_never_verified[tenant_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:19:00 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-06 17:19:00 [    INFO] packaged agent agent-quota as template 1d17c30c-9730-4974-9dfa-bf4a346906fe (achieved=1, steps=1)
+2026-11-06 17:19:00 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish?operation_id=audit-tenant_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 97%]
+tests/test_agent_marketplace_publish_contract.py::test_wrong_audit_receipt_is_never_verified[resource] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:19:01 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-06 17:19:01 [    INFO] packaged agent agent-quota as template 03b59c83-d8cc-49a0-9558-62130a1be728 (achieved=1, steps=1)
+2026-11-06 17:19:01 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish?operation_id=audit-resource "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 97%]
+tests/test_agent_marketplace_publish_contract.py::test_wrong_audit_receipt_is_never_verified[success] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:19:04 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-06 17:19:04 [    INFO] packaged agent agent-quota as template 16b2308d-0bad-4e40-aa17-4b6eb6514135 (achieved=1, steps=1)
+2026-11-06 17:19:04 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish?operation_id=audit-success "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 98%]
+tests/test_agent_marketplace_publish_contract.py::test_wrong_audit_receipt_is_never_verified[security_level] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:19:05 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-06 17:19:05 [    INFO] packaged agent agent-quota as template ecdb4fa5-9ba2-4e8c-9c8b-624639bf0bf2 (achieved=1, steps=1)
+2026-11-06 17:19:05 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish?operation_id=audit-security_level "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 98%]
+tests/test_agent_marketplace_publish_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_target_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:19:06 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-06 17:19:06 [    INFO] packaged agent agent-quota as template a44dd9f9-aa47-4f12-be31-fec2aca69bf0 (achieved=1, steps=1)
+2026-11-06 17:19:06 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish?operation_id=audit-metadata_target_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 98%]
+tests/test_agent_marketplace_publish_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_source_agent_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:19:08 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-06 17:19:08 [    INFO] packaged agent agent-quota as template 4d845d6d-dd18-4496-9481-3fd3c26f1906 (achieved=1, steps=1)
+2026-11-06 17:19:08 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish?operation_id=audit-metadata_source_agent_id "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 98%]
+tests/test_agent_marketplace_publish_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_prior_digest] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:19:09 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-06 17:19:09 [    INFO] packaged agent agent-quota as template a2574968-3fa4-4bb9-ae4d-e1c853b5c1bf (achieved=1, steps=1)
+2026-11-06 17:19:09 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish?operation_id=audit-metadata_prior_digest "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 99%]
+tests/test_agent_marketplace_publish_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_result_digest] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:19:11 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-06 17:19:11 [    INFO] packaged agent agent-quota as template 1fbe73e0-8544-4228-88dd-f9c17fcefa8b (achieved=1, steps=1)
+2026-11-06 17:19:11 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish?operation_id=audit-metadata_result_digest "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 99%]
+tests/test_agent_marketplace_publish_contract.py::test_wrong_audit_receipt_is_never_verified[metadata_request_digest] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:19:12 [ WARNING] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+2026-11-06 17:19:12 [    INFO] packaged agent agent-quota as template 5b951dca-81c5-41e1-946b-db773098c280 (achieved=1, steps=1)
+2026-11-06 17:19:12 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish?operation_id=audit-metadata_request_digest "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 99%]
+tests/test_agent_marketplace_publish_contract.py::test_anonymous_requests_are_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:19:12 [    INFO] HTTP Request: POST http://testserver/api/agent-marketplace/agents/agent-quota/publish "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [100%]
+
+=================================== FAILURES ===================================
+/private/tmp/stop-truth-base/backend/tests/test_covpush_w29_governance.py:82: assert 0.35 == 0.5
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+tests/test_agent_stop_scope_contract.py::test_member_stops_own_agent_and_writes_receipt
+  /private/tmp/stop-truth-base/backend/core/graphrag_engine.py:196: DeprecationWarning: invalid escape sequence '\%'
+    """
+
+tests/unit/api/test_agent_routes.py: 12 warnings
+  /private/tmp/stop-truth-base/backend/tests/unit/conftest.py:53: SAWarning: Cannot correctly sort tables; there are unresolvable cycles between tables "agent_divisions, agent_registry, canvases, mini_apps", which is usually caused by mutually dependent foreign key constraints.  Foreign key constraints involving these tables will not be considered; this warning may raise an error in a future release.
+    for table in Base.metadata.sorted_tables:
+
+tests/api/test_agent_routes.py: 63 warnings
+tests/test_agent_routes_coverage.py: 77 warnings
+  /private/tmp/stop-truth-base/backend/tests/conftest.py:507: SAWarning: Cannot correctly sort tables; there are unresolvable cycles between tables "agent_divisions, agent_registry, canvases, mini_apps", which is usually caused by mutually dependent foreign key constraints.  Foreign key constraints involving these tables will not be considered; this warning may raise an error in a future release.
+    for table in reversed(_all_models_base.metadata.sorted_tables):
+
+tests/test_agent_execution_service.py: 17 warnings
+  /private/tmp/stop-truth-base/backend/core/agent_execution_service.py:425: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    trigger_episode_creation(
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_agent_execution_service.py::TestFeatureFlags::test_governance_disabled_flag
+  /usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/unittest/mock.py:2133: RuntimeWarning: coroutine 'sleep' was never awaited
+    setattr(_type, entry, MagicProxy(entry, self))
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_agent_governance_service.py::TestListAgentsWorkspaceScope::test_list_agents_returns_unscoped_agents
+tests/test_agent_governance_service.py::TestListAgentsWorkspaceScope::test_list_agents_keeps_legacy_default_rows
+tests/test_agent_governance_service.py::TestListAgentsWorkspaceScope::test_list_agents_still_scopes_custom_workspaces
+tests/test_agent_governance_service.py::TestListAgentsWorkspaceScope::test_list_agents_filters_by_category
+  /private/tmp/stop-truth-base/backend/tests/test_agent_governance_service.py:355: SAWarning: Can't sort tables for DROP; an unresolvable foreign key dependency exists between tables: agent_divisions, agent_registry, canvases, mini_apps; and backend does not support ALTER.  To restore at least a partial sort, apply use_alter=True to ForeignKey and ForeignKeyConstraint objects involved in the cycle to mark these as known cycles that will be ignored.
+    Base.metadata.drop_all(engine)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_covpush_w29_governance.py::TestRegistry::test_register_new_agent
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========== 1 failed, 367 passed, 180 warnings in 273.78s (0:04:33) ============

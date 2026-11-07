@@ -1,0 +1,10 @@
+.F                                                                       [100%]
+=================================== FAILURES ===================================
+___________ test_secret_does_not_escape_either_logging_output[True] ____________
+test_verifier_log_redaction_stderr.py:29: in test_secret_does_not_escape_either_logging_output
+    assert not escaped, 'synthetic secret escaped through a logging output'
+E   AssertionError: synthetic secret escaped through a logging output
+E   assert not True
+=========================== short test summary info ============================
+FAILED test_verifier_log_redaction_stderr.py::test_secret_does_not_escape_either_logging_output[True]
+1 failed, 1 passed in 0.32s

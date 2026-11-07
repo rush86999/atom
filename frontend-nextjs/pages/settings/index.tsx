@@ -5,6 +5,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PreferencesTab } from "@/components/Settings/PreferencesTab";
 import { DataPipelinesTab } from "@/components/Settings/DataPipelinesTab"; // Import
 import { useUserRole } from "@/lib/user-role";
+import { useProductProfile } from "@/lib/product-profile";
 
 export default function SettingsPage() {
     // Admin-band links: LLM Routing reads workspace-wide model telemetry
@@ -13,6 +14,8 @@ export default function SettingsPage() {
     // (backend enforces); a transient /api/auth/me failure must not hide nav.
     const { role, isAdmin } = useUserRole();
     const showAdminLinks = !role || isAdmin;
+    const { isCapabilityEnabled } = useProductProfile();
+    const governanceEnabled = isCapabilityEnabled("governance");
 
     return (
         <>
@@ -59,8 +62,10 @@ export default function SettingsPage() {
                             )}
                             <Link className="px-3 py-1.5 rounded-md bg-muted hover:bg-accent" href="/settings/local-models">Local Models (Ollama)</Link>
                             <Link className="px-3 py-1.5 rounded-md bg-muted hover:bg-accent" href="/settings/sessions">Sessions</Link>
-                            <Link className="px-3 py-1.5 rounded-md bg-muted hover:bg-accent" href="/settings/bpe">BPE Workspace</Link>
-                            {showAdminLinks && (
+                            {governanceEnabled && (
+                                <Link className="px-3 py-1.5 rounded-md bg-muted hover:bg-accent" href="/settings/bpe">BPE Workspace</Link>
+                            )}
+                            {showAdminLinks && governanceEnabled && (
                                 <Link className="px-3 py-1.5 rounded-md bg-muted hover:bg-accent" href="/admin/learning-verification">Learning &amp; Verification</Link>
                             )}
                         </div>

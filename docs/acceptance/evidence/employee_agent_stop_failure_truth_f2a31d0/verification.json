@@ -1,0 +1,141 @@
+{
+  "schema": "atom-oracle-agent-stop-failure-truth-verification-1",
+  "status": "stop/cancel failure truth repaired and submitted for independent verification; no merge or deployment",
+  "candidate": {
+    "branch": "codex/oracle01-stop-failure-truth-20261106",
+    "base_main": "248a2329623b433e68104c4d89d2965683d81013",
+    "merged_predecessor": "e93982eecaa84778c16570d665cc809c44ff4df0",
+    "predecessor_code": "1faccf71cf00f5a1d421ce67adca3f0f652066d2",
+    "executed_source": "f2a31d0e66ba36d015934875130e777d69f06957",
+    "runtime": "scratch SQLite; in-process task-registry fake; no live worker/provider/credential/spend/send/download/deployment"
+  },
+  "confirmed_defects": {
+    "http_503_known_count": "the shared error mapper omitted service data, so a known cancelled count was lost after receipt failure",
+    "unreadable_state": "_active_task_count caught registry read exceptions and returned 0, producing 200/no_change while tasks remained",
+    "partial_cancel": "a cancellation-call exception returned 409/AGENT_TRANSACTION_ROLLED_BACK/effect=none after a cancellation had already been requested",
+    "pre_fix_external_probes_314": "3 failed, 2 passed",
+    "pre_fix_external_probes_311": "3 failed, 2 passed"
+  },
+  "repair": {
+    "task_state": "_active_task_state returns typed available/unavailable; unavailable is 503 AGENT_TASK_STATE_UNAVAILABLE with effect none and safe_after_refresh before dispatch",
+    "empty_state": "a legitimately empty registry remains 200/no_change with cancelled_tasks 0 and no receipt",
+    "partial_cancel": "a cancellation-call exception is 503 effect_unknown with do_not_repeat, CANCEL_CONFIRMATION_UNKNOWN and no invented count",
+    "known_observation": "503 committed_unverified/effect_unknown carry an explicit allowlist of agent_id (non-empty str) and cancelled_tasks (non-negative int, excluding bool)",
+    "receipt_failure": "the known count is preserved after receipt commit failure",
+    "readback_failure": "the known count is preserved after post-commit unverified readback",
+    "shared_callsites": [
+      "register",
+      "update",
+      "delete",
+      "admit",
+      "replace",
+      "stop"
+    ],
+    "not_used": [
+      "second cancellation",
+      "transaction rollback claimed as cancellation rollback",
+      "fabricated empty set or zero count",
+      "blind retry of an uncertain external effect",
+      "arbitrary service data dumped into 503"
+    ]
+  },
+  "results": {
+    "external_pre_fix_314": {
+      "failed": 3,
+      "passed": 2,
+      "log": "pre-fix-external-314.log"
+    },
+    "external_pre_fix_311": {
+      "failed": 3,
+      "passed": 2,
+      "log": "pre-fix-external-311.log"
+    },
+    "external_fixed_314": {
+      "passed": 5,
+      "failed": 0,
+      "log": "external-probes-314.log"
+    },
+    "external_fixed_311": {
+      "passed": 5,
+      "failed": 0,
+      "log": "external-probes-311.log"
+    },
+    "focused_314": {
+      "passed": 101,
+      "failed": 0,
+      "log": "focused-314.log"
+    },
+    "focused_311": {
+      "passed": 101,
+      "failed": 0,
+      "log": "focused-311.log"
+    },
+    "affected_314": {
+      "passed": 392,
+      "skipped": 3,
+      "failed": 2,
+      "log": "affected-314.log"
+    },
+    "affected_311": {
+      "passed": 374,
+      "failed": 1,
+      "log": "affected-311.log"
+    },
+    "baseline_main_314": {
+      "passed": 385,
+      "skipped": 3,
+      "failed": 2,
+      "log": "baseline-main-314.log"
+    },
+    "baseline_main_311": {
+      "passed": 367,
+      "failed": 1,
+      "log": "baseline-main-311.log"
+    }
+  },
+  "failure_truth_controls": {
+    "receipt_failure_known_count": true,
+    "readback_failure_known_count": true,
+    "unreadable_state_effect_none": true,
+    "unreadable_state_no_dispatch": true,
+    "partial_cancel_effect_unknown": true,
+    "partial_cancel_do_not_repeat": true,
+    "partial_cancel_no_invented_count": true,
+    "no_second_cancellation": true,
+    "safe_projection_allowlist": true,
+    "safe_projection_wrong_types_omitted": true,
+    "no_data_does_not_conjure_observation": true,
+    "legitimate_empty_no_change": true
+  },
+  "baseline_failure_identity": {
+    "shared": [
+      "tests/test_covpush_w29_governance.py::TestRegistry::test_register_new_agent"
+    ],
+    "shared_314_only": [
+      "tests/contract/test_agent_api_contract.py::TestAgentListContract::test_get_agents_invalid_pagination"
+    ],
+    "candidate_added_failures": 0,
+    "candidate_added_passes": 7,
+    "excluded_311_contract_file": "tests/contract/test_agent_api_contract.py requires schemathesis, unavailable on the 3.11 interpreter"
+  },
+  "checks": {
+    "current_actor_scope_preserved": true,
+    "cross_tenant_workspace_refusal_preserved": true,
+    "exact_material_cas_preserved": true,
+    "replay_no_second_cancel_preserved": true,
+    "one_receipt_after_success_preserved": true,
+    "known_count_projected_on_503": true,
+    "unreadable_state_not_reported_as_empty": true,
+    "partial_cancel_not_reported_as_none": true,
+    "database_rollback_not_claimed_as_external_rollback": true,
+    "no_raw_secret_in_evidence": true,
+    "no_test_deleted_skipped_or_xfailed": true
+  },
+  "limits": [
+    "in-process task-registry fake only; no real worker/OS/multi-worker cancellation qualification",
+    "cancelled_tasks is the registry's reported result at this boundary, not proof of physical termination",
+    "scratch SQLite only; no PostgreSQL/soak/multi-worker qualification",
+    "shared baseline failures are pre-existing and not claimed as repaired",
+    "no merge or deployment; independent verification and code-owner review remain required"
+  ]
+}

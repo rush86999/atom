@@ -2,6 +2,7 @@ import React, { useState, useSyncExternalStore } from 'react'
 import Link from 'next/link'
 import { Lightbulb, ChevronDown, GraduationCap, ShieldQuestion, Database } from 'lucide-react'
 import { Button } from '@/components/ui/button'
+import { useProductProfile } from '@/lib/product-profile'
 
 const STORAGE_KEY = 'atom.agent_guide.dismissed.v1'
 
@@ -37,6 +38,8 @@ export function EmployeeOnboardingGuide() {
     const [dismissedOverride, setDismissedOverride] = useState<boolean | null>(null)
     const [expanded, setExpanded] = useState(true)
     const dismissed = dismissedOverride ?? storedDismissed
+    const { isCapabilityEnabled } = useProductProfile()
+    const marketplaceEnabled = isCapabilityEnabled('marketplace')
 
     const dismiss = () => {
         setDismissedOverride(true)
@@ -89,10 +92,18 @@ export function EmployeeOnboardingGuide() {
                             <GraduationCap className="w-4 h-4 text-slate-500" /> 1. Hire &amp; train
                         </h3>
                         <p>
-                            Spawn an employee from a{' '}<Link href="/marketplace" className="text-blue-600 underline">template</Link>,
-                            then run it on real tasks. Every clean run builds
-                            confidence; employees graduate Student → Intern →
-                            Supervised → Autonomous automatically as they earn trust.
+                            {marketplaceEnabled ? (
+                                <>
+                                    Spawn an employee from a{' '}
+                                    <Link href="/marketplace" className="text-blue-600 underline">template</Link>,
+                                    then run it on real tasks.
+                                </>
+                            ) : (
+                                <>Create an employee, then run it on real tasks.</>
+                            )}{' '}
+                            Every clean run builds confidence; employees graduate
+                            Student → Intern → Supervised → Autonomous
+                            automatically as they earn trust.
                         </p>
                     </section>
 

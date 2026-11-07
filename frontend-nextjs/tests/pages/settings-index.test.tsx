@@ -6,8 +6,11 @@
  */
 
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import SettingsPage from "@/pages/settings";
+import { ProductProfileProvider } from "@/lib/product-profile";
+
+const originalFetch = global.fetch;
 
 jest.mock("@/components/Settings/PreferencesTab", () => ({
   PreferencesTab: () => <div data-testid="preferences-tab">Preferences</div>,
@@ -20,6 +23,10 @@ jest.mock("@/components/Settings/DataPipelinesTab", () => ({
 describe("SettingsPage", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
   });
 
   test("renders the header and defaults to the preferences tab", () => {
@@ -41,5 +48,47 @@ describe("SettingsPage", () => {
     expect(screen.getByRole("button", { name: "Workspace" })).toBeDisabled();
     const accountTab = screen.getByRole("button", { name: "Account" });
     expect(accountTab).not.toBeDisabled();
+  });
+
+  test("core profile hides the deferred governance links", () => {
+    render(<SettingsPage />);
+    expect(
+      screen.queryByRole("link", { name: /Learning & Verification/ })
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole("link", { name: /BPE Workspace/ })
+    ).not.toBeInTheDocument();
+  });
+
+  test("full profile shows the governance link", async () => {
+    global.fetch = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        profile: "full",
+        version: "test",
+        statement: "Full test profile",
+        capabilities: {
+          settings: { label: "Settings", enabled: true },
+          governance: { label: "Governance", enabled: true },
+        },
+        enabled_capabilities: ["settings", "governance"],
+        deferred_capabilities: [],
+        routes: { "/settings": "settings", "/admin": "governance" },
+      }),
+    }) as any;
+
+    render(
+      <ProductProfileProvider>
+        <SettingsPage />
+      </ProductProfileProvider>
+    );
+    await waitFor(() =>
+      expect(
+        screen.getByRole("link", { name: /Learning & Verification/ })
+      ).toBeInTheDocument()
+    );
+    expect(
+      screen.getByRole("link", { name: /BPE Workspace/ })
+    ).toBeInTheDocument();
   });
 });
