@@ -552,6 +552,7 @@ def _backend_source_binding(
     }
     return {
         **checks,
+        "checks": dict(checks),
         "ok": all(checks.values()),
         "certified_by": (
             "frozen_source+preflight_source+git_blob_bytes+"

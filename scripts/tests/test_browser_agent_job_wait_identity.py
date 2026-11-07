@@ -291,3 +291,13 @@ def test_matching_manifest_source_revision_is_accepted(driver, tmp_path):
     binding = driver._backend_source_binding(**kwargs)
     assert binding["ok"] is True
     assert binding["manifest_source_revision_present"] is True
+
+
+def test_source_binding_returns_real_consumer_checks(driver, tmp_path):
+    repo, revision, files = _make_git_repo(tmp_path)
+    kwargs = _world_binding_kwargs(tmp_path, repo, revision, files)
+    binding = driver._backend_source_binding(**kwargs)
+    assert binding["checks"], binding
+    assert all(isinstance(value, bool) for value in binding["checks"].values())
+    assert binding["ok"] == all(binding["checks"].values())
+    assert binding["checks"]["git_blob_bytes_match_export"] is True
