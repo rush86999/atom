@@ -629,6 +629,8 @@ def _primary_calculation_step(patch: Mapping[str, Any]) -> tuple[str, str]:
 def _requested_artifact_step(
     assignment: Mapping[str, Any], calculation_step: str,
     calculation_adapter: str = "",
+    *,
+    context: Optional[Mapping[str, Any]] = None,
 ) -> Optional[Dict[str, Any]]:
     """Render the user-requested output after the verified calculation.
 
@@ -639,6 +641,16 @@ def _requested_artifact_step(
     if not str(calculation_step or "").strip():
         # A wait/read-only intent has no verified calculation to render; the
         # artifact is compiled with the business calculation that follows.
+        return None
+    if any(
+        str(item.get("status") or "open") == "open"
+        for item in (context or {}).get("open_obligations") or []
+        if isinstance(item, Mapping)
+    ):
+        # An open information obligation means the job is still waiting, even
+        # when an independent branch produced a verified result. Compiling the
+        # whole-objective artifact now would render a partial document and
+        # leave a second copy to be compiled after the answer arrives.
         return None
     if any(
         str(step.get("adapter") or "") == "assignment.wait"
@@ -1267,7 +1279,7 @@ def compile_work_request_patch(
     # reconciliation it belongs to has produced a verified receipt.
     calculation_step, calculation_adapter = _primary_calculation_step(patch)
     requested = _requested_artifact_step(
-        assignment, calculation_step, calculation_adapter)
+        assignment, calculation_step, calculation_adapter, context=context)
     if requested:
         patch["add_steps"].append(requested)
     return patch

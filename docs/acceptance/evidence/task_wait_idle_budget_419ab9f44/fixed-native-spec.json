@@ -1,0 +1,17 @@
+{
+  "source": "e1b91fa891b92ee03f220e5f1a56f254521143ec",
+  "scratch": "/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-info-idle-fixed-rbddcxar",
+  "command": [
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-info-idle-fixed-rbddcxar/pytest",
+    "/private/tmp/test_lead_information_wait_budget.py",
+    "tests/test_task_wait_source_continuation_regressions.py",
+    "--junitxml=/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-info-idle-fixed-rbddcxar/result.xml",
+    "-q",
+    "--tb=short"
+  ]
+}

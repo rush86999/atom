@@ -135,6 +135,10 @@ Source6d08b1c4b/evidenced874e1872 now continues the same task through the public
 
 The original packet's restart/both-order wording is narrowed by task_wait_source_route_review_6d08b1c4b/README.md: it reconstructs an executor in the same process and replays the source. That is not actualprocess or no-owner-replay recovery. Agent2 owns the real process successor; general-appTASK-WAIT-01 remainsOPEN. Accepted historical episodes and raw captures remain unchanged.
 
+## Actual-process information-trigger recovery successor
+
+Current-main integrationbe92e7ee3 passes94 controls (actualexit0), including public source-answer routes, realOS restart and the independent stale-generation twin. Test-only227579321 makes the child interpreter portable and fails instead of silently skipping a missing configured interpreter; affected3process cases pass again. NormalCI now includes92deduplicated controls. Packet `task_wait_recovery_integrated_227579321` preserves the original c0 generation-negative and native22322-pass captures separately. This is controlled employee-assignment process recovery, not Generic/framework-wide TASK-WAIT-01 or served browser/model qualification. Generic is Agent1’s active owner; full app completion remains unproven.
+
 ## GOV-BUDGET-01 real-consumer successor
 
 PR720 mergedase26b5a332 with reviewed-tree equality aftereightgreen; actualshared323 controls passed plus211API/29UI/40role-UI andmemory1.0. The realGeneric→Governance→MCP→registry successor found a configuredhard_stop bypass: governance sentworkspace_id asTenantid, so an actual exceeded account limit lookedunconfigured. Normal/capability-denied twins pass; budgetnegativefailsat2e95. Sourcea5cabd207 reuses the existing personal account resolver with current scoped agent/workspace binding; onlyconfiguredapproval mode canpropose review.31normal-CI controls pass at89c75f061. Broaderbefore87/7/1skip→after93/1/1skip; theonlyretainedfailure isknownw29confidence expectation. No newstore/router/schema, no livedollarspend andno wholebudget/concurrency guarantee. Packetgovernance_budget_context_89c75f061; hostedqualification pending.
@@ -146,3 +150,11 @@ The first31-control budget repair exposed sibling sync-in-async skips and caller
 ## Configured budget review-precedence successor
 
 PR722 old head25115124b is independently withheld despite its eight green checks: the valid maturity/budget policy matrix exposed12 failures. Repair171ba856d and real Generic/MCP twin5adcd9dd3 pass142 controls, actualexit0. Existing governance callers pass54 with the same knownw29 baseline failure. New source-bound packet `governance_budget_review_precedence_5adcd9dd3` preserves the negative and current evidence. Only the new pushed head may receive fresh CI acceptance; no old green is inherited. TASK-WAIT-01 and full-app completion remain open.
+
+## Missing-information idle-budget and current-main successor
+
+PR724 successor includes nativee1b91fa89 on main5b9610b56; source419ab9f44 passes97 controls (93normalCI+4independent probes), actualexit0. Root baseline223a286a4 was1fail/1pass: a two-hour information wait exhausted a900second active allowance before its source could be used. Existing idle ledger now covers durable open questions, while explicit absolute expiry remains enforced and unchanged. Separate process-recovery proofs stay at their actual sources. Packet `task_wait_idle_budget_419ab9f44` records this controlled-clock/current-main scope; not production soak, served-model/UI or whole-framework acceptance. Fresh hosted checks required after the new pushed head.
+
+## Open-question final-output guard integrated on current main
+
+Root independently reproduced a physical premature report at runtime784a2eb14 with only the later test module added (source/hash disclosed), then verifiedc857physicalDOCX positive. Rootcanonicalfixa660 uses the lifecycle's onlyauthoritativeopenquestionset; the validpredecessorselectorprobe was1fail/2pass. Current-main43 integration2e23b37cf passes141 controls (137normalCI+4external), actualexit0, including noearlyfile then oneDOCX with105.00+270.00+correctPO, recordedhash and both verifiedreceiptrequirements. Packet `task_wait_output_guard_2e23b37cf` binds the actualfinalreview.docx and preservesolder22/94/97 scopes. Independentbranch usesexplicit/advance, so this is not automaticmodelbranchdiscovery or wholeframework/UI acceptance. PR724 needsfresh hosted checks for this pushed successor. Genericwait/eventbinding remainsAgent1active; fullappunproven.

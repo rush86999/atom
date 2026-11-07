@@ -1,0 +1,3897 @@
+{
+  "source": "227579321b2c56873df072962eae06f4d0add674",
+  "provenance": "derived from retained portable-process scratch reports; opaque proof fields replaced consistently with labels, originals remain private",
+  "redacted_fields": 10,
+  "cases": [
+    {
+      "case": "test_actual_process_restart_do0",
+      "process_ledger": [
+        {
+          "checkpoint": null,
+          "exit": 0,
+          "phase": "start",
+          "pid": 29247,
+          "report": "start-29230-1794040915388758000.json"
+        },
+        {
+          "checkpoint": null,
+          "exit": 0,
+          "phase": "startup-recover",
+          "pid": 29253,
+          "report": "startup-recover-29230-1794040917137298000.json"
+        },
+        {
+          "checkpoint": null,
+          "exit": 0,
+          "phase": "source-complete",
+          "pid": 29260,
+          "report": "source-complete-29230-1794040918508103000.json"
+        }
+      ],
+      "reports": [
+        {
+          "file": "source-complete-29230-1794040918508103000.json",
+          "state": {
+            "adaptation_call_log": [
+              {
+                "at": 1794040919.499605,
+                "business_roles": [
+                  "invoice",
+                  "purchase_order",
+                  "receiving"
+                ],
+                "observation_ids": [
+                  "evidence-fef6a0e3fbb143f3db1b",
+                  "evidence-20947c03bc782bd431de",
+                  "evidence-46bb310b289a38e9c4c2"
+                ],
+                "pid": 29260
+              }
+            ],
+            "adaptation_calls": 1,
+            "assignment_id": "asg-08987a06c4a84181",
+            "evidence_observations": [],
+            "objective": "Reconcile invoice INV-TRIGGER-91 for PO-TRIGGER-63",
+            "open_questions": [],
+            "phase": "source-complete",
+            "pid": 29260,
+            "plan_revision": 4,
+            "provenance": {
+              "agent_id": null,
+              "authorized_source_count": 2,
+              "conversation_id": "chat-assignment-5cc19001830d",
+              "objective_identities": {
+                "invoice_id": "INV-TRIGGER-91",
+                "po_id": "PO-TRIGGER-63"
+              },
+              "planner": "capability_registry",
+              "proposal_reason": "read authorized procurement records",
+              "proposal_source": "model",
+              "requester_id": "lead-1",
+              "run_id": "899a517a-8e76-495d-aa75-a213407c015a",
+              "source_fingerprint": "2df7e2d34d608378dac7eae7",
+              "source_kinds": [
+                "document"
+              ],
+              "started_from": "employee_objective",
+              "technical_fallback": false,
+              "use_model": true
+            },
+            "reconciliations": [
+              {
+                "adapter": "invoice.reconcile",
+                "operation_id": "44d1c8ab-c2c7-49b2-83eb-bf45f654041c",
+                "prior_results": 0,
+                "result_data": {
+                  "bill": {
+                    "currency": "USD",
+                    "freight": "12.75",
+                    "invoice_id": "INV-TRIGGER-91",
+                    "po_id": "PO-TRIGGER-63",
+                    "quantity": "3",
+                    "total": "140.25",
+                    "unit_price": "42.50",
+                    "vendor_id": "V-6"
+                  },
+                  "currency": "USD",
+                  "freight": "12.75",
+                  "invoice_id": "INV-TRIGGER-91",
+                  "invoice_version": "",
+                  "po_id": "PO-TRIGGER-63",
+                  "quantity": "3",
+                  "receiving_version": "",
+                  "total": "140.25",
+                  "unit_price": "42.50",
+                  "vendor_id": "V-6"
+                },
+                "result_value": "140.25",
+                "source_version": null,
+                "status": "applied",
+                "step_id": "invoice-reconcile"
+              }
+            ],
+            "recovery_marker": {},
+            "run_id": "899a517a-8e76-495d-aa75-a213407c015a",
+            "source_response": {
+              "added_criteria": [],
+              "added_requirements": [],
+              "affected_steps": [],
+              "assignment": {
+                "assignment": {
+                  "assignment_id": "asg-08987a06c4a84181",
+                  "authorized_actions": [
+                    "calculate",
+                    "retrieve"
+                  ],
+                  "budget": {
+                    "active_wait": null,
+                    "cost_mode": "hard",
+                    "cost_overrun_usd": 0.0,
+                    "cost_reservations": [],
+                    "cost_usd": 0.0,
+                    "cost_violation": null,
+                    "deadline": null,
+                    "elapsed_seconds": 0.0,
+                    "idle_intervals": {},
+                    "idle_ledger_schema": 2,
+                    "max_attempts_per_step": 3,
+                    "max_cost_usd": 0.0,
+                    "max_steps": 9,
+                    "max_wall_seconds": 900.0,
+                    "paused_seconds": 0.0,
+                    "reserved_cost_usd": 0.0,
+                    "soft_limit_authorized_by": null,
+                    "soft_limit_exceeded": false,
+                    "started_at": "2026-11-07T08:41:56.413492+00:00",
+                    "steps_started": 4,
+                    "wait_credits": {},
+                    "wait_credits_schema": 1,
+                    "waiting_since": null,
+                    "wall_seconds": 3.121,
+                    "working_seconds": 3.121
+                  },
+                  "business_requirements": [],
+                  "completed_at": "2026-11-07T08:41:59.525954+00:00",
+                  "created_at": "2026-11-07T08:41:56.403244+00:00",
+                  "deliverables": [],
+                  "effective_lesson_ids": [],
+                  "employee_id": "lead-1",
+                  "mapping_history": [],
+                  "mappings": [],
+                  "objective": "Reconcile invoice INV-TRIGGER-91 for PO-TRIGGER-63",
+                  "plan_revision": 4,
+                  "progress": {
+                    "completed_steps": 4,
+                    "failed_steps": 0,
+                    "open_gap_count": 0,
+                    "required_steps": 4,
+                    "total_steps": 4,
+                    "uncertain_steps": 0,
+                    "waiting_steps": 0
+                  },
+                  "sources": [
+                    {
+                      "binding": {
+                        "access_scope": {
+                          "tenant_id": "tenant-1",
+                          "user_id": "lead-1",
+                          "workspace_id": "ws-1"
+                        },
+                        "columns": [],
+                        "coverage": {
+                          "controlled_fixture": true,
+                          "known": true,
+                          "truncated": false
+                        },
+                        "dataset_name": null,
+                        "external_id": null,
+                        "internal_fixture": true,
+                        "numeric_columns": [],
+                        "original_file_name": "po.json",
+                        "representation": "file",
+                        "resource_id": "fixture:po.json",
+                        "row_count": null,
+                        "sheet": null,
+                        "source": null,
+                        "source_kind": null,
+                        "source_version": "c9eff4050eefaa424619c80976beec0b9515aaffdc733933fcab2c5745e3d5a1",
+                        "tenant_id": "tenant-1",
+                        "workspace_id": "ws-1"
+                      },
+                      "internal_fixture": true,
+                      "kind": "document",
+                      "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-recovery-portable-b8rtisbf/pytest/test_actual_process_restart_do0/process-world/sources/po.json"
+                    },
+                    {
+                      "binding": {
+                        "access_scope": {
+                          "tenant_id": "tenant-1",
+                          "user_id": "lead-1",
+                          "workspace_id": "ws-1"
+                        },
+                        "columns": [],
+                        "coverage": {
+                          "controlled_fixture": true,
+                          "known": true,
+                          "truncated": false
+                        },
+                        "dataset_name": null,
+                        "external_id": null,
+                        "internal_fixture": true,
+                        "numeric_columns": [],
+                        "original_file_name": "receiving.json",
+                        "representation": "file",
+                        "resource_id": "fixture:receiving.json",
+                        "row_count": null,
+                        "sheet": null,
+                        "source": null,
+                        "source_kind": null,
+                        "source_version": "0e0babec0f1797bf8624dbb34653ab0c7b91d3e8ea1c728858b536bfee1e2b81",
+                        "tenant_id": "tenant-1",
+                        "workspace_id": "ws-1"
+                      },
+                      "internal_fixture": true,
+                      "kind": "document",
+                      "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-recovery-portable-b8rtisbf/pytest/test_actual_process_restart_do0/process-world/sources/receiving.json"
+                    }
+                  ],
+                  "standing_authority": null,
+                  "status": "completed",
+                  "steps": [
+                    {
+                      "adapter": "document.read",
+                      "approval_request": {},
+                      "artifact_revision": null,
+                      "attempts": 0,
+                      "depends_on": [],
+                      "effect": "read_only",
+                      "external_response": {},
+                      "failure": {},
+                      "gap_ids": [],
+                      "operation_id": "f048a0da-8944-4f39-974b-91684959d02e",
+                      "operation_type": "retrieve",
+                      "prior_result_count": 0,
+                      "readiness": null,
+                      "recovery_class": "terminal",
+                      "required": true,
+                      "result_measure": null,
+                      "result_summary": "read structured po.json",
+                      "result_unit": null,
+                      "result_value": null,
+                      "standing_authority_receipt": {},
+                      "status": "applied",
+                      "step_id": "source-1",
+                      "title": "Read po.json",
+                      "waiting": {}
+                    },
+                    {
+                      "adapter": "document.read",
+                      "approval_request": {},
+                      "artifact_revision": null,
+                      "attempts": 0,
+                      "depends_on": [],
+                      "effect": "read_only",
+                      "external_response": {},
+                      "failure": {},
+                      "gap_ids": [],
+                      "operation_id": "5ba12764-2cb1-451c-90d1-d88bae42bc5b",
+                      "operation_type": "retrieve",
+                      "prior_result_count": 0,
+                      "readiness": null,
+                      "recovery_class": "terminal",
+                      "required": true,
+                      "result_measure": null,
+                      "result_summary": "read structured receiving.json",
+                      "result_unit": null,
+                      "result_value": null,
+                      "standing_authority_receipt": {},
+                      "status": "applied",
+                      "step_id": "source-2",
+                      "title": "Read receiving.json",
+                      "waiting": {}
+                    },
+                    {
+                      "adapter": "document.read",
+                      "approval_request": {},
+                      "artifact_revision": null,
+                      "attempts": 0,
+                      "depends_on": [],
+                      "effect": "read_only",
+                      "external_response": {},
+                      "failure": {},
+                      "gap_ids": [],
+                      "operation_id": "ae9ed729-9923-4f42-9be2-2f76c1108e2b",
+                      "operation_type": "retrieve",
+                      "prior_result_count": 0,
+                      "readiness": null,
+                      "recovery_class": "terminal",
+                      "required": true,
+                      "result_measure": null,
+                      "result_summary": "read structured invoice.json",
+                      "result_unit": null,
+                      "result_value": null,
+                      "standing_authority_receipt": {},
+                      "status": "applied",
+                      "step_id": "source-3",
+                      "title": "Read invoice.json",
+                      "waiting": {}
+                    },
+                    {
+                      "adapter": "invoice.reconcile",
+                      "approval_request": {},
+                      "artifact_revision": null,
+                      "attempts": 0,
+                      "depends_on": [
+                        "source-3",
+                        "source-1",
+                        "source-2"
+                      ],
+                      "effect": "local",
+                      "external_response": {},
+                      "failure": {},
+                      "gap_ids": [],
+                      "operation_id": "44d1c8ab-c2c7-49b2-83eb-bf45f654041c",
+                      "operation_type": "calculate",
+                      "prior_result_count": 0,
+                      "readiness": null,
+                      "recovery_class": "terminal",
+                      "required": true,
+                      "result_measure": null,
+                      "result_summary": "reconciled invoice total 140.25 USD against received quantity 3",
+                      "result_unit": "USD",
+                      "result_value": "140.25",
+                      "standing_authority_receipt": {},
+                      "status": "applied",
+                      "step_id": "invoice-reconcile",
+                      "title": "Reconcile invoice against purchase and receiving evidence",
+                      "waiting": {}
+                    }
+                  ],
+                  "teaching_fingerprint": "91e82781c5d722eeaef1b614ffabbc58",
+                  "teaching_history": [],
+                  "teaching_revision": "untrained",
+                  "updated_at": "2026-11-07T08:41:59.525952+00:00",
+                  "workspace_id": "ws-1"
+                },
+                "open_gaps": [],
+                "operations": [
+                  {
+                    "approval": {},
+                    "needs_reconciliation": false,
+                    "operation_id": "f048a0da-8944-4f39-974b-91684959d02e",
+                    "provider_ref": null,
+                    "remote_id": null,
+                    "result_summary": "read structured po.json",
+                    "status": "applied",
+                    "step_id": "source-1",
+                    "type": "retrieve",
+                    "uncertainty_reason": null
+                  },
+                  {
+                    "approval": {},
+                    "needs_reconciliation": false,
+                    "operation_id": "5ba12764-2cb1-451c-90d1-d88bae42bc5b",
+                    "provider_ref": null,
+                    "remote_id": null,
+                    "result_summary": "read structured receiving.json",
+                    "status": "applied",
+                    "step_id": "source-2",
+                    "type": "retrieve",
+                    "uncertainty_reason": null
+                  },
+                  {
+                    "approval": {},
+                    "needs_reconciliation": false,
+                    "operation_id": "ae9ed729-9923-4f42-9be2-2f76c1108e2b",
+                    "provider_ref": null,
+                    "remote_id": null,
+                    "result_summary": "read structured invoice.json",
+                    "status": "applied",
+                    "step_id": "source-3",
+                    "type": "retrieve",
+                    "uncertainty_reason": null
+                  },
+                  {
+                    "approval": {},
+                    "needs_reconciliation": false,
+                    "operation_id": "44d1c8ab-c2c7-49b2-83eb-bf45f654041c",
+                    "provider_ref": null,
+                    "remote_id": null,
+                    "result_summary": "reconciled invoice total 140.25 USD against received quantity 3",
+                    "status": "applied",
+                    "step_id": "invoice-reconcile",
+                    "type": "calculate",
+                    "uncertainty_reason": null
+                  }
+                ],
+                "run_id": "899a517a-8e76-495d-aa75-a213407c015a"
+              },
+              "continuation_rounds": [
+                {
+                  "adoption_status": "applied",
+                  "attempt_id": null,
+                  "decision": "replan",
+                  "errors": [],
+                  "evaluation": null,
+                  "execution_status": "completed",
+                  "failure_stage": null,
+                  "observation_ids": [
+                    "evidence-fef6a0e3fbb143f3db1b",
+                    "evidence-20947c03bc782bd431de",
+                    "evidence-46bb310b289a38e9c4c2"
+                  ],
+                  "routing": null,
+                  "source": "model",
+                  "technical_fallback": false,
+                  "work_request_operation": "invoice_reconciliation"
+                }
+              ],
+              "material_digest": "d269040aa03edd86c993ee2ba7f417da2cc9385bb8c38927f082dd85b2d76ca3",
+              "mismatched_question_ids": [],
+              "observed_purchase_order": "PO-TRIGGER-63",
+              "patch_id": "source-add-98dcf5a339018ef3",
+              "plan_revision": 3,
+              "reassessment_rounds": [],
+              "resolved_question_ids": [
+                "85070086-e1c4-405a-bdea-08cf176c1ef5"
+              ],
+              "retained_steps": [
+                "source-1",
+                "source-2"
+              ],
+              "status": "applied",
+              "updated_steps": []
+            },
+            "source_response_status": 200,
+            "source_steps": [
+              {
+                "adapter": "document.read",
+                "operation_id": "f048a0da-8944-4f39-974b-91684959d02e",
+                "prior_results": 0,
+                "result_data": {
+                  "currency": "USD",
+                  "freight": "12.75",
+                  "po_id": "PO-TRIGGER-63",
+                  "quantity": "3",
+                  "unit_price": "42.50",
+                  "vendor_id": "V-6"
+                },
+                "result_value": null,
+                "source_version": "c9eff4050eefaa424619c80976beec0b9515aaffdc733933fcab2c5745e3d5a1",
+                "status": "applied",
+                "step_id": "source-1"
+              },
+              {
+                "adapter": "document.read",
+                "operation_id": "5ba12764-2cb1-451c-90d1-d88bae42bc5b",
+                "prior_results": 0,
+                "result_data": {
+                  "po_id": "PO-TRIGGER-63",
+                  "received_quantity": "3"
+                },
+                "result_value": null,
+                "source_version": "0e0babec0f1797bf8624dbb34653ab0c7b91d3e8ea1c728858b536bfee1e2b81",
+                "status": "applied",
+                "step_id": "source-2"
+              },
+              {
+                "adapter": "document.read",
+                "operation_id": "ae9ed729-9923-4f42-9be2-2f76c1108e2b",
+                "prior_results": 0,
+                "result_data": {
+                  "currency": "USD",
+                  "freight": "12.75",
+                  "invoice_id": "INV-TRIGGER-91",
+                  "po_id": "PO-TRIGGER-63",
+                  "quantity": "3",
+                  "unit_price": "42.50"
+                },
+                "result_value": null,
+                "source_version": "3bad6e9388d0efabbcec678dc95c21d6e4721c031ae24374501a2166d3a58d9f",
+                "status": "applied",
+                "step_id": "source-3"
+              }
+            ],
+            "status": "completed",
+            "steps": [
+              {
+                "adapter": "document.read",
+                "operation_id": "f048a0da-8944-4f39-974b-91684959d02e",
+                "prior_results": 0,
+                "result_data": {
+                  "currency": "USD",
+                  "freight": "12.75",
+                  "po_id": "PO-TRIGGER-63",
+                  "quantity": "3",
+                  "unit_price": "42.50",
+                  "vendor_id": "V-6"
+                },
+                "result_value": null,
+                "source_version": "c9eff4050eefaa424619c80976beec0b9515aaffdc733933fcab2c5745e3d5a1",
+                "status": "applied",
+                "step_id": "source-1"
+              },
+              {
+                "adapter": "document.read",
+                "operation_id": "5ba12764-2cb1-451c-90d1-d88bae42bc5b",
+                "prior_results": 0,
+                "result_data": {
+                  "po_id": "PO-TRIGGER-63",
+                  "received_quantity": "3"
+                },
+                "result_value": null,
+                "source_version": "0e0babec0f1797bf8624dbb34653ab0c7b91d3e8ea1c728858b536bfee1e2b81",
+                "status": "applied",
+                "step_id": "source-2"
+              },
+              {
+                "adapter": "document.read",
+                "operation_id": "ae9ed729-9923-4f42-9be2-2f76c1108e2b",
+                "prior_results": 0,
+                "result_data": {
+                  "currency": "USD",
+                  "freight": "12.75",
+                  "invoice_id": "INV-TRIGGER-91",
+                  "po_id": "PO-TRIGGER-63",
+                  "quantity": "3",
+                  "unit_price": "42.50"
+                },
+                "result_value": null,
+                "source_version": "3bad6e9388d0efabbcec678dc95c21d6e4721c031ae24374501a2166d3a58d9f",
+                "status": "applied",
+                "step_id": "source-3"
+              },
+              {
+                "adapter": "invoice.reconcile",
+                "operation_id": "44d1c8ab-c2c7-49b2-83eb-bf45f654041c",
+                "prior_results": 0,
+                "result_data": {
+                  "bill": {
+                    "currency": "USD",
+                    "freight": "12.75",
+                    "invoice_id": "INV-TRIGGER-91",
+                    "po_id": "PO-TRIGGER-63",
+                    "quantity": "3",
+                    "total": "140.25",
+                    "unit_price": "42.50",
+                    "vendor_id": "V-6"
+                  },
+                  "currency": "USD",
+                  "freight": "12.75",
+                  "invoice_id": "INV-TRIGGER-91",
+                  "invoice_version": "",
+                  "po_id": "PO-TRIGGER-63",
+                  "quantity": "3",
+                  "receiving_version": "",
+                  "total": "140.25",
+                  "unit_price": "42.50",
+                  "vendor_id": "V-6"
+                },
+                "result_value": "140.25",
+                "source_version": null,
+                "status": "applied",
+                "step_id": "invoice-reconcile"
+              }
+            ],
+            "unresolved": [
+              {
+                "affected_subjects": [],
+                "attempts": 0,
+                "checked_evidence": [],
+                "concept": "invoice_reconciliation",
+                "decision_owner": null,
+                "evidence": "",
+                "inputs": {
+                  "known_identities": {
+                    "purchase_order.po_id": "PO-TRIGGER-63",
+                    "purchase_order.vendor_id": "V-6",
+                    "receiving.po_id": "PO-TRIGGER-63"
+                  },
+                  "missing": [
+                    "invoice"
+                  ],
+                  "operation": "invoice_reconciliation"
+                },
+                "item": "invoice reconciliation",
+                "kind": "missing_evidence",
+                "next_action": "Confirm the missing business fact.",
+                "next_retrieval": "Which authorized source contains invoice INV-TRIGGER-91 for purchase order PO-TRIGGER-63?",
+                "opened_at": "2026-11-07T08:41:56.577180+00:00",
+                "question": "Which authorized source contains invoice INV-TRIGGER-91 for purchase order PO-TRIGGER-63?",
+                "question_id": "85070086-e1c4-405a-bdea-08cf176c1ef5",
+                "reason": "invoice reconciliation",
+                "resolution": "authorized source fixture:invoice.json version 3bad6e9388d0efabbcec678dc95c21d6e4721c031ae24374501a2166d3a58d9f made the capability ready",
+                "resolution_value": "authorized source fixture:invoice.json version 3bad6e9388d0efabbcec678dc95c21d6e4721c031ae24374501a2166d3a58d9f made the capability ready",
+                "resolved_at": "2026-11-07T08:41:59.493483+00:00",
+                "resolver": null,
+                "source_operation": null,
+                "status": "resolved",
+                "step_id": null,
+                "waiting": null
+              }
+            ]
+          }
+        },
+        {
+          "file": "start-29230-1794040915388758000.json",
+          "state": {
+            "adaptation_call_log": [
+              {
+                "at": 1794040916.5763772,
+                "business_roles": [
+                  "purchase_order",
+                  "receiving"
+                ],
+                "observation_ids": [
+                  "evidence-fef6a0e3fbb143f3db1b",
+                  "evidence-20947c03bc782bd431de"
+                ],
+                "pid": 29247
+              }
+            ],
+            "adaptation_calls": 1,
+            "assignment_id": "asg-08987a06c4a84181",
+            "evidence_observations": [
+              {
+                "observation_id": "evidence-fef6a0e3fbb143f3db1b",
+                "shape": "structured",
+                "step_id": "source-1"
+              },
+              {
+                "observation_id": "evidence-20947c03bc782bd431de",
+                "shape": "structured",
+                "step_id": "source-2"
+              }
+            ],
+            "objective": "Reconcile invoice INV-TRIGGER-91 for PO-TRIGGER-63",
+            "open_questions": [
+              {
+                "kind": "missing_evidence",
+                "operation": "invoice_reconciliation",
+                "question_id": "85070086-e1c4-405a-bdea-08cf176c1ef5"
+              }
+            ],
+            "phase": "start",
+            "pid": 29247,
+            "plan_revision": 2,
+            "provenance": {
+              "agent_id": null,
+              "authorized_source_count": 2,
+              "conversation_id": "chat-assignment-5cc19001830d",
+              "objective_identities": {
+                "invoice_id": "INV-TRIGGER-91",
+                "po_id": "PO-TRIGGER-63"
+              },
+              "planner": "capability_registry",
+              "proposal_reason": "read authorized procurement records",
+              "proposal_source": "model",
+              "requester_id": "lead-1",
+              "run_id": "899a517a-8e76-495d-aa75-a213407c015a",
+              "source_fingerprint": "2df7e2d34d608378dac7eae7",
+              "source_kinds": [
+                "document"
+              ],
+              "started_from": "employee_objective",
+              "technical_fallback": false,
+              "use_model": true
+            },
+            "reconciliations": [],
+            "recovery_marker": {},
+            "run_id": "899a517a-8e76-495d-aa75-a213407c015a",
+            "source_steps": [
+              {
+                "adapter": "document.read",
+                "operation_id": "f048a0da-8944-4f39-974b-91684959d02e",
+                "prior_results": 0,
+                "result_data": {
+                  "currency": "USD",
+                  "freight": "12.75",
+                  "po_id": "PO-TRIGGER-63",
+                  "quantity": "3",
+                  "unit_price": "42.50",
+                  "vendor_id": "V-6"
+                },
+                "result_value": null,
+                "source_version": "c9eff4050eefaa424619c80976beec0b9515aaffdc733933fcab2c5745e3d5a1",
+                "status": "applied",
+                "step_id": "source-1"
+              },
+              {
+                "adapter": "document.read",
+                "operation_id": "5ba12764-2cb1-451c-90d1-d88bae42bc5b",
+                "prior_results": 0,
+                "result_data": {
+                  "po_id": "PO-TRIGGER-63",
+                  "received_quantity": "3"
+                },
+                "result_value": null,
+                "source_version": "0e0babec0f1797bf8624dbb34653ab0c7b91d3e8ea1c728858b536bfee1e2b81",
+                "status": "applied",
+                "step_id": "source-2"
+              }
+            ],
+            "status": "blocked",
+            "steps": [
+              {
+                "adapter": "document.read",
+                "operation_id": "f048a0da-8944-4f39-974b-91684959d02e",
+                "prior_results": 0,
+                "result_data": {
+                  "currency": "USD",
+                  "freight": "12.75",
+                  "po_id": "PO-TRIGGER-63",
+                  "quantity": "3",
+                  "unit_price": "42.50",
+                  "vendor_id": "V-6"
+                },
+                "result_value": null,
+                "source_version": "c9eff4050eefaa424619c80976beec0b9515aaffdc733933fcab2c5745e3d5a1",
+                "status": "applied",
+                "step_id": "source-1"
+              },
+              {
+                "adapter": "document.read",
+                "operation_id": "5ba12764-2cb1-451c-90d1-d88bae42bc5b",
+                "prior_results": 0,
+                "result_data": {
+                  "po_id": "PO-TRIGGER-63",
+                  "received_quantity": "3"
+                },
+                "result_value": null,
+                "source_version": "0e0babec0f1797bf8624dbb34653ab0c7b91d3e8ea1c728858b536bfee1e2b81",
+                "status": "applied",
+                "step_id": "source-2"
+              }
+            ],
+            "unresolved": [
+              {
+                "affected_subjects": [],
+                "attempts": 0,
+                "checked_evidence": [],
+                "concept": "invoice_reconciliation",
+                "decision_owner": null,
+                "evidence": "",
+                "inputs": {
+                  "known_identities": {
+                    "purchase_order.po_id": "PO-TRIGGER-63",
+                    "purchase_order.vendor_id": "V-6",
+                    "receiving.po_id": "PO-TRIGGER-63"
+                  },
+                  "missing": [
+                    "invoice"
+                  ],
+                  "operation": "invoice_reconciliation"
+                },
+                "item": "invoice reconciliation",
+                "kind": "missing_evidence",
+                "next_action": "Confirm the missing business fact.",
+                "next_retrieval": "Which authorized source contains invoice INV-TRIGGER-91 for purchase order PO-TRIGGER-63?",
+                "opened_at": "2026-11-07T08:41:56.577180+00:00",
+                "question": "Which authorized source contains invoice INV-TRIGGER-91 for purchase order PO-TRIGGER-63?",
+                "question_id": "85070086-e1c4-405a-bdea-08cf176c1ef5",
+                "reason": "invoice reconciliation",
+                "resolution": null,
+                "resolved_at": null,
+                "resolver": null,
+                "source_operation": null,
+                "status": "open",
+                "step_id": null,
+                "waiting": null
+              }
+            ]
+          }
+        },
+        {
+          "file": "startup-recover-29230-1794040917137298000.json",
+          "state": {
+            "adaptation_call_log": [],
+            "adaptation_calls": 0,
+            "assignment_id": "asg-08987a06c4a84181",
+            "evidence_observations": [
+              {
+                "observation_id": "evidence-fef6a0e3fbb143f3db1b",
+                "shape": "structured",
+                "step_id": "source-1"
+              },
+              {
+                "observation_id": "evidence-20947c03bc782bd431de",
+                "shape": "structured",
+                "step_id": "source-2"
+              }
+            ],
+            "objective": "Reconcile invoice INV-TRIGGER-91 for PO-TRIGGER-63",
+            "open_questions": [
+              {
+                "kind": "missing_evidence",
+                "operation": "invoice_reconciliation",
+                "question_id": "85070086-e1c4-405a-bdea-08cf176c1ef5"
+              }
+            ],
+            "phase": "startup-recover",
+            "pid": 29253,
+            "plan_revision": 2,
+            "provenance": {
+              "agent_id": null,
+              "authorized_source_count": 2,
+              "conversation_id": "chat-assignment-5cc19001830d",
+              "objective_identities": {
+                "invoice_id": "INV-TRIGGER-91",
+                "po_id": "PO-TRIGGER-63"
+              },
+              "planner": "capability_registry",
+              "proposal_reason": "read authorized procurement records",
+              "proposal_source": "model",
+              "requester_id": "lead-1",
+              "run_id": "899a517a-8e76-495d-aa75-a213407c015a",
+              "source_fingerprint": "2df7e2d34d608378dac7eae7",
+              "source_kinds": [
+                "document"
+              ],
+              "started_from": "employee_objective",
+              "technical_fallback": false,
+              "use_model": true
+            },
+            "reconciliations": [],
+            "recovery_marker": {},
+            "recovery_results": [
+              {
+                "assignment": {
+                  "assignment_id": "asg-08987a06c4a84181",
+                  "authorized_actions": [
+                    "calculate",
+                    "retrieve"
+                  ],
+                  "budget": {
+                    "active_wait": null,
+                    "cost_mode": "hard",
+                    "cost_overrun_usd": 0.0,
+                    "cost_reservations": [],
+                    "cost_usd": 0.0,
+                    "cost_violation": null,
+                    "deadline": null,
+                    "elapsed_seconds": 0.0,
+                    "idle_intervals": {},
+                    "idle_ledger_schema": 2,
+                    "max_attempts_per_step": 3,
+                    "max_cost_usd": 0.0,
+                    "max_steps": 9,
+                    "max_wall_seconds": 900.0,
+                    "paused_seconds": 0.0,
+                    "reserved_cost_usd": 0.0,
+                    "soft_limit_authorized_by": null,
+                    "soft_limit_exceeded": false,
+                    "started_at": "2026-11-07T08:41:56.413492+00:00",
+                    "steps_started": 2,
+                    "wait_credits": {},
+                    "wait_credits_schema": 1,
+                    "waiting_since": null,
+                    "wall_seconds": 1.568,
+                    "working_seconds": 1.568
+                  },
+                  "business_requirements": [],
+                  "completed_at": "2026-11-07T08:41:57.976595+00:00",
+                  "created_at": "2026-11-07T08:41:56.403244+00:00",
+                  "deliverables": [],
+                  "effective_lesson_ids": [],
+                  "employee_id": "lead-1",
+                  "mapping_history": [],
+                  "mappings": [],
+                  "objective": "Reconcile invoice INV-TRIGGER-91 for PO-TRIGGER-63",
+                  "plan_revision": 2,
+                  "progress": {
+                    "completed_steps": 2,
+                    "failed_steps": 0,
+                    "open_gap_count": 1,
+                    "required_steps": 2,
+                    "total_steps": 2,
+                    "uncertain_steps": 0,
+                    "waiting_steps": 0
+                  },
+                  "sources": [
+                    {
+                      "binding": {
+                        "access_scope": {
+                          "tenant_id": "tenant-1",
+                          "user_id": "lead-1",
+                          "workspace_id": "ws-1"
+                        },
+                        "columns": [],
+                        "coverage": {
+                          "controlled_fixture": true,
+                          "known": true,
+                          "truncated": false
+                        },
+                        "dataset_name": null,
+                        "external_id": null,
+                        "internal_fixture": true,
+                        "numeric_columns": [],
+                        "original_file_name": "po.json",
+                        "representation": "file",
+                        "resource_id": "fixture:po.json",
+                        "row_count": null,
+                        "sheet": null,
+                        "source": null,
+                        "source_kind": null,
+                        "source_version": "c9eff4050eefaa424619c80976beec0b9515aaffdc733933fcab2c5745e3d5a1",
+                        "tenant_id": "tenant-1",
+                        "workspace_id": "ws-1"
+                      },
+                      "internal_fixture": true,
+                      "kind": "document",
+                      "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-recovery-portable-b8rtisbf/pytest/test_actual_process_restart_do0/process-world/sources/po.json"
+                    },
+                    {
+                      "binding": {
+                        "access_scope": {
+                          "tenant_id": "tenant-1",
+                          "user_id": "lead-1",
+                          "workspace_id": "ws-1"
+                        },
+                        "columns": [],
+                        "coverage": {
+                          "controlled_fixture": true,
+                          "known": true,
+                          "truncated": false
+                        },
+                        "dataset_name": null,
+                        "external_id": null,
+                        "internal_fixture": true,
+                        "numeric_columns": [],
+                        "original_file_name": "receiving.json",
+                        "representation": "file",
+                        "resource_id": "fixture:receiving.json",
+                        "row_count": null,
+                        "sheet": null,
+                        "source": null,
+                        "source_kind": null,
+                        "source_version": "0e0babec0f1797bf8624dbb34653ab0c7b91d3e8ea1c728858b536bfee1e2b81",
+                        "tenant_id": "tenant-1",
+                        "workspace_id": "ws-1"
+                      },
+                      "internal_fixture": true,
+                      "kind": "document",
+                      "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-recovery-portable-b8rtisbf/pytest/test_actual_process_restart_do0/process-world/sources/receiving.json"
+                    }
+                  ],
+                  "standing_authority": null,
+                  "status": "blocked",
+                  "steps": [
+                    {
+                      "adapter": "document.read",
+                      "approval_request": {},
+                      "artifact_revision": null,
+                      "attempts": 0,
+                      "depends_on": [],
+                      "effect": "read_only",
+                      "external_response": {},
+                      "failure": {},
+                      "gap_ids": [],
+                      "operation_id": "f048a0da-8944-4f39-974b-91684959d02e",
+                      "operation_type": "retrieve",
+                      "prior_result_count": 0,
+                      "readiness": null,
+                      "recovery_class": "terminal",
+                      "required": true,
+                      "result_measure": null,
+                      "result_summary": "read structured po.json",
+                      "result_unit": null,
+                      "result_value": null,
+                      "standing_authority_receipt": {},
+                      "status": "applied",
+                      "step_id": "source-1",
+                      "title": "Read po.json",
+                      "waiting": {}
+                    },
+                    {
+                      "adapter": "document.read",
+                      "approval_request": {},
+                      "artifact_revision": null,
+                      "attempts": 0,
+                      "depends_on": [],
+                      "effect": "read_only",
+                      "external_response": {},
+                      "failure": {},
+                      "gap_ids": [],
+                      "operation_id": "5ba12764-2cb1-451c-90d1-d88bae42bc5b",
+                      "operation_type": "retrieve",
+                      "prior_result_count": 0,
+                      "readiness": null,
+                      "recovery_class": "terminal",
+                      "required": true,
+                      "result_measure": null,
+                      "result_summary": "read structured receiving.json",
+                      "result_unit": null,
+                      "result_value": null,
+                      "standing_authority_receipt": {},
+                      "status": "applied",
+                      "step_id": "source-2",
+                      "title": "Read receiving.json",
+                      "waiting": {}
+                    }
+                  ],
+                  "teaching_fingerprint": "91e82781c5d722eeaef1b614ffabbc58",
+                  "teaching_history": [],
+                  "teaching_revision": "untrained",
+                  "updated_at": "2026-11-07T08:41:57.977597+00:00",
+                  "workspace_id": "ws-1"
+                },
+                "open_gaps": [
+                  {
+                    "affected_subjects": [],
+                    "attempts": 0,
+                    "checked_evidence": [],
+                    "concept": "invoice_reconciliation",
+                    "decision_owner": null,
+                    "evidence": "",
+                    "inputs": {
+                      "known_identities": {
+                        "purchase_order.po_id": "PO-TRIGGER-63",
+                        "purchase_order.vendor_id": "V-6",
+                        "receiving.po_id": "PO-TRIGGER-63"
+                      },
+                      "missing": [
+                        "invoice"
+                      ],
+                      "operation": "invoice_reconciliation"
+                    },
+                    "item": "invoice reconciliation",
+                    "kind": "missing_evidence",
+                    "next_action": "Confirm the missing business fact.",
+                    "next_retrieval": "Which authorized source contains invoice INV-TRIGGER-91 for purchase order PO-TRIGGER-63?",
+                    "opened_at": "2026-11-07T08:41:56.577180+00:00",
+                    "question": "Which authorized source contains invoice INV-TRIGGER-91 for purchase order PO-TRIGGER-63?",
+                    "question_id": "85070086-e1c4-405a-bdea-08cf176c1ef5",
+                    "reason": "invoice reconciliation",
+                    "resolution": null,
+                    "resolved_at": null,
+                    "resolver": null,
+                    "source_operation": null,
+                    "status": "open",
+                    "step_id": null,
+                    "waiting": null
+                  }
+                ],
+                "operations": [
+                  {
+                    "approval": {},
+                    "needs_reconciliation": false,
+                    "operation_id": "f048a0da-8944-4f39-974b-91684959d02e",
+                    "provider_ref": null,
+                    "remote_id": null,
+                    "result_summary": "read structured po.json",
+                    "status": "applied",
+                    "step_id": "source-1",
+                    "type": "retrieve",
+                    "uncertainty_reason": null
+                  },
+                  {
+                    "approval": {},
+                    "needs_reconciliation": false,
+                    "operation_id": "5ba12764-2cb1-451c-90d1-d88bae42bc5b",
+                    "provider_ref": null,
+                    "remote_id": null,
+                    "result_summary": "read structured receiving.json",
+                    "status": "applied",
+                    "step_id": "source-2",
+                    "type": "retrieve",
+                    "uncertainty_reason": null
+                  }
+                ],
+                "run_id": "899a517a-8e76-495d-aa75-a213407c015a"
+              }
+            ],
+            "run_id": "899a517a-8e76-495d-aa75-a213407c015a",
+            "source_steps": [
+              {
+                "adapter": "document.read",
+                "operation_id": "f048a0da-8944-4f39-974b-91684959d02e",
+                "prior_results": 0,
+                "result_data": {
+                  "currency": "USD",
+                  "freight": "12.75",
+                  "po_id": "PO-TRIGGER-63",
+                  "quantity": "3",
+                  "unit_price": "42.50",
+                  "vendor_id": "V-6"
+                },
+                "result_value": null,
+                "source_version": "c9eff4050eefaa424619c80976beec0b9515aaffdc733933fcab2c5745e3d5a1",
+                "status": "applied",
+                "step_id": "source-1"
+              },
+              {
+                "adapter": "document.read",
+                "operation_id": "5ba12764-2cb1-451c-90d1-d88bae42bc5b",
+                "prior_results": 0,
+                "result_data": {
+                  "po_id": "PO-TRIGGER-63",
+                  "received_quantity": "3"
+                },
+                "result_value": null,
+                "source_version": "0e0babec0f1797bf8624dbb34653ab0c7b91d3e8ea1c728858b536bfee1e2b81",
+                "status": "applied",
+                "step_id": "source-2"
+              }
+            ],
+            "startup_entrypoint": "core.assignment_recovery.recover_active_assignments_at_startup",
+            "status": "blocked",
+            "steps": [
+              {
+                "adapter": "document.read",
+                "operation_id": "f048a0da-8944-4f39-974b-91684959d02e",
+                "prior_results": 0,
+                "result_data": {
+                  "currency": "USD",
+                  "freight": "12.75",
+                  "po_id": "PO-TRIGGER-63",
+                  "quantity": "3",
+                  "unit_price": "42.50",
+                  "vendor_id": "V-6"
+                },
+                "result_value": null,
+                "source_version": "c9eff4050eefaa424619c80976beec0b9515aaffdc733933fcab2c5745e3d5a1",
+                "status": "applied",
+                "step_id": "source-1"
+              },
+              {
+                "adapter": "document.read",
+                "operation_id": "5ba12764-2cb1-451c-90d1-d88bae42bc5b",
+                "prior_results": 0,
+                "result_data": {
+                  "po_id": "PO-TRIGGER-63",
+                  "received_quantity": "3"
+                },
+                "result_value": null,
+                "source_version": "0e0babec0f1797bf8624dbb34653ab0c7b91d3e8ea1c728858b536bfee1e2b81",
+                "status": "applied",
+                "step_id": "source-2"
+              }
+            ],
+            "unresolved": [
+              {
+                "affected_subjects": [],
+                "attempts": 0,
+                "checked_evidence": [],
+                "concept": "invoice_reconciliation",
+                "decision_owner": null,
+                "evidence": "",
+                "inputs": {
+                  "known_identities": {
+                    "purchase_order.po_id": "PO-TRIGGER-63",
+                    "purchase_order.vendor_id": "V-6",
+                    "receiving.po_id": "PO-TRIGGER-63"
+                  },
+                  "missing": [
+                    "invoice"
+                  ],
+                  "operation": "invoice_reconciliation"
+                },
+                "item": "invoice reconciliation",
+                "kind": "missing_evidence",
+                "next_action": "Confirm the missing business fact.",
+                "next_retrieval": "Which authorized source contains invoice INV-TRIGGER-91 for purchase order PO-TRIGGER-63?",
+                "opened_at": "2026-11-07T08:41:56.577180+00:00",
+                "question": "Which authorized source contains invoice INV-TRIGGER-91 for purchase order PO-TRIGGER-63?",
+                "question_id": "85070086-e1c4-405a-bdea-08cf176c1ef5",
+                "reason": "invoice reconciliation",
+                "resolution": null,
+                "resolved_at": null,
+                "resolver": null,
+                "source_operation": null,
+                "status": "open",
+                "step_id": null,
+                "waiting": null
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "case": "test_actual_process_restart_re0",
+      "process_ledger": [
+        {
+          "checkpoint": null,
+          "exit": 0,
+          "phase": "start",
+          "pid": 29263,
+          "report": "start-29230-1794040920044210000.json"
+        },
+        {
+          "checkpoint": "source-interrupt-29230-1794040921797849000-checkpoint.json",
+          "exit": 17,
+          "phase": "source-interrupt",
+          "pid": 29274,
+          "report": "source-interrupt-29230-1794040921797849000.json"
+        },
+        {
+          "checkpoint": null,
+          "exit": 0,
+          "phase": "startup-recover",
+          "pid": 29277,
+          "report": "startup-recover-29230-1794040922800869000.json"
+        },
+        {
+          "checkpoint": null,
+          "exit": 0,
+          "phase": "duplicate-source",
+          "pid": 29293,
+          "report": "duplicate-source-29230-1794040924370426000.json"
+        }
+      ],
+      "reports": [
+        {
+          "file": "duplicate-source-29230-1794040924370426000.json",
+          "state": {
+            "adaptation_call_log": [],
+            "adaptation_calls": 0,
+            "assignment_id": "asg-84ca2e1e188e4156",
+            "evidence_observations": [],
+            "objective": "Reconcile invoice INV-TRIGGER-91 for PO-TRIGGER-63",
+            "open_questions": [],
+            "phase": "duplicate-source",
+            "pid": 29293,
+            "plan_revision": 4,
+            "provenance": {
+              "agent_id": null,
+              "authorized_source_count": 2,
+              "conversation_id": "chat-assignment-13e2f45c241d",
+              "objective_identities": {
+                "invoice_id": "INV-TRIGGER-91",
+                "po_id": "PO-TRIGGER-63"
+              },
+              "planner": "capability_registry",
+              "proposal_reason": "read authorized procurement records",
+              "proposal_source": "model",
+              "requester_id": "lead-1",
+              "run_id": "3c78b43c-ee6a-4948-87de-20c43dd0d3a4",
+              "source_fingerprint": "2df7e2d34d608378dac7eae7",
+              "source_kinds": [
+                "document"
+              ],
+              "started_from": "employee_objective",
+              "technical_fallback": false,
+              "use_model": true
+            },
+            "reconciliations": [
+              {
+                "adapter": "invoice.reconcile",
+                "operation_id": "160c4045-522e-4d9c-aa5d-a50f3bab50e8",
+                "prior_results": 0,
+                "result_data": {
+                  "bill": {
+                    "currency": "USD",
+                    "freight": "12.75",
+                    "invoice_id": "INV-TRIGGER-91",
+                    "po_id": "PO-TRIGGER-63",
+                    "quantity": "3",
+                    "total": "140.25",
+                    "unit_price": "42.50",
+                    "vendor_id": "V-6"
+                  },
+                  "currency": "USD",
+                  "freight": "12.75",
+                  "invoice_id": "INV-TRIGGER-91",
+                  "invoice_version": "",
+                  "po_id": "PO-TRIGGER-63",
+                  "quantity": "3",
+                  "receiving_version": "",
+                  "total": "140.25",
+                  "unit_price": "42.50",
+                  "vendor_id": "V-6"
+                },
+                "result_value": "140.25",
+                "source_version": null,
+                "status": "applied",
+                "step_id": "invoice-reconcile"
+              }
+            ],
+            "recovery_marker": {
+              "at": 1794040923.799582,
+              "claim_token": "opaque-proof-1",
+              "claimed_at": "2026-11-07T08:42:03.799685+00:00",
+              "finished_at": "2026-11-07T08:42:03.845770+00:00",
+              "key": "785ffe3d4908abe94872",
+              "observation_ids": [
+                "evidence-53d4b872856f0bc8a5d2",
+                "evidence-e1c6ca6bcac62ee3eaf3",
+                "evidence-f65ad99599390180452b"
+              ],
+              "owner": "instance_id:227579321b2c.29277.1794040923",
+              "owner_process": {
+                "host": "MacBook-Pro.local",
+                "os_process_start": "ps:Sat Nov  7 03:42:02 2026",
+                "pid": 29277,
+                "process_started_at": "2026-11-07T08:42:03.788057+00:00",
+                "token": "opaque-proof-2"
+              },
+              "retained_at": "2026-11-07T08:42:03.803045+00:00",
+              "rounds": [
+                {
+                  "adoption_status": "applied",
+                  "decision": "replan",
+                  "execution_status": "completed",
+                  "source": "model"
+                }
+              ],
+              "status": "completed",
+              "ttl": 240.0
+            },
+            "run_id": "3c78b43c-ee6a-4948-87de-20c43dd0d3a4",
+            "source_response": {
+              "assignment": {
+                "assignment": {
+                  "assignment_id": "asg-84ca2e1e188e4156",
+                  "authorized_actions": [
+                    "calculate",
+                    "retrieve"
+                  ],
+                  "budget": {
+                    "active_wait": null,
+                    "cost_mode": "hard",
+                    "cost_overrun_usd": 0.0,
+                    "cost_reservations": [],
+                    "cost_usd": 0.0,
+                    "cost_violation": null,
+                    "deadline": null,
+                    "elapsed_seconds": 0.0,
+                    "idle_intervals": {},
+                    "idle_ledger_schema": 2,
+                    "max_attempts_per_step": 3,
+                    "max_cost_usd": 0.0,
+                    "max_steps": 9,
+                    "max_wall_seconds": 900.0,
+                    "paused_seconds": 0.0,
+                    "reserved_cost_usd": 0.0,
+                    "soft_limit_authorized_by": null,
+                    "soft_limit_exceeded": false,
+                    "started_at": "2026-11-07T08:42:01.089708+00:00",
+                    "steps_started": 4,
+                    "wait_credits": {},
+                    "wait_credits_schema": 1,
+                    "waiting_since": null,
+                    "wall_seconds": 4.143,
+                    "working_seconds": 4.143
+                  },
+                  "business_requirements": [],
+                  "completed_at": "2026-11-07T08:42:03.837504+00:00",
+                  "created_at": "2026-11-07T08:42:01.079360+00:00",
+                  "deliverables": [],
+                  "effective_lesson_ids": [],
+                  "employee_id": "lead-1",
+                  "mapping_history": [],
+                  "mappings": [],
+                  "objective": "Reconcile invoice INV-TRIGGER-91 for PO-TRIGGER-63",
+                  "plan_revision": 4,
+                  "progress": {
+                    "completed_steps": 4,
+                    "failed_steps": 0,
+                    "open_gap_count": 0,
+                    "required_steps": 4,
+                    "total_steps": 4,
+                    "uncertain_steps": 0,
+                    "waiting_steps": 0
+                  },
+                  "sources": [
+                    {
+                      "binding": {
+                        "access_scope": {
+                          "tenant_id": "tenant-1",
+                          "user_id": "lead-1",
+                          "workspace_id": "ws-1"
+                        },
+                        "columns": [],
+                        "coverage": {
+                          "controlled_fixture": true,
+                          "known": true,
+                          "truncated": false
+                        },
+                        "dataset_name": null,
+                        "external_id": null,
+                        "internal_fixture": true,
+                        "numeric_columns": [],
+                        "original_file_name": "po.json",
+                        "representation": "file",
+                        "resource_id": "fixture:po.json",
+                        "row_count": null,
+                        "sheet": null,
+                        "source": null,
+                        "source_kind": null,
+                        "source_version": "c9eff4050eefaa424619c80976beec0b9515aaffdc733933fcab2c5745e3d5a1",
+                        "tenant_id": "tenant-1",
+                        "workspace_id": "ws-1"
+                      },
+                      "internal_fixture": true,
+                      "kind": "document",
+                      "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-recovery-portable-b8rtisbf/pytest/test_actual_process_restart_re0/process-world/sources/po.json"
+                    },
+                    {
+                      "binding": {
+                        "access_scope": {
+                          "tenant_id": "tenant-1",
+                          "user_id": "lead-1",
+                          "workspace_id": "ws-1"
+                        },
+                        "columns": [],
+                        "coverage": {
+                          "controlled_fixture": true,
+                          "known": true,
+                          "truncated": false
+                        },
+                        "dataset_name": null,
+                        "external_id": null,
+                        "internal_fixture": true,
+                        "numeric_columns": [],
+                        "original_file_name": "receiving.json",
+                        "representation": "file",
+                        "resource_id": "fixture:receiving.json",
+                        "row_count": null,
+                        "sheet": null,
+                        "source": null,
+                        "source_kind": null,
+                        "source_version": "0e0babec0f1797bf8624dbb34653ab0c7b91d3e8ea1c728858b536bfee1e2b81",
+                        "tenant_id": "tenant-1",
+                        "workspace_id": "ws-1"
+                      },
+                      "internal_fixture": true,
+                      "kind": "document",
+                      "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-recovery-portable-b8rtisbf/pytest/test_actual_process_restart_re0/process-world/sources/receiving.json"
+                    }
+                  ],
+                  "standing_authority": null,
+                  "status": "completed",
+                  "steps": [
+                    {
+                      "adapter": "document.read",
+                      "approval_request": {},
+                      "artifact_revision": null,
+                      "attempts": 0,
+                      "depends_on": [],
+                      "effect": "read_only",
+                      "external_response": {},
+                      "failure": {},
+                      "gap_ids": [],
+                      "operation_id": "70b4dbe6-b9cd-4f9a-ba45-cee882d60df6",
+                      "operation_type": "retrieve",
+                      "prior_result_count": 0,
+                      "readiness": null,
+                      "recovery_class": "terminal",
+                      "required": true,
+                      "result_measure": null,
+                      "result_summary": "read structured po.json",
+                      "result_unit": null,
+                      "result_value": null,
+                      "standing_authority_receipt": {},
+                      "status": "applied",
+                      "step_id": "source-1",
+                      "title": "Read po.json",
+                      "waiting": {}
+                    },
+                    {
+                      "adapter": "document.read",
+                      "approval_request": {},
+                      "artifact_revision": null,
+                      "attempts": 0,
+                      "depends_on": [],
+                      "effect": "read_only",
+                      "external_response": {},
+                      "failure": {},
+                      "gap_ids": [],
+                      "operation_id": "a03b7a5f-a5ee-46a5-8cf1-e7a801e84635",
+                      "operation_type": "retrieve",
+                      "prior_result_count": 0,
+                      "readiness": null,
+                      "recovery_class": "terminal",
+                      "required": true,
+                      "result_measure": null,
+                      "result_summary": "read structured receiving.json",
+                      "result_unit": null,
+                      "result_value": null,
+                      "standing_authority_receipt": {},
+                      "status": "applied",
+                      "step_id": "source-2",
+                      "title": "Read receiving.json",
+                      "waiting": {}
+                    },
+                    {
+                      "adapter": "document.read",
+                      "approval_request": {},
+                      "artifact_revision": null,
+                      "attempts": 0,
+                      "depends_on": [],
+                      "effect": "read_only",
+                      "external_response": {},
+                      "failure": {},
+                      "gap_ids": [],
+                      "operation_id": "b49209bc-abc0-4fb5-8ee9-9a0ef095a1ba",
+                      "operation_type": "retrieve",
+                      "prior_result_count": 0,
+                      "readiness": null,
+                      "recovery_class": "terminal",
+                      "required": true,
+                      "result_measure": null,
+                      "result_summary": "read structured invoice.json",
+                      "result_unit": null,
+                      "result_value": null,
+                      "standing_authority_receipt": {},
+                      "status": "applied",
+                      "step_id": "source-3",
+                      "title": "Read invoice.json",
+                      "waiting": {}
+                    },
+                    {
+                      "adapter": "invoice.reconcile",
+                      "approval_request": {},
+                      "artifact_revision": null,
+                      "attempts": 0,
+                      "depends_on": [
+                        "source-3",
+                        "source-1",
+                        "source-2"
+                      ],
+                      "effect": "local",
+                      "external_response": {},
+                      "failure": {},
+                      "gap_ids": [],
+                      "operation_id": "160c4045-522e-4d9c-aa5d-a50f3bab50e8",
+                      "operation_type": "calculate",
+                      "prior_result_count": 0,
+                      "readiness": null,
+                      "recovery_class": "terminal",
+                      "required": true,
+                      "result_measure": null,
+                      "result_summary": "reconciled invoice total 140.25 USD against received quantity 3",
+                      "result_unit": "USD",
+                      "result_value": "140.25",
+                      "standing_authority_receipt": {},
+                      "status": "applied",
+                      "step_id": "invoice-reconcile",
+                      "title": "Reconcile invoice against purchase and receiving evidence",
+                      "waiting": {}
+                    }
+                  ],
+                  "teaching_fingerprint": "3de6ef5a83f1fc4a8eaaf5e90be0f2d5",
+                  "teaching_history": [],
+                  "teaching_revision": "untrained",
+                  "updated_at": "2026-11-07T08:42:03.837503+00:00",
+                  "workspace_id": "ws-1"
+                },
+                "open_gaps": [],
+                "operations": [
+                  {
+                    "approval": {},
+                    "needs_reconciliation": false,
+                    "operation_id": "70b4dbe6-b9cd-4f9a-ba45-cee882d60df6",
+                    "provider_ref": null,
+                    "remote_id": null,
+                    "result_summary": "read structured po.json",
+                    "status": "applied",
+                    "step_id": "source-1",
+                    "type": "retrieve",
+                    "uncertainty_reason": null
+                  },
+                  {
+                    "approval": {},
+                    "needs_reconciliation": false,
+                    "operation_id": "a03b7a5f-a5ee-46a5-8cf1-e7a801e84635",
+                    "provider_ref": null,
+                    "remote_id": null,
+                    "result_summary": "read structured receiving.json",
+                    "status": "applied",
+                    "step_id": "source-2",
+                    "type": "retrieve",
+                    "uncertainty_reason": null
+                  },
+                  {
+                    "approval": {},
+                    "needs_reconciliation": false,
+                    "operation_id": "b49209bc-abc0-4fb5-8ee9-9a0ef095a1ba",
+                    "provider_ref": null,
+                    "remote_id": null,
+                    "result_summary": "read structured invoice.json",
+                    "status": "applied",
+                    "step_id": "source-3",
+                    "type": "retrieve",
+                    "uncertainty_reason": null
+                  },
+                  {
+                    "approval": {},
+                    "needs_reconciliation": false,
+                    "operation_id": "160c4045-522e-4d9c-aa5d-a50f3bab50e8",
+                    "provider_ref": null,
+                    "remote_id": null,
+                    "result_summary": "reconciled invoice total 140.25 USD against received quantity 3",
+                    "status": "applied",
+                    "step_id": "invoice-reconcile",
+                    "type": "calculate",
+                    "uncertainty_reason": null
+                  }
+                ],
+                "run_id": "3c78b43c-ee6a-4948-87de-20c43dd0d3a4"
+              },
+              "continuation_rounds": [],
+              "mismatched_question_ids": [],
+              "observed_purchase_order": "PO-TRIGGER-63",
+              "reason": "the authorized source version is already present",
+              "reassessment_rounds": [],
+              "resolved_question_ids": [],
+              "status": "already_present",
+              "step_id": "source-3"
+            },
+            "source_response_status": 200,
+            "source_steps": [
+              {
+                "adapter": "document.read",
+                "operation_id": "70b4dbe6-b9cd-4f9a-ba45-cee882d60df6",
+                "prior_results": 0,
+                "result_data": {
+                  "currency": "USD",
+                  "freight": "12.75",
+                  "po_id": "PO-TRIGGER-63",
+                  "quantity": "3",
+                  "unit_price": "42.50",
+                  "vendor_id": "V-6"
+                },
+                "result_value": null,
+                "source_version": "c9eff4050eefaa424619c80976beec0b9515aaffdc733933fcab2c5745e3d5a1",
+                "status": "applied",
+                "step_id": "source-1"
+              },
+              {
+                "adapter": "document.read",
+                "operation_id": "a03b7a5f-a5ee-46a5-8cf1-e7a801e84635",
+                "prior_results": 0,
+                "result_data": {
+                  "po_id": "PO-TRIGGER-63",
+                  "received_quantity": "3"
+                },
+                "result_value": null,
+                "source_version": "0e0babec0f1797bf8624dbb34653ab0c7b91d3e8ea1c728858b536bfee1e2b81",
+                "status": "applied",
+                "step_id": "source-2"
+              },
+              {
+                "adapter": "document.read",
+                "operation_id": "b49209bc-abc0-4fb5-8ee9-9a0ef095a1ba",
+                "prior_results": 0,
+                "result_data": {
+                  "currency": "USD",
+                  "freight": "12.75",
+                  "invoice_id": "INV-TRIGGER-91",
+                  "po_id": "PO-TRIGGER-63",
+                  "quantity": "3",
+                  "unit_price": "42.50"
+                },
+                "result_value": null,
+                "source_version": "3bad6e9388d0efabbcec678dc95c21d6e4721c031ae24374501a2166d3a58d9f",
+                "status": "applied",
+                "step_id": "source-3"
+              }
+            ],
+            "status": "completed",
+            "steps": [
+              {
+                "adapter": "document.read",
+                "operation_id": "70b4dbe6-b9cd-4f9a-ba45-cee882d60df6",
+                "prior_results": 0,
+                "result_data": {
+                  "currency": "USD",
+                  "freight": "12.75",
+                  "po_id": "PO-TRIGGER-63",
+                  "quantity": "3",
+                  "unit_price": "42.50",
+                  "vendor_id": "V-6"
+                },
+                "result_value": null,
+                "source_version": "c9eff4050eefaa424619c80976beec0b9515aaffdc733933fcab2c5745e3d5a1",
+                "status": "applied",
+                "step_id": "source-1"
+              },
+              {
+                "adapter": "document.read",
+                "operation_id": "a03b7a5f-a5ee-46a5-8cf1-e7a801e84635",
+                "prior_results": 0,
+                "result_data": {
+                  "po_id": "PO-TRIGGER-63",
+                  "received_quantity": "3"
+                },
+                "result_value": null,
+                "source_version": "0e0babec0f1797bf8624dbb34653ab0c7b91d3e8ea1c728858b536bfee1e2b81",
+                "status": "applied",
+                "step_id": "source-2"
+              },
+              {
+                "adapter": "document.read",
+                "operation_id": "b49209bc-abc0-4fb5-8ee9-9a0ef095a1ba",
+                "prior_results": 0,
+                "result_data": {
+                  "currency": "USD",
+                  "freight": "12.75",
+                  "invoice_id": "INV-TRIGGER-91",
+                  "po_id": "PO-TRIGGER-63",
+                  "quantity": "3",
+                  "unit_price": "42.50"
+                },
+                "result_value": null,
+                "source_version": "3bad6e9388d0efabbcec678dc95c21d6e4721c031ae24374501a2166d3a58d9f",
+                "status": "applied",
+                "step_id": "source-3"
+              },
+              {
+                "adapter": "invoice.reconcile",
+                "operation_id": "160c4045-522e-4d9c-aa5d-a50f3bab50e8",
+                "prior_results": 0,
+                "result_data": {
+                  "bill": {
+                    "currency": "USD",
+                    "freight": "12.75",
+                    "invoice_id": "INV-TRIGGER-91",
+                    "po_id": "PO-TRIGGER-63",
+                    "quantity": "3",
+                    "total": "140.25",
+                    "unit_price": "42.50",
+                    "vendor_id": "V-6"
+                  },
+                  "currency": "USD",
+                  "freight": "12.75",
+                  "invoice_id": "INV-TRIGGER-91",
+                  "invoice_version": "",
+                  "po_id": "PO-TRIGGER-63",
+                  "quantity": "3",
+                  "receiving_version": "",
+                  "total": "140.25",
+                  "unit_price": "42.50",
+                  "vendor_id": "V-6"
+                },
+                "result_value": "140.25",
+                "source_version": null,
+                "status": "applied",
+                "step_id": "invoice-reconcile"
+              }
+            ],
+            "unresolved": [
+              {
+                "affected_subjects": [],
+                "attempts": 0,
+                "checked_evidence": [],
+                "concept": "invoice_reconciliation",
+                "decision_owner": null,
+                "evidence": "",
+                "inputs": {
+                  "known_identities": {
+                    "purchase_order.po_id": "PO-TRIGGER-63",
+                    "purchase_order.vendor_id": "V-6",
+                    "receiving.po_id": "PO-TRIGGER-63"
+                  },
+                  "missing": [
+                    "invoice"
+                  ],
+                  "operation": "invoice_reconciliation"
+                },
+                "item": "invoice reconciliation",
+                "kind": "missing_evidence",
+                "next_action": "Confirm the missing business fact.",
+                "next_retrieval": "Which authorized source contains invoice INV-TRIGGER-91 for purchase order PO-TRIGGER-63?",
+                "opened_at": "2026-11-07T08:42:01.248956+00:00",
+                "question": "Which authorized source contains invoice INV-TRIGGER-91 for purchase order PO-TRIGGER-63?",
+                "question_id": "e347550d-72c1-4c21-8771-1e873c2caabf",
+                "reason": "invoice reconciliation",
+                "resolution": "authorized source fixture:invoice.json version 3bad6e9388d0efabbcec678dc95c21d6e4721c031ae24374501a2166d3a58d9f made the capability ready",
+                "resolution_value": "authorized source fixture:invoice.json version 3bad6e9388d0efabbcec678dc95c21d6e4721c031ae24374501a2166d3a58d9f made the capability ready",
+                "resolved_at": "2026-11-07T08:42:02.794574+00:00",
+                "resolver": null,
+                "source_operation": null,
+                "status": "resolved",
+                "step_id": null,
+                "waiting": null
+              }
+            ]
+          }
+        },
+        {
+          "file": "source-interrupt-29230-1794040921797849000-checkpoint.json",
+          "state": {
+            "adaptation_call_log": [],
+            "adaptation_calls": 0,
+            "assignment_id": "asg-84ca2e1e188e4156",
+            "evidence_observations": [
+              {
+                "observation_id": "evidence-e1c6ca6bcac62ee3eaf3",
+                "shape": "structured",
+                "step_id": "source-1"
+              },
+              {
+                "observation_id": "evidence-53d4b872856f0bc8a5d2",
+                "shape": "structured",
+                "step_id": "source-2"
+              },
+              {
+                "observation_id": "evidence-f65ad99599390180452b",
+                "shape": "structured",
+                "step_id": "source-3"
+              }
+            ],
+            "interrupted_stage": "before_business_adaptation",
+            "objective": "Reconcile invoice INV-TRIGGER-91 for PO-TRIGGER-63",
+            "open_questions": [],
+            "phase": "source-interrupt",
+            "pid": 29274,
+            "plan_revision": 3,
+            "provenance": {
+              "agent_id": null,
+              "authorized_source_count": 2,
+              "conversation_id": "chat-assignment-13e2f45c241d",
+              "objective_identities": {
+                "invoice_id": "INV-TRIGGER-91",
+                "po_id": "PO-TRIGGER-63"
+              },
+              "planner": "capability_registry",
+              "proposal_reason": "read authorized procurement records",
+              "proposal_source": "model",
+              "requester_id": "lead-1",
+              "run_id": "3c78b43c-ee6a-4948-87de-20c43dd0d3a4",
+              "source_fingerprint": "2df7e2d34d608378dac7eae7",
+              "source_kinds": [
+                "document"
+              ],
+              "started_from": "employee_objective",
+              "technical_fallback": false,
+              "use_model": true
+            },
+            "reconciliations": [],
+            "recovery_marker": {},
+            "run_id": "3c78b43c-ee6a-4948-87de-20c43dd0d3a4",
+            "source_steps": [
+              {
+                "adapter": "document.read",
+                "operation_id": "70b4dbe6-b9cd-4f9a-ba45-cee882d60df6",
+                "prior_results": 0,
+                "result_data": {
+                  "currency": "USD",
+                  "freight": "12.75",
+                  "po_id": "PO-TRIGGER-63",
+                  "quantity": "3",
+                  "unit_price": "42.50",
+                  "vendor_id": "V-6"
+                },
+                "result_value": null,
+                "source_version": "c9eff4050eefaa424619c80976beec0b9515aaffdc733933fcab2c5745e3d5a1",
+                "status": "applied",
+                "step_id": "source-1"
+              },
+              {
+                "adapter": "document.read",
+                "operation_id": "a03b7a5f-a5ee-46a5-8cf1-e7a801e84635",
+                "prior_results": 0,
+                "result_data": {
+                  "po_id": "PO-TRIGGER-63",
+                  "received_quantity": "3"
+                },
+                "result_value": null,
+                "source_version": "0e0babec0f1797bf8624dbb34653ab0c7b91d3e8ea1c728858b536bfee1e2b81",
+                "status": "applied",
+                "step_id": "source-2"
+              },
+              {
+                "adapter": "document.read",
+                "operation_id": "b49209bc-abc0-4fb5-8ee9-9a0ef095a1ba",
+                "prior_results": 0,
+                "result_data": {
+                  "currency": "USD",
+                  "freight": "12.75",
+                  "invoice_id": "INV-TRIGGER-91",
+                  "po_id": "PO-TRIGGER-63",
+                  "quantity": "3",
+                  "unit_price": "42.50"
+                },
+                "result_value": null,
+                "source_version": "3bad6e9388d0efabbcec678dc95c21d6e4721c031ae24374501a2166d3a58d9f",
+                "status": "applied",
+                "step_id": "source-3"
+              }
+            ],
+            "status": "blocked",
+            "steps": [
+              {
+                "adapter": "document.read",
+                "operation_id": "70b4dbe6-b9cd-4f9a-ba45-cee882d60df6",
+                "prior_results": 0,
+                "result_data": {
+                  "currency": "USD",
+                  "freight": "12.75",
+                  "po_id": "PO-TRIGGER-63",
+                  "quantity": "3",
+                  "unit_price": "42.50",
+                  "vendor_id": "V-6"
+                },
+                "result_value": null,
+                "source_version": "c9eff4050eefaa424619c80976beec0b9515aaffdc733933fcab2c5745e3d5a1",
+                "status": "applied",
+                "step_id": "source-1"
+              },
+              {
+                "adapter": "document.read",
+                "operation_id": "a03b7a5f-a5ee-46a5-8cf1-e7a801e84635",
+                "prior_results": 0,
+                "result_data": {
+                  "po_id": "PO-TRIGGER-63",
+                  "received_quantity": "3"
+                },
+                "result_value": null,
+                "source_version": "0e0babec0f1797bf8624dbb34653ab0c7b91d3e8ea1c728858b536bfee1e2b81",
+                "status": "applied",
+                "step_id": "source-2"
+              },
+              {
+                "adapter": "document.read",
+                "operation_id": "b49209bc-abc0-4fb5-8ee9-9a0ef095a1ba",
+                "prior_results": 0,
+                "result_data": {
+                  "currency": "USD",
+                  "freight": "12.75",
+                  "invoice_id": "INV-TRIGGER-91",
+                  "po_id": "PO-TRIGGER-63",
+                  "quantity": "3",
+                  "unit_price": "42.50"
+                },
+                "result_value": null,
+                "source_version": "3bad6e9388d0efabbcec678dc95c21d6e4721c031ae24374501a2166d3a58d9f",
+                "status": "applied",
+                "step_id": "source-3"
+              }
+            ],
+            "unresolved": [
+              {
+                "affected_subjects": [],
+                "attempts": 0,
+                "checked_evidence": [],
+                "concept": "invoice_reconciliation",
+                "decision_owner": null,
+                "evidence": "",
+                "inputs": {
+                  "known_identities": {
+                    "purchase_order.po_id": "PO-TRIGGER-63",
+                    "purchase_order.vendor_id": "V-6",
+                    "receiving.po_id": "PO-TRIGGER-63"
+                  },
+                  "missing": [
+                    "invoice"
+                  ],
+                  "operation": "invoice_reconciliation"
+                },
+                "item": "invoice reconciliation",
+                "kind": "missing_evidence",
+                "next_action": "Confirm the missing business fact.",
+                "next_retrieval": "Which authorized source contains invoice INV-TRIGGER-91 for purchase order PO-TRIGGER-63?",
+                "opened_at": "2026-11-07T08:42:01.248956+00:00",
+                "question": "Which authorized source contains invoice INV-TRIGGER-91 for purchase order PO-TRIGGER-63?",
+                "question_id": "e347550d-72c1-4c21-8771-1e873c2caabf",
+                "reason": "invoice reconciliation",
+                "resolution": "authorized source fixture:invoice.json version 3bad6e9388d0efabbcec678dc95c21d6e4721c031ae24374501a2166d3a58d9f made the capability ready",
+                "resolution_value": "authorized source fixture:invoice.json version 3bad6e9388d0efabbcec678dc95c21d6e4721c031ae24374501a2166d3a58d9f made the capability ready",
+                "resolved_at": "2026-11-07T08:42:02.794574+00:00",
+                "resolver": null,
+                "source_operation": null,
+                "status": "resolved",
+                "step_id": null,
+                "waiting": null
+              }
+            ]
+          }
+        },
+        {
+          "file": "start-29230-1794040920044210000.json",
+          "state": {
+            "adaptation_call_log": [
+              {
+                "at": 1794040921.2480729,
+                "business_roles": [
+                  "purchase_order",
+                  "receiving"
+                ],
+                "observation_ids": [
+                  "evidence-e1c6ca6bcac62ee3eaf3",
+                  "evidence-53d4b872856f0bc8a5d2"
+                ],
+                "pid": 29263
+              }
+            ],
+            "adaptation_calls": 1,
+            "assignment_id": "asg-84ca2e1e188e4156",
+            "evidence_observations": [
+              {
+                "observation_id": "evidence-e1c6ca6bcac62ee3eaf3",
+                "shape": "structured",
+                "step_id": "source-1"
+              },
+              {
+                "observation_id": "evidence-53d4b872856f0bc8a5d2",
+                "shape": "structured",
+                "step_id": "source-2"
+              }
+            ],
+            "objective": "Reconcile invoice INV-TRIGGER-91 for PO-TRIGGER-63",
+            "open_questions": [
+              {
+                "kind": "missing_evidence",
+                "operation": "invoice_reconciliation",
+                "question_id": "e347550d-72c1-4c21-8771-1e873c2caabf"
+              }
+            ],
+            "phase": "start",
+            "pid": 29263,
+            "plan_revision": 2,
+            "provenance": {
+              "agent_id": null,
+              "authorized_source_count": 2,
+              "conversation_id": "chat-assignment-13e2f45c241d",
+              "objective_identities": {
+                "invoice_id": "INV-TRIGGER-91",
+                "po_id": "PO-TRIGGER-63"
+              },
+              "planner": "capability_registry",
+              "proposal_reason": "read authorized procurement records",
+              "proposal_source": "model",
+              "requester_id": "lead-1",
+              "run_id": "3c78b43c-ee6a-4948-87de-20c43dd0d3a4",
+              "source_fingerprint": "2df7e2d34d608378dac7eae7",
+              "source_kinds": [
+                "document"
+              ],
+              "started_from": "employee_objective",
+              "technical_fallback": false,
+              "use_model": true
+            },
+            "reconciliations": [],
+            "recovery_marker": {},
+            "run_id": "3c78b43c-ee6a-4948-87de-20c43dd0d3a4",
+            "source_steps": [
+              {
+                "adapter": "document.read",
+                "operation_id": "70b4dbe6-b9cd-4f9a-ba45-cee882d60df6",
+                "prior_results": 0,
+                "result_data": {
+                  "currency": "USD",
+                  "freight": "12.75",
+                  "po_id": "PO-TRIGGER-63",
+                  "quantity": "3",
+                  "unit_price": "42.50",
+                  "vendor_id": "V-6"
+                },
+                "result_value": null,
+                "source_version": "c9eff4050eefaa424619c80976beec0b9515aaffdc733933fcab2c5745e3d5a1",
+                "status": "applied",
+                "step_id": "source-1"
+              },
+              {
+                "adapter": "document.read",
+                "operation_id": "a03b7a5f-a5ee-46a5-8cf1-e7a801e84635",
+                "prior_results": 0,
+                "result_data": {
+                  "po_id": "PO-TRIGGER-63",
+                  "received_quantity": "3"
+                },
+                "result_value": null,
+                "source_version": "0e0babec0f1797bf8624dbb34653ab0c7b91d3e8ea1c728858b536bfee1e2b81",
+                "status": "applied",
+                "step_id": "source-2"
+              }
+            ],
+            "status": "blocked",
+            "steps": [
+              {
+                "adapter": "document.read",
+                "operation_id": "70b4dbe6-b9cd-4f9a-ba45-cee882d60df6",
+                "prior_results": 0,
+                "result_data": {
+                  "currency": "USD",
+                  "freight": "12.75",
+                  "po_id": "PO-TRIGGER-63",
+                  "quantity": "3",
+                  "unit_price": "42.50",
+                  "vendor_id": "V-6"
+                },
+                "result_value": null,
+                "source_version": "c9eff4050eefaa424619c80976beec0b9515aaffdc733933fcab2c5745e3d5a1",
+                "status": "applied",
+                "step_id": "source-1"
+              },
+              {
+                "adapter": "document.read",
+                "operation_id": "a03b7a5f-a5ee-46a5-8cf1-e7a801e84635",
+                "prior_results": 0,
+                "result_data": {
+                  "po_id": "PO-TRIGGER-63",
+                  "received_quantity": "3"
+                },
+                "result_value": null,
+                "source_version": "0e0babec0f1797bf8624dbb34653ab0c7b91d3e8ea1c728858b536bfee1e2b81",
+                "status": "applied",
+                "step_id": "source-2"
+              }
+            ],
+            "unresolved": [
+              {
+                "affected_subjects": [],
+                "attempts": 0,
+                "checked_evidence": [],
+                "concept": "invoice_reconciliation",
+                "decision_owner": null,
+                "evidence": "",
+                "inputs": {
+                  "known_identities": {
+                    "purchase_order.po_id": "PO-TRIGGER-63",
+                    "purchase_order.vendor_id": "V-6",
+                    "receiving.po_id": "PO-TRIGGER-63"
+                  },
+                  "missing": [
+                    "invoice"
+                  ],
+                  "operation": "invoice_reconciliation"
+                },
+                "item": "invoice reconciliation",
+                "kind": "missing_evidence",
+                "next_action": "Confirm the missing business fact.",
+                "next_retrieval": "Which authorized source contains invoice INV-TRIGGER-91 for purchase order PO-TRIGGER-63?",
+                "opened_at": "2026-11-07T08:42:01.248956+00:00",
+                "question": "Which authorized source contains invoice INV-TRIGGER-91 for purchase order PO-TRIGGER-63?",
+                "question_id": "e347550d-72c1-4c21-8771-1e873c2caabf",
+                "reason": "invoice reconciliation",
+                "resolution": null,
+                "resolved_at": null,
+                "resolver": null,
+                "source_operation": null,
+                "status": "open",
+                "step_id": null,
+                "waiting": null
+              }
+            ]
+          }
+        },
+        {
+          "file": "startup-recover-29230-1794040922800869000.json",
+          "state": {
+            "adaptation_call_log": [
+              {
+                "at": 1794040923.808533,
+                "business_roles": [
+                  "invoice",
+                  "purchase_order",
+                  "receiving"
+                ],
+                "observation_ids": [
+                  "evidence-e1c6ca6bcac62ee3eaf3",
+                  "evidence-53d4b872856f0bc8a5d2",
+                  "evidence-f65ad99599390180452b"
+                ],
+                "pid": 29277
+              }
+            ],
+            "adaptation_calls": 1,
+            "assignment_id": "asg-84ca2e1e188e4156",
+            "evidence_observations": [],
+            "objective": "Reconcile invoice INV-TRIGGER-91 for PO-TRIGGER-63",
+            "open_questions": [],
+            "phase": "startup-recover",
+            "pid": 29277,
+            "plan_revision": 4,
+            "provenance": {
+              "agent_id": null,
+              "authorized_source_count": 2,
+              "conversation_id": "chat-assignment-13e2f45c241d",
+              "objective_identities": {
+                "invoice_id": "INV-TRIGGER-91",
+                "po_id": "PO-TRIGGER-63"
+              },
+              "planner": "capability_registry",
+              "proposal_reason": "read authorized procurement records",
+              "proposal_source": "model",
+              "requester_id": "lead-1",
+              "run_id": "3c78b43c-ee6a-4948-87de-20c43dd0d3a4",
+              "source_fingerprint": "2df7e2d34d608378dac7eae7",
+              "source_kinds": [
+                "document"
+              ],
+              "started_from": "employee_objective",
+              "technical_fallback": false,
+              "use_model": true
+            },
+            "reconciliations": [
+              {
+                "adapter": "invoice.reconcile",
+                "operation_id": "160c4045-522e-4d9c-aa5d-a50f3bab50e8",
+                "prior_results": 0,
+                "result_data": {
+                  "bill": {
+                    "currency": "USD",
+                    "freight": "12.75",
+                    "invoice_id": "INV-TRIGGER-91",
+                    "po_id": "PO-TRIGGER-63",
+                    "quantity": "3",
+                    "total": "140.25",
+                    "unit_price": "42.50",
+                    "vendor_id": "V-6"
+                  },
+                  "currency": "USD",
+                  "freight": "12.75",
+                  "invoice_id": "INV-TRIGGER-91",
+                  "invoice_version": "",
+                  "po_id": "PO-TRIGGER-63",
+                  "quantity": "3",
+                  "receiving_version": "",
+                  "total": "140.25",
+                  "unit_price": "42.50",
+                  "vendor_id": "V-6"
+                },
+                "result_value": "140.25",
+                "source_version": null,
+                "status": "applied",
+                "step_id": "invoice-reconcile"
+              }
+            ],
+            "recovery_marker": {
+              "at": 1794040923.799582,
+              "claim_token": "opaque-proof-1",
+              "claimed_at": "2026-11-07T08:42:03.799685+00:00",
+              "finished_at": "2026-11-07T08:42:03.845770+00:00",
+              "key": "785ffe3d4908abe94872",
+              "observation_ids": [
+                "evidence-53d4b872856f0bc8a5d2",
+                "evidence-e1c6ca6bcac62ee3eaf3",
+                "evidence-f65ad99599390180452b"
+              ],
+              "owner": "instance_id:227579321b2c.29277.1794040923",
+              "owner_process": {
+                "host": "MacBook-Pro.local",
+                "os_process_start": "ps:Sat Nov  7 03:42:02 2026",
+                "pid": 29277,
+                "process_started_at": "2026-11-07T08:42:03.788057+00:00",
+                "token": "opaque-proof-2"
+              },
+              "retained_at": "2026-11-07T08:42:03.803045+00:00",
+              "rounds": [
+                {
+                  "adoption_status": "applied",
+                  "decision": "replan",
+                  "execution_status": "completed",
+                  "source": "model"
+                }
+              ],
+              "status": "completed",
+              "ttl": 240.0
+            },
+            "recovery_results": [
+              {
+                "assignment": {
+                  "assignment_id": "asg-84ca2e1e188e4156",
+                  "authorized_actions": [
+                    "calculate",
+                    "retrieve"
+                  ],
+                  "budget": {
+                    "active_wait": null,
+                    "cost_mode": "hard",
+                    "cost_overrun_usd": 0.0,
+                    "cost_reservations": [],
+                    "cost_usd": 0.0,
+                    "cost_violation": null,
+                    "deadline": null,
+                    "elapsed_seconds": 0.0,
+                    "idle_intervals": {},
+                    "idle_ledger_schema": 2,
+                    "max_attempts_per_step": 3,
+                    "max_cost_usd": 0.0,
+                    "max_steps": 9,
+                    "max_wall_seconds": 900.0,
+                    "paused_seconds": 0.0,
+                    "reserved_cost_usd": 0.0,
+                    "soft_limit_authorized_by": null,
+                    "soft_limit_exceeded": false,
+                    "started_at": "2026-11-07T08:42:01.089708+00:00",
+                    "steps_started": 4,
+                    "wait_credits": {},
+                    "wait_credits_schema": 1,
+                    "waiting_since": null,
+                    "wall_seconds": 2.763,
+                    "working_seconds": 2.763
+                  },
+                  "business_requirements": [],
+                  "completed_at": "2026-11-07T08:42:03.837504+00:00",
+                  "created_at": "2026-11-07T08:42:01.079360+00:00",
+                  "deliverables": [],
+                  "effective_lesson_ids": [],
+                  "employee_id": "lead-1",
+                  "mapping_history": [],
+                  "mappings": [],
+                  "objective": "Reconcile invoice INV-TRIGGER-91 for PO-TRIGGER-63",
+                  "plan_revision": 4,
+                  "progress": {
+                    "completed_steps": 4,
+                    "failed_steps": 0,
+                    "open_gap_count": 0,
+                    "required_steps": 4,
+                    "total_steps": 4,
+                    "uncertain_steps": 0,
+                    "waiting_steps": 0
+                  },
+                  "sources": [
+                    {
+                      "binding": {
+                        "access_scope": {
+                          "tenant_id": "tenant-1",
+                          "user_id": "lead-1",
+                          "workspace_id": "ws-1"
+                        },
+                        "columns": [],
+                        "coverage": {
+                          "controlled_fixture": true,
+                          "known": true,
+                          "truncated": false
+                        },
+                        "dataset_name": null,
+                        "external_id": null,
+                        "internal_fixture": true,
+                        "numeric_columns": [],
+                        "original_file_name": "po.json",
+                        "representation": "file",
+                        "resource_id": "fixture:po.json",
+                        "row_count": null,
+                        "sheet": null,
+                        "source": null,
+                        "source_kind": null,
+                        "source_version": "c9eff4050eefaa424619c80976beec0b9515aaffdc733933fcab2c5745e3d5a1",
+                        "tenant_id": "tenant-1",
+                        "workspace_id": "ws-1"
+                      },
+                      "internal_fixture": true,
+                      "kind": "document",
+                      "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-recovery-portable-b8rtisbf/pytest/test_actual_process_restart_re0/process-world/sources/po.json"
+                    },
+                    {
+                      "binding": {
+                        "access_scope": {
+                          "tenant_id": "tenant-1",
+                          "user_id": "lead-1",
+                          "workspace_id": "ws-1"
+                        },
+                        "columns": [],
+                        "coverage": {
+                          "controlled_fixture": true,
+                          "known": true,
+                          "truncated": false
+                        },
+                        "dataset_name": null,
+                        "external_id": null,
+                        "internal_fixture": true,
+                        "numeric_columns": [],
+                        "original_file_name": "receiving.json",
+                        "representation": "file",
+                        "resource_id": "fixture:receiving.json",
+                        "row_count": null,
+                        "sheet": null,
+                        "source": null,
+                        "source_kind": null,
+                        "source_version": "0e0babec0f1797bf8624dbb34653ab0c7b91d3e8ea1c728858b536bfee1e2b81",
+                        "tenant_id": "tenant-1",
+                        "workspace_id": "ws-1"
+                      },
+                      "internal_fixture": true,
+                      "kind": "document",
+                      "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-recovery-portable-b8rtisbf/pytest/test_actual_process_restart_re0/process-world/sources/receiving.json"
+                    }
+                  ],
+                  "standing_authority": null,
+                  "status": "completed",
+                  "steps": [
+                    {
+                      "adapter": "document.read",
+                      "approval_request": {},
+                      "artifact_revision": null,
+                      "attempts": 0,
+                      "depends_on": [],
+                      "effect": "read_only",
+                      "external_response": {},
+                      "failure": {},
+                      "gap_ids": [],
+                      "operation_id": "70b4dbe6-b9cd-4f9a-ba45-cee882d60df6",
+                      "operation_type": "retrieve",
+                      "prior_result_count": 0,
+                      "readiness": null,
+                      "recovery_class": "terminal",
+                      "required": true,
+                      "result_measure": null,
+                      "result_summary": "read structured po.json",
+                      "result_unit": null,
+                      "result_value": null,
+                      "standing_authority_receipt": {},
+                      "status": "applied",
+                      "step_id": "source-1",
+                      "title": "Read po.json",
+                      "waiting": {}
+                    },
+                    {
+                      "adapter": "document.read",
+                      "approval_request": {},
+                      "artifact_revision": null,
+                      "attempts": 0,
+                      "depends_on": [],
+                      "effect": "read_only",
+                      "external_response": {},
+                      "failure": {},
+                      "gap_ids": [],
+                      "operation_id": "a03b7a5f-a5ee-46a5-8cf1-e7a801e84635",
+                      "operation_type": "retrieve",
+                      "prior_result_count": 0,
+                      "readiness": null,
+                      "recovery_class": "terminal",
+                      "required": true,
+                      "result_measure": null,
+                      "result_summary": "read structured receiving.json",
+                      "result_unit": null,
+                      "result_value": null,
+                      "standing_authority_receipt": {},
+                      "status": "applied",
+                      "step_id": "source-2",
+                      "title": "Read receiving.json",
+                      "waiting": {}
+                    },
+                    {
+                      "adapter": "document.read",
+                      "approval_request": {},
+                      "artifact_revision": null,
+                      "attempts": 0,
+                      "depends_on": [],
+                      "effect": "read_only",
+                      "external_response": {},
+                      "failure": {},
+                      "gap_ids": [],
+                      "operation_id": "b49209bc-abc0-4fb5-8ee9-9a0ef095a1ba",
+                      "operation_type": "retrieve",
+                      "prior_result_count": 0,
+                      "readiness": null,
+                      "recovery_class": "terminal",
+                      "required": true,
+                      "result_measure": null,
+                      "result_summary": "read structured invoice.json",
+                      "result_unit": null,
+                      "result_value": null,
+                      "standing_authority_receipt": {},
+                      "status": "applied",
+                      "step_id": "source-3",
+                      "title": "Read invoice.json",
+                      "waiting": {}
+                    },
+                    {
+                      "adapter": "invoice.reconcile",
+                      "approval_request": {},
+                      "artifact_revision": null,
+                      "attempts": 0,
+                      "depends_on": [
+                        "source-3",
+                        "source-1",
+                        "source-2"
+                      ],
+                      "effect": "local",
+                      "external_response": {},
+                      "failure": {},
+                      "gap_ids": [],
+                      "operation_id": "160c4045-522e-4d9c-aa5d-a50f3bab50e8",
+                      "operation_type": "calculate",
+                      "prior_result_count": 0,
+                      "readiness": null,
+                      "recovery_class": "terminal",
+                      "required": true,
+                      "result_measure": null,
+                      "result_summary": "reconciled invoice total 140.25 USD against received quantity 3",
+                      "result_unit": "USD",
+                      "result_value": "140.25",
+                      "standing_authority_receipt": {},
+                      "status": "applied",
+                      "step_id": "invoice-reconcile",
+                      "title": "Reconcile invoice against purchase and receiving evidence",
+                      "waiting": {}
+                    }
+                  ],
+                  "teaching_fingerprint": "3de6ef5a83f1fc4a8eaaf5e90be0f2d5",
+                  "teaching_history": [],
+                  "teaching_revision": "untrained",
+                  "updated_at": "2026-11-07T08:42:03.837503+00:00",
+                  "workspace_id": "ws-1"
+                },
+                "open_gaps": [],
+                "operations": [
+                  {
+                    "approval": {},
+                    "needs_reconciliation": false,
+                    "operation_id": "70b4dbe6-b9cd-4f9a-ba45-cee882d60df6",
+                    "provider_ref": null,
+                    "remote_id": null,
+                    "result_summary": "read structured po.json",
+                    "status": "applied",
+                    "step_id": "source-1",
+                    "type": "retrieve",
+                    "uncertainty_reason": null
+                  },
+                  {
+                    "approval": {},
+                    "needs_reconciliation": false,
+                    "operation_id": "a03b7a5f-a5ee-46a5-8cf1-e7a801e84635",
+                    "provider_ref": null,
+                    "remote_id": null,
+                    "result_summary": "read structured receiving.json",
+                    "status": "applied",
+                    "step_id": "source-2",
+                    "type": "retrieve",
+                    "uncertainty_reason": null
+                  },
+                  {
+                    "approval": {},
+                    "needs_reconciliation": false,
+                    "operation_id": "b49209bc-abc0-4fb5-8ee9-9a0ef095a1ba",
+                    "provider_ref": null,
+                    "remote_id": null,
+                    "result_summary": "read structured invoice.json",
+                    "status": "applied",
+                    "step_id": "source-3",
+                    "type": "retrieve",
+                    "uncertainty_reason": null
+                  },
+                  {
+                    "approval": {},
+                    "needs_reconciliation": false,
+                    "operation_id": "160c4045-522e-4d9c-aa5d-a50f3bab50e8",
+                    "provider_ref": null,
+                    "remote_id": null,
+                    "result_summary": "reconciled invoice total 140.25 USD against received quantity 3",
+                    "status": "applied",
+                    "step_id": "invoice-reconcile",
+                    "type": "calculate",
+                    "uncertainty_reason": null
+                  }
+                ],
+                "run_id": "3c78b43c-ee6a-4948-87de-20c43dd0d3a4"
+              }
+            ],
+            "run_id": "3c78b43c-ee6a-4948-87de-20c43dd0d3a4",
+            "source_steps": [
+              {
+                "adapter": "document.read",
+                "operation_id": "70b4dbe6-b9cd-4f9a-ba45-cee882d60df6",
+                "prior_results": 0,
+                "result_data": {
+                  "currency": "USD",
+                  "freight": "12.75",
+                  "po_id": "PO-TRIGGER-63",
+                  "quantity": "3",
+                  "unit_price": "42.50",
+                  "vendor_id": "V-6"
+                },
+                "result_value": null,
+                "source_version": "c9eff4050eefaa424619c80976beec0b9515aaffdc733933fcab2c5745e3d5a1",
+                "status": "applied",
+                "step_id": "source-1"
+              },
+              {
+                "adapter": "document.read",
+                "operation_id": "a03b7a5f-a5ee-46a5-8cf1-e7a801e84635",
+                "prior_results": 0,
+                "result_data": {
+                  "po_id": "PO-TRIGGER-63",
+                  "received_quantity": "3"
+                },
+                "result_value": null,
+                "source_version": "0e0babec0f1797bf8624dbb34653ab0c7b91d3e8ea1c728858b536bfee1e2b81",
+                "status": "applied",
+                "step_id": "source-2"
+              },
+              {
+                "adapter": "document.read",
+                "operation_id": "b49209bc-abc0-4fb5-8ee9-9a0ef095a1ba",
+                "prior_results": 0,
+                "result_data": {
+                  "currency": "USD",
+                  "freight": "12.75",
+                  "invoice_id": "INV-TRIGGER-91",
+                  "po_id": "PO-TRIGGER-63",
+                  "quantity": "3",
+                  "unit_price": "42.50"
+                },
+                "result_value": null,
+                "source_version": "3bad6e9388d0efabbcec678dc95c21d6e4721c031ae24374501a2166d3a58d9f",
+                "status": "applied",
+                "step_id": "source-3"
+              }
+            ],
+            "startup_entrypoint": "core.assignment_recovery.recover_active_assignments_at_startup",
+            "status": "completed",
+            "steps": [
+              {
+                "adapter": "document.read",
+                "operation_id": "70b4dbe6-b9cd-4f9a-ba45-cee882d60df6",
+                "prior_results": 0,
+                "result_data": {
+                  "currency": "USD",
+                  "freight": "12.75",
+                  "po_id": "PO-TRIGGER-63",
+                  "quantity": "3",
+                  "unit_price": "42.50",
+                  "vendor_id": "V-6"
+                },
+                "result_value": null,
+                "source_version": "c9eff4050eefaa424619c80976beec0b9515aaffdc733933fcab2c5745e3d5a1",
+                "status": "applied",
+                "step_id": "source-1"
+              },
+              {
+                "adapter": "document.read",
+                "operation_id": "a03b7a5f-a5ee-46a5-8cf1-e7a801e84635",
+                "prior_results": 0,
+                "result_data": {
+                  "po_id": "PO-TRIGGER-63",
+                  "received_quantity": "3"
+                },
+                "result_value": null,
+                "source_version": "0e0babec0f1797bf8624dbb34653ab0c7b91d3e8ea1c728858b536bfee1e2b81",
+                "status": "applied",
+                "step_id": "source-2"
+              },
+              {
+                "adapter": "document.read",
+                "operation_id": "b49209bc-abc0-4fb5-8ee9-9a0ef095a1ba",
+                "prior_results": 0,
+                "result_data": {
+                  "currency": "USD",
+                  "freight": "12.75",
+                  "invoice_id": "INV-TRIGGER-91",
+                  "po_id": "PO-TRIGGER-63",
+                  "quantity": "3",
+                  "unit_price": "42.50"
+                },
+                "result_value": null,
+                "source_version": "3bad6e9388d0efabbcec678dc95c21d6e4721c031ae24374501a2166d3a58d9f",
+                "status": "applied",
+                "step_id": "source-3"
+              },
+              {
+                "adapter": "invoice.reconcile",
+                "operation_id": "160c4045-522e-4d9c-aa5d-a50f3bab50e8",
+                "prior_results": 0,
+                "result_data": {
+                  "bill": {
+                    "currency": "USD",
+                    "freight": "12.75",
+                    "invoice_id": "INV-TRIGGER-91",
+                    "po_id": "PO-TRIGGER-63",
+                    "quantity": "3",
+                    "total": "140.25",
+                    "unit_price": "42.50",
+                    "vendor_id": "V-6"
+                  },
+                  "currency": "USD",
+                  "freight": "12.75",
+                  "invoice_id": "INV-TRIGGER-91",
+                  "invoice_version": "",
+                  "po_id": "PO-TRIGGER-63",
+                  "quantity": "3",
+                  "receiving_version": "",
+                  "total": "140.25",
+                  "unit_price": "42.50",
+                  "vendor_id": "V-6"
+                },
+                "result_value": "140.25",
+                "source_version": null,
+                "status": "applied",
+                "step_id": "invoice-reconcile"
+              }
+            ],
+            "unresolved": [
+              {
+                "affected_subjects": [],
+                "attempts": 0,
+                "checked_evidence": [],
+                "concept": "invoice_reconciliation",
+                "decision_owner": null,
+                "evidence": "",
+                "inputs": {
+                  "known_identities": {
+                    "purchase_order.po_id": "PO-TRIGGER-63",
+                    "purchase_order.vendor_id": "V-6",
+                    "receiving.po_id": "PO-TRIGGER-63"
+                  },
+                  "missing": [
+                    "invoice"
+                  ],
+                  "operation": "invoice_reconciliation"
+                },
+                "item": "invoice reconciliation",
+                "kind": "missing_evidence",
+                "next_action": "Confirm the missing business fact.",
+                "next_retrieval": "Which authorized source contains invoice INV-TRIGGER-91 for purchase order PO-TRIGGER-63?",
+                "opened_at": "2026-11-07T08:42:01.248956+00:00",
+                "question": "Which authorized source contains invoice INV-TRIGGER-91 for purchase order PO-TRIGGER-63?",
+                "question_id": "e347550d-72c1-4c21-8771-1e873c2caabf",
+                "reason": "invoice reconciliation",
+                "resolution": "authorized source fixture:invoice.json version 3bad6e9388d0efabbcec678dc95c21d6e4721c031ae24374501a2166d3a58d9f made the capability ready",
+                "resolution_value": "authorized source fixture:invoice.json version 3bad6e9388d0efabbcec678dc95c21d6e4721c031ae24374501a2166d3a58d9f made the capability ready",
+                "resolved_at": "2026-11-07T08:42:02.794574+00:00",
+                "resolver": null,
+                "source_operation": null,
+                "status": "resolved",
+                "step_id": null,
+                "waiting": null
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "case": "test_actual_process_successor_0",
+      "process_ledger": [
+        {
+          "checkpoint": null,
+          "exit": 0,
+          "phase": "start",
+          "pid": 29294,
+          "report": "start-29230-1794040925739414000.json"
+        },
+        {
+          "checkpoint": "source-interrupt-29230-1794040927505570000-checkpoint.json",
+          "exit": 17,
+          "phase": "source-interrupt",
+          "pid": 29311,
+          "report": "source-interrupt-29230-1794040927505570000.json"
+        },
+        {
+          "checkpoint": "startup-claim-crash-29230-1794040928535113000-checkpoint.json",
+          "exit": 17,
+          "phase": "startup-claim-crash",
+          "pid": 29318,
+          "report": "startup-claim-crash-29230-1794040928535113000.json"
+        },
+        {
+          "checkpoint": null,
+          "exit": 0,
+          "phase": "startup-recover-deferred",
+          "pid": 29324,
+          "report": "startup-recover-deferred-29230-1794040929552864000.json"
+        }
+      ],
+      "reports": [
+        {
+          "file": "source-interrupt-29230-1794040927505570000-checkpoint.json",
+          "state": {
+            "adaptation_call_log": [],
+            "adaptation_calls": 0,
+            "assignment_id": "asg-c967b36b29fe4e26",
+            "evidence_observations": [
+              {
+                "observation_id": "evidence-a9162c08854b428ec677",
+                "shape": "structured",
+                "step_id": "source-1"
+              },
+              {
+                "observation_id": "evidence-4f05219f3a8df53edd02",
+                "shape": "structured",
+                "step_id": "source-2"
+              },
+              {
+                "observation_id": "evidence-9b51e4fa10abf65e7145",
+                "shape": "structured",
+                "step_id": "source-3"
+              }
+            ],
+            "interrupted_stage": "before_business_adaptation",
+            "objective": "Reconcile invoice INV-TRIGGER-91 for PO-TRIGGER-63",
+            "open_questions": [],
+            "phase": "source-interrupt",
+            "pid": 29311,
+            "plan_revision": 3,
+            "provenance": {
+              "agent_id": null,
+              "authorized_source_count": 2,
+              "conversation_id": "chat-assignment-49cc6686ba15",
+              "objective_identities": {
+                "invoice_id": "INV-TRIGGER-91",
+                "po_id": "PO-TRIGGER-63"
+              },
+              "planner": "capability_registry",
+              "proposal_reason": "read authorized procurement records",
+              "proposal_source": "model",
+              "requester_id": "lead-1",
+              "run_id": "d6f56184-7c4c-49d6-8631-b8d0f44dd805",
+              "source_fingerprint": "2df7e2d34d608378dac7eae7",
+              "source_kinds": [
+                "document"
+              ],
+              "started_from": "employee_objective",
+              "technical_fallback": false,
+              "use_model": true
+            },
+            "reconciliations": [],
+            "recovery_marker": {},
+            "run_id": "d6f56184-7c4c-49d6-8631-b8d0f44dd805",
+            "source_steps": [
+              {
+                "adapter": "document.read",
+                "operation_id": "bf826239-a23e-4929-b4f6-a4fdef18e489",
+                "prior_results": 0,
+                "result_data": {
+                  "currency": "USD",
+                  "freight": "12.75",
+                  "po_id": "PO-TRIGGER-63",
+                  "quantity": "3",
+                  "unit_price": "42.50",
+                  "vendor_id": "V-6"
+                },
+                "result_value": null,
+                "source_version": "c9eff4050eefaa424619c80976beec0b9515aaffdc733933fcab2c5745e3d5a1",
+                "status": "applied",
+                "step_id": "source-1"
+              },
+              {
+                "adapter": "document.read",
+                "operation_id": "476c8aea-a511-4783-8681-ba35ecf85a93",
+                "prior_results": 0,
+                "result_data": {
+                  "po_id": "PO-TRIGGER-63",
+                  "received_quantity": "3"
+                },
+                "result_value": null,
+                "source_version": "0e0babec0f1797bf8624dbb34653ab0c7b91d3e8ea1c728858b536bfee1e2b81",
+                "status": "applied",
+                "step_id": "source-2"
+              },
+              {
+                "adapter": "document.read",
+                "operation_id": "c9fa0459-4d6e-4104-a476-d79ec16eebbf",
+                "prior_results": 0,
+                "result_data": {
+                  "currency": "USD",
+                  "freight": "12.75",
+                  "invoice_id": "INV-TRIGGER-91",
+                  "po_id": "PO-TRIGGER-63",
+                  "quantity": "3",
+                  "unit_price": "42.50"
+                },
+                "result_value": null,
+                "source_version": "3bad6e9388d0efabbcec678dc95c21d6e4721c031ae24374501a2166d3a58d9f",
+                "status": "applied",
+                "step_id": "source-3"
+              }
+            ],
+            "status": "blocked",
+            "steps": [
+              {
+                "adapter": "document.read",
+                "operation_id": "bf826239-a23e-4929-b4f6-a4fdef18e489",
+                "prior_results": 0,
+                "result_data": {
+                  "currency": "USD",
+                  "freight": "12.75",
+                  "po_id": "PO-TRIGGER-63",
+                  "quantity": "3",
+                  "unit_price": "42.50",
+                  "vendor_id": "V-6"
+                },
+                "result_value": null,
+                "source_version": "c9eff4050eefaa424619c80976beec0b9515aaffdc733933fcab2c5745e3d5a1",
+                "status": "applied",
+                "step_id": "source-1"
+              },
+              {
+                "adapter": "document.read",
+                "operation_id": "476c8aea-a511-4783-8681-ba35ecf85a93",
+                "prior_results": 0,
+                "result_data": {
+                  "po_id": "PO-TRIGGER-63",
+                  "received_quantity": "3"
+                },
+                "result_value": null,
+                "source_version": "0e0babec0f1797bf8624dbb34653ab0c7b91d3e8ea1c728858b536bfee1e2b81",
+                "status": "applied",
+                "step_id": "source-2"
+              },
+              {
+                "adapter": "document.read",
+                "operation_id": "c9fa0459-4d6e-4104-a476-d79ec16eebbf",
+                "prior_results": 0,
+                "result_data": {
+                  "currency": "USD",
+                  "freight": "12.75",
+                  "invoice_id": "INV-TRIGGER-91",
+                  "po_id": "PO-TRIGGER-63",
+                  "quantity": "3",
+                  "unit_price": "42.50"
+                },
+                "result_value": null,
+                "source_version": "3bad6e9388d0efabbcec678dc95c21d6e4721c031ae24374501a2166d3a58d9f",
+                "status": "applied",
+                "step_id": "source-3"
+              }
+            ],
+            "unresolved": [
+              {
+                "affected_subjects": [],
+                "attempts": 0,
+                "checked_evidence": [],
+                "concept": "invoice_reconciliation",
+                "decision_owner": null,
+                "evidence": "",
+                "inputs": {
+                  "known_identities": {
+                    "purchase_order.po_id": "PO-TRIGGER-63",
+                    "purchase_order.vendor_id": "V-6",
+                    "receiving.po_id": "PO-TRIGGER-63"
+                  },
+                  "missing": [
+                    "invoice"
+                  ],
+                  "operation": "invoice_reconciliation"
+                },
+                "item": "invoice reconciliation",
+                "kind": "missing_evidence",
+                "next_action": "Confirm the missing business fact.",
+                "next_retrieval": "Which authorized source contains invoice INV-TRIGGER-91 for purchase order PO-TRIGGER-63?",
+                "opened_at": "2026-11-07T08:42:06.928643+00:00",
+                "question": "Which authorized source contains invoice INV-TRIGGER-91 for purchase order PO-TRIGGER-63?",
+                "question_id": "192ca114-756c-40f5-ad61-e1600b7794d3",
+                "reason": "invoice reconciliation",
+                "resolution": "authorized source fixture:invoice.json version 3bad6e9388d0efabbcec678dc95c21d6e4721c031ae24374501a2166d3a58d9f made the capability ready",
+                "resolution_value": "authorized source fixture:invoice.json version 3bad6e9388d0efabbcec678dc95c21d6e4721c031ae24374501a2166d3a58d9f made the capability ready",
+                "resolved_at": "2026-11-07T08:42:08.528915+00:00",
+                "resolver": null,
+                "source_operation": null,
+                "status": "resolved",
+                "step_id": null,
+                "waiting": null
+              }
+            ]
+          }
+        },
+        {
+          "file": "start-29230-1794040925739414000.json",
+          "state": {
+            "adaptation_call_log": [
+              {
+                "at": 1794040926.9277802,
+                "business_roles": [
+                  "purchase_order",
+                  "receiving"
+                ],
+                "observation_ids": [
+                  "evidence-a9162c08854b428ec677",
+                  "evidence-4f05219f3a8df53edd02"
+                ],
+                "pid": 29294
+              }
+            ],
+            "adaptation_calls": 1,
+            "assignment_id": "asg-c967b36b29fe4e26",
+            "evidence_observations": [
+              {
+                "observation_id": "evidence-a9162c08854b428ec677",
+                "shape": "structured",
+                "step_id": "source-1"
+              },
+              {
+                "observation_id": "evidence-4f05219f3a8df53edd02",
+                "shape": "structured",
+                "step_id": "source-2"
+              }
+            ],
+            "objective": "Reconcile invoice INV-TRIGGER-91 for PO-TRIGGER-63",
+            "open_questions": [
+              {
+                "kind": "missing_evidence",
+                "operation": "invoice_reconciliation",
+                "question_id": "192ca114-756c-40f5-ad61-e1600b7794d3"
+              }
+            ],
+            "phase": "start",
+            "pid": 29294,
+            "plan_revision": 2,
+            "provenance": {
+              "agent_id": null,
+              "authorized_source_count": 2,
+              "conversation_id": "chat-assignment-49cc6686ba15",
+              "objective_identities": {
+                "invoice_id": "INV-TRIGGER-91",
+                "po_id": "PO-TRIGGER-63"
+              },
+              "planner": "capability_registry",
+              "proposal_reason": "read authorized procurement records",
+              "proposal_source": "model",
+              "requester_id": "lead-1",
+              "run_id": "d6f56184-7c4c-49d6-8631-b8d0f44dd805",
+              "source_fingerprint": "2df7e2d34d608378dac7eae7",
+              "source_kinds": [
+                "document"
+              ],
+              "started_from": "employee_objective",
+              "technical_fallback": false,
+              "use_model": true
+            },
+            "reconciliations": [],
+            "recovery_marker": {},
+            "run_id": "d6f56184-7c4c-49d6-8631-b8d0f44dd805",
+            "source_steps": [
+              {
+                "adapter": "document.read",
+                "operation_id": "bf826239-a23e-4929-b4f6-a4fdef18e489",
+                "prior_results": 0,
+                "result_data": {
+                  "currency": "USD",
+                  "freight": "12.75",
+                  "po_id": "PO-TRIGGER-63",
+                  "quantity": "3",
+                  "unit_price": "42.50",
+                  "vendor_id": "V-6"
+                },
+                "result_value": null,
+                "source_version": "c9eff4050eefaa424619c80976beec0b9515aaffdc733933fcab2c5745e3d5a1",
+                "status": "applied",
+                "step_id": "source-1"
+              },
+              {
+                "adapter": "document.read",
+                "operation_id": "476c8aea-a511-4783-8681-ba35ecf85a93",
+                "prior_results": 0,
+                "result_data": {
+                  "po_id": "PO-TRIGGER-63",
+                  "received_quantity": "3"
+                },
+                "result_value": null,
+                "source_version": "0e0babec0f1797bf8624dbb34653ab0c7b91d3e8ea1c728858b536bfee1e2b81",
+                "status": "applied",
+                "step_id": "source-2"
+              }
+            ],
+            "status": "blocked",
+            "steps": [
+              {
+                "adapter": "document.read",
+                "operation_id": "bf826239-a23e-4929-b4f6-a4fdef18e489",
+                "prior_results": 0,
+                "result_data": {
+                  "currency": "USD",
+                  "freight": "12.75",
+                  "po_id": "PO-TRIGGER-63",
+                  "quantity": "3",
+                  "unit_price": "42.50",
+                  "vendor_id": "V-6"
+                },
+                "result_value": null,
+                "source_version": "c9eff4050eefaa424619c80976beec0b9515aaffdc733933fcab2c5745e3d5a1",
+                "status": "applied",
+                "step_id": "source-1"
+              },
+              {
+                "adapter": "document.read",
+                "operation_id": "476c8aea-a511-4783-8681-ba35ecf85a93",
+                "prior_results": 0,
+                "result_data": {
+                  "po_id": "PO-TRIGGER-63",
+                  "received_quantity": "3"
+                },
+                "result_value": null,
+                "source_version": "0e0babec0f1797bf8624dbb34653ab0c7b91d3e8ea1c728858b536bfee1e2b81",
+                "status": "applied",
+                "step_id": "source-2"
+              }
+            ],
+            "unresolved": [
+              {
+                "affected_subjects": [],
+                "attempts": 0,
+                "checked_evidence": [],
+                "concept": "invoice_reconciliation",
+                "decision_owner": null,
+                "evidence": "",
+                "inputs": {
+                  "known_identities": {
+                    "purchase_order.po_id": "PO-TRIGGER-63",
+                    "purchase_order.vendor_id": "V-6",
+                    "receiving.po_id": "PO-TRIGGER-63"
+                  },
+                  "missing": [
+                    "invoice"
+                  ],
+                  "operation": "invoice_reconciliation"
+                },
+                "item": "invoice reconciliation",
+                "kind": "missing_evidence",
+                "next_action": "Confirm the missing business fact.",
+                "next_retrieval": "Which authorized source contains invoice INV-TRIGGER-91 for purchase order PO-TRIGGER-63?",
+                "opened_at": "2026-11-07T08:42:06.928643+00:00",
+                "question": "Which authorized source contains invoice INV-TRIGGER-91 for purchase order PO-TRIGGER-63?",
+                "question_id": "192ca114-756c-40f5-ad61-e1600b7794d3",
+                "reason": "invoice reconciliation",
+                "resolution": null,
+                "resolved_at": null,
+                "resolver": null,
+                "source_operation": null,
+                "status": "open",
+                "step_id": null,
+                "waiting": null
+              }
+            ]
+          }
+        },
+        {
+          "file": "startup-claim-crash-29230-1794040928535113000-checkpoint.json",
+          "state": {
+            "adaptation_call_log": [],
+            "adaptation_calls": 0,
+            "assignment_id": "asg-c967b36b29fe4e26",
+            "evidence_observations": [
+              {
+                "observation_id": "evidence-a9162c08854b428ec677",
+                "shape": "structured",
+                "step_id": "source-1"
+              },
+              {
+                "observation_id": "evidence-4f05219f3a8df53edd02",
+                "shape": "structured",
+                "step_id": "source-2"
+              },
+              {
+                "observation_id": "evidence-9b51e4fa10abf65e7145",
+                "shape": "structured",
+                "step_id": "source-3"
+              }
+            ],
+            "interrupted_stage": "after_recovery_claim_before_continuation",
+            "objective": "Reconcile invoice INV-TRIGGER-91 for PO-TRIGGER-63",
+            "open_questions": [],
+            "phase": "startup-claim-crash",
+            "pid": 29318,
+            "plan_revision": 3,
+            "provenance": {
+              "agent_id": null,
+              "authorized_source_count": 2,
+              "conversation_id": "chat-assignment-49cc6686ba15",
+              "objective_identities": {
+                "invoice_id": "INV-TRIGGER-91",
+                "po_id": "PO-TRIGGER-63"
+              },
+              "planner": "capability_registry",
+              "proposal_reason": "read authorized procurement records",
+              "proposal_source": "model",
+              "requester_id": "lead-1",
+              "run_id": "d6f56184-7c4c-49d6-8631-b8d0f44dd805",
+              "source_fingerprint": "2df7e2d34d608378dac7eae7",
+              "source_kinds": [
+                "document"
+              ],
+              "started_from": "employee_objective",
+              "technical_fallback": false,
+              "use_model": true
+            },
+            "reconciliations": [],
+            "recovery_marker": {
+              "at": 1794040929.54525,
+              "claim_token": "opaque-proof-3",
+              "claimed_at": "2026-11-07T08:42:09.545353+00:00",
+              "key": "ea8bcab1a5e866e4b7a2",
+              "observation_ids": [
+                "evidence-4f05219f3a8df53edd02",
+                "evidence-9b51e4fa10abf65e7145",
+                "evidence-a9162c08854b428ec677"
+              ],
+              "owner": "instance_id:227579321b2c.29318.1794040929",
+              "owner_process": {
+                "host": "MacBook-Pro.local",
+                "os_process_start": "ps:Sat Nov  7 03:42:08 2026",
+                "pid": 29318,
+                "process_started_at": "2026-11-07T08:42:09.533089+00:00",
+                "token": "opaque-proof-4"
+              },
+              "status": "claimed",
+              "ttl": 20.0
+            },
+            "run_id": "d6f56184-7c4c-49d6-8631-b8d0f44dd805",
+            "source_steps": [
+              {
+                "adapter": "document.read",
+                "operation_id": "bf826239-a23e-4929-b4f6-a4fdef18e489",
+                "prior_results": 0,
+                "result_data": {
+                  "currency": "USD",
+                  "freight": "12.75",
+                  "po_id": "PO-TRIGGER-63",
+                  "quantity": "3",
+                  "unit_price": "42.50",
+                  "vendor_id": "V-6"
+                },
+                "result_value": null,
+                "source_version": "c9eff4050eefaa424619c80976beec0b9515aaffdc733933fcab2c5745e3d5a1",
+                "status": "applied",
+                "step_id": "source-1"
+              },
+              {
+                "adapter": "document.read",
+                "operation_id": "476c8aea-a511-4783-8681-ba35ecf85a93",
+                "prior_results": 0,
+                "result_data": {
+                  "po_id": "PO-TRIGGER-63",
+                  "received_quantity": "3"
+                },
+                "result_value": null,
+                "source_version": "0e0babec0f1797bf8624dbb34653ab0c7b91d3e8ea1c728858b536bfee1e2b81",
+                "status": "applied",
+                "step_id": "source-2"
+              },
+              {
+                "adapter": "document.read",
+                "operation_id": "c9fa0459-4d6e-4104-a476-d79ec16eebbf",
+                "prior_results": 0,
+                "result_data": {
+                  "currency": "USD",
+                  "freight": "12.75",
+                  "invoice_id": "INV-TRIGGER-91",
+                  "po_id": "PO-TRIGGER-63",
+                  "quantity": "3",
+                  "unit_price": "42.50"
+                },
+                "result_value": null,
+                "source_version": "3bad6e9388d0efabbcec678dc95c21d6e4721c031ae24374501a2166d3a58d9f",
+                "status": "applied",
+                "step_id": "source-3"
+              }
+            ],
+            "status": "blocked",
+            "steps": [
+              {
+                "adapter": "document.read",
+                "operation_id": "bf826239-a23e-4929-b4f6-a4fdef18e489",
+                "prior_results": 0,
+                "result_data": {
+                  "currency": "USD",
+                  "freight": "12.75",
+                  "po_id": "PO-TRIGGER-63",
+                  "quantity": "3",
+                  "unit_price": "42.50",
+                  "vendor_id": "V-6"
+                },
+                "result_value": null,
+                "source_version": "c9eff4050eefaa424619c80976beec0b9515aaffdc733933fcab2c5745e3d5a1",
+                "status": "applied",
+                "step_id": "source-1"
+              },
+              {
+                "adapter": "document.read",
+                "operation_id": "476c8aea-a511-4783-8681-ba35ecf85a93",
+                "prior_results": 0,
+                "result_data": {
+                  "po_id": "PO-TRIGGER-63",
+                  "received_quantity": "3"
+                },
+                "result_value": null,
+                "source_version": "0e0babec0f1797bf8624dbb34653ab0c7b91d3e8ea1c728858b536bfee1e2b81",
+                "status": "applied",
+                "step_id": "source-2"
+              },
+              {
+                "adapter": "document.read",
+                "operation_id": "c9fa0459-4d6e-4104-a476-d79ec16eebbf",
+                "prior_results": 0,
+                "result_data": {
+                  "currency": "USD",
+                  "freight": "12.75",
+                  "invoice_id": "INV-TRIGGER-91",
+                  "po_id": "PO-TRIGGER-63",
+                  "quantity": "3",
+                  "unit_price": "42.50"
+                },
+                "result_value": null,
+                "source_version": "3bad6e9388d0efabbcec678dc95c21d6e4721c031ae24374501a2166d3a58d9f",
+                "status": "applied",
+                "step_id": "source-3"
+              }
+            ],
+            "unresolved": [
+              {
+                "affected_subjects": [],
+                "attempts": 0,
+                "checked_evidence": [],
+                "concept": "invoice_reconciliation",
+                "decision_owner": null,
+                "evidence": "",
+                "inputs": {
+                  "known_identities": {
+                    "purchase_order.po_id": "PO-TRIGGER-63",
+                    "purchase_order.vendor_id": "V-6",
+                    "receiving.po_id": "PO-TRIGGER-63"
+                  },
+                  "missing": [
+                    "invoice"
+                  ],
+                  "operation": "invoice_reconciliation"
+                },
+                "item": "invoice reconciliation",
+                "kind": "missing_evidence",
+                "next_action": "Confirm the missing business fact.",
+                "next_retrieval": "Which authorized source contains invoice INV-TRIGGER-91 for purchase order PO-TRIGGER-63?",
+                "opened_at": "2026-11-07T08:42:06.928643+00:00",
+                "question": "Which authorized source contains invoice INV-TRIGGER-91 for purchase order PO-TRIGGER-63?",
+                "question_id": "192ca114-756c-40f5-ad61-e1600b7794d3",
+                "reason": "invoice reconciliation",
+                "resolution": "authorized source fixture:invoice.json version 3bad6e9388d0efabbcec678dc95c21d6e4721c031ae24374501a2166d3a58d9f made the capability ready",
+                "resolution_value": "authorized source fixture:invoice.json version 3bad6e9388d0efabbcec678dc95c21d6e4721c031ae24374501a2166d3a58d9f made the capability ready",
+                "resolved_at": "2026-11-07T08:42:08.528915+00:00",
+                "resolver": null,
+                "source_operation": null,
+                "status": "resolved",
+                "step_id": null,
+                "waiting": null
+              }
+            ]
+          }
+        },
+        {
+          "file": "startup-recover-deferred-29230-1794040929552864000.json",
+          "state": {
+            "adaptation_call_log": [
+              {
+                "at": 1794040949.7644968,
+                "business_roles": [
+                  "invoice",
+                  "purchase_order",
+                  "receiving"
+                ],
+                "observation_ids": [
+                  "evidence-a9162c08854b428ec677",
+                  "evidence-4f05219f3a8df53edd02",
+                  "evidence-9b51e4fa10abf65e7145"
+                ],
+                "pid": 29324
+              }
+            ],
+            "adaptation_calls": 1,
+            "assignment_id": "asg-c967b36b29fe4e26",
+            "deferred_completed_at": 1794040949.808545,
+            "evidence_observations": [],
+            "initial_adaptation_calls": 0,
+            "initial_reconciliations": [],
+            "initial_recovery_marker": {
+              "at": 1794040929.54525,
+              "claim_token": "opaque-proof-3",
+              "claimed_at": "2026-11-07T08:42:09.545353+00:00",
+              "key": "ea8bcab1a5e866e4b7a2",
+              "observation_ids": [
+                "evidence-4f05219f3a8df53edd02",
+                "evidence-9b51e4fa10abf65e7145",
+                "evidence-a9162c08854b428ec677"
+              ],
+              "owner": "instance_id:227579321b2c.29318.1794040929",
+              "owner_process": {
+                "host": "MacBook-Pro.local",
+                "os_process_start": "ps:Sat Nov  7 03:42:08 2026",
+                "pid": 29318,
+                "process_started_at": "2026-11-07T08:42:09.533089+00:00",
+                "token": "opaque-proof-4"
+              },
+              "status": "claimed",
+              "ttl": 20.0
+            },
+            "initial_status": "blocked",
+            "objective": "Reconcile invoice INV-TRIGGER-91 for PO-TRIGGER-63",
+            "open_questions": [],
+            "pending_wakes_at_startup": [
+              "d6f56184-7c4c-49d6-8631-b8d0f44dd805"
+            ],
+            "phase": "startup-recover-deferred",
+            "pid": 29324,
+            "plan_revision": 4,
+            "provenance": {
+              "agent_id": null,
+              "authorized_source_count": 2,
+              "conversation_id": "chat-assignment-49cc6686ba15",
+              "objective_identities": {
+                "invoice_id": "INV-TRIGGER-91",
+                "po_id": "PO-TRIGGER-63"
+              },
+              "planner": "capability_registry",
+              "proposal_reason": "read authorized procurement records",
+              "proposal_source": "model",
+              "requester_id": "lead-1",
+              "run_id": "d6f56184-7c4c-49d6-8631-b8d0f44dd805",
+              "source_fingerprint": "2df7e2d34d608378dac7eae7",
+              "source_kinds": [
+                "document"
+              ],
+              "started_from": "employee_objective",
+              "technical_fallback": false,
+              "use_model": true
+            },
+            "reconciliations": [
+              {
+                "adapter": "invoice.reconcile",
+                "operation_id": "56a6806c-2063-4697-802e-0cd1c7c0baa5",
+                "prior_results": 0,
+                "result_data": {
+                  "bill": {
+                    "currency": "USD",
+                    "freight": "12.75",
+                    "invoice_id": "INV-TRIGGER-91",
+                    "po_id": "PO-TRIGGER-63",
+                    "quantity": "3",
+                    "total": "140.25",
+                    "unit_price": "42.50",
+                    "vendor_id": "V-6"
+                  },
+                  "currency": "USD",
+                  "freight": "12.75",
+                  "invoice_id": "INV-TRIGGER-91",
+                  "invoice_version": "",
+                  "po_id": "PO-TRIGGER-63",
+                  "quantity": "3",
+                  "receiving_version": "",
+                  "total": "140.25",
+                  "unit_price": "42.50",
+                  "vendor_id": "V-6"
+                },
+                "result_value": "140.25",
+                "source_version": null,
+                "status": "applied",
+                "step_id": "invoice-reconcile"
+              }
+            ],
+            "recovery_marker": {
+              "at": 1794040949.7565188,
+              "claim_token": "opaque-proof-5",
+              "claimed_at": "2026-11-07T08:42:29.756640+00:00",
+              "finished_at": "2026-11-07T08:42:29.801410+00:00",
+              "key": "ea8bcab1a5e866e4b7a2",
+              "observation_ids": [
+                "evidence-4f05219f3a8df53edd02",
+                "evidence-9b51e4fa10abf65e7145",
+                "evidence-a9162c08854b428ec677"
+              ],
+              "owner": "instance_id:227579321b2c.29324.1794040949",
+              "owner_process": {
+                "host": "MacBook-Pro.local",
+                "os_process_start": "ps:Sat Nov  7 03:42:09 2026",
+                "pid": 29324,
+                "process_started_at": "2026-11-07T08:42:29.744758+00:00",
+                "token": "opaque-proof-6"
+              },
+              "retained_at": "2026-11-07T08:42:29.758819+00:00",
+              "rounds": [
+                {
+                  "adoption_status": "applied",
+                  "decision": "replan",
+                  "execution_status": "completed",
+                  "source": "model"
+                }
+              ],
+              "status": "completed",
+              "ttl": 240.0
+            },
+            "recovery_results": [
+              {
+                "assignment": {
+                  "assignment_id": "asg-c967b36b29fe4e26",
+                  "authorized_actions": [
+                    "calculate",
+                    "retrieve"
+                  ],
+                  "budget": {
+                    "active_wait": null,
+                    "cost_mode": "hard",
+                    "cost_overrun_usd": 0.0,
+                    "cost_reservations": [],
+                    "cost_usd": 0.0,
+                    "cost_violation": null,
+                    "deadline": null,
+                    "elapsed_seconds": 0.0,
+                    "idle_intervals": {},
+                    "idle_ledger_schema": 2,
+                    "max_attempts_per_step": 3,
+                    "max_cost_usd": 0.0,
+                    "max_steps": 9,
+                    "max_wall_seconds": 900.0,
+                    "paused_seconds": 0.0,
+                    "reserved_cost_usd": 0.0,
+                    "soft_limit_authorized_by": null,
+                    "soft_limit_exceeded": false,
+                    "started_at": "2026-11-07T08:42:06.759925+00:00",
+                    "steps_started": 3,
+                    "wait_credits": {},
+                    "wait_credits_schema": 1,
+                    "waiting_since": null,
+                    "wall_seconds": 3.641,
+                    "working_seconds": 3.641
+                  },
+                  "business_requirements": [],
+                  "completed_at": "2026-11-07T08:42:10.395810+00:00",
+                  "created_at": "2026-11-07T08:42:06.749310+00:00",
+                  "deliverables": [],
+                  "effective_lesson_ids": [],
+                  "employee_id": "lead-1",
+                  "mapping_history": [],
+                  "mappings": [],
+                  "objective": "Reconcile invoice INV-TRIGGER-91 for PO-TRIGGER-63",
+                  "plan_revision": 3,
+                  "progress": {
+                    "completed_steps": 3,
+                    "failed_steps": 0,
+                    "open_gap_count": 0,
+                    "required_steps": 3,
+                    "total_steps": 3,
+                    "uncertain_steps": 0,
+                    "waiting_steps": 0
+                  },
+                  "sources": [
+                    {
+                      "binding": {
+                        "access_scope": {
+                          "tenant_id": "tenant-1",
+                          "user_id": "lead-1",
+                          "workspace_id": "ws-1"
+                        },
+                        "columns": [],
+                        "coverage": {
+                          "controlled_fixture": true,
+                          "known": true,
+                          "truncated": false
+                        },
+                        "dataset_name": null,
+                        "external_id": null,
+                        "internal_fixture": true,
+                        "numeric_columns": [],
+                        "original_file_name": "po.json",
+                        "representation": "file",
+                        "resource_id": "fixture:po.json",
+                        "row_count": null,
+                        "sheet": null,
+                        "source": null,
+                        "source_kind": null,
+                        "source_version": "c9eff4050eefaa424619c80976beec0b9515aaffdc733933fcab2c5745e3d5a1",
+                        "tenant_id": "tenant-1",
+                        "workspace_id": "ws-1"
+                      },
+                      "internal_fixture": true,
+                      "kind": "document",
+                      "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-recovery-portable-b8rtisbf/pytest/test_actual_process_successor_0/process-world/sources/po.json"
+                    },
+                    {
+                      "binding": {
+                        "access_scope": {
+                          "tenant_id": "tenant-1",
+                          "user_id": "lead-1",
+                          "workspace_id": "ws-1"
+                        },
+                        "columns": [],
+                        "coverage": {
+                          "controlled_fixture": true,
+                          "known": true,
+                          "truncated": false
+                        },
+                        "dataset_name": null,
+                        "external_id": null,
+                        "internal_fixture": true,
+                        "numeric_columns": [],
+                        "original_file_name": "receiving.json",
+                        "representation": "file",
+                        "resource_id": "fixture:receiving.json",
+                        "row_count": null,
+                        "sheet": null,
+                        "source": null,
+                        "source_kind": null,
+                        "source_version": "0e0babec0f1797bf8624dbb34653ab0c7b91d3e8ea1c728858b536bfee1e2b81",
+                        "tenant_id": "tenant-1",
+                        "workspace_id": "ws-1"
+                      },
+                      "internal_fixture": true,
+                      "kind": "document",
+                      "path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-recovery-portable-b8rtisbf/pytest/test_actual_process_successor_0/process-world/sources/receiving.json"
+                    }
+                  ],
+                  "standing_authority": null,
+                  "status": "blocked",
+                  "steps": [
+                    {
+                      "adapter": "document.read",
+                      "approval_request": {},
+                      "artifact_revision": null,
+                      "attempts": 0,
+                      "depends_on": [],
+                      "effect": "read_only",
+                      "external_response": {},
+                      "failure": {},
+                      "gap_ids": [],
+                      "operation_id": "bf826239-a23e-4929-b4f6-a4fdef18e489",
+                      "operation_type": "retrieve",
+                      "prior_result_count": 0,
+                      "readiness": null,
+                      "recovery_class": "terminal",
+                      "required": true,
+                      "result_measure": null,
+                      "result_summary": "read structured po.json",
+                      "result_unit": null,
+                      "result_value": null,
+                      "standing_authority_receipt": {},
+                      "status": "applied",
+                      "step_id": "source-1",
+                      "title": "Read po.json",
+                      "waiting": {}
+                    },
+                    {
+                      "adapter": "document.read",
+                      "approval_request": {},
+                      "artifact_revision": null,
+                      "attempts": 0,
+                      "depends_on": [],
+                      "effect": "read_only",
+                      "external_response": {},
+                      "failure": {},
+                      "gap_ids": [],
+                      "operation_id": "476c8aea-a511-4783-8681-ba35ecf85a93",
+                      "operation_type": "retrieve",
+                      "prior_result_count": 0,
+                      "readiness": null,
+                      "recovery_class": "terminal",
+                      "required": true,
+                      "result_measure": null,
+                      "result_summary": "read structured receiving.json",
+                      "result_unit": null,
+                      "result_value": null,
+                      "standing_authority_receipt": {},
+                      "status": "applied",
+                      "step_id": "source-2",
+                      "title": "Read receiving.json",
+                      "waiting": {}
+                    },
+                    {
+                      "adapter": "document.read",
+                      "approval_request": {},
+                      "artifact_revision": null,
+                      "attempts": 0,
+                      "depends_on": [],
+                      "effect": "read_only",
+                      "external_response": {},
+                      "failure": {},
+                      "gap_ids": [],
+                      "operation_id": "c9fa0459-4d6e-4104-a476-d79ec16eebbf",
+                      "operation_type": "retrieve",
+                      "prior_result_count": 0,
+                      "readiness": null,
+                      "recovery_class": "terminal",
+                      "required": true,
+                      "result_measure": null,
+                      "result_summary": "read structured invoice.json",
+                      "result_unit": null,
+                      "result_value": null,
+                      "standing_authority_receipt": {},
+                      "status": "applied",
+                      "step_id": "source-3",
+                      "title": "Read invoice.json",
+                      "waiting": {}
+                    }
+                  ],
+                  "teaching_fingerprint": "9b21dc4761519c37e2b027bd856ac980",
+                  "teaching_history": [],
+                  "teaching_revision": "untrained",
+                  "updated_at": "2026-11-07T08:42:10.396964+00:00",
+                  "workspace_id": "ws-1"
+                },
+                "open_gaps": [],
+                "operations": [
+                  {
+                    "approval": {},
+                    "needs_reconciliation": false,
+                    "operation_id": "bf826239-a23e-4929-b4f6-a4fdef18e489",
+                    "provider_ref": null,
+                    "remote_id": null,
+                    "result_summary": "read structured po.json",
+                    "status": "applied",
+                    "step_id": "source-1",
+                    "type": "retrieve",
+                    "uncertainty_reason": null
+                  },
+                  {
+                    "approval": {},
+                    "needs_reconciliation": false,
+                    "operation_id": "476c8aea-a511-4783-8681-ba35ecf85a93",
+                    "provider_ref": null,
+                    "remote_id": null,
+                    "result_summary": "read structured receiving.json",
+                    "status": "applied",
+                    "step_id": "source-2",
+                    "type": "retrieve",
+                    "uncertainty_reason": null
+                  },
+                  {
+                    "approval": {},
+                    "needs_reconciliation": false,
+                    "operation_id": "c9fa0459-4d6e-4104-a476-d79ec16eebbf",
+                    "provider_ref": null,
+                    "remote_id": null,
+                    "result_summary": "read structured invoice.json",
+                    "status": "applied",
+                    "step_id": "source-3",
+                    "type": "retrieve",
+                    "uncertainty_reason": null
+                  }
+                ],
+                "run_id": "d6f56184-7c4c-49d6-8631-b8d0f44dd805"
+              }
+            ],
+            "recovery_started_at": 1794040930.390678,
+            "run_id": "d6f56184-7c4c-49d6-8631-b8d0f44dd805",
+            "source_steps": [
+              {
+                "adapter": "document.read",
+                "operation_id": "bf826239-a23e-4929-b4f6-a4fdef18e489",
+                "prior_results": 0,
+                "result_data": {
+                  "currency": "USD",
+                  "freight": "12.75",
+                  "po_id": "PO-TRIGGER-63",
+                  "quantity": "3",
+                  "unit_price": "42.50",
+                  "vendor_id": "V-6"
+                },
+                "result_value": null,
+                "source_version": "c9eff4050eefaa424619c80976beec0b9515aaffdc733933fcab2c5745e3d5a1",
+                "status": "applied",
+                "step_id": "source-1"
+              },
+              {
+                "adapter": "document.read",
+                "operation_id": "476c8aea-a511-4783-8681-ba35ecf85a93",
+                "prior_results": 0,
+                "result_data": {
+                  "po_id": "PO-TRIGGER-63",
+                  "received_quantity": "3"
+                },
+                "result_value": null,
+                "source_version": "0e0babec0f1797bf8624dbb34653ab0c7b91d3e8ea1c728858b536bfee1e2b81",
+                "status": "applied",
+                "step_id": "source-2"
+              },
+              {
+                "adapter": "document.read",
+                "operation_id": "c9fa0459-4d6e-4104-a476-d79ec16eebbf",
+                "prior_results": 0,
+                "result_data": {
+                  "currency": "USD",
+                  "freight": "12.75",
+                  "invoice_id": "INV-TRIGGER-91",
+                  "po_id": "PO-TRIGGER-63",
+                  "quantity": "3",
+                  "unit_price": "42.50"
+                },
+                "result_value": null,
+                "source_version": "3bad6e9388d0efabbcec678dc95c21d6e4721c031ae24374501a2166d3a58d9f",
+                "status": "applied",
+                "step_id": "source-3"
+              }
+            ],
+            "startup_entrypoint": "core.assignment_recovery.recover_active_assignments_at_startup",
+            "status": "completed",
+            "steps": [
+              {
+                "adapter": "document.read",
+                "operation_id": "bf826239-a23e-4929-b4f6-a4fdef18e489",
+                "prior_results": 0,
+                "result_data": {
+                  "currency": "USD",
+                  "freight": "12.75",
+                  "po_id": "PO-TRIGGER-63",
+                  "quantity": "3",
+                  "unit_price": "42.50",
+                  "vendor_id": "V-6"
+                },
+                "result_value": null,
+                "source_version": "c9eff4050eefaa424619c80976beec0b9515aaffdc733933fcab2c5745e3d5a1",
+                "status": "applied",
+                "step_id": "source-1"
+              },
+              {
+                "adapter": "document.read",
+                "operation_id": "476c8aea-a511-4783-8681-ba35ecf85a93",
+                "prior_results": 0,
+                "result_data": {
+                  "po_id": "PO-TRIGGER-63",
+                  "received_quantity": "3"
+                },
+                "result_value": null,
+                "source_version": "0e0babec0f1797bf8624dbb34653ab0c7b91d3e8ea1c728858b536bfee1e2b81",
+                "status": "applied",
+                "step_id": "source-2"
+              },
+              {
+                "adapter": "document.read",
+                "operation_id": "c9fa0459-4d6e-4104-a476-d79ec16eebbf",
+                "prior_results": 0,
+                "result_data": {
+                  "currency": "USD",
+                  "freight": "12.75",
+                  "invoice_id": "INV-TRIGGER-91",
+                  "po_id": "PO-TRIGGER-63",
+                  "quantity": "3",
+                  "unit_price": "42.50"
+                },
+                "result_value": null,
+                "source_version": "3bad6e9388d0efabbcec678dc95c21d6e4721c031ae24374501a2166d3a58d9f",
+                "status": "applied",
+                "step_id": "source-3"
+              },
+              {
+                "adapter": "invoice.reconcile",
+                "operation_id": "56a6806c-2063-4697-802e-0cd1c7c0baa5",
+                "prior_results": 0,
+                "result_data": {
+                  "bill": {
+                    "currency": "USD",
+                    "freight": "12.75",
+                    "invoice_id": "INV-TRIGGER-91",
+                    "po_id": "PO-TRIGGER-63",
+                    "quantity": "3",
+                    "total": "140.25",
+                    "unit_price": "42.50",
+                    "vendor_id": "V-6"
+                  },
+                  "currency": "USD",
+                  "freight": "12.75",
+                  "invoice_id": "INV-TRIGGER-91",
+                  "invoice_version": "",
+                  "po_id": "PO-TRIGGER-63",
+                  "quantity": "3",
+                  "receiving_version": "",
+                  "total": "140.25",
+                  "unit_price": "42.50",
+                  "vendor_id": "V-6"
+                },
+                "result_value": "140.25",
+                "source_version": null,
+                "status": "applied",
+                "step_id": "invoice-reconcile"
+              }
+            ],
+            "unresolved": [
+              {
+                "affected_subjects": [],
+                "attempts": 0,
+                "checked_evidence": [],
+                "concept": "invoice_reconciliation",
+                "decision_owner": null,
+                "evidence": "",
+                "inputs": {
+                  "known_identities": {
+                    "purchase_order.po_id": "PO-TRIGGER-63",
+                    "purchase_order.vendor_id": "V-6",
+                    "receiving.po_id": "PO-TRIGGER-63"
+                  },
+                  "missing": [
+                    "invoice"
+                  ],
+                  "operation": "invoice_reconciliation"
+                },
+                "item": "invoice reconciliation",
+                "kind": "missing_evidence",
+                "next_action": "Confirm the missing business fact.",
+                "next_retrieval": "Which authorized source contains invoice INV-TRIGGER-91 for purchase order PO-TRIGGER-63?",
+                "opened_at": "2026-11-07T08:42:06.928643+00:00",
+                "question": "Which authorized source contains invoice INV-TRIGGER-91 for purchase order PO-TRIGGER-63?",
+                "question_id": "192ca114-756c-40f5-ad61-e1600b7794d3",
+                "reason": "invoice reconciliation",
+                "resolution": "authorized source fixture:invoice.json version 3bad6e9388d0efabbcec678dc95c21d6e4721c031ae24374501a2166d3a58d9f made the capability ready",
+                "resolution_value": "authorized source fixture:invoice.json version 3bad6e9388d0efabbcec678dc95c21d6e4721c031ae24374501a2166d3a58d9f made the capability ready",
+                "resolved_at": "2026-11-07T08:42:08.528915+00:00",
+                "resolver": null,
+                "source_operation": null,
+                "status": "resolved",
+                "step_id": null,
+                "waiting": null
+              }
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

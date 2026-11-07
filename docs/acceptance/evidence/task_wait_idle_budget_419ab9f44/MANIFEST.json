@@ -1,0 +1,34 @@
+{
+  "executed_source": "419ab9f4497240515f5db046ebc0900c24c0073f",
+  "source_files": {
+    ".github/workflows/ci.yml": "356f84e4508a86a826460f24b541fc93d06007099b37cd7d0d2e70a334a4d35a",
+    "backend/api/assignment_routes.py": "806e732e22abd41068aa70b5dd50e841f5a322c26c1056d8e69c781ae8cbb611",
+    "backend/core/assignment_executor.py": "ff3f4d5917ae305855022fae43aedea990905039e0faafd70a83441a0002ac39",
+    "backend/core/assignment_plan.py": "b790afa84ce0c95fd01736dd76fdb3bbba3f63cb9b36127961a8ba48fe5bdd4b",
+    "backend/core/assignment_recovery.py": "c1c9f2182c19860ca3eedaedb17f9bb636f2ca25b9d3c1186627a36e4335dba0",
+    "backend/core/task_lifecycle.py": "4e6e67384ec759f691d084f4781d0567add04fd7dfead4a47c36a82d9a68ba61",
+    "backend/main_api_app.py": "0d47bc2fcab89c5a53ac32b2ae3d1760396ce8adcaa2f68acb959c778683db86",
+    "backend/tests/process_support/task_wait_process_worker.py": "f68f3d06607683f01921d9099260d4b6fee13bb96fdea87ab201aeaa6971b196",
+    "backend/tests/test_boot_recovery_not_gated_by_scheduler.py": "cdc399440de90fed57ce3aa23f33b25d7e8b828c2c37511a3fff34ef9161e2bb",
+    "backend/tests/test_task_wait_process_recovery.py": "2514bf41ce951e7fa9af140d7160ddf55d8d2bc8b42fb6a1fb084d45f8d80a67",
+    "backend/tests/test_task_wait_source_continuation_regressions.py": "486cd74543e6b5a79fe11836933fed385c5d0b72698e2b65ac0e072aac942d74",
+    "docs/acceptance/evidence/task_wait_recovery_integrated_227579321/independent-generation-probe.py": "14b9352e0f5e2f76f9c27b75b48d4dbd59e9b20905041bedfb42c53990cb247c"
+  },
+  "artifacts": {
+    "README.md": "e2274b0d74e6cdd4a8699837033495028a8d5c6309c951028d04f8e665e27910",
+    "baseline-exit.json": "2b0041f02d4c6640dcd0d17294e4aba71d21aa816034a6e9462a5a8c71e3e13a",
+    "baseline-spec.json": "8c46904683e0e205792eb5d663563f7beea6bd02a50dfefd789c6a566bbe239e",
+    "baseline.log": "0b2877bae8ce1ae76a45447a79b36fd9faeb10260c2fe7c83bbd90a80c7e0471",
+    "baseline.xml": "0552042fdad9a66047401dee79d99d8518aa45899e9de5e304fc9559afac9f10",
+    "fixed-native-exit.json": "2f8ad9e49032320af917e94202de08ed519ac5a17c8080cec2eea3f849f79a74",
+    "fixed-native-spec.json": "6dcff79bdbab063f41adea3030f9524379c076abbd0b3b8471ddd70915cbbef0",
+    "fixed-native.log": "2f3389aedd89dfe81df6bcb8c64377b0bdfb8f927e9f69a1f69516fb74ae4238",
+    "fixed-native.xml": "70bba35a03266453db6252e90fc27e5470f5cd89a9627b6b25f2b8ad63a344bd",
+    "independent-long-wait-probe.py": "072b21692ee5af3cbce5ed0b035dfe4f3001d423bbbe58e35c076c2bb6fbaed3",
+    "integrated-exit.json": "8b01b8c15f6e4b939128521a7760475604e5f47c37e504f3f44ef01a36bc66ec",
+    "integrated-spec.json": "ce6475489943918e7ca9deb55935bd61119d86ea10f22ff2d7e3cba8e43eccd0",
+    "integrated.log": "12bf1256a414583985a60f878bc98ba92cc94edcfef85a55921d23a5d36d1734",
+    "integrated.xml": "1f8129f38cd077ef9bd424024629c27cce4440847f52aefc362f8c618cd6d326",
+    "verification.json": "7d9d350e758131d26f853341120641743ea9a32e4871869037537d2117124e23"
+  }
+}

@@ -1,0 +1,29 @@
+{
+  "source": "2e23b37cf581b80f99ad3788c3a2629d90310d06",
+  "main": "43ca1e962626b47f3d40a96c7778582d39bfe89b",
+  "before_guard": {
+    "runtime_source": "784a2eb14",
+    "test_source": "c85788d66",
+    "test_only_added": true,
+    "failed": 1,
+    "actual_exit_code": 1
+  },
+  "repaired_physical": {
+    "source": "c85788d66",
+    "passed": 1,
+    "actual_exit_code": 0
+  },
+  "canonical_negative": {
+    "source": "e35730dd1",
+    "failed": 1,
+    "passed": 2,
+    "actual_exit_code": 1
+  },
+  "final": {
+    "passed": 141,
+    "normal_ci": 137,
+    "external_probes": 4,
+    "actual_exit_code": 0
+  },
+  "scope": "controlled public-route/process/physical DOCX; explicitadvance independentbranch mechanism"
+}

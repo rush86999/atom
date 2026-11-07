@@ -1,0 +1,32 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+___ test_wait_holds_physical_output_then_publishes_current_verified_results ____
+../../test_lead_wait_artifact_content.py:20: in test_wait_holds_physical_output_then_publishes_current_verified_results
+    case.test_independent_work_does_not_release_a_premature_final_artifact(route_env,tmp_path,monkeypatch)
+tests/test_task_wait_independent_work.py:228: in test_independent_work_does_not_release_a_premature_final_artifact
+    assert _applied_artifacts(working) == [], _steps(working)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../test_lead_wait_artifact_content.py:17: in observe
+    assert not requested.exists(),'a physical partial report exists before the missing invoice is answered'
+E   AssertionError: a physical partial report exists before the missing invoice is answered
+E   assert not True
+E    +  where True = exists()
+E    +    where exists = PosixPath('/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-artifact-before-guard-7mbben_t/pytest/test_wa...0/artifacts/ws-1/lead-1/draft-aa5c825a06ef/reconcile-invoice-inv-ind-1-for-po-ind-1-and-prepare-the-quo-b294e946.docx').exists
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED ../../test_lead_wait_artifact_content.py::test_wait_holds_physical_output_then_publishes_current_verified_results
+1 failed, 4 warnings in 2.86s
