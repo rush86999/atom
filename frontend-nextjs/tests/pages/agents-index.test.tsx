@@ -794,8 +794,6 @@ describe("AgentsDashboard", () => {
 // These child flows have their own controls; page wiring tests must not call
 // a developer backend for onboarding, OAuth or maturity proposals.
 jest.mock("@/components/Agents/MaturityApprovalPanel", () => ({ __esModule: true, default: () => null }));
-jest.mock("@/components/Agents/EmployeeOnboardingGuide", () => ({ EmployeeOnboardingGuide: () => null }));
-jest.mock("@/components/Agents/AgentLaunchGuide", () => ({ __esModule: true, default: () => null }));
 jest.mock("@/components/Agents/GuidedAgentCreator", () => ({ GuidedAgentCreator: () => null }));
 jest.mock("@/components/Agents/AutomationSuggestionsPanel", () => ({ AutomationSuggestionsPanel: () => null }));
 jest.mock("@/components/Agents/AgentMaturityGuide", () => ({ AgentMaturityGuideDialog: () => null }));
@@ -807,3 +805,14 @@ afterEach(() => {
   unhandledRequestWarnings.mockRestore();
   expect(unhandled).toEqual([]);
 });
+
+// Keep the real launch/onboarding UI while isolating its unrelated transports.
+jest.mock("@/lib/api", () => ({ apiClient: {
+  get: async (path: string) => {
+    if (path === "/api/v1/auth/oauth/tokens") return { data: { integrations: [] } };
+    if (path === "/api/v1/auth/oauth/config-status") return { data: {} };
+    if (path === "/api/data-ingestion/available-integrations") return { data: { data: [] } };
+    throw new Error(`Unexpected launch-guide request: ${path}`);
+  },
+} }));
+jest.mock("@/lib/maturity-api", () => ({ listTrainingProposals: async () => [] }));
