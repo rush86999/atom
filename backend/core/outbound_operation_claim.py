@@ -286,6 +286,7 @@ def mark_status(
     status: str,
     *,
     expected_status: Optional[Any] = None,
+    expected_payload_sha256: Optional[str] = None,
     db_factory=None,
 ) -> bool:
     """Persist a claim status transition. Never raises.
@@ -318,7 +319,12 @@ def mark_status(
             if allowed is not None:
                 from sqlalchemy import update
 
-                payload_hash = row.payload_sha256
+                # A reconciliation caller observed an exact immutable request
+                # before its independent effect readback. Do not adopt a peer's
+                # replacement payload just because it is current at this load.
+                payload_hash = (
+                    row.payload_sha256 if expected_payload_sha256 is None
+                    else expected_payload_sha256)
                 db.expire_all()
                 stmt = update(TaskOperationRecord).where(
                     TaskOperationRecord.id == record_id,

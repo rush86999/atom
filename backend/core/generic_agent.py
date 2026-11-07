@@ -1688,26 +1688,24 @@ What is your next step?"""
     def _freeze_authorized_request(
         args: Dict, context: Dict = None,
     ):
-        """Snapshot the authorized args and the caller's expected material.
+        """Snapshot the authorized business args.
 
         The handler receives a separate deep copy, so an in-place rewrite
         cannot change what the oracle compares against or what a durable
-        operation claim hashes.
+        operation claim hashes.  The protected ``_oracle_expected_*``
+        namespace is never read from model/body arguments: only the
+        server-owned builder (``core.oracle.request_expectations``) may
+        populate it after dispatch identity is known.
         """
-        authorized = copy.deepcopy(args or {})
-        expected = {
-            str(key): copy.deepcopy(value)
-            for key, value in authorized.items()
-            if str(key).startswith("_oracle_expected_")
-        }
+        from core.oracle.request_expectations import strip_expected_fields
+
+        authorized = strip_expected_fields(args)
+        expected: Dict = {}
         operation_id = str(
-            expected.get("_oracle_expected_operation_id")
-            or authorized.get("operation_id")
+            authorized.get("operation_id")
             or (context or {}).get("operation_id")
             or ""
         )
-        if operation_id:
-            expected.setdefault("_oracle_expected_operation_id", operation_id)
         return authorized, expected, operation_id
 
     def _server_operation_id(
@@ -1755,6 +1753,73 @@ What is your next step?"""
             material, sort_keys=True, separators=(",", ":"), default=str)
         return "auto-" + hashlib.sha256(raw.encode()).hexdigest()
 
+    def _server_request_identity(self, context: Dict) -> Dict[str, str]:
+        """Server-owned runtime identity used to freeze request expectations.
+
+        The model's tool arguments never contribute tenant/workspace/actor
+        scope.  The admitted execution context is authoritative (the API layer
+        overwrites these keys from the trusted namespace); the agent's own
+        bound scope is only a fallback for callers that already carry it.
+        """
+        ctx = context or {}
+        workspace = str(ctx.get("workspace_id") or "")
+        if not workspace:
+            own = str(getattr(self, "workspace_id", "") or "")
+            if own and own != "default":
+                workspace = own
+        tenant = str(
+            ctx.get("tenant_id") or getattr(self, "tenant_id", None)
+            or "default")
+        actor = str(
+            ctx.get("user_id") or ctx.get("userId")
+            or ctx.get("actor_id") or ctx.get("employee_id") or "")
+        return {
+            "workspace_id": workspace,
+            "tenant_id": tenant,
+            "actor_id": actor,
+            "agent_id": str(ctx.get("agent_id") or getattr(self, "id", "") or ""),
+        }
+
+    def _frozen_request_expectations(
+        self, tool_name: str, authorized: Dict, context: Dict,
+        operation_id: str, mutating: bool,
+    ) -> Dict:
+        """Build the server-owned proof snapshot before dispatch.
+
+        This is the single shared entry point (same builder as the assignment
+        adapter).  Failure to build is not a reason to skip an otherwise
+        authorized effect: the oracle will report honest uncertainty.  A
+        result envelope can never supply or overwrite these keys.
+        """
+        from core.oracle.request_expectations import build_request_expectations
+
+        identity = self._server_request_identity(context)
+        request_sha256 = ""
+        if mutating:
+            from core.oracle.request_expectations import (
+                approved_payload_sha256,
+            )
+
+            request_sha256 = approved_payload_sha256(authorized)
+        try:
+            return build_request_expectations(
+                tool_name,
+                authorized,
+                operation_id=operation_id,
+                tenant_id=identity["tenant_id"],
+                workspace_id=identity["workspace_id"],
+                actor_id=identity["actor_id"],
+                agent_id=identity["agent_id"],
+                request_sha256=request_sha256,
+            )
+        except Exception as exc:  # noqa: BLE001 - honest uncertainty
+            logger.debug(
+                "request expectation freeze skipped for %s: %s",
+                tool_name, type(exc).__name__)
+            return (
+                {"_oracle_expected_operation_id": operation_id}
+                if operation_id else {})
+
     @staticmethod
     def _oracle_context(
         authorized: Dict, result_fields: Dict, expected: Dict,
@@ -1780,7 +1845,12 @@ What is your next step?"""
     @staticmethod
     def _stamp_oracle_verdict(result: Any, verified: bool, evidence: str) -> Any:
         if isinstance(result, dict):
-            out = dict(result)
+            from core.oracle.request_expectations import strip_expected_fields
+
+            # A handler must not be able to echo the protected expectation
+            # namespace back to the loop either; only the server snapshot is
+            # authority.
+            out = strip_expected_fields(result)
             out["oracle_verified"] = bool(verified)
             out["oracle_evidence"] = str(evidence or "")
             return out
@@ -2167,9 +2237,71 @@ What is your next step?"""
                     "dependent work."),
             }
         if status in (claims.DISPATCHING, claims.UNCERTAIN_EFFECT):
+            # Reconciliation, not resend: re-derive the postcondition from the
+            # frozen authorized request + server-owned scope.  When a current
+            # independent readback confirms the ORIGINAL effect, the durable
+            # claim can move to succeeded without dispatching the handler a
+            # second time.  If proof is unavailable the honest uncertainty
+            # below stands.
+            checked = await self._oracle_check(
+                tool_name, authorized, {}, mutating=True,
+                expected=expected, context=context)
+            if isinstance(checked, dict) and checked.get(
+                    "oracle_verified") is True:
+                committed = bool(claim.get("record_id")) and claims.mark_status(
+                    claim["record_id"], claims.SUCCEEDED,
+                    expected_status=status,
+                    expected_payload_sha256=claim.get("payload_sha256"),
+                    db_factory=get_db_session)
+                if not committed:
+                    evidence = (
+                        "the effect readback matched, but the original operation "
+                        "could not commit its reconciliation transition; the "
+                        "durable operation remains authoritative")
+                    self._record_uncertain_operation(
+                        context, tool_name, operation_id, evidence)
+                    return {
+                        "success": False,
+                        "status": "uncertain",
+                        "action_result": "uncertain",
+                        "business_success": False,
+                        "effect_state": "unknown",
+                        "replayed": True,
+                        "reconciled": False,
+                        "idempotent": True,
+                        "operation_id": operation_id,
+                        "oracle_verified": False,
+                        "oracle_evidence": evidence,
+                        "requires_reconciliation": True,
+                        "retryable": False,
+                        "message": (
+                            "No second dispatch was made. Reconcile the original "
+                            "operation before dependent work; its durable "
+                            "transition was not confirmed."),
+                    }
+                return {
+                    "success": True,
+                    "status": "success",
+                    "action_result": "applied",
+                    "business_success": True,
+                    "effect_state": "applied",
+                    "replayed": True,
+                    "reconciled": True,
+                    "idempotent": True,
+                    "operation_id": operation_id,
+                    "oracle_verified": True,
+                    "oracle_evidence": checked.get("oracle_evidence"),
+                    "requires_reconciliation": False,
+                    "retryable": False,
+                    "message": (
+                        "The earlier dispatch's effect was independently "
+                        "re-read back; the original operation is reconciled. "
+                        "No second dispatch was made."),
+                }
             evidence = (
                 "the operation claim is dispatching/uncertain; the earlier "
-                "dispatch may have applied an effect")
+                "dispatch may have applied an effect and a fresh independent "
+                "readback did not confirm it")
             self._record_uncertain_operation(
                 context, tool_name, operation_id, evidence)
             return {
@@ -2508,10 +2640,16 @@ What is your next step?"""
         if mutating and not claim_operation_id:
             claim_operation_id = self._server_operation_id(
                 tool_name, authorized, context)
-        if claim_operation_id and "_oracle_expected_operation_id" not in expected:
-            expected["_oracle_expected_operation_id"] = claim_operation_id
         if not operation_id and claim_operation_id:
             operation_id = claim_operation_id
+        # Freeze the proof material from the ACCEPTED business request plus
+        # the server-owned runtime identity, before any handler can run.  The
+        # builder is the same one the assignment adapter uses; model-supplied
+        # ``_oracle_expected_*`` fields were stripped above and cannot become
+        # authority.  A result envelope is merged underneath this snapshot.
+        expected = self._frozen_request_expectations(
+            tool_name, authorized, context,
+            claim_operation_id or operation_id, mutating)
         claim: Optional[Dict] = None
         dispatch_started = False
         try:
