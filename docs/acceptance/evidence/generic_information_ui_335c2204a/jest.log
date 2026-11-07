@@ -1,0 +1,22 @@
+PASS components/Agents/__tests__/AgentJobWaitPanel.test.tsx
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS lib/__tests__/agent-job-ref.test.ts
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+
+Test Suites: 2 passed, 2 total
+Tests:       13 passed, 13 total
+Snapshots:   0 total
+Time:        2.978 s
+Ran all test suites within paths "components/Agents/__tests__/AgentJobWaitPanel.test.tsx", "lib/__tests__/agent-job-ref.test.ts".
