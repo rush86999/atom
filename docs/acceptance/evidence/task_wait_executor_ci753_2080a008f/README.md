@@ -31,13 +31,13 @@ row was relabelled as parser/upload proof.
 | Hosted 12 at `20946867e` | 12 failed | `hosted-backend-209-failure.log` |
 | Exact 12 locally, before fix | 12 failed / exit 1 | `before-12-fail.log` |
 | Exact 12 locally, after fix | 12 passed / exit 0 | `after-12-pass.log` |
-| Prior 9 + root 13 + broader executor 13 | 35 passed / exit 0 | `after-35-pass.log` |
+| Prior 9 + legacy freshness 13 + broader executor 13 | 35 passed / exit 0 | `after-35-pass.log` |
 
 All local runs used `/private/tmp/atom-agent-cli/run_bounded_test_gate.py`
 (`--profile bounded`), existing `venv314`, fresh unique `TESTING=1`
 DB/data/Lance/output/basetemp, and a synthetic `SECRET_KEY`. No dependency
 install, live model/provider/account/send/spend/deploy, or runtime change.
 
-`RUNS.json` records the exact commands and exit codes. `MANIFEST.json` is
+`RUNS.json` records shell command templates and reported exit codes; placeholders are not resolved exact argv. Its middle13 are legacy freshness/extraction controls, not the root13 wait-consumption probes. The external extraction probe is retained as `legacy-extraction-verifier.test.py`. Root independently verifies the actual root13 in a separate source-bound run. `MANIFEST.json` is
 verified by `scripts/acceptance/evidence_git_check.py --strict` against
 `executed_source` and the evidence ref.

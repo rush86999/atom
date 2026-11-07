@@ -1,11 +1,12 @@
 {
   "artifacts": {
-    "README.md": "a6dd3fa342234bb8abeb7b4e44ce268776c32452943df50fc6289ef3e820281a",
-    "RUNS.json": "1d74719b7adc3d08358f797d4b90413d40a326b9d6578af7137d98117f92b86d",
+    "README.md": "22b8281f6411a58d916cdbadd0abada5ba3f4c7af171f7f7f84000ab2a2fd4ec",
+    "RUNS.json": "31f2605fe0377ae26aba3653d0ddac4f2cc2cf831b73286a470e4a3d1e326b0c",
     "after-12-pass.log": "ceaaf90fa8598aa9b0d27b761dd92de07cf2af0b6a36b3eb30c4334921e93470",
     "after-35-pass.log": "1074341ea7aa3eb2bc578b913dc8ba21d6903884c3d10c51190e3082af532a1c",
     "before-12-fail.log": "193ffc95752b0082ee48c4e87fe4429667724551c045187539f03ac05ee5288d",
-    "hosted-backend-209-failure.log": "b2d5a41f77512b3fd4fb2bd7f5ba09a01ecab4b597bff79d6a855e0510c25c2c"
+    "hosted-backend-209-failure.log": "b2d5a41f77512b3fd4fb2bd7f5ba09a01ecab4b597bff79d6a855e0510c25c2c",
+    "legacy-extraction-verifier.test.py": "eb33ce4819eadde182adaae596f994c5058f7e9110b5605abab96fc57793de24"
   },
   "executed_source": "2080a008f",
   "source_base": "20946867e2413530138a6370ed98ec5ada9ece1c",
