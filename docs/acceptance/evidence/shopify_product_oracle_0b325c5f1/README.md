@@ -64,5 +64,14 @@ unidentifiable readback, same-operation one-effect replay, changed-material
 refusal, lost-confirmation no-resend and frozen-digest refusal before
 transport.
 
+### Replay boundary (honest)
+
+A replay of a **succeeded** generic claim reports `committed_unverified` and
+does not resend: the existing `TaskOperationRecord` claim stores the operation
+identity and payload digest, not the provider's remote id, so the verifier
+cannot honestly re-read by id from frozen material alone. The one-effect
+invariant is still proven (POST count remains one, `idempotent`/`replayed` true).
+No title-based lookup is used to manufacture a replayed success.
+
 Artifact hashes are in `MANIFEST.json`. The scratch world is retained at
 `backend/.shopify_oracle_evidence/scratch` and is not part of this commit.

@@ -188,8 +188,8 @@
     },
     {
       "file": "README.md",
-      "sha256": "1cf48f14ce7c2c535f2e742161da4977e5cb100266abae9e4a49cd6d9ba77e97",
-      "bytes": 3150
+      "sha256": "407fd7aa0b3546513d35319527910152b3e56cbb5cf1013b506c1a8471357eb7",
+      "bytes": 3632
     },
     {
       "file": "verification.json",
@@ -201,6 +201,7 @@
     "No live Shopify/provider/account/store/token/credential call or configuration.",
     "No claim for shopify_create_blog, shopify_create_article or shopify_create_fulfillment; those remain the next owned cases.",
     "No claim that a matching title or transport 201 is business success.",
+    "A replay of a succeeded generic claim is reported committed_unverified with no resend because the existing TaskOperationRecord does not persist a provider remote id; no title-based lookup fabricates a replayed success.",
     "No self-acceptance; root independently verifies."
   ],
   "retained_scratch": "backend/.shopify_oracle_evidence/scratch (owned scratch; not part of the evidence commit)"
