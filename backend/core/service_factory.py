@@ -202,10 +202,13 @@ class ServiceFactory:
         return CanvasContextService(db, tenant_id=tenant_id)
 
     @classmethod
-    def get_canvas_recording_service(cls, db: Session, tenant_id: str) -> CanvasRecordingService:
+    def get_canvas_recording_service(
+        cls, db: Session, tenant_id: str, workspace_id: str = "default"
+    ) -> CanvasRecordingService:
         """Get or create CanvasRecordingService instance."""
         # Per-call: binds the caller's db session (see class note).
-        return CanvasRecordingService(db, tenant_id=tenant_id)
+        return CanvasRecordingService(
+            db, tenant_id=tenant_id, workspace_id=workspace_id)
 
     @classmethod
     def get_canvas_summary_service(cls, db: Session, tenant_id: str) -> CanvasPresentationSummaryService:

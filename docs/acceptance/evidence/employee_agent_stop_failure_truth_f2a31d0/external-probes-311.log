@@ -1,0 +1,66 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-06 17:19:50 [    INFO] AgentTaskRegistry initialized
+
+tests/test_agent3_pr695_stop_probes.py::test_enabled_change_before_claim_refuses 
+-------------------------------- live log setup --------------------------------
+2026-11-06 17:19:51 [    INFO] EscalationManager initialized
+2026-11-06 17:19:51 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 17:19:51 [    INFO] EscalationManager initialized
+2026-11-06 17:19:51 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 17:19:51 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:19:52 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/stop?operation_id=agent3-stale-enabled "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 20%]
+tests/test_agent3_pr695_stop_probes.py::test_competing_new_operation_stop_after_success_is_no_change 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:19:52 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/stop?operation_id=agent3-first-stop "HTTP/1.1 200 OK"
+2026-11-06 17:19:52 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/stop?operation_id=agent3-second-stop "HTTP/1.1 200 OK"
+PASSED                                                                   [ 40%]
+tests/test_agent3_pr695_stop_probes.py::test_receipt_failure_response_still_reports_cancelled_count 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:19:54 [   ERROR] agent stop receipt failed after cancellation: operation_id=agent:stop:agent3-unknown-count target=a1 error_class=IntegrityError
+2026-11-06 17:19:54 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/stop?operation_id=agent3-unknown-count "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 60%]
+tests/test_verifier_stop_failure_truth.py::test_unreadable_registry_is_not_a_verified_empty_task_set 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:19:55 [ WARNING] agent stop task-state read failed: target=a1 error_class=RuntimeError
+2026-11-06 17:19:55 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/stop?operation_id=verifier-unreadable "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 80%]
+tests/test_verifier_stop_failure_truth.py::test_cancellation_failure_after_partial_progress_is_not_effect_none 
+-------------------------------- live log call ---------------------------------
+2026-11-06 17:19:56 [   ERROR] agent stop cancellation outcome unknown: operation_id=agent:stop:verifier-partial-cancel target=a1 error_class=RuntimeError
+2026-11-06 17:19:56 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/stop?operation_id=verifier-partial-cancel "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+tests/test_agent3_pr695_stop_probes.py::test_enabled_change_before_claim_refuses
+  /private/tmp/atom-stop-failure/backend/core/graphrag_engine.py:196: DeprecationWarning: invalid escape sequence '\%'
+    """
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 5 passed, 6 warnings in 21.02s ========================

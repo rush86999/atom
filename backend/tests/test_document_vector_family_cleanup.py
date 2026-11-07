@@ -116,18 +116,15 @@ async def test_cleanup_failure_is_not_fatal():
 # made an id that exists ONLY as chunks permanently undeletable.
 
 
-from types import SimpleNamespace
-
-import pytest
 from fastapi import HTTPException
 
 
 class RouteRecordingHandler:
-    """LanceDB handler stand-in for the delete route."""
+    """Stateful LanceDB handler stand-in for the delete route."""
 
     def __init__(self, base_row=None, family_ids=None):
-        self.base_row = base_row
-        self.family_ids = family_ids or []
+        self.base_row = dict(base_row) if base_row else None
+        self.family_ids = list(family_ids or [])
         self.deleted_by_id: List[Tuple[str, str]] = []
         self.deleted_by_prefix: List[Tuple[str, str]] = []
 
@@ -138,80 +135,135 @@ class RouteRecordingHandler:
         assert prefix.endswith("::"), prefix
         return list(self.family_ids)
 
+    def count_document_rows_by_id(self, table_name, doc_id):
+        return 1 if self.base_row else 0
+
+    def count_document_rows_by_prefix(self, table_name, prefix):
+        return len(self.family_ids)
+
     def delete_documents_by_id(self, table_name, doc_id):
         self.deleted_by_id.append((table_name, doc_id))
+        self.base_row = None
         return True
 
     def delete_documents_by_prefix(self, table_name, prefix):
         self.deleted_by_prefix.append((table_name, prefix))
+        self.family_ids = []
         return True
 
 
-_USER = SimpleNamespace(workspaces=[SimpleNamespace(id="ws-1")])
+@pytest.fixture
+def delete_db(tmp_path):
+    from sqlalchemy import create_engine
+    from sqlalchemy.orm import sessionmaker
+
+    from core.database import Base
+    from core.models import User
+
+    engine = create_engine(
+        f"sqlite:///{tmp_path / 'route-delete.db'}",
+        connect_args={"check_same_thread": False},
+    )
+    Base.metadata.create_all(engine)
+    session = sessionmaker(bind=engine)()
+    user = User(
+        id="u-route", email="route@example.com", hashed_password="h",
+        first_name="R", last_name="T", role="member", status="active",
+        tenant_id="t-route", workspace_id="ws-1")
+    session.add(user)
+    session.commit()
+    yield session, user
+    session.close()
+    engine.dispose()
 
 
-async def _run_delete(handler, doc_id, monkeypatch):
+async def _run_delete(handler, doc_id, monkeypatch, db, user,
+                      operation_id=None):
     import api.document_routes as dr
 
     monkeypatch.setattr(dr, "get_lancedb_handler", lambda ws_id=None: handler)
     return await dr.delete_document(
         doc_id=doc_id,
         request=object(),  # not a starlette Request → governance pass-through
-        db=None,
-        current_user=_USER,
+        operation_id=operation_id,
+        db=db,
+        current_user=user,
         agent_id=None,
     )
 
 
 @pytest.mark.asyncio
-async def test_delete_route_removes_chunk_family(monkeypatch):
+async def test_delete_route_removes_chunk_family(monkeypatch, delete_db):
+    db, user = delete_db
     handler = RouteRecordingHandler(
-        base_row={"id": "doc_abc", "text": "x", "metadata": {}}
+        base_row={"id": "doc_abc", "text": "x", "metadata": {}},
+        family_ids=["doc_abc::c0", "doc_abc::c1"],
     )
-    out = await _run_delete(handler, "doc_abc", monkeypatch)
+    out = await _run_delete(handler, "doc_abc", monkeypatch, db, user)
 
     assert ("documents", "doc_abc") in handler.deleted_by_id
     assert ("documents", "doc_abc::") in handler.deleted_by_prefix, (
         "route deleted the base row but orphaned the chunk family"
     )
     assert out["success"] is True
+    assert out["metadata"]["verification"]["status"] == "verified"
 
 
 @pytest.mark.asyncio
-async def test_delete_route_accepts_chunk_only_id(monkeypatch):
+async def test_delete_route_accepts_chunk_only_id(monkeypatch, delete_db):
     """An id with no exact row but a live chunk family is DELETABLE — the
     old 404 guard made such ids permanently undeletable."""
+    db, user = delete_db
     handler = RouteRecordingHandler(
         base_row=None, family_ids=["doc_abc::c0", "doc_abc::c1"]
     )
-    out = await _run_delete(handler, "doc_abc", monkeypatch)
+    out = await _run_delete(handler, "doc_abc", monkeypatch, db, user)
 
     assert ("documents", "doc_abc::") in handler.deleted_by_prefix
     assert out["success"] is True
+    assert out["metadata"]["verification"]["status"] == "verified"
 
 
 @pytest.mark.asyncio
-async def test_delete_route_404_when_neither_row_nor_family(monkeypatch):
+async def test_delete_route_404_when_neither_row_nor_family(
+        monkeypatch, delete_db):
+    db, user = delete_db
     handler = RouteRecordingHandler(base_row=None, family_ids=[])
     with pytest.raises(HTTPException) as exc:
-        await _run_delete(handler, "ghost", monkeypatch)
+        await _run_delete(handler, "ghost", monkeypatch, db, user)
     assert exc.value.status_code == 404
     assert handler.deleted_by_id == []
     assert handler.deleted_by_prefix == []
 
 
 @pytest.mark.asyncio
-async def test_delete_route_family_cleanup_failure_is_not_fatal(monkeypatch):
-    """Prefix-delete failure is best-effort (same idiom as the ingestion
-    sites): the base deletion must still succeed."""
+async def test_delete_route_family_cleanup_failure_is_not_success(
+        monkeypatch, delete_db):
+    """A raising prefix delete leaves a known base-row deletion and a live
+    chunk family. That is a partial, non-success outcome with the original
+    operation identity — never a clean 200 success."""
+    db, user = delete_db
     handler = RouteRecordingHandler(
-        base_row={"id": "doc_abc", "text": "x", "metadata": {}}
+        base_row={"id": "doc_abc", "text": "x", "metadata": {}},
+        family_ids=["doc_abc::c0", "doc_abc::c1"],
     )
 
     def boom(table_name, prefix):
         raise RuntimeError("lance write lock")
 
     handler.delete_documents_by_prefix = boom
-    out = await _run_delete(handler, "doc_abc", monkeypatch)
-    assert out["success"] is True
+    with pytest.raises(HTTPException) as exc:
+        await _run_delete(
+            handler, "doc_abc", monkeypatch, db, user,
+            operation_id="client-partial-1")
+
+    assert exc.value.status_code == 503
+    detail = exc.value.detail
+    assert detail["verification"]["status"] == "committed_unverified"
+    assert detail["verification"]["effect"] == "partial"
+    assert detail["verification"]["replay"] == "do_not_repeat"
+    assert detail["operation_id"].endswith("client-partial-1")
+    assert detail["data"]["counts"]["post_base"] == 0
+    assert detail["data"]["counts"]["post_chunks"] == 2
     assert ("documents", "doc_abc") in handler.deleted_by_id
+    assert handler.count_document_rows_by_prefix("documents", "doc_abc::") == 2

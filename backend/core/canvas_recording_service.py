@@ -43,14 +43,24 @@ class CanvasRecordingService:
     - Training and improvement
     """
 
-    def __init__(self, db: Session, tenant_id: str = "default"):
+    def __init__(
+        self,
+        db: Session,
+        tenant_id: str = "default",
+        workspace_id: str = "default",
+    ):
         self.db = db
         self.tenant_id = tenant_id
+        self.workspace_id = workspace_id
         self._governance = None
         
         # Local import to avoid circular dependency
         from core.service_factory import ServiceFactory
-        self._governance = ServiceFactory.get_governance_service(self.db)
+        self._governance = ServiceFactory.get_governance_service(
+            self.db,
+            workspace_id=self.workspace_id,
+            tenant_id=self.tenant_id,
+        )
 
     @property
     def governance(self) -> AgentGovernanceService:
@@ -59,7 +69,11 @@ class CanvasRecordingService:
             # This case should ideally not be hit if _governance is initialized in __init__
             # but kept for robustness or if __init__ initialization is conditional.
             from core.service_factory import ServiceFactory # Ensure ServiceFactory is available
-            self._governance = ServiceFactory.get_governance_service(self.db)
+            self._governance = ServiceFactory.get_governance_service(
+                self.db,
+                workspace_id=self.workspace_id,
+                tenant_id=self.tenant_id,
+            )
         return self._governance
 
     async def start_recording(
@@ -558,7 +572,11 @@ class CanvasRecordingService:
             # Import here to avoid circular dependency
             from core.recording_review_service import RecordingReviewService
 
-            review_service = RecordingReviewService(self.db)
+            review_service = RecordingReviewService(
+                self.db,
+                tenant_id=self.tenant_id,
+                workspace_id=self.workspace_id,
+            )
 
             # Trigger auto-review (will skip if not enabled or if low confidence)
             review_id = await review_service.auto_review_recording(recording_id)
@@ -573,6 +591,11 @@ class CanvasRecordingService:
 
 
 # Singleton instance helper
-def get_canvas_recording_service(db: Session, tenant_id: str = "default") -> CanvasRecordingService:
-    """Get or create canvas recording service instance."""
-    return CanvasRecordingService(db, tenant_id=tenant_id)
+def get_canvas_recording_service(
+    db: Session,
+    tenant_id: str = "default",
+    workspace_id: str = "default",
+) -> CanvasRecordingService:
+    """Get or create canvas recording service instance in the caller's scope."""
+    return CanvasRecordingService(
+        db, tenant_id=tenant_id, workspace_id=workspace_id)

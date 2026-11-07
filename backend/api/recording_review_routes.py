@@ -14,8 +14,15 @@ from sqlalchemy.orm import Session
 from core.auth import get_current_user
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
-from core.models import CanvasRecording, CanvasRecordingReview, User, UserRole
+from core.models import (
+    AgentRegistry,
+    CanvasRecording,
+    CanvasRecordingReview,
+    User,
+    UserRole,
+)
 from core.recording_review_service import RecordingReviewService, get_recording_review_service
+from core.security.rbac import user_meets_role
 
 logger = logging.getLogger(__name__)
 
@@ -82,6 +89,48 @@ class ReviewMetricsResponse(BaseModel):
     strengths: list
 
 
+def _recording_scope_and_access(
+    db: Session,
+    recording: CanvasRecording,
+    user: User,
+    *,
+    allow_admin: bool = True,
+):
+    """Return the recording's authoritative scope, or raise for a foreign caller.
+
+    The recording row is the durable authority. A caller carrying a real
+    tenant/workspace must match the recording's tenant and the recording
+    owner's workspace; foreign scopes get 404 (no existence leak). A caller
+    with no scope attributes is the legacy/system seam used by personal
+    edition and the existing route contracts. The owner and, when allowed, a
+    same-scope workspace admin may review.
+    """
+    caller_tenant = getattr(user, "tenant_id", None)
+    caller_workspace = getattr(user, "workspace_id", None)
+    recording_tenant = getattr(recording, "tenant_id", None)
+
+    owner = None
+    if caller_tenant or caller_workspace:
+        owner = db.query(User).filter(User.id == recording.user_id).first()
+    owner_workspace = getattr(owner, "workspace_id", None) if owner else None
+
+    if caller_tenant and recording_tenant and str(caller_tenant) != str(recording_tenant):
+        raise router.not_found_error("Recording", recording.recording_id)
+    if caller_workspace and owner_workspace and str(caller_workspace) != str(owner_workspace):
+        raise router.not_found_error("Recording", recording.recording_id)
+
+    is_owner = str(getattr(user, "id", "")) == str(recording.user_id)
+    if is_owner:
+        return recording_tenant, owner_workspace or caller_workspace
+    if allow_admin and user_meets_role(user, UserRole.WORKSPACE_ADMIN):
+        return recording_tenant, owner_workspace or caller_workspace
+    raise router.permission_denied_error(
+        action="review_recording",
+        resource="Recording",
+        details={"recording_id": recording.recording_id},
+    )
+
+
 # Endpoints
 @router.get("/health")
 async def health_check():
@@ -115,15 +164,23 @@ async def create_review(
     - Create audit trail
     """
     try:
-        review_service = get_recording_review_service(db)
-
-        # Verify recording exists
+        # Verify recording exists and the caller is in its durable scope.
         recording = db.query(CanvasRecording).filter(
             CanvasRecording.recording_id == request.recording_id
         ).first()
 
         if not recording:
             raise router.not_found_error("Recording", request.recording_id)
+
+        tenant_id, workspace_id = _recording_scope_and_access(
+            db, recording, user)
+        review_service = get_recording_review_service(
+            db,
+            tenant_id=tenant_id or getattr(user, "tenant_id", None) or "default",
+            workspace_id=(
+                workspace_id or getattr(user, "workspace_id", None) or "default"
+            ),
+        )
 
         # Create review
         review_id = await review_service.create_review(
@@ -186,20 +243,14 @@ async def get_review(
         if not review:
             raise router.not_found_error("Review", review_id)
 
-        # Verify user has access (owns the recording or is admin)
+        # Verify the caller is in the recording's durable scope (owner or
+        # same-scope workspace admin); foreign scopes get 404.
         recording = db.query(CanvasRecording).filter(
             CanvasRecording.recording_id == review.recording_id
         ).first()
-
-        if not recording or (recording.user_id != user.id):
-            # Verify user is admin
-            from core.security.rbac import user_meets_role as _meets
-            if not _meets(user, UserRole.WORKSPACE_ADMIN):
-                raise router.permission_denied_error(
-                    action="get_review",
-                    resource="Recording",
-                    details={"reason": "You must own this recording or be an admin"}
-                )
+        if not recording:
+            raise router.not_found_error("Recording", review.recording_id)
+        _recording_scope_and_access(db, recording, user)
 
         return ReviewResponse(
             review_id=review.id,
@@ -252,17 +303,17 @@ async def get_recording_reviews(
         if not recording:
             raise router.not_found_error("Recording", recording_id)
 
-        if recording.user_id != user.id:
-            raise router.permission_denied_error(
-                action="get_recording_reviews",
-                resource="Recording",
-                details={"recording_id": recording_id}
-            )
+        # Owner or same-scope workspace admin may see the review queue.
+        _recording_scope_and_access(db, recording, user)
 
-        # Get reviews
-        reviews = db.query(CanvasRecordingReview).filter(
+        # Get reviews; the recording's tenant is the durable scope.
+        query = db.query(CanvasRecordingReview).filter(
             CanvasRecordingReview.recording_id == recording_id
-        ).order_by(CanvasRecordingReview.created_at.desc()).all()
+        )
+        if isinstance(getattr(recording, "tenant_id", None), str) and recording.tenant_id:
+            query = query.filter(
+                CanvasRecordingReview.tenant_id == recording.tenant_id)
+        reviews = query.order_by(CanvasRecordingReview.created_at.desc()).all()
 
         return [
             ReviewResponse(
@@ -318,7 +369,24 @@ async def get_agent_review_metrics(
     - **days**: Number of days to look back (default 30)
     """
     try:
-        review_service = get_recording_review_service(db)
+        agent = db.query(AgentRegistry).filter(
+            AgentRegistry.id == agent_id).first()
+        if agent is not None:
+            caller_tenant = getattr(user, "tenant_id", None)
+            agent_tenant = getattr(agent, "tenant_id", None)
+            if caller_tenant and agent_tenant and str(caller_tenant) != str(agent_tenant):
+                raise router.not_found_error("Agent", agent_id)
+            caller_workspace = getattr(user, "workspace_id", None)
+            agent_workspace = getattr(agent, "workspace_id", None)
+            if (caller_workspace and agent_workspace
+                    and str(caller_workspace) != str(agent_workspace)):
+                raise router.not_found_error("Agent", agent_id)
+
+        review_service = get_recording_review_service(
+            db,
+            tenant_id=getattr(user, "tenant_id", None) or "default",
+            workspace_id=getattr(user, "workspace_id", None) or "default",
+        )
 
         metrics = await review_service.get_review_metrics(
             agent_id=agent_id,
@@ -327,6 +395,8 @@ async def get_agent_review_metrics(
 
         return ReviewMetricsResponse(**metrics)
 
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Failed to get agent metrics: {e}")
         raise router.internal_error(detail="Internal error")
@@ -349,15 +419,23 @@ async def trigger_auto_review(
     Returns the review_id if review was created, or indicates if skipped.
     """
     try:
-        review_service = get_recording_review_service(db)
-
-        # Verify recording exists
+        # Verify recording exists and the caller is in its durable scope.
         recording = db.query(CanvasRecording).filter(
             CanvasRecording.recording_id == recording_id
         ).first()
 
         if not recording:
             raise router.not_found_error("Recording", recording_id)
+
+        tenant_id, workspace_id = _recording_scope_and_access(
+            db, recording, user)
+        review_service = get_recording_review_service(
+            db,
+            tenant_id=tenant_id or getattr(user, "tenant_id", None) or "default",
+            workspace_id=(
+                workspace_id or getattr(user, "workspace_id", None) or "default"
+            ),
+        )
 
         # Trigger auto-review
         review_id = await review_service.auto_review_recording(recording_id)

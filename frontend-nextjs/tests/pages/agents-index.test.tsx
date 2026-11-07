@@ -11,6 +11,9 @@ import { render, screen, fireEvent, waitFor, act } from "@testing-library/react"
 import { wsMock as wsBridge } from '../../tests/helpers/wsMock';
 import AgentsDashboard from "@/pages/agents/index";
 import { handleSessionExpired } from "@/lib/auth-headers";
+import { ProductProfileProvider } from "@/lib/product-profile";
+
+const originalFetch = global.fetch;
 
 const mockToast = jest.fn();
 const mockRouterPush = jest.fn();
@@ -159,6 +162,10 @@ describe("AgentsDashboard", () => {
     global.fetch = mockFetch;
   });
 
+  afterEach(() => {
+    global.fetch = originalFetch;
+  });
+
   test("shows loading state before agents resolve", () => {
     renderAgents(<AgentsDashboard />);
     expect(screen.getByText("Loading agents...")).toBeInTheDocument();
@@ -180,13 +187,54 @@ describe("AgentsDashboard", () => {
     await waitFor(() => expect(screen.getByTestId("agent-card-a1")).toBeInTheDocument());
   });
 
-  test("renders empty state when no agents", async () => {
+  test("core profile empty state omits deferred marketplace/automation links", async () => {
     mockFetch.mockResolvedValue(okJson({ success: true, data: [] }));
     renderAgents(<AgentsDashboard />);
     await waitFor(() =>
       expect(screen.getByText(/No agents found/)).toBeInTheDocument()
     );
-    expect(screen.getByText("Browse templates")).toBeInTheDocument();
+    expect(screen.getByText("Chat with an agent")).toBeInTheDocument();
+    expect(screen.queryByText("Browse templates")).not.toBeInTheDocument();
+    expect(screen.queryByText("Describe a workflow")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "template" })).not.toBeInTheDocument();
+  });
+
+  test("full profile empty state keeps marketplace/automation affordances", async () => {
+    mockFetch.mockResolvedValue(okJson({ success: true, data: [] }));
+    const baseFetch = mockFetch;
+    global.fetch = jest.fn((url: any, ...args: any[]) => {
+      if (String(url).includes("/api/product/profile")) {
+        return Promise.resolve(okJson({
+          profile: "full",
+          version: "test",
+          statement: "Full test profile",
+          capabilities: {
+            agents: { label: "Agents", enabled: true },
+            marketplace: { label: "Marketplace", enabled: true },
+            automations: { label: "Automations", enabled: true },
+          },
+          enabled_capabilities: ["agents", "marketplace", "automations"],
+          deferred_capabilities: [],
+          routes: {
+            "/agents": "agents",
+            "/marketplace": "marketplace",
+            "/automations": "automations",
+          },
+        }));
+      }
+      return baseFetch(url, ...args);
+    }) as any;
+
+    render(
+      <ProductProfileProvider>
+        <AgentsDashboard />
+      </ProductProfileProvider>
+    );
+    await waitFor(() =>
+      expect(screen.getByText("Browse templates")).toBeInTheDocument()
+    );
+    expect(screen.getByText("Describe a workflow")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "template" })).toBeInTheDocument();
   });
 
   test("redirects to login when no auth token", async () => {

@@ -1,0 +1,110 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-06 16:58:09 [    INFO] AgentTaskRegistry initialized
+
+tests/test_agent3_pr695_stop_probes.py::test_enabled_change_before_claim_refuses 
+-------------------------------- live log setup --------------------------------
+2026-11-06 16:58:09 [    INFO] EscalationManager initialized
+2026-11-06 16:58:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 16:58:09 [    INFO] EscalationManager initialized
+2026-11-06 16:58:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 16:58:09 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:58:10 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/stop?operation_id=agent3-stale-enabled "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 20%]
+tests/test_agent3_pr695_stop_probes.py::test_competing_new_operation_stop_after_success_is_no_change 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:58:10 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/stop?operation_id=agent3-first-stop "HTTP/1.1 200 OK"
+2026-11-06 16:58:11 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/stop?operation_id=agent3-second-stop "HTTP/1.1 200 OK"
+PASSED                                                                   [ 40%]
+tests/test_agent3_pr695_stop_probes.py::test_receipt_failure_response_still_reports_cancelled_count 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:58:11 [   ERROR] agent stop receipt failed after cancellation: operation_id=agent:stop:agent3-unknown-count target=a1 error_class=IntegrityError
+2026-11-06 16:58:11 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/stop?operation_id=agent3-unknown-count "HTTP/1.1 503 Service Unavailable"
+FAILED                                                                   [ 60%]
+tests/test_verifier_stop_failure_truth.py::test_unreadable_registry_is_not_a_verified_empty_task_set 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:58:12 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/stop?operation_id=verifier-unreadable "HTTP/1.1 200 OK"
+FAILED                                                                   [ 80%]
+tests/test_verifier_stop_failure_truth.py::test_cancellation_failure_after_partial_progress_is_not_effect_none 
+-------------------------------- live log call ---------------------------------
+2026-11-06 16:58:12 [   ERROR] agent stop cancellation failed: operation_id=agent:stop:verifier-partial-cancel target=a1 error_class=RuntimeError
+2026-11-06 16:58:12 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/stop?operation_id=verifier-partial-cancel "HTTP/1.1 409 Conflict"
+FAILED                                                                   [100%]
+
+=================================== FAILURES ===================================
+_________ test_receipt_failure_response_still_reports_cancelled_count __________
+tests/test_agent3_pr695_stop_probes.py:132: in test_receipt_failure_response_still_reports_cancelled_count
+    assert detail.get("data", {}).get("cancelled_tasks") == 2
+E   AssertionError: assert None == 2
+E    +  where None = <built-in method get of dict object at 0x125fc1d00>('cancelled_tasks')
+E    +    where <built-in method get of dict object at 0x125fc1d00> = {}.get
+E    +      where {} = <built-in method get of dict object at 0x125fc1740>('data', {})
+E    +        where <built-in method get of dict object at 0x125fc1740> = {'success': False, 'error': {'code': 'AGENT_EFFECT_UNKNOWN', 'message': 'The agent decision may have committed, but confirmation was lost. Reconcile the original operation; do not repeat it blindly.'}, 'verification': {'status': 'unavailable', 'effect': 'unknown', 'replay': 'do_not_repeat', 'error': 'COMMIT_OUTCOME_UNKNOWN'}, 'operation_id': 'agent:stop:agent3-unknown-count', ...}.get
+------------------------------ Captured log call -------------------------------
+ERROR    core.agent_decision_write_service:agent_decision_write_service.py:1863 agent stop receipt failed after cancellation: operation_id=agent:stop:agent3-unknown-count target=a1 error_class=IntegrityError
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/agents/a1/stop?operation_id=agent3-unknown-count "HTTP/1.1 503 Service Unavailable"
+__________ test_unreadable_registry_is_not_a_verified_empty_task_set ___________
+tests/test_verifier_stop_failure_truth.py:10: in test_unreadable_registry_is_not_a_verified_empty_task_set
+    assert response.status_code == 503, response.text
+E   AssertionError: {"success":true,"data":{"agent_id":"a1","cancelled_tasks":0,"verification":{"status":"no_change","effect":"none"}},"timestamp":"2026-11-06T21:58:12.181934+00:00","message":"No running tasks found for this agent"}
+E   assert 200 == 503
+E    +  where 200 = <Response [200 OK]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/agents/a1/stop?operation_id=verifier-unreadable "HTTP/1.1 200 OK"
+_____ test_cancellation_failure_after_partial_progress_is_not_effect_none ______
+tests/test_verifier_stop_failure_truth.py:26: in test_cancellation_failure_after_partial_progress_is_not_effect_none
+    assert response.status_code == 503, response.text
+E   AssertionError: {"detail":{"success":false,"error":{"code":"AGENT_TRANSACTION_ROLLED_BACK","message":"The agent tasks could not be cancelled; no receipt was written"},"verification":{"status":"refused","effect":"none","replay":"safe_after_refresh"},"operation_id":null,"audit_id":null}}
+E   assert 409 == 503
+E    +  where 409 = <Response [409 Conflict]>.status_code
+------------------------------ Captured log call -------------------------------
+ERROR    core.agent_decision_write_service:agent_decision_write_service.py:1837 agent stop cancellation failed: operation_id=agent:stop:verifier-partial-cancel target=a1 error_class=RuntimeError
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/agents/a1/stop?operation_id=verifier-partial-cancel "HTTP/1.1 409 Conflict"
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 10 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_agent3_pr695_stop_probes.py::test_enabled_change_before_claim_refuses
+  /private/tmp/atom-stop-failure/backend/core/graphrag_engine.py:203: SyntaxWarning: "\%" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\%"? A raw string is also an option.
+    Escaped pattern where % and _ are escaped to \%
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_agent3_pr695_stop_probes.py::test_receipt_failure_response_still_reports_cancelled_count
+FAILED tests/test_verifier_stop_failure_truth.py::test_unreadable_registry_is_not_a_verified_empty_task_set
+FAILED tests/test_verifier_stop_failure_truth.py::test_cancellation_failure_after_partial_progress_is_not_effect_none
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================== 3 failed, 2 passed, 18 warnings in 12.19s ===================
