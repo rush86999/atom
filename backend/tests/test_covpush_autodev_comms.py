@@ -840,15 +840,28 @@ class TestReflectionEngineCoverage:
         eng = ReflectionEngine(Mock())
         gate = Mock()
         gate.can_use = Mock(return_value=True)
+        gate.authoritative_workspace_settings = Mock(return_value={})
         with patch(
             "core.auto_dev.capability_gate.AutoDevCapabilityService", return_value=gate
-        ), patch.object(eng, "_get_workspace_settings", return_value={}):
+        ):
             assert eng._should_process_agent("a1", "t1") is True
         gate.can_use.assert_called_once_with(
             agent_id="a1",
             capability="auto_dev.memento_skills",
             workspace_settings={},
         )
+
+    def test_should_process_agent_refuses_when_authority_missing(self):
+        from core.auto_dev.reflection_engine import ReflectionEngine
+        eng = ReflectionEngine(Mock())
+        gate = Mock()
+        gate.can_use = Mock(return_value=True)
+        gate.authoritative_workspace_settings = Mock(return_value=None)
+        with patch(
+            "core.auto_dev.capability_gate.AutoDevCapabilityService", return_value=gate
+        ):
+            assert eng._should_process_agent("a1", "t1") is False
+        gate.can_use.assert_not_called()
 
     def test_should_process_agent_exception(self):
         from core.auto_dev.reflection_engine import ReflectionEngine
