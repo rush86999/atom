@@ -1,0 +1,240 @@
+$ /usr/local/opt/python@3.14/bin/python3.14 -m pytest tests/test_oracle_shopify_fulfillment_create.py -q --disable-warnings --junitxml=/private/tmp/atom-agent-job-baseline/docs/acceptance/evidence/shopify_fulfillment_create_b1e9cf0f5/failure-first.xml
+cwd=/private/tmp/atom-agent-job-baseline/backend
+
+STDOUT
+
+----------------------------- live log collection ------------------------------
+2026-11-07 10:59:16 [    INFO] MCP Service initialized
+
+tests/test_oracle_shopify_fulfillment_create.py::test_exact_fulfillment_create_is_independently_verified 
+-------------------------------- live log setup --------------------------------
+2026-11-07 10:59:17 [    INFO] EscalationManager initialized
+2026-11-07 10:59:17 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 10:59:17 [    INFO] EscalationManager initialized
+2026-11-07 10:59:17 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 10:59:17 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 10:59:17 [    INFO] AgentTaskRegistry initialized
+FAILED                                                                   [  2%]
+tests/test_oracle_shopify_fulfillment_create.py::test_missing_store_refuses_before_transport FAILED [  4%]
+tests/test_oracle_shopify_fulfillment_create.py::test_foreign_store_refuses_before_transport FAILED [  7%]
+tests/test_oracle_shopify_fulfillment_create.py::test_moved_store_metadata_refuses_before_transport FAILED [  9%]
+tests/test_oracle_shopify_fulfillment_create.py::test_inactive_store_refuses_before_transport FAILED [ 11%]
+tests/test_oracle_shopify_fulfillment_create.py::test_ambiguous_store_refuses_before_transport FAILED [ 14%]
+tests/test_oracle_shopify_fulfillment_create.py::test_body_store_selector_refuses_before_transport[shop] FAILED [ 16%]
+tests/test_oracle_shopify_fulfillment_create.py::test_body_store_selector_refuses_before_transport[access_token] FAILED [ 19%]
+tests/test_oracle_shopify_fulfillment_create.py::test_body_store_selector_refuses_before_transport[tenant_id] FAILED [ 21%]
+tests/test_oracle_shopify_fulfillment_create.py::test_missing_order_id_refuses_before_transport FAILED [ 23%]
+tests/test_oracle_shopify_fulfillment_create.py::test_no_fulfillable_orders_refuses_before_post FAILED [ 26%]
+tests/test_oracle_shopify_fulfillment_create.py::test_multi_location_requires_location_before_post FAILED [ 28%]
+tests/test_oracle_shopify_fulfillment_create.py::test_location_filter_selects_exact_fulfillment_order FAILED [ 30%]
+tests/test_oracle_shopify_fulfillment_create.py::test_same_order_with_different_returned_id_is_not_success FAILED [ 33%]
+tests/test_oracle_shopify_fulfillment_create.py::test_authorized_fields_must_match_readback[order_id-order-other-order_id] FAILED [ 35%]
+tests/test_oracle_shopify_fulfillment_create.py::test_authorized_fields_must_match_readback[tracking_number-TRACK-OTHER-tracking_number] FAILED [ 38%]
+tests/test_oracle_shopify_fulfillment_create.py::test_authorized_fields_must_match_readback[tracking_company-FedEx-tracking_company] FAILED [ 40%]
+tests/test_oracle_shopify_fulfillment_create.py::test_authorized_fields_must_match_readback[location_id-loc-other-location_id] FAILED [ 42%]
+tests/test_oracle_shopify_fulfillment_create.py::test_dispatch_material_must_match_readback[fulfillment_order_id] PASSED [ 45%]
+tests/test_oracle_shopify_fulfillment_create.py::test_dispatch_material_must_match_readback[line_item_id] PASSED [ 47%]
+tests/test_oracle_shopify_fulfillment_create.py::test_dispatch_material_must_match_readback[line_item_quantity] PASSED [ 50%]
+tests/test_oracle_shopify_fulfillment_create.py::test_dispatch_material_must_match_readback[drop_line_item] PASSED [ 52%]
+tests/test_oracle_shopify_fulfillment_create.py::test_missing_tracking_proof_is_explicitly_unverified FAILED [ 54%]
+tests/test_oracle_shopify_fulfillment_create.py::test_absent_readback_is_uncertain_not_success FAILED [ 57%]
+tests/test_oracle_shopify_fulfillment_create.py::test_unidentifiable_effect_is_uncertain_and_not_recreated FAILED [ 59%]
+tests/test_oracle_shopify_fulfillment_create.py::test_known_success_replays_exact_resource_without_second_create FAILED [ 61%]
+tests/test_oracle_shopify_fulfillment_create.py::test_restart_fresh_session_reloads_exact_durable_identity FAILED [ 64%]
+tests/test_oracle_shopify_fulfillment_create.py::test_replay_with_changed_current_material_stays_committed_unverified[order_id] FAILED [ 66%]
+tests/test_oracle_shopify_fulfillment_create.py::test_replay_with_changed_current_material_stays_committed_unverified[tracking_number] FAILED [ 69%]
+tests/test_oracle_shopify_fulfillment_create.py::test_replay_with_changed_current_material_stays_committed_unverified[tracking_company] FAILED [ 71%]
+tests/test_oracle_shopify_fulfillment_create.py::test_replay_with_changed_current_material_stays_committed_unverified[location_id] FAILED [ 73%]
+tests/test_oracle_shopify_fulfillment_create.py::test_replay_with_changed_current_material_stays_committed_unverified[fulfillment_order_id] FAILED [ 76%]
+tests/test_oracle_shopify_fulfillment_create.py::test_replay_with_changed_current_material_stays_committed_unverified[line_item_quantity] FAILED [ 78%]
+tests/test_oracle_shopify_fulfillment_create.py::test_replay_with_missing_current_resource_stays_committed_unverified FAILED [ 80%]
+tests/test_oracle_shopify_fulfillment_create.py::test_replay_after_store_changed_stays_committed_unverified FAILED [ 83%]
+tests/test_oracle_shopify_fulfillment_create.py::test_replay_without_durable_identity_receipt_is_committed_unverified FAILED [ 85%]
+tests/test_oracle_shopify_fulfillment_create.py::test_replay_with_unavailable_readback_is_committed_unverified FAILED [ 88%]
+tests/test_oracle_shopify_fulfillment_create.py::test_same_operation_changed_material_refuses_before_readback[change0] FAILED [ 90%]
+tests/test_oracle_shopify_fulfillment_create.py::test_same_operation_changed_material_refuses_before_readback[change1] FAILED [ 92%]
+tests/test_oracle_shopify_fulfillment_create.py::test_same_operation_changed_material_refuses_before_readback[change2] FAILED [ 95%]
+tests/test_oracle_shopify_fulfillment_create.py::test_lost_confirmation_stays_uncertain_and_never_replays_as_success 
+-------------------------------- live log call ---------------------------------
+2026-11-07 10:59:50 [   ERROR] Failed to create fulfillment: confirmation timed out
+PASSED                                                                   [ 97%]
+tests/test_oracle_shopify_fulfillment_create.py::test_failed_identity_receipt_is_not_rolled_back_or_resent FAILED [100%]
+
+=================================== FAILURES ===================================
+E   AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+    assert False is True
+------------------------------ Captured log setup ------------------------------
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.embedding_service:embedding_service.py:131 Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+INFO     core.agent_task_registry:agent_task_registry.py:64 AgentTaskRegistry initialized
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_fulfillment_create.py:393: AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+E   AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+    assert 'uncertain' == 'proven_not_applied'
+      
+      - proven_not_applied
+      + uncertain
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_fulfillment_create.py:445: AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+E   AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+    assert 'uncertain' == 'proven_not_applied'
+      
+      - proven_not_applied
+      + uncertain
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_fulfillment_create.py:461: AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+E   AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+    assert 'uncertain' == 'proven_not_applied'
+      
+      - proven_not_applied
+      + uncertain
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_fulfillment_create.py:475: AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+E   AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+    assert 'uncertain' == 'proven_not_applied'
+      
+      - proven_not_applied
+      + uncertain
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_fulfillment_create.py:489: AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+E   AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+    assert 'uncertain' == 'proven_not_applied'
+      
+      - proven_not_applied
+      + uncertain
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_fulfillment_create.py:504: AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+E   KeyError: 'error_kind'
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_fulfillment_create.py:521: KeyError: 'error_kind'
+E   KeyError: 'error_kind'
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_fulfillment_create.py:521: KeyError: 'error_kind'
+E   KeyError: 'error_kind'
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_fulfillment_create.py:521: KeyError: 'error_kind'
+E   KeyError: 'error_kind'
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_fulfillment_create.py:537: KeyError: 'error_kind'
+E   AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+    assert 'uncertain' == 'proven_not_applied'
+      
+      - proven_not_applied
+      + uncertain
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_fulfillment_create.py:555: AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+E   AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+    assert 'uncertain' == 'proven_not_applied'
+      
+      - proven_not_applied
+      + uncertain
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_fulfillment_create.py:572: AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+E   AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+    assert False is True
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_fulfillment_create.py:589: AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+E   KeyError: 'verification'
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_fulfillment_create.py:621: KeyError: 'verification'
+E   KeyError: 'verification'
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_fulfillment_create.py:651: KeyError: 'verification'
+E   KeyError: 'verification'
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_fulfillment_create.py:651: KeyError: 'verification'
+E   KeyError: 'verification'
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_fulfillment_create.py:651: KeyError: 'verification'
+E   KeyError: 'verification'
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_fulfillment_create.py:651: KeyError: 'verification'
+E   KeyError: 'verification'
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_fulfillment_create.py:708: KeyError: 'verification'
+E   KeyError: 'verification'
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_fulfillment_create.py:724: KeyError: 'verification'
+E   KeyError: 'remote_id'
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_fulfillment_create.py:744: KeyError: 'remote_id'
+E   AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+    assert False is True
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_fulfillment_create.py:761: AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+E   AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+    assert False is True
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_fulfillment_create.py:761: AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+E   AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+    assert False is True
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_fulfillment_create.py:761: AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+E   AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+    assert False is True
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_fulfillment_create.py:761: AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+E   AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+    assert False is True
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_fulfillment_create.py:761: AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+E   AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+    assert False is True
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_fulfillment_create.py:761: AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+E   AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+    assert False is True
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_fulfillment_create.py:761: AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+E   AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+    assert False is True
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_fulfillment_create.py:761: AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+E   AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+    assert False is True
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_fulfillment_create.py:761: AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+E   AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+    assert False is True
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_fulfillment_create.py:761: AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+E   AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+    assert False is True
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_fulfillment_create.py:761: AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+E   AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+    assert False is True
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_fulfillment_create.py:761: AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+E   AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+    assert False is True
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_fulfillment_create.py:761: AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+E   AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+    assert False is True
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_fulfillment_create.py:761: AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+E   AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+    assert False is True
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_fulfillment_create.py:761: AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+E   AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+    assert None is False
+     +  where None = <built-in method get of dict object at 0x1782fb840>('identity_receipt_persisted')
+     +    where <built-in method get of dict object at 0x1782fb840> = {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}.get
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_fulfillment_create.py:1025: AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+- generated xml file: /private/tmp/atom-agent-job-baseline/docs/acceptance/evidence/shopify_fulfillment_create_b1e9cf0f5/failure-first.xml -
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_oracle_shopify_fulfillment_create.py::test_exact_fulfillment_create_is_independently_verified
+FAILED tests/test_oracle_shopify_fulfillment_create.py::test_missing_store_refuses_before_transport
+FAILED tests/test_oracle_shopify_fulfillment_create.py::test_foreign_store_refuses_before_transport
+FAILED tests/test_oracle_shopify_fulfillment_create.py::test_moved_store_metadata_refuses_before_transport
+FAILED tests/test_oracle_shopify_fulfillment_create.py::test_inactive_store_refuses_before_transport
+FAILED tests/test_oracle_shopify_fulfillment_create.py::test_ambiguous_store_refuses_before_transport
+FAILED tests/test_oracle_shopify_fulfillment_create.py::test_body_store_selector_refuses_before_transport[shop]
+FAILED tests/test_oracle_shopify_fulfillment_create.py::test_body_store_selector_refuses_before_transport[access_token]
+FAILED tests/test_oracle_shopify_fulfillment_create.py::test_body_store_selector_refuses_before_transport[tenant_id]
+FAILED tests/test_oracle_shopify_fulfillment_create.py::test_missing_order_id_refuses_before_transport
+FAILED tests/test_oracle_shopify_fulfillment_create.py::test_no_fulfillable_orders_refuses_before_post
+FAILED tests/test_oracle_shopify_fulfillment_create.py::test_multi_location_requires_location_before_post
+FAILED tests/test_oracle_shopify_fulfillment_create.py::test_location_filter_selects_exact_fulfillment_order
+FAILED tests/test_oracle_shopify_fulfillment_create.py::test_same_order_with_different_returned_id_is_not_success
+FAILED tests/test_oracle_shopify_fulfillment_create.py::test_authorized_fields_must_match_readback[order_id-order-other-order_id]
+FAILED tests/test_oracle_shopify_fulfillment_create.py::test_authorized_fields_must_match_readback[tracking_number-TRACK-OTHER-tracking_number]
+FAILED tests/test_oracle_shopify_fulfillment_create.py::test_authorized_fields_must_match_readback[tracking_company-FedEx-tracking_company]
+FAILED tests/test_oracle_shopify_fulfillment_create.py::test_authorized_fields_must_match_readback[location_id-loc-other-location_id]
+FAILED tests/test_oracle_shopify_fulfillment_create.py::test_missing_tracking_proof_is_explicitly_unverified
+FAILED tests/test_oracle_shopify_fulfillment_create.py::test_absent_readback_is_uncertain_not_success
+FAILED tests/test_oracle_shopify_fulfillment_create.py::test_unidentifiable_effect_is_uncertain_and_not_recreated
+FAILED tests/test_oracle_shopify_fulfillment_create.py::test_known_success_replays_exact_resource_without_second_create
+FAILED tests/test_oracle_shopify_fulfillment_create.py::test_restart_fresh_session_reloads_exact_durable_identity
+FAILED tests/test_oracle_shopify_fulfillment_create.py::test_replay_with_changed_current_material_stays_committed_unverified[order_id]
+FAILED tests/test_oracle_shopify_fulfillment_create.py::test_replay_with_changed_current_material_stays_committed_unverified[tracking_number]
+FAILED tests/test_oracle_shopify_fulfillment_create.py::test_replay_with_changed_current_material_stays_committed_unverified[tracking_company]
+FAILED tests/test_oracle_shopify_fulfillment_create.py::test_replay_with_changed_current_material_stays_committed_unverified[location_id]
+FAILED tests/test_oracle_shopify_fulfillment_create.py::test_replay_with_changed_current_material_stays_committed_unverified[fulfillment_order_id]
+FAILED tests/test_oracle_shopify_fulfillment_create.py::test_replay_with_changed_current_material_stays_committed_unverified[line_item_quantity]
+FAILED tests/test_oracle_shopify_fulfillment_create.py::test_replay_with_missing_current_resource_stays_committed_unverified
+FAILED tests/test_oracle_shopify_fulfillment_create.py::test_replay_after_store_changed_stays_committed_unverified
+FAILED tests/test_oracle_shopify_fulfillment_create.py::test_replay_without_durable_identity_receipt_is_committed_unverified
+FAILED tests/test_oracle_shopify_fulfillment_create.py::test_replay_with_unavailable_readback_is_committed_unverified
+FAILED tests/test_oracle_shopify_fulfillment_create.py::test_same_operation_changed_material_refuses_before_readback[change0]
+FAILED tests/test_oracle_shopify_fulfillment_create.py::test_same_operation_changed_material_refuses_before_readback[change1]
+FAILED tests/test_oracle_shopify_fulfillment_create.py::test_same_operation_changed_material_refuses_before_readback[change2]
+FAILED tests/test_oracle_shopify_fulfillment_create.py::test_failed_identity_receipt_is_not_rolled_back_or_resent
+================== 37 failed, 5 passed, 6 warnings in 49.42s ===================
+
+STDERR

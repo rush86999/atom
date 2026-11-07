@@ -1,0 +1,99 @@
+{
+  "task": "registered Shopify fulfillment create exact-id/dispatch Oracle",
+  "git_branch": "codex/shopify-fulfillment-oracle-20261107",
+  "git_revision": "b1e9cf0f5c63b33af0506c1142b5004824617b92",
+  "base_delivery": "9171412c4",
+  "root_reference_commits": {
+    "decimal_context_fix": "e359b5ac7",
+    "prerequisite_tests": [
+      "4e0ead635",
+      "00979657d"
+    ],
+    "integration": "not integrated on this isolated fulfillment branch; their _normalized_number lines were not modified"
+  },
+  "contract": {
+    "create": "POST /admin/api/{version}/fulfillments.json",
+    "readback": "GET /admin/api/{version}/fulfillments/{id}.json",
+    "fulfillment_orders": "GET /admin/api/{version}/orders/{order_id}/fulfillment_orders.json",
+    "legacy_order_scoped_write": "not used",
+    "multi_location": "one fulfillment per location; ambiguous actionable locations require location_id and otherwise refuse before POST",
+    "notify_customer": "input preference in the request binding; not returned on the Fulfillment resource and therefore not readback proof"
+  },
+  "implementation_files": {
+    "backend/core/action_registry.py": "2d81845f11c2cf1962e6172fb624a4630f66dec00a5ebd77c3b6bba54ddd1bef",
+    "backend/core/connected_actions.py": "e6d8daa8761f5ebf98c6d39ab096e27a75435b2d2aaf68d86d114ed96ded8379",
+    "backend/core/oracle/postcondition_verifiers.py": "a6f4440161ffb44c2381bf9e97d2d383e2f63139143885fad47a97548275082b",
+    "backend/core/oracle/request_expectations.py": "714992a172f43783a094c1c733abc87e9039089d6542d1102fcfadf9c2f2422c",
+    "backend/core/shopify_mutations.py": "4a0a77d105ce9f767ba8844552d8da02b9e61e7b9c9717ba318b554a570327e5",
+    "backend/integrations/shopify_service.py": "0c64416c782d9ae37f93dd3acf80ab1b3a87d51bf4a1a43b24761d7505984d6b"
+  },
+  "test": {
+    "path": "backend/tests/test_oracle_shopify_fulfillment_create.py",
+    "sha256": "017c29d03496728377f09e55e13adf9351cf2aa5ceaac8e299677ef291575131"
+  },
+  "runs": {
+    "failure_first": {
+      "command": [
+        "/usr/local/opt/python@3.14/bin/python3.14",
+        "-m",
+        "pytest",
+        "tests/test_oracle_shopify_fulfillment_create.py",
+        "-q",
+        "--disable-warnings",
+        "--junitxml=/private/tmp/atom-agent-job-baseline/docs/acceptance/evidence/shopify_fulfillment_create_b1e9cf0f5/failure-first.xml"
+      ],
+      "cwd": "/private/tmp/atom-agent-job-baseline/backend",
+      "exit_code": 1,
+      "stdout_sha256": "1f317029805fc7c1fa97fb918c36537d82a1d18e03f7a9340b05d43b35a5a883",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "junitxml": "failure-first.xml",
+      "process_spawned": true
+    },
+    "focused": {
+      "command": [
+        "/usr/local/opt/python@3.14/bin/python3.14",
+        "-m",
+        "pytest",
+        "tests/test_oracle_shopify_fulfillment_create.py",
+        "tests/test_shopify_fulfillment_actions.py",
+        "tests/test_oracle_shopify_article_create.py",
+        "tests/test_oracle_shopify_blog_create.py",
+        "tests/test_oracle_shopify_product_authorized_material.py",
+        "tests/test_oracle_shopify_product_create.py",
+        "tests/test_oracle_shopify_product_replay.py",
+        "tests/test_oracle_registry_verification_gap.py",
+        "tests/test_oracle_connected_mutations.py",
+        "tests/test_generic_oracle_mutation_contract.py",
+        "tests/test_covpush_w95_shopify.py",
+        "-q",
+        "--disable-warnings",
+        "--junitxml=/private/tmp/atom-agent-job-baseline/docs/acceptance/evidence/shopify_fulfillment_create_b1e9cf0f5/focused.xml",
+        "--deselect",
+        "tests/test_oracle_shopify_product_replay.py::test_alembic_upgrade_records_revision_keeps_old_claim_and_restart_replays_once"
+      ],
+      "cwd": "/private/tmp/atom-agent-job-baseline/backend",
+      "exit_code": 0,
+      "stdout_sha256": "b58a7fc781cbe6308d428682a3498b86c4bc157e5341d2ce40e46a4e2b0c6c89",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "junitxml": "focused.xml",
+      "process_spawned": true
+    }
+  },
+  "deselected": [
+    "tests/test_oracle_shopify_product_replay.py::test_alembic_upgrade_records_revision_keeps_old_claim_and_restart_replays_once"
+  ],
+  "environment": {
+    "TESTING": "1",
+    "DATABASE_URL": "sqlite:////private/tmp/atom-agent-job-baseline/docs/acceptance/evidence/shopify_fulfillment_create_b1e9cf0f5/scratch/atom.db",
+    "ATOM_DATA_DIR": "/private/tmp/atom-agent-job-baseline/docs/acceptance/evidence/shopify_fulfillment_create_b1e9cf0f5/scratch/data",
+    "LANCEDB_URI": "/private/tmp/atom-agent-job-baseline/docs/acceptance/evidence/shopify_fulfillment_create_b1e9cf0f5/scratch/lancedb",
+    "ATOM_OUTPUT_DIR": "/private/tmp/atom-agent-job-baseline/docs/acceptance/evidence/shopify_fulfillment_create_b1e9cf0f5/scratch/output",
+    "provider_credentials": "blank",
+    "external_http": "ShopifyService.http doubled inside the tests only",
+    "interpreter": "/usr/local/opt/python@3.14/bin/python3.14"
+  },
+  "expectation": {
+    "failure_first_exit_code": 1,
+    "focused_exit_code": 0
+  }
+}
