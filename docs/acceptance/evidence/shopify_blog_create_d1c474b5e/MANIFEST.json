@@ -1,0 +1,14 @@
+{
+  "packet": "shopify_blog_create_d1c474b5e",
+  "files": {
+    "README.md": "d59cf1a60b70af41975ea1a3c48d18fb2be869c9ad8c02176f6b7182ff361276",
+    "failure-first-exit.json": "741091597fc9f77ada3fda4ab2d2963d0d98b308198733261eb0773dc1731f1b",
+    "failure-first.log": "0029c7fcca248015795d625b3dbf555b89fb9613bf4a4faf6113b5282534fdf1",
+    "failure-first.xml": "84be344f1b50a44aebe0f16987e5fd787345087138fd285d3b98371658ab454b",
+    "focused-exit.json": "b3ab694e6a18539c1531e58290664776d73f23ce6645c9b7499ee29d74071e15",
+    "focused.log": "357ffe002209daca9a33d05de39956edd6af5a46b73d3ca4047ad1923495c226",
+    "focused.xml": "bdc2d3d544d72258423f497643eb1eb58c2d5a5249934351a48e071d0167b05b",
+    "run_and_capture.py": "b0aabcf156b65f2936a5dabd3a55f3d0ab2cd5cabbeaa7cd4bb4a1031d9be2d6",
+    "verification.json": "75d7b15ceedc2d44fe250a84a78ec080e770672a596e46a7f854c49c1a8331e2"
+  }
+}
