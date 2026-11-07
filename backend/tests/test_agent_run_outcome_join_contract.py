@@ -32,6 +32,7 @@ from core.models import (
     AgentJob,
     AgentRegistry,
     AuditLog,
+    HITLAction,
     Tenant,
     User,
     Workspace,
@@ -436,14 +437,14 @@ def test_non_success_matrix_never_completes_a_job(
         parameters={"sync": True, "task_input": "work"},
     )
     assert response.status_code != 200, response.text
-    detail = response.json()["detail"]
-    assert detail["success"] is False
-    assert detail["error"]["code"] == expected_code
-    assert detail["data"]["outcome"] == expected_outcome
-    assert detail["data"]["next_action"] == expected_next
-    assert detail["data"]["requires_reconciliation"] is requires
+    body = response.json()
+    assert body["success"] is False
+    assert body["error"]["code"] == expected_code
+    assert body["data"]["outcome"] == expected_outcome
+    assert body["data"]["next_action"] == expected_next
+    assert body["data"]["requires_reconciliation"] is requires
 
-    job, payload = _job_payload(env, detail["data"]["job_id"])
+    job, payload = _job_payload(env, body["data"]["job_id"])
     assert job.status != "success"
     assert payload["outcome"] == expected_outcome
     assert payload["next_action"] == expected_next
@@ -542,6 +543,23 @@ def test_unscoped_agent_uses_the_scoped_actor_workspace(env):
 
 
 def test_backed_wait_is_non_terminal_and_does_not_consume_the_slot(env):
+    session = env.SessionLocal()
+    try:
+        session.add(HITLAction(
+            id="act-wait-42",
+            workspace_id="ws1",
+            tenant_id="t1",
+            agent_id="a1",
+            action_type="customer_lookup",
+            platform="internal",
+            params={"query": "account id"},
+            status="pending",
+            user_id="member-1",
+        ))
+        session.commit()
+    finally:
+        session.close()
+
     env.result = {
         "status": "waiting",
         "waiting_for": "the customer's account id",
@@ -560,6 +578,8 @@ def test_backed_wait_is_non_terminal_and_does_not_consume_the_slot(env):
     assert data["next_action"] == "await_information"
     assert data["requires_reconciliation"] is False
     assert data["wait_receipt"]["hitl_action_id"] == "act-wait-42"
+    assert data["wait_receipt"]["kind"] == "hitl_review"
+    assert data["wait_receipt"]["verified"] is True
     assert data["wait_receipt"]["waiting_for"] == (
         "the customer's account id")
 
@@ -568,7 +588,19 @@ def test_backed_wait_is_non_terminal_and_does_not_consume_the_slot(env):
     assert payload["waiting"] is True
     assert payload["finished"] is False
     assert payload["wait_receipt"]["hitl_action_id"] == "act-wait-42"
+    assert payload["wait_receipt"]["verified"] is True
     assert job.end_time is None
+
+    # Read back the actual durable review row the wait owns.
+    session = env.SessionLocal()
+    try:
+        review = session.get(HITLAction, "act-wait-42")
+        assert review is not None
+        assert review.status == "pending"
+        assert review.agent_id == "a1"
+        assert review.workspace_id == "ws1"
+    finally:
+        session.close()
 
     terminal = _terminal_ws(env)
     assert terminal
@@ -601,6 +633,103 @@ def test_backed_wait_is_non_terminal_and_does_not_consume_the_slot(env):
     jobs = _jobs(env)
     assert len(jobs) == 2
     assert {job.agent_id for job in jobs} == {"a1"}
+
+
+@pytest.mark.parametrize(
+    "result",
+    [
+        {"status": "waiting", "wait_receipt": {
+            "kind": "missing_information"}},
+        {"status": "waiting", "hitl_action_id": "does-not-exist"},
+        {"status": "waiting", "wait_receipt": {
+            "id": "made-up", "status": "pending",
+            "kind": "missing_information"}},
+    ],
+)
+def test_unbacked_wait_reference_is_not_durable(env, result):
+    env.result = result
+    response = _run(
+        env,
+        operation_id="unbacked-wait-op",
+        parameters={"sync": True, "task_input": "long task"},
+    )
+    assert response.status_code == 409, response.text
+    body = response.json()
+    assert body["data"]["outcome"] == "waiting"
+    assert body["data"]["next_action"] == "review_execution"
+    job, payload = _job_payload(env, body["data"]["job_id"])
+    assert job.status not in {"waiting", "awaiting_information"}
+    assert payload.get("wait_receipt") is None
+
+
+def test_foreign_or_settled_review_is_not_durable_authority(env):
+    session = env.SessionLocal()
+    try:
+        session.add_all([
+            HITLAction(
+                id="foreign-review", workspace_id="ws2", tenant_id="t1",
+                agent_id="a1", action_type="customer_lookup",
+                platform="internal", params={}, status="pending",
+                user_id="member-1"),
+            HITLAction(
+                id="settled-review", workspace_id="ws1", tenant_id="t1",
+                agent_id="a1", action_type="customer_lookup",
+                platform="internal", params={}, status="approved",
+                user_id="member-1"),
+            HITLAction(
+                id="other-agent-review", workspace_id="ws1", tenant_id="t1",
+                agent_id="a2", action_type="customer_lookup",
+                platform="internal", params={}, status="pending",
+                user_id="member-1"),
+        ])
+        session.commit()
+    finally:
+        session.close()
+
+    for review_id in (
+        "foreign-review", "settled-review", "other-agent-review",
+    ):
+        env.result = {"status": "waiting", "hitl_action_id": review_id}
+        response = _run(
+            env,
+            operation_id=f"unbacked-{review_id}",
+            parameters={"sync": True, "task_input": "long task"},
+        )
+        assert response.status_code == 409, (review_id, response.text)
+        body = response.json()
+        assert body["data"]["outcome"] == "waiting"
+        assert body["data"]["next_action"] == "review_execution"
+        job, payload = _job_payload(env, body["data"]["job_id"])
+        assert job.status != "waiting"
+        assert payload.get("wait_receipt") is None
+
+
+def test_unscoped_hitl_producer_shape_is_still_accepted_for_the_same_agent(env):
+    session = env.SessionLocal()
+    try:
+        session.add(HITLAction(
+            id="legacy-scope-review", workspace_id="default",
+            tenant_id=None, agent_id="a1",
+            action_type="send_message", platform="internal",
+            params={}, status="pending", user_id=None))
+        session.commit()
+    finally:
+        session.close()
+
+    env.result = {
+        "status": "waiting",
+        "hitl_action_id": "legacy-scope-review",
+    }
+    response = _run(
+        env,
+        operation_id="legacy-wait-op",
+        parameters={"sync": True, "task_input": "long task"},
+    )
+    assert response.status_code == 202, response.text
+    data = response.json()["data"]
+    assert data["job_status"] == "waiting"
+    assert data["wait_receipt"]["hitl_action_id"] == "legacy-scope-review"
+    assert data["wait_receipt"]["verified"] is True
 
 
 def test_foreign_scope_is_refused_before_any_dispatch(env):
@@ -648,11 +777,11 @@ def test_late_success_cannot_overwrite_peer_cancellation(env):
         parameters={"sync": True, "task_input": "work"},
     )
     assert response.status_code == 409, response.text
-    detail = response.json()["detail"]
-    assert detail["data"]["outcome"] == "cancelled"
-    assert detail["data"]["next_action"] == "none"
+    body = response.json()
+    assert body["data"]["outcome"] == "cancelled"
+    assert body["data"]["next_action"] == "none"
 
-    job, payload = _job_payload(env, detail["data"]["job_id"])
+    job, payload = _job_payload(env, body["data"]["job_id"])
     assert job.status == "cancelled"
     assert payload.get("outcome") != "success"
     terminal = _terminal_ws(env)

@@ -643,10 +643,12 @@ async def run_agent(
             },
             "data": execution_data,
         }
-        raise HTTPException(
+        return _execution_error_response(
             status_code=(
                 503 if job_outcome["requires_reconciliation"] else 409),
-            detail=detail,
+            code=detail["error"]["code"],
+            message=detail["error"]["message"],
+            data=execution_data,
         )
     background_tasks.add_task(
         _dispatch_admitted_run, agent_id, run_req.parameters, job_id,
@@ -1033,7 +1035,13 @@ async def execute_agent_task(
 
                 # 5. Process Result
                 result = result_obj
-                outcome = _execution_outcome(result)
+                outcome = _execution_outcome(
+                    result,
+                    bind=db.get_bind(),
+                    agent_id=agent_id,
+                    namespace=namespace,
+                    actor_id=trusted.get("actor_id"),
+                )
 
                 # --- [NEW] External Bridge Response Routing ---
                 source_platform = scoped_params.get("source_platform")
@@ -1154,15 +1162,6 @@ _JOB_WAITING_STATUSES = frozenset({
     "awaiting_approval",
 })
 _RESULT_RECONCILIATION_STATUSES = frozenset({"uncertain"})
-_WAIT_RECEIPT_ID_KEYS = (
-    "hitl_action_id",
-    "approval_action_id",
-    "pending_action_id",
-    "question_id",
-    "wait_id",
-    "continuation_id",
-    "waiting_for_id",
-)
 
 # Namespace keys the admission owns. Business parameters keep every other
 # key, but these can never be supplied (or overridden) by the request body.
@@ -1198,40 +1197,108 @@ def _safe_outcome_token(value: Any, default: str = "unknown") -> str:
     return token
 
 
-def _safe_wait_receipt(result: Any) -> Optional[Dict[str, Any]]:
-    """Return the durable wait ownership fields, if the result carries one.
+def _verified_hitl_wait(
+    result: Any,
+    *,
+    bind,
+    agent_id: str,
+    namespace: Dict[str, Any],
+    actor_id: Optional[str],
+) -> Optional[Dict[str, Any]]:
+    """Resolve a returned wait reference to an existing pending review row.
 
-    A model/body ``"waiting"`` string is not a durable wait. Only an existing
-    receipt/reference turns the run into a non-terminal wait that must not be
-    failed or completed.
+    A returned label/dict is not proof. Only an existing ``HITLAction`` in
+    pending/pending_2fa state, bound to this agent and the frozen
+    workspace/tenant (and to the actor when the row names one), is a durable
+    wait. Invented/foreign/settled references resolve to ``None``.
     """
-    if not isinstance(result, dict):
+    if bind is None:
         return None
-    receipt: Dict[str, Any] = {}
+    candidates = []
     nested = result.get("wait_receipt")
     if isinstance(nested, dict):
-        for key in (
-            "action_id", "id", "question_id", "continuation_id",
-            "wait_id", "kind", "status", "waiting_for",
-        ):
+        for key in ("hitl_action_id", "action_id", "id"):
             value = nested.get(key)
             if isinstance(value, (str, int)) and str(value).strip():
-                receipt[key] = str(value)[:400]
-    for key in _WAIT_RECEIPT_ID_KEYS:
+                candidates.append(str(value).strip())
+    for key in (
+        "hitl_action_id", "approval_action_id", "pending_action_id",
+    ):
         value = result.get(key)
         if isinstance(value, (str, int)) and str(value).strip():
-            receipt.setdefault(key, str(value)[:200])
-    waiting_for = result.get("waiting_for")
-    if (
-        receipt
-        and isinstance(waiting_for, str)
-        and waiting_for.strip()
-    ):
-        receipt.setdefault("waiting_for", waiting_for.strip()[:400])
-    return receipt or None
+            candidates.append(str(value).strip())
+    if not candidates:
+        return None
+
+    workspace = str(namespace.get("workspace_id") or "default")
+    tenant = namespace.get("tenant_id")
+    seen = set()
+    for action_id in candidates:
+        if action_id in seen:
+            continue
+        seen.add(action_id)
+        row = _safe_get(bind, HITLAction, action_id)
+        if row is None:
+            continue
+        if str(getattr(row, "status", "") or "") not in {
+            HITLActionStatus.PENDING.value,
+            HITLActionStatus.PENDING_2FA.value,
+        }:
+            continue
+        if str(getattr(row, "agent_id", "") or "") != str(agent_id):
+            continue
+        row_workspace = getattr(row, "workspace_id", None)
+        if (
+            row_workspace is not None
+            and str(row_workspace) not in (workspace, "default")
+        ):
+            continue
+        # ``default``/NULL workspace rows are the existing unscoped HITL
+        # producer shape (notably AgentGovernanceService(db) inside the
+        # Generic consumer). They are accepted only with exact agent/tenant/
+        # state binding below; a foreign non-default workspace is rejected.
+        row_tenant = getattr(row, "tenant_id", None)
+        if row_tenant is not None and tenant is not None:
+            if str(row_tenant) != str(tenant):
+                continue
+        row_user = getattr(row, "user_id", None)
+        if row_user is not None and actor_id is not None:
+            if str(row_user) != str(actor_id):
+                continue
+        # If the review row carries task/execution material, it must name
+        # this exact admitted run. Otherwise agent/workspace is the
+        # supported binding shape for the existing HITL producer.
+        material = {}
+        for field in ("context_snapshot", "params"):
+            value = getattr(row, field, None)
+            if isinstance(value, dict):
+                material.update(value)
+        for key in ("job_id", "agent_job_id", "execution_id", "run_id"):
+            expected = namespace.get(key)
+            if expected and material.get(key):
+                if str(material.get(key)) != str(expected):
+                    return None
+        return {
+            "hitl_action_id": str(row.id),
+            "kind": "hitl_review",
+            "status": str(row.status),
+            "action_type": _safe_outcome_token(
+                getattr(row, "action_type", ""), default="review"),
+            "required_role": _safe_outcome_token(
+                getattr(row, "required_role", ""), default=""),
+            "verified": True,
+        }
+    return None
 
 
-def _execution_outcome(result: Any) -> Dict[str, Any]:
+def _execution_outcome(
+    result: Any,
+    *,
+    bind=None,
+    agent_id: Optional[str] = None,
+    namespace: Optional[Dict[str, Any]] = None,
+    actor_id: Optional[str] = None,
+) -> Dict[str, Any]:
     """Map an execution result to a truthful durable job outcome.
 
     Result-object presence is not business success. Only an explicit
@@ -1282,8 +1349,17 @@ def _execution_outcome(result: Any) -> Dict[str, Any]:
         return failed(
             "unknown", "execution_result_missing", "review_execution")
     if raw in _RESULT_WAIT_STATUSES:
-        receipt = _safe_wait_receipt(result)
+        receipt = _verified_hitl_wait(
+            result,
+            bind=bind,
+            agent_id=str(agent_id or ""),
+            namespace=dict(namespace or {}),
+            actor_id=actor_id,
+        )
         if receipt:
+            waiting_for = result.get("waiting_for")
+            if isinstance(waiting_for, str) and waiting_for.strip():
+                receipt["waiting_for"] = waiting_for.strip()[:400]
             return {
                 "job_status": "waiting",
                 "outcome": raw,
@@ -1292,8 +1368,8 @@ def _execution_outcome(result: Any) -> Dict[str, Any]:
                 "requires_reconciliation": False,
                 "wait_receipt": receipt,
             }
-        # A bare model/body waiting string has no durable owner. Do not
-        # invent a wait or a failure for it.
+        # A bare model/body waiting string has no verified durable owner. Do
+        # not invent a wait or trust an invented/foreign/settled reference.
         return failed(
             raw, "execution_waiting_unbacked", "review_execution")
     if raw in _RESULT_CANCELLED_STATUSES:
@@ -1477,6 +1553,24 @@ async def _broadcast_agent_outcome(
             logger.warning(
                 "Agent outcome broadcast failed: agent=%s channel=%s "
                 "error_class=%s", agent_id, channel, type(exc).__name__)
+
+
+def _execution_error_response(
+    status_code: int,
+    *,
+    code: str,
+    message: str,
+    data: Dict[str, Any],
+) -> JSONResponse:
+    """Truthful non-success execution envelope (top-level data preserved)."""
+    return JSONResponse(
+        status_code=status_code,
+        content={
+            "success": False,
+            "error": {"code": code, "message": message},
+            "data": data,
+        },
+    )
 
 
 def _public_execution_result(result: Any) -> Any:
@@ -1709,6 +1803,21 @@ def _job_outcome_projection(job_id: str, bind) -> Optional[Dict[str, Any]]:
             payload = {}
         if status in _JOB_WAITING_STATUSES:
             wait_receipt = payload.get("wait_receipt")
+            if not (
+                isinstance(wait_receipt, dict)
+                and wait_receipt.get("verified") is True
+            ):
+                projection = _execution_outcome({"status": status})
+                projection["job_status"] = AgentJobStatus.FAILED.value
+                projection["reason"] = "execution_waiting_unbacked"
+                projection["next_action"] = "review_execution"
+                projection["requires_reconciliation"] = False
+                execution_id = (
+                    payload.get("execution_id")
+                    or payload.get("dispatch_execution_id"))
+                projection["execution_id"] = (
+                    None if not execution_id else str(execution_id))
+                return projection
             projection = {
                 "job_status": status,
                 "outcome": _safe_outcome_token(
@@ -1716,9 +1825,7 @@ def _job_outcome_projection(job_id: str, bind) -> Optional[Dict[str, Any]]:
                 "reason": "execution_waiting",
                 "next_action": "await_information",
                 "requires_reconciliation": False,
-                "wait_receipt": (
-                    wait_receipt if isinstance(wait_receipt, dict)
-                    else None),
+                "wait_receipt": wait_receipt,
             }
             execution_id = (
                 payload.get("execution_id")
@@ -2020,7 +2127,13 @@ async def _dispatch_admitted_run(
     try:
         result = await execute_agent_task(
             agent_id, parameters, execution_context=trusted)
-        outcome = _execution_outcome(result)
+        outcome = _execution_outcome(
+            result,
+            bind=bind,
+            agent_id=agent_id,
+            namespace=trusted,
+            actor_id=actor_id,
+        )
         durable_status = _finish_job(
             job_id, outcome, bind,
             execution_id=execution_id, agent_id=agent_id)
