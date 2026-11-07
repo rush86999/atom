@@ -1448,6 +1448,7 @@ _TRUSTED_CONTEXT_KEYS = (
     "resume_history",
     "resume_steps",
     "information_wait_resume",
+    "information_source",
     "reviewer_id",
 )
 
@@ -3004,6 +3005,57 @@ async def resume_information_wait_action(
                 "execution_id": execution_id,
             }
 
+        source_snapshot = snapshot.get("information_source")
+        source_snapshot = (
+            dict(source_snapshot)
+            if isinstance(source_snapshot, dict) else None)
+        revalidated_source = None
+        if source_snapshot:
+            if _actor is None:
+                return {
+                    "handled": True,
+                    "resumed": False,
+                    "reason": "source_actor_unavailable",
+                    "status": "refused",
+                    "job_id": job_id,
+                    "execution_id": execution_id,
+                }
+            try:
+                revalidated_source = await _load_generic_source_payload(
+                    session,
+                    _actor,
+                    dict(source_snapshot.get("reference") or {}),
+                    target_workspace=target_workspace,
+                    target_tenant=str(target_tenant or ""),
+                )
+            except HTTPException as exc:
+                detail = exc.detail if isinstance(exc.detail, dict) else {}
+                return {
+                    "handled": True,
+                    "resumed": False,
+                    "reason": str(
+                        detail.get("code") or "source_revalidation_failed"),
+                    "status": "refused",
+                    "job_id": job_id,
+                    "execution_id": execution_id,
+                }
+            if (
+                str(revalidated_source.get("resource_id") or "")
+                != str(source_snapshot.get("resource_id") or "")
+                or str(revalidated_source.get("source_version") or "")
+                != str(source_snapshot.get("source_version") or "")
+                or str(revalidated_source.get("content_sha256") or "")
+                != str(source_snapshot.get("content_sha256") or "")
+            ):
+                return {
+                    "handled": True,
+                    "resumed": False,
+                    "reason": "source_answer_material_changed",
+                    "status": "refused",
+                    "job_id": job_id,
+                    "execution_id": execution_id,
+                }
+
         if not _claim_waiting_job_for_resume(
             job_id, bind,
             agent_id=agent_id,
@@ -3094,6 +3146,20 @@ async def resume_information_wait_action(
             "information_wait_resume": True,
             "reviewer_id": None if reviewer_id is None else str(reviewer_id),
         })
+        if revalidated_source is not None:
+            trusted["information_source"] = {
+                "content": str(revalidated_source.get("content") or "")[:12000],
+                "display_label": str(
+                    revalidated_source.get("display_label") or "")[:400],
+                "resource_id": str(
+                    revalidated_source.get("resource_id") or ""),
+                "source_version": str(
+                    revalidated_source.get("source_version") or ""),
+                "content_sha256": str(
+                    revalidated_source.get("content_sha256") or ""),
+                "reader": str(revalidated_source.get("reader") or ""),
+                "receipt": revalidated_source.get("receipt") or {},
+            }
 
         result = await execute_agent_task(
             agent_id, parameters, execution_context=trusted)
@@ -3435,8 +3501,180 @@ async def stop_agent(
     )
 
 
+async def _load_generic_source_payload(
+    db: Session,
+    user: User,
+    reference: Dict[str, Any],
+    *,
+    target_workspace: str,
+    target_tenant: str,
+) -> Dict[str, Any]:
+    """Resolve and read one already-authorized generic answer source.
+
+    The caller never supplies a filesystem path. Resolution and reading reuse
+    the assignment source/authority contract and the existing document/dataset
+    readers. The returned content is bounded and provenance is frozen for the
+    durable answer snapshot; model prose is never source authority.
+    """
+    from core.assignment_executor import (
+        NeedsContext,
+        _dataset_read,
+        _document_text_read,
+    )
+    from core.assignment_resources import (
+        AssignmentResourceError,
+        resolve_assignment_source,
+        resource_binding,
+    )
+
+    allowed = {
+        "document_id", "ingested_document_id", "dataset_name", "source",
+        "external_id", "sheet", "source_version", "kind",
+    }
+    ref = {key: value for key, value in dict(reference or {}).items()
+           if key in allowed and value not in (None, "")}
+    if not ref:
+        raise HTTPException(
+            status_code=422,
+            detail={"code": "source_reference_required",
+                    "message": "Select an authorized document or dataset."})
+    try:
+        resolved = resolve_assignment_source(
+            db, user, ref, allow_internal=False)
+    except AssignmentResourceError as exc:
+        raise HTTPException(
+            status_code=int(getattr(exc, "status", 409) or 409),
+            detail={"code": str(getattr(exc, "code", "source_unavailable")),
+                    "message": str(exc)[:500]}) from exc
+
+    resolved_workspace = str(resolved.get("workspace_id") or "")
+    resolved_tenant = str(resolved.get("tenant_id") or "")
+    expected_workspace = str(target_workspace or "")
+    expected_tenant = str(target_tenant or "")
+    if (expected_workspace and resolved_workspace
+            and resolved_workspace != expected_workspace):
+        raise HTTPException(
+            status_code=403,
+            detail={"code": "source_scope_mismatch",
+                    "message": "The selected source is outside this job's "
+                               "workspace."})
+    if (expected_tenant and resolved_tenant
+            and resolved_tenant != expected_tenant):
+        raise HTTPException(
+            status_code=403,
+            detail={"code": "source_scope_mismatch",
+                    "message": "The selected source is outside this job's "
+                               "tenant scope."})
+
+    binding = resource_binding(resolved)
+    context = {
+        "workspace_id": expected_workspace or resolved_workspace,
+        "tenant_id": expected_tenant or resolved_tenant,
+        "employee_id": str(getattr(user, "id", "") or ""),
+    }
+    kind = str(resolved.get("kind") or "")
+    representation = str(resolved.get("representation") or "")
+    try:
+        if representation == "parquet_frame" or (
+                kind == "workbook" and resolved.get("dataset_name")):
+            result = await _dataset_read(
+                {"resource_binding": binding, "max_rows": 100}, context)
+            rows = result.get("rows") or []
+            if not rows:
+                raise HTTPException(
+                    status_code=422,
+                    detail={"code": "source_empty",
+                            "message": "The selected dataset has no usable rows."})
+            content = json.dumps(rows, sort_keys=True, default=str)
+            reader = "dataset.read"
+        else:
+            result = await _document_text_read(
+                {"resource_binding": binding,
+                 "source_version": str(resolved.get("source_version") or "")},
+                context)
+            content = str(result.get("text") or "")
+            if not content.strip():
+                content = json.dumps(
+                    result.get("data") or {}, sort_keys=True, default=str)
+            reader = "document.text"
+    except NeedsContext as exc:
+        gap = dict(getattr(exc, "gap", {}) or {})
+        raise HTTPException(
+            status_code=422,
+            detail={"code": str(gap.get("concept") or "source_unavailable"),
+                    "message": str(
+                        gap.get("question") or exc)[:500]}) from exc
+    except HTTPException:
+        raise
+    except Exception as exc:  # noqa: BLE001 - source read is not model work
+        raise HTTPException(
+            status_code=422,
+            detail={"code": "source_read_failed",
+                    "message": f"The selected source could not be read safely: "
+                               f"{type(exc).__name__}"}) from exc
+
+    if not content.strip():
+        raise HTTPException(
+            status_code=422,
+            detail={"code": "source_empty",
+                    "message": "The selected source has no usable content."})
+    if result.get("truncated"):
+        raise HTTPException(
+            status_code=413,
+            detail={"code": "source_too_large",
+                    "message": "The selected source is too large for one "
+                               "answer. Select a smaller document or a "
+                               "specific dataset view."})
+    if len(content) > 12000:
+        raise HTTPException(
+            status_code=413,
+            detail={"code": "source_too_large",
+                    "message": "The selected source exceeds the bounded "
+                               "answer-evidence size. Select a smaller or "
+                               "narrower source."})
+    verification = result.get("verification") or {}
+    if str(verification.get("status") or "") != "verified":
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "source_unverified",
+                    "message": "The selected source did not produce a "
+                               "verified read receipt."})
+    version = str(
+        result.get("source_version") or resolved.get("source_version") or "")
+    label = str(
+        resolved.get("original_file_name") or resolved.get("file_name")
+        or resolved.get("dataset_name") or resolved.get("resource_id")
+        or "authorized source")
+    sheet = str(resolved.get("sheet") or "")
+    if sheet:
+        label = f"{label} / {sheet}"
+    content_hash = __import__("hashlib").sha256(
+        content.encode("utf-8")).hexdigest()
+    return {
+        "reference": ref,
+        "resource_id": str(resolved.get("resource_id") or ""),
+        "source_version": version,
+        "kind": kind or "document",
+        "reader": reader,
+        "display_label": label[:400],
+        "content": content[:12000],
+        "content_sha256": content_hash,
+        "receipt": {
+            "reader": reader,
+            "status": "verified",
+            "verification": verification,
+            "resource_id": str(resolved.get("resource_id") or ""),
+            "source_version": version,
+            "coverage": dict(result.get("coverage") or {}),
+        },
+    }
+
+
 class AgentInformationAnswer(BaseModel):
-    answer: str = Field(..., min_length=1)
+    answer: str = Field(default="", max_length=8000)
+    # Optional typed source answer. Public callers cannot supply paths; the
+    # route resolves this through the existing authorized source contract.
+    source: Optional[Dict[str, Any]] = None
     # Server-owned wait identity. A job id alone is not enough once a job can
     # wait more than once: an omitted correlation would otherwise answer
     # whichever prerequisite happens to be current, including a NEW one that
@@ -3528,25 +3766,74 @@ async def answer_agent_job_information_wait(
 
     if str(action.status or "") == HITLActionStatus.REJECTED.value:
         raise HTTPException(status_code=409, detail="This information wait was rejected")
+
+    accepted_source: Optional[Dict[str, Any]] = None
+    if body.source:
+        accepted_source = await _load_generic_source_payload(
+            db,
+            current_user,
+            dict(body.source),
+            target_workspace=str(snapshot.get("workspace_id") or ""),
+            target_tenant=str(snapshot.get("tenant_id") or ""),
+        )
+    effective_answer = body.answer.strip() or (
+        str(accepted_source.get("display_label") or "")
+        if accepted_source else "")
+    if not effective_answer:
+        raise HTTPException(
+            status_code=422,
+            detail={"code": "answer_or_source_required",
+                    "message": "Provide a text answer or select an authorized "
+                               "source."})
+
     if str(action.status or "") == HITLActionStatus.APPROVED.value:
         prior_answer = str(action.user_feedback or "")
-        if prior_answer and prior_answer.strip() != body.answer.strip():
+        prior_source = snapshot.get("information_source") if isinstance(
+            snapshot.get("information_source"), dict) else None
+        if accepted_source is not None:
+            if prior_source is None:
+                raise HTTPException(
+                    status_code=409,
+                    detail="A text answer was already accepted for this wait")
+            if (
+                str(prior_source.get("resource_id") or "")
+                != str(accepted_source.get("resource_id") or "")
+                or str(prior_source.get("source_version") or "")
+                != str(accepted_source.get("source_version") or "")
+                or str(prior_source.get("content_sha256") or "")
+                != str(accepted_source.get("content_sha256") or "")
+            ):
+                raise HTTPException(
+                    status_code=409,
+                    detail="A different source answer was already accepted "
+                           "for this wait")
+        elif prior_source is not None:
+            raise HTTPException(
+                status_code=409,
+                detail="This wait was already answered with an authorized "
+                       "source; replay the exact source answer")
+        elif prior_answer and prior_answer.strip() != effective_answer:
             raise HTTPException(
                 status_code=409,
                 detail="A different answer was already accepted for this wait")
     else:
+        update_values: Dict[str, Any] = {
+            "status": HITLActionStatus.APPROVED.value,
+            "user_feedback": effective_answer,
+            "reviewed_by": str(current_user.id),
+            "reviewed_at": datetime.datetime.now(),
+        }
+        if accepted_source is not None:
+            frozen_snapshot = dict(snapshot)
+            frozen_snapshot["information_source"] = accepted_source
+            update_values["context_snapshot"] = frozen_snapshot
         claimed = db.execute(
             update(HITLAction)
             .where(
                 HITLAction.id == action_id,
                 HITLAction.status == HITLActionStatus.PENDING.value,
             )
-            .values(
-                status=HITLActionStatus.APPROVED.value,
-                user_feedback=body.answer.strip(),
-                reviewed_by=str(current_user.id),
-                reviewed_at=datetime.datetime.now(),
-            ))
+            .values(**update_values))
         if claimed.rowcount != 1:
             db.rollback()
             current = db.query(HITLAction).filter(
@@ -3557,7 +3844,19 @@ async def answer_agent_job_information_wait(
                 raise HTTPException(
                     status_code=409,
                     detail="This information wait was already decided")
-            if str(current.user_feedback or "").strip() != body.answer.strip():
+            current_snapshot = (
+                current.context_snapshot
+                if isinstance(current.context_snapshot, dict) else {})
+            current_source = current_snapshot.get("information_source")
+            if accepted_source is not None:
+                if not isinstance(current_source, dict) or (
+                    str(current_source.get("content_sha256") or "")
+                    != str(accepted_source.get("content_sha256") or "")):
+                    raise HTTPException(
+                        status_code=409,
+                        detail="A different source answer was already accepted "
+                               "for this wait")
+            elif str(current.user_feedback or "").strip() != effective_answer:
                 raise HTTPException(
                     status_code=409,
                     detail="A different answer was already accepted for this wait")
@@ -3567,7 +3866,7 @@ async def answer_agent_job_information_wait(
     resume = await resume_information_wait_action(
         action_id,
         approved=True,
-        answer=body.answer,
+        answer=effective_answer,
         reviewer_id=str(current_user.id),
         bind=db.get_bind(),
         correlation_id=body.correlation_id,
