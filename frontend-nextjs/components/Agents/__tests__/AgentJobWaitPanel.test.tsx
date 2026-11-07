@@ -7,7 +7,7 @@
  * The transport is a controlled fetch double; no live model/provider/browser.
  */
 import React from "react";
-import { render, screen, waitFor, cleanup } from "@testing-library/react";
+import { render, screen, waitFor, cleanup, fireEvent } from "@testing-library/react";
 import "@testing-library/jest-dom";
 import userEvent from "@testing-library/user-event";
 
@@ -188,6 +188,77 @@ describe("AgentJobWaitPanel", () => {
           .value,
       ).toBe(""),
     );
+  });
+
+  test("double click cannot send the same answer twice", async () => {
+    const user = userEvent.setup();
+    let resolvePost: (value: any) => void = () => {};
+    const pendingPost = new Promise((resolve) => {
+      resolvePost = resolve;
+    });
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse(waitingJob("wait-1", "What title?", "corr-1")))
+      .mockReturnValueOnce(pendingPost as any)
+      .mockResolvedValueOnce(jsonResponse(successJob()));
+
+    render(<AgentJobWaitPanel agentId="a1" jobId="job-1" />);
+    await screen.findByText("What title?");
+    await user.type(screen.getByTestId("agent-job-answer-input"), "once");
+    const submit = screen.getByTestId("agent-job-answer-submit");
+    fireEvent.click(submit);
+    fireEvent.click(submit);
+
+    expect(postCalls(fetchMock)).toHaveLength(1);
+    resolvePost({
+      ok: true,
+      status: 200,
+      json: async () => ({ success: true, data: successJob() }),
+    });
+    expect(await screen.findByTestId("agent-job-completed")).toBeInTheDocument();
+    expect(postCalls(fetchMock)).toHaveLength(1);
+  });
+
+  test("a stale response for a previous job cannot replace the current job", async () => {
+    let resolveOld: (value: any) => void = () => {};
+    const oldResponse = new Promise((resolve) => {
+      resolveOld = resolve;
+    });
+    fetchMock.mockImplementation((url: string) => {
+      if (String(url).includes("/jobs/job-old")) return oldResponse as any;
+      return jsonResponse(
+        waitingJob("wait-new", "New question", "corr-new", {
+          job_id: "job-new",
+        }),
+      );
+    });
+
+    const { rerender } = render(
+      <AgentJobWaitPanel agentId="a1" jobId="job-old" />,
+    );
+    await waitFor(() =>
+      expect(fetchMock).toHaveBeenCalledWith(
+        expect.stringContaining("/jobs/job-old"),
+        expect.anything(),
+      ),
+    );
+
+    rerender(<AgentJobWaitPanel agentId="a1" jobId="job-new" />);
+    expect(await screen.findByText("New question")).toBeInTheDocument();
+
+    resolveOld({
+      ok: true,
+      status: 200,
+      json: async () => ({
+        success: true,
+        data: waitingJob("wait-old", "Old question", "corr-old", {
+          job_id: "job-old",
+        }),
+      }),
+    });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+
+    expect(screen.queryByText("Old question")).not.toBeInTheDocument();
+    expect(screen.getByText("New question")).toBeInTheDocument();
   });
 
   test("409 stale answer refreshes the cancelled job and never auto-resends", async () => {
