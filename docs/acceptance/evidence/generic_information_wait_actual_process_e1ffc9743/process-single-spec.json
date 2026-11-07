@@ -1,0 +1,8 @@
+{
+  "executed_source": "e1ffc9743f9085d7cd1f965216107f5d2f5e0ae7",
+  "base_source": "d922601050546364560474a2e6d0388a34c2a974",
+  "cwd": "backend",
+  "command": "python -m pytest tests/test_agent_generic_information_wait_process.py -q --tb=short --timeout=240 --timeout-method=thread --junitxml=<evidence>/process-single-junit.xml",
+  "test": "tests/test_agent_generic_information_wait_process.py",
+  "scope": "actual separate-OS-process Generic wait/restart/answer with controlled LLM structured transport, controlled auth dependency, and the same startup recovery helper called by the production lifespan"
+}

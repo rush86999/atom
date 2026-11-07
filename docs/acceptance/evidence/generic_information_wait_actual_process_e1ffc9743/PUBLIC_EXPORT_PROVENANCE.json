@@ -1,0 +1,27 @@
+{
+  "raw_private_directory": "/private/tmp/generic-process-original-evidence-a72e09eb1",
+  "original_evidence_commit": "80f5db13b",
+  "raw_artifact_hashes": {
+    "pre-runs-evidence.json": "a9f064789f02eedeafd00d6e7805553c743f16ed6550c693955aa408d40dd446",
+    "process-gate-exit.json": "dc4fa5ed434bba88ac32359535348a7c57b519c3a9848ad6a2a530b511fedb5f",
+    "process-single-junit.xml": "406c7801e55b197f621028990f9d68d7ab20291b9d36a1fc2ee894a86c7c1acb",
+    "standalone-exit.json": "711b399485ebefea7fcb844cfc1d14ff81939356ef087920162020bfeb3be120",
+    "standalone-spec.json": "da613eb90bafd08f759bb3b8f344ecf70171a951ff8997e60d36f1d396841693",
+    "process-gate.log": "9ac5366bbfe8bd87c986012bc945ed6fa0c7c6fd1d8123432575c53952099c6d",
+    "process-spec.json": "3ecc7b43834dcf891c15fb53d2282f307c0ddde14c9a126493034d8f8e6e9d61",
+    "process-single.log": "b9e21d3c63d2cf6bb9683e4969937f08d3ca39cb3672f829ce89e65f0f2f6f89",
+    "README.md": "50b186c49932c0e6844e0a7fd3ff75f67a01374ae178f4d93e7ede2b2bd80d44",
+    "standalone-process-state.json": "9998c1866cae5c81aaee9fc416b46275805c561be46ff808fff8e78ca0a589f1",
+    "MANIFEST.json": "308bed95aa1e81fed24bd681cfb78a7e566b071ea4a1f3ac4f200a4538b3ad82",
+    "standalone-process.log": "8e3178991d804ab1095f9588bfbde8930b2394f13434d6018721d50d2e5f19c4",
+    "verification.json": "598bfcd746242d75fcfc0037a5c3f092d42f028c29d658979b219713b5eb99ec",
+    "process-gate-junit.xml": "3f27aa9afe4174fa65ff66fa3e76bd575633910bb56d845f7aec103257602b7a",
+    "process-single-exit.json": "d569a9324b90c7bf597f38daec7d13c5875e2c1d6ab7dbf43b04d6666e953566",
+    "process-single-spec.json": "cafb00a2ec70e4e942741d2aac210698524316d2504a15e13cf09dc24812d33c"
+  },
+  "replacement_rule": "Three nested execution owner.token values replaced consistently by stable labels; no original token values published",
+  "derived_changed_files": [
+    "pre-runs-evidence.json",
+    "standalone-process-state.json"
+  ]
+}

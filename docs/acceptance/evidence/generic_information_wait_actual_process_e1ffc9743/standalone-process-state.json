@@ -1,0 +1,40 @@
+{
+  "model_calls": 3,
+  "process_state": {
+    "executions": [
+      {
+        "agent_id": "a1",
+        "id": "81d9eab9-726d-428e-b02a-4c236d1c2b25",
+        "metadata_json": "{\"owner\": {\"pid\": 45708, \"token\": \"execution-owner-3\", \"host\": \"MacBook-Pro.local\", \"process_started_at\": \"2026-11-07T10:16:03.099659+00:00\", \"os_process_start\": \"ps:Sat Nov  7 05:15:58 2026\"}}",
+        "status": "success"
+      }
+    ],
+    "jobs": [
+      {
+        "agent_id": "a1",
+        "id": "150fdfbb-2780-4fae-bdec-473ab3f219df",
+        "result_summary": "{\"dispatch_execution_id\": \"81d9eab9-726d-428e-b02a-4c236d1c2b25\", \"dispatch_started\": true, \"execution_id\": \"81d9eab9-726d-428e-b02a-4c236d1c2b25\", \"finished\": true, \"next_action\": \"none\", \"operation_id\": \"agent:run:os-process-wait\", \"outcome\": \"success\", \"parameters_digest\": \"589cdd35e1c7c80bb9028accd6b087ad59680bbb4c49e8a270a65293fb35866f\", \"reason\": \"execution_succeeded\", \"requires_reconciliation\": false, \"resume_claim\": {\"action_id\": \"f206eb51-180c-4353-959d-1f41bed46314\", \"execution_id\": \"81d9eab9-726d-428e-b02a-4c236d1c2b25\"}, \"resume_parameters\": {\"sync\": true, \"task_input\": \"Create the closing task\"}, \"status\": \"success\", \"wait_receipt\": {\"action_type\": \"agent_information_request\", \"channel\": \"user:member-1\", \"correlation_id\": \"f46126ad-a8e9-48e2-b316-eef51dd42589\", \"hitl_action_id\": \"f206eb51-180c-4353-959d-1f41bed46314\", \"kind\": \"information_request\", \"missing_fact\": \"title\", \"question\": \"What title should the closing task have?\", \"required_role\": \"\", \"status\": \"pending\", \"subject\": {\"agent_id\": \"a1\", \"execution_id\": \"81d9eab9-726d-428e-b02a-4c236d1c2b25\", \"job_id\": \"150fdfbb-2780-4fae-bdec-473ab3f219df\", \"workspace_id\": \"ws1\"}, \"verified\": true, \"waiting_for\": \"What title should the closing task have?\"}, \"waiting\": false}",
+        "start_time": "2026-11-07 10:16:00",
+        "status": "success"
+      }
+    ],
+    "tasks": [
+      {
+        "board_id": "board-probe",
+        "id": "c1aa106f-b662-4835-8890-1aab38e908e9",
+        "status": "backlog",
+        "title": "Quarterly close checklist"
+      }
+    ],
+    "waits": [
+      {
+        "action_type": "agent_information_request",
+        "context_snapshot": "{\"job_id\": \"150fdfbb-2780-4fae-bdec-473ab3f219df\", \"execution_id\": \"81d9eab9-726d-428e-b02a-4c236d1c2b25\", \"run_id\": \"81d9eab9-726d-428e-b02a-4c236d1c2b25\", \"agent_id\": \"a1\", \"workspace_id\": \"ws1\", \"tenant_id\": \"t1\", \"actor_id\": \"member-1\", \"user_id\": \"member-1\", \"subject\": {\"job_id\": \"150fdfbb-2780-4fae-bdec-473ab3f219df\", \"execution_id\": \"81d9eab9-726d-428e-b02a-4c236d1c2b25\", \"agent_id\": \"a1\", \"workspace_id\": \"ws1\"}, \"correlation_id\": \"f46126ad-a8e9-48e2-b316-eef51dd42589\", \"channel\": \"user:member-1\", \"question\": \"What title should the closing task have?\"}",
+        "id": "f206eb51-180c-4353-959d-1f41bed46314",
+        "status": "approved",
+        "user_feedback": "Quarterly close checklist"
+      }
+    ]
+  },
+  "resumed_prompt_has_answer": true
+}

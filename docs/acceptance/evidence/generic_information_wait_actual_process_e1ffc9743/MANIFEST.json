@@ -1,0 +1,34 @@
+{
+  "artifacts": {
+    "pre-runs-evidence.json": "5fa91703d61e6802bdebb7e308b4e2042cb11fce43d6309e78030a48e7b9f59c",
+    "process-gate-exit.json": "dc4fa5ed434bba88ac32359535348a7c57b519c3a9848ad6a2a530b511fedb5f",
+    "process-single-junit.xml": "406c7801e55b197f621028990f9d68d7ab20291b9d36a1fc2ee894a86c7c1acb",
+    "standalone-exit.json": "711b399485ebefea7fcb844cfc1d14ff81939356ef087920162020bfeb3be120",
+    "standalone-spec.json": "da613eb90bafd08f759bb3b8f344ecf70171a951ff8997e60d36f1d396841693",
+    "process-gate.log": "9ac5366bbfe8bd87c986012bc945ed6fa0c7c6fd1d8123432575c53952099c6d",
+    "process-spec.json": "3ecc7b43834dcf891c15fb53d2282f307c0ddde14c9a126493034d8f8e6e9d61",
+    "process-single.log": "b9e21d3c63d2cf6bb9683e4969937f08d3ca39cb3672f829ce89e65f0f2f6f89",
+    "README.md": "292b5969f473dc6fd9c8ac31f2705556d38ad24cc32824785af1597d27c030ec",
+    "standalone-process-state.json": "d10f9cf0a91873c93c4ca59db9be322723419b29296fab2eaf4f50604543db66",
+    "PUBLIC_EXPORT_PROVENANCE.json": "af8e4a907d8bd4ff93941aa3b3570bd6b63cb08e63df76d09d7e04e496573ac2",
+    "standalone-process.log": "8e3178991d804ab1095f9588bfbde8930b2394f13434d6018721d50d2e5f19c4",
+    "verification.json": "598bfcd746242d75fcfc0037a5c3f092d42f028c29d658979b219713b5eb99ec",
+    "process-gate-junit.xml": "3f27aa9afe4174fa65ff66fa3e76bd575633910bb56d845f7aec103257602b7a",
+    "process-single-exit.json": "d569a9324b90c7bf597f38daec7d13c5875e2c1d6ab7dbf43b04d6666e953566",
+    "process-single-spec.json": "cafb00a2ec70e4e942741d2aac210698524316d2504a15e13cf09dc24812d33c"
+  },
+  "base_source": "d922601050546364560474a2e6d0388a34c2a974",
+  "executed_source": "e1ffc9743f9085d7cd1f965216107f5d2f5e0ae7",
+  "source_files": {
+    "backend/api/agent_routes.py": "732021b56d98b038ca73bb7a7e4882cb5757157f92a82f782fe07d7ebd828a17",
+    "backend/core/generic_agent.py": "8c3bd61447d2f600c1153ab3c8b84597097fad342add3809c9a79c40bb5dee8b",
+    "backend/core/hitl_resume.py": "1a5b018e815b6e8371f09d54e47623d26a6697d9b9e591be3588b5a494374eaf",
+    "backend/core/information_wait.py": "de3630cdd3b368becba9a4f56028373aaa0ce0bf97af8c24ff8ff8702ec94b6f",
+    "backend/core/react_models.py": "9c9b18bbec1ac8020aadaddc10aacfbf954a7a6181baca413201d0a8b9ccdaed",
+    "backend/tests/process_support/generic_information_wait_process_worker.py": "728120af755cc7dd3f6f811d8361cd9ce3fb9ade4962d70790ab744bd861da4b",
+    "backend/tests/test_agent_generic_information_wait.py": "30dea4516cdf332bf211c19c591c8e6716664a481329880c34d58abc4b4e0102",
+    "backend/tests/test_agent_generic_information_wait_process.py": "2e926a6e1deabc98e368b4050c6cd3734a3b52757f0a11c36a23f1d46f5e27e4",
+    "backend/tests/test_generic_information_exact_event_contract.py": "afed948c3b3af40847b14ee201eb3fc2381170a70d487ed9f04f8bd11b9af155",
+    "backend/tests/test_generic_information_resume_namespace_contract.py": "c898ac7c8a0295f423a908fceb1e9232830a960d0a452929a6898528db1accc4"
+  }
+}
