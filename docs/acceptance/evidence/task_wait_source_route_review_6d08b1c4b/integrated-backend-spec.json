@@ -1,0 +1,19 @@
+{
+  "command": [
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-taskwait-source-integrated-koi0ax08/pytest",
+    "tests/test_task_wait_source_trigger_contract.py",
+    "tests/test_task_wait_source_continuation_regressions.py",
+    "tests/test_assignment_routes.py",
+    "--junitxml=/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-taskwait-source-integrated-koi0ax08/result.xml",
+    "-q",
+    "--tb=short"
+  ],
+  "source": "e02c1f2a21de6ca70a1e04b895cdb078365f279a",
+  "scratch": "/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-taskwait-source-integrated-koi0ax08",
+  "started": 1794035642.7324631
+}

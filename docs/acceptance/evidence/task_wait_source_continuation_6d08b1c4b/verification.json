@@ -1,0 +1,71 @@
+{
+  "result": "source_answer_continuation_verified",
+  "pytest_exit_code": 0,
+  "passed": 74,
+  "failed": 0,
+  "breakdown": {
+    "contract": 2,
+    "source_continuation_regressions": 8,
+    "existing_assignment_route_controls": 64
+  },
+  "cases": {
+    "source_answer_only": {
+      "status": "passed",
+      "verified_reconciliation": "140.25",
+      "task_status": "completed",
+      "manual_advance_used": false
+    },
+    "separate_advance_twin": {
+      "status": "passed",
+      "verified_reconciliation": "140.25",
+      "task_status": "completed"
+    },
+    "interruption_before_adaptation_replay_recovery": {
+      "status": "passed",
+      "applied_reconciliations": 1,
+      "duplicate_replays_after_completion": "already_present; no repeat"
+    },
+    "wrong_subject_source": {
+      "status": "passed",
+      "question_settled": false,
+      "applied_reconciliations": 0
+    },
+    "partial_source": {
+      "status": "passed",
+      "question_settled": false,
+      "applied_reconciliations": 0
+    },
+    "unrelated_source": {
+      "status": "passed",
+      "question_settled": false,
+      "applied_reconciliations": 0
+    },
+    "model_retain": {
+      "status": "passed",
+      "task_status": "not_completed",
+      "applied_reconciliations": 0
+    },
+    "explicit_use_model_false": {
+      "status": "passed",
+      "continuation_calls": 0,
+      "applied_reconciliations": 0
+    },
+    "cancellation_then_late_source": {
+      "status": "passed",
+      "final_task_status": "cancelled",
+      "applied_reconciliations": 0
+    },
+    "explicit_absolute_deadline_then_source": {
+      "status": "passed",
+      "final_task_status": "blocked",
+      "deadline_extended": false,
+      "applied_reconciliations": 0
+    }
+  },
+  "authority": "controlled authenticated-user fixture; scratch SQLite and scratch data/Lance roots",
+  "model": "controlled proposal transport; no inference, provider or spend",
+  "runtime_identity": "source_id=6d08b1c4baa9 revision=6d08b1c4baa9 dirty=False (0 modified, 0 untracked)",
+  "executed_source": "6d08b1c4baa9645876c7a964c45aa120ec39809e",
+  "goal": "TASK-WAIT-01 open beyond the source-answer /sources entrypoint",
+  "frontend_execution": "not_run_node_modules_absent; unit assertion updated for CI"
+}

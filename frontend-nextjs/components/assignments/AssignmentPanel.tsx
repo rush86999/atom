@@ -24,7 +24,6 @@ import {
   AssignmentStep,
   AssignmentSummary,
   addAssignmentSource,
-  advanceAssignment,
   cancelAssignment,
   correctAssignmentMapping,
   createAssignment,
@@ -1061,7 +1060,10 @@ export function AssignmentPanel({
                             source_version: source.source_version,
                             sheet: source.sheet,
                           }, "the user supplied the source named by the open question");
-                          await advanceAssignment(detail.run_id);
+                          // The authenticated source route owns the
+                          // same-task continuation once it accepts a source
+                          // that settles this question. A second client
+                          // advance would duplicate that consumer call.
                         }, detail.run_id)
                       }
                     >

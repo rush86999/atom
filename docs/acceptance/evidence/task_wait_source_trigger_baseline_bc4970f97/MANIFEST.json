@@ -1,0 +1,15 @@
+{
+  "executed_source": "bc4970f979be66d91b7bf84e88af7e1959455ada",
+  "source_files": {
+    "backend/tests/test_task_wait_source_trigger_contract.py": "278ffe95f8a3f2433d75528585d815b9b3d595709fb4a0578ee912e66863bfd7",
+    "backend/tests/test_assignment_routes.py": "3cd13cc700663e20d1d84b451854bcd38c761338bb8a0b4f7aa084c00e514ce8",
+    "backend/api/assignment_routes.py": "a5131a1d0a8719ed748014d247010cacdd2745ba9c7c94b6c4c8065081d96699",
+    "backend/core/assignment_executor.py": "7170d6e85b2aab5288aa03617a322a213da5e22fb119317e93fb6536b8c5fa4b",
+    "backend/core/task_lifecycle.py": "4e6e67384ec759f691d084f4781d0567add04fd7dfead4a47c36a82d9a68ba61"
+  },
+  "artifacts": {
+    "README.md": "16edf8fd2b626e8831efeb8a257186b7b3bc643fddc20ad5c48d06dbf19046fa",
+    "verification.json": "5dd2ed296b0a6719ed1ed582219e0c02042171f3df8c2c8e85cc0efa6e55da08",
+    "baseline.log": "0c893cb97288834a275b32e4cb4a62305b1d2f45518dce466a8a1218604248a1"
+  }
+}

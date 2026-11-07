@@ -1,0 +1,71 @@
+{
+  "ref": "d874e1872",
+  "checks": [
+    {
+      "path": "backend/api/assignment_routes.py",
+      "group": "source_files",
+      "match": true
+    },
+    {
+      "path": "backend/tests/test_task_wait_source_trigger_contract.py",
+      "group": "source_files",
+      "match": true
+    },
+    {
+      "path": "backend/tests/test_task_wait_source_continuation_regressions.py",
+      "group": "source_files",
+      "match": true
+    },
+    {
+      "path": "backend/tests/test_assignment_routes.py",
+      "group": "source_files",
+      "match": true
+    },
+    {
+      "path": "backend/core/assignment_executor.py",
+      "group": "source_files",
+      "match": true
+    },
+    {
+      "path": "backend/core/task_lifecycle.py",
+      "group": "source_files",
+      "match": true
+    },
+    {
+      "path": "backend/core/employee_job_runner.py",
+      "group": "source_files",
+      "match": true
+    },
+    {
+      "path": "backend/core/employee_adaptation.py",
+      "group": "source_files",
+      "match": true
+    },
+    {
+      "path": "frontend-nextjs/components/assignments/AssignmentPanel.tsx",
+      "group": "frontend_source_files_not_executed",
+      "match": true
+    },
+    {
+      "path": "frontend-nextjs/components/assignments/__tests__/AssignmentPanel.test.tsx",
+      "group": "frontend_source_files_not_executed",
+      "match": true
+    },
+    {
+      "path": "docs/acceptance/evidence/task_wait_source_continuation_6d08b1c4b/README.md",
+      "group": "artifacts",
+      "match": true
+    },
+    {
+      "path": "docs/acceptance/evidence/task_wait_source_continuation_6d08b1c4b/verification.json",
+      "group": "artifacts",
+      "match": true
+    },
+    {
+      "path": "docs/acceptance/evidence/task_wait_source_continuation_6d08b1c4b/final.log",
+      "group": "artifacts",
+      "match": true
+    }
+  ],
+  "failures": []
+}

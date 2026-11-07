@@ -1,0 +1,10 @@
+{
+  "source": "6d08b1c4b",
+  "evidence_checkout": "d874e1872",
+  "command": "node node_modules/jest/bin/jest.js components/assignments/__tests__/AssignmentPanel.test.tsx --runInBand --watchman=false",
+  "node": "v20.19.6",
+  "dependency_cache": "existing atom-agent4-acctret node_modules symlink; no install/download",
+  "passed": 9,
+  "failed": 0,
+  "actual_exit_code": 0
+}
