@@ -1,26 +1,26 @@
 
 ----------------------------- live log collection ------------------------------
-2026-11-07 01:52:40 [    INFO] MCP Service initialized
+2026-11-07 01:56:51 [    INFO] MCP Service initialized
 
 ::test_plain_authorized_host_request_completes_with_real_receipt[generic] 
 -------------------------------- live log call ---------------------------------
-2026-11-07 01:52:41 [    INFO] Canvas type 'mini_app' auto-registered (generic defaults)
+2026-11-07 01:56:52 [    INFO] Canvas type 'mini_app' auto-registered (generic defaults)
 PASSED                                                                   [  0%]
 ::test_plain_authorized_host_request_completes_with_real_receipt[assignment] PASSED [  0%]
 tests/test_generic_request_expectations.py::test_builder_freezes_business_args_and_ignores_model_expected_fields 
 -------------------------------- live log setup --------------------------------
-2026-11-07 01:52:42 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
-2026-11-07 01:52:42 [    INFO] EscalationManager initialized
-2026-11-07 01:52:42 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-07 01:52:42 [    INFO] EscalationManager initialized
-2026-11-07 01:52:42 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-07 01:52:42 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
-2026-11-07 01:52:42 [    INFO] AgentTaskRegistry initialized
+2026-11-07 01:56:53 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-07 01:56:53 [    INFO] EscalationManager initialized
+2026-11-07 01:56:53 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 01:56:53 [    INFO] EscalationManager initialized
+2026-11-07 01:56:53 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 01:56:53 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 01:56:53 [    INFO] AgentTaskRegistry initialized
 PASSED                                                                   [  1%]
 tests/test_generic_request_expectations.py::test_plain_args_generic_and_assignment_produce_the_same_verified_effect PASSED [  1%]
 tests/test_generic_request_expectations.py::test_plain_args_non_miniapp_presentation_is_verified 
 -------------------------------- live log call ---------------------------------
-2026-11-07 01:52:43 [    INFO] Presented markdown content to user user-1
+2026-11-07 01:56:54 [    INFO] Presented markdown content to user user-1
 PASSED                                                                   [  1%]
 tests/test_generic_request_expectations.py::test_model_forged_expected_metadata_is_stripped_before_dispatch PASSED [  2%]
 tests/test_generic_request_expectations.py::test_handler_result_cannot_overwrite_frozen_expectations PASSED [  2%]
@@ -34,7 +34,7 @@ tests/test_generic_oracle_mutation_contract.py::test_explicit_read_stays_usable 
 tests/test_generic_oracle_mutation_contract.py::test_broken_verdicts_do_not_manufacture_business_success[refuting] PASSED [  5%]
 tests/test_generic_oracle_mutation_contract.py::test_broken_verdicts_do_not_manufacture_business_success[raising] 
 -------------------------------- live log call ---------------------------------
-2026-11-07 01:52:48 [ WARNING] [Oracle] postcondition check for test.generic.verdict.827a950c41494a82ac79ec61e4a9e174 failed: verifier transport unavailable
+2026-11-07 01:56:59 [ WARNING] [Oracle] postcondition check for test.generic.verdict.8a1976675cba43d7a287394cbed8ad25 failed: verifier transport unavailable
 PASSED                                                                   [  5%]
 tests/test_generic_oracle_mutation_contract.py::test_broken_verdicts_do_not_manufacture_business_success[none] PASSED [  6%]
 tests/test_generic_oracle_mutation_contract.py::test_real_effect_with_independent_readback_is_verified PASSED [  6%]
@@ -49,7 +49,7 @@ tests/test_generic_oracle_mutation_contract.py::test_durable_claim_replays_witho
 tests/test_generic_oracle_mutation_contract.py::test_changed_material_with_same_operation_is_refused PASSED [  9%]
 tests/test_generic_oracle_mutation_contract.py::test_uncertain_timeout_claim_never_resends_on_restart 
 -------------------------------- live log call ---------------------------------
-2026-11-07 01:52:52 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='autodev_guidance'
+2026-11-07 01:57:03 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='autodev_guidance'
 PASSED                                                                   [ 10%]
 tests/test_generic_oracle_mutation_contract.py::test_replay_with_refuted_fresh_readback_is_not_success PASSED [ 10%]
 tests/test_generic_oracle_mutation_contract.py::test_landed_effect_then_failed_selfreport_is_uncertain PASSED [ 11%]
@@ -60,43 +60,43 @@ tests/test_generic_oracle_mutation_contract.py::test_normal_dispatch_without_ope
 tests/test_generic_oracle_mutation_contract.py::test_server_intent_slot_is_not_reminted_by_model_material PASSED [ 12%]
 tests/test_generic_oracle_mutation_contract.py::test_cold_resume_without_explicit_operation_id_reloads_claim 
 -------------------------------- live log call ---------------------------------
-2026-11-07 01:52:57 [    INFO] Agent Scratch Agent (scratch-agent) starting task: resume the normal task
-2026-11-07 01:52:57 [    INFO] EscalationManager initialized
-2026-11-07 01:52:57 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 01:57:08 [    INFO] Agent Scratch Agent (scratch-agent) starting task: resume the normal task
+2026-11-07 01:57:08 [    INFO] EscalationManager initialized
+2026-11-07 01:57:08 [    INFO] CognitiveTierService initialized for workspace: default
 PASSED                                                                   [ 13%]
 tests/test_generic_oracle_mutation_contract.py::test_explicit_operation_without_workspace_is_refused_before_effect PASSED [ 13%]
 tests/test_generic_oracle_mutation_contract.py::test_handler_context_carries_server_operation_identity PASSED [ 14%]
 tests/test_generic_oracle_mutation_contract.py::test_cold_resume_with_unreadable_claim_store_stays_unresolved 
 -------------------------------- live log call ---------------------------------
-2026-11-07 01:52:59 [    INFO] Agent Scratch Agent (scratch-agent) starting task: continue original task
+2026-11-07 01:57:09 [    INFO] Agent Scratch Agent (scratch-agent) starting task: continue original task
 PASSED                                                                   [ 14%]
 tests/test_generic_oracle_mutation_contract.py::test_zero_claim_read_only_execution_stays_success 
 -------------------------------- live log call ---------------------------------
-2026-11-07 01:52:59 [    INFO] Agent Scratch Agent (scratch-agent) starting task: answer the question
+2026-11-07 01:57:10 [    INFO] Agent Scratch Agent (scratch-agent) starting task: answer the question
 PASSED                                                                   [ 14%]
 tests/test_generic_oracle_mutation_contract.py::test_mark_status_expected_status_is_database_cas PASSED [ 15%]
 tests/test_generic_oracle_mutation_contract.py::test_execution_finalization_blocks_unverified_mutation_but_keeps_reads 
 -------------------------------- live log call ---------------------------------
-2026-11-07 01:53:00 [    INFO] Agent Scratch Agent (scratch-agent) starting task: do the thing
-2026-11-07 01:53:00 [   ERROR] AUDIT GAP for execution 73dd905d-de3a-402a-8107-1476003107e6: {'complete': False, 'execution_id': '73dd905d-de3a-402a-8107-1476003107e6', 'expected_events': 5, 'actual_events': 4, 'coverage_percentage': 80.0, 'checked_at': '2026-11-07T06:53:00.177174+00:00'}
-2026-11-07 01:53:00 [    INFO] EscalationManager initialized
-2026-11-07 01:53:00 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-07 01:53:00 [   ERROR] Session sess-final not found
+2026-11-07 01:57:11 [    INFO] Agent Scratch Agent (scratch-agent) starting task: do the thing
+2026-11-07 01:57:11 [   ERROR] AUDIT GAP for execution 774003a3-b4bd-4557-955a-eb88b5252ca4: {'complete': False, 'execution_id': '774003a3-b4bd-4557-955a-eb88b5252ca4', 'expected_events': 5, 'actual_events': 4, 'coverage_percentage': 80.0, 'checked_at': '2026-11-07T06:57:11.063132+00:00'}
+2026-11-07 01:57:11 [    INFO] EscalationManager initialized
+2026-11-07 01:57:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 01:57:11 [   ERROR] Session sess-final not found
 PASSED                                                                   [ 15%]
 tests/test_generic_oracle_mutation_contract.py::test_execution_finalization_allows_verified_mutation 
 -------------------------------- live log call ---------------------------------
-2026-11-07 01:53:00 [    INFO] Agent Scratch Agent (scratch-agent) starting task: do the verified thing
-2026-11-07 01:53:00 [    INFO] EscalationManager initialized
-2026-11-07 01:53:00 [    INFO] CognitiveTierService initialized for workspace: default
-2026-11-07 01:53:00 [   ERROR] Session sess-final not found
+2026-11-07 01:57:11 [    INFO] Agent Scratch Agent (scratch-agent) starting task: do the verified thing
+2026-11-07 01:57:11 [    INFO] EscalationManager initialized
+2026-11-07 01:57:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 01:57:11 [   ERROR] Session sess-final not found
 PASSED                                                                   [ 15%]
 tests/test_generic_oracle_mutation_contract.py::test_cold_resumed_execution_reloads_unresolved_claim 
 -------------------------------- live log call ---------------------------------
-2026-11-07 01:53:01 [    INFO] Agent Scratch Agent (scratch-agent) starting task: resume the task
+2026-11-07 01:57:12 [    INFO] Agent Scratch Agent (scratch-agent) starting task: resume the task
 PASSED                                                                   [ 16%]
 tests/test_oracle_mini_app_host_mutations.py::test_supported_host_flow_is_independently_verified 
 -------------------------------- live log call ---------------------------------
-2026-11-07 01:53:02 [    INFO] runtime identity: source_id=88469902fb42-dirty.595fa7bbcc72 revision=88469902fb42 dirty=True (0 modified, 7 untracked)
+2026-11-07 01:57:12 [    INFO] runtime identity: source_id=60d3b71de85c-dirty.6fb266f2efc5 revision=60d3b71de85c dirty=True (1 modified, 6 untracked)
 PASSED                                                                   [ 16%]
 tests/test_oracle_mini_app_host_mutations.py::test_same_operation_is_not_dispatched_twice PASSED [ 16%]
 tests/test_oracle_mini_app_host_mutations.py::test_scaffold_receipt_twins PASSED [ 17%]
@@ -165,23 +165,23 @@ tests/test_assignment_executor.py::test_expired_standing_authority_requires_appr
 tests/test_assignment_executor.py::test_cost_budget_stops_before_the_next_step PASSED [ 40%]
 tests/test_assignment_executor.py::test_post_effect_runtime_error_is_uncertain_not_failed_before_effect 
 -------------------------------- live log call ---------------------------------
-2026-11-07 01:53:17 [    INFO] Created HITL action cd59b9bf-267d-4784-a581-f8db353a8e66 for agent None
+2026-11-07 01:57:27 [    INFO] Created HITL action 3a5df256-4d91-4b37-b290-fdfd642b5e23 for agent None
 PASSED                                                                   [ 40%]
 tests/test_assignment_executor.py::test_post_effect_timeout_is_uncertain_and_does_not_resend 
 -------------------------------- live log call ---------------------------------
-2026-11-07 01:53:17 [    INFO] Created HITL action 8b9ed81a-50a3-4dc4-93eb-ad77a47f1279 for agent None
+2026-11-07 01:57:27 [    INFO] Created HITL action d9a6de04-ab05-491a-b5f7-01415a4bd2e1 for agent None
 PASSED                                                                   [ 41%]
 tests/test_assignment_executor.py::test_post_effect_parse_error_is_uncertain 
 -------------------------------- live log call ---------------------------------
-2026-11-07 01:53:18 [    INFO] Created HITL action 2b5229c2-cc2b-4475-9dc1-6b69afe7a816 for agent None
+2026-11-07 01:57:28 [    INFO] Created HITL action f9b5c409-d97e-4cae-b905-7612abf15182 for agent None
 PASSED                                                                   [ 41%]
 tests/test_assignment_executor.py::test_post_effect_cancellation_is_uncertain 
 -------------------------------- live log call ---------------------------------
-2026-11-07 01:53:18 [    INFO] Created HITL action c64776aa-cda1-4a84-84b6-bfa1abf7204a for agent None
+2026-11-07 01:57:28 [    INFO] Created HITL action 6a7c19bd-c583-4a29-92a8-d1e1311baeb5 for agent None
 PASSED                                                                   [ 42%]
 tests/test_assignment_executor.py::test_trusted_before_effect_error_remains_retryable 
 -------------------------------- live log call ---------------------------------
-2026-11-07 01:53:18 [    INFO] Created HITL action 911e43ea-8b00-4dcc-a346-aae7a6b95022 for agent None
+2026-11-07 01:57:28 [    INFO] Created HITL action 7bcfb7bb-07e0-4d7b-8da2-1c26472f46da for agent None
 PASSED                                                                   [ 42%]
 tests/test_assignment_executor.py::test_hard_cost_budget_refuses_before_dispatch PASSED [ 42%]
 tests/test_assignment_executor.py::test_reserved_cost_blocks_the_next_over_limit_step PASSED [ 43%]
@@ -209,8 +209,8 @@ tests/test_assignment_executor.py::test_non_sales_policy_plan_uses_the_same_exec
 tests/test_assignment_executor.py::test_discount_clarification_is_durable_and_resumes_the_same_work PASSED [ 51%]
 tests/test_assignment_executor.py::test_uncertain_action_envelope_blocks_dependents_until_reconciled 
 -------------------------------- live log call ---------------------------------
-2026-11-07 01:53:20 [    INFO] Created HITL action ed0ef508-41f3-400d-b699-0f0d5de294bf for agent None
-2026-11-07 01:53:20 [    INFO] Created HITL action ab53c5aa-35cd-4e0e-8f2e-4402c9470840 for agent None
+2026-11-07 01:57:30 [    INFO] Created HITL action 59cc695b-5cbe-415c-a6b4-3bcce0f2c104 for agent None
+2026-11-07 01:57:30 [    INFO] Created HITL action f368ade4-5b42-41e9-b07c-5118b52ef113 for agent None
 PASSED                                                                   [ 51%]
 tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result0-effects0-external-uncertain] PASSED [ 52%]
 tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result1-effects1-external-failed] PASSED [ 52%]
@@ -225,12 +225,12 @@ tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result9-
 tests/test_assignment_executor.py::test_mutation_exception_after_dispatch_is_uncertain_not_ordinary_failure PASSED [ 55%]
 tests/test_assignment_executor.py::test_trusted_proof_of_no_effect_is_before_effect_failure 
 -------------------------------- live log call ---------------------------------
-2026-11-07 01:53:20 [    INFO] Created HITL action 6e3e6dbf-25b0-4762-b219-b4a39218ae12 for agent None
+2026-11-07 01:57:30 [    INFO] Created HITL action acfa18fa-a955-4b77-948a-7973232b2204 for agent None
 PASSED                                                                   [ 56%]
 tests/test_assignment_executor.py::test_unavailable_read_is_reported_without_fabricated_data PASSED [ 56%]
 tests/test_assignment_executor.py::test_readback_conflict_preserves_remote_identity_and_blocks_dependents 
 -------------------------------- live log call ---------------------------------
-2026-11-07 01:53:20 [    INFO] Created HITL action 7a0d8ead-df08-4c8d-8f06-717e72f7bdd7 for agent None
+2026-11-07 01:57:30 [    INFO] Created HITL action 5f24ada7-1e7b-4050-b3c4-370c4a2489e2 for agent None
 PASSED                                                                   [ 56%]
 tests/test_assignment_executor.py::test_plan_shape_output_is_not_a_durable_mutation PASSED [ 57%]
 tests/test_assignment_executor.py::test_verified_receipt_gates_dependent_execution[proof0-verified_proof_missing] PASSED [ 57%]
@@ -241,19 +241,19 @@ tests/test_assignment_executor.py::test_verified_receipt_gates_dependent_executi
 tests/test_assignment_executor.py::test_verified_receipt_positive_twin_executes_dependent PASSED [ 59%]
 tests/test_assignment_executor.py::test_provider_acceptance_never_confirms_sent_items_through_executor 
 -------------------------------- live log call ---------------------------------
-2026-11-07 01:53:20 [    INFO] Created HITL action b6a2ff3a-7e1d-4b5d-acb0-30fe16d1001a for agent None
+2026-11-07 01:57:30 [    INFO] Created HITL action a8bd2439-384f-4050-bae9-f61be4587a18 for agent None
 PASSED                                                                   [ 59%]
 tests/test_assignment_executor.py::test_sent_items_minimum_schema_gates_executor[operation_only] 
 -------------------------------- live log call ---------------------------------
-2026-11-07 01:53:20 [    INFO] Created HITL action 2e5958c8-8a67-44c0-8b2b-abc09a47a222 for agent None
+2026-11-07 01:57:30 [    INFO] Created HITL action 9494373b-a133-43e4-82ee-8b05ca551e81 for agent None
 PASSED                                                                   [ 60%]
 tests/test_assignment_executor.py::test_sent_items_minimum_schema_gates_executor[message_only] 
 -------------------------------- live log call ---------------------------------
-2026-11-07 01:53:20 [    INFO] Created HITL action 24a1dfce-69b4-4e8f-a5db-a4398b6cd730 for agent None
+2026-11-07 01:57:30 [    INFO] Created HITL action 47a9c35d-dcb4-4a75-a95d-4f10946144db for agent None
 PASSED                                                                   [ 60%]
 tests/test_assignment_executor.py::test_explicit_sent_items_readback_confirms_through_executor 
 -------------------------------- live log call ---------------------------------
-2026-11-07 01:53:20 [    INFO] Created HITL action bef3bc87-fc88-4328-af93-5786790dc302 for agent None
+2026-11-07 01:57:30 [    INFO] Created HITL action ad931611-e589-4864-a65d-ce43c48d16d9 for agent None
 PASSED                                                                   [ 60%]
 tests/test_assignment_executor.py::test_business_readiness_blocks_dependent_while_independent_runs PASSED [ 61%]
 tests/test_assignment_executor.py::test_plan_patch_invalidates_only_affected_branch_and_preserves_budget PASSED [ 61%]
@@ -274,7 +274,7 @@ tests/test_oracle_connected_mutations.py::test_connected_mutation_binding_matrix
 tests/test_oracle_connected_mutations.py::test_action_registry_consumer_downgrades_when_verifier_returns_none PASSED [ 67%]
 tests/test_oracle_connected_mutations.py::test_action_registry_consumer_downgrades_when_oracle_raises 
 -------------------------------- live log call ---------------------------------
-2026-11-07 01:53:21 [ WARNING] [Oracle] postcondition check for test.oracle.raises.111158bd failed: oracle transport unavailable
+2026-11-07 01:57:31 [ WARNING] [Oracle] postcondition check for test.oracle.raises.89f3e02a failed: oracle transport unavailable
 PASSED                                                                   [ 67%]
 tests/test_oracle_connected_mutations.py::test_action_registry_consumer_keeps_read_only_outcome PASSED [ 67%]
 tests/test_oracle_connected_mutations.py::test_request_snapshot_is_frozen_before_handler_mutation[body] PASSED [ 68%]
@@ -289,7 +289,7 @@ tests/test_oracle_registry_verification_gap.py::test_declared_mutation_without_v
 tests/test_oracle_registry_verification_gap.py::test_unusable_verifier_is_uncertain_with_receipt[none] PASSED [ 71%]
 tests/test_oracle_registry_verification_gap.py::test_unusable_verifier_is_uncertain_with_receipt[raise] 
 -------------------------------- live log call ---------------------------------
-2026-11-07 01:53:21 [ WARNING] [Oracle] postcondition check for test.gap.raise.b69d40f0 failed: readback store unavailable
+2026-11-07 01:57:31 [ WARNING] [Oracle] postcondition check for test.gap.raise.9dda6d4d failed: readback store unavailable
 PASSED                                                                   [ 71%]
 tests/test_oracle_registry_verification_gap.py::test_unusable_verifier_is_uncertain_with_receipt[refute] PASSED [ 72%]
 tests/test_oracle_registry_verification_gap.py::test_positive_independent_verdict_applies_with_receipt PASSED [ 72%]
@@ -349,7 +349,7 @@ tests/test_employee_work_requests.py::test_quote_money_terms_must_resolve_and_ma
 tests/test_employee_work_requests.py::test_work_request_rejects_unverified_or_skipped_evidence PASSED [ 92%]
 tests/test_employee_work_requests.py::test_invoice_request_can_compile_one_approved_bill_action 
 -------------------------------- live log call ---------------------------------
-2026-11-07 01:53:21 [    INFO] Created HITL action cb0a5a32-a2dd-44b4-9f46-d5ff0c369599 for agent None
+2026-11-07 01:57:32 [    INFO] Created HITL action 7febd0c1-8f16-4b37-93b0-1704f6f66fcf for agent None
 PASSED                                                                   [ 92%]
 tests/test_employee_work_requests.py::test_invoice_role_bindings_resolve_from_evidence_shape PASSED [ 93%]
 tests/test_employee_work_requests.py::test_invoice_wrong_purchase_order_identity_is_refused PASSED [ 93%]
@@ -405,4 +405,4 @@ tests/test_oracle_canvas_postcondition.py::test_chart_positive_binds_all_values 
   <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
 
 -- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
-====================== 271 passed, 548 warnings in 57.90s ======================
+====================== 271 passed, 548 warnings in 56.87s ======================

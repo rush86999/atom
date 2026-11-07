@@ -4,15 +4,15 @@
   "agent": "Agent 1 successor (isolated worktree)",
   "branch": "codex/generic-request-context-20261107",
   "base_source": "fbe7a597585c",
-  "qualified_source": "88469902fb42e45e7bdfc9617164ae804440f196",
+  "qualified_source": "60d3b71de85c98e73a4ef43b5f8b565974f5157e",
   "interpreter": "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
   "python_version": "3.14",
   "environment": {
     "TESTING": "1",
     "ATOM_ORACLE_ENFORCE": "true",
     "ATOM_ORACLE_VERIFIER_ENABLED": "true",
-    "DATABASE_URL": "sqlite:////private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/generic-binding-final2-1794034343/db/atom.db",
-    "pytest_basetemp": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/generic-binding-final2-1794034343/bt",
+    "DATABASE_URL": "sqlite:////private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/generic-binding-final3-1794034593/db/atom.db",
+    "pytest_basetemp": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/generic-binding-final3-1794034593/bt",
     "fresh_scratch": true
   },
   "final_gate": {
@@ -23,7 +23,7 @@
   },
   "supplied_probe": {
     "original_path": "/private/tmp/test_lead_generic_mini_request_binding.py",
-    "copy_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/generic-binding-final2-1794034343/test_generic_mini_request_binding.py",
+    "copy_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/generic-binding-final3-1794034593/test_generic_mini_request_binding.py",
     "copy_difference": "scratch output path only; assertions and test body unchanged",
     "before_fix": "1 failed (Generic), 1 passed (Assignment) at fbe7a5975",
     "after_fix": "2 passed"

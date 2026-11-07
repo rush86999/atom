@@ -1,8 +1,9 @@
 # Normal registered-request expectations — Agent 1 evidence (2026-11-07)
 
 Source: branch `codex/generic-request-context-20261107`, starting from the
-joint host/caller candidate `fbe7a5975`. This evidence covers the two commits
-that add the shared request-expectation builder and its controls.
+joint host/caller candidate `fbe7a5975`. This evidence covers the commits that
+add the shared request-expectation builder, its controls and the
+result-envelope namespace scrub.
 
 ## Root negative reproduced
 

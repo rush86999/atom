@@ -1,18 +1,18 @@
 {
   "schema": "atom-generic-request-binding-manifest-1",
-  "qualified_source": "88469902fb42e45e7bdfc9617164ae804440f196",
+  "qualified_source": "60d3b71de85c98e73a4ef43b5f8b565974f5157e",
   "base_source": "fbe7a597585c",
   "source_files": {
     "backend/core/oracle/request_expectations.py": "28c8c41345bd8ca6d0d0be36b47ee5786935a512",
-    "backend/core/generic_agent.py": "8eb8b8084f014edbd900686e43fdeded795fd0dd",
+    "backend/core/generic_agent.py": "9f5a1ee16ed80e6d572376dd1b9d9dbdcb07c433",
     "backend/core/assignment_executor.py": "9dcd6e8f7ab06a7e543c8c971e02993ed624e02f",
-    "backend/tests/test_generic_request_expectations.py": "6aad4aff22447ad77abd66b652e1a33b03c1adc2"
+    "backend/tests/test_generic_request_expectations.py": "c4f9da24100f52de0fff66f94dc65d99967f43f2"
   },
   "artifacts": {
-    "docs/acceptance/evidence/generic_request_binding_20261107/README.md": "516f851e4449d7dd37ed462cc91753d3458d2973",
-    "docs/acceptance/evidence/generic_request_binding_20261107/final-gate.log": "7c5313eaabb3e822c5e50b18e427d115657cdac6",
+    "docs/acceptance/evidence/generic_request_binding_20261107/README.md": "2b7c9e6486dcbbb356d41722ffa7016eaffa7be3",
+    "docs/acceptance/evidence/generic_request_binding_20261107/final-gate.log": "e6736d82df7141ea52f55fd00adae42ed0ff496d",
     "docs/acceptance/evidence/generic_request_binding_20261107/known-preexisting-failure.log": "a63f0c2a992880ea64e9594ccdedbb371955a6d7",
-    "docs/acceptance/evidence/generic_request_binding_20261107/run-spec.json": "c733035b9ae8f9bad3993c31f9db7c193376bda3"
+    "docs/acceptance/evidence/generic_request_binding_20261107/run-spec.json": "f95946e170955f677aabee30fa565b58efc0f967"
   },
   "result": {
     "final_gate_passed": 271,
