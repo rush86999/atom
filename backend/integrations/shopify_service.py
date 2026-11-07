@@ -131,6 +131,36 @@ class ShopifyService(IntegrationService):
             logger.error(f"Failed to get product {product_id}: {e}")
             raise HTTPException(status_code=500, detail="Internal error")
 
+    async def get_product_image(
+        self, access_token: str, shop: str, product_id: str, image_id: str,
+    ) -> Dict[str, Any]:
+        """Read one product image by id from the authoritative shop.
+
+        Official contract (verified 2026-11-07):
+        ``GET /admin/api/{version}/products/{product_id}/images/{image_id}.json``
+        https://shopify.dev/docs/api/admin-rest/2026-07/resources/product-image
+        """
+        try:
+            url = (
+                f"{self._get_base_url(shop)}/products/{product_id}"
+                f"/images/{image_id}.json")
+            headers = self._get_headers(access_token)
+            response = await self.http.get("shopify", url, headers=headers)
+            response.raise_for_status()
+            return response.json().get("image", {})
+        except httpx.HTTPStatusError as e:
+            logger.error(
+                "Shopify get product image %s/%s failed: %s: %s",
+                product_id, image_id, e.response.status_code,
+                e.response.text[:500])
+            raise HTTPException(
+                status_code=502, detail="Shopify get product image failed")
+        except Exception as e:
+            logger.error(
+                "Failed to get product image %s/%s: %s",
+                product_id, image_id, e)
+            raise HTTPException(status_code=500, detail="Internal error")
+
     async def create_product(self, access_token: str, shop: str, product: Dict[str, Any]) -> Dict[str, Any]:
         """Create a new product listing (title/body/variants/images/tags)."""
         try:
