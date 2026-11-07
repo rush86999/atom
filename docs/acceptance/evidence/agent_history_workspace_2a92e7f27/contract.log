@@ -1,0 +1,104 @@
+
+tests/test_agent_read_scope_contract.py::test_member_history_exposes_only_the_same_workspace 
+-------------------------------- live log setup --------------------------------
+2026-11-07 06:25:50 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-07 06:25:50 [    INFO] EscalationManager initialized
+2026-11-07 06:25:50 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 06:25:50 [    INFO] EscalationManager initialized
+2026-11-07 06:25:50 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 06:25:50 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 06:25:50 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-07 06:25:51 [    INFO] HTTP Request: GET http://testserver/api/agents/history "HTTP/1.1 200 OK"
+PASSED                                                                   [ 11%]
+tests/test_agent_read_scope_contract.py::test_peer_workspace_reads_peer_history_but_not_old_workspace 
+-------------------------------- live log call ---------------------------------
+2026-11-07 06:25:51 [    INFO] HTTP Request: GET http://testserver/api/agents/history "HTTP/1.1 200 OK"
+PASSED                                                                   [ 22%]
+tests/test_agent_read_scope_contract.py::test_personal_principal_reads_only_explicit_personal_scope 
+-------------------------------- live log call ---------------------------------
+2026-11-07 06:25:52 [    INFO] HTTP Request: GET http://testserver/api/agents/history "HTTP/1.1 200 OK"
+PASSED                                                                   [ 33%]
+tests/test_agent_read_scope_contract.py::test_admin_current_workspace_is_a_normal_positive 
+-------------------------------- live log call ---------------------------------
+2026-11-07 06:25:53 [    INFO] HTTP Request: GET http://testserver/api/agents/history "HTTP/1.1 200 OK"
+PASSED                                                                   [ 44%]
+tests/test_agent_read_scope_contract.py::test_stale_actor_is_reloaded_from_the_authoritative_database 
+-------------------------------- live log call ---------------------------------
+2026-11-07 06:25:54 [    INFO] HTTP Request: GET http://testserver/api/agents/history "HTTP/1.1 200 OK"
+PASSED                                                                   [ 55%]
+tests/test_agent_read_scope_contract.py::test_deactivated_stale_principal_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-07 06:25:55 [ WARNING] API Error: PERMISSION_DENIED - Permission denied: read agent data on Agent
+2026-11-07 06:25:55 [    INFO] HTTP Request: GET http://testserver/api/agents/history "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 66%]
+tests/test_agent_read_scope_contract.py::test_agent_list_detail_status_and_graduation_are_workspace_scoped 
+-------------------------------- live log call ---------------------------------
+2026-11-07 06:25:56 [    INFO] HTTP Request: GET http://testserver/api/agents/ "HTTP/1.1 200 OK"
+2026-11-07 06:25:56 [    INFO] HTTP Request: GET http://testserver/api/agents/a1 "HTTP/1.1 200 OK"
+2026-11-07 06:25:56 [ WARNING] API Error: NOT_FOUND - Agent not found: a2
+2026-11-07 06:25:56 [    INFO] HTTP Request: GET http://testserver/api/agents/a2 "HTTP/1.1 404 Not Found"
+2026-11-07 06:25:56 [ WARNING] API Error: NOT_FOUND - Agent not found: a3
+2026-11-07 06:25:56 [    INFO] HTTP Request: GET http://testserver/api/agents/a3 "HTTP/1.1 404 Not Found"
+2026-11-07 06:25:56 [ WARNING] API Error: NOT_FOUND - Agent not found: a2
+2026-11-07 06:25:56 [    INFO] HTTP Request: GET http://testserver/api/agents/a2/status "HTTP/1.1 404 Not Found"
+2026-11-07 06:25:56 [ WARNING] API Error: NOT_FOUND - Agent not found: a3
+2026-11-07 06:25:56 [    INFO] HTTP Request: GET http://testserver/api/agents/a3/status "HTTP/1.1 404 Not Found"
+2026-11-07 06:25:56 [ WARNING] API Error: NOT_FOUND - Agent not found: a2
+2026-11-07 06:25:56 [    INFO] HTTP Request: GET http://testserver/api/agents/a2/graduation-progress "HTTP/1.1 404 Not Found"
+2026-11-07 06:25:56 [ WARNING] API Error: NOT_FOUND - Agent not found: a3
+2026-11-07 06:25:56 [    INFO] HTTP Request: GET http://testserver/api/agents/a3/graduation-progress "HTTP/1.1 404 Not Found"
+2026-11-07 06:25:56 [    INFO] HTTP Request: GET http://testserver/api/agents/a-shared/status "HTTP/1.1 200 OK"
+PASSED                                                                   [ 77%]
+tests/test_agent_read_scope_contract.py::test_history_readback_does_not_change_durable_rows 
+-------------------------------- live log call ---------------------------------
+2026-11-07 06:25:57 [    INFO] HTTP Request: GET http://testserver/api/agents/history "HTTP/1.1 200 OK"
+2026-11-07 06:25:57 [    INFO] HTTP Request: GET http://testserver/api/agents/history "HTTP/1.1 200 OK"
+PASSED                                                                   [ 88%]
+tests/test_agent_read_scope_contract.py::test_unavailable_history_store_is_not_a_successful_empty_list 
+-------------------------------- live log call ---------------------------------
+2026-11-07 06:25:57 [   ERROR] Agent history read unavailable: stage=query error_class=OperationalError
+2026-11-07 06:25:57 [ WARNING] API Error: AGENT_HISTORY_UNAVAILABLE - Agent history is temporarily unavailable; retry.
+2026-11-07 06:25:57 [    INFO] HTTP Request: GET http://testserver/api/agents/history "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 18 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /private/tmp/atom-cli-mini-host/docs/acceptance/evidence/agent_history_workspace_2a92e7f27/contract.xml -
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 9 passed, 25 warnings in 17.43s ========================

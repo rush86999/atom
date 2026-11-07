@@ -1,0 +1,24 @@
+{
+  "executed_source": "2a92e7f27",
+  "probe": "/private/tmp/test_lead_agent_history_workspace.py",
+  "probe_sha256": "99380255924c4fa65011d3b2d781adbb2900358ca6dca162b67a7d487eeae0c0",
+  "scope": "supplied confirmed counterexample: member ws1 must not receive the ws2 result_summary while the own ws1 row remains visible",
+  "command": [
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "/private/tmp/test_lead_agent_history_workspace.py",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/agent-history-evidence-f_ys64sd/pytest-probe",
+    "--junitxml=/private/tmp/atom-cli-mini-host/docs/acceptance/evidence/agent_history_workspace_2a92e7f27/supplied-probe.xml",
+    "-q",
+    "--tb=short"
+  ],
+  "environment": {
+    "TESTING": "1",
+    "SECRET_KEY": "synthetic non-provider test key (not recorded)",
+    "DATABASE_URL": "sqlite:////private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/agent-history-evidence-f_ys64sd/probe.db",
+    "ATOM_DATA_DIR": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/agent-history-evidence-f_ys64sd/probe-data"
+  }
+}

@@ -1,0 +1,34 @@
+{
+  "executed_source": "2a92e7f271febd8bcd693b418d54650fd459ac99",
+  "source_files": {
+    "backend/api/agent_routes.py": "1555efb3f92b6d8b4a9f8307a33e2005d0db5fce30ea85fa6da0085d5d992d42",
+    "backend/tests/test_agent_read_scope_contract.py": "97f857f9cb455a6097d9971e7c7f6ca55c54c59015f79ed7cfeedebd096149d8",
+    "backend/tests/test_agent_routes_coverage.py": "e243f7d27152ca880f69e815d21f1c280d3054fdaa653b624db0380343af4947",
+    "backend/tests/test_phase27_scheduler.py": "167cdcc8a96d89818d9a501712d7e17ff381f015524eb3e374ba3583ff1017f4"
+  },
+  "artifacts": {
+    "README.md": "9bb8f391e398a778e9a201e8887ec4fe6ea78bff4b35c0302bdf1c4248e3f938",
+    "contract-exit.json": "b9a61921b3d7dcda0c59b8f930fdf5caa6675c9bfe0d121687af3555163ccb9e",
+    "contract-spec.json": "bacb55a6faaa6f9ec463932f01168b842f1b25de0bfe402f1d7afa7a77d6ae9d",
+    "contract.log": "ced1627383ed8eb43f7cfaafbdda7a3bc988501b267a3a3f322b84bfc424ab14",
+    "contract.xml": "7ed378e7261a5c3bfd9a89266dba0255359b3b8c6dbcb72eb52c524b0d582c05",
+    "focused-exit.json": "ae30364b8ebacb91d96350fa3741054706755c7acea447b38071f7bde35a50ab",
+    "focused-spec.json": "d6049d652c832415e8448a331742498e62cc8106d26b642fcbc09c3d70821f4e",
+    "focused.log": "bf63603e983ca6d4f3e624d846cf2b0e6e8f466d1a333705659f9d5890c075b3",
+    "focused.xml": "1da05d7dbe6e956b5a300291463e3337785897b662b416ec7e3587af89d42822",
+    "supplied-probe-exit.json": "e397200549dafceded8c1bf0284835e3ec96809da784cc7aa66c1424d25526e8",
+    "supplied-probe-spec.json": "f53a0975ffc792522c69706f125a6a213f55b82a6a7b1aaf17166e1b426f0819",
+    "supplied-probe.log": "a7e168283a9b348cc1b64e16536b49fd3d830e81bf7743f4573d18d06b32ee2d",
+    "supplied-probe.xml": "8cfa03832907b62dbf013e272c0e96862574dff024098dd73a9c6e9147ac8993",
+    "verification.json": "297ec67951122a9074e7ad70b254bf05d7e2382878c23db90b842ab7a33cebcc"
+  },
+  "result": {
+    "new_contract_before_fix": "1 passed, 8 failed",
+    "new_contract_after_fix": "9 passed",
+    "supplied_probe_before_fix": "1 failed (root dd871, actual exit 1, 2.41s)",
+    "supplied_probe_after_fix": "1 passed",
+    "focused_preservation": "117 passed"
+  },
+  "scope": "same-tenant workspace confidentiality for Agents read routes; scratch SQLite and controlled auth leaf; no live DB/model/provider/effect",
+  "verification": "Compare source_files to executed_source and artifacts to the containing evidence Git ref. MANIFEST itself is excluded."
+}
