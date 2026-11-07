@@ -1,0 +1,237 @@
+{
+  "baseline_source": "a08ce72f0dd2ec6ef69d48bd002fdda941e26d92",
+  "baseline_tree_equal_to_main": "8a577f14a939e9fadf8df0844336518e27f28d1a",
+  "candidate_source": "b0a1f538afaf98abb1b1b4f90aa091bcfea9d3ab",
+  "cwd": "<baseline-worktree>/backend",
+  "interpreter": "project venv314 Python3.14.7",
+  "env": {
+    "TESTING": "1",
+    "DATABASE_URL": "sqlite:///<owned-scratch>/baseline.db",
+    "ATOM_DATA_DIR": "<owned-scratch>/data",
+    "LANCEDB_URI": "<owned-scratch>/lance",
+    "PYTHONPATH": "."
+  },
+  "pytest_files": [
+    "tests/test_oracle_effect_families.py",
+    "tests/test_oracle_connected_mutations.py",
+    "tests/test_assignment_executor.py",
+    "tests/test_assignment_routes.py",
+    "tests/test_employee_work_requests.py",
+    "tests/integration/test_brennan_joint_quote_campaign.py",
+    "tests/unit/test_brennan_agent2_connected_operations.py",
+    "tests/core/test_action_registry_coverage.py",
+    "tests/test_r79_action_registry_rpc.py",
+    "tests/test_covpush_w77b_graphrag_oracle.py",
+    "tests/test_covpush_w36_oracle_vfs.py",
+    "tests/test_write_zero_effect_claims.py",
+    "tests/integration/journeys/test_mini_app_harness_journey.py",
+    "tests/test_mini_app_agent_tools.py",
+    "tests/test_mini_app_db_ops.py",
+    "tests/test_mini_app_integration_dispatch.py",
+    "tests/test_oracle_canvas_postcondition.py",
+    "tests/test_oracle_direct_canvas_writes.py"
+  ],
+  "pytest_args": [
+    "-q",
+    "--tb=line",
+    "-p",
+    "no:randomly",
+    "-p",
+    "no:cacheprovider",
+    "--timeout=300",
+    "--timeout-method=thread",
+    "--basetemp=<NEW-owned-scratch>"
+  ],
+  "source_test_blobs": [
+    {
+      "ref": "a08ce72f0dd2ec6ef69d48bd002fdda941e26d92",
+      "path": "backend/tests/test_oracle_effect_families.py",
+      "blob": "59172bcb84d13731a733e91d216d9a00b346c9b9"
+    },
+    {
+      "ref": "a08ce72f0dd2ec6ef69d48bd002fdda941e26d92",
+      "path": "backend/tests/test_oracle_connected_mutations.py",
+      "blob": "582fdddab9e1d91412eae2b6183d4fed28fe0829"
+    },
+    {
+      "ref": "a08ce72f0dd2ec6ef69d48bd002fdda941e26d92",
+      "path": "backend/tests/test_assignment_executor.py",
+      "blob": "e769075ec669efab401a0a2b3f79c03d9943a907"
+    },
+    {
+      "ref": "a08ce72f0dd2ec6ef69d48bd002fdda941e26d92",
+      "path": "backend/tests/test_assignment_routes.py",
+      "blob": "d966f613914cbcd64b41e9ccc260f9b1e9642e08"
+    },
+    {
+      "ref": "a08ce72f0dd2ec6ef69d48bd002fdda941e26d92",
+      "path": "backend/tests/test_employee_work_requests.py",
+      "blob": "12a05af26ee8ba77dd8cd8ba7471fde7c36370c7"
+    },
+    {
+      "ref": "a08ce72f0dd2ec6ef69d48bd002fdda941e26d92",
+      "path": "backend/tests/integration/test_brennan_joint_quote_campaign.py",
+      "blob": "533a401825a7821ca3170a4bc168632adcb4905f"
+    },
+    {
+      "ref": "a08ce72f0dd2ec6ef69d48bd002fdda941e26d92",
+      "path": "backend/tests/unit/test_brennan_agent2_connected_operations.py",
+      "blob": "36c443586177c6f6511e6a262e6f57aa2885f566"
+    },
+    {
+      "ref": "a08ce72f0dd2ec6ef69d48bd002fdda941e26d92",
+      "path": "backend/tests/core/test_action_registry_coverage.py",
+      "blob": "30cd24d87d83ebc596fc34b2ae1c2586b6c7e23f"
+    },
+    {
+      "ref": "a08ce72f0dd2ec6ef69d48bd002fdda941e26d92",
+      "path": "backend/tests/test_r79_action_registry_rpc.py",
+      "blob": "9871b397760f5c4e56819bbf45495cfe2382d4d4"
+    },
+    {
+      "ref": "a08ce72f0dd2ec6ef69d48bd002fdda941e26d92",
+      "path": "backend/tests/test_covpush_w77b_graphrag_oracle.py",
+      "blob": "a1e94c9175fcc8d170e6d254ac63d98985af532d"
+    },
+    {
+      "ref": "a08ce72f0dd2ec6ef69d48bd002fdda941e26d92",
+      "path": "backend/tests/test_covpush_w36_oracle_vfs.py",
+      "blob": "7ab5702adca5fa2232f4447b3c7f20a091f7ac1e"
+    },
+    {
+      "ref": "a08ce72f0dd2ec6ef69d48bd002fdda941e26d92",
+      "path": "backend/tests/test_write_zero_effect_claims.py",
+      "blob": "33392c6150c856484e57047f619aa5eed067ee0b"
+    },
+    {
+      "ref": "a08ce72f0dd2ec6ef69d48bd002fdda941e26d92",
+      "path": "backend/tests/integration/journeys/test_mini_app_harness_journey.py",
+      "blob": "6ef9292a0e0e7e496c402078a3508058dcda9803"
+    },
+    {
+      "ref": "a08ce72f0dd2ec6ef69d48bd002fdda941e26d92",
+      "path": "backend/tests/test_mini_app_agent_tools.py",
+      "blob": "4bf869412afb44e5e722fc7b8e3f3c2a0544ed31"
+    },
+    {
+      "ref": "a08ce72f0dd2ec6ef69d48bd002fdda941e26d92",
+      "path": "backend/tests/test_mini_app_db_ops.py",
+      "blob": "a54c82f960e255cf3ed64fe383efd58a9f6abbe1"
+    },
+    {
+      "ref": "a08ce72f0dd2ec6ef69d48bd002fdda941e26d92",
+      "path": "backend/tests/test_mini_app_integration_dispatch.py",
+      "blob": "fd867b5c9e898dcd7b3c9eed6ba0baf9d1418e70"
+    },
+    {
+      "ref": "a08ce72f0dd2ec6ef69d48bd002fdda941e26d92",
+      "path": "backend/tests/test_oracle_canvas_postcondition.py",
+      "blob": "fc5116adb26d257ae0fcb2a831c9a602689ebe2a"
+    },
+    {
+      "ref": "a08ce72f0dd2ec6ef69d48bd002fdda941e26d92",
+      "path": "backend/tests/test_oracle_direct_canvas_writes.py",
+      "blob": "426237527894ff500c664cad253a872a2980d764"
+    },
+    {
+      "ref": "b0a1f538afaf98abb1b1b4f90aa091bcfea9d3ab",
+      "path": "backend/tests/test_oracle_effect_families.py",
+      "blob": "0461e3b0f3d9165787405882214817cb3a464ea9"
+    },
+    {
+      "ref": "b0a1f538afaf98abb1b1b4f90aa091bcfea9d3ab",
+      "path": "backend/tests/test_oracle_connected_mutations.py",
+      "blob": "8b5ff7a96a2cb3e5d0b12ff8f883c19c11faaa0d"
+    },
+    {
+      "ref": "b0a1f538afaf98abb1b1b4f90aa091bcfea9d3ab",
+      "path": "backend/tests/test_assignment_executor.py",
+      "blob": "03c1ed5c847e91ef451fea9192d7866607ebd6f3"
+    },
+    {
+      "ref": "b0a1f538afaf98abb1b1b4f90aa091bcfea9d3ab",
+      "path": "backend/tests/test_assignment_routes.py",
+      "blob": "3fce6b27ff65a5384fc191b259314274a5790bdf"
+    },
+    {
+      "ref": "b0a1f538afaf98abb1b1b4f90aa091bcfea9d3ab",
+      "path": "backend/tests/test_employee_work_requests.py",
+      "blob": "4ab7689e322fa80079ae627a8227e74d563b53b1"
+    },
+    {
+      "ref": "b0a1f538afaf98abb1b1b4f90aa091bcfea9d3ab",
+      "path": "backend/tests/integration/test_brennan_joint_quote_campaign.py",
+      "blob": "7bb2ad7f8c6babde2bc4681fe13c6187dd43eacb"
+    },
+    {
+      "ref": "b0a1f538afaf98abb1b1b4f90aa091bcfea9d3ab",
+      "path": "backend/tests/unit/test_brennan_agent2_connected_operations.py",
+      "blob": "cf8c928a092415d9a46789111718ebed5073e759"
+    },
+    {
+      "ref": "b0a1f538afaf98abb1b1b4f90aa091bcfea9d3ab",
+      "path": "backend/tests/core/test_action_registry_coverage.py",
+      "blob": "30cd24d87d83ebc596fc34b2ae1c2586b6c7e23f"
+    },
+    {
+      "ref": "b0a1f538afaf98abb1b1b4f90aa091bcfea9d3ab",
+      "path": "backend/tests/test_r79_action_registry_rpc.py",
+      "blob": "9871b397760f5c4e56819bbf45495cfe2382d4d4"
+    },
+    {
+      "ref": "b0a1f538afaf98abb1b1b4f90aa091bcfea9d3ab",
+      "path": "backend/tests/test_covpush_w77b_graphrag_oracle.py",
+      "blob": "a1e94c9175fcc8d170e6d254ac63d98985af532d"
+    },
+    {
+      "ref": "b0a1f538afaf98abb1b1b4f90aa091bcfea9d3ab",
+      "path": "backend/tests/test_covpush_w36_oracle_vfs.py",
+      "blob": "7ab5702adca5fa2232f4447b3c7f20a091f7ac1e"
+    },
+    {
+      "ref": "b0a1f538afaf98abb1b1b4f90aa091bcfea9d3ab",
+      "path": "backend/tests/test_write_zero_effect_claims.py",
+      "blob": "33392c6150c856484e57047f619aa5eed067ee0b"
+    },
+    {
+      "ref": "b0a1f538afaf98abb1b1b4f90aa091bcfea9d3ab",
+      "path": "backend/tests/integration/journeys/test_mini_app_harness_journey.py",
+      "blob": "6ef9292a0e0e7e496c402078a3508058dcda9803"
+    },
+    {
+      "ref": "b0a1f538afaf98abb1b1b4f90aa091bcfea9d3ab",
+      "path": "backend/tests/test_mini_app_agent_tools.py",
+      "blob": "4bf869412afb44e5e722fc7b8e3f3c2a0544ed31"
+    },
+    {
+      "ref": "b0a1f538afaf98abb1b1b4f90aa091bcfea9d3ab",
+      "path": "backend/tests/test_mini_app_db_ops.py",
+      "blob": "a54c82f960e255cf3ed64fe383efd58a9f6abbe1"
+    },
+    {
+      "ref": "b0a1f538afaf98abb1b1b4f90aa091bcfea9d3ab",
+      "path": "backend/tests/test_mini_app_integration_dispatch.py",
+      "blob": "fd867b5c9e898dcd7b3c9eed6ba0baf9d1418e70"
+    },
+    {
+      "ref": "b0a1f538afaf98abb1b1b4f90aa091bcfea9d3ab",
+      "path": "backend/tests/test_oracle_canvas_postcondition.py",
+      "blob": "fc5116adb26d257ae0fcb2a831c9a602689ebe2a"
+    },
+    {
+      "ref": "b0a1f538afaf98abb1b1b4f90aa091bcfea9d3ab",
+      "path": "backend/tests/test_oracle_direct_canvas_writes.py",
+      "blob": "426237527894ff500c664cad253a872a2980d764"
+    },
+    {
+      "ref": "b0a1f538afaf98abb1b1b4f90aa091bcfea9d3ab",
+      "path": "backend/tests/test_oracle_registry_verification_gap.py",
+      "blob": "013a14a2233ab3f67384576da691e2968a06597f"
+    },
+    {
+      "ref": "b0a1f538afaf98abb1b1b4f90aa091bcfea9d3ab",
+      "path": "backend/tests/integration/journeys/test_oracle_registry_mutation_journey.py",
+      "blob": "3e776928e0e6611807b78f8a71334768d7cdba5f"
+    }
+  ]
+}

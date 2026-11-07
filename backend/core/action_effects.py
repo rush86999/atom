@@ -12,6 +12,7 @@ declarative, never inferred from a business name: a local durable write
 """
 from __future__ import annotations
 
+from collections.abc import Sequence
 from typing import Any, List, Optional, Set
 
 #: Effect names that mean the action changes durable state.  ``plan_produced``
@@ -28,31 +29,119 @@ READ_EFFECTS = frozenset({"read", "read_only"})
 #: Structural plan output (goals.decompose) — validated, never persisted proof.
 PLAN_EFFECTS = frozenset({"plan_produced"})
 
+#: Every effect name the shared classifier understands.  Anything else is
+#: unqualified and can never be used as a read/plan exemption.
+KNOWN_NON_MUTATING_EFFECTS = READ_EFFECTS | PLAN_EFFECTS
+KNOWN_EFFECTS = MUTATING_EFFECTS | KNOWN_NON_MUTATING_EFFECTS
+
 VALID_SCOPES = frozenset({"local", "external"})
 
 
-def effect_entries(effects_or_action: Any) -> List[dict]:
-    """Return normalized effect mappings from an action or an effects list."""
+def _raw_declaration(effects_or_action: Any) -> Any:
     if hasattr(effects_or_action, "effects"):
-        raw = getattr(effects_or_action, "effects", None) or []
+        return getattr(effects_or_action, "effects", None)
+    return effects_or_action
+
+
+def _declaration_items(effects_or_action: Any) -> Optional[List[Any]]:
+    """Raw declaration entries, or ``None`` when the container is invalid.
+
+    A declaration is a sequence of entries.  A bare string/mapping (or any
+    other non-sequence) is not iterable metadata; treating it as one would
+    invent effect names from its characters/keys.
+    """
+    raw = _raw_declaration(effects_or_action)
+    if raw is None:
+        return None
+    if isinstance(raw, (str, bytes, bytearray, dict)):
+        return None
+    if not isinstance(raw, Sequence):
+        return None
+    return list(raw)
+
+
+def _effect_name(item: Any) -> Optional[str]:
+    """Normalized effect name for one raw entry, or ``None`` if unusable."""
+    if isinstance(item, str):
+        name = item
+    elif isinstance(item, dict):
+        name = item.get("effect")
     else:
-        raw = effects_or_action or []
+        return None
+    if not isinstance(name, str):
+        return None
+    name = name.strip().lower()
+    return name or None
+
+
+def effect_entries(effects_or_action: Any) -> List[dict]:
+    """Return normalized effect mappings from an action or an effects list.
+
+    Only the container is normalized: mapping entries are returned as-is and
+    bare strings become ``{"effect": name}``.  A malformed non-mapping entry is
+    preserved as an empty mapping (never silently dropped), and an invalid
+    container normalizes to an empty list.  Callers must use
+    :func:`effect_declaration_problems` (or the ``declares_*`` helpers) before
+    treating a declaration as proof of non-mutation.
+    """
+    items = _declaration_items(effects_or_action)
+    if items is None:
+        return []
     entries: List[dict] = []
-    for item in raw:
+    for item in items:
         if isinstance(item, dict):
             entries.append(item)
         elif isinstance(item, str):
             entries.append({"effect": item})
+        else:
+            # Keep malformed entries visible to the classifier as an entry with
+            # no effect name; they must never vanish into a read/plan exemption.
+            entries.append({})
     return entries
 
 
 def effect_names(effects_or_action: Any) -> List[str]:
     """Lower-cased effect names declared by an action or effects list."""
-    return [
-        str(item.get("effect") or "").strip().lower()
-        for item in effect_entries(effects_or_action)
-        if str(item.get("effect") or "").strip()
-    ]
+    names: List[str] = []
+    for item in _declaration_items(effects_or_action) or []:
+        name = _effect_name(item)
+        if name:
+            names.append(name)
+    return names
+
+
+def effect_declaration_problems(effects_or_action: Any) -> List[str]:
+    """Reasons the raw declaration is not fully valid and explicit.
+
+    A read/plan exemption requires an empty problem list: every raw entry must
+    be a mapping (or a bare effect-name string) with a non-empty effect name
+    from the shared known vocabulary.  Missing declarations and invalid raw
+    containers are unqualified, never an implicit read proof.
+    """
+    items = _declaration_items(effects_or_action)
+    if items is None:
+        raw = _raw_declaration(effects_or_action)
+        return [
+            "effect declaration is missing"
+            if raw is None
+            else (
+                "effect declaration container "
+                f"{type(raw).__name__} is not a sequence")
+        ]
+    problems: List[str] = []
+    for index, item in enumerate(items):
+        if not isinstance(item, (dict, str)):
+            problems.append(
+                f"effect entry {index} is not a mapping or string")
+            continue
+        name = _effect_name(item)
+        if name is None:
+            problems.append(f"effect entry {index} has no effect name")
+            continue
+        if name not in KNOWN_EFFECTS:
+            problems.append(
+                f"effect entry {index} declares unknown effect {name!r}")
+    return problems
 
 
 def effect_scopes(effects_or_action: Any) -> Set[str]:
@@ -72,20 +161,27 @@ def declares_mutation(effects_or_action: Any) -> bool:
 
 
 def declares_read_only(effects_or_action: Any) -> bool:
-    """True when every declared effect is explicitly non-mutating."""
+    """True when every declared effect is explicitly non-mutating.
+
+    Malformed entries, unknown names, missing declarations and invalid
+    containers stay unqualified: no entry may disappear during normalization.
+    """
+    if effect_declaration_problems(effects_or_action):
+        return False
     names = effect_names(effects_or_action)
     return bool(names) and all(
-        name in READ_EFFECTS or name in PLAN_EFFECTS for name in names)
+        name in KNOWN_NON_MUTATING_EFFECTS for name in names)
 
 
 def declares_plan_output(effects_or_action: Any) -> bool:
     """True when every declared effect is explicitly non-mutating and at
-    least one is plan output. Unknown effects are not treated as read proof."""
+    least one is plan output. Unknown/malformed entries are not read proof."""
+    if effect_declaration_problems(effects_or_action):
+        return False
     names = set(effect_names(effects_or_action))
-    known_non_mutating = READ_EFFECTS | PLAN_EFFECTS
     return (
         bool(names & PLAN_EFFECTS)
-        and names <= known_non_mutating
+        and names <= KNOWN_NON_MUTATING_EFFECTS
     )
 
 

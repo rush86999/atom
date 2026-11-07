@@ -282,6 +282,9 @@ async def _verify_mini_app_set_tests(ctx: Dict[str, Any]) -> OracleResult:
     expected_operation = str(
         ctx.get("_oracle_expected_operation_id") or "").strip()
     audit_id = str(ctx.get("audit_id") or "").strip()
+    expected_tenant = str(ctx.get("_oracle_expected_tenant_id") or "")
+    expected_workspace = str(ctx.get("_oracle_expected_workspace_id") or "")
+    expected_actor = str(ctx.get("_oracle_expected_actor_id") or "")
     if not app_id:
         return OracleResult(action, False, "missing app_id")
     if not isinstance(expected_tests, list):
@@ -293,6 +296,12 @@ async def _verify_mini_app_set_tests(ctx: Dict[str, Any]) -> OracleResult:
     if not audit_id:
         return OracleResult(
             action, False, "no audit receipt from this invocation")
+    if not expected_tenant:
+        return OracleResult(
+            action, False, "no frozen tenant identity")
+    if not expected_actor:
+        return OracleResult(
+            action, False, "no frozen actor identity")
     try:
         from core.task_lifecycle import _approval_payload_hash
 
@@ -304,21 +313,31 @@ async def _verify_mini_app_set_tests(ctx: Dict[str, Any]) -> OracleResult:
             action, False, f"test request digest unavailable: {exc}")
 
     def _read(session):
-        from core.models import CanvasAudit, MiniApp
+        from core.models import Canvas, CanvasAudit, MiniApp
 
         app = session.query(MiniApp).filter(MiniApp.id == app_id).first()
-        audit = None
+        audit = (
+            session.query(CanvasAudit)
+            .filter(CanvasAudit.id == audit_id)
+            .first()
+        )
+        canvas = None
         if app is not None and app.blueprint_canvas_id:
-            audit = (
-                session.query(CanvasAudit)
-                .filter(CanvasAudit.id == audit_id,
-                        CanvasAudit.canvas_id == app.blueprint_canvas_id)
+            canvas = (
+                session.query(Canvas)
+                .filter(Canvas.id == app.blueprint_canvas_id)
                 .first()
             )
-        return app, audit
+        return app, audit, canvas
+
+    def _same(actual, expected) -> bool:
+        return str(actual or "") == str(expected or "")
 
     try:
-        app, audit = _read_with_db(ctx, _read)
+        # Fresh session: the caller's session/identity map is never used to
+        # certify authoritative columns. Peer commits are visible; dirty
+        # request objects are not.
+        app, audit, canvas = _fresh_read_with_db(ctx, _read)
         if app is None:
             return OracleResult(
                 action, False, f"MiniApp {app_id} absent in DB")
@@ -326,41 +345,75 @@ async def _verify_mini_app_set_tests(ctx: Dict[str, Any]) -> OracleResult:
             return OracleResult(
                 action, False,
                 f"audit receipt {audit_id[:12]} absent for this app")
+        if canvas is None:
+            return OracleResult(
+                action, False,
+                f"blueprint canvas {app.blueprint_canvas_id!r} absent")
         details = audit.details_json or {}
         if isinstance(details, str):
             details = json.loads(details)
         details = details if isinstance(details, dict) else {}
-        manifest = app.manifest or {}
+        manifest = app.manifest if isinstance(app.manifest, dict) else {}
         reasons = []
+        # Authoritative MiniApp scope/owner must match the frozen request.
+        if not _same(app.tenant_id, expected_tenant):
+            reasons.append(
+                f"app tenant={app.tenant_id!r}, expected "
+                f"{expected_tenant!r}")
+        if not _same(app.workspace_id, expected_workspace):
+            reasons.append(
+                f"app workspace={app.workspace_id!r}, expected "
+                f"{expected_workspace!r}")
+        if not _same(app.created_by, expected_actor):
+            reasons.append(
+                f"app owner={app.created_by!r}, expected {expected_actor!r}")
+        if not app.blueprint_canvas_id:
+            reasons.append("app has no blueprint canvas")
+        # The authoritative audit row and blueprint canvas must be the same
+        # current objects, at the same scope.
+        if str(audit.canvas_id or "") != str(app.blueprint_canvas_id or ""):
+            reasons.append("audit canvas does not match app blueprint canvas")
+        if str(canvas.id or "") != str(app.blueprint_canvas_id or ""):
+            reasons.append("blueprint canvas identity mismatch")
+        if not _same(canvas.tenant_id, expected_tenant):
+            reasons.append(
+                f"canvas tenant={canvas.tenant_id!r}, expected "
+                f"{expected_tenant!r}")
+        if not _same(canvas.workspace_id, expected_workspace):
+            reasons.append(
+                f"canvas workspace={canvas.workspace_id!r}, expected "
+                f"{expected_workspace!r}")
         if str(audit.action_type or "") != action:
             reasons.append(f"audit action_type={audit.action_type!r}")
-        if str(details.get("app_id") or "") != app_id:
+        if not _same(audit.tenant_id, expected_tenant):
+            reasons.append(
+                f"audit tenant={audit.tenant_id!r}, expected "
+                f"{expected_tenant!r}")
+        if not _same(audit.user_id, expected_actor):
+            reasons.append(
+                f"audit actor={audit.user_id!r}, expected {expected_actor!r}")
+        # Details are corroboration, never a fallback for an authoritative
+        # contradiction above.
+        if not _same(details.get("app_id"), app_id):
             reasons.append("audit app_id does not match the request")
-        if str(details.get("tests_sha256") or "") != expected_digest:
+        if not _same(details.get("tests_sha256"), expected_digest):
             reasons.append("audit tests digest does not match the request")
-        if str(details.get("operation_id") or "") != expected_operation:
+        if not _same(details.get("operation_id"), expected_operation):
             reasons.append("audit operation id does not match this operation")
+        if not _same(details.get("tenant_id"), expected_tenant):
+            reasons.append("audit details tenant does not match the request")
+        if not _same(details.get("workspace_id"), expected_workspace):
+            reasons.append(
+                "audit details workspace does not match the request")
+        if not _same(details.get("actor_id"), expected_actor):
+            reasons.append("audit details actor does not match the request")
         if manifest.get("tests") != expected_tests:
             reasons.append("persisted manifest tests do not match the request")
-        expected_tenant = str(
-            ctx.get("_oracle_expected_tenant_id") or "")
-        expected_workspace = str(
-            ctx.get("_oracle_expected_workspace_id") or "")
-        expected_actor = str(ctx.get("_oracle_expected_actor_id") or "")
-        if expected_tenant and str(
-                details.get("tenant_id") or app.tenant_id or "") != expected_tenant:
-            reasons.append("audit tenant does not match the request")
-        if expected_workspace and str(
-                details.get("workspace_id") or app.workspace_id or ""
-        ) != expected_workspace:
-            reasons.append("audit workspace does not match the request")
-        if expected_actor and str(
-                details.get("actor_id") or audit.user_id or "") != expected_actor:
-            reasons.append("audit actor does not match the request")
         return OracleResult(
             action, not reasons,
             f"MiniApp {app_id} manifest tests={len(manifest.get('tests') or [])} "
-            f"audit={audit_id[:12]} operation={expected_operation[:12]}"
+            f"audit={audit_id[:12]} operation={expected_operation[:12]} "
+            f"scope={expected_tenant}/{expected_workspace}/{expected_actor}"
             + ("" if not reasons else "; " + "; ".join(reasons)))
     except Exception as e:  # noqa: BLE001 - unreadable is not verified
         return OracleResult(
@@ -429,6 +482,31 @@ def _read_with_db(ctx: Dict[str, Any], reader):
     db = ctx.get("db")
     if db is not None:
         return reader(db)
+    from core.database import get_db_session
+    with get_db_session() as session:
+        return reader(session)
+
+
+def _fresh_read_with_db(ctx: Dict[str, Any], reader):
+    """Read through a NEW session bound to the caller's store.
+
+    Verification must not reuse the caller's identity map or uncommitted
+    request objects: a dirty in-memory object could otherwise certify an
+    authoritative row it does not match. The predecessor session is only used
+    to discover the engine; the read runs in its own session.
+    """
+    db = ctx.get("db") or ctx.get("session")
+    if db is not None:
+        from sqlalchemy.orm import sessionmaker
+
+        bind = db.get_bind()
+        engine = getattr(bind, "engine", bind)
+        Session = sessionmaker(bind=engine, expire_on_commit=False)
+        session = Session()
+        try:
+            return reader(session)
+        finally:
+            session.close()
     from core.database import get_db_session
     with get_db_session() as session:
         return reader(session)

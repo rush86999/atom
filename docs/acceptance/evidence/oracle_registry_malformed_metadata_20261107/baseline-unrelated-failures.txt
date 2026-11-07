@@ -1,0 +1,39 @@
+Pre-existing / unrelated failures observed in the affected-cluster run at
+qualified source `b0a1f538a`. These IDs and root causes are carried from the
+predecessor `913489383` baseline; the listed code paths are not modified by
+this repair.
+
+The predecessor baseline also listed two failures in
+`tests/integration/journeys/test_mini_app_harness_journey.py`. They no longer
+fail at the qualified source because the additive merge includes
+`origin/main`'s harness repair (`272382adb`); this repair does not touch that
+journey.
+
+1. tests/core/test_action_registry_coverage.py::TestDocumentsSearchAction::test_search_legacy_path_flag_off
+   Legacy ILIKE mock returns no results (IndexError); documents.search effect
+   metadata does not execute in this path.
+
+2. tests/test_r79_action_registry_rpc.py::TestRpcRouteAuthenticated::test_list_actions_includes_registered_names
+   Test-order registration expectation; list_actions itself is unchanged.
+
+3. tests/test_covpush_w77b_graphrag_oracle.py::TestTaskVerifier::test_missing_ctx
+   Stale expectation vs current tasks.create verifier ("missing task id").
+
+4. tests/test_covpush_w77b_graphrag_oracle.py::TestTaskVerifier::test_task_present
+   Stub row lacks title/board_id; tasks.create verifier unchanged by this
+   repair.
+
+5. tests/test_covpush_w77b_graphrag_oracle.py::TestOracleRegistry::test_validate_task_round_trip
+   Same stale tasks.create verifier stub.
+
+6. tests/test_covpush_w36_oracle_vfs.py::TestTaskVerifier::test_task_exists
+   Same stale tasks.create verifier stub.
+
+7. tests/test_write_zero_effect_claims.py::test_an_edit_shaped_planner_failure_reports_the_limitation
+   Chat-orchestrator edit continuation behavior; not touched by this repair.
+
+8. tests/test_write_zero_effect_claims.py::test_a_non_edit_turn_may_say_nothing_was_changed_because_nothing_started
+   Same chat-orchestrator path.
+
+9. tests/test_write_zero_effect_claims.py::test_teaching_phrase_with_planner_down_mutates_nothing
+   Same chat-orchestrator path.

@@ -1,0 +1,23 @@
+{
+  "executed_source": "380c8d7e1",
+  "tracked_runtime_and_tests_clean_at_run": true,
+  "untracked_bootstrap_present": true,
+  "source_files": {
+    "backend/tests/integration/journeys/test_mini_app_runtime_boundary_journey.py": "0b1ae2ef276c072f759a1a3b7e31726b03eb93624d44d3b672b42b1acebbd33d",
+    "backend/tests/integration/journeys/test_mini_app_harness_journey.py": "6d076276cd8401a6410f6e244f63175a2cf1babf1008b158f745fdff05d8a3ac",
+    "backend/core/mini_app_runtime.py": "0b9d8564d1365e54cb70f5176377c1412d8db8de552bdf70b3c2dfe12aa5f7de",
+    "backend/core/mini_app_service.py": "43327625a8989b635b46c5158fbf3a93d5ff9b9a44109c6447cc0fdade08e1a9",
+    "backend/tools/mini_app_tool.py": "b479d1c87e91fb9a1d29563e3e090868c190d74ddace39002db9baa3ac7b5c60",
+    ".github/workflows/ci.yml": "b92ffac18628aab5b03e177bea646f66ab9ba5397decd268a41b0196c519f36f"
+  },
+  "artifacts": {
+    "README.md": "37e6a34e7d022dba9536f55032f34e80febbcd070b5e60c88795050717ba2e8c",
+    "focused-tests.log": "e1431b7d955b32cfd38861679b06e59c030255be9b277a76dd1ade0e04f1ee86"
+  },
+  "checks": {
+    "focused_passed": 9,
+    "live_model_calls": 0,
+    "runtime_policy_changes": false,
+    "scope": "unsupported-host public refusal; no VM/container execution qualification"
+  }
+}

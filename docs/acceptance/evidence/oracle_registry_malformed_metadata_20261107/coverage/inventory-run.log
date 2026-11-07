@@ -1,0 +1,30 @@
+{
+  "registered": 90,
+  "mutating": 26,
+  "mutating_covered": 15,
+  "mutating_without_verifier": [
+    "shopify_create_article",
+    "shopify_create_blog",
+    "shopify_create_fulfillment",
+    "shopify_create_product",
+    "mini_app_db_write",
+    "mini_app_install",
+    "mini_app_publish",
+    "mini_app_revert_logic",
+    "mini_app_run",
+    "mini_app_scaffold",
+    "mini_app_write_logic"
+  ],
+  "external_mutation": 10,
+  "external_covered": 6,
+  "local_mutation": 16,
+  "local_covered": 9,
+  "mutation_unscoped": 0,
+  "plan_output": 1,
+  "plan_output_covered": 1,
+  "read_only": 63,
+  "undeclared": [],
+  "http_mutation_routes": 0,
+  "high_risk_routes": 0,
+  "provider_write_methods": 0
+}

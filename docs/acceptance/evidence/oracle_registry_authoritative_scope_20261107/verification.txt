@@ -1,0 +1,38 @@
+Final verification on successor source `913489383` (clean tracked tree).
+
+Environment: TESTING=1; unique scratch SQLite; fresh pytest basetemp child under
+`<scratch>/opencode/oracle-final-20261107-b`; no live DB, world directory,
+provider, VM, model, account or network effect.
+
+1. Supplied probes
+   python -m pytest ../LEAD_PROBES/test_lead_oracle_missing_verifier.py \
+     ../LEAD_PROBES/test_lead_oracle_authoritative_scope.py -q
+   Result: 7 passed.
+   - missing verifier: mutation/read twins pass.
+   - authoritative scope: all 5 contradiction probes refute.
+
+2. CI control step
+   python -m pytest tests/test_oracle_registry_verification_gap.py \
+     tests/test_oracle_effect_families.py \
+     tests/test_oracle_connected_mutations.py \
+     tests/test_assignment_executor.py \
+     tests/integration/journeys/test_oracle_registry_mutation_journey.py -q
+   Result: 166 passed.
+   Includes all predecessor controls plus tracked authoritative-scope negatives,
+   peer-commit negative, dirty-session negative, committed-valid positive and
+   CAS scope-change negatives.
+
+3. Affected-cluster regression run
+   Result: 631 passed, 11 pre-existing unrelated failures (unchanged paths;
+   see baseline-unrelated-failures.txt). Includes mini-app tools, action
+   registry, assignment routes/executor, employee work requests, goal effect
+   controls, Brennan connected effects, and oracle coverage suites.
+
+4. Coverage snapshot
+   Source `913489383`: 90 actions, 26 declared mutations, 15 covered,
+   11 explicitly uncovered, 0 undeclared, plan-output 1/1.
+   Stored at
+   docs/acceptance/evidence/oracle_registry_coverage_20261107_authoritative_scope/.
+
+Path sanitization: `<scratch>` for private temporary paths; no credentials or
+private outputs included.

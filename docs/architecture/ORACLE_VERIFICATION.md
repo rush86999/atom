@@ -33,10 +33,16 @@ Verifiers (system of record, NOT tool claim):
 | `mini_app_set_tests` | `CanvasAudit` receipt + persisted manifest match the frozen tests digest, operation id, actor and scope | `MiniApp`, `CanvasAudit` |
 
 `mini_app_set_tests` writes its manifest with an exact-prior compare-and-swap
-(SQL NULL / JSON null / empty object / full object) and appends a `CanvasAudit`
-receipt (app id, tests digest, operation id, tenant, workspace, actor). It never
-overwrites a peer's logic/publish/config update; a zero-row CAS is a truthful
-`proven_not_applied` conflict with no audit row.
+(SQL NULL / JSON null / empty object / full object) plus the app owner, tenant,
+workspace and blueprint canvas. It appends a `CanvasAudit` receipt (app id,
+tests digest, operation id, tenant, workspace, actor). It never overwrites a
+peer's logic/publish/config/scope update; a zero-row CAS is a truthful
+`proven_not_applied` conflict with no audit row. The verifier reads through a
+**fresh session** and requires the authoritative `MiniApp` tenant/workspace/
+`created_by`, the current blueprint `Canvas` identity/scope, and the
+`CanvasAudit` action/tenant/user to agree with the frozen request; copied audit
+details never override an authoritative contradiction. Missing required
+scope/actor evidence is refuted.
 
 ### 1b. Registered-action consumer contract (shared registry)
 
@@ -44,7 +50,10 @@ overwrites a peer's logic/publish/config update; a zero-row CAS is a truthful
 `ActionDefinition.effects`. A registration declares durable mutations
 (`write/create/update/delete/send/execute`, goal/record families) and may add
 `"scope": "local"|"external"`. Business names and request headers never decide
-mutation; empty or unknown metadata stays visible as unqualified.
+mutation. Before any read/plan exemption, every raw declaration entry must be a
+mapping (or bare effect name) with a non-empty, explicitly known effect name;
+missing, blank, non-string, unknown, non-mapping, and invalid-container
+declarations stay visible as unqualified.
 
 `AssignmentExecutor`'s `action.registry` adapter enforces one rule: a declared
 mutation cannot return `applied` unless the oracle independently verified it.
@@ -61,7 +70,8 @@ mutation cannot return `applied` unless the oracle independently verified it.
   the operation execution and receipt.
 - Reads with no verifier keep their historical applied behavior.
 - `goals.decompose` (`plan_produced`) is plan-shape validation, not a durable
-  mutation; a plan effect mixed with an unknown effect is **not** exempted.
+  mutation; a plan effect mixed with an unknown or malformed entry is **not**
+  exempted.
 
 The legacy `_LOCAL_MUTATING_ACTIONS` list remains as a compatibility guard
 alongside explicit registration metadata.

@@ -79,13 +79,16 @@ def silence_side_effects(monkeypatch):
 def env(db_session):
     db_session.add(User(
         id="gj-lead", email="gj-lead@example.com", first_name="Goal",
-        last_name="Lead", role=UserRole.TEAM_LEAD.value, status="active"))
+        last_name="Lead", role=UserRole.TEAM_LEAD.value, status="active",
+        is_active=True, workspace_id="ws-test"))
     db_session.add(User(
         id="gj-emp", email="gj-emp@example.com", first_name="Emp",
-        last_name="Loyee", role=UserRole.MEMBER.value, status="active"))
+        last_name="Loyee", role=UserRole.MEMBER.value, status="active",
+        is_active=True, workspace_id="ws-test"))
     db_session.add(User(
         id="gj-emp2", email="gj-emp2@example.com", first_name="Other",
-        last_name="Member", role=UserRole.MEMBER.value, status="active"))
+        last_name="Member", role=UserRole.MEMBER.value, status="active",
+        is_active=True, workspace_id="ws-test"))
     db_session.commit()
     return db_session
 

@@ -434,13 +434,20 @@ def _cas_set_tests_manifest(
     prior_manifest: Any,
     prior_is_sql_null: bool,
     new_manifest: Dict[str, Any],
+    *,
+    owner_id: str,
+    tenant_id: str,
+    workspace_id: Any,
+    blueprint_canvas_id: Any,
 ) -> int:
-    """Conditionally replace the manifest only if it is still exactly prior.
+    """Conditionally replace the manifest only if it and its owner/app scope
+    are still exactly prior.
 
-    The predicate binds the prior value as read (SQL NULL, JSON null, empty
-    object or full object), never ``or {}``. A zero row count means a peer
-    changed the manifest after this invocation read it; the caller must return
-    a truthful no-effect conflict and leave the peer's state intact.
+    The predicate binds the prior manifest as read (SQL NULL, JSON null, empty
+    object or full object), never ``or {}``, plus the owner, tenant, workspace
+    and blueprint canvas. A zero row count means a peer changed the manifest or
+    the app scope after this invocation read it; the caller must return a
+    truthful no-effect conflict and leave the peer's state intact.
     """
     from sqlalchemy import JSON as SAJSON
     from sqlalchemy import update
@@ -453,9 +460,24 @@ def _cas_set_tests_manifest(
         predicate = MiniApp.manifest == SAJSON.NULL
     else:
         predicate = MiniApp.manifest == prior_manifest
+    conditions = [
+        MiniApp.id == app_id,
+        predicate,
+        MiniApp.created_by == owner_id,
+        MiniApp.tenant_id == tenant_id,
+    ]
+    conditions.append(
+        MiniApp.workspace_id.is_(None)
+        if workspace_id is None else MiniApp.workspace_id == workspace_id
+    )
+    conditions.append(
+        MiniApp.blueprint_canvas_id.is_(None)
+        if blueprint_canvas_id is None
+        else MiniApp.blueprint_canvas_id == blueprint_canvas_id
+    )
     result = db.execute(
         update(MiniApp)
-        .where(MiniApp.id == app_id, predicate)
+        .where(*conditions)
         .values(manifest=new_manifest)
         .execution_options(synchronize_session=False)
     )
@@ -500,7 +522,9 @@ async def mini_app_set_tests(args: Dict[str, Any], context: Dict[str, Any]) -> D
             app_tenant_id = str(app.tenant_id or "")
             app_workspace_id = str(
                 context.get("workspace_id") or app.workspace_id or "")
+            app_workspace_value = app.workspace_id
             blueprint_canvas_id = app.blueprint_canvas_id
+            owner_id = str(app.created_by or "")
             # Append the same durable receipt used by other canvas-backed
             # mutations. It is what lets an independent verifier prove THIS
             # invocation (operation id + exact tests digest), not an old
@@ -508,7 +532,11 @@ async def mini_app_set_tests(args: Dict[str, Any], context: Dict[str, Any]) -> D
             operation_id = str(context.get("operation_id") or "")
             tests_sha256 = _approval_payload_hash(tests)
             updated = _cas_set_tests_manifest(
-                db, app_id, prior_manifest, prior_is_sql_null, manifest)
+                db, app_id, prior_manifest, prior_is_sql_null, manifest,
+                owner_id=owner_id,
+                tenant_id=app_tenant_id,
+                workspace_id=app_workspace_value,
+                blueprint_canvas_id=blueprint_canvas_id)
             # Never leave a stale whole-manifest ORM object that a later flush
             # could write back over a peer update.
             db.expire(app)
