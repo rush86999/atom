@@ -42,6 +42,7 @@ import importlib.util
 import json
 import os
 import shutil
+import subprocess
 import sys
 import tempfile
 import time
@@ -74,6 +75,27 @@ D3 = _load_d3()
 
 FIXTURE = Path(__file__).with_name("fixtures") / (
     "browser_agent_source_answer_shim.json")
+LAUNCHER_FILES = (
+    "backend/scripts/orchestration_acceptance/run_isolated.py",
+    "backend/scripts/orchestration_acceptance/provider_shim.py",
+    "scripts/acceptance/browser_agent_job_wait.py",
+)
+SOURCE_FILES = (
+    "backend/api/agent_routes.py",
+    "backend/core/information_wait.py",
+    "backend/core/generic_agent.py",
+    "backend/tests/process_support/generic_information_wait_process_worker.py",
+    "frontend-nextjs/components/Agents/AgentJobWaitPanel.tsx",
+    "scripts/acceptance/browser_agent_job_wait.py",
+    "scripts/acceptance/browser_agent_source_answer.py",
+    "backend/scripts/orchestration_acceptance/run_isolated.py",
+    "backend/scripts/orchestration_acceptance/provider_shim.py",
+)
+ACC_DIR = REPO / "docs" / "architecture" / "orchestration_migration" / "acceptance"
+FIXTURES_DIR = ACC_DIR / "fixtures"
+FIXTURE_CHECKSUMS = FIXTURES_DIR / "SHA256SUMS"
+FIXTURE_ENTRY_COUNT = 55
+WORLDS_ROOT = BACKEND / "data" / "acceptance_worlds"
 AGENT_NAME = D3.AGENT_NAME
 AGENT_CATEGORY = D3.AGENT_CATEGORY
 BOARD_NAME = "Browser source-answer acceptance"
@@ -537,6 +559,124 @@ def _storage_probe(world: Path) -> Dict[str, Any]:
     return D3._storage_probe(world)
 
 
+
+def _per_file_source_proof() -> Dict[str, Any]:
+    """Bind every executed runtime/harness file to its committed Git blob."""
+    files: Dict[str, Any] = {}
+    ok = True
+    for path in SOURCE_FILES:
+        proc = subprocess.run(
+            ["git", "-C", str(REPO), "show", f"HEAD:{path}"],
+            capture_output=True, timeout=60)
+        worktree = REPO / path
+        actual = worktree.read_bytes() if worktree.is_file() else b""
+        git_blob = proc.stdout if proc.returncode == 0 else b""
+        match = bool(actual) and actual == git_blob
+        ok = ok and match
+        files[path] = {
+            "git_ok": proc.returncode == 0,
+            "git_sha256": hashlib.sha256(git_blob).hexdigest(),
+            "worktree_sha256": hashlib.sha256(actual).hexdigest(),
+            "bytes": len(actual),
+            "matches": match,
+        }
+    return {"ok": ok, "files": files}
+
+
+def _launcher_paths_probe() -> Dict[str, Any]:
+    files = {path: (REPO / path).is_file() for path in LAUNCHER_FILES}
+    acc_dir = ACC_DIR.is_dir()
+    acc_writable = acc_dir and os.access(ACC_DIR, os.W_OK)
+    checksums_present = FIXTURE_CHECKSUMS.is_file()
+    worlds_present = WORLDS_ROOT.exists()
+    worlds_resolves = bool(
+        worlds_present
+        and (not WORLDS_ROOT.is_symlink() or WORLDS_ROOT.resolve().is_dir()))
+    return {
+        "ok": (all(files.values()) and acc_writable and checksums_present
+               and worlds_resolves),
+        "files": files,
+        "acc_dir": str(ACC_DIR),
+        "acc_dir_writable": acc_writable,
+        "fixtures_checksums_present": checksums_present,
+        "worlds_root": str(WORLDS_ROOT),
+        "worlds_root_exists": worlds_present,
+        "worlds_root_is_symlink": WORLDS_ROOT.is_symlink(),
+        "worlds_root_resolves": worlds_resolves,
+    }
+
+
+def _fixture_checksum_probe() -> Dict[str, Any]:
+    entries = 0
+    checksum_exit = None
+    stderr = ""
+    if FIXTURE_CHECKSUMS.is_file():
+        entries = len([
+            line for line in FIXTURE_CHECKSUMS.read_text(
+                encoding="utf-8").splitlines() if line.strip()])
+        proc = subprocess.run(
+            ["shasum", "-a", "256", "-c", "SHA256SUMS"],
+            cwd=str(FIXTURES_DIR), capture_output=True, text=True,
+            timeout=300)
+        checksum_exit = proc.returncode
+        stderr = (proc.stderr or "")[-500:]
+    return {
+        "ok": bool(checksum_exit == 0 and entries == FIXTURE_ENTRY_COUNT),
+        "path": str(FIXTURE_CHECKSUMS),
+        "sha256": (
+            _sha256_file(FIXTURE_CHECKSUMS)
+            if FIXTURE_CHECKSUMS.is_file() else ""),
+        "entry_count": entries,
+        "expected_entry_count": FIXTURE_ENTRY_COUNT,
+        "checksum_exit": checksum_exit,
+        "stderr": stderr,
+    }
+
+
+def _output_target_probe(target: Path) -> Dict[str, Any]:
+    target = target.resolve()
+    worlds = WORLDS_ROOT.resolve()
+    inside_worlds = target == worlds or worlds in target.parents
+    probe = target.parent
+    while not probe.exists() and probe != probe.parent:
+        probe = probe.parent
+    writable = probe.exists() and os.access(probe, os.W_OK)
+    return {
+        "ok": (not inside_worlds) and writable,
+        "target": str(target),
+        "parent": str(target.parent),
+        "existing_ancestor": str(probe),
+        "existing_ancestor_writable": writable,
+        "inside_worlds_root": inside_worlds,
+    }
+
+
+def _storage_readiness_probe() -> Dict[str, Any]:
+    try:
+        import core.world_storage_guard as WSG
+        report = WSG.preflight()
+        data = report.as_dict() if hasattr(report, "as_dict") else {}
+        return {
+            "ok": bool(data.get("ok")),
+            "checks": data.get("checks", []),
+            "problems": data.get("problems", []),
+            "worlds_root": str(WORLDS_ROOT),
+            "worlds_root_exists": WORLDS_ROOT.exists(),
+            "worlds_root_is_symlink": WORLDS_ROOT.is_symlink(),
+            "worlds_root_resolves": bool(
+                WORLDS_ROOT.exists()
+                and (not WORLDS_ROOT.is_symlink()
+                     or WORLDS_ROOT.resolve().is_dir())),
+            "mkdir_in_preflight": False,
+        }
+    except Exception as exc:  # noqa: BLE001 - reported, not hidden
+        return {
+            "ok": False,
+            "error": f"{type(exc).__name__}: {exc}",
+            "mkdir_in_preflight": False,
+        }
+
+
 def _run_preflight(args: argparse.Namespace) -> int:
     try:
         ctx = D3._require_scratch_env()
@@ -545,16 +685,41 @@ def _run_preflight(args: argparse.Namespace) -> int:
             raise PreflightError(
                 f"HEAD {source['head']} does not match --expect-source-sha "
                 f"{args.expect_source_sha}")
+        if source.get("tracked_dirty_count"):
+            raise PreflightError(
+                "tracked worktree is dirty; per-file Git source proof is not "
+                "a frozen candidate")
         if source.get("backend_dirty_count"):
             raise PreflightError(
                 "backend working tree is dirty; a working-tree export would "
                 "not be the frozen candidate")
+        per_file = _per_file_source_proof()
+        if not per_file["ok"]:
+            raise PreflightError("per-file Git source proof failed")
         deps = D3._dependency_probe()
         ports = {str(p): D3._port_free(p)
                  for p in (args.backend_port, args.frontend_port,
                            args.shim_port)}
         world = _world_path(args.world)
+        world_under_root = (
+            world.parent.resolve() == WORLDS_ROOT.resolve())
+        if not world_under_root:
+            raise PreflightError(
+                f"--world {args.world!r} resolves outside the configured "
+                f"worlds root {WORLDS_ROOT}")
         storage = _storage_probe(world)
+        storage_ready = _storage_readiness_probe()
+        launcher = _launcher_paths_probe()
+        fixtures = _fixture_checksum_probe()
+        target = Path(args.report) if args.report else (
+            Path(args.out) / "preflight.json" if args.out else None)
+        if target is None:
+            raise PreflightError("--preflight needs --report or --out")
+        output = _output_target_probe(target)
+        if not output["ok"]:
+            raise PreflightError(
+                f"preflight report target is not writable or is inside the "
+                f"worlds root: {output}")
         with tempfile.TemporaryDirectory(
                 dir=ctx["data_dir"], prefix="source-schema-preflight-") as tmp:
             schema = _validate_source_fixture(Path(tmp))
@@ -590,7 +755,17 @@ def _run_preflight(args: argparse.Namespace) -> int:
             "source_head_recorded": bool(source.get("head")),
             "source_expected_sha_ok": (
                 source.get("matches_expected") is not False),
+            "tracked_tree_clean": source.get("tracked_dirty_count") == 0,
             "backend_tree_clean": source.get("backend_dirty_count") == 0,
+            "per_file_git_source_proof": bool(per_file["ok"]),
+            "launcher_paths_present": bool(launcher["ok"]),
+            "fixture_set_55_verified": bool(fixtures["ok"]),
+            "output_parent_writable": bool(output["ok"]),
+            "worlds_root_usable": bool(storage_ready["ok"]),
+            "dependencies_present": bool(
+                deps["venv314_python"] and deps["frontend_node_modules"]
+                and deps["node"] and deps["chrome_app"]),
+            "fresh_world_name": (world_under_root and not world.exists()),
             "react_schema_envelopes": True,
             "source_action_gated_on_content": True,
             "final_gated_on_oracle": True,
@@ -609,6 +784,11 @@ def _run_preflight(args: argparse.Namespace) -> int:
                 "sha256": _sha256_file(Path(__file__).resolve()),
             },
             "source": source,
+            "per_file": per_file,
+            "launcher": launcher,
+            "fixtures": fixtures,
+            "output": output,
+            "storage_readiness": storage_ready,
             "environment": ctx,
             "schema": schema,
             "protocol": _protocol_record(),
@@ -618,6 +798,7 @@ def _run_preflight(args: argparse.Namespace) -> int:
                 "name": args.world,
                 "path": str(world),
                 "exists": world.exists(),
+                "under_worlds_root": world_under_root,
                 "required_fresh": True,
             },
             "storage_guard": storage,
@@ -645,15 +826,15 @@ def _run_preflight(args: argparse.Namespace) -> int:
                 "python3 scripts/acceptance/browser_agent_source_answer.py "
                 "--preflight --out <report-dir>"),
         }
-        target = Path(args.report) if args.report else (
-            Path(args.out) / "preflight.json" if args.out else None)
-        if target is None:
-            raise PreflightError("--preflight needs --report or --out")
         target = target.resolve()
         _write_json(target, report)
         print(f"[preflight] ok={report['ok']} report={target}")
         print(f"[preflight] schema={schema['response_count']} envelopes, "
               f"tool={schema['tool_name']}, marker={schema['source_marker']}")
+        print(f"[preflight] source_files="
+              f"{sum(1 for f in per_file['files'].values() if f['matches'])}/"
+              f"{len(per_file['files'])} fixtures="
+              f"{fixtures['entry_count']}/{fixtures['expected_entry_count']}")
         for warning in warnings:
             print(f"[preflight] warning: {warning}")
         return 0 if report["ok"] else 1
@@ -665,10 +846,6 @@ def _run_preflight(args: argparse.Namespace) -> int:
               file=sys.stderr)
         return 3
 
-
-# ---------------------------------------------------------------------------
-# execution
-# ---------------------------------------------------------------------------
 def _run_scenario(args: argparse.Namespace) -> int:
     if not args.out:
         print("[execute] --out is required for the evidence bundle",
