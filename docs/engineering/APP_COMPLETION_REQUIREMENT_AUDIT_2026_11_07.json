@@ -3484,7 +3484,7 @@
           "scope": "Scoped reads and utility UI source executed for the PR #754 packet."
         }
       ],
-      "gap": "Deterministic two-outcome ranking/persistence and scoped public reads are merged and component-tested. An ordinary Goal Runs browser set/clear/ranking/no-target/withheld journey is prepared but not run: the Goal UI attempt returned exit 75 NOT DISPATCHED at the disk floor; no final root browser evidence. No model-strategy, universal ranking or utility-driven completion claim.",
+      "gap": "Scoped product/public controls are merged. Ordinary Goal Runs UI source5145/evidence08adfd8a0 passed18 stages/107 assertions: supervisor set/rank/reload/clear, member read-only/403, no-target and withheld results. Four history rows are synthetic analytics fixtures, not actual agent strategies. General utility-driven completion/model strategy and universal ranking remain unqualified; no historical rescore.",
       "owner": "Agent1 / root verifier",
       "next_work_order": "WO-GOAL-UI-03"
     },
@@ -4470,7 +4470,7 @@
       ],
       "evidence_sufficiency": "none",
       "evidence": [],
-      "gap": "No reproducible cached-throughput measurement at the claimed rate on a declared environment.",
+      "gap": "Finite root cache-only measurement at main8ded: median2.62M sync lookups/s on declared macOS arm64/Python3.14.7,5x200000 batches. Evidence docs/engineering/evidence/governance_cache_measurement_20261107. Public named benchmark command is absent; independent/public reproducibility and universal throughput are unqualified. No full governance/DB/API performance claim.",
       "owner": "product/lead; measurement environment",
       "next_work_order": "deferred owner measurement decision"
     },
@@ -5234,6 +5234,14 @@
       "repair": "native CLI code-only repair active on isolated main-based branch; root owns independent tests"
     },
     "merge_gate": "Code-owner approval required on submitted PRs; independent implementation, audit and evidence work continue.",
-    "remaining_scope": "General TASK-WAIT-01, whole-app ORACLE, live/model quality and external breadth, KVM, PostgreSQL/multi-worker/soak, performance/comparative and complete operations remain open."
+    "remaining_scope": "General TASK-WAIT-01, whole-app ORACLE, live/model quality and external breadth, KVM, PostgreSQL/multi-worker/soak, performance/comparative and complete operations remain open.",
+    "performance_observation": {
+      "packet": "docs/engineering/evidence/governance_cache_measurement_20261107",
+      "cached_ops_per_second": 2619759.8662612587,
+      "cache_p99_ns": 500,
+      "full_governance_qualified": false,
+      "named_benchmark_command_absent": true,
+      "historical_scores_changed": false
+    }
   }
 }

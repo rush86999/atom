@@ -1,0 +1,84 @@
+{
+  "source": "8ded00232c30961a990e675e06ec672ef6a43910",
+  "actual_checkout_head": "27a1830a27e73ed30124a82d01bb710e26bc7113",
+  "source_file": "backend/core/governance_cache.py",
+  "source_sha256": "fcc2ae94eb31974e49e16b59718a1390797443d14e1620af80740501354e810a",
+  "scope": "sync GovernanceCache get only,100 seeded in-memory fixture keys, no DB/API/full governance/model work",
+  "method": "perf_counter_ns nearest-rank percentiles; raw clock overhead reported not subtracted;10000warmup;5 independent timed batches200000each include key formatting and result identity check",
+  "environment": {
+    "python": "3.14.7 (main, Sep  1 2026, 14:05:28) [Clang 22.1.3 ]",
+    "platform": "macOS-26.5.2-arm64-i386-64bit-Mach-O",
+    "machine": "arm64",
+    "logical_cpus": 12,
+    "clock": "namespace(implementation='mach_absolute_time()', monotonic=True, adjustable=False, resolution=4.166666666666666e-08)"
+  },
+  "clock_overhead": {
+    "n": 50000,
+    "p50_ns": 42,
+    "p95_ns": 84,
+    "p99_ns": 84,
+    "max_ns": 2625
+  },
+  "warm_cache_hit": {
+    "n": 50000,
+    "p50_ns": 375,
+    "p95_ns": 458,
+    "p99_ns": 500,
+    "max_ns": 22708
+  },
+  "uncached_key_miss": {
+    "n": 10000,
+    "p50_ns": 292,
+    "p95_ns": 334,
+    "p99_ns": 375,
+    "max_ns": 4375
+  },
+  "throughput_batches": [
+    {
+      "batch": 0,
+      "operations": 200000,
+      "elapsed_seconds": 0.076706833,
+      "ops_per_second": 2607329.6494981092
+    },
+    {
+      "batch": 1,
+      "operations": 200000,
+      "elapsed_seconds": 0.076432875,
+      "ops_per_second": 2616675.0890896097
+    },
+    {
+      "batch": 2,
+      "operations": 200000,
+      "elapsed_seconds": 0.076342875,
+      "ops_per_second": 2619759.8662612587
+    },
+    {
+      "batch": 3,
+      "operations": 200000,
+      "elapsed_seconds": 0.075337416,
+      "ops_per_second": 2654723.384725592
+    },
+    {
+      "batch": 4,
+      "operations": 200000,
+      "elapsed_seconds": 0.074612625,
+      "ops_per_second": 2680511.5086086304
+    }
+  ],
+  "median_ops_per_second": 2619759.8662612587,
+  "cache_correctness_stats": {
+    "size": 100,
+    "max_size": 1000,
+    "hits": 1060000,
+    "misses": 10000,
+    "hit_rate": 99.07,
+    "directory_hits": 0,
+    "directory_misses": 0,
+    "directory_hit_rate": 0,
+    "evictions": 0,
+    "invalidations": 0,
+    "ttl_seconds": 3600
+  },
+  "full_governance_p99_qualified": false,
+  "historical_scores_changed": false
+}
