@@ -56,7 +56,7 @@ def test_real_mcp_registry_context_and_capability_boundary(host,monkeypatch,case
 
 @pytest.mark.parametrize("case", [
     "explicit", "agent_fallback", "workspace_fallback", "personal_null",
-    "wrong_tenant", "wrong_workspace", "unconfigured",
+    "wrong_tenant", "wrong_workspace", "legacy_unbound", "unconfigured",
 ])
 def test_budget_scope_uses_existing_personal_account_resolution(host, case):
     from core.agent_governance_service import AgentGovernanceService
@@ -87,6 +87,8 @@ def test_budget_scope_uses_existing_personal_account_resolution(host, case):
         if case == "wrong_tenant":
             selected_tenant = "different-account"
         selected_workspace = "different-workspace" if case == "wrong_workspace" else workspace_id
+        if case == "legacy_unbound":
+            selected_workspace = "default"
         service = AgentGovernanceService(
             db, workspace_id=selected_workspace, tenant_id=selected_tenant)
         result = asyncio.run(service._check_budget_async(
