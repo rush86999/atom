@@ -1,0 +1,72 @@
+$ git show -s --format="%H %P" 447909e73ba9f7fd979b4e8a78e096cbf48119cc
+447909e73ba9f7fd979b4e8a78e096cbf48119cc b9093b7b64bf775d400c9d1a0104ba5ddad3bf14 2d251acdfddae2aca27c6b43dc3f0de97654a9cb
+
+$ git log --oneline -3
+447909e73 Merge origin/main 2d251acdf into image-content receipt branch
+b9093b7b6 evidence(assets): drop stale PR head from image handoff
+a6b9a3f8c evidence(assets): record stacked PR 748
+
+$ git diff --stat b9093b7b64bf775d400c9d1a0104ba5ddad3bf14..447909e73ba9f7fd979b4e8a78e096cbf48119cc
+.github/workflows/ci.yml                           |   2 +
+ .../shopify_article_main_7a75ad486/MANIFEST.json   |  20 ++
+ .../shopify_article_main_7a75ad486/README.md       |   9 +
+ .../root-article-main-final-exit.json              |   1 +
+ .../root-article-main-final-spec.json              |  20 ++
+ .../root-article-main-final.log                    | 298 +++++++++++++++++++++
+ .../root-article-rest-shape2-negative.log          |  78 ++++++
+ 7 files changed, 428 insertions(+)
+
+runtime identity (sha256), tested/delivered/merge:
+backend/core/asset_content_receipt.py
+  tested 17ade069aa41ad1d210a92bc2241b57ad73721ea6595f6fdeaeaada473b796e2
+  delivered 17ade069aa41ad1d210a92bc2241b57ad73721ea6595f6fdeaeaada473b796e2
+  merge 17ade069aa41ad1d210a92bc2241b57ad73721ea6595f6fdeaeaada473b796e2
+  identical=True
+backend/core/shopify_mutations.py
+  tested 90f653fd08fbc670493ca8cc215e1d84012d21839dda7b8023203f2f6b14e22c
+  delivered 90f653fd08fbc670493ca8cc215e1d84012d21839dda7b8023203f2f6b14e22c
+  merge 90f653fd08fbc670493ca8cc215e1d84012d21839dda7b8023203f2f6b14e22c
+  identical=True
+backend/integrations/shopify_service.py
+  tested c4b51892b01f7638e7e7dace9f6e00434db2d7be03a1388d19aa9fb324dbf6ea
+  delivered c4b51892b01f7638e7e7dace9f6e00434db2d7be03a1388d19aa9fb324dbf6ea
+  merge c4b51892b01f7638e7e7dace9f6e00434db2d7be03a1388d19aa9fb324dbf6ea
+  identical=True
+backend/core/oracle/postcondition_verifiers.py
+  tested 90b8f6776e786b3a52844724e2d260b190b249932cca3d1baa5c0b5b2336b711
+  delivered 90b8f6776e786b3a52844724e2d260b190b249932cca3d1baa5c0b5b2336b711
+  merge 90b8f6776e786b3a52844724e2d260b190b249932cca3d1baa5c0b5b2336b711
+  identical=True
+backend/core/action_registry.py
+  tested 5acd3dda2b071b73f15b39721f6dd900b0067c319f74cfea47efedc77d017f0c
+  delivered 5acd3dda2b071b73f15b39721f6dd900b0067c319f74cfea47efedc77d017f0c
+  merge 5acd3dda2b071b73f15b39721f6dd900b0067c319f74cfea47efedc77d017f0c
+  identical=True
+backend/core/connected_actions.py
+  tested 8acfce904f280b5e7529cbf44f3af4aede3831e53293df1e37f6c7643d43423a
+  delivered 8acfce904f280b5e7529cbf44f3af4aede3831e53293df1e37f6c7643d43423a
+  merge 8acfce904f280b5e7529cbf44f3af4aede3831e53293df1e37f6c7643d43423a
+  identical=True
+backend/core/oracle/request_expectations.py
+  tested 8d56d5934887aa2b443c914c594257cb97b7343680018cedea3d335161522a8d
+  delivered 8d56d5934887aa2b443c914c594257cb97b7343680018cedea3d335161522a8d
+  merge 8d56d5934887aa2b443c914c594257cb97b7343680018cedea3d335161522a8d
+  identical=True
+backend/tests/test_lead_asset_usable_image.py
+  tested a9cb0fe536936fd26cb6a4741d3f05950318bdfecaedfe60f6aa9cf43930de21
+  delivered a9cb0fe536936fd26cb6a4741d3f05950318bdfecaedfe60f6aa9cf43930de21
+  merge a9cb0fe536936fd26cb6a4741d3f05950318bdfecaedfe60f6aa9cf43930de21
+  identical=True
+backend/tests/test_asset_content_receipt.py
+  tested 9002a9f050f36648e3ba6b4fcce589cc0ab7646c4c45b71fb63041d04b5fa63a
+  delivered 9002a9f050f36648e3ba6b4fcce589cc0ab7646c4c45b71fb63041d04b5fa63a
+  merge 9002a9f050f36648e3ba6b4fcce589cc0ab7646c4c45b71fb63041d04b5fa63a
+  identical=True
+backend/tests/test_lead_shopify_image_content_receipt.py
+  tested 5d8c4bf1299a5962ceb71f018b7fc7bf4d72cf6534dcc2bd6b4184e61dc1e625
+  delivered 5d8c4bf1299a5962ceb71f018b7fc7bf4d72cf6534dcc2bd6b4184e61dc1e625
+  merge 5d8c4bf1299a5962ceb71f018b7fc7bf4d72cf6534dcc2bd6b4184e61dc1e625
+  identical=True
+
+three_way_identical=True
+main differs/absent: backend/core/asset_content_receipt.py, backend/core/oracle/postcondition_verifiers.py, backend/core/shopify_mutations.py, backend/integrations/shopify_service.py, backend/tests/test_asset_content_receipt.py, backend/tests/test_lead_asset_usable_image.py, backend/tests/test_lead_shopify_image_content_receipt.py

@@ -401,8 +401,9 @@ async def _verify_shopify_create_product(
 
     from integrations.shopify_service import ShopifyService
 
+    service = ShopifyService()
     try:
-        observed = await ShopifyService().get_product(
+        observed = await service.get_product(
             token, shop, remote_id)
     except Exception as exc:  # noqa: BLE001 - unavailable is not verified
         return OracleResult(
@@ -428,10 +429,25 @@ async def _verify_shopify_create_product(
             action, False,
             "independent Shopify readback contradicts the accepted material: "
             + ", ".join(mismatches))
+    from core.shopify_mutations import verify_product_image_content
+
+    try:
+        image_content = await verify_product_image_content(
+            service, token, shop, remote_id, expected_material, observed)
+    except Exception as exc:  # noqa: BLE001 - unavailable proof is not success
+        return OracleResult(
+            action, False,
+            "independent image-content proof unavailable: "
+            f"{type(exc).__name__}: {str(exc)[:200]}")
+    if image_content.get("mismatches"):
+        return OracleResult(
+            action, False,
+            "independent image-content proof contradicts the accepted image: "
+            + ", ".join(image_content["mismatches"]))
     return OracleResult(
         action, True,
         f"Shopify product {remote_id} re-read from {shop}; accepted material "
-        f"matches (payload {expected_digest[:12]})")
+        f"and image content match (payload {expected_digest[:12]})")
 
 
 @register_durable_receipt_projector("shopify_create_blog")
