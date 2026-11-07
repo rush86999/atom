@@ -401,7 +401,7 @@ class TestTasksCreateAction:
             "core.board_service.BoardService", side_effect=RuntimeError("boom")
         ), patch("core.database.get_db_session", return_value=MagicMock()):
             out = await action_registry.execute_action(
-                "tasks.create", {"title": "T", "board_id": "b1"}, {}
+                "tasks.create", {"title": "T", "board_id": "b1"}, {"user_id": "u1"}
             )
         assert out["success"] is False
         assert out["error"] == "Task creation failed"

@@ -49,7 +49,7 @@ def populated(db_session):
     db_session.add(Tenant(id=tid, name="T", subdomain="t-default"))
     db_session.add(User(id=uid, tenant_id=tid, email=f"u-{uid[:8]}@x.com", first_name="A", last_name="B", hashed_password="pw", role="admin", status="active"))
     db_session.commit()
-    board = BoardService(db_session).create_board(
+    board = BoardService(db_session, actor_user_id=uid).create_board(
         owner_user_id=uid, payload=BoardCreate(name="B"),
     )
     return {"tenant_id": tid, "user_id": uid, "board_id": str(board.id)}
@@ -57,7 +57,7 @@ def populated(db_session):
 
 @pytest.fixture
 def task_with_canvas(db_session, populated):
-    service = BoardService(db_session)
+    service = BoardService(db_session, actor_user_id=populated["user_id"])
     cols = service.list_columns(populated["board_id"])
     todo = next(c for c in cols if c.name == "To Do")
     ws = Workspace(
@@ -102,8 +102,8 @@ def task_with_canvas(db_session, populated):
 # --------------------------------------------------------------------------- #
 class TestTaskComments:
     def test_create_and_list_comment(self, db_session, populated):
-        svc = BoardCommentService(db_session)
-        service = BoardService(db_session)
+        svc = BoardCommentService(db_session, actor_user_id=populated["user_id"])
+        service = BoardService(db_session, actor_user_id=populated["user_id"])
         cols = service.list_columns(populated["board_id"])
         col_id = str(cols[0].id)
         task = service.create_task(
@@ -129,8 +129,8 @@ class TestTaskComments:
         assert listed[0].content == "hello world"
 
     def test_create_reply_builds_threaded_tree_in_O_N(self, db_session, populated):
-        svc = BoardCommentService(db_session)
-        service = BoardService(db_session)
+        svc = BoardCommentService(db_session, actor_user_id=populated["user_id"])
+        service = BoardService(db_session, actor_user_id=populated["user_id"])
         cols = service.list_columns(populated["board_id"])
         col_id = str(cols[0].id)
         task = service.create_task(
@@ -172,8 +172,8 @@ class TestTaskComments:
         assert r1["replies"][0]["content"] == "reply1.sub"
 
     def test_only_author_can_patch_their_comment(self, db_session, populated):
-        svc = BoardCommentService(db_session)
-        service = BoardService(db_session)
+        svc = BoardCommentService(db_session, actor_user_id=populated["user_id"])
+        service = BoardService(db_session, actor_user_id=populated["user_id"])
         cols = service.list_columns(populated["board_id"])
         task = service.create_task(
             populated["board_id"], populated["user_id"],
@@ -201,8 +201,8 @@ class TestTaskComments:
         assert edited.content == "fixed"
 
     def test_only_author_can_delete_their_comment(self, db_session, populated):
-        svc = BoardCommentService(db_session)
-        service = BoardService(db_session)
+        svc = BoardCommentService(db_session, actor_user_id=populated["user_id"])
+        service = BoardService(db_session, actor_user_id=populated["user_id"])
         cols = service.list_columns(populated["board_id"])
         task = service.create_task(
             populated["board_id"], populated["user_id"],
@@ -232,8 +232,8 @@ class TestTaskComments:
         assert listed == []
 
     def test_author_invariant_exactly_one_of_user_or_agent(self, db_session, populated):
-        svc = BoardCommentService(db_session)
-        service = BoardService(db_session)
+        svc = BoardCommentService(db_session, actor_user_id=populated["user_id"])
+        service = BoardService(db_session, actor_user_id=populated["user_id"])
         cols = service.list_columns(populated["board_id"])
         task = service.create_task(
             populated["board_id"], populated["user_id"],
@@ -265,7 +265,7 @@ class TestArtifactCommentAggregation:
     def test_artifact_comments_returned_for_task_with_canvas(
         self, db_session, populated, task_with_canvas
     ):
-        svc = BoardCommentService(db_session)
+        svc = BoardCommentService(db_session, actor_user_id=populated["user_id"])
         artifact = db_session.query(Artifact).first()
         ac = ArtifactComment(
             tenant_id=populated["tenant_id"],
@@ -285,8 +285,8 @@ class TestArtifactCommentAggregation:
         assert rows[0]["artifact_id"] == str(artifact.id)
 
     def test_artifact_comments_empty_when_task_has_no_canvas(self, db_session, populated):
-        svc = BoardCommentService(db_session)
-        service = BoardService(db_session)
+        svc = BoardCommentService(db_session, actor_user_id=populated["user_id"])
+        service = BoardService(db_session, actor_user_id=populated["user_id"])
         cols = service.list_columns(populated["board_id"])
         task = service.create_task(
             populated["board_id"], populated["user_id"],
@@ -405,7 +405,7 @@ class TestCommandRouterBehavior:
 
     def test_move_via_command_uses_state_machine(self, db_session, populated):
         router, ctx = self._router(db_session, populated)
-        service = BoardService(db_session)
+        service = BoardService(db_session, actor_user_id=populated["user_id"])
         cols = service.list_columns(ctx["board_id"])
         task = service.create_task(
             ctx["board_id"], ctx["user_id"],
@@ -426,7 +426,7 @@ class TestCommandRouterBehavior:
 
     def test_legal_move_succeeds(self, db_session, populated):
         router, ctx = self._router(db_session, populated)
-        service = BoardService(db_session)
+        service = BoardService(db_session, actor_user_id=populated["user_id"])
         cols = service.list_columns(ctx["board_id"])
         task = service.create_task(
             ctx["board_id"], ctx["user_id"],
@@ -456,7 +456,7 @@ class TestCommandRouterBehavior:
 
     def test_list_via_command_returns_bullets(self, db_session, populated):
         router, ctx = self._router(db_session, populated)
-        service = BoardService(db_session)
+        service = BoardService(db_session, actor_user_id=populated["user_id"])
         cols = service.list_columns(ctx["board_id"])
         for i in range(3):
             service.create_task(

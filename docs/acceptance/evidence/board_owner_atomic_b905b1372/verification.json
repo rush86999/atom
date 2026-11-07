@@ -1,0 +1,20 @@
+{
+  "executed_source": "b905b1372872d6bfb9d14df8d693336d0615323f",
+  "original_negative": {
+    "source": "53b9544344f0a017f9549295e55438276a7136ac",
+    "passed": 8,
+    "failed": 2,
+    "actual_exit_code": 1
+  },
+  "fixed_original": {
+    "source": "7ff424738d388bae80b94d2be5298f3407ffe6c6",
+    "passed": 38,
+    "actual_exit_code": 0
+  },
+  "integrated": {
+    "passed": 100,
+    "failed": 0,
+    "actual_exit_code": 0
+  },
+  "scope": "scratch SQLite real services/public route auth-controlled; no model"
+}

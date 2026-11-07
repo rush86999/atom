@@ -1,0 +1,146 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-07 03:01:26 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+
+::test_column_creation_respects_owner[False] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:01:27 [    INFO] HTTP Request: GET http://testserver/api/boards "HTTP/1.1 200 OK"
+2026-11-07 03:01:27 [    INFO] HTTP Request: POST http://testserver/api/boards/6e7541cb-5071-4959-82d7-5b9f31786904/columns "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 10%]
+::test_column_creation_respects_owner[True] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:01:28 [    INFO] HTTP Request: GET http://testserver/api/boards "HTTP/1.1 200 OK"
+2026-11-07 03:01:28 [    INFO] HTTP Request: POST http://testserver/api/boards/85066b7d-d5ab-45fb-b1ef-fe620fd370ee/columns "HTTP/1.1 201 Created"
+PASSED                                                                   [ 20%]
+::test_board_write_rechecks_scope_in_its_actual_claim[none] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:01:28 [    INFO] HTTP Request: POST http://testserver/api/boards/c0fd398d-f71a-4a30-84ae-dd4895d0392a/columns "HTTP/1.1 201 Created"
+PASSED                                                                   [ 30%]
+::test_board_write_rechecks_scope_in_its_actual_claim[owner_transfer] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:01:29 [    INFO] HTTP Request: POST http://testserver/api/boards/df3ee873-193e-4455-9a0b-1861388e6233/columns "HTTP/1.1 201 Created"
+FAILED                                                                   [ 40%]
+::test_board_write_rechecks_scope_in_its_actual_claim[actor_deactivated] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:01:29 [    INFO] HTTP Request: POST http://testserver/api/boards/9814c4b7-b628-4754-8dce-1f92b19d4736/columns "HTTP/1.1 201 Created"
+FAILED                                                                   [ 50%]
+tests/unit/test_board_owner_boundary.py::test_peer_read_and_write_twins_are_denied_without_side_effects 
+-------------------------------- live log setup --------------------------------
+2026-11-07 03:01:30 [    INFO] EscalationManager initialized
+2026-11-07 03:01:30 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 03:01:30 [    INFO] EscalationManager initialized
+2026-11-07 03:01:30 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 03:01:30 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 03:01:30 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:01:30 [    INFO] HTTP Request: GET http://testserver/api/boards/3eb63880-49e2-471e-8e94-182b7de03010 "HTTP/1.1 404 Not Found"
+2026-11-07 03:01:30 [    INFO] HTTP Request: GET http://testserver/api/boards/3eb63880-49e2-471e-8e94-182b7de03010/tasks "HTTP/1.1 404 Not Found"
+2026-11-07 03:01:30 [    INFO] HTTP Request: GET http://testserver/api/boards/3eb63880-49e2-471e-8e94-182b7de03010/tasks/95629855-dbad-418e-97b5-315d02bbae4f/canvas "HTTP/1.1 404 Not Found"
+2026-11-07 03:01:30 [    INFO] HTTP Request: GET http://testserver/api/boards/3eb63880-49e2-471e-8e94-182b7de03010/tasks/95629855-dbad-418e-97b5-315d02bbae4f/comments "HTTP/1.1 404 Not Found"
+2026-11-07 03:01:30 [    INFO] HTTP Request: GET http://testserver/api/boards/3eb63880-49e2-471e-8e94-182b7de03010/tasks/95629855-dbad-418e-97b5-315d02bbae4f/artifact-comments "HTTP/1.1 404 Not Found"
+2026-11-07 03:01:30 [    INFO] HTTP Request: POST http://testserver/api/boards/3eb63880-49e2-471e-8e94-182b7de03010/columns "HTTP/1.1 404 Not Found"
+2026-11-07 03:01:30 [    INFO] HTTP Request: POST http://testserver/api/boards/3eb63880-49e2-471e-8e94-182b7de03010/tasks "HTTP/1.1 404 Not Found"
+2026-11-07 03:01:30 [    INFO] HTTP Request: PATCH http://testserver/api/boards/3eb63880-49e2-471e-8e94-182b7de03010/tasks/95629855-dbad-418e-97b5-315d02bbae4f "HTTP/1.1 404 Not Found"
+2026-11-07 03:01:30 [    INFO] HTTP Request: DELETE http://testserver/api/boards/3eb63880-49e2-471e-8e94-182b7de03010/tasks/95629855-dbad-418e-97b5-315d02bbae4f "HTTP/1.1 404 Not Found"
+2026-11-07 03:01:30 [    INFO] HTTP Request: POST http://testserver/api/boards/3eb63880-49e2-471e-8e94-182b7de03010/rebalance "HTTP/1.1 404 Not Found"
+2026-11-07 03:01:30 [    INFO] HTTP Request: POST http://testserver/api/boards/3eb63880-49e2-471e-8e94-182b7de03010/tasks/95629855-dbad-418e-97b5-315d02bbae4f/comments "HTTP/1.1 201 Created"
+2026-11-07 03:01:30 [    INFO] HTTP Request: POST http://testserver/api/boards/3eb63880-49e2-471e-8e94-182b7de03010/tasks/95629855-dbad-418e-97b5-315d02bbae4f/comments "HTTP/1.1 404 Not Found"
+2026-11-07 03:01:30 [    INFO] HTTP Request: PATCH http://testserver/api/comments/a9f3d88a-6bc5-4da4-92e1-f2316fec0c78 "HTTP/1.1 404 Not Found"
+2026-11-07 03:01:30 [    INFO] HTTP Request: DELETE http://testserver/api/comments/a9f3d88a-6bc5-4da4-92e1-f2316fec0c78 "HTTP/1.1 404 Not Found"
+2026-11-07 03:01:30 [    INFO] EscalationManager initialized
+2026-11-07 03:01:30 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 03:01:30 [    INFO] HTTP Request: POST http://testserver/api/boards/3eb63880-49e2-471e-8e94-182b7de03010/tasks/95629855-dbad-418e-97b5-315d02bbae4f/decompose "HTTP/1.1 404 Not Found"
+2026-11-07 03:01:30 [    INFO] HTTP Request: POST http://testserver/api/boards/3eb63880-49e2-471e-8e94-182b7de03010/tasks/95629855-dbad-418e-97b5-315d02bbae4f/decompose/commit "HTTP/1.1 404 Not Found"
+2026-11-07 03:01:30 [    INFO] HTTP Request: GET http://testserver/api/boards "HTTP/1.1 200 OK"
+PASSED                                                                   [ 60%]
+tests/unit/test_board_owner_boundary.py::test_peer_command_router_and_registered_tool_are_denied 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:01:30 [   ERROR] tasks.create failed: 404: Board not found
+PASSED                                                                   [ 70%]
+tests/unit/test_board_owner_boundary.py::test_owner_twins_and_fresh_session_readback 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:01:30 [    INFO] HTTP Request: POST http://testserver/api/boards/945ea156-1a4d-4c75-b252-acb07cecc3b4/columns "HTTP/1.1 201 Created"
+2026-11-07 03:01:30 [    INFO] HTTP Request: POST http://testserver/api/boards/945ea156-1a4d-4c75-b252-acb07cecc3b4/tasks "HTTP/1.1 201 Created"
+2026-11-07 03:01:30 [    INFO] HTTP Request: GET http://testserver/api/boards/945ea156-1a4d-4c75-b252-acb07cecc3b4 "HTTP/1.1 200 OK"
+2026-11-07 03:01:30 [    INFO] HTTP Request: GET http://testserver/api/boards/945ea156-1a4d-4c75-b252-acb07cecc3b4/tasks "HTTP/1.1 200 OK"
+2026-11-07 03:01:30 [    INFO] HTTP Request: PATCH http://testserver/api/boards/945ea156-1a4d-4c75-b252-acb07cecc3b4/tasks/9d2057f6-21f8-4e9f-a70b-a61adf0ecccc "HTTP/1.1 409 Conflict"
+2026-11-07 03:01:30 [    INFO] HTTP Request: PATCH http://testserver/api/boards/945ea156-1a4d-4c75-b252-acb07cecc3b4/tasks/9d2057f6-21f8-4e9f-a70b-a61adf0ecccc "HTTP/1.1 422 Unprocessable Entity"
+2026-11-07 03:01:30 [    INFO] HTTP Request: PATCH http://testserver/api/boards/945ea156-1a4d-4c75-b252-acb07cecc3b4/tasks/9d2057f6-21f8-4e9f-a70b-a61adf0ecccc "HTTP/1.1 200 OK"
+2026-11-07 03:01:30 [    INFO] HTTP Request: DELETE http://testserver/api/boards/945ea156-1a4d-4c75-b252-acb07cecc3b4/tasks/9d2057f6-21f8-4e9f-a70b-a61adf0ecccc "HTTP/1.1 204 No Content"
+PASSED                                                                   [ 80%]
+tests/unit/test_board_owner_boundary.py::test_owner_transfer_is_authoritative_at_mutation 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:01:30 [    INFO] HTTP Request: GET http://testserver/api/boards/4ad6f83c-3a12-4e27-9947-fdc720b99c2f "HTTP/1.1 200 OK"
+2026-11-07 03:01:30 [    INFO] HTTP Request: GET http://testserver/api/boards/4ad6f83c-3a12-4e27-9947-fdc720b99c2f "HTTP/1.1 404 Not Found"
+2026-11-07 03:01:30 [    INFO] HTTP Request: POST http://testserver/api/boards/4ad6f83c-3a12-4e27-9947-fdc720b99c2f/columns "HTTP/1.1 404 Not Found"
+2026-11-07 03:01:30 [    INFO] HTTP Request: GET http://testserver/api/boards/4ad6f83c-3a12-4e27-9947-fdc720b99c2f "HTTP/1.1 200 OK"
+2026-11-07 03:01:30 [    INFO] HTTP Request: POST http://testserver/api/boards/4ad6f83c-3a12-4e27-9947-fdc720b99c2f/columns "HTTP/1.1 201 Created"
+PASSED                                                                   [ 90%]
+tests/unit/test_board_owner_boundary.py::test_deactivated_actor_has_zero_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-07 03:01:30 [    INFO] HTTP Request: POST http://testserver/api/boards/7c05561a-6acb-436e-8e1d-f64dbe3eada2/columns "HTTP/1.1 403 Forbidden"
+2026-11-07 03:01:30 [    INFO] HTTP Request: POST http://testserver/api/boards/7c05561a-6acb-436e-8e1d-f64dbe3eada2/columns "HTTP/1.1 201 Created"
+PASSED                                                                   [100%]
+
+=================================== FAILURES ===================================
+_____ test_board_write_rechecks_scope_in_its_actual_claim[owner_transfer] ______
+../../test_lead_board_atomic_scope.py:46: in test_board_write_rechecks_scope_in_its_actual_claim
+    else:assert response.status_code in (403,404,409) and count==0,(response.status_code,response.text,count)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AssertionError: (201, '{"id":"604dda78-a530-423c-869a-a49e42a2a4f2","board_id":"df3ee873-193e-4455-9a0b-1861388e6233","name":"Authorized only before peer wins","position":0,"wip_limit":null,"version_id":1,"task_count":0}', 1)
+E   assert (201 in (403, 404, 409))
+E    +  where 201 = <Response [201 Created]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/boards/df3ee873-193e-4455-9a0b-1861388e6233/columns "HTTP/1.1 201 Created"
+____ test_board_write_rechecks_scope_in_its_actual_claim[actor_deactivated] ____
+../../test_lead_board_atomic_scope.py:46: in test_board_write_rechecks_scope_in_its_actual_claim
+    else:assert response.status_code in (403,404,409) and count==0,(response.status_code,response.text,count)
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   AssertionError: (201, '{"id":"a8eaaa21-c3cc-4d72-921b-d3523a891c91","board_id":"9814c4b7-b628-4754-8dce-1f92b19d4736","name":"Authorized only before peer wins","position":0,"wip_limit":null,"version_id":1,"task_count":0}', 1)
+E   assert (201 in (403, 404, 409))
+E    +  where 201 = <Response [201 Created]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/boards/9814c4b7-b628-4754-8dce-1f92b19d4736/columns "HTTP/1.1 201 Created"
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 20 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-board-atomic-3f0i0t0r/result.xml -
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED ::test_board_write_rechecks_scope_in_its_actual_claim[owner_transfer]
+FAILED ::test_board_write_rechecks_scope_in_its_actual_claim[actor_deactivated]
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================== 2 failed, 8 passed, 27 warnings in 12.43s ===================

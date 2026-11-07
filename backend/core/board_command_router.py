@@ -43,14 +43,38 @@ class BoardCommandRouter:
         "completed": BoardStatus.DONE,
     }
 
-    def __init__(self, db: Session):
+    def __init__(
+        self,
+        db: Session,
+        *,
+        actor_user_id: Union[str, None] = None,
+    ):
         self.db = db
-        self.board_service = BoardService(db)
-        self.comment_service = BoardCommentService(db)
+        self.actor_user_id = str(actor_user_id) if actor_user_id else None
+        self.board_service = BoardService(
+            db, actor_user_id=actor_user_id
+        )
+        self.comment_service = BoardCommentService(
+            db, actor_user_id=actor_user_id
+        )
+
+    def _bind_actor(self, user_id: Union[str, None]) -> None:
+        actor_id = str(user_id) if user_id else None
+        self.actor_user_id = actor_id
+        self.board_service.actor_user_id = actor_id
+        self.comment_service.actor_user_id = actor_id
 
     def _resolve_task(
         self, board_id: Union[str, None], task_ref: str
     ) -> Union[BoardTask, None]:
+        # Slash commands are always board-scoped: without an accessible board
+        # context we refuse to resolve a task by guessed id.
+        if not board_id:
+            return None
+        try:
+            self.board_service.require_board_access(board_id)
+        except HTTPException:
+            return None
         try:
             uuid.UUID(task_ref)
             q = self.db.query(BoardTask).filter(BoardTask.id == task_ref)
@@ -90,6 +114,9 @@ class BoardCommandRouter:
         user_id: str,
         board_id: Union[str, None] = None,
     ) -> SlashReply:
+        # The routed user is the authoritative principal; never rely on a
+        # constructor-time actor that could differ from the authenticated user.
+        self._bind_actor(user_id)
         try:
             handler = {
                 "board_create": self._cmd_create,
@@ -141,6 +168,8 @@ class BoardCommandRouter:
                 action_type="board_create",
             )
 
+        # Authorize before resolving column names or writing a task.
+        self.board_service.require_board_access(board_id)
         col = self._resolve_column_by_name(board_id, column_name)
         if col is None:
             return SlashReply(

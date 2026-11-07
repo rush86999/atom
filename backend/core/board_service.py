@@ -24,6 +24,12 @@ from api.schemas.board_schemas import (
     TaskCreate,
     TaskPatch,
 )
+from core.board_access import (
+    FOREIGN_OWNER,
+    claim_active_actor,
+    get_owned_board,
+    require_active_actor,
+)
 from core.board_events import BoardEventEmitter
 from core.board_state_machine import (
     BoardStatus,
@@ -49,27 +55,54 @@ DEFAULT_COLUMNS: tuple[tuple[str, int], ...] = (
 class BoardService:
     """Stateless-ish service: takes a ``db`` Session per request."""
 
-    def __init__(self, db: Session, emitter: Union[BoardEventEmitter, None] = None):
+    def __init__(
+        self,
+        db: Session,
+        emitter: Union[BoardEventEmitter, None] = None,
+        *,
+        actor_user_id: Union[str, None] = None,
+    ):
         self.db = db
         # Optional emitter for testing
         self.emitter = emitter
+        # The authenticated principal for every board-scoped operation.  All
+        # production callers (REST, chat slash commands, decomposer, registered
+        # tools) must supply it; omitting it is a denial, not a global bypass.
+        self.actor_user_id = str(actor_user_id) if actor_user_id else None
 
     # ------------------------------------------------------------------- #
     # Helpers
     # ------------------------------------------------------------------- #
-    def _get_board_scoped(self, board_id: str) -> Board:
-        board = (
-            self.db.query(Board)
-            .filter(Board.id == board_id)
-            .first()
+    def require_active_actor(self) -> str:
+        """Validate and return the current actor (stale/deactivated -> 403)."""
+        return require_active_actor(self.db, self.actor_user_id)
+
+    def require_board_access(
+        self, board_id: str, *, for_update: bool = False
+    ) -> Board:
+        """Authoritative owner check used by route/command consumers."""
+        return get_owned_board(
+            self.db,
+            board_id,
+            self.actor_user_id,
+            for_update=for_update,
         )
-        if not board:
-            raise HTTPException(status_code=404, detail="Board not found")
-        return board
+
+    def _get_board_scoped(
+        self, board_id: str, *, for_update: bool = False
+    ) -> Board:
+        return self.require_board_access(board_id, for_update=for_update)
 
     def _get_column_scoped(
-        self, column_id: str, board_id: str
+        self,
+        column_id: str,
+        board_id: str,
+        *,
+        for_update: bool = False,
     ) -> BoardColumn:
+        # Authorize the board before looking at children so a guessed column id
+        # can never be used to probe another user's board.
+        self._get_board_scoped(board_id, for_update=for_update)
         column = (
             self.db.query(BoardColumn)
             .filter(
@@ -83,8 +116,14 @@ class BoardService:
         return column
 
     def _get_task_scoped(
-        self, task_id: str, board_id: str
+        self,
+        task_id: str,
+        board_id: str,
+        *,
+        for_update: bool = False,
     ) -> BoardTask:
+        # Authorize the board before resolving the task id.
+        self._get_board_scoped(board_id, for_update=for_update)
         task = (
             self.db.query(BoardTask)
             .filter(
@@ -97,6 +136,10 @@ class BoardService:
             raise HTTPException(status_code=404, detail="Task not found")
         return task
 
+    def get_task(self, board_id: str, task_id: str) -> BoardTask:
+        """Public read helper for the task-workspace redirect route."""
+        return self._get_task_scoped(task_id, board_id)
+
     # ------------------------------------------------------------------- #
     # Board CRUD
     # ------------------------------------------------------------------- #
@@ -106,6 +149,18 @@ class BoardService:
         payload: BoardCreate,
         tenant_id: Union[str, None] = None,  # kept for signature compatibility/defaulting
     ) -> Board:
+        if self.actor_user_id:
+            if (
+                owner_user_id is not None
+                and str(owner_user_id) != self.actor_user_id
+            ):
+                raise HTTPException(status_code=403, detail=FOREIGN_OWNER)
+            owner_user_id = self.actor_user_id
+            # A board is only useful to an active owner.  Claim the actor with
+            # the mutation boundary (not the read-only check) so a concurrent
+            # deactivation cannot land between this check and the INSERT.
+            claim_active_actor(self.db, self.actor_user_id)
+
         board = Board(
             name=payload.name,
             slug=payload.slug,
@@ -151,7 +206,7 @@ class BoardService:
         board_id: str,
         payload: ColumnCreate,
     ) -> BoardColumn:
-        self._get_board_scoped(board_id)
+        self._get_board_scoped(board_id, for_update=True)
         column = BoardColumn(
             board_id=board_id,
             name=payload.name,
@@ -164,6 +219,7 @@ class BoardService:
         return column
 
     def list_columns(self, board_id: str) -> list[BoardColumn]:
+        self._get_board_scoped(board_id)
         return (
             self.db.query(BoardColumn)
             .filter(BoardColumn.board_id == board_id)
@@ -182,8 +238,10 @@ class BoardService:
         tenant_id: Union[str, None] = None,  # Required to seed task workspace (Canvas)
     ) -> BoardTask:
         """Create a task. If ``payload.workspace`` is True, also create a Canvas."""
-        self._get_board_scoped(board_id)
-        column = self._get_column_scoped(payload.column_id, board_id)
+        self._get_board_scoped(board_id, for_update=True)
+        column = self._get_column_scoped(
+            payload.column_id, board_id, for_update=True
+        )
 
         if payload.status not in BoardStatus.ALL:
             raise HTTPException(
@@ -214,7 +272,9 @@ class BoardService:
 
         # Resolve root_task_id from parent if the caller passed a parent.
         if payload.parent_task_id:
-            parent = self._get_task_scoped(payload.parent_task_id, board_id)
+            parent = self._get_task_scoped(
+                payload.parent_task_id, board_id, for_update=True
+            )
             task.root_task_id = parent.root_task_id or parent.id
 
         self.db.add(task)
@@ -240,7 +300,19 @@ class BoardService:
         tenant_id: Union[str, None] = None,  # Required if payload.workspace is True
     ) -> tuple[BoardTask, dict[str, Any]]:
         """Apply a partial update with optimistic locking + state-machine checks."""
-        task = self._get_task_scoped(task_id, board_id)
+        try:
+            task = self._get_task_scoped(task_id, board_id, for_update=True)
+        except (StaleDataError, IntegrityError) as e:
+            # A concurrent writer changed the board/task while our scoping
+            # query autoflushed.  Report the same 409 contract as the write.
+            self.db.rollback()
+            raise HTTPException(
+                status_code=409,
+                detail={
+                    "error": "stale_version",
+                    "message": "Task was modified concurrently. Refresh and retry.",
+                },
+            ) from e
 
         if payload.expected_version != task.version_id:
             raise HTTPException(
@@ -261,7 +333,9 @@ class BoardService:
         # Validate column move
         target_column: Union[BoardColumn, None] = None
         if payload.column_id is not None and payload.column_id != str(task.column_id):
-            target_column = self._get_column_scoped(payload.column_id, board_id)
+            target_column = self._get_column_scoped(
+                payload.column_id, board_id, for_update=True
+            )
 
         # Validate transition
         if payload.status is not None and payload.status != task.status:
@@ -357,7 +431,7 @@ class BoardService:
 
     def delete_task(self, board_id: str, task_id: str) -> dict[str, Any]:
         """Delete a task. Returns a snapshot for event emission."""
-        task = self._get_task_scoped(task_id, board_id)
+        task = self._get_task_scoped(task_id, board_id, for_update=True)
         snapshot = {
             "id": str(task.id),
             "board_id": str(task.board_id),
@@ -377,6 +451,7 @@ class BoardService:
         board_id: str,
         column_id: Union[str, None] = None,
     ) -> list[BoardTask]:
+        self._get_board_scoped(board_id)
         q = self.db.query(BoardTask).filter(BoardTask.board_id == board_id)
         if column_id:
             q = q.filter(BoardTask.column_id == column_id)
@@ -397,13 +472,17 @@ class BoardService:
         self, board_id: str, column_id: Union[str, None]
     ) -> int:
         """Rewrite ``sort_order`` as 0.0, 1.0, 2.0, ... for each task in a column."""
-        self._get_board_scoped(board_id)
+        self._get_board_scoped(board_id, for_update=True)
 
         column_ids: list[str]
         if column_id is None:
             column_ids = [c.id for c in self.list_columns(board_id)]
         else:
-            column_ids = [self._get_column_scoped(column_id, board_id).id]
+            column_ids = [
+                self._get_column_scoped(
+                    column_id, board_id, for_update=True
+                ).id
+            ]
 
         moved = 0
         for cid in column_ids:
@@ -429,6 +508,9 @@ class BoardService:
         tenant_id: str,
     ) -> Canvas:
         """Create a Canvas of ``canvas_type="kanban"`` and link it to ``task``."""
+        # This helper can be called directly by decomposer/tooling; keep the
+        # ownership check here so a linked task cannot be used as a back door.
+        self._get_board_scoped(str(task.board_id), for_update=True)
         if task.canvas_id is not None:
             existing = (
                 self.db.query(Canvas).filter(Canvas.id == str(task.canvas_id)).first()

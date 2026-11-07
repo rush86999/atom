@@ -56,7 +56,7 @@ async def propose_decomposition(
     db: Session = Depends(get_db),
 ):
     handler = _build_handler(request, db, payload.model_hint)
-    decomposer = BoardDecomposer(db)
+    decomposer = BoardDecomposer(db, actor_user_id=str(current_user.id))
 
     result = await decomposer.propose(
         board_id=board_id,
@@ -66,6 +66,7 @@ async def propose_decomposition(
 
     task = db.query(BoardTask).filter(
         BoardTask.id == task_id,
+        BoardTask.board_id == board_id,
     ).first()
     depth = BoardDecomposer._root_depth(task) if task else 1
 
@@ -93,7 +94,7 @@ async def commit_decomposition(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    decomposer = BoardDecomposer(db)
+    decomposer = BoardDecomposer(db, actor_user_id=str(current_user.id))
     children = decomposer.commit(
         board_id=board_id,
         parent_task_id=task_id,

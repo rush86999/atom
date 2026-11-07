@@ -1244,7 +1244,7 @@ class TestBoardRoutes:
     def test_list_boards_excludes_archived(self, client, db):
         from core.board_service import BoardService
         board = _board_create(client, name="A")
-        service = BoardService(db)
+        service = BoardService(db, actor_user_id="user-1")
         obj = service.get_board(board["id"])
         obj.archived_at = datetime.now(timezone.utc)
         db.commit()

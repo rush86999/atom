@@ -138,7 +138,7 @@ async def create_board(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    service = BoardService(db)
+    service = BoardService(db, actor_user_id=str(current_user.id))
     board = service.create_board(
         owner_user_id=str(current_user.id),
         payload=payload,
@@ -153,7 +153,7 @@ async def list_boards(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    service = BoardService(db)
+    service = BoardService(db, actor_user_id=str(current_user.id))
     return [_serialize_board(b) for b in service.list_boards(
         include_archived=include_archived,
         owner_user_id=str(current_user.id),
@@ -166,7 +166,7 @@ async def get_board(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    service = BoardService(db)
+    service = BoardService(db, actor_user_id=str(current_user.id))
     board = service.get_board(board_id)
     columns = service.list_columns(board_id)
 
@@ -190,7 +190,7 @@ async def create_column(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    service = BoardService(db)
+    service = BoardService(db, actor_user_id=str(current_user.id))
     column = service.create_column(
         board_id=board_id,
         payload=payload,
@@ -208,7 +208,7 @@ async def create_task(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    service = BoardService(db)
+    service = BoardService(db, actor_user_id=str(current_user.id))
     task = service.create_task(
         board_id=board_id,
         created_by_user_id=str(current_user.id),
@@ -227,7 +227,7 @@ async def patch_task(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    service = BoardService(db)
+    service = BoardService(db, actor_user_id=str(current_user.id))
     task, change_meta = service.patch_task(
         board_id=board_id,
         task_id=task_id,
@@ -261,7 +261,7 @@ async def delete_task(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    service = BoardService(db)
+    service = BoardService(db, actor_user_id=str(current_user.id))
     snapshot = service.delete_task(
         board_id, task_id
     )
@@ -276,7 +276,7 @@ async def list_tasks(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    service = BoardService(db)
+    service = BoardService(db, actor_user_id=str(current_user.id))
     tasks = service.list_tasks(
         board_id=board_id,
         column_id=column_id,
@@ -294,16 +294,8 @@ async def get_task_canvas(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    task = (
-        db.query(BoardTask)
-        .filter(
-            BoardTask.id == task_id,
-            BoardTask.board_id == board_id,
-        )
-        .first()
-    )
-    if task is None:
-        raise HTTPException(status_code=404, detail="Task not found")
+    service = BoardService(db, actor_user_id=str(current_user.id))
+    task = service.get_task(board_id, task_id)
     if task.canvas_id is None:
         raise HTTPException(status_code=404, detail="Task has no workspace Canvas")
     return RedirectResponse(url=f"/canvas/{task.canvas_id}")
@@ -316,7 +308,7 @@ async def rebalance_board(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    service = BoardService(db)
+    service = BoardService(db, actor_user_id=str(current_user.id))
     moved = service.rebalance_column(
         board_id=board_id,
         column_id=payload.column_id,

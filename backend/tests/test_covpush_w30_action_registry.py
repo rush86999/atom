@@ -233,7 +233,7 @@ class TestTasksAndAgents:
     async def test_tasks_create_exception(self):
         with patch("core.database.get_db_session", side_effect=RuntimeError("db down")):
             result = await action_registry.execute_action(
-                "tasks.create", {"title": "T", "board_id": "b1"}, {}
+                "tasks.create", {"title": "T", "board_id": "b1"}, {"user_id": "u1"}
             )
         assert result["success"] is False
         assert "Task creation failed" in result["error"]
