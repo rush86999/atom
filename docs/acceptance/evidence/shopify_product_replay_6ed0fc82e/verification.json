@@ -1,0 +1,162 @@
+{
+  "journey": "Shopify durable product-create replay: shared-core blocker repair",
+  "scope": "shopify_create_product durable replay contract; no other Shopify mutation claimed",
+  "source_commit": "6ed0fc82e8ec1846b84c11ef00c0f04a6550e168",
+  "predecessor_replay_source": "963a27781b58d606e0fe47e78f5ccf008cc597c2",
+  "predecessor_product_source": "0b325c5f1e8de97a352f1d202cd1e8d13e21140b",
+  "blockers": [
+    {
+      "id": "B1_domain_neutral",
+      "predecessor_evidence": "963a27781 backend/core/generic_agent.py read _oracle_expected_shopify_product and provider_receipt.shop directly in _durable_effect_result",
+      "repair": "shared core/oracle envelope + verifier-registered Shopify projector/matcher; GenericAgent has no Shopify key or import",
+      "controls": [
+        "test_known_success_replays_exact_resource_without_second_create",
+        "test_restart_fresh_session_reloads_exact_durable_identity",
+        "Tests_Books_Outlook_and_connected_mutation_receipts"
+      ],
+      "result": "pass"
+    },
+    {
+      "id": "B2_fail_closed_proof",
+      "predecessor_evidence": "963a27781 _durable_effect_result returned json.loads(json.dumps(receipt, default=str))",
+      "repair": "strict_json_value/strict_json_roundtrip (no default=str) enforced in the builder and in mark_status before persistence",
+      "controls": [
+        "test_strict_json_proof_rejects_unsupported_values",
+        "test_durable_receipt_builder_rejects_lossy_proof",
+        "test_lossy_proof_cannot_persist_a_succeeded_claim"
+      ],
+      "result": "pass"
+    },
+    {
+      "id": "B3_existing_db_upgrade",
+      "predecessor_evidence": "963a27781 added the column to the model and relied on create_all/startup repair with no pre-existing-database control and no alembic revision",
+      "repair": "guarded repair_known_drift coverage for SQLite + guarded alembic revision 20261107_task_operation_result_json for PostgreSQL",
+      "controls": [
+        "test_existing_database_upgrade_and_replay_survives_restart",
+        "check_migration.py upgrade/upgrade/downgrade/downgrade/upgrade on a table without result_json"
+      ],
+      "result": "pass"
+    }
+  ],
+  "final_run": {
+    "exit_code": 0,
+    "tests": 100,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "duration_seconds": 103.57,
+    "environment": {
+      "TESTING": "1",
+      "python": "3.14.7 (project venv314)",
+      "DATABASE_URL": "fresh scratch sqlite under this packet",
+      "SECRET_KEY": "explicit synthetic value; not recorded",
+      "provider_credentials": "pinned to empty strings",
+      "external_transport_double": "ShopifyService.http only"
+    }
+  },
+  "replay_controls": [
+    {
+      "id": "P1_exact_success_replay",
+      "control": "test_known_success_replays_exact_resource_without_second_create",
+      "observed": "one POST; replay re-read exact id 500 from the current shop and returned already_applied/verified with no second create",
+      "result": "pass"
+    },
+    {
+      "id": "P2_restart_fresh_session",
+      "control": "test_restart_fresh_session_reloads_exact_durable_identity",
+      "observed": "new engine/session factory and new agent reloaded the same succeeded claim/receipt; one POST total",
+      "result": "pass"
+    },
+    {
+      "id": "P3_receipt_persist_failure",
+      "control": "test_failed_identity_receipt_is_not_rolled_back_or_resent",
+      "observed": "forced succeeded-receipt write failure left the claim uncertain_effect; result stayed uncertain and replay did not resend",
+      "result": "pass"
+    },
+    {
+      "id": "N1_wrong_current_material",
+      "control": "test_replay_with_wrong_current_resource_material_stays_committed_unverified",
+      "observed": "exact id present but body changed; replay committed_unverified with no second POST",
+      "result": "pass"
+    },
+    {
+      "id": "N2_missing_current_resource",
+      "control": "test_replay_with_missing_current_resource_stays_committed_unverified",
+      "observed": "exact id absent on readback; replay committed_unverified with no second POST",
+      "result": "pass"
+    },
+    {
+      "id": "N3_changed_store",
+      "control": "test_replay_after_store_changed_stays_committed_unverified",
+      "observed": "current workspace store moved; replay stayed committed_unverified and did not recreate",
+      "result": "pass"
+    },
+    {
+      "id": "N4_receipt_unavailable",
+      "control": "test_replay_without_durable_identity_receipt_is_committed_unverified",
+      "observed": "result_json cleared; replay stayed committed_unverified with no title lookup or resend",
+      "result": "pass"
+    },
+    {
+      "id": "N5_readback_unavailable",
+      "control": "test_replay_with_unavailable_current_readback_is_committed_unverified",
+      "observed": "readback timeout stayed committed_unverified and did not resend",
+      "result": "pass"
+    },
+    {
+      "id": "N6_changed_material",
+      "control": "test_same_operation_changed_material_refuses_before_readback",
+      "observed": "changed material returned conflict before any readback/create",
+      "result": "pass"
+    },
+    {
+      "id": "N7_lost_confirmation",
+      "control": "test_lost_confirmation_stays_uncertain_and_never_replays_as_success",
+      "observed": "post-accept timeout retained uncertain_effect; replay stayed uncertain with do-not-retry",
+      "result": "pass"
+    },
+    {
+      "id": "B2a_strict_json_value",
+      "control": "test_strict_json_proof_rejects_unsupported_values",
+      "observed": "object, NaN, Inf, non-string key, tuple, bytes, set and nested unsupported values are rejected by the strict proof check",
+      "result": "pass"
+    },
+    {
+      "id": "B2b_builder_rejects_lossy",
+      "control": "test_durable_receipt_builder_rejects_lossy_proof",
+      "observed": "valid receipt builds; object/NaN/Decimal variants produce no receipt",
+      "result": "pass"
+    },
+    {
+      "id": "B2c_persistence_refuses_lossy",
+      "control": "test_lossy_proof_cannot_persist_a_succeeded_claim",
+      "observed": "mark_status returned false for each lossy receipt; claim stayed dispatching with no receipt",
+      "result": "pass"
+    },
+    {
+      "id": "B3a_existing_db_upgrade_restart",
+      "control": "test_existing_database_upgrade_and_replay_survives_restart",
+      "observed": "existing scratch table without result_json was repaired by repair_known_drift; one create; restart + idempotent repair; replay already_applied with one POST total",
+      "result": "pass"
+    }
+  ],
+  "migration_guard": {
+    "control": "check_migration.py",
+    "observed": "upgrade twice, downgrade twice, upgrade again on a scratch task_operation_records table without result_json; guards were idempotent",
+    "result": "pass",
+    "artifacts": ["migration_guard.log"]
+  },
+  "shared_callers_checked": [
+    "GenericAgent durable claim/replay controls",
+    "Generic request expectations and reconcile-commit controls",
+    "Connected mutation/Books/Outlook receipt verifier controls",
+    "SQLite schema repair control"
+  ],
+  "excluded_claims": [
+    "No live Shopify/provider/account/store/token/credential call or configuration.",
+    "No claim for shopify_create_blog, shopify_create_article or shopify_create_fulfillment.",
+    "No title-based resource guessing and no second create.",
+    "No claim that the 4 pre-existing zero-effect/canvas failures are repaired.",
+    "No self-acceptance; root independently verifies."
+  ]
+}

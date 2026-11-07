@@ -1,0 +1,129 @@
+{
+  "executed_source": "6ed0fc82e8ec1846b84c11ef00c0f04a6550e168",
+  "source_files": {
+    "backend/alembic/versions/20261107_task_operation_result_json.py": "98d43d5c17dcad6900d24c259bf12380fd97e972ff8975336d117d9d78fb44ac",
+    "backend/core/generic_agent.py": "d9c8ec428af77d44bc4f70bbcc64ff4c61081c35a689509b178e06ecc0af4964",
+    "backend/core/oracle/__init__.py": "70852a61398d0fdcbe4202beaa708dab8045dd49929d77f860c2be357e4614df",
+    "backend/core/oracle/postcondition_verifiers.py": "d7dfe2d11ed7292bab2c179a118ad567925f8cd257a8761b860772045fa7ef73",
+    "backend/core/outbound_operation_claim.py": "4a8ee1e7ca5f98783d6672fd353548bfaa2a04d16941f1d1aef222dbac0c7789",
+    "backend/core/shopify_mutations.py": "87c34dc52c0274d34bb95d7575654b532bd4df6daef51df612aa7668e8940f66",
+    "backend/core/sqlite_schema_repair.py": "46a2420f2bc9d3a575631214fa515af317bb4425cf98c32490528aea5365b174",
+    "backend/tests/test_oracle_shopify_product_replay.py": "12159d6f707de39d14af27afc41a370a1df5678898e7fca005c72feb394c1d4c"
+  },
+  "journey": "Shopify durable product-create replay: shared-core repair",
+  "date": "2026-11-07",
+  "owner": "Agent2 Shopify Oracle family; independent acceptance retained by root",
+  "source_identity": {
+    "worktree": "/private/tmp/atom-agent-job-baseline",
+    "branch": "codex/shopify-product-oracle-20261107",
+    "predecessor_replay_source": "963a27781b58d606e0fe47e78f5ccf008cc597c2",
+    "predecessor_product_source": "0b325c5f1e8de97a352f1d202cd1e8d13e21140b",
+    "source_commit": "6ed0fc82e8ec1846b84c11ef00c0f04a6550e168",
+    "source_commit_subject": "fix(shopify): make durable replay proof domain-neutral and fail closed",
+    "run_tree": {
+      "tracked_modified": "",
+      "note": "tracked tree clean at the implementation commit; the packet and retained scratch are untracked evidence"
+    }
+  },
+  "scope": {
+    "implemented": "domain-neutral durable replay receipt, fail-closed proof JSON, existing-database result_json upgrade",
+    "mechanism": "existing TaskOperationRecord claim + oracle-registered durable receipt projector/matcher, strict JSON persistence boundary, guarded SQLite repair + alembic revision",
+    "not_implemented": [
+      "shopify_create_blog",
+      "shopify_create_article",
+      "shopify_create_fulfillment"
+    ],
+    "no_new": [
+      "operation engine",
+      "provider router",
+      "table/store",
+      "approval lifecycle",
+      "title-based resource lookup"
+    ]
+  },
+  "environment": {
+    "python": "3.14.7",
+    "TESTING": "1",
+    "SECRET_KEY": "explicit synthetic value; not recorded",
+    "DATABASE_URL": "fresh scratch sqlite under this packet",
+    "ATOM_DATA_DIR": "packet scratch/data",
+    "LANCEDB_PATH": "packet scratch/lancedb",
+    "ATOM_OFFICE_DIR": "packet scratch/office",
+    "ATOM_OUTPUT_DIR": "packet scratch/output",
+    "provider_credentials": "SHOPIFY_API_KEY, SHOPIFY_API_SECRET, SHOPIFY_SHOP_NAME and live model keys pinned to empty strings",
+    "live_effects": "none",
+    "external_transport_double": "ShopifyService.http only"
+  },
+  "result": {
+    "tests": 100,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "exit_code": 0
+  },
+  "artifacts": {
+    "README.md": "219befc141f22e50b978c8c9f5ec575b2849f4365a2af39b355901d22acc946f",
+    "check_migration.py": "9d44e429a7382e532277151d1856cd61520c1415765e2a09f28dc3ad62c65690",
+    "focused-exit.json": "6800b6439cf19da95cf0b053e3a719ffe2b2a15f8877f99d13a332f89d4c4505",
+    "focused-spec.json": "e673d708f5eb1ea87c92b447369befad5cf33f4a1d4b2684402ba0f3a12ee022",
+    "focused.log": "93abf8537461ac5bdee9da5fc2f593a85dafd9081b8f003899dd9aa99d85623b",
+    "focused.xml": "8c14009851e49804af619a9b7ca1d8636fa81a8fb58c0c8c056274512a720be8",
+    "make_manifest.py": "cd9dbee37e625960a43e844d63d635e37e5370c339b18a05b1d1eb591c08a077",
+    "migration_guard.log": "364b2e9647b04c63ff6d20519e279aa2c88159834ba5736bcb771e4fdcf651c5",
+    "run_and_capture.py": "3f2a0d7a034de5f5af5290fd14ad1260a1726f09cdc782f156b7b74b2ec9b878",
+    "verification.json": "bb6b6fae4f6951c919ad24b7e8150e9abf5ab8b583486177895d427741998be3"
+  },
+  "artifact_details": [
+    {
+      "file": "README.md",
+      "sha256": "219befc141f22e50b978c8c9f5ec575b2849f4365a2af39b355901d22acc946f",
+      "bytes": 5354
+    },
+    {
+      "file": "check_migration.py",
+      "sha256": "9d44e429a7382e532277151d1856cd61520c1415765e2a09f28dc3ad62c65690",
+      "bytes": 1585
+    },
+    {
+      "file": "focused-exit.json",
+      "sha256": "6800b6439cf19da95cf0b053e3a719ffe2b2a15f8877f99d13a332f89d4c4505",
+      "bytes": 874
+    },
+    {
+      "file": "focused-spec.json",
+      "sha256": "e673d708f5eb1ea87c92b447369befad5cf33f4a1d4b2684402ba0f3a12ee022",
+      "bytes": 1268
+    },
+    {
+      "file": "focused.log",
+      "sha256": "93abf8537461ac5bdee9da5fc2f593a85dafd9081b8f003899dd9aa99d85623b",
+      "bytes": 19867
+    },
+    {
+      "file": "focused.xml",
+      "sha256": "8c14009851e49804af619a9b7ca1d8636fa81a8fb58c0c8c056274512a720be8",
+      "bytes": 14673
+    },
+    {
+      "file": "make_manifest.py",
+      "sha256": "cd9dbee37e625960a43e844d63d635e37e5370c339b18a05b1d1eb591c08a077",
+      "bytes": 4964
+    },
+    {
+      "file": "migration_guard.log",
+      "sha256": "364b2e9647b04c63ff6d20519e279aa2c88159834ba5736bcb771e4fdcf651c5",
+      "bytes": 123
+    },
+    {
+      "file": "run_and_capture.py",
+      "sha256": "3f2a0d7a034de5f5af5290fd14ad1260a1726f09cdc782f156b7b74b2ec9b878",
+      "bytes": 3367
+    },
+    {
+      "file": "verification.json",
+      "sha256": "bb6b6fae4f6951c919ad24b7e8150e9abf5ab8b583486177895d427741998be3",
+      "bytes": 7443
+    }
+  ],
+  "retained_scratch": "scratch (owned scratch; not part of the commit)"
+}
