@@ -1,0 +1,17 @@
+{
+  "command": [
+    "/usr/local/opt/python@3.14/bin/python3.14",
+    "-m",
+    "pytest",
+    "tests/test_oracle_radio_send.py",
+    "-q",
+    "--disable-warnings",
+    "--junitxml=/private/tmp/atom-agent-job-baseline/docs/acceptance/evidence/oracle_radio_send_ed97452f8/failure-first.xml"
+  ],
+  "cwd": "/private/tmp/atom-agent-job-baseline/backend",
+  "exit_code": 1,
+  "stdout_sha256": "6ff138a6c874ff97de51c618d5bc73f08e5447dbaa8cde9b62b88c630cc16d61",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "junitxml": "failure-first.xml",
+  "process_spawned": true
+}

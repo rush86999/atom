@@ -1,0 +1,88 @@
+{
+  "task": "registered radio.send_message exact-row/material Oracle",
+  "git_branch": "codex/oracle-next-20261107",
+  "git_revision": "ed97452f894f0817cb4d2a079951f87f90d96da6",
+  "base": "origin/main e8187a0c2",
+  "root_reference_commits": {
+    "decimal_context_fix": "e359b5ac7",
+    "prerequisite_tests": [
+      "4e0ead635",
+      "00979657d"
+    ],
+    "note": "not modified by this candidate; no Decimal/number helper changed"
+  },
+  "contract": {
+    "registry": "core/agent_radio/radio_actions.py::radio_send_message",
+    "service": "core/agent_radio/radio_service.py::send_message",
+    "read_primitive": "radio.read_inbox / get_thread_snapshot; exact LateralMessage.id row + AgentThread scope",
+    "protocol": "docs/architecture/AGENT_RADIO.md section Protocol",
+    "http_leaf": "none; local durable DB candidate. No provider HTTP is claimed or doubled."
+  },
+  "implementation_files": {
+    "backend/core/agent_radio/radio_actions.py": "53527197a79ba5e256edc364ca7fb3638fbac5de098af1b8e8d07cab2069058e",
+    "backend/core/oracle/postcondition_verifiers.py": "6be99c3fe814a02ba529fe04ca2147e033f25c4bfdbb34c698c0b6be8cc23be3",
+    "backend/core/oracle/request_expectations.py": "a318158d952ac73bd38668fb746712ed3fc045837e0b5f61e7337a5b84278ac3",
+    "backend/core/agent_radio/radio_mutations.py": "c7132f19ab221c0e9774ed6d038a4be39d77a9f3436b948e3893033da174c145"
+  },
+  "test": {
+    "path": "backend/tests/test_oracle_radio_send.py",
+    "sha256": "213a0101c5f0d5462ae9e2651d1195b3da4ffa7fe45da67c186cca51c260bc54"
+  },
+  "runs": {
+    "failure_first": {
+      "command": [
+        "/usr/local/opt/python@3.14/bin/python3.14",
+        "-m",
+        "pytest",
+        "tests/test_oracle_radio_send.py",
+        "-q",
+        "--disable-warnings",
+        "--junitxml=/private/tmp/atom-agent-job-baseline/docs/acceptance/evidence/oracle_radio_send_ed97452f8/failure-first.xml"
+      ],
+      "cwd": "/private/tmp/atom-agent-job-baseline/backend",
+      "exit_code": 1,
+      "stdout_sha256": "6ff138a6c874ff97de51c618d5bc73f08e5447dbaa8cde9b62b88c630cc16d61",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "junitxml": "failure-first.xml",
+      "process_spawned": true
+    },
+    "focused": {
+      "command": [
+        "/usr/local/opt/python@3.14/bin/python3.14",
+        "-m",
+        "pytest",
+        "tests/test_oracle_radio_send.py",
+        "tests/unit/agents/test_radio_actions.py",
+        "tests/test_covpush_w80a_radio.py",
+        "tests/unit/agents/test_agent_radio_tool.py",
+        "tests/test_oracle_registry_verification_gap.py",
+        "tests/test_generic_oracle_mutation_contract.py",
+        "tests/test_oracle_connected_mutations.py",
+        "tests/test_oracle_effect_families.py",
+        "-q",
+        "--disable-warnings",
+        "--junitxml=/private/tmp/atom-agent-job-baseline/docs/acceptance/evidence/oracle_radio_send_ed97452f8/focused.xml"
+      ],
+      "cwd": "/private/tmp/atom-agent-job-baseline/backend",
+      "exit_code": 0,
+      "stdout_sha256": "b2ebf1573b2776c716b246301676e04407c39f0007f9c9ce663a0a720858af90",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "junitxml": "focused.xml",
+      "process_spawned": true
+    }
+  },
+  "environment": {
+    "TESTING": "1",
+    "DATABASE_URL": "sqlite:////private/tmp/atom-agent-job-baseline/docs/acceptance/evidence/oracle_radio_send_ed97452f8/scratch/atom.db",
+    "ATOM_DATA_DIR": "/private/tmp/atom-agent-job-baseline/docs/acceptance/evidence/oracle_radio_send_ed97452f8/scratch/data",
+    "LANCEDB_URI": "/private/tmp/atom-agent-job-baseline/docs/acceptance/evidence/oracle_radio_send_ed97452f8/scratch/lancedb",
+    "ATOM_OUTPUT_DIR": "/private/tmp/atom-agent-job-baseline/docs/acceptance/evidence/oracle_radio_send_ed97452f8/scratch/output",
+    "ATOM_RADIO_ENABLED": "true",
+    "provider_credentials": "blank",
+    "interpreter": "/usr/local/opt/python@3.14/bin/python3.14"
+  },
+  "expectation": {
+    "failure_first_exit_code": 1,
+    "focused_exit_code": 0
+  }
+}
