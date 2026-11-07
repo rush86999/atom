@@ -128,19 +128,20 @@ def _install_controlled_transport(monkeypatch, calls):
     return calls
 
 
-def _start_missing_invoice(client, tmp_path):
+def _start_missing_invoice(client, tmp_path, *, budget=None):
+    payload = {
+        "objective": f"Reconcile invoice {INVOICE} for {PO}",
+        "sources": [
+            {"path": str(tmp_path / "po.json")},
+            {"path": str(tmp_path / "receiving.json")},
+        ],
+        "authorized_actions": ["retrieve", "calculate"],
+        "use_model": True,
+    }
+    if budget is not None:
+        payload["budget"] = budget
     answer = client.post(
-        "/api/assignments/from-objective",
-        json={
-            "objective": f"Reconcile invoice {INVOICE} for {PO}",
-            "sources": [
-                {"path": str(tmp_path / "po.json")},
-                {"path": str(tmp_path / "receiving.json")},
-            ],
-            "authorized_actions": ["retrieve", "calculate"],
-            "use_model": True,
-        },
-    )
+        "/api/assignments/from-objective", json=payload)
     assert answer.status_code == 200, answer.text
     return answer.json()["run_id"]
 
@@ -480,6 +481,51 @@ def test_absolute_deadline_is_not_extended_by_source_arrival(
     assert final["budget"]["deadline"] == past
     assert _reconciliations(lifecycle, run_id) == []
     assert len(calls) == before
+
+
+def test_prolonged_information_wait_does_not_consume_active_wall_budget(
+        route_env, tmp_path, monkeypatch):
+    """A missing-fact wait is idle, not active execution allowance.
+
+    The source-triggered missing-invoice wait is represented by an open
+    unresolved prerequisite, not by an ``assignment.wait`` step. A two-hour
+    controlled-clock advance must therefore be credited as an idle interval:
+    the authorized invoice still resumes the same task and produces its one
+    verified reconciliation under a 15-minute active wall budget.
+    """
+    _write_facts(tmp_path)
+    calls = _install_controlled_transport(monkeypatch, calls=[])
+    client = route_env["client"]
+    lifecycle = route_env["lifecycle"]
+    run_id = _start_missing_invoice(
+        client, tmp_path, budget={"max_wall_seconds": 900.0})
+    before = lifecycle.get_assignment(run_id)
+    assert open_unresolved_questions(lifecycle.get_task(run_id))
+    assert _reconciliations(lifecycle, run_id) == []
+    assert before["status"] != "completed"
+    assert before["budget"]["idle_open"], (
+        "the information wait must be recorded as an idle interval")
+    calls_before = len(calls)
+
+    forward = time.time() + 7200.0
+    with monkeypatch.context() as clock:
+        clock.setattr(
+            "core.assignment_executor.time.time", lambda: forward)
+        answer = _add_invoice(client, run_id, tmp_path)
+    assert answer.status_code == 200, answer.text
+
+    final = lifecycle.get_assignment(run_id)
+    assert final["status"] == "completed", final["status"]
+    reconciliations = _reconciliations(lifecycle, run_id)
+    assert len(reconciliations) == 1
+    assert reconciliations[0]["result"]["value"] == EXPECTED_TOTAL
+    assert len(calls) == calls_before + 1
+    assert final["budget"]["idle_intervals"], (
+        "the completed wait must be recorded in the idle ledger")
+    assert final["budget"]["paused_seconds"] >= 7000.0, (
+        final["budget"]["paused_seconds"])
+    assert final["budget"]["elapsed_seconds"] < 60.0, (
+        final["budget"]["elapsed_seconds"])
 
 
 def test_restart_owner_does_not_poll_a_missing_or_unsuitable_obligation(

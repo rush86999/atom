@@ -1069,6 +1069,24 @@ def _latest_employee_routing(executor: Any, run_id: str) -> Optional[Dict[str, A
     return None
 
 
+async def _record_information_wait(
+    executor: Any, run_id: str, entries: List[Dict[str, Any]],
+) -> List[Dict[str, Any]]:
+    """Persist a targeted obligation and settle its durable idle interval.
+
+    Recording the question IS the wait. Re-entering the existing executor
+    opens the assignment-level idle interval when no branch can progress, so a
+    prolonged information wait does not consume active wall budget. This is
+    the same executor boundary used by ordinary work; it makes no model call
+    and adds no task, engine or authority.
+    """
+    from core.task_lifecycle import add_unresolved_questions
+
+    added = add_unresolved_questions(executor.lifecycle, run_id, entries)
+    await executor.execute(run_id, max_steps=12)
+    return added
+
+
 async def _advance_employee_work(
     executor: Any, run_id: str, llm: Any, *, max_rounds: int = 3,
     deadline_seconds: float = 240.0,
@@ -1288,10 +1306,8 @@ async def _advance_employee_work(
             round_record["progress"] = "no_progress"
             fallback = missing_prerequisite_question(context)
             if fallback:
-                from core.task_lifecycle import add_unresolved_questions
-
-                add_unresolved_questions(
-                    executor.lifecycle, run_id, [fallback])
+                await _record_information_wait(
+                    executor, run_id, [fallback])
                 round_record["obligation"] = fallback
                 round_record["obligation_source"] = (
                     "deterministic_missing_prerequisite")
@@ -1343,10 +1359,8 @@ async def _advance_employee_work(
             question = missing_prerequisite_question(assignment)
             if question and not open_unresolved_questions(
                     executor.lifecycle.get_task(run_id) or {}):
-                from core.task_lifecycle import add_unresolved_questions
-
-                add_unresolved_questions(
-                    executor.lifecycle, run_id, [question])
+                await _record_information_wait(
+                    executor, run_id, [question])
                 round_record["obligation"] = question
                 round_record["obligation_source"] = (
                     "deterministic_missing_prerequisite")
@@ -1375,18 +1389,14 @@ async def _advance_employee_work(
                 fallback = missing_prerequisite_question(assignment)
                 if fallback and not open_unresolved_questions(
                         executor.lifecycle.get_task(run_id) or {}):
-                    from core.task_lifecycle import add_unresolved_questions
-
-                    add_unresolved_questions(
-                        executor.lifecycle, run_id, [fallback])
+                    await _record_information_wait(
+                        executor, run_id, [fallback])
                     round_record["obligation"] = fallback
                     round_record["obligation_source"] = (
                         "deterministic_empty_clarification")
                     round_record["progress"] = "no_progress"
                 break
             if question:
-                from core.task_lifecycle import add_unresolved_questions
-
                 missing = [
                     dict(item) for item in (
                         context.get("missing_prerequisites") or [])
@@ -1427,8 +1437,8 @@ async def _advance_employee_work(
                     entry["next_retrieval"] = (
                         chosen.get("question_hint")
                         or entry["next_retrieval"])
-                add_unresolved_questions(
-                    executor.lifecycle, run_id, [entry])
+                await _record_information_wait(
+                    executor, run_id, [entry])
             round_record["clarification"] = clarification
             break
         if proposal.get("decision") not in ("replan", "work_request"):
@@ -1675,9 +1685,8 @@ async def start_employee_objective(
         stage="employee_proposal",
         attempt_id=proposal_result.get("attempt_id"))
     if clarification:
-        from core.task_lifecycle import add_unresolved_questions
-        add_unresolved_questions(
-            executor.lifecycle, run_id,
+        await _record_information_wait(
+            executor, run_id,
             [{
                 "kind": "business_decision",
                 "question": clarification.get("question"),
