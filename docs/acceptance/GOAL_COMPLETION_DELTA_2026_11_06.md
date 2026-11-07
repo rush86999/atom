@@ -187,8 +187,9 @@ source remains the current main behavior until #702 is owner-merged.
 |---|---|
 | Original requirement | A tool error produces a pending evolution candidate; no code/config change without approval (`CLAIM_INVENTORY` MEM-07). |
 | Current evidence | Canonical path now exists: `record_tool_error` (`backend/core/auto_dev/tool_error_signals.py:47`), Memento pending candidate (`backend/core/auto_dev/memento_engine.py:282`), review/approve/apply/reject routes (`backend/api/autodev_review_routes.py:214,282,328`). The reviewed prompt-skill apply lifecycle was accepted at `c1074f0a9` / evidence `952fcbdf8`; ordinary-work consumption at `5538a654d` / evidence `d30130d1f` (`VERIFIER_REVIEWED_IMPROVEMENT_C1074_RESULT.md`, `VERIFIER_REVIEWED_SKILL_CONSUMPTION_5538_RESULT.md`). |
-| Current disposition | `open` for the broad claim; the old `agent_evolution_candidate` HITLAction slice was removed in favor of the canonical Memento lifecycle (`docs/acceptance/evidence/full_app_consolidated_20261102/README.md:39`). |
-| Remaining gap | One consolidated evidence chain: real tool-error signal → pending Memento candidate → review → apply → fresh-session consumption, with generated code never promoted and agent config unchanged. The pieces are accepted separately; the combined MEM-07 user outcome is not independently accepted. Local, deterministic. |
+| Current disposition | `accepted-bounded` at the finite controlled local chain, root source `2f0547c8c`; hosted integration/merge pending. This does not change the historical 111/123 score. |
+| Consolidated evidence | `mem07_lead_public_prompt_2f0547c8c`: real tool-error/episode event → registered Reflection/Memento pending candidate → mounted JWT-authenticated review/apply → fresh-session real Generic final model request. Root7 controls passed; native56 affected controls and predecessor15-source/7-artifact packet preserved. |
+| Remaining boundary | This closes the previously missing finite local chain. The failing tool and two model leaves are controlled; no served-model/general autonomous repair, OS restart, generated-code promotion or configuration mutation is qualified. Existing approval and exact reviewed material remain required. |
 | Owner | Agent2 (durable skill/review boundary), coordinating with Agent1 on ordinary-work consumption. |
 
 ### 3.7 MINI-03 / MINI-04 / MINI-05 — mini-app runtime
