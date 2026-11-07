@@ -6,7 +6,7 @@ core/action_registry.py and reach agents through the governed MCP dispatch
 These tests pin the handlers' contract: workspace-scoped credential resolution,
 payload threading into ShopifyService, and the fail-closed no-store guard.
 """
-from unittest.mock import AsyncMock, MagicMock
+from unittest.mock import ANY, AsyncMock, MagicMock
 
 import pytest
 
@@ -30,6 +30,50 @@ def _patch_service_cls(monkeypatch) -> MagicMock:
     return service
 
 
+def _fulfillment_response():
+    return {
+        "id": 11,
+        "order_id": "o1",
+        "status": "success",
+        "location_id": "loc-1",
+        "tracking_number": "TN1",
+        "tracking_company": "UPS",
+        "line_items": [{
+            "id": "line-1",
+            "fulfillment_order_id": "fo-1",
+            "quantity": 1,
+        }],
+        "fulfillment_orders": [{"fulfillment_order_id": "fo-1"}],
+    }
+
+
+def _configure_verified_fulfillment(service):
+    """Make the mocked service expose the real dispatch/readback contract."""
+
+    async def _create(*args, meta_out=None, **kwargs):
+        response = _fulfillment_response()
+        if meta_out is not None:
+            meta_out["fulfillment_orders"] = [{
+                "id": "fo-1",
+                "assigned_location_id": "loc-1",
+                "line_items": [{
+                    "id": "foli-1",
+                    "line_item_id": "line-1",
+                    "quantity": 1,
+                    "fulfillable_quantity": 1,
+                    "remaining_quantity": 1,
+                }],
+            }]
+            meta_out["location_id"] = "loc-1"
+            meta_out["request"] = {"line_items_by_fulfillment_order": [
+                {"fulfillment_order_id": "fo-1"}]}
+        return response
+
+    service.create_fulfillment = AsyncMock(side_effect=_create)
+    service.get_fulfillment = AsyncMock(
+        side_effect=lambda token, shop, fid: _fulfillment_response())
+
+
 class TestRegistryDefinition:
     def test_both_actions_registered(self):
         create_def = action_registry.get_action("shopify_create_fulfillment")
@@ -51,8 +95,7 @@ class TestCreateFulfillmentAction:
     async def test_success_threads_args(self, monkeypatch):
         _patch_store(monkeypatch)
         service = _patch_service_cls(monkeypatch)
-        service.create_fulfillment = AsyncMock(
-            return_value={"id": 11, "status": "success"})
+        _configure_verified_fulfillment(service)
 
         result = await action_registry.execute_action(
             "shopify_create_fulfillment",
@@ -60,25 +103,33 @@ class TestCreateFulfillmentAction:
              "tracking_company": "UPS", "notify_customer": False},
             {"workspace_id": "ws"},
         )
-        assert result == {"success": True,
-                          "fulfillment": {"id": 11, "status": "success"}}
+        # Compatibility twin: the legacy success/fulfillment keys remain.
+        assert result["success"] is True, result
+        assert result["fulfillment"]["id"] == 11, result
+        assert result["action_result"] == "applied", result
+        assert result["remote_id"] == "11", result
+        assert result["read_receipt"]["fields"]["order_id"] == "o1", result
         service.create_fulfillment.assert_awaited_once_with(
             "tok", "shop.myshopify.com", order_id="o1", location_id=None,
             tracking_number="TN1", tracking_company="UPS",
-            notify_customer=False,
+            notify_customer=False, meta_out=ANY,
         )
+        service.get_fulfillment.assert_awaited_once_with(
+            "tok", "shop.myshopify.com", "11")
 
     @pytest.mark.asyncio
     async def test_notify_customer_defaults_true(self, monkeypatch):
         _patch_store(monkeypatch)
         service = _patch_service_cls(monkeypatch)
-        service.create_fulfillment = AsyncMock(return_value={"id": 12})
+        _configure_verified_fulfillment(service)
 
-        await action_registry.execute_action(
+        result = await action_registry.execute_action(
             "shopify_create_fulfillment", {"order_id": "o1"},
             {"workspace_id": "ws"},
         )
-        assert service.create_fulfillment.call_args.kwargs["notify_customer"] is True
+        assert result["success"] is True, result
+        assert service.create_fulfillment.call_args.kwargs[
+            "notify_customer"] is True
 
     @pytest.mark.asyncio
     async def test_no_store_fail_closed(self, monkeypatch):
