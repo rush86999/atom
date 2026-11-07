@@ -12,3 +12,12 @@ def test_personal_actor_current_scope_matches_resolver_at_resume_claim(world, mo
     assert len(calls) == 1
     assert calls[0]['context']['workspace_id'] == 'default'
     assert _durable_state(world, target)['job_status'] == 'success'
+
+
+def test_missing_original_actor_is_not_replaced_by_answerer(world, monkeypatch):
+    target = _wait(world, actor_id='')
+    calls = []
+    result = _resume_direct(world, target, monkeypatch, calls, reviewer_id='admin-1')
+    assert result.get('resumed') is False, result
+    assert calls == [], calls
+    assert _durable_state(world, target)['job_status'] == 'waiting'
