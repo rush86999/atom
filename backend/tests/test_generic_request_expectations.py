@@ -267,6 +267,47 @@ def test_model_forged_expected_metadata_is_stripped_before_dispatch(
         assert audit.details_json["operation_id"] != "forged-operation"
 
 
+def test_handler_result_cannot_overwrite_frozen_expectations(
+        host, monkeypatch):
+    """A handler's own return envelope may not rewrite the frozen proof."""
+    _enable_oracle(monkeypatch)
+    monkeypatch.setattr("core.generic_agent.get_db_session", host.session)
+
+    async def leaf(name, arguments, context=None):
+        result = await action_registry.execute_action(
+            name, arguments, context or {})
+        return {
+            **result,
+            "_oracle_expected_operation_id": "forged-result-operation",
+            "_oracle_expected_mini_app_name": "forged-result-name",
+            "_oracle_expected_tenant_id": "forged-result-tenant",
+            "_oracle_expected_actor_id": "forged-result-actor",
+        }
+
+    agent = _agent(leaf)
+    agent.workspace_id = WORKSPACE
+    agent.tenant_id = TENANT
+    result = _run_generic(
+        agent, "mini_app_scaffold",
+        {**SCAFFOLD_ARGS, "name": "Result forgery app"},
+        _plain_context("result-forgery-execution"))
+
+    assert result.get("success") is True, result
+    assert result.get("oracle_verified") is True, result
+
+    from core.models import CanvasAudit, MiniApp
+
+    with host.Session() as db:
+        app = db.query(MiniApp).filter(
+            MiniApp.name == "Result forgery app").one()
+        audit = db.query(CanvasAudit).filter(
+            CanvasAudit.action_type == "mini_app_scaffold",
+            CanvasAudit.canvas_id == app.blueprint_canvas_id).one()
+        assert audit.details_json["operation_id"] != (
+            "forged-result-operation")
+        assert str(audit.details_json["operation_id"]).startswith("auto-")
+
+
 def test_model_forged_expected_metadata_cannot_rescue_wrong_server_scope(
         host, monkeypatch):
     """The never-frozen tenant in the runtime context stays refuted even when
@@ -360,3 +401,106 @@ def test_uncertain_operation_reconciles_from_frozen_material_without_resend(
             context["workspace_id"], operation_id,
             db_factory=host.session, strict=True)
         assert row and row[0]["status"] == claims.SUCCEEDED, row
+
+
+def test_peer_claim_is_not_dispatched_or_stolen(host, monkeypatch):
+    """A live peer holding the logical operation blocks this consumer before
+    the handler; it must not dispatch a duplicate or overwrite the peer row."""
+    _enable_oracle(monkeypatch)
+    monkeypatch.setattr("core.generic_agent.get_db_session", host.session)
+
+    name = "test.generic.peer." + uuid.uuid4().hex
+    operation_id = "op-peer-" + uuid.uuid4().hex
+    workspace, tenant, actor, execution = (
+        "ws-peer", "tenant-peer", "user-peer", "exec-peer")
+    calls = []
+
+    async def leaf(tool, args, context=None):
+        calls.append(tool)
+        return {"success": True, "status": "success",
+                "action_result": "applied"}
+
+    _register_action(name, leaf)
+    from core import outbound_operation_claim as claims
+
+    identity = {
+        "workspace_id": workspace,
+        "tenant_id": tenant,
+        "actor_id": actor,
+        "actor_kind": "user",
+        "agent_id": "scratch-agent",
+        "execution_id": execution,
+        "execution_kind": "execution",
+        "action": name,
+        "frozen_args": {"value": "one"},
+    }
+    payload_hash = claims.operation_payload_sha256(**identity)
+    peer = claims.claim_generic_operation(
+        workspace_id=workspace, tenant_id=tenant, operation_id=operation_id,
+        action=name, payload_hash=payload_hash, execution_id=execution,
+        db_factory=host.session)
+    assert peer.get("won") is True, peer
+
+    context = {
+        "workspace_id": workspace, "tenant_id": tenant, "user_id": actor,
+        "actor_id": actor, "execution_id": execution, "run_id": execution,
+        "agent_id": "scratch-agent", "operation_id": operation_id,
+        "tier": "autonomous",
+    }
+    result = asyncio.run(_agent(leaf)._step_act_unaudited(
+        name, {"value": "one"}, context=context, pre_approved=True))
+
+    assert calls == [], calls
+    assert result.get("success") is not True, result
+    assert result.get("status") == "in_progress", result
+    assert result.get("effect_state") == "none", result
+    with host.Session() as db:
+        row = claims.generic_operations(
+            workspace, operation_id, db_factory=host.session, strict=True)
+        assert row and row[0]["status"] == claims.CLAIMED, row
+
+
+def test_distinct_sequential_authorized_mutations_still_run(host, monkeypatch):
+    """Two genuinely different requested effects in one execution are two
+    operations, not a payload cache; both dispatch and both verify."""
+    _enable_oracle(monkeypatch)
+    monkeypatch.setattr("core.generic_agent.get_db_session", host.session)
+
+    name = "test.generic.sequential." + uuid.uuid4().hex
+    calls = []
+
+    async def leaf(tool, args, context=None):
+        calls.append(dict(args))
+        with host.Session() as db:
+            from core.models import User
+            db.add(User(
+                id=f"effect-{uuid.uuid4().hex}", tenant_id=TENANT,
+                workspace_id=WORKSPACE, email=f"{uuid.uuid4().hex}@x.test",
+                hashed_password="x", first_name="E", last_name="F",
+                role="member", status="active", is_active=True))
+            db.commit()
+        return {"success": True, "status": "success",
+                "action_result": "applied"}
+
+    async def verifier(ctx):
+        return OracleResult(name, True, "fresh independent readback")
+
+    _register_action(name, leaf)
+    register_postcondition(name)(verifier)
+
+    context = _plain_context("sequential-mutations-execution")
+    first = asyncio.run(_agent(leaf)._step_act_unaudited(
+        name, {"value": "first"}, context=dict(context), pre_approved=True))
+    second = asyncio.run(_agent(leaf)._step_act_unaudited(
+        name, {"value": "second"}, context=dict(context), pre_approved=True))
+
+    assert first.get("oracle_verified") is True, first
+    assert second.get("oracle_verified") is True, second
+    assert len(calls) == 2, calls
+    assert calls[0]["value"] == "first"
+    assert calls[1]["value"] == "second"
+
+
+def _register_action(name, leaf):
+    action_registry.register(
+        name, leaf, effects=[{"effect": "create", "scope": "local"}])
