@@ -1,0 +1,22 @@
+{
+  "executed_source": "9067ee9224e819e054992bc7bc5453ad9b1dbfb0",
+  "native_fix": "7a7092aaa",
+  "predecessor_native": "5dfb58a85",
+  "root_predecessor_runtime": "a10463031",
+  "independent_final": {
+    "passed": 118,
+    "actual_exit": 0
+  },
+  "personal_negative": {
+    "failed": 1,
+    "passed": 14,
+    "actual_exit": 1
+  },
+  "missing_actor_negative": {
+    "failed": 1,
+    "actual_exit": 1
+  },
+  "conflict_resolution": "test-only add/add; expanded native matrix plus original independent missing-actor test retained",
+  "scope": "public/shared resume/recovery and real registered-effect twins with controlled reasoning/auth; no browser/provider/PostgreSQL claim",
+  "fixture_retention": "completed final fixture archived with every file SHA256; original negative trees untouched"
+}
