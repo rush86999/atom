@@ -1,0 +1,23 @@
+{
+  "executed_source": "5d7609d8f9d888cd1c22f6a9c2a9a762c151446a",
+  "final": {
+    "passed": 146,
+    "actual_exit_code": 0,
+    "seconds": 149.57
+  },
+  "focused": {
+    "executed_source": "4a4f1092ee829b00e7be4e14f895a171c065eea7",
+    "passed": 9,
+    "actual_exit_code": 0,
+    "seconds": 13.12
+  },
+  "retain_guard": {
+    "passed": 1,
+    "actual_exit_code": 0,
+    "seconds": 2.11
+  },
+  "artifact_sha256": "01eaf1acda273d2268ecbc1665691867a002d5133c72d34984abff831b0077be",
+  "two_question_ids_distinct": true,
+  "durable_completed": true,
+  "general_app_completion": "open"
+}

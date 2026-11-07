@@ -50,6 +50,11 @@ class ClarificationProposal(BaseModel):
     concept: str = Field(default="", max_length=120)
     unblocks: str = Field(default="", max_length=300)
     expected_answer_type: str = Field(default="", max_length=80)
+    # Typed, server-validated scope for a capability missing several declared
+    # roles. The model names only the role(s) this one question requests; the
+    # consumer intersects them with the capability contract instead of
+    # inferring scope from human wording.
+    missing_roles: List[str] = Field(default_factory=list, max_length=8)
 
 
 class EmployeeWorkProposal(BaseModel):

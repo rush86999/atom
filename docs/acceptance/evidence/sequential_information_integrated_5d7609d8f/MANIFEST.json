@@ -1,0 +1,30 @@
+{
+  "executed_source": "5d7609d8f9d888cd1c22f6a9c2a9a762c151446a",
+  "source_files": {
+    ".github/workflows/ci.yml": "1b7eca5e227dc777911fad84023a411ddb7e6b7dff6a7ef162c4415c9f8cdba3",
+    "backend/api/assignment_routes.py": "cd89d63992ca9753d67c7e1fdcf8be7789a7adcdfeec0f1c50438ebc1494a788",
+    "backend/core/employee_adaptation.py": "f0214906347ba4ad961b604707dede957d2d3f3a82fbe04a236b5f02fe39e715",
+    "backend/core/employee_job_runner.py": "17c2980a1cb8332389cec0f713bb4aae8175e7221bfb27f66a290db632d246a2",
+    "backend/core/employee_proposal.py": "aa6ebcf459f05951fd1acdf36a7cdb8704fca48fe22752cd1fa65b7f391ab4a5",
+    "backend/tests/test_employee_prerequisite_eligibility.py": "36e5f0813eced5af793f8db81719b87e0e978382c7b0aafabed5590e425faae1",
+    "backend/tests/test_sequential_fact_completion_contract.py": "bc0f6d19483deb9c91b5277e88d84ebcb12f5c9ff272a96f502c03e336c10d61",
+    "backend/tests/test_task_wait_two_fact_events.py": "70b52996e14fa06a50a4fc19e41c9edf57f5449964d7d2411b39d0a19bb997d9"
+  },
+  "artifacts": {
+    "final.xml": "209bd0d0e3df1e8237f2e3a73c18fde71963efa13ca677238240addf757e5266",
+    "durable-result-readback.json": "933074f98768890a7bb6d15990e8132aeec33181617b3c8a24157d212d4d037f",
+    "retain-only-exit.json": "f0dc9a100a9ed6358091f3e1e9dd112be8dc7b4de3cc563764228ca650f64e37",
+    "retain-only-spec.json": "494af6f5d33325a7c23756e77bc39000f75166f6ac4324cc2cf278abc43b60dc",
+    "verified-reconciliation.docx": "01eaf1acda273d2268ecbc1665691867a002d5133c72d34984abff831b0077be",
+    "final-spec.json": "4e8a872257004bb8f32250607de0bb6fc609cf1c9635764636606fe54c2a9297",
+    "final-exit.json": "e7379b57da4abf5a6de1c8af893bc8a7938901b7a850c2329d247faf3be66528",
+    "README.md": "c5df9557c935cb60363b3ef885b7a1193e30af0a53409200431db0f4c4f04e77",
+    "independent-retain-probe.py": "5e51e9fba14698f860eea3595a66719d6fb4ccc457027018ea44eb8c6ddab7a0",
+    "focused-exit.json": "871469736a2d80a0c717f24d4bda2082320b63b462359bf3cb6ec76fd07995d9",
+    "focused-spec.json": "30f08661690c0cd83bece77173cb9119d3b5fac143952adad04e5a3ba20a1a4d",
+    "retain-only.log": "98d22f19fa2e0602be4836a523ada9389e993837ecdc4271dede2d0dbd305323",
+    "verification.json": "ad697cbcdbc7f43638b504171a6337cf61940fee32ac1fcff8a0e6931e547ca5",
+    "final.log": "86f89fa9ed844133c92ddda0b584079be82fd43410b53a70dc3c905fa7365983",
+    "focused.log": "c0a0f342c6b13f2973f4f3f82920b13fa5e31c7755b692905d0890e4c9a46f02"
+  }
+}

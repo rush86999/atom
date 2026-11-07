@@ -1,0 +1,19 @@
+{
+  "tests.test_task_wait_two_job_isolation": 1,
+  "tests.test_task_wait_source_trigger_contract": 2,
+  "tests.test_task_wait_source_continuation_regressions": 18,
+  "tests.test_task_wait_two_fact_events": 2,
+  "tests.test_employee_prerequisite_eligibility": 6,
+  "tests.test_sequential_fact_completion_contract": 1,
+  "tests.test_task_wait_process_recovery": 3,
+  "tests.test_task_wait_independent_work": 1,
+  "tests.test_task_wait_artifact_content_contract": 1,
+  "tests.test_employee_work_requests": 19,
+  "tests.test_employee_work_request_matrix": 4,
+  "tests.test_employee_durable_wait_g5": 6,
+  "tests.test_employee_evidence_change_g5": 1,
+  "tests.test_employee_adaptation_contract": 9,
+  "tests.test_employee_compiler_question_contract": 3,
+  "tests.test_boot_recovery_not_gated_by_scheduler": 7,
+  "tests.test_assignment_routes": 64
+}

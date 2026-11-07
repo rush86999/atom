@@ -1,0 +1,21 @@
+{
+  "executed_source": "cb13bee875ee5561e36a491ad871b675d454812d",
+  "source_files": {
+    "backend/api/assignment_routes.py": "cd89d63992ca9753d67c7e1fdcf8be7789a7adcdfeec0f1c50438ebc1494a788",
+    "backend/core/employee_adaptation.py": "f0214906347ba4ad961b604707dede957d2d3f3a82fbe04a236b5f02fe39e715",
+    "backend/core/employee_job_runner.py": "17c2980a1cb8332389cec0f713bb4aae8175e7221bfb27f66a290db632d246a2",
+    "backend/core/employee_proposal.py": "aa6ebcf459f05951fd1acdf36a7cdb8704fca48fe22752cd1fa65b7f391ab4a5",
+    "backend/tests/test_task_wait_two_job_isolation.py": "3f1520203c1786fa900d942372582d8248ee948a4573feb13ea6c674de3085da",
+    "backend/tests/test_task_wait_two_fact_events.py": "70b52996e14fa06a50a4fc19e41c9edf57f5449964d7d2411b39d0a19bb997d9",
+    "backend/tests/test_employee_prerequisite_eligibility.py": "36e5f0813eced5af793f8db81719b87e0e978382c7b0aafabed5590e425faae1",
+    "backend/tests/test_sequential_fact_completion_contract.py": "bc0f6d19483deb9c91b5277e88d84ebcb12f5c9ff272a96f502c03e336c10d61"
+  },
+  "artifacts": {
+    "independent.xml": "b32e9dbe6fc9a1f08a0b11d940a8e8476bfc74d09d7523db20370e0d6f21d083",
+    "README.md": "7d56ac16beec76faf8631d8cacfcaff88b266a551dd7ddb12e691ae86af02445",
+    "verification.json": "81e291c40669a18ad597b0be5bcdf065014bd1e54c12f33c8416ce0778c57cc8",
+    "independent.log": "ce1b76b0d540c46247148dcd090baf40b4228f601343cf31bf646220fe6ee974",
+    "independent-exit.json": "2ebad8a0d8c5c245c330e0b05028b3b02fc39e9754685a20e9c17a88291b513f",
+    "independent-spec.json": "516aa938f7bf256adc38add06dbf71924f5b8d6922d492c77825581d460724db"
+  }
+}
