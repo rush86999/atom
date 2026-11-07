@@ -1,0 +1,11 @@
+2026-11-07 18:44:01.990 EST [55625] LOG:  starting PostgreSQL 14.24 (Homebrew) on x86_64-apple-darwin23.6.0, compiled by Apple clang version 16.0.0 (clang-1600.0.26.6), 64-bit
+2026-11-07 18:44:01.990 EST [55625] LOG:  listening on Unix socket "/private/tmp/root-pg-schema-70utwgb7/socket/.s.PGSQL.55439"
+2026-11-07 18:44:01.994 EST [55627] LOG:  database system was shut down at 2026-11-07 18:44:01 EST
+2026-11-07 18:44:02.007 EST [55625] LOG:  database system is ready to accept connections
+2026-11-07 18:44:03.472 EST [55636] ERROR:  out of shared memory
+2026-11-07 18:44:03.472 EST [55636] HINT:  You might need to increase max_locks_per_transaction.
+2026-11-07 18:44:03.472 EST [55636] STATEMENT:  CREATE INDEX ix_social_media_audit_agent_execution_id ON social_media_audit (agent_execution_id)
+2026-11-07 18:44:03.524 EST [55625] LOG:  received smart shutdown request
+2026-11-07 18:44:03.531 EST [55625] LOG:  background worker "logical replication launcher" (PID 55633) exited with exit code 1
+2026-11-07 18:44:03.532 EST [55628] LOG:  shutting down
+2026-11-07 18:44:03.607 EST [55625] LOG:  database system is shut down

@@ -1,0 +1,8 @@
+2026-11-07 18:44:38.459 EST [55778] LOG:  starting PostgreSQL 14.24 (Homebrew) on x86_64-apple-darwin23.6.0, compiled by Apple clang version 16.0.0 (clang-1600.0.26.6), 64-bit
+2026-11-07 18:44:38.460 EST [55778] LOG:  listening on Unix socket "/private/tmp/root-pg-schema-gt0v55eg/socket/.s.PGSQL.55439"
+2026-11-07 18:44:38.464 EST [55780] LOG:  database system was shut down at 2026-11-07 18:44:38 EST
+2026-11-07 18:44:38.476 EST [55778] LOG:  database system is ready to accept connections
+2026-11-07 18:44:39.790 EST [55778] LOG:  received smart shutdown request
+2026-11-07 18:44:39.796 EST [55778] LOG:  background worker "logical replication launcher" (PID 55786) exited with exit code 1
+2026-11-07 18:44:39.796 EST [55781] LOG:  shutting down
+2026-11-07 18:44:39.849 EST [55778] LOG:  database system is shut down
