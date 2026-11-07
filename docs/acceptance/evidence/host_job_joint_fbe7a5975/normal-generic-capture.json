@@ -1,0 +1,44 @@
+{
+  "success": false,
+  "app_id": "697c6300-3134-49d8-b5c8-e3acde0c3ea9",
+  "canvas_id": "96b48190-1dc5-403a-bb25-84613dabb89f",
+  "name": "Normal consumer app",
+  "logic_source": "# Mini-app starter logic\n# `state` (dict) and `assets` (dict of bytes/str) are injected as globals.\n# To persist new state, assign `state = {...}`.\n# To read/write an asset, use the `storage_ops` list, e.g.:\n#   storage_ops.append({\"op\": \"put\", \"key\": \"data.xlsx\", \"data\": <bytes>, \"content_type\": \"...\"})\n# To CRUD structured rows, use the `record_ops` list, e.g.:\n#   record_ops.append({\"op\": \"append\", \"series\": \"chart_data\", \"data\": {\"label\": \"Jan\", \"value\": 12}})\n# `records` (dict of pre-fetched own-history series) and `data_sources`\n# (documents.search + integration results) are injected when the manifest\n# declares record_queries / data_sources / integrations.\n# To make a CONDITIONAL integration call mid-run (host-mediated, scope-gated),\n# call fetch_integration(service, action, params) \u2014 it blocks until the host\n# resolves the call and returns the result payload (raises RuntimeError on error):\n#   pages = fetch_integration(\"notion\", \"search\", {\"query\": state.get(\"topic\", \"\")})\nresult = {}\nif isinstance(state, dict):\n    result = dict(state)\nresult[\"runs\"] = result.get(\"runs\", 0) + 1\nstate = result\n",
+  "manifest": {
+    "declared_scopes": [
+      "canvas_render"
+    ],
+    "skills": [],
+    "integrations": [],
+    "entrypoint": "logic",
+    "dependencies": [],
+    "base_image": "python:3.11-slim",
+    "assets": [],
+    "storage": {
+      "enabled": true,
+      "backend": "local",
+      "max_bytes_per_object": 5242880
+    },
+    "db": {
+      "enabled": true,
+      "max_records_per_series": 10000,
+      "max_record_bytes": 102400,
+      "record_queries": []
+    },
+    "initial_state": {},
+    "blueprint": {},
+    "canvas_type": "mini_app"
+  },
+  "audit_id": "3380e032-be24-46a8-b392-b0f9bd5cfb0a",
+  "operation_id": "auto-368d5bef2778af8da36f64ad0ba2af78ecec4be2f95371ac9fc86cb1de22b1ca",
+  "message": "Tool 'mini_app_scaffold' may have applied an effect, but no independent postcondition verdict confirmed it. Do NOT retry or resend operation auto-368d5bef2778af8da36f64ad0ba2af78ecec4be2f95371ac9fc86cb1de22b1ca; reconcile it first.",
+  "oracle_verified": false,
+  "oracle_evidence": "no frozen operation/request binding",
+  "status": "uncertain",
+  "action_result": "uncertain",
+  "business_success": false,
+  "effect_state": "unknown",
+  "durable_claim": true,
+  "requires_reconciliation": true,
+  "retryable": false
+}
