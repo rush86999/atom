@@ -1856,9 +1856,15 @@ def _resolve_shopify_store_authority(
             or ctx.get("_oracle_expected_workspace_id")
             or "default")
         with SessionLocal() as db:
-            store = db.query(EcommerceStore).filter(
+            stores = db.query(EcommerceStore).filter(
                 EcommerceStore.tenant_id == ws_id
-            ).first()
+            ).limit(2).all()
+            # More than one store in the same workspace is ambiguous: a
+            # workspace-wide write must not pick an arbitrary row (and thus an
+            # arbitrary tenant/storefront) before transport.
+            if len(stores) != 1:
+                return None, None
+            store = stores[0]
             if not store or not store.access_token or not store.shop_domain:
                 return None, None
             if getattr(store, "is_active", True) is False:
@@ -1965,10 +1971,46 @@ async def _shopify_list_blogs(args: Dict[str, Any], context: Dict[str, Any]) -> 
 async def _shopify_create_blog(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     token, shop = _resolve_shopify_store(context)
     if not token:
-        return {"success": False, "error": "no_shopify_store", "message": "No Shopify store connected to this workspace."}
-    from integrations.shopify_service import ShopifyService
-    blog = await ShopifyService().create_blog(token, shop, title=args["title"], handle=args.get("handle"))
-    return {"success": True, "blog": blog}
+        return {
+            "status": "failed_before_effect",
+            "success": False,
+            "action_result": "proven_not_applied",
+            "effect_possible": False,
+            "error": "no_shopify_store",
+            "error_kind": "no_shopify_store",
+            "message": "No Shopify store connected to this workspace.",
+        }
+    selectors = _shopify_store_selector_arguments(args)
+    if selectors:
+        return {
+            "status": "failed_before_effect",
+            "success": False,
+            "action_result": "proven_not_applied",
+            "effect_possible": False,
+            "error": "store_override_refused",
+            "error_kind": "store_override_refused",
+            "message": (
+                "Store and credential selectors are server-owned; refusing "
+                "before dispatch: " + ", ".join(selectors)),
+        }
+    if not str((args or {}).get("title") or "").strip():
+        return {
+            "status": "failed_before_effect",
+            "success": False,
+            "action_result": "proven_not_applied",
+            "effect_possible": False,
+            "error": "invalid_request",
+            "error_kind": "invalid_request",
+            "message": "A blog title is required.",
+        }
+    from core.shopify_mutations import create_blog
+
+    return await create_blog(
+        token, shop, args,
+        operation_id=str(
+            (context or {}).get("operation_id")
+            or (args or {}).get("operation_id") or ""),
+    )
 
 
 @register_action(

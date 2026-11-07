@@ -184,6 +184,15 @@ def build_request_expectations(
         except Exception:  # noqa: BLE001 - verifier refuses absent binding
             expected_shopify_product = None
 
+    expected_shopify_blog = None
+    if name == "shopify_create_blog":
+        try:
+            from core.shopify_mutations import accepted_blog_material
+
+            expected_shopify_blog = accepted_blog_material(args)
+        except Exception:  # noqa: BLE001 - verifier refuses absent binding
+            expected_shopify_blog = None
+
     # Presentation material is frozen from the authorized arguments, not from
     # the handler's returned envelope.  Both consumers and the canvas producer
     # derive it through ``core.presentation_material`` so the digests cannot
@@ -281,6 +290,7 @@ def build_request_expectations(
         "_oracle_expected_task_title": expected_task_title,
         "_oracle_expected_board_id": expected_board_id,
         "_oracle_expected_shopify_product": expected_shopify_product,
+        "_oracle_expected_shopify_blog": expected_shopify_blog,
         "_oracle_expected_app_id": expected_app_id,
         "_oracle_expected_tests": expected_tests,
         "_oracle_expected_tests_sha256": expected_tests_sha256,
