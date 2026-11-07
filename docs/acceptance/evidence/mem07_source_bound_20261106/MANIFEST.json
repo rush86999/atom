@@ -1,0 +1,70 @@
+{
+  "schema": "atom-employee-evidence-1",
+  "status": "MEM-07 gated Auto-Dev workspace-binding repair submitted for independent verification; no merge, accept, or deployment",
+  "branch": "codex/mem07-error-candidate-20261107",
+  "executed_source": "cf2964720e171de09b4dfe2f2db0beb2f4a1793e",
+  "source_checkpoint": "b2faf066b863ef8d4ae298daa3112588101c77c2",
+  "base_main": "248a2329623b433e68104c4d89d2965683d81013",
+  "commits": {
+    "fix": "f0efc7caadc205a5d6e4591852b285d9d7c6dfa6",
+    "seam_retarget": "eb8b4578cac6b9b0819eb5c3af6be2e63ddbea78",
+    "ci_additivity": "8748f9033bcea70bd58c97d942adfafed21e8150",
+    "pre_fix_gate": "54cd12bf20c8b992e2dcbf6301ceedfae97d6516",
+    "merge_head": "cf2964720e171de09b4dfe2f2db0beb2f4a1793e"
+  },
+  "source_files": {
+    "backend/core/auto_dev/reflection_engine.py": "9842fc5f66e14f3b27fe1d8c4bcbb48454c878687fc2c5fc21d5c9e35d6f5235",
+    "backend/core/auto_dev/capability_gate.py": "04f2d57c29135980c7b4c302e84351158cca2e05fff113df4e8c23312cfd47a1",
+    "backend/tests/test_tool_error_memento_lifecycle.py": "42282a5ab34ff74c57394916ae090a5610a6e5f100a562c401ca7f167fc88bf8",
+    "backend/tests/test_tool_error_evolution.py": "10771da1cd2cfae84f57305cb873dcc059f3166b2cdb659d67338aee696fdc06",
+    "backend/tests/test_covpush_w84c_autodev2.py": "435053d3a586fd8cc5caebc6e55ddaea50ea276d46ed846b73c47a2b388af8d7",
+    "backend/tests/test_covpush_autodev_comms.py": "44289341f71019bfb51458a6b67bbcc882854107b29ccf33df3d9f4fd5a44cba",
+    ".github/workflows/ci.yml": "ac8045ec76dbc973b4e001fda74d9747bfb2fb229a82c74125970ef9f03922a6"
+  },
+  "git_bindings": {
+    "schema": "mem07-executed-source-1 (full triples in EXECUTED_SOURCE.json)",
+    "f0efc7caa == HEAD blobs (owned files)": [
+      "backend/core/auto_dev/reflection_engine.py: 794236d6137930e55ee4b8c8b340d6fa985dbbed",
+      "backend/core/auto_dev/capability_gate.py: 4dc46dc586deba359cf7f8f78d64d7c9fd5d0356"
+    ],
+    "pre_fix_54cd12bf2_reflection_engine.py": "3cdaee8c8434e3380c045cd7ae63e91477468ef4",
+    "baseline_248a23296_reflection_engine.py": "6aeb1949b510ebe190edf6c42af98c2abbb5598d",
+    "verified_from_git_objects": "sha256 of `git cat-file blob` outputs cross-checked against worktree files; mismatches: []"
+  },
+  "artifacts": {
+    "README.md": "74620abbf04a93b9900de97041f776217b253a1598ee31aaf6f07de1646048d9",
+    "EXECUTED_SOURCE.json": "6ed6af828bd2b01cea39efc671a6ce34e971088f23f60cdc6415acc277afe480",
+    "failure_id_comparison.json": "f55120e3e949f9ea4ddd91cf461043ad670059ab0860acaacb8b345b678ca157",
+    "baseline_neighborhood.sanitized.log": "70e2d2c1aea7c79a449420238ac3958a2b9b6d4c7dc0fc5040ab4a6fcfc0a238",
+    "candidate_preretarget.sanitized.log": "b0030bcfbfa67a053eb114b943133cd3d20adc940a062f8a4afff6c35dc693f6",
+    "candidate_corrected.sanitized.log": "e28cdbd478fa80d175d432575937bca7f0516c57e6289d4c4a3a748e9232e310",
+    "candidate_mergehead.sanitized.log": "a0ec31b868819ce39ccad1e241cb88eb3b8afbb051147275018849ee576b3e2e",
+    "focused_mergehead.sanitized.log": "10bf94c55894718469296c31e75141aff331d94b8cf358123495cbff144d6d05",
+    "failure_first.sanitized.log": "609f664cef8784a20981fe1456fcb82f7f10cc2d069c09ca6dd65875d16cebba"
+  },
+  "checks": {
+    "baseline_248a23296": "23 failed, 345 passed",
+    "candidate_corrected_f0efc7caa": "23 failed, 347 passed",
+    "candidate_mergehead_cf2964720": "23 failed, 347 passed",
+    "failure_id_sets_identical_baseline_vs_corrected": true,
+    "failure_id_sets_identical_baseline_vs_mergehead": true,
+    "preretarget_intermediate": "25 failed / 343 passed; the 2 extra IDs are exactly the stale seam tests, removed by eb8b4578c retargeting",
+    "focused_mergehead": "13 failed, 43 passed — fails are the inherited baseline stale-symbol subset; both focused MEM-07 suites and all seam controls pass",
+    "skips_waits_deletions": 0,
+    "candidate_added_failures": 0,
+    "failure_first_twins_at_pre_fix_source": "5 failed / 5 run at byte-exact 54cd12bf2 (empty git diff --stat proof); directions captured incl. wrongly-allowed triggers for agent-orphan/agent-cross/agent-twin and NoResultFound instead of fail-closed refusal",
+    "worktree_restored_after_failure_first": true,
+    "sha256_audited_dependencies_no_mismatches": true,
+    "pii_residues_scan": "all seven sanitized artifacts scanned: rushiparikh and /Users/<home> absent; raw originals kept private and never uploaded",
+    "ci_additivity_at_merge_head": "all main gates retained (incl. test_recording_review_scope.py + served-route step) plus the two MEM-07 suites",
+    "merge_zero_source_delta_in_owned_files": "git diff 8748f9033..cf2964720 over the six owned files is empty; blob hashes identical",
+    "independent_integrator_verification": "25 passed at f0efc7caa (root run /private/tmp/root-mem07-fixed.log), cited only, NOT committed"
+  },
+  "boundaries": [
+    "scratch SQLite worlds only; no live DB, no external/model calls, no spend",
+    "scope limited to the resolver, the two gate consumers, seam retargeting on two coverage suites, five workspace twins + controls, and CI additivity",
+    "remaining failure IDs are inherited pre-existing baseline failures; not waived, skipped, or deleted",
+    "no merge, accept, approval, or self-review; PR #709 submitted for independent exact-head checks",
+    "bootstrap scratch files (.mem07_pr_body.md, CLI_WORK_ORDER.md, opencode.jsonc) stay untracked"
+  ]
+}

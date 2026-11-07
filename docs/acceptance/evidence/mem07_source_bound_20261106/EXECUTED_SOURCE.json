@@ -1,0 +1,45 @@
+{
+  "schema": "mem07-executed-source-1",
+  "branch": "codex/mem07-error-candidate-20261107",
+  "commits": {
+    "base_main_baseline": "248a2329623b433e68104c4d89d2965683d81013",
+    "pre_fix_gate_commit": "54cd12bf20c8b992e2dcbf6301ceedfae97d6516",
+    "fix_commit": "f0efc7caadc205a5d6e4591852b285d9d7c6dfa6",
+    "seam_retarget": "eb8b4578cac6b9b0819eb5c3af6be2e63ddbea78",
+    "ci_commit": "8748f9033bcea70bd58c97d942adfafed21e8150",
+    "merged_main_include": "b2faf066b863ef8d4ae298daa3112588101c77c2",
+    "merge_head": "cf2964720e171de09b4dfe2f2db0beb2f4a1793e"
+  },
+  "bindings": {
+    "248a23296:backend/core/auto_dev/reflection_engine.py": "6aeb1949b510ebe190edf6c42af98c2abbb5598d",
+    "54cd12bf2:backend/core/auto_dev/reflection_engine.py": "3cdaee8c8434e3380c045cd7ae63e91477468ef4",
+    "f0efc7caa:backend/core/auto_dev/reflection_engine.py": "794236d6137930e55ee4b8c8b340d6fa985dbbed",
+    "HEAD:backend/core/auto_dev/reflection_engine.py": "794236d6137930e55ee4b8c8b340d6fa985dbbed",
+    "f0efc7caa:backend/core/auto_dev/capability_gate.py": "4dc46dc586deba359cf7f8f78d64d7c9fd5d0356",
+    "HEAD:backend/core/auto_dev/capability_gate.py": "4dc46dc586deba359cf7f8f78d64d7c9fd5d0356",
+    "HEAD:backend/tests/test_tool_error_memento_lifecycle.py": "81545938dd883fc46ecbbec1de71c38f46b80bfc",
+    "HEAD:backend/tests/test_tool_error_evolution.py": "533805ed7c5e815f012d18f45fb929ab6615daa0",
+    "HEAD:backend/tests/test_covpush_w84c_autodev2.py": "178d19a6b4d8210b28da1dc1bf72a05907533e47",
+    "HEAD:backend/tests/test_covpush_autodev_comms.py": "67df041497f23ee03fbf3850ffd2402a10f69d1e",
+    "HEAD:.github/workflows/ci.yml": "077c5bffaf71f432bfd1f8e650ca7810970ad1b0"
+  },
+  "checks": {
+    "@248a23296:backend/core/auto_dev/reflection_engine.py": "f9de6c6517fa2cca6d5771f8950b6224dca56007c8e8b3a4181f20d5c6a81482",
+    "@54cd12bf2:backend/core/auto_dev/reflection_engine.py": "35bccb6961c5814f448cd60f1125e3934eabd66535d0177053c4116b102c7516",
+    "backend/core/auto_dev/reflection_engine.py": "9842fc5f66e14f3b27fe1d8c4bcbb48454c878687fc2c5fc21d5c9e35d6f5235",
+    "backend/core/auto_dev/capability_gate.py": "04f2d57c29135980c7b4c302e84351158cca2e05fff113df4e8c23312cfd47a1",
+    "backend/tests/test_tool_error_memento_lifecycle.py": "42282a5ab34ff74c57394916ae090a5610a6e5f100a562c401ca7f167fc88bf8",
+    "backend/tests/test_tool_error_evolution.py": "10771da1cd2cfae84f57305cb873dcc059f3166b2cdb659d67338aee696fdc06",
+    "backend/tests/test_covpush_w84c_autodev2.py": "435053d3a586fd8cc5caebc6e55ddaea50ea276d46ed846b73c47a2b388af8d7",
+    "backend/tests/test_covpush_autodev_comms.py": "44289341f71019bfb51458a6b67bbcc882854107b29ccf33df3d9f4fd5a44cba",
+    ".github/workflows/ci.yml": "ac8045ec76dbc973b4e001fda74d9747bfb2fb229a82c74125970ef9f03922a6"
+  },
+  "verified_from_git_objects": true,
+  "method": "git cat-file blob <sha> piped to sha256 within the runtime then compared with worktree file sha256; f0efc7caa and HEAD blobs are identical for all owned source files (merge cf2964720 introduced no source delta in the owned files)",
+  "failure_first_protocol": {
+    "reverted_to": "54cd12bf2",
+    "equality_proof": "git diff --stat 54cd12bf2 -- backend/core/auto_dev/reflection_engine.py produced empty output (byte-identical) before the twins run",
+    "restored_afterwards": "edit-tool byte-exact restore; git status --porcelain clean vs merge head",
+    "log": "failure_first.sanitized.log"
+  }
+}
