@@ -37,3 +37,9 @@ Whole-app ORACLE mutation coverage, general adaptive judgment, qualified live in
 ## Latest worker allowance observation
 
 Free GLM returned an actual429 free-usage-limit response during the next goal-write task. The provider delay gives an estimated reset of2026-11-08 00:22:19.968UTC; remaining balances are unknown. The saved session continues on authorized OpenCode Go DeepSeek V4.1 Flash. Do not retry the exhausted free pool early or classify this coding-quota event as an app semantic failure.
+
+## MINI04 host-record qualification successor
+
+At source d84e46a4a, a real-main-app HTTP journey with ordinary member registration/login, publish/install, record append/query and a real two-PID restart passed. The retained run is distinct from an earlier passed run whose temporary world was evicted; original logs remain separate. Fresh readback confirms records with seq1/2/3 in one installed instance and0 in the second, with unauthorized-user refusals. No guest execution occurred. The older inventory’s assumption that this host-mediated record leg requires KVM is contradicted by current code and runtime evidence. This does not qualify MINI05 guest isolation or change the historical score. Evidence: mini04_records_restart_d84e46a4a.
+
+PR711 and712 are now merged (bae68c91d and272382adbd). Main272 CI/Docker passed: backend667/1; utility31; workflow1; alignment3; mini runtime8/1 environment skip; API211/1/1; UI29 and role-UI40 with zero failures. Two OpenCode Go DeepSeek workers own the actual goal-write authority/material and shared-registry verdict defects. Root retains engineering/product/verifier and merge responsibility.

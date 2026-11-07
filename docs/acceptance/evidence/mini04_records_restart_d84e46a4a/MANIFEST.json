@@ -1,0 +1,26 @@
+{
+  "executed_source": "d84e46a4a",
+  "base_main": "272382adbd",
+  "source_files": {
+    "backend/tests/test_mini_app_records_process_restart.py": "d5b5483fa24830111f4796fb3472d8368cfbff17fc17645cb37d3aeb6312e503",
+    "backend/main_api_app.py": "83f6c051d58d39c70c94617cd6eedc9ce65e6414047c1297899dc6e771321af0",
+    "backend/api/mini_app_routes.py": "b59b7dff893134287dc060708fe91f08e82acc7fba3850312dfc3fd3e56be686",
+    "backend/core/mini_app_service.py": "43327625a8989b635b46c5158fbf3a93d5ff9b9a44109c6447cc0fdade08e1a9",
+    "backend/core/mini_app_db_service.py": "9c6ea1e513ab41089d3f0513fb7a4a2483fee63361ebad16ed8ebdefd8dba683",
+    "backend/core/database.py": "fd3736e7f679b9b30e242597e25a27565d3ab93fc8c0efd3ea0b1cef76e9b16e",
+    "backend/core/models.py": "4b238c35f6f235d94779f4598040f0c9fcd39599c26705e7016e8b045b51c3ef",
+    "backend/core/auth.py": "63b747a9e335f84128fc43b846eacb8beaef3874edeac00874ee803a5e287c61",
+    "backend/api/enterprise_auth_endpoints.py": "445138ff418123a3bea734f28ef6d52e2ff8aa129d9492414dc4ed9263bf066e"
+  },
+  "artifacts": {
+    "README.md": "3f2766582a79606f03c4b8c3f70af689eebe09f6175dc3136c83108114d0162e",
+    "verification.json": "971fede53dcdec3e36426f043c0abee80f40b284c598e0521824e3be2cd85439",
+    "frozen-tests.log": "d09d357ee01c9b3772c2e27c0c63955e141d9091124a6b3f90d3459ce3594fee"
+  },
+  "qualification": {
+    "pytest_passed": 1,
+    "run_kind": "new retained qualification run",
+    "initial_run_log_preserved_privately": true,
+    "scope": "ordinary-auth host-mediated record persistence across a real process restart; no guest isolation claim"
+  }
+}
