@@ -1258,16 +1258,16 @@ def _verified_hitl_wait(
             if row_user is None or str(row_user) != str(actor_id):
                 continue
         # A new admitted task needs the complete server-owned task/execution
-        # binding; absence is unknown, not proof of ownership. Legacy rows
-        # stay readable/listable but cannot certify this task's wait.
-        material = {}
-        for field in ("context_snapshot", "params"):
-            value = getattr(row, field, None)
-            if isinstance(value, dict):
-                material.update(value)
-        material_job = material.get("job_id")
+        # binding from the existing producer's snapshot. Business action
+        # params are never wait authority: they may legitimately target a
+        # different business run/entity. Legacy rows stay readable/listable
+        # but cannot certify this task's wait.
+        snapshot = getattr(row, "context_snapshot", None)
+        if not isinstance(snapshot, dict):
+            continue
+        material_job = snapshot.get("job_id")
         material_execution = (
-            material.get("execution_id") or material.get("run_id"))
+            snapshot.get("execution_id") or snapshot.get("run_id"))
         expected_job = namespace.get("job_id")
         expected_execution = namespace.get("execution_id")
         if not material_job or not material_execution:
@@ -1277,6 +1277,32 @@ def _verified_hitl_wait(
         if str(material_job) != str(expected_job):
             continue
         if str(material_execution) != str(expected_execution):
+            continue
+        snapshot_workspace = snapshot.get("workspace_id")
+        if (
+            snapshot_workspace is not None
+            and str(snapshot_workspace) != workspace
+        ):
+            continue
+        snapshot_tenant = snapshot.get("tenant_id")
+        if (
+            snapshot_tenant is not None
+            and str(snapshot_tenant) != tenant
+        ):
+            continue
+        snapshot_actor = (
+            snapshot.get("actor_id") or snapshot.get("user_id"))
+        if (
+            snapshot_actor is not None
+            and actor_id is not None
+            and str(snapshot_actor) != str(actor_id)
+        ):
+            continue
+        snapshot_agent = snapshot.get("agent_id")
+        if (
+            snapshot_agent is not None
+            and str(snapshot_agent) != str(agent_id)
+        ):
             continue
         return {
             "hitl_action_id": str(row.id),
