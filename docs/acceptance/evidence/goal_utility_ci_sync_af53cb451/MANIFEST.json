@@ -1,0 +1,24 @@
+{
+  "artifacts": {
+    "README.md": "61e51fc5c7c5a40f7e7346ddca0f40215537d26932bf62a6bb99d15453cdb403",
+    "RUNS.json": "a55336b1568897aa39a56e0c088f5775495adcd798a78383923a42a6b397813b",
+    "deterministic-race-old-pattern-fail.log": "0a1207af87e4a9c251d2452cb94cf8abdc787456821bc6e3cd168a58f3e174d4",
+    "hosted-753-bd209-failure.log": "b7d342b32f4728a558c285aeb15f8bd6e4397ad008ec3df9ca1276457daaf96f",
+    "hosted-755-e081-failure.log": "4e930e93aa6bb10f3894646b182e02c4df6ce370e5fa2737ba4654e22c398bb7",
+    "local-detail-25-after-pass.log": "45bd4dbe0f778500ae3904f4f71304ac0bf33925e5b9bb76534b1e087c5cc4be",
+    "local-detail-25-before-pass.log": "3323819bfec1a92e76ff51dc25f2b689d321a92378de97c432a346726baa4d73",
+    "local-goalrun-39-pass.log": "a0b8b296029d8125fb85f626f145dc4ad0def8939900ccdddff719a31b853ad6",
+    "tsc-noemit.log": "aeed915589f75853cfbf1b205a874042cdface2620e0d8b4361247b1f9395c37"
+  },
+  "executed_source": "af53cb451",
+  "source_base": "8ded00232c30961a990e675e06ec672ef6a43910",
+  "source_files": {
+    "frontend-nextjs/jest.config.js": "f05bf975446841bbbaf75cda2868a81292fbc5fbb74aa7a148213ecad7f822c8",
+    "frontend-nextjs/lib/goal-run-api.ts": "2652ca966325cff649f423fbbfc006d8b303d05b1e40eefc0eff64a5126d6fbb",
+    "frontend-nextjs/lib/user-role.ts": "c3b5a8661252a358672b3289da362193f7b9fe7037b635a5a086a05697dd04e4",
+    "frontend-nextjs/pages/goal-runs/[id].tsx": "a5463416d1a36e677b8990f0457ab7ab6a1ccce6a09621c38b3c9c74037aa7f9",
+    "frontend-nextjs/tests/pages/goal-runs/detail.test.tsx": "05012e1430cbdb36fbff51bade103cb8dd9d2b48c54eb461b9e9aefe5266bb69",
+    "frontend-nextjs/tests/pages/goal-runs/index.test.tsx": "fde03afcca8aeb661f4374ca614d088676dd76b15ee06cb4c87678acde5d6d27",
+    "frontend-nextjs/tests/setup.ts": "91c2176f162c521f3b11d613ca99657889853dca9896f4e2f869b65f453cc861"
+  }
+}
