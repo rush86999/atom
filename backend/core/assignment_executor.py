@@ -2063,6 +2063,14 @@ class AssignmentExecutor:
                 # Independent ready work may continue even when one branch
                 # has failed; only the branch is blocked.
                 state = "running"
+            if state == "completed" and open_unresolved_questions(record):
+                # A wait is not completion. An independent branch may have
+                # finished and retained its receipt, but the job still owes a
+                # targeted answer before its final deliverable can be called
+                # complete.
+                state = (
+                    "waiting" if self._waiting_steps(assignment)
+                    else "blocked")
             assignment = self._set_state(assignment, state)
             if state == "completed" and assignment.get(
                     "completion_criteria"):
@@ -2127,6 +2135,16 @@ class AssignmentExecutor:
             assignment = self._checkpoint_idle(assignment)
             readiness = ready_steps(
                 assignment, task_authorization=task_authorization)
+            if open_unresolved_questions(record):
+                # Final deliverables stay blocked while a material obligation
+                # is open; independent ready branches are still allowed to
+                # run. The declared deliverable steps are the authority.
+                deliverable_steps = set(
+                    self._final_deliverable_step_ids(assignment))
+                readiness = [
+                    step for step in readiness
+                    if str(step.get("step_id")) not in deliverable_steps
+                ]
             if not readiness:
                 # Persist typed readiness blockers for pending work. A
                 # scheduler miss is a business reason (unknown qualification,
@@ -4730,6 +4748,23 @@ class AssignmentExecutor:
             step for step in assignment.get("steps") or []
             if step.get("status") in ("waiting", "awaiting_approval")
         ]
+
+    @staticmethod
+    def _final_deliverable_step_ids(
+        assignment: Dict[str, Any],
+    ) -> List[str]:
+        """Steps that produce the job's requested final outputs.
+
+        A final deliverable is not independent work: while a material
+        information obligation is open, its producing step must stay blocked
+        even when its own dependencies are satisfied. The plan's declared
+        deliverables are the authority; no adapter-name heuristic is needed.
+        """
+        return sorted({
+            str(item.get("step_id"))
+            for item in assignment.get("deliverables") or []
+            if isinstance(item, dict) and item.get("step_id")
+        })
 
     # ------------------------------------------------------ idle clock
     # Assignment time is charged only while at least one branch can make

@@ -2031,6 +2031,16 @@ def adopt_adaptation(
             "authorized_actions": list(
                 assignment.get("authorized_actions") or []),
             "action_views": [],
+            # The compiler owns output mechanics, including whether a
+            # whole-objective artifact may be compiled yet. An open
+            # information obligation means the job is still waiting even when
+            # an independent branch produced a verified result.
+            "open_obligations": [
+                dict(item) for item in
+                (record.get("task_revision") or {}).get("unresolved") or []
+                if isinstance(item, dict)
+                and str(item.get("status") or "open") == "open"
+            ],
         }
         try:
             patch = compile_work_request_patch(
