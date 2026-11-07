@@ -93,7 +93,7 @@ def user_a(db_session: Session, default_tenant: str) -> str:
 @pytest.fixture
 def board_a(db_session: Session, user_a: str) -> Board:
     """Pre-create a board with the default 6 columns."""
-    service = BoardService(db_session)
+    service = BoardService(db_session, actor_user_id=user_a)
     return service.create_board(
         owner_user_id=user_a,
         payload=BoardCreate(name="Board A", seed_default_columns=True),
@@ -105,7 +105,7 @@ def board_a(db_session: Session, user_a: str) -> Board:
 # --------------------------------------------------------------------------- #
 class TestBoardCRUD:
     def test_create_board_seeds_default_columns(self, db_session, user_a):
-        service = BoardService(db_session)
+        service = BoardService(db_session, actor_user_id=user_a)
         board = service.create_board(
             owner_user_id=user_a,
             payload=BoardCreate(name="My Board"),
@@ -117,7 +117,7 @@ class TestBoardCRUD:
         assert all(c.position == i for i, c in enumerate(cols))
 
     def test_create_board_without_seeding_columns(self, db_session, user_a):
-        service = BoardService(db_session)
+        service = BoardService(db_session, actor_user_id=user_a)
         board = service.create_board(
             owner_user_id=user_a,
             payload=BoardCreate(name="Bare", seed_default_columns=False),
@@ -126,7 +126,7 @@ class TestBoardCRUD:
         assert cols == []
 
     def test_list_boards(self, db_session, user_a):
-        service = BoardService(db_session)
+        service = BoardService(db_session, actor_user_id=user_a)
         service.create_board(
             owner_user_id=user_a,
             payload=BoardCreate(name="A1"),
@@ -134,8 +134,8 @@ class TestBoardCRUD:
         boards = service.list_boards()
         assert "A1" in [b.name for b in boards]
 
-    def test_get_board(self, db_session, board_a):
-        service = BoardService(db_session)
+    def test_get_board(self, db_session, board_a, user_a):
+        service = BoardService(db_session, actor_user_id=user_a)
         board = service.get_board(board_a.id)
         assert board.name == "Board A"
 
@@ -145,11 +145,13 @@ class TestBoardCRUD:
 # --------------------------------------------------------------------------- #
 class TestTaskCRUD:
     def _first_column_id(self, db_session, board_a) -> str:
-        cols = BoardService(db_session).list_columns(board_a.id)
+        cols = BoardService(
+            db_session, actor_user_id=board_a.owner_user_id
+        ).list_columns(board_a.id)
         return str(cols[0].id)
 
     def test_create_task_appends_to_end_of_column(self, db_session, board_a, user_a):
-        service = BoardService(db_session)
+        service = BoardService(db_session, actor_user_id=user_a)
         col_id = self._first_column_id(db_session, board_a)
 
         t1 = service.create_task(board_a.id, user_a, TaskCreate(title="T1", column_id=col_id))
@@ -162,7 +164,7 @@ class TestTaskCRUD:
         assert t3.sort_order == 2.0
 
     def test_patch_unknown_status_returns_422(self, db_session, board_a, user_a):
-        service = BoardService(db_session)
+        service = BoardService(db_session, actor_user_id=user_a)
         col_id = self._first_column_id(db_session, board_a)
         task = service.create_task(board_a.id, user_a, TaskCreate(title="T", column_id=col_id))
 
@@ -174,7 +176,7 @@ class TestTaskCRUD:
         assert exc.value.status_code == 422
 
     def test_patch_illegal_transition_returns_422_with_allowed_set(self, db_session, board_a, user_a):
-        service = BoardService(db_session)
+        service = BoardService(db_session, actor_user_id=user_a)
         col_id = self._first_column_id(db_session, board_a)
         task = service.create_task(
             board_a.id, user_a,
@@ -194,7 +196,7 @@ class TestTaskCRUD:
         assert "todo" in [s.lower() for s in body["allowed_next"]]
 
     def test_patch_legal_transition_moves_status(self, db_session, board_a, user_a):
-        service = BoardService(db_session)
+        service = BoardService(db_session, actor_user_id=user_a)
         col_id = self._first_column_id(db_session, board_a)
         task = service.create_task(
             board_a.id, user_a,
@@ -212,7 +214,7 @@ class TestTaskCRUD:
         assert updated.version_id > version_before
 
     def test_patch_with_stale_version_returns_409(self, db_session, board_a, user_a):
-        service = BoardService(db_session)
+        service = BoardService(db_session, actor_user_id=user_a)
         col_id = self._first_column_id(db_session, board_a)
         task = service.create_task(
             board_a.id, user_a, TaskCreate(title="T", column_id=col_id),
@@ -231,7 +233,7 @@ class TestTaskCRUD:
         assert exc.value.detail["error"] == "stale_version"
 
     def test_patch_move_column_updates_sort_order(self, db_session, board_a, user_a):
-        service = BoardService(db_session)
+        service = BoardService(db_session, actor_user_id=user_a)
         cols = service.list_columns(board_a.id)
         col_a_id = str(cols[0].id)
         col_b_id = str(cols[1].id)
@@ -257,7 +259,7 @@ class TestRebalance:
     def test_rebalance_column_renumbers_monotonically(
         self, db_session, board_a, user_a
     ):
-        service = BoardService(db_session)
+        service = BoardService(db_session, actor_user_id=user_a)
         cols = service.list_columns(board_a.id)
         col_id = str(cols[0].id)
 
@@ -282,7 +284,7 @@ class TestRebalance:
 # --------------------------------------------------------------------------- #
 class TestTaskWorkspace:
     def test_task_create_with_workspace_true_creates_canvas(self, db_session, board_a, default_tenant, user_a):
-        service = BoardService(db_session)
+        service = BoardService(db_session, actor_user_id=user_a)
         cols = service.list_columns(board_a.id)
         col_id = str(cols[0].id)
 
@@ -298,7 +300,7 @@ class TestTaskWorkspace:
         assert canvas.name == "Task: Code refactor"
 
     def test_task_create_without_workspace_has_null_canvas(self, db_session, board_a, user_a):
-        service = BoardService(db_session)
+        service = BoardService(db_session, actor_user_id=user_a)
         cols = service.list_columns(board_a.id)
         col_id = str(cols[0].id)
 
@@ -311,7 +313,7 @@ class TestTaskWorkspace:
     def test_patch_workspace_true_idempotently_creates_canvas(
         self, db_session, board_a, default_tenant, user_a
     ):
-        service = BoardService(db_session)
+        service = BoardService(db_session, actor_user_id=user_a)
         cols = service.list_columns(board_a.id)
         col_id = str(cols[0].id)
 
@@ -336,7 +338,7 @@ class TestTaskWorkspace:
         assert updated_again.canvas_id == updated.canvas_id
 
     def test_completing_task_archives_canvas(self, db_session, board_a, default_tenant, user_a):
-        service = BoardService(db_session)
+        service = BoardService(db_session, actor_user_id=user_a)
         cols = service.list_columns(board_a.id)
         col_id = str(cols[0].id)
 

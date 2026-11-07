@@ -1281,8 +1281,13 @@ async def _tasks_create(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[s
         from core.database import get_db_session
 
         user_id = _context_user_id(context)
+        if not user_id:
+            return {
+                "success": False,
+                "error": "Authenticated user is required to create a task",
+            }
         with get_db_session() as db:
-            svc = BoardService(db)
+            svc = BoardService(db, actor_user_id=str(user_id))
             payload = TaskCreate(
                 title=title,
                 description=args.get("description"),

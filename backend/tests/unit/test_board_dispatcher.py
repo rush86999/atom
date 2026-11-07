@@ -65,7 +65,7 @@ def populated_board(db_session):
     ))
     db_session.commit()
 
-    service = BoardService(db_session)
+    service = BoardService(db_session, actor_user_id=uid)
     board = service.create_board(owner_user_id=uid, payload=BoardCreate(name="B"))
     cols = service.list_columns(board.id)
     todo_col = next(c for c in cols if c.name == "To Do")

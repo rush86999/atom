@@ -976,7 +976,7 @@ class TestActionRegistryCore:
                 {"user_id": "u1"},
             )
         assert out["success"] is True and out["task"]["id"] == "t1"
-        BS.assert_called_once_with(db)
+        BS.assert_called_once_with(db, actor_user_id="u1")
 
     async def test_tasks_create_validation_and_error(self):
         from core.action_registry import action_registry
@@ -984,7 +984,7 @@ class TestActionRegistryCore:
         assert "required" in out["error"]
         with patch("core.database.get_db_session", side_effect=RuntimeError("db down")):
             out = await action_registry.execute_action(
-                "tasks.create", {"title": "T", "board_id": "b"}, {}
+                "tasks.create", {"title": "T", "board_id": "b"}, {"user_id": "u1"}
             )
         assert out == {"success": False, "error": "Task creation failed"}
 
