@@ -9,8 +9,8 @@ twin: the identical answer settles only that question and the same task
 produces one verified quote receipt.
 
 Public assignment routes, the real compiler/executor/catalog recheck and
-scratch durable records are exercised. Proposal/auth transport are the
-repository's controlled fixtures.
+scratch durable records are exercised. Discovery/adaptation proposal choices and authentication use controlled
+high-level fixtures; this is not transport-only or served-model qualification.
 """
 from __future__ import annotations
 
@@ -65,12 +65,14 @@ def _seed_connected_grant(route_env, tmp_path):
 
 
 def _install_transport(monkeypatch):
+    calls = []
     from core.employee_adaptation import WorkAdaptationProposal
     from core.employee_work_requests import (
         MoneyTerm, QuoteCalculationRequest, QuoteColumns, TaxTerm,
     )
 
     async def discovery(context, **kwargs):
+        calls.append("discovery")
         return {
             "proposal": {
                 "proposal_kind": "evidence_read",
@@ -87,6 +89,7 @@ def _install_transport(monkeypatch):
         }
 
     async def adaptation(context, observations, **kwargs):
+        calls.append("adaptation")
         tabular = next(
             (item for item in context.get("evidence_results") or []
              if item.get("rows")
@@ -141,6 +144,7 @@ def _install_transport(monkeypatch):
         "api.assignment_routes.propose_adaptation", adaptation)
     monkeypatch.setattr(
         "api.assignment_routes._employee_llm", lambda *a, **k: object())
+    return calls
 
 
 def _start(client, memo):
@@ -201,7 +205,7 @@ def test_revoked_local_grant_refuses_source_answer_then_valid_twin_completes(
     # connected catalog's materialized copy inside this owned scratch root.
     monkeypatch.setenv("ATOM_DATA_DIR", str(tmp_path))
     token = _seed_connected_grant(route_env, tmp_path)
-    _install_transport(monkeypatch)
+    calls = _install_transport(monkeypatch)
     memo = tmp_path / "request.txt"
     memo.write_text("Please prepare the SC-1 quote from the price list.")
     client = route_env["client"]
@@ -218,14 +222,18 @@ def test_revoked_local_grant_refuses_source_answer_then_valid_twin_completes(
     # The owner revokes the existing local grant while the task waits.
     token.status = "revoked"
     route_env["db"].commit()
+    before_calls = list(calls)
     revoked = _answer(client, run_id)
     assert revoked.status_code == 403, revoked.text
+    assert calls == before_calls
     after_revoke = lifecycle.get_assignment(run_id)
     assert _source_steps(after_revoke) == []
     assert _quotes(after_revoke) == []
     still_open = _questions(lifecycle, run_id)
     assert [item["question_id"] for item in still_open] == [
         question[0]["question_id"]]
+
+    assert still_open == question
 
     # Valid unchanged twin: the same grant re-activated and the same answer.
     token.status = "active"
