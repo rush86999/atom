@@ -1,0 +1,620 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-07 02:43:16 [    INFO] MCP Service initialized
+2026-11-07 02:43:16 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-07 02:43:16 [ WARNING] Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+2026-11-07 02:43:16 [    INFO] No token storage file found, starting empty
+2026-11-07 02:43:16 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-07 02:43:16 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-07 02:43:16 [    INFO] EscalationManager initialized
+2026-11-07 02:43:16 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 02:43:16 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-07 02:43:16 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-07 02:43:16 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-07 02:43:16 [    INFO] EscalationManager initialized
+2026-11-07 02:43:16 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 02:43:16 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-07 02:43:16 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 02:43:16 [ WARNING] WorkflowNotifier: Slack initialization deferred: 'list' object has no attribute 'get'
+
+tests/test_generic_real_mcp_budget_contract.py::test_real_mcp_registry_context_and_capability_boundary[allowed] 
+-------------------------------- live log setup --------------------------------
+2026-11-07 02:43:16 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:43:17 [    INFO] Canvas type 'mini_app' auto-registered (generic defaults)
+PASSED                                                                   [  0%]
+tests/test_generic_real_mcp_budget_contract.py::test_real_mcp_registry_context_and_capability_boundary[capability_denied] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:43:17 [    INFO] Capability gate BLOCKED tool mini_app_scaffold for agent scratch-agent (tier=autonomous)
+PASSED                                                                   [  1%]
+tests/test_generic_real_mcp_budget_contract.py::test_real_mcp_registry_context_and_capability_boundary[hard_stop] PASSED [  2%]
+tests/test_generic_real_mcp_budget_contract.py::test_budget_scope_uses_existing_personal_account_resolution[explicit] PASSED [  2%]
+tests/test_generic_real_mcp_budget_contract.py::test_budget_scope_uses_existing_personal_account_resolution[agent_fallback] PASSED [  3%]
+tests/test_generic_real_mcp_budget_contract.py::test_budget_scope_uses_existing_personal_account_resolution[workspace_fallback] PASSED [  4%]
+tests/test_generic_real_mcp_budget_contract.py::test_budget_scope_uses_existing_personal_account_resolution[personal_null] PASSED [  4%]
+tests/test_generic_real_mcp_budget_contract.py::test_budget_scope_uses_existing_personal_account_resolution[wrong_tenant] PASSED [  5%]
+tests/test_generic_real_mcp_budget_contract.py::test_budget_scope_uses_existing_personal_account_resolution[wrong_workspace] PASSED [  6%]
+tests/test_generic_real_mcp_budget_contract.py::test_budget_scope_uses_existing_personal_account_resolution[legacy_unbound] PASSED [  6%]
+tests/test_generic_real_mcp_budget_contract.py::test_budget_scope_uses_existing_personal_account_resolution[unconfigured] PASSED [  7%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[hard_stop-False-False-async] PASSED [  8%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[hard_stop-False-False-sync] PASSED [  8%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[hard_stop-False-False-sync_in_async] PASSED [  9%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[soft_stop-False-False-async] PASSED [ 10%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[soft_stop-False-False-sync] PASSED [ 10%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[soft_stop-False-False-sync_in_async] PASSED [ 11%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[approval-False-True-async] PASSED [ 12%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[approval-False-True-sync] PASSED [ 12%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[approval-False-True-sync_in_async] PASSED [ 13%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[alert_only-True-False-async] PASSED [ 14%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[alert_only-True-False-sync] PASSED [ 14%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[alert_only-True-False-sync_in_async] PASSED [ 15%]
+tests/test_budget_caller_transaction_contract.py::test_budget_check_does_not_commit_the_callers_edit[False-False] PASSED [ 16%]
+tests/test_budget_caller_transaction_contract.py::test_budget_check_does_not_commit_the_callers_edit[False-True] PASSED [ 17%]
+tests/test_budget_caller_transaction_contract.py::test_budget_check_does_not_commit_the_callers_edit[True-False] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:43:31 [   ERROR] [SpendAggregationService] Error updating spend: controlled spend read unavailable
+2026-11-07 02:43:31 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-1: controlled spend read unavailable
+PASSED                                                                   [ 17%]
+tests/test_budget_caller_transaction_contract.py::test_budget_check_does_not_commit_the_callers_edit[True-True] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:43:32 [   ERROR] [SpendAggregationService] Error updating spend: controlled spend read unavailable
+2026-11-07 02:43:32 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-1: controlled spend read unavailable
+PASSED                                                                   [ 18%]
+tests/test_budget_caller_transaction_contract.py::test_explicit_rollup_writer_still_persists_cache PASSED [ 19%]
+tests/test_budget_control.py::TestEnforcementModeDefault::test_unset_mode_defaults_to_soft_stop PASSED [ 19%]
+tests/test_budget_control.py::TestEnforcementModeDefault::test_empty_setting_defaults_to_soft_stop PASSED [ 20%]
+tests/test_budget_control.py::TestEnforcementModeDefault::test_invalid_mode_falls_back_to_soft_stop 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:43:32 [ WARNING] [BudgetEnforcementService] Invalid enforcement mode 'bogus' for tenant t1, defaulting to soft_stop
+PASSED                                                                   [ 21%]
+tests/test_budget_control.py::TestEnforcementModeDefault::test_explicit_alert_only_is_respected PASSED [ 21%]
+tests/test_budget_control.py::TestEnforcementModeDefault::test_explicit_hard_stop_is_respected PASSED [ 22%]
+tests/test_budget_control.py::TestEnforcementModeDefault::test_json_error_defaults_to_soft_stop 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:43:32 [ WARNING] [BudgetEnforcementService] Error reading enforcement mode: Expecting value: line 1 column 1 (char 0)
+PASSED                                                                   [ 23%]
+tests/test_budget_control.py::TestEnforcementModeDefault::test_mode_constants_unchanged PASSED [ 23%]
+tests/test_budget_control.py::TestAgentBudgetGate::test_gate_returns_allowed_when_budget_ok PASSED [ 24%]
+tests/test_budget_control.py::TestAgentBudgetGate::test_gate_returns_denied_under_hard_stop PASSED [ 25%]
+tests/test_budget_control.py::TestAgentBudgetGate::test_gate_fails_open_on_exception 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:43:32 [ WARNING] Budget pre-check failed (fail-open): DB down
+PASSED                                                                   [ 25%]
+tests/test_budget_control.py::TestAgentBudgetGate::test_budget_exceeded_status_maps_to_failed PASSED [ 26%]
+tests/test_budget_control.py::TestBudgetExitStatusContract::test_execute_returns_valid_status_when_budget_denied 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:43:32 [    INFO] Agent TestAgent (agent-1) starting task: do something
+2026-11-07 02:43:32 [    INFO] EscalationManager initialized
+2026-11-07 02:43:32 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 02:43:32 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 02:43:32 [    INFO] LanceDBHandler initialized. ID: 5041370640. LANCEDB_AVAILABLE: True
+2026-11-07 02:43:32 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 02:43:32 [    INFO] Connecting to LanceDB at /private/tmp/atom-generic-lead-combine/backend/data/atom_memory with storage_options=None
+2026-11-07 02:43:32 [    INFO] LanceDB connected successfully
+2026-11-07 02:43:32 [ WARNING] Budget gate halted agent TestAgent at step 1: Budget exceeded. All operations halted immediately.
+2026-11-07 02:43:32 [ WARNING] Failed to generate self-critique: 'Mock' object can't be awaited
+PASSED                                                                   [ 27%]
+tests/test_budget_control.py::TestSoftStopDefaultBehavior::test_unset_tenant_blocks_new_episode_when_over_budget PASSED [ 27%]
+tests/test_budget_control.py::TestSoftStopDefaultBehavior::test_unset_tenant_allows_active_episode_when_over_budget PASSED [ 28%]
+tests/test_budget_control.py::TestBudgetExceededMessageContract::test_message_mentions_budget_limit PASSED [ 29%]
+tests/test_budget_control.py::TestBudgetExceededMessageContract::test_message_includes_the_underlying_reason PASSED [ 29%]
+tests/test_budget_control.py::TestBudgetExceededMessageContract::test_message_has_safe_default_when_reason_missing PASSED [ 30%]
+tests/test_agent_governance_service.py::TestAgentRegistration::test_register_new_agent 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:43:33 [    INFO] Registered new agent: Test Agent
+PASSED                                                                   [ 31%]
+tests/test_agent_governance_service.py::TestAgentRegistration::test_update_existing_agent PASSED [ 31%]
+tests/test_agent_governance_service.py::TestActionPermissions::test_student_can_perform_level_1_actions 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:43:33 [ WARNING] [SpendAggregationService] Error querying BYOK costs: float() argument must be a string or a real number, not 'Mock'
+2026-11-07 02:43:33 [   ERROR] [SpendAggregationService] Error updating spend: '>' not supported between instances of 'Mock' and 'datetime.date'
+2026-11-07 02:43:33 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant <Mock name='mock.query().filter().first().tenant_id' id='5044527392'>: '>' not supported between instances of 'Mock' and 'datetime.date'
+PASSED                                                                   [ 32%]
+tests/test_agent_governance_service.py::TestActionPermissions::test_student_blocked_from_level_3_actions PASSED [ 33%]
+tests/test_agent_governance_service.py::TestActionPermissions::test_autonomous_can_perform_critical_actions 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:43:33 [ WARNING] Budget check unavailable (legacy degradation): TypeError
+PASSED                                                                   [ 34%]
+tests/test_agent_governance_service.py::TestActionPermissions::test_supervised_requires_approval_for_critical_actions PASSED [ 34%]
+tests/test_agent_governance_service.py::TestActionComplexity::test_action_complexity_mapping PASSED [ 35%]
+tests/test_agent_governance_service.py::TestMaturityRequirements::test_maturity_requirements_mapping PASSED [ 36%]
+tests/test_agent_governance_service.py::TestWorkspaceHandling::test_initialization_with_default_workspace PASSED [ 36%]
+tests/test_agent_governance_service.py::TestWorkspaceHandling::test_initialization_with_custom_workspace PASSED [ 37%]
+tests/test_agent_governance_service.py::TestListAgentsWorkspaceScope::test_list_agents_returns_unscoped_agents PASSED [ 38%]
+tests/test_agent_governance_service.py::TestListAgentsWorkspaceScope::test_list_agents_keeps_legacy_default_rows PASSED [ 38%]
+tests/test_agent_governance_service.py::TestListAgentsWorkspaceScope::test_list_agents_still_scopes_custom_workspaces PASSED [ 39%]
+tests/test_agent_governance_service.py::TestListAgentsWorkspaceScope::test_list_agents_filters_by_category 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:43:33 [    INFO] Registered new agent: Sales Agent
+2026-11-07 02:43:33 [    INFO] Registered new agent: Ops Agent
+PASSED                                                                   [ 40%]
+tests/test_agent_governance_service.py::TestErrorHandling::test_agent_not_found_returns_denied PASSED [ 40%]
+tests/test_agent_governance_service.py::TestErrorHandling::test_paused_agent_blocked_from_actions PASSED [ 41%]
+tests/test_covpush_w29_governance.py::TestRegistry::test_list_agents_filter PASSED [ 42%]
+tests/test_covpush_w29_governance.py::TestRegistry::test_register_new_agent 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:43:34 [    INFO] Registered new agent: New Agent
+FAILED                                                                   [ 42%]
+tests/test_covpush_w29_governance.py::TestRegistry::test_register_updates_existing 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:43:35 [    INFO] Registered new agent: Old
+PASSED                                                                   [ 43%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_agent_not_found PASSED [ 44%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_paused_denied PASSED [ 44%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_stopped_denied PASSED [ 45%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_student_blocked_low_complexity PASSED [ 46%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_autonomous_allowed 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:43:38 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant t-1: Tenant t-1 not found
+PASSED                                                                   [ 46%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_supervised_high_complexity_needs_approval PASSED [ 47%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_demo_agent_bypass_complexity_2 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:43:39 [    INFO] Governance demo_agent bypass: agent=agent-3309ad2b action=canvas_presentation complexity=2 tier=student
+2026-11-07 02:43:39 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant t-1: Tenant t-1 not found
+PASSED                                                                   [ 48%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_demo_agent_bypass_capped_at_complexity_2 PASSED [ 48%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_budget_exceeded_blocks PASSED [ 49%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_budget_service_unavailable_passthrough 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:43:40 [ WARNING] Budget check unavailable (legacy degradation): RuntimeError
+PASSED                                                                   [ 50%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_can_perform_action_async 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:43:41 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant t-1: Tenant t-1 not found
+PASSED                                                                   [ 51%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_can_perform_action_async_budget_blocked PASSED [ 51%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_recursion_depth_blocks 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:43:42 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant t-1: Tenant t-1 not found
+2026-11-07 02:43:42 [ WARNING] Recursion depth limit reached (chain: chain-1, depth=2, max=2). Blocking recruitment.
+PASSED                                                                   [ 52%]
+tests/test_covpush_w29_governance.py::TestCanPerformAction::test_get_agent_capabilities PASSED [ 53%]
+tests/test_covpush_w29_governance.py::TestEnforceAndApproval::test_enforce_blocked PASSED [ 53%]
+tests/test_covpush_w29_governance.py::TestEnforceAndApproval::test_enforce_pending_approval 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:43:44 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant t-1: Tenant t-1 not found
+PASSED                                                                   [ 54%]
+tests/test_covpush_w29_governance.py::TestEnforceAndApproval::test_enforce_arbor_code_gate_blocked 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:43:44 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant t-1: Tenant t-1 not found
+2026-11-07 02:43:44 [ WARNING] [Arbor/Governance] Code quality gate BLOCKED agent=agent-8cdf3833 action=write_code_file reason=SyntaxError in proposed code: invalid syntax (<unknown>, line 1) node=1762fe28-33c3-4f7e-bbe0-0386505859e1
+PASSED                                                                   [ 55%]
+tests/test_covpush_w29_governance.py::TestEnforceAndApproval::test_enforce_approved 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:43:45 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant t-1: Tenant t-1 not found
+PASSED                                                                   [ 55%]
+tests/test_covpush_w29_governance.py::TestEnforceAndApproval::test_find_relevant_policies PASSED [ 56%]
+tests/test_covpush_w29_governance.py::TestEnforceAndApproval::test_request_approval_and_status PASSED [ 57%]
+tests/test_covpush_w29_governance.py::TestEnforceAndApproval::test_request_approval_with_chain_snapshot PASSED [ 57%]
+tests/test_covpush_w29_governance.py::TestArborAndGuardrails::test_arbor_syntax_error_blocked 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:43:47 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant t-1: Tenant t-1 not found
+2026-11-07 02:43:47 [ WARNING] [Arbor/Governance] Code quality gate BLOCKED agent=agent-aaae414c action=write_code_file reason=SyntaxError in proposed code: invalid syntax (<unknown>, line 1) node=9f185662-5e5d-4d86-a1fc-f3d12efa20d5
+PASSED                                                                   [ 58%]
+tests/test_covpush_w29_governance.py::TestArborAndGuardrails::test_arbor_high_complexity_blocked 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:43:48 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant t-1: Tenant t-1 not found
+2026-11-07 02:43:48 [ WARNING] [Arbor/Governance] Code quality gate BLOCKED agent=agent-2edad41b action=write_code_file reason=Code complexity too high (61 branches). Refactor before approval. node=d5af05d0-577c-42af-a282-7dff4271079d
+PASSED                                                                   [ 59%]
+tests/test_covpush_w29_governance.py::TestArborAndGuardrails::test_arbor_non_python_language_passes 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:43:48 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant t-1: Tenant t-1 not found
+PASSED                                                                   [ 59%]
+tests/test_covpush_w29_governance.py::TestArborAndGuardrails::test_guardrail_blocks_autonomous 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:43:49 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant t-1: Tenant t-1 not found
+PASSED                                                                   [ 60%]
+tests/test_covpush_w29_governance.py::TestArborAndGuardrails::test_guardrail_downgrade_handles_violation 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:43:49 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant t-1: Tenant t-1 not found
+PASSED                                                                   [ 61%]
+tests/test_covpush_w29_governance.py::TestArborAndGuardrails::test_nesting_depth_helpers PASSED [ 61%]
+tests/test_covpush_w29_governance.py::TestArborAndGuardrails::test_submit_feedback_missing_agent_raises 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:43:50 [   ERROR] API Error: NOT_FOUND - Agent with ID 'missing' not found
+PASSED                                                                   [ 62%]
+tests/test_covpush_w29_governance.py::TestArborAndGuardrails::test_adjudicate_non_trusted_pending 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:43:51 [    INFO] Initialized global governance cache
+2026-11-07 02:43:51 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-07 02:43:51 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-1'. type='maturity_update'
+PASSED                                                                   [ 63%]
+tests/test_covpush_w29_governance.py::TestOutcomeAndEvolution::test_record_outcome_updates_confidence 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:43:52 [    INFO] Recorded outcome for agent-de6467d9: success
+2026-11-07 02:43:52 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-07 02:43:52 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws-1'. type='maturity_update'
+PASSED                                                                   [ 63%]
+tests/test_covpush_w29_governance.py::TestOutcomeAndEvolution::test_validate_directive_danger_pattern 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:43:52 [ WARNING] Evolution directive REJECTED for tenant t-1: danger pattern in system_prompt: 'ignore all rules'
+PASSED                                                                   [ 64%]
+tests/test_covpush_w29_governance.py::TestOutcomeAndEvolution::test_validate_directive_danger_in_directive_list 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:43:53 [ WARNING] Evolution directive REJECTED for tenant t-1: danger pattern in directive: 'bypass guardrails'
+PASSED                                                                   [ 65%]
+tests/test_covpush_w29_governance.py::TestOutcomeAndEvolution::test_validate_directive_protected_key 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:43:54 [ WARNING] Evolution directive REJECTED for tenant t-1: self-referential mutation of protected config key: 'sandbox_config'
+PASSED                                                                   [ 65%]
+tests/test_covpush_w29_governance.py::TestOutcomeAndEvolution::test_validate_directive_harness_patches_allowed PASSED [ 66%]
+tests/test_covpush_w29_governance.py::TestOutcomeAndEvolution::test_validate_directive_privilege_escalation 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:43:55 [ WARNING] Evolution directive REJECTED for tenant t-1: self-referential mutation of protected config key: 'elevated_privileges'; privilege escalation: elevated_privileges=True set by evolution (must go through maturity graduation, not auto-tuning)
+PASSED                                                                   [ 67%]
+tests/test_covpush_w29_governance.py::TestOutcomeAndEvolution::test_validate_directive_clean_pass PASSED [ 68%]
+tests/test_generic_request_expectations.py::test_builder_freezes_business_args_and_ignores_model_expected_fields PASSED [ 68%]
+tests/test_generic_request_expectations.py::test_plain_args_generic_and_assignment_produce_the_same_verified_effect PASSED [ 69%]
+tests/test_generic_request_expectations.py::test_plain_args_non_miniapp_presentation_is_verified 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:43:56 [    INFO] Presented markdown content to user user-1
+PASSED                                                                   [ 70%]
+tests/test_generic_request_expectations.py::test_model_forged_expected_metadata_is_stripped_before_dispatch PASSED [ 70%]
+tests/test_generic_request_expectations.py::test_handler_result_cannot_overwrite_frozen_expectations PASSED [ 71%]
+tests/test_generic_request_expectations.py::test_model_forged_expected_metadata_cannot_rescue_wrong_server_scope PASSED [ 72%]
+tests/test_generic_request_expectations.py::test_uncertain_operation_reconciles_from_frozen_material_without_resend PASSED [ 72%]
+tests/test_generic_request_expectations.py::test_peer_claim_is_not_dispatched_or_stolen PASSED [ 73%]
+tests/test_generic_request_expectations.py::test_distinct_sequential_authorized_mutations_still_run PASSED [ 74%]
+tests/test_generic_reconcile_commit_contract.py::test_reconcile_cannot_report_committed_success_if_transition_loses[refused] PASSED [ 74%]
+tests/test_generic_reconcile_commit_contract.py::test_reconcile_cannot_report_committed_success_if_transition_loses[peer_changed] PASSED [ 75%]
+tests/test_generic_reconcile_commit_contract.py::test_reconcile_cannot_report_committed_success_if_transition_loses[peer_payload] PASSED [ 76%]
+tests/test_orch01_real_checkpoint_contract.py::test_pending_resume_refuses_then_exact_approval_releases_once 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:44:02 [    INFO] Executing step: approval_record - Approve Write record
+2026-11-07 02:44:02 [    INFO] Created HITL action 9e5dcb15-23bb-401b-995e-43e6ca95ec18 for agent system_default_agent
+2026-11-07 02:44:02 [    INFO] Step approval_record returned waiting_approval status. Pausing workflow execution.
+2026-11-07 02:44:02 [    INFO] Persisted state for workflow exec-real-approve (Status: waiting_approval)
+2026-11-07 02:44:02 [    INFO] Persisted state for workflow exec-real-approve (Status: waiting_approval)
+2026-11-07 02:44:02 [    INFO] Resuming workflow exec-real-approve from step approval_record after authoritative approval
+2026-11-07 02:44:02 [    INFO] Executing step: record - Write record
+2026-11-07 02:44:02 [    INFO] Persisted state for workflow exec-real-approve (Status: completed)
+2026-11-07 02:44:02 [ WARNING] Step approval_record is not waiting for approval
+PASSED                                                                   [ 76%]
+tests/test_orch01_real_checkpoint_contract.py::test_rejected_checkpoint_and_missing_checkpoint_dispatch_nothing 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:44:03 [    INFO] Executing step: approval_record - Approve Write record
+2026-11-07 02:44:03 [    INFO] Created HITL action f2c7bd78-6020-41cc-8aeb-8d9426b945c6 for agent system_default_agent
+2026-11-07 02:44:03 [    INFO] Step approval_record returned waiting_approval status. Pausing workflow execution.
+2026-11-07 02:44:03 [    INFO] Persisted state for workflow exec-real-rejected (Status: waiting_approval)
+2026-11-07 02:44:03 [    INFO] Persisted state for workflow exec-real-rejected (Status: failed)
+2026-11-07 02:44:03 [    INFO] Executing step: approval_record - Approve Write record
+2026-11-07 02:44:03 [    INFO] Created HITL action eef8c859-53a6-4512-b751-cc8721898469 for agent system_default_agent
+2026-11-07 02:44:03 [    INFO] Step approval_record returned waiting_approval status. Pausing workflow execution.
+2026-11-07 02:44:03 [    INFO] Persisted state for workflow exec-real-missing (Status: waiting_approval)
+2026-11-07 02:44:03 [    INFO] Persisted state for workflow exec-real-missing (Status: failed)
+PASSED                                                                   [ 77%]
+tests/test_orch01_real_checkpoint_contract.py::test_changed_reviewed_material_cannot_reuse_old_approval 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:44:03 [    INFO] Executing step: approval_record - Approve Write record
+2026-11-07 02:44:03 [    INFO] Created HITL action 2d601c57-5d62-412a-bdf5-9f821028181a for agent system_default_agent
+2026-11-07 02:44:03 [    INFO] Step approval_record returned waiting_approval status. Pausing workflow execution.
+2026-11-07 02:44:03 [    INFO] Persisted state for workflow exec-real-changed (Status: waiting_approval)
+2026-11-07 02:44:03 [    INFO] Persisted state for workflow exec-real-changed (Status: failed)
+PASSED                                                                   [ 78%]
+tests/test_orch01_real_checkpoint_contract.py::test_hitl_queue_decision_uses_the_same_advanced_consumer 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:44:04 [    INFO] Executing step: approval_record - Approve Write record
+2026-11-07 02:44:04 [    INFO] Created HITL action 78c8035b-d76e-48fb-b7a0-53da25ab347a for agent system_default_agent
+2026-11-07 02:44:04 [    INFO] Step approval_record returned waiting_approval status. Pausing workflow execution.
+2026-11-07 02:44:04 [    INFO] Persisted state for workflow exec-hitl-queue (Status: waiting_approval)
+2026-11-07 02:44:04 [    INFO] Resuming workflow exec-hitl-queue from step approval_record after authoritative approval
+2026-11-07 02:44:04 [    INFO] Executing step: record - Write record
+2026-11-07 02:44:04 [    INFO] Persisted state for workflow exec-hitl-queue (Status: completed)
+2026-11-07 02:44:04 [    INFO] Executing step: approval_record - Approve Write record
+2026-11-07 02:44:04 [    INFO] Created HITL action c5d76cf2-5a86-4877-b1e5-f93a5bf21afa for agent system_default_agent
+2026-11-07 02:44:04 [    INFO] Step approval_record returned waiting_approval status. Pausing workflow execution.
+2026-11-07 02:44:04 [    INFO] Persisted state for workflow exec-hitl-queue-rejected (Status: waiting_approval)
+2026-11-07 02:44:04 [    INFO] Persisted state for workflow exec-hitl-queue-rejected (Status: failed)
+2026-11-07 02:44:04 [ WARNING] HITL c5d76cf2-5a86-4877-b1e5-f93a5bf21afa decided (rejected) but work did not resume: {'handled': True, 'resumed': False, 'kind': 'workflow', 'status': 'FAILED', 'reason': 'approval binding did not match the authoritative execution; a fresh matching review is required'}
+PASSED                                                                   [ 78%]
+tests/test_orch01_real_checkpoint_contract.py::test_public_approval_route_requires_scope_and_exact_binding 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:44:04 [    INFO] Executing step: approval_record - Approve Write record
+2026-11-07 02:44:04 [    INFO] Created HITL action 6b9d105d-e00e-4e2f-854d-451913f94f3f for agent system_default_agent
+2026-11-07 02:44:04 [    INFO] Step approval_record returned waiting_approval status. Pausing workflow execution.
+2026-11-07 02:44:04 [    INFO] Persisted state for workflow exec-route-first (Status: waiting_approval)
+2026-11-07 02:44:04 [    INFO] Executing step: approval_record - Approve Write record
+2026-11-07 02:44:04 [    INFO] Created HITL action 4b6dc3ae-166d-4d66-acfc-070780522a30 for agent system_default_agent
+2026-11-07 02:44:04 [    INFO] Step approval_record returned waiting_approval status. Pausing workflow execution.
+2026-11-07 02:44:05 [    INFO] Persisted state for workflow exec-route-second (Status: waiting_approval)
+2026-11-07 02:44:05 [    INFO] Resuming workflow exec-route-first from step approval_record after authoritative approval
+2026-11-07 02:44:05 [    INFO] Executing step: record - Write record
+2026-11-07 02:44:05 [    INFO] Persisted state for workflow exec-route-first (Status: completed)
+PASSED                                                                   [ 79%]
+tests/test_orch01_real_checkpoint_contract.py::test_public_route_reports_fresh_review_for_partial_binding 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:44:05 [    INFO] Executing step: approval_record - Approve Write record
+2026-11-07 02:44:05 [    INFO] Created HITL action e0f343b1-a869-4143-99ba-c95a0a59ef0c for agent system_default_agent
+2026-11-07 02:44:05 [    INFO] Step approval_record returned waiting_approval status. Pausing workflow execution.
+2026-11-07 02:44:05 [    INFO] Persisted state for workflow exec-partial-route (Status: waiting_approval)
+2026-11-07 02:44:05 [    INFO] Persisted state for workflow exec-partial-route (Status: failed)
+PASSED                                                                   [ 80%]
+tests/test_orch01_checkpoint_contract.py::test_pending_governance_blocks_descendants 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:44:05 [    INFO] Executing step: approval_write - Approve Write
+2026-11-07 02:44:05 [    INFO] Step approval_write returned waiting_approval status. Pausing workflow execution.
+PASSED                                                                   [ 80%]
+tests/test_orch01_checkpoint_contract.py::test_blocked_governance_blocks_descendants 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:44:05 [    INFO] Executing step: approval_write - Approve Write
+PASSED                                                                   [ 81%]
+tests/test_orch01_checkpoint_contract.py::test_mature_agent_cannot_waive_server_checkpoint 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:44:05 [    INFO] Executing step: approval_write - Approve Write
+2026-11-07 02:44:05 [    INFO] Step approval_write returned waiting_approval status. Pausing workflow execution.
+PASSED                                                                   [ 82%]
+tests/test_orch01_checkpoint_contract.py::test_rejected_durable_approval_blocks_descendants 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:44:05 [    INFO] Executing step: approval_write - Approve Write
+PASSED                                                                   [ 82%]
+tests/test_orch01_checkpoint_contract.py::test_valid_approval_dispatches_exactly_one_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:44:05 [    INFO] Executing step: approval_write - Approve Write
+2026-11-07 02:44:05 [    INFO] Executing step: write - Write
+2026-11-07 02:44:05 [    INFO] Step approval_write already completed in this context; skipping duplicate dispatch
+PASSED                                                                   [ 83%]
+tests/test_orch01_checkpoint_contract.py::test_entity_read_label_cannot_inject_metadata_create PASSED [ 84%]
+tests/test_orch01_checkpoint_contract.py::test_unknown_action_reference_is_refused PASSED [ 85%]
+tests/test_orch01_checkpoint_contract.py::test_unbound_capability_is_non_executable_not_registered 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:44:05 [    INFO] workflow blueprint ai_wf_75d3b688eabe is a reviewable design but is not registered: x: capability not_a_known_business_agent is not bound to a registered business agent
+PASSED                                                                   [ 85%]
+tests/test_orch01_checkpoint_contract.py::test_unsupported_entity_operation_is_non_executable_not_rewritten PASSED [ 86%]
+tests/test_orch01_checkpoint_contract.py::test_supported_entity_operations_are_preserved[create-write] PASSED [ 87%]
+tests/test_orch01_checkpoint_contract.py::test_supported_entity_operations_are_preserved[update-write] PASSED [ 87%]
+tests/test_orch01_checkpoint_contract.py::test_supported_entity_operations_are_preserved[query-read] PASSED [ 88%]
+tests/test_orch01_checkpoint_contract.py::test_supported_entity_operations_are_preserved[lookup-read] PASSED [ 89%]
+tests/test_orch01_checkpoint_contract.py::test_declared_entity_read_label_is_not_silently_aliased PASSED [ 89%]
+tests/test_orch01_checkpoint_contract.py::test_skill_action_must_exist_in_the_real_action_registry PASSED [ 90%]
+tests/test_orch01_checkpoint_contract.py::test_strict_checkpoint_binding_requires_the_complete_versioned_tuple PASSED [ 91%]
+tests/test_orch01_checkpoint_contract.py::test_full_execution_completes_after_successful_required_work 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:44:05 [    INFO] Executing step: read - Read record
+PASSED                                                                   [ 91%]
+tests/test_workflow_public_approval_flow.py::test_public_workflow_approval_is_visible_decidable_and_resumes_once 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:44:05 [    INFO] Event bus started
+2026-11-07 02:44:05 [    INFO] Loaded analytics data: 3 workflows, 0 integrations
+2026-11-07 02:44:05 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-07 02:44:05 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-07 02:44:05 [ WARNING] 🚫 Governance pause for execution df896b56-cdd7-4fd0-b312-3907e334903a at step s1: Maturity check failed. Required: supervised
+2026-11-07 02:44:05 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-07 02:44:05 [    INFO] HTTP Request: POST http://test/workflows/wf-local-5a30098dde/execute "HTTP/1.1 200 OK"
+2026-11-07 02:44:05 [    INFO] HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+2026-11-07 02:44:05 [    INFO] HTTP Request: POST http://test/api/agents/approvals/75ec4ac3-c3eb-4164-9657-5bf5a1249626 "HTTP/1.1 200 OK"
+2026-11-07 02:44:05 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-07 02:44:05 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-07 02:44:05 [    INFO] Workflow df896b56-cdd7-4fd0-b312-3907e334903a step s1 authorized by durable HITL 75ec4ac3-c3eb-4164-9657-5bf5a1249626
+2026-11-07 02:44:05 [    INFO] Executing database.create with params: {'record': 'harmless'}
+2026-11-07 02:44:05 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-07 02:44:05 [   ERROR] Failed to update step execution record: can't subtract offset-naive and offset-aware datetimes
+2026-11-07 02:44:05 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-07 02:44:05 [ WARNING] Slack token not configured, skipping notification
+2026-11-07 02:44:05 [    INFO] Observation event 'workflow_execution' learned by 1 student(s) in workspace-local-5a30098dde
+2026-11-07 02:44:05 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-07 02:44:05 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-07 02:44:05 [ WARNING] Slack token not configured, skipping notification
+2026-11-07 02:44:05 [    INFO] Observation event 'workflow_execution' learned by 1 student(s) in workspace-local-5a30098dde
+PASSED                                                                   [ 92%]
+tests/test_workflow_public_approval_flow.py::test_scheduled_real_workflow_approval_join 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:44:05 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-07 02:44:05 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-07 02:44:05 [    INFO] Scheduler started
+2026-11-07 02:44:05 [    INFO] WorkflowScheduler started
+2026-11-07 02:44:05 [    INFO] Added job "WorkflowScheduler._execute_job" to job store "default"
+2026-11-07 02:44:06 [    INFO] Removed job job_wf-local-9dc35121de_1794037445.97158
+2026-11-07 02:44:06 [    INFO] Running job "WorkflowScheduler._execute_job (trigger: date[2026-11-07 07:44:06 UTC], next run at: 2026-11-07 07:44:06 UTC)" (scheduled at 2026-11-07 07:44:06.171575+00:00)
+2026-11-07 02:44:06 [    INFO] Executing scheduled workflow: wf-local-9dc35121de
+2026-11-07 02:44:06 [    INFO] Scheduled execution c79dbc02-e42c-4548-a75e-3b50fcd59b81 started
+2026-11-07 02:44:06 [    INFO] Job "WorkflowScheduler._execute_job (trigger: date[2026-11-07 07:44:06 UTC], next run at: 2026-11-07 07:44:06 UTC)" executed successfully
+2026-11-07 02:44:06 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-07 02:44:06 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-07 02:44:06 [ WARNING] 🚫 Governance pause for execution c79dbc02-e42c-4548-a75e-3b50fcd59b81 at step s1: Maturity check failed. Required: supervised
+2026-11-07 02:44:06 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-07 02:44:06 [    INFO] HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+2026-11-07 02:44:06 [    INFO] HTTP Request: POST http://test/api/agents/approvals/73809bc8-cbc7-4e51-bcb5-ca53b82155ad "HTTP/1.1 200 OK"
+2026-11-07 02:44:06 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-07 02:44:06 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-07 02:44:06 [    INFO] Workflow c79dbc02-e42c-4548-a75e-3b50fcd59b81 step s1 authorized by durable HITL 73809bc8-cbc7-4e51-bcb5-ca53b82155ad
+2026-11-07 02:44:06 [    INFO] Executing database.create with params: {'record': 'harmless'}
+2026-11-07 02:44:06 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-07 02:44:06 [   ERROR] Failed to update step execution record: can't subtract offset-naive and offset-aware datetimes
+2026-11-07 02:44:06 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-07 02:44:06 [ WARNING] Slack token not configured, skipping notification
+2026-11-07 02:44:06 [    INFO] Observation event 'workflow_execution' learned by 1 student(s) in workspace-local-9dc35121de
+2026-11-07 02:44:06 [    INFO] WorkflowScheduler shutdown
+2026-11-07 02:44:06 [    INFO] Scheduler has been shut down
+PASSED                                                                   [ 93%]
+tests/test_workflow_public_approval_flow.py::test_resume_inputs_cannot_rewrite_the_frozen_scope 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:44:06 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-07 02:44:06 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-07 02:44:06 [ WARNING] 🚫 Governance pause for execution 21b8ffd4-9586-4d54-b194-dc37a898e732 at step s1: Maturity check failed. Required: supervised
+2026-11-07 02:44:06 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-07 02:44:06 [    INFO] HTTP Request: POST http://test/workflows/wf-local-f2d0d7913c/execute "HTTP/1.1 200 OK"
+2026-11-07 02:44:06 [    INFO] HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+2026-11-07 02:44:06 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-07 02:44:06 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-07 02:44:06 [    INFO] Workflow 21b8ffd4-9586-4d54-b194-dc37a898e732 step s1 authorized by durable HITL 9b1fc503-72b7-42e7-9b6b-6ee2c9d2a6c0
+2026-11-07 02:44:06 [    INFO] Executing database.create with params: {'record': 'harmless'}
+2026-11-07 02:44:06 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-07 02:44:06 [   ERROR] Failed to update step execution record: can't subtract offset-naive and offset-aware datetimes
+2026-11-07 02:44:06 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-07 02:44:06 [ WARNING] Slack token not configured, skipping notification
+2026-11-07 02:44:06 [    INFO] Observation event 'workflow_execution' learned by 1 student(s) in workspace-local-f2d0d7913c
+PASSED                                                                   [ 93%]
+tests/test_workflow_public_approval_flow.py::test_schedule_freezes_caller_scope_and_discards_client_scope 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:44:06 [    INFO] HTTP Request: POST http://test/workflows/wf-local-8be6391750/schedule "HTTP/1.1 200 OK"
+PASSED                                                                   [ 94%]
+tests/test_workflow_public_approval_flow.py::test_public_workflow_rejection_leaves_zero_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:44:06 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-07 02:44:06 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-07 02:44:06 [ WARNING] 🚫 Governance pause for execution 4d33eb6b-5baa-4bfb-ac83-f49d4340831c at step s1: Maturity check failed. Required: supervised
+2026-11-07 02:44:06 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-07 02:44:06 [    INFO] HTTP Request: POST http://test/workflows/wf-local-e8308c43c9/execute "HTTP/1.1 200 OK"
+2026-11-07 02:44:06 [    INFO] HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+2026-11-07 02:44:06 [ WARNING] HITL b88e6bcb-2747-4996-94e5-4ecd6ba156c1 decided (rejected) but work did not resume: {'handled': True, 'resumed': False, 'kind': 'workflow', 'status': 'FAILED'}
+2026-11-07 02:44:06 [    INFO] HTTP Request: POST http://test/api/agents/approvals/b88e6bcb-2747-4996-94e5-4ecd6ba156c1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 95%]
+tests/test_workflow_public_approval_flow.py::test_changed_material_after_review_does_not_execute 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:44:06 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-07 02:44:06 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-07 02:44:06 [ WARNING] 🚫 Governance pause for execution 15c7779b-f548-4bfb-a637-bb495b866f28 at step s1: Maturity check failed. Required: supervised
+2026-11-07 02:44:06 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-07 02:44:06 [    INFO] HTTP Request: POST http://test/workflows/wf-local-86ae429558/execute "HTTP/1.1 200 OK"
+2026-11-07 02:44:06 [    INFO] HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+2026-11-07 02:44:06 [    INFO] HTTP Request: POST http://test/api/agents/approvals/d229a76d-7344-4a17-96fd-9cd358e4a62e "HTTP/1.1 200 OK"
+2026-11-07 02:44:06 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-07 02:44:06 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-07 02:44:06 [ WARNING] workflow 15c7779b-f548-4bfb-a637-bb495b866f28: durable approval d229a76d-7344-4a17-96fd-9cd358e4a62e does not bind the current step payload
+2026-11-07 02:44:06 [ WARNING] 🚫 Governance pause for execution 15c7779b-f548-4bfb-a637-bb495b866f28 at step s1: Maturity check failed. Required: supervised
+2026-11-07 02:44:06 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+PASSED                                                                   [ 95%]
+tests/test_workflow_public_approval_flow.py::test_foreign_scope_cannot_see_or_decide_public_workflow_approval[workspace] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:44:06 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-07 02:44:06 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-07 02:44:06 [ WARNING] 🚫 Governance pause for execution a99a641b-9f4f-4f4c-8e0b-63058dc2b0d4 at step s1: Maturity check failed. Required: supervised
+2026-11-07 02:44:06 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-07 02:44:06 [    INFO] HTTP Request: POST http://test/workflows/wf-local-d79d06905b/execute "HTTP/1.1 200 OK"
+2026-11-07 02:44:06 [    INFO] HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+2026-11-07 02:44:06 [    INFO] HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+2026-11-07 02:44:06 [    INFO] HTTP Request: POST http://test/api/agents/approvals/c053b9e3-e6d3-47ba-8def-17e2f60d9195 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 96%]
+tests/test_workflow_public_approval_flow.py::test_foreign_scope_cannot_see_or_decide_public_workflow_approval[tenant] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:44:06 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-07 02:44:06 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-07 02:44:06 [ WARNING] 🚫 Governance pause for execution d59d337f-e9ac-423e-9e07-e85f9669cb46 at step s1: Maturity check failed. Required: supervised
+2026-11-07 02:44:06 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:default'. type='workflow:status'
+2026-11-07 02:44:06 [    INFO] HTTP Request: POST http://test/workflows/wf-local-8fb6326fb2/execute "HTTP/1.1 200 OK"
+2026-11-07 02:44:06 [    INFO] HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+2026-11-07 02:44:06 [    INFO] HTTP Request: GET http://test/api/agents/approvals/pending "HTTP/1.1 200 OK"
+2026-11-07 02:44:06 [    INFO] HTTP Request: POST http://test/api/agents/approvals/ac64169f-153a-4986-8233-eebeed06db03 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 97%]
+tests/test_workflow_approval_scope.py::test_governance_created_approval_is_visible_to_scoped_reviewer 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:44:07 [    INFO] HTTP Request: GET http://testserver/api/agents/approvals/pending "HTTP/1.1 200 OK"
+PASSED                                                                   [ 97%]
+tests/test_workflow_approval_scope.py::test_governance_created_approval_is_decidable_in_its_own_scope 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:44:07 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/c8e7eb1b-9361-4c6a-88cc-7ac0790dfefb "HTTP/1.1 200 OK"
+PASSED                                                                   [ 98%]
+tests/test_workflow_approval_scope.py::test_wrong_scope_reviewer_cannot_list_or_decide[workspace] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:44:08 [    INFO] HTTP Request: GET http://testserver/api/agents/approvals/pending "HTTP/1.1 200 OK"
+2026-11-07 02:44:08 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/2b5160fb-0942-4f34-8cb9-8fccf3c16c88 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 99%]
+tests/test_workflow_approval_scope.py::test_wrong_scope_reviewer_cannot_list_or_decide[tenant] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:44:08 [    INFO] HTTP Request: GET http://testserver/api/agents/approvals/pending "HTTP/1.1 200 OK"
+2026-11-07 02:44:08 [    INFO] HTTP Request: POST http://testserver/api/agents/approvals/59cce6e7-35f3-4173-8866-752a482740c4 "HTTP/1.1 404 Not Found"
+PASSED                                                                   [100%]
+
+=================================== FAILURES ===================================
+_____________________ TestRegistry.test_register_new_agent _____________________
+tests/test_covpush_w29_governance.py:82: in test_register_new_agent
+    assert agent.confidence_score == 0.5
+E   assert 0.35 == 0.5
+E    +  where 0.35 = <core.models.AgentRegistry object at 0x12ca3fed0>.confidence_score
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_governance_service:agent_governance_service.py:399 Registered new agent: New Agent
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+core/token_storage.py:17
+  /private/tmp/atom-generic-lead-combine/backend/core/token_storage.py:17: DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 294 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_budget_control.py::TestBudgetExitStatusContract::test_execute_returns_valid_status_when_budget_denied
+  /private/tmp/atom-generic-lead-combine/backend/core/lancedb_handler.py:407: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    names = set(self.db.table_names())
+
+tests/test_budget_control.py::TestBudgetExitStatusContract::test_execute_returns_valid_status_when_budget_denied
+tests/test_budget_control.py::TestBudgetExitStatusContract::test_execute_returns_valid_status_when_budget_denied
+  /Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/asyncio/events.py:94: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    self._context.run(self._callback, *self._args)
+
+tests/test_budget_control.py::TestBudgetExitStatusContract::test_execute_returns_valid_status_when_budget_denied
+  /private/tmp/atom-generic-lead-combine/backend/core/lancedb_handler.py:620: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    if table_name in self.db.table_names():
+
+tests/test_agent_governance_service.py::TestListAgentsWorkspaceScope::test_list_agents_returns_unscoped_agents
+tests/test_agent_governance_service.py::TestListAgentsWorkspaceScope::test_list_agents_keeps_legacy_default_rows
+tests/test_agent_governance_service.py::TestListAgentsWorkspaceScope::test_list_agents_still_scopes_custom_workspaces
+tests/test_agent_governance_service.py::TestListAgentsWorkspaceScope::test_list_agents_filters_by_category
+  /private/tmp/atom-generic-lead-combine/backend/tests/test_agent_governance_service.py:355: SAWarning: Can't sort tables for DROP; an unresolvable foreign key dependency exists between tables: agent_divisions, agent_registry, canvases, mini_apps; and backend does not support ALTER.  To restore at least a partial sort, apply use_alter=True to ForeignKey and ForeignKeyConstraint objects involved in the cycle to mark these as known cycles that will be ignored.
+    Base.metadata.drop_all(engine)
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-budget-complete-final-z08lzupi/result.xml -
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_covpush_w29_governance.py::TestRegistry::test_register_new_agent
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+====== 1 failed, 146 passed, 1 skipped, 310 warnings in 66.83s (0:01:06) =======

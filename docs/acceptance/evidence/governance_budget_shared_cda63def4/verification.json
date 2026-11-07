@@ -1,0 +1,37 @@
+{
+  "final_source": "cda63def4",
+  "runtime_sources": [
+    "a5cabd207",
+    "2f5e88e20",
+    "62e0d70b0",
+    "203124194"
+  ],
+  "final_ci_gate": {
+    "passed": 45,
+    "failed": 0,
+    "skipped": 0,
+    "actual_exit_code": 0,
+    "selection": "23 real MCP/scope/mode +5caller/rollup +17existing budget controls"
+  },
+  "affected": {
+    "passed": 146,
+    "failed": 1,
+    "skipped": 1,
+    "actual_exit_code": 1,
+    "remaining_failure": "test_covpush_w29_governance.py::TestRegistry::test_register_new_agent (0.35 vs stale0.5 expectation)",
+    "skip": "legacy BudgetEnforcementService module unavailable; not coverage"
+  },
+  "new_negatives_preserved": {
+    "real_mcp_account_scope": "1fail2pass at2e95, precursor packet",
+    "parallel_sync_consumers": "5fail7pass atfc405/89 runtime",
+    "caller_owned_commit": "2fail at62e0; dirty +alreadyflushed"
+  },
+  "intermediate_failure_note": "62e0 affected140pass2fail1skip included a student-only Mock query chain returning different fabricated objects after successive filter calls. Equivalent conditions are now passed to one Query.filter call, restoring the same mocked and real SQL predicate protocol; no assertion or test removed. The other failure is the named unchanged w29 baseline.",
+  "architecture": "One existing local-ledger decision body serves sync and async APIs; no new loop/thread/Session sharing/engine. Preflight computes persist=False; explicit rollup writers keep persist=True by default.",
+  "scope_limits": [
+    "Budget/service historical failure-degradation not qualified as strict financial safety.",
+    "No concurrent spend reservation or changes mid-dispatch assurance.",
+    "No browser/model/provider/guest/PostgreSQL/multiworker or deployment qualification.",
+    "Actor/target authority remains with existing consumers; budget lookup does not grant it."
+  ]
+}
