@@ -130,12 +130,34 @@ def _not_applied(message: str) -> Dict[str, Any]:
     }
 
 
+def _state_unavailable(operation_id: str, target_id: str) -> Dict[str, Any]:
+    """Pre-dispatch task-state read failed; no cancellation was attempted."""
+    return {
+        "status": "state_unavailable",
+        "data": None,
+        "error": (
+            "The agent task state is unavailable; no cancellation was "
+            "attempted. Refresh the authoritative state and retry."
+        ),
+        "error_code": "AGENT_TASK_STATE_UNAVAILABLE",
+        "http_status": 503,
+        "operation_id": operation_id,
+        "target_id": target_id,
+        "verification": {
+            "status": "unavailable",
+            "effect": "none",
+            "replay": "safe_after_refresh",
+        },
+    }
+
+
 def _committed_unverified(
     operation_id: str, audit_state: Dict[str, Any], *, target_id: str,
+    data: Optional[Dict[str, Any]] = None,
 ) -> Dict[str, Any]:
     return {
         "status": "committed_unverified",
-        "data": None,
+        "data": data,
         "message": (
             "The agent decision committed but its audit/target readback did "
             "not verify. Reconcile the original operation."),
@@ -1742,12 +1764,17 @@ def _stop_success_data(expected: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _active_task_count(agent_id: str) -> int:
+def _active_task_state(agent_id: str) -> Dict[str, Any]:
+    """Read the preflight task set without turning failure into emptiness."""
     try:
         from core.agent_task_registry import agent_task_registry
-        return len(agent_task_registry.get_agent_tasks(str(agent_id)))
-    except Exception:  # noqa: BLE001 — unreadable task state is not a block
-        return 0
+        tasks = agent_task_registry.get_agent_tasks(str(agent_id))
+        return {"status": "available", "count": len(tasks)}
+    except Exception as exc:  # noqa: BLE001 — unreadable is not empty
+        logger.warning(
+            "agent stop task-state read failed: target=%s error_class=%s",
+            agent_id, type(exc).__name__)
+        return {"status": "unavailable", "error": type(exc).__name__}
 
 
 async def stop_agent(
@@ -1798,7 +1825,10 @@ async def stop_agent(
     if replay is not None:
         return replay
 
-    if _active_task_count(agent_id) == 0:
+    task_state = _active_task_state(agent_id)
+    if task_state["status"] == "unavailable":
+        return _state_unavailable(operation_id, agent_id)
+    if task_state["count"] == 0:
         return _no_change(
             {"agent_id": agent_id, "cancelled_tasks": 0},
             "No running tasks found for this agent")
@@ -1832,14 +1862,20 @@ async def stop_agent(
         from core.agent_task_registry import agent_task_registry
         cancelled = int(
             await agent_task_registry.cancel_agent_tasks(agent_id) or 0)
-    except Exception as exc:  # noqa: BLE001 — cancellation did not run
+    except Exception as exc:  # noqa: BLE001 — call began, confirmation lost
         db.rollback()
         logger.error(
-            "agent stop cancellation failed: operation_id=%s target=%s "
-            "error_class=%s", operation_id, agent_id,
+            "agent stop cancellation outcome unknown: operation_id=%s "
+            "target=%s error_class=%s", operation_id, agent_id,
             type(exc).__name__)
-        return _not_applied(
-            "The agent tasks could not be cancelled; no receipt was written")
+        result = _effect_unknown(operation_id, agent_id)
+        result["message"] = (
+            "The agent stop may have cancelled tasks, but confirmation was "
+            "lost. Reconcile the original operation; do not repeat it "
+            "blindly.")
+        result["verification"]["error"] = "CANCEL_CONFIRMATION_UNKNOWN"
+        result["data"] = {"agent_id": agent_id}
+        return result
 
     if cancelled == 0:
         db.rollback()
@@ -1890,4 +1926,5 @@ async def stop_agent(
             "target_id": agent_id,
         }
     return _committed_unverified(
-        operation_id, audit_state, target_id=agent_id)
+        operation_id, audit_state, target_id=agent_id,
+        data={"agent_id": agent_id, "cancelled_tasks": cancelled})
