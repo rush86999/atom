@@ -2,7 +2,37 @@
 
 This dated checkpoint supersedes operational queue rows in the November6 directive. Re-resolve current remote heads and ownership before acting. It records current progress, not whole-app acceptance. The product is single tenant with supported user/role/workspace safeguards. Historical 111/123, planner 5/5, goal router 1/2 and alignment gap 3.0 remain unchanged.
 
-## Current execution snapshot (2026-11-07; resolve remote heads before acting)
+## Current execution snapshot at recovery merge
+
+Main at this checkpoint is `e0430f9ff` (PR729). Re-resolve remote PR heads before review or merge. Full application completion and the general-app TASK-WAIT-01 goal remain open.
+
+| Delivery | Verified scope and current state |
+|---|---|
+| Budget PR722, board PR723 and assignment recovery/output PR724 | Merged at `5b9610b56`, `43ca1e962` and `b769145a2`. Preserve configured-budget mode/authority controls, board owner/actor CAS, generation-bound process recovery, idle-budget behavior and final-output withholding at their recorded evidence scopes. |
+| Generic information wait PR726 | Merged as `f402b3fec`; exact correlated answers, protected resume namespace and a real structured-consumer/registered-effect twin. Hosted shared gate: 337 passed. |
+| Actual-process successor PR728 | Merged as `accc53347`; two real worker processes preserve the same job/wait and produce one registered effect after the public answer. Hosted shared gate: 338 passed. Startup uses the production recovery helper; this is not full app lifespan or an ordinary browser journey. |
+| Accepted-answer crash recovery PR729 | Merged as `e0430f9ff` after all eight required checks passed. Hosted shared gate: 364 passed, base gate: 667 passed/1 skipped, memory recall/keyword/paraphrase: 1.0. Durable accepted answers survive a crash before claim; bounded keyset recovery does not lose newer active waits behind completed history. Interrupted claimed work remains uncertain rather than being blindly resent. Reviewed and merged trees match. Post-merge CI and Docker require their own readback. |
+| Sequential assignment prerequisites PR730 | Submitted at `d9ab8c6bd`, executed source `5d7609d8f`. The invoice question settles before the receiving question on the same task; final verified reconciliation and DOCX follow both. Current-source continuation gate: 146 passed; a model-retain negative prevents information arrival from fabricating completion. Strict packet: 8 sources/15 artifacts. Reasoning choices and authentication are controlled. Hosted backend check was still running at this checkpoint. |
+| Workspace reader repair PR731 | Submitted at `1db3d31f2`, executed source `418bb0cd4`. The original public-history peer-workspace leak is retained. Both frozen repair and current-main integration pass 120 controls; 11 permanent read controls enter normal CI. Strict packet: 7 sources/13 artifacts. Current active-user permission and frozen execution workspace govern the read; supported personal/default compatibility remains. Hosted checks are pending. |
+
+### Active implementation and independent acceptance
+
+Agent1 owns the next Generic recovery-authority check: after information is accepted but before recovery, reassignment/deactivation/revocation must not release unauthorized descendants. Trace the existing continuation checks and prove the suspected gap before editing. The previous reader repair is already submitted; do not resubmit it.
+
+Agent2 continues the assignment acceptance rows: different jobs in the same workspace must settle only their exact subjects, and revoked source access must refuse at consumption with an unchanged-authority positive twin. The completed sequential-prerequisite row is owned by PR730 integration.
+
+The UI support worker owns a minimal authorized exact-job readback and the normal Agents question/answer panel, including reload, second questions, stale responses and truthful unresolved/uncertain results. It does not own the old history readers or assignment continuation. Agent4's separate ordinary-login question/answer/reload journey follows a frozen reviewed candidate; component tests cannot substitute for it. Agent3 and the lead independently verify exact source, correlation, authority, process recovery and output contents. No one self-accepts a submission.
+
+CI observers use scripts without model calls. Implementers continue the next independent owned requirement after a coherent push; a pending CI job is not a reason to stop. Confirm actual process exit before replacing a CLI worker. OpenCode Go DeepSeek Flash remains the active healthy coding route; unavailable GLM allowance is not retried before its reported reset, and no new paid overage or app-model authority is implied.
+
+### Remaining product acceptance
+
+TASK-WAIT-01 requires the ordinary user to see what is missing, supply the relevant authorized fact, and have the same task resume automatically. Preserve useful prior work, support repeated pauses and real restarts, and verify the final usable requested output. Information arrival only permits continuation; it cannot itself satisfy a business outcome. Cross-job/subject isolation, changed authority, cancellation/deadline and replay negatives remain mandatory. See the [complete testing matrix](../acceptance/GOAL_COMPLETION_DELTA_2026_11_06.md#task-wait-01--long-running-tasks-pause-for-information-and-resume-on-its-arrival).
+
+General adaptive judgment, served multi-model comparison, live connector breadth, remaining mutation inventory, guest execution, PostgreSQL concurrency, multi-worker/soak and compatibility/operations qualification remain separate unproven goals. Do not expand the single-tenant product target or force-enable deferred profiles to close them. Historical scores and original accepted episodes remain unchanged.
+
+## Historical budget and early recovery checkpoint
+
 
 - Main at this snapshot is budget PR722 merge `5b9610b56`; its tree equals reviewed07904c136. Hosted142budget/323shared controls passed and all eight required checks were green; post-merge CI42357593622 and Docker42357593587 are under model-free observation. Prior PR721/611b6b6f8 CI42353092070 and Docker42353092022 passed. PR720/e26b5a332 and PR719/8cbc99cc9 remain preserved. These are bounded integrated foundations, not whole-app acceptance.
 - Budget repair722 is merged at the scope above. Preserved valid oldhead251 policy matrix failed12cases; source171ba856d plus real Generic/MCP twin5adcd9dd3 passed142. Existing governance callers54pass plus the same knownw29 baseline failure. Financial failure degradation, concurrent admission and PostgreSQL remain unqualified.
