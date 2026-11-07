@@ -1,0 +1,24 @@
+MANIFEST_CHECK for docs/acceptance/evidence/generic_oracle_consumer_20261107
+
+Checked at evidence rebind commit c8bcc5a5e (HEAD of
+codex/generic-oracle-consumer-20261107 at check time).
+
+Command:
+  git ls-tree -r HEAD -- <each tracked source/test/evidence path>
+
+Result: every path reported its MANIFEST.json blob id.
+
+  backend/core/generic_agent.py
+    23b58cafd8d082be36f7ffc40c81ccdbd3182b7f
+  backend/core/outbound_operation_claim.py
+    c82fdc656364129e42fddc08b821f0c67ef07b10
+  backend/tests/test_generic_oracle_mutation_contract.py
+    7e1c66bda64bcc60a289d9f913408d3ea400f31e
+  docs/acceptance/evidence/generic_oracle_consumer_20261107/README.md
+    d8da3f50831f810117d4fe0ea02c890af95b9f85
+  docs/acceptance/evidence/generic_oracle_consumer_20261107/verification.txt
+    29024d5fd29a63cbaa058b38d3ceb654552b199a
+  docs/acceptance/evidence/generic_oracle_consumer_20261107/baseline-unrelated-failures.txt
+    25309b8a99e761149c3ed7fa02becf86b119068b
+
+MANIFEST.json itself is excluded from the manifest by design.

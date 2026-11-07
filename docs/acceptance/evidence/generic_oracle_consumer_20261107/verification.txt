@@ -1,0 +1,75 @@
+Final verification on source 039a24f4e (branch
+codex/generic-oracle-consumer-20261107).
+
+Environment: TESTING=1; explicit scratch SQLite
+<scratch>/qual_generic9.db and <scratch>/qual_combined.db; fresh pytest
+basetemp children under <scratch>; no live DB, world directory, network,
+model, provider, VM, credential, install, send or spend.
+
+1. Reviewed matrix + supplied probes
+   Command:
+   <python> -m pytest tests/test_generic_oracle_mutation_contract.py \
+     ../LEAD_PROBES/test_lead_generic_draft_boundaries.py \
+     ../LEAD_PROBES/test_lead_generic_normal_identity.py \
+     ../LEAD_PROBES/test_lead_generic_reload_unavailable.py \
+     ../LEAD_PROBES/test_lead_generic_normal_changed_retry.py \
+     ../LEAD_PROBES/test_lead_generic_two_normal_writes.py -q
+   Result: 43 passed. Exit status 0. Full stdout/stderr retained at
+   <scratch>/final_43.log.
+   Covered: root negatives/read twin (landed-row version with complete server
+   context), missing/None/raising/refuting verdicts, positive independent
+   readback, disabled oracle, plan/read twins, frozen request/operation
+   forgery, durable claim before leaf, same-operation replay, changed-material
+   conflict, uncertain timeout no-resend across fresh agents, fresh-session
+   replay refutation, same-slot changed-args/action, explicit-id-without-
+   workspace refusal, normal no-operation-id no-repeat, cold resume reload,
+   unreadable claim store, zero-claim read-only success, normal changed-retry
+   no-repeat, two verified sequential same-action writes, forced-interleaving
+   mark_status CAS, and public execute() finalization.
+
+2. Shared assignment/oracle regression
+   Command:
+   <python> -m pytest tests/test_assignment_executor.py \
+     tests/test_oracle_registry_verification_gap.py \
+     tests/test_oracle_effect_families.py \
+     tests/test_oracle_connected_mutations.py \
+     tests/integration/journeys/test_oracle_registry_mutation_journey.py -q
+   Result: 156 passed. Exit status 0. Full log <scratch>/final_156.log.
+
+3. Generic/oracle/fleet focused cluster
+   Command:
+   <python> -m pytest tests/test_generic_agent.py \
+     tests/core/agents_generic/test_generic_agent_coverage.py \
+     tests/core/test_generic_agent_worktime_lessons.py \
+     tests/test_covpush_w31_generic_agent.py \
+     tests/test_covpush_generic_agent.py \
+     tests/core/test_oracle_and_two_tier_confidence.py \
+     tests/test_oracle_connected_mutations.py \
+     tests/test_oracle_effect_families.py \
+     tests/test_tool_error_memento_lifecycle.py \
+     tests/test_agent_action_audit.py tests/test_assignment_executor.py \
+     tests/test_oracle_registry_verification_gap.py \
+     tests/integration/journeys/test_oracle_registry_mutation_journey.py -q
+   Result: 341 passed, 4 skipped. Exit status 0. Full log
+   <scratch>/final_341.log.
+
+4. Action-registry focused run
+   Command:
+   <python> -m pytest tests/core/test_action_registry_coverage.py \
+     tests/test_r79_action_registry_rpc.py tests/test_action_registry.py -q
+   Result: 84 passed, 2 pre-existing failures (exit 1; listed in
+   baseline-unrelated-failures.txt). Full log <scratch>/final_reg.log.
+
+5. Original baseline probe
+   Command: <python> -m pytest ../LEAD_GENERIC_PROBE.py -q
+   Result: 2 passed, 1 failed (exit 1). Full log
+   <scratch>/final_root_probe.log.
+   The failure is the historical timeout negative that supplies an operation id
+   but no workspace/execution. The newer confirmed probe requires that path to
+   refuse before effect; the tracked version with complete server context
+   passes and proves no retry invitation after a real landed row. Original
+   probe bytes were not altered.
+
+6. Combined-main note
+   Local harness policy denied git merge/rebase of fetched origin/main
+   e3e9d8f6c (PR714). Root owns the combined merge and qualification.

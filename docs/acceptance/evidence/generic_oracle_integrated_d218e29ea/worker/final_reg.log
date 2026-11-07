@@ -1,0 +1,189 @@
+
+tests/core/test_action_registry_coverage.py::TestActionRegistryCore::test_register_overwrites_existing_name 
+-------------------------------- live log setup --------------------------------
+2026-11-06 23:27:21 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-06 23:27:21 [    INFO] EscalationManager initialized
+2026-11-06 23:27:21 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 23:27:21 [    INFO] EscalationManager initialized
+2026-11-06 23:27:21 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 23:27:21 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 23:27:21 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  1%]
+tests/core/test_action_registry_coverage.py::TestActionRegistryCore::test_get_action_returns_none_for_unknown PASSED [  2%]
+tests/core/test_action_registry_coverage.py::TestActionRegistryCore::test_get_action_returns_definition_for_known PASSED [  3%]
+tests/core/test_action_registry_coverage.py::TestActionRegistryCore::test_get_all_definitions_returns_list_copy PASSED [  4%]
+tests/core/test_action_registry_coverage.py::TestActionRegistryCore::test_list_actions_sorted PASSED [  5%]
+tests/core/test_action_registry_coverage.py::TestActionRegistryCore::test_list_action_names_alias PASSED [  6%]
+tests/core/test_action_registry_coverage.py::TestActionRegistryCore::test_execute_action_unknown_raises PASSED [  8%]
+tests/core/test_action_registry_coverage.py::TestActionRegistryCore::test_execute_action_invokes_handler_with_args PASSED [  9%]
+tests/core/test_action_registry_coverage.py::TestActionRegistryCore::test_action_not_found_error_is_lookup_error PASSED [ 10%]
+tests/core/test_action_registry_coverage.py::TestActionDefinition::test_description_falls_back_to_handler_docstring PASSED [ 11%]
+tests/core/test_action_registry_coverage.py::TestActionDefinition::test_description_falls_back_to_default_when_no_doc PASSED [ 12%]
+tests/core/test_action_registry_coverage.py::TestActionDefinition::test_explicit_description_wins_over_docstring PASSED [ 13%]
+tests/core/test_action_registry_coverage.py::TestActionDefinition::test_default_parameters_schema PASSED [ 15%]
+tests/core/test_action_registry_coverage.py::TestActionDefinition::test_explicit_parameters_schema_used PASSED [ 16%]
+tests/core/test_action_registry_coverage.py::TestActionDefinition::test_repr PASSED [ 17%]
+tests/core/test_action_registry_coverage.py::TestRegisterActionDecorator::test_decorator_registers_and_returns_callable PASSED [ 18%]
+tests/core/test_action_registry_coverage.py::TestRegisterActionDecorator::test_decorator_passes_schema_through PASSED [ 19%]
+tests/core/test_action_registry_coverage.py::TestContextUserId::test_empty_context_returns_none PASSED [ 20%]
+tests/core/test_action_registry_coverage.py::TestContextUserId::test_user_id_key PASSED [ 22%]
+tests/core/test_action_registry_coverage.py::TestContextUserId::test_userId_camel_case_key PASSED [ 23%]
+tests/core/test_action_registry_coverage.py::TestContextUserId::test_actor_id_key PASSED [ 24%]
+tests/core/test_action_registry_coverage.py::TestContextUserId::test_falsy_values_skipped PASSED [ 25%]
+tests/core/test_action_registry_coverage.py::TestContextUserId::test_user_object_with_id PASSED [ 26%]
+tests/core/test_action_registry_coverage.py::TestContextUserId::test_user_object_without_id_returns_none PASSED [ 27%]
+tests/core/test_action_registry_coverage.py::TestContextUserId::test_no_user_key_returns_none PASSED [ 29%]
+tests/core/test_action_registry_coverage.py::TestDocumentsSearchAction::test_empty_query_returns_error PASSED [ 30%]
+tests/core/test_action_registry_coverage.py::TestDocumentsSearchAction::test_missing_query_returns_error PASSED [ 31%]
+tests/core/test_action_registry_coverage.py::TestDocumentsSearchAction::test_successful_search_combines_sources PASSED [ 32%]
+tests/core/test_action_registry_coverage.py::TestDocumentsSearchAction::test_search_passes_filters PASSED [ 33%]
+tests/core/test_action_registry_coverage.py::TestDocumentsSearchAction::test_search_exception_returns_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-06 23:27:21 [   ERROR] documents.search failed: db down
+PASSED                                                                   [ 34%]
+tests/core/test_action_registry_coverage.py::TestDocumentsSearchAction::test_search_legacy_path_flag_off FAILED [ 36%]
+tests/core/test_action_registry_coverage.py::TestCanvasActions::test_canvas_read_missing_id PASSED [ 37%]
+tests/core/test_action_registry_coverage.py::TestCanvasActions::test_canvas_read_missing_user PASSED [ 38%]
+tests/core/test_action_registry_coverage.py::TestCanvasActions::test_canvas_read_dispatches PASSED [ 39%]
+tests/core/test_action_registry_coverage.py::TestCanvasActions::test_canvas_update_missing_id PASSED [ 40%]
+tests/core/test_action_registry_coverage.py::TestCanvasActions::test_canvas_update_missing_content PASSED [ 41%]
+tests/core/test_action_registry_coverage.py::TestCanvasActions::test_canvas_update_missing_user PASSED [ 43%]
+tests/core/test_action_registry_coverage.py::TestCanvasActions::test_canvas_update_dispatches_with_optional_fields PASSED [ 44%]
+tests/core/test_action_registry_coverage.py::TestTasksCreateAction::test_missing_title PASSED [ 45%]
+tests/core/test_action_registry_coverage.py::TestTasksCreateAction::test_missing_board_id PASSED [ 46%]
+tests/core/test_action_registry_coverage.py::TestTasksCreateAction::test_blank_title_treated_as_missing PASSED [ 47%]
+tests/core/test_action_registry_coverage.py::TestTasksCreateAction::test_successful_create_returns_task_fields PASSED [ 48%]
+tests/core/test_action_registry_coverage.py::TestTasksCreateAction::test_create_exception_returns_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-06 23:27:21 [   ERROR] tasks.create failed: boom
+PASSED                                                                   [ 50%]
+tests/core/test_action_registry_coverage.py::TestAgentsListAction::test_list_no_category PASSED [ 51%]
+tests/core/test_action_registry_coverage.py::TestAgentsListAction::test_list_with_category_filter PASSED [ 52%]
+tests/core/test_action_registry_coverage.py::TestAgentsListAction::test_list_exception_returns_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-06 23:27:21 [   ERROR] agents.list failed: db
+PASSED                                                                   [ 53%]
+tests/core/test_action_registry_coverage.py::test_mini_app_thin_wrapper_passes_args_and_context[mini_app_scaffold-mini_app_scaffold] PASSED [ 54%]
+tests/core/test_action_registry_coverage.py::test_mini_app_thin_wrapper_passes_args_and_context[mini_app_write_logic-mini_app_write_logic] PASSED [ 55%]
+tests/core/test_action_registry_coverage.py::test_mini_app_thin_wrapper_passes_args_and_context[mini_app_dev_run-mini_app_dev_run] PASSED [ 56%]
+tests/core/test_action_registry_coverage.py::test_mini_app_thin_wrapper_passes_args_and_context[mini_app_publish-mini_app_publish] PASSED [ 58%]
+tests/core/test_action_registry_coverage.py::test_mini_app_thin_wrapper_passes_args_and_context[mini_app_install-mini_app_install] PASSED [ 59%]
+tests/core/test_action_registry_coverage.py::test_mini_app_thin_wrapper_passes_args_and_context[mini_app_run-mini_app_run] PASSED [ 60%]
+tests/core/test_action_registry_coverage.py::test_mini_app_thin_wrapper_passes_args_and_context[mini_app_list-mini_app_list] PASSED [ 61%]
+tests/core/test_action_registry_coverage.py::test_mini_app_thin_wrapper_passes_args_and_context[mini_app_get_state-mini_app_get_state] PASSED [ 62%]
+tests/core/test_action_registry_coverage.py::test_mini_app_thin_wrapper_passes_args_and_context[mini_app_set_tests-mini_app_set_tests] PASSED [ 63%]
+tests/core/test_action_registry_coverage.py::test_mini_app_thin_wrapper_passes_args_and_context[mini_app_run_tests-mini_app_run_tests] PASSED [ 65%]
+tests/core/test_action_registry_coverage.py::test_mini_app_thin_wrapper_passes_args_and_context[mini_app_logic_history-mini_app_logic_history] PASSED [ 66%]
+tests/core/test_action_registry_coverage.py::test_mini_app_thin_wrapper_passes_args_and_context[mini_app_revert_logic-mini_app_revert_logic] PASSED [ 67%]
+tests/core/test_action_registry_coverage.py::test_mini_app_thin_wrapper_passes_args_and_context[mini_app_status-mini_app_status] PASSED [ 68%]
+tests/core/test_action_registry_coverage.py::test_mini_app_thin_wrapper_passes_args_and_context[mini_app_db_query-mini_app_db_query] PASSED [ 69%]
+tests/core/test_action_registry_coverage.py::test_mini_app_thin_wrapper_passes_args_and_context[mini_app_db_write-mini_app_db_write] PASSED [ 70%]
+tests/core/test_action_registry_coverage.py::test_singleton_has_expected_seed_actions_registered PASSED [ 72%]
+tests/test_r79_action_registry_rpc.py::TestDuplicateRegistration::test_duplicate_registration_overwrites_and_keeps_single_entry PASSED [ 73%]
+tests/test_r79_action_registry_rpc.py::TestDuplicateRegistration::test_decorator_reregistration_overwrites PASSED [ 74%]
+tests/test_r79_action_registry_rpc.py::TestDuplicateRegistration::test_register_decorator_returns_original_function PASSED [ 75%]
+tests/test_r79_action_registry_rpc.py::TestDuplicateRegistration::test_registered_action_keeps_given_description PASSED [ 76%]
+tests/test_r79_action_registry_rpc.py::TestRpcRouteAuthenticated::test_unknown_action_returns_404 
+-------------------------------- live log call ---------------------------------
+2026-11-06 23:27:21 [    INFO] HTTP Request: POST http://testserver/api/rpc/no.such.action "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 77%]
+tests/test_r79_action_registry_rpc.py::TestRpcRouteAuthenticated::test_known_action_dispatches 
+-------------------------------- live log call ---------------------------------
+2026-11-06 23:27:21 [    INFO] HTTP Request: POST http://testserver/api/rpc/test.r79.rpc.ok "HTTP/1.1 200 OK"
+PASSED                                                                   [ 79%]
+tests/test_r79_action_registry_rpc.py::TestRpcRouteAuthenticated::test_params_user_id_cannot_impersonate_actor 
+-------------------------------- live log call ---------------------------------
+2026-11-06 23:27:21 [    INFO] HTTP Request: POST http://testserver/api/rpc/test.r79.rpc.actor "HTTP/1.1 200 OK"
+PASSED                                                                   [ 80%]
+tests/test_r79_action_registry_rpc.py::TestRpcRouteAuthenticated::test_action_exception_returns_generic_500_without_leak 
+-------------------------------- live log call ---------------------------------
+2026-11-06 23:27:21 [   ERROR] RPC action test.r79.rpc.explode failed: secret-internal-detail
+2026-11-06 23:27:21 [    INFO] HTTP Request: POST http://testserver/api/rpc/test.r79.rpc.explode "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 81%]
+tests/test_r79_action_registry_rpc.py::TestRpcRouteAuthenticated::test_list_actions_includes_registered_names 
+-------------------------------- live log call ---------------------------------
+2026-11-06 23:27:21 [    INFO] HTTP Request: GET http://testserver/api/rpc/actions "HTTP/1.1 200 OK"
+FAILED                                                                   [ 82%]
+tests/test_action_registry.py::TestRegistryMechanics::test_register_and_get_action PASSED [ 83%]
+tests/test_action_registry.py::TestRegistryMechanics::test_get_action_unknown_returns_none PASSED [ 84%]
+tests/test_action_registry.py::TestRegistryMechanics::test_get_all_definitions_returns_registered PASSED [ 86%]
+tests/test_action_registry.py::TestRegistryMechanics::test_execute_action_round_trip PASSED [ 87%]
+tests/test_action_registry.py::TestRegistryMechanics::test_execute_action_unknown_raises_action_not_found PASSED [ 88%]
+tests/test_action_registry.py::TestRegistryMechanics::test_list_actions_returns_registered_names PASSED [ 89%]
+tests/test_action_registry.py::TestRegistryMechanics::test_registered_action_has_schema_shape PASSED [ 90%]
+tests/test_action_registry.py::TestSeedActions::test_seed_actions_registered PASSED [ 91%]
+tests/test_action_registry.py::TestRpcRouteUnauthenticated::test_list_actions_unauthenticated_rejected 
+-------------------------------- live log call ---------------------------------
+2026-11-06 23:27:21 [    INFO] HTTP Request: GET http://testserver/api/rpc/actions "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 93%]
+tests/test_action_registry.py::TestRpcRouteUnauthenticated::test_call_action_unauthenticated_rejected 
+-------------------------------- live log call ---------------------------------
+2026-11-06 23:27:21 [    INFO] HTTP Request: POST http://testserver/api/rpc/agents.list "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 94%]
+tests/test_action_registry.py::TestRpcRouteUnauthenticated::test_call_unknown_action_unauthenticated_rejected 
+-------------------------------- live log call ---------------------------------
+2026-11-06 23:27:21 [    INFO] HTTP Request: POST http://testserver/api/rpc/does.not.exist "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 95%]
+tests/test_action_registry.py::TestRpcRouteAuthenticated::test_list_actions_returns_five_seed_actions 
+-------------------------------- live log call ---------------------------------
+2026-11-06 23:27:21 [    INFO] HTTP Request: GET http://testserver/api/rpc/actions "HTTP/1.1 200 OK"
+PASSED                                                                   [ 96%]
+tests/test_action_registry.py::TestRpcRouteAuthenticated::test_call_action_dispatches_through_registry 
+-------------------------------- live log call ---------------------------------
+2026-11-06 23:27:21 [    INFO] HTTP Request: POST http://testserver/api/rpc/test.rpc.echo "HTTP/1.1 200 OK"
+PASSED                                                                   [ 97%]
+tests/test_action_registry.py::TestMcpServiceDispatchIntegration::test_call_tool_routes_action_through_registry 
+-------------------------------- live log call ---------------------------------
+2026-11-06 23:27:21 [    INFO] MCP Service initialized
+PASSED                                                                   [ 98%]
+tests/test_action_registry.py::TestMcpServiceDispatchIntegration::test_action_registry_module_importable PASSED [100%]
+
+=================================== FAILURES ===================================
+E   IndexError: list index out of range
+/private/tmp/atom-cli-generic-oracle/backend/tests/core/test_action_registry_coverage.py:361: IndexError: list index out of range
+E   AssertionError: assert 'test.r79.rpc.ok' in ['documents.search', 'search_communications', 'recall_episodes', 'canvas.read', 'documents.ls', 'documents.cat', ...]
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/api/rpc/actions "HTTP/1.1 200 OK"
+/private/tmp/atom-cli-generic-oracle/backend/tests/test_r79_action_registry_rpc.py:145: AssertionError: assert 'test.r79.rpc.ok' in ['documents.search', 'search_communications', 'recall_episodes', 'canvas.read', 'documents.ls', 'documents.cat', ...]
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 172 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_r79_action_registry_rpc.py::TestRpcRouteAuthenticated::test_unknown_action_returns_404
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/core/test_action_registry_coverage.py::TestDocumentsSearchAction::test_search_legacy_path_flag_off
+FAILED tests/test_r79_action_registry_rpc.py::TestRpcRouteAuthenticated::test_list_actions_includes_registered_names
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================= 2 failed, 84 passed, 179 warnings in 10.22s ==================

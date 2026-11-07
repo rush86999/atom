@@ -1,0 +1,36 @@
+{
+  "executed_source": "d218e29ea3475244bae7d6b7f5263fa767c11b04",
+  "source_files": {
+    "backend/core/generic_agent.py": "9be2d1ff54f86a3bcecd1baeccf98d2b68dc99dcbae0face5077b33008a13a6b",
+    "backend/core/outbound_operation_claim.py": "f500eab97c1dd4c258a84609372f6ec7928ada06f6d4b7ab7c97a01016a3a688",
+    "backend/core/action_effects.py": "47b9130cf601eb581159c117281febbbf692f9372c1226d621bbc55c5c480e5a",
+    "backend/core/action_registry.py": "16cfc4c9e6bc31d350b78ba5300e35f1a6d1944c98f1cf6a8efed261c1aad44a",
+    "backend/core/oracle/__init__.py": "27af22d37b9f16fbff51f7e9557cebba3448b3cb056a0e83afb20aed41d281f1",
+    "backend/core/oracle/postcondition_verifiers.py": "0c77f841dc6a9532984c962d9cc23761e92a0323f752b042ce244e13f6593d19",
+    "backend/core/assignment_executor.py": "7170d6e85b2aab5288aa03617a322a213da5e22fb119317e93fb6536b8c5fa4b",
+    "backend/tools/mini_app_tool.py": "c83fd85bab578722411f8c628c6fca7bba9506487591647439fd5cd71b4157a4",
+    "backend/tests/test_generic_oracle_mutation_contract.py": "ee8dc49f0e1a2393fe64d12bd8646cb12b42d30794686f640d47fe052b9547ad",
+    "backend/tests/test_generic_normal_retry_identity.py": "888b6bf1efee1a44a3fb6cb0d57c75c9e7d067a11a587a66f025b06b1a2b6343",
+    ".github/workflows/ci.yml": "4cd6502a677174a4bb07bd354bcdd8c9d88d1c45b4c1067b223e77a7ed07c7ae",
+    "backend/api/agent_routes.py": "45e3ee073019c4ac880cbaf77064921052c458587138b2c88f23b70628437290"
+  },
+  "artifacts": {
+    "README.md": "33eaf47986671f901d19eb7f9d5f33603223ae0e73b2aa943ed49f04c3566d08",
+    "RUN_SPEC.json": "5dcdb2f86c83ff776335a8af77f1334b52ad39a8e02d8379f0d0f303a57a8df5",
+    "WORKER_LOG_ATTRIBUTION.json": "bdc23a186bc5bf0ac18131961424cecd5afba3a8a0c12a080e1228890aa97123",
+    "integrated-gate.log": "ee6c62d207620021cd30bdc0a73bdfc1681b2491a851f15594f7b587c6795b7f",
+    "next-caller-outcome-baseline.log": "17844f46cf968d68cedd4409ed1974ce3b208613c33f35e4eff856716de15544",
+    "original-reviewed-baseline.log": "fb369857c6607c4c6241e16914b34bbdcfb50f1be360901a8717aefeab975376",
+    "pre-fix-normal-loop.log": "f630e4a46e791a1df6c620eeb68ce204e11c8d96681f8e1d173b1d8764bbd1aa",
+    "probes/test_lead_agent_job_outcome_join.py": "d79c83f331adbc145350cc857d7a8d61c2cfc7264ab98c8f7533287eea07df02",
+    "probes/test_lead_generic_draft_boundaries.py": "0be529300db98831f31a1fe0dc85c5ec6f50926fe90f2fc849d185e52fc7634a",
+    "probes/test_lead_generic_normal_identity.py": "1ed98879318faf9ef25bbf6df8813b31f9382760e14c7b41b070acb8353a26b7",
+    "probes/test_lead_generic_reload_unavailable.py": "bf643ab5384485a7dc5bc49a9d7510d372da611174063afc9ed09ddbbc448bf2",
+    "probes/test_lead_generic_two_normal_writes.py": "243d0066000168e019014f46990aeb8556e936a4a0c53ee708264fff4ee3681c",
+    "worker/final_156.log": "97584dd214d69d96649aced6e0076a7cafc8c73c9c1117dc25092e8cab5ba0b8",
+    "worker/final_341.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "worker/final_43.log": "3cada60d3f54abf6af562f4a31cd8be886a242c438a69a2d68431c48c9771fab",
+    "worker/final_reg.log": "678541f60586ae35b7f47335e038694eaa4d12f4af613c21a7ae891b993abca7",
+    "worker/final_root_probe.log": "f8400c18be499772802d62271d8976d7f6ef7f5b8a46ba73306a7c9532d839cb"
+  }
+}

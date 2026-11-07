@@ -1,0 +1,17 @@
+{
+  "python": "project venv Python 3.14",
+  "cwd": "/private/tmp/atom-generic-lead-combine/backend",
+  "command": "TESTING=1 DATABASE_URL=sqlite:////private/tmp/root-generic-final2-import.db PYTHONPATH=. /Users/rushiparikh/projects/atom/backend/venv314/bin/python -m pytest tests/test_oracle_registry_verification_gap.py tests/test_oracle_effect_families.py tests/test_oracle_connected_mutations.py tests/test_assignment_executor.py tests/test_generic_oracle_mutation_contract.py tests/test_generic_normal_retry_identity.py tests/integration/journeys/test_oracle_registry_mutation_journey.py /private/tmp/test_lead_generic_draft_boundaries.py /private/tmp/test_lead_generic_normal_identity.py /private/tmp/test_lead_generic_reload_unavailable.py /private/tmp/test_lead_generic_two_normal_writes.py -q --basetemp=/private/tmp/root-generic-integrated-final2-new",
+  "executed_source": "ddc6de056555b6a66946ebdbfe3f343da962bfc8",
+  "repair_source": "039a24f4e",
+  "result": {
+    "passed": 229,
+    "failed": 0,
+    "seconds": 40.26
+  },
+  "runtime_files_clean_at_run": true,
+  "tree_clean_at_run": false,
+  "tree_note": "Evidence-only metadata edits occurred during the gate; tracked runtime/test/CI files stayed identical to the committed source. External supplied probes are retained in the earlier integrated packet.",
+  "separate_predecessor": "d218e29ea228-pass packet is preserved with its exact runtime identity; no old log was relabelled.",
+  "next_work": "Agent2 is already on admitted AgentJob outcome/context join; four failed outcome twins plus valid success positive preserved separately."
+}

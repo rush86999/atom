@@ -1,5 +1,7 @@
 import asyncio
 from datetime import datetime, timezone
+import copy
+import hashlib
 import json
 import logging
 import os
@@ -205,6 +207,23 @@ class GenericAgent:
         context.setdefault("run_id", _run_uuid)
         context.setdefault("execution_id", _run_uuid)
         context.setdefault("agent_id", self.id)
+
+        # Per-run uncertainty ledger for declared mutations whose post-dispatch
+        # outcome was not independently confirmed. Preserve an authoritative
+        # pending entry for the SAME durable execution (a cold resumed pass
+        # must not erase it), and reload the durable claims below instead of
+        # trusting only tools re-called during this pass.
+        _exec_identity = str(
+            context.get("execution_id") or context.get("run_id") or "")
+        _existing_uncertain = context.get("_uncertain_operations")
+        _uncertain_owner = context.get("_uncertain_operations_execution")
+        if not isinstance(_existing_uncertain, list) or (
+            _uncertain_owner and _exec_identity
+            and str(_uncertain_owner) != _exec_identity
+        ):
+            context["_uncertain_operations"] = []
+        context["_uncertain_operations_execution"] = _exec_identity
+        self._reload_uncertain_operations(context)
         try:
             from core.database import get_db_session as _get_db_session_local
             with _get_db_session_local() as _tier_db:
@@ -790,6 +809,14 @@ class GenericAgent:
                 logger.warning(f"Audit failed: {audit_err}")
 
         # 5. Record Experience
+        # Finalization join: a run whose declared mutation ended uncertain is
+        # NOT an overall business success. The useful read/plan output is
+        # preserved, but the public execution result carries the block and the
+        # reconciliation requirement so dependent work cannot proceed.
+        _uncertain_operations = list(context.get("_uncertain_operations") or [])
+        if _uncertain_operations and status in _SUCCESS_STATUSES:
+            status = "uncertain"
+            plan_adherence = 0.5
         # Normalize internal loop sentinels to valid ExecutionStatus values at
         # the execution boundary. ``budget_exceeded`` is an in-loop signal; if
         # it leaks into the returned payload, the API/WS layer serializes an
@@ -806,6 +833,8 @@ class GenericAgent:
             "step_efficiency": step_efficiency,
             "plan_adherence": plan_adherence,
             "audit_report": audit_report,
+            "requires_reconciliation": bool(_uncertain_operations),
+            "uncertain_operations": _uncertain_operations,
             "timestamp": start_time.isoformat()
         }
 
@@ -1615,7 +1644,616 @@ What is your next step?"""
             final_answer=raw_response if has_final_marker else None
         )
         
-    async def _oracle_check(self, tool_name: str, args: Dict, result: Any) -> Any:
+    def _declared_mutation(self, tool_name: str) -> bool:
+        """Conservative classification from the trusted registry declaration.
+
+        A registered action is mutating when it explicitly declares a
+        mutation, and also when its effect metadata is empty/unknown: an
+        unqualified declaration is not a read exemption (same rule as the
+        shared assignment adapter). Only an explicit read/plan declaration is
+        non-mutating. An unregistered MCP tool is a separate declared scope and
+        keeps its historical path; this method makes no whole-tool-surface
+        claim.
+        """
+        try:
+            from core.action_effects import (
+                declares_mutation,
+                declares_plan_output,
+                declares_read_only,
+            )
+            from core.action_registry import action_registry
+
+            action = action_registry.get_action(tool_name)
+            if action is None:
+                return False
+            if declares_mutation(action):
+                return True
+            if declares_read_only(action) or declares_plan_output(action):
+                return False
+            # Empty/unknown effect metadata is UNQUALIFIED, not read proof.
+            return True
+        except Exception:  # noqa: BLE001 - unknown metadata is conservative
+            return False
+
+    @staticmethod
+    def _freeze_authorized_request(
+        args: Dict, context: Dict = None,
+    ):
+        """Snapshot the authorized args and the caller's expected material.
+
+        The handler receives a separate deep copy, so an in-place rewrite
+        cannot change what the oracle compares against or what a durable
+        operation claim hashes.
+        """
+        authorized = copy.deepcopy(args or {})
+        expected = {
+            str(key): copy.deepcopy(value)
+            for key, value in authorized.items()
+            if str(key).startswith("_oracle_expected_")
+        }
+        operation_id = str(
+            expected.get("_oracle_expected_operation_id")
+            or authorized.get("operation_id")
+            or (context or {}).get("operation_id")
+            or ""
+        )
+        if operation_id:
+            expected.setdefault("_oracle_expected_operation_id", operation_id)
+        return authorized, expected, operation_id
+
+    def _server_operation_id(
+        self, tool_name: str, authorized: Dict, context: Dict,
+    ) -> str:
+        """Mint a stable, server-owned logical operation id for normal dispatch.
+
+        The ReAct ToolCall carries only tool+params, so the server derives the
+        identity from the durable execution scope. With a server-supplied
+        intent/slot, that slot alone is the identity (model material/action
+        cannot re-mint it). Without a slot, action + frozen material scope the
+        operation inside the execution: an identical retry dedupes while a
+        genuinely different request is a new intent, not a forever payload
+        cache. A server can authorize two separately intended identical
+        operations by supplying distinct slots / explicit operation ids.
+        """
+        ctx = context or {}
+        execution = str(ctx.get("execution_id") or ctx.get("run_id") or "")
+        workspace = str(ctx.get("workspace_id") or "")
+        if not workspace:
+            own = str(getattr(self, "workspace_id", "") or "")
+            if own and own != "default":
+                workspace = own
+        if not execution or not workspace:
+            return ""
+        slot = str(
+            ctx.get("operation_slot") or ctx.get("intent_id")
+            or ctx.get("authorization_id") or "")
+        material = {
+            "workspace_id": workspace,
+            "execution_id": execution,
+            # A server-authorized intent slot IS the logical operation; the
+            # action/model material cannot re-mint it. Without a slot, the
+            # action + frozen material scope the operation inside this
+            # execution (same retry dedupes, a genuinely different request is a
+            # new intent rather than a forever payload cache).
+            "intent": (
+                slot if slot else {
+                    "action": str(tool_name or ""),
+                    "args": authorized or {},
+                }
+            ),
+        }
+        raw = json.dumps(
+            material, sort_keys=True, separators=(",", ":"), default=str)
+        return "auto-" + hashlib.sha256(raw.encode()).hexdigest()
+
+    @staticmethod
+    def _oracle_context(
+        authorized: Dict, result_fields: Dict, expected: Dict,
+    ) -> Dict:
+        """Merge result fields under, never over, the frozen expectation.
+
+        A handler result may supply ordinary observation fields (task_id,
+        remote_id, receipts) but it cannot introduce or overwrite an
+        ``_oracle_expected_*`` key: only the pre-dispatch snapshot may.
+        """
+        context = {**authorized, **result_fields}
+        frozen = {
+            str(key): copy.deepcopy(value)
+            for key, value in (expected or {}).items()
+            if str(key).startswith("_oracle_expected_")
+        }
+        for key in list(context):
+            if str(key).startswith("_oracle_expected_") and key not in frozen:
+                context.pop(key, None)
+        context.update(frozen)
+        return context
+
+    @staticmethod
+    def _stamp_oracle_verdict(result: Any, verified: bool, evidence: str) -> Any:
+        if isinstance(result, dict):
+            out = dict(result)
+            out["oracle_verified"] = bool(verified)
+            out["oracle_evidence"] = str(evidence or "")
+            return out
+        verdict = "VERIFIED" if verified else "UNVERIFIED"
+        return f"{result}\n[ORACLE:{verdict} — {evidence}]"
+
+    @staticmethod
+    def _claims_business_success(result: Any) -> bool:
+        """Does this observation self-report a completed business effect?"""
+        if isinstance(result, dict):
+            if result.get("success") is True:
+                return True
+            outcome = str(
+                result.get("action_result") or result.get("status") or ""
+            ).strip().lower()
+            return outcome in {"success", "completed", "applied"}
+        if isinstance(result, str):
+            low = result.lower()
+            return not any(marker in low for marker in (
+                "error", "failed", "rejected", "blocked", "refused",
+                "not found", "timed out", "timeout",
+            ))
+        return False
+
+    @staticmethod
+    def _declares_effect_none(result: Any) -> bool:
+        if not isinstance(result, dict):
+            return False
+        if result.get("effect_possible") is False:
+            return True
+        outcome = str(
+            result.get("action_result") or result.get("status") or ""
+        ).strip().lower()
+        return outcome in {
+            "failed_before_effect", "not_applied", "none", "rejected",
+            "refused",
+        }
+
+    def _record_uncertain_operation(
+        self, context: Dict, tool_name: str, operation_id: str,
+        evidence: str,
+    ) -> None:
+        if not isinstance(context, dict):
+            return
+        entry = {
+            "tool": str(tool_name),
+            "operation_id": str(operation_id or ""),
+            "status": "uncertain",
+            "effect_state": "unknown",
+            "requires_reconciliation": True,
+            "retryable": False,
+            "evidence": str(evidence or "")[:500],
+        }
+        entries = context.setdefault("_uncertain_operations", [])
+        if entry not in entries:
+            entries.append(entry)
+
+    def _reload_uncertain_operations(self, context: Dict) -> None:
+        """Reload durable unresolved claims for a cold-resumed execution.
+
+        The in-memory ledger is a derived cache; the authoritative state is
+        the existing TaskOperationRecord claim. Operation ids named by the
+        resume context (``operation_id`` / ``pending_operation_ids`` /
+        ``resume_operation_ids``) are re-read, so a model final answer in a
+        new pass cannot erase an earlier unresolved effect.
+        """
+        if not isinstance(context, dict):
+            return
+        workspace = str(context.get("workspace_id") or "").strip()
+        if not workspace:
+            own = str(getattr(self, "workspace_id", "") or "")
+            if own and own != "default":
+                workspace = own
+        if not workspace:
+            return
+        from core import outbound_operation_claim as claims
+
+        unresolved = {
+            claims.CLAIMED, claims.DISPATCHING, claims.UNCERTAIN_EFFECT,
+        }
+
+        def _reload_row(row) -> None:
+            status = str(row.get("status") or "")
+            if status not in unresolved:
+                return
+            operation_id = str(row.get("operation_id") or "")
+            op_type = str(row.get("operation_type") or "")
+            action = (
+                op_type.split("generic:agent:", 1)[1]
+                if op_type.startswith("generic:agent:") else
+                "durable-operation")
+            self._record_uncertain_operation(
+                context, action or "durable-operation", operation_id,
+                f"durable operation state is {status}")
+
+        execution = str(
+            context.get("execution_id") or context.get("run_id") or "")
+        unavailable = None
+        if execution:
+            try:
+                for row in claims.generic_operations_for_execution(
+                        workspace, execution, db_factory=get_db_session,
+                        strict=True):
+                    _reload_row(row)
+            except Exception as exc:  # noqa: BLE001
+                unavailable = type(exc).__name__
+
+        operation_ids = []
+        for key in (
+            "operation_id", "pending_operation_ids", "resume_operation_ids",
+        ):
+            value = context.get(key)
+            if isinstance(value, str) and value:
+                operation_ids.append(value)
+            elif isinstance(value, (list, tuple, set)):
+                operation_ids.extend(str(item) for item in value if item)
+        if unavailable is None:
+            for operation_id in dict.fromkeys(operation_ids):
+                try:
+                    rows = claims.generic_operations(
+                        workspace, operation_id, db_factory=get_db_session,
+                        strict=True)
+                except Exception as exc:  # noqa: BLE001
+                    unavailable = type(exc).__name__
+                    break
+                for row in rows:
+                    _reload_row(row)
+        if unavailable is not None:
+            # Unreadable is NOT authoritative zero rows: keep the run
+            # unresolved and do not let a model final answer certify it.
+            self._record_uncertain_operation(
+                context, "operation-store", "",
+                f"operation claim store unavailable ({unavailable})")
+
+    def _finalize_mutation_result(
+        self, tool_name: str, result: Any, expected: Dict,
+        operation_id: str, context: Dict = None, claim: Dict = None,
+    ) -> Any:
+        """Never let an unverified declared mutation read as business success.
+
+        A successful self-report with no usable independent verdict becomes an
+        explicit ``uncertain`` observation. The effect may already have landed,
+        so this is not a proven failure: identity is retained, dependent work
+        is blocked, and an automatic resend is forbidden.
+        """
+        if not isinstance(result, (dict, str)):
+            return result
+        # A self-reported success without an independent verdict, or any
+        # post-dispatch false envelope that does not prove no effect, is an
+        # ambiguous business state. Only an explicit no-effect declaration
+        # (or a real verified verdict) may stay as-is.
+        if isinstance(result, dict) and result.get("oracle_verified") is True:
+            return result
+        if self._declares_effect_none(result):
+            return result
+        out = dict(result) if isinstance(result, dict) else {"data": result}
+        evidence = str(
+            out.get("oracle_evidence")
+            or "no usable independent postcondition verdict"
+        )
+        durable_claim = bool(claim and claim.get("won"))
+        frozen_operation = str(
+            (expected or {}).get("_oracle_expected_operation_id")
+            or operation_id or ""
+        )
+        out.update({
+            "success": False,
+            "status": "uncertain",
+            "action_result": "uncertain",
+            "business_success": False,
+            "effect_state": "unknown",
+            "durable_claim": durable_claim,
+            "oracle_verified": False,
+            "oracle_evidence": evidence,
+            "requires_reconciliation": True,
+            "retryable": False,
+            "message": (
+                f"Tool '{tool_name}' may have applied an effect, but no "
+                f"independent postcondition verdict confirmed it. Do NOT "
+                f"retry or resend"
+                + (f" operation {frozen_operation}" if frozen_operation else "")
+                + "; reconcile it first."
+                + ("" if durable_claim else (
+                    " No durable operation claim could be established, so "
+                    "this attempt is not safe to retry."))
+            ),
+        })
+        if frozen_operation:
+            out["operation_id"] = frozen_operation
+        self._record_uncertain_operation(
+            context, tool_name, frozen_operation, evidence)
+        return out
+
+    def _operation_claim_identity(
+        self, tool_name: str, authorized: Dict, context: Dict,
+        operation_id: str,
+    ) -> Optional[Dict]:
+        """Explicit durable-claim material from the server-owned run context.
+
+        Model-authored args alone are never authoritative for the workspace or
+        logical operation identity. A missing workspace/operation therefore
+        yields no claim; the caller must not treat that attempt as durably
+        retry-safe. An agent namespace is never lent as a user id: the actor
+        kind is recorded explicitly when no supported principal is present.
+        """
+        ctx = context or {}
+        workspace = str(ctx.get("workspace_id") or "")
+        if not workspace:
+            own = str(getattr(self, "workspace_id", "") or "")
+            if own and own != "default":
+                workspace = own
+        operation = str(operation_id or "")
+        if not workspace or not operation:
+            return None
+        user_id = ctx.get("user_id")
+        actor_id = user_id or ctx.get("actor_id")
+        execution = str(ctx.get("execution_id") or ctx.get("run_id") or "")
+        return {
+            "workspace_id": workspace,
+            "tenant_id": (
+                ctx.get("tenant_id") or getattr(self, "tenant_id", None)
+            ),
+            "actor_id": actor_id,
+            "actor_kind": (
+                "user" if user_id else ("actor" if actor_id else "unknown")
+            ),
+            "agent_id": str(getattr(self, "id", "") or ""),
+            "execution_id": execution,
+            "execution_kind": "execution" if execution else "unspecified",
+            "claim_scope": (
+                None if execution
+                else f"legacy:{str(tool_name or '')}:{operation}"),
+            "action": str(tool_name or ""),
+            "frozen_args": authorized,
+            "operation_id": operation,
+        }
+
+    def _unresolved_prior_operation(
+        self, tool_name: str, context: Dict,
+    ) -> Optional[Dict]:
+        """The unresolved durable claim for this action in this execution.
+
+        A normal model retry has no call id; if the same action already has a
+        claimed/dispatching/uncertain effect, that operation is the pending
+        intent and must not be re-minted by changed model args. A supplied
+        server intent slot / explicit operation id is handled separately as
+        independent authority. An unreadable store is reported as unavailable
+        (not zero rows) so the caller can refuse before effect.
+        """
+        ctx = context or {}
+        workspace = str(ctx.get("workspace_id") or "")
+        if not workspace:
+            own = str(getattr(self, "workspace_id", "") or "")
+            if own and own != "default":
+                workspace = own
+        execution = str(ctx.get("execution_id") or ctx.get("run_id") or "")
+        if not workspace or not execution:
+            return None
+        from core import outbound_operation_claim as claims
+
+        try:
+            rows = claims.generic_operations_for_execution(
+                workspace, execution, db_factory=get_db_session, strict=True)
+        except Exception as exc:  # noqa: BLE001
+            return {"unavailable": type(exc).__name__}
+        unresolved = {
+            claims.CLAIMED, claims.DISPATCHING, claims.UNCERTAIN_EFFECT,
+        }
+        expected_type = f"generic:agent:{str(tool_name or '')}"
+        for row in rows:
+            if (str(row.get("operation_type") or "") == expected_type
+                    and str(row.get("status") or "") in unresolved):
+                return row
+        return None
+
+    def _claim_mutation_operation(
+        self, tool_name: str, authorized: Dict, context: Dict,
+        operation_id: str,
+    ) -> Optional[Dict]:
+        # Claim identity comes from the server-owned run context (or the
+        # server-minted auto id); model-visible args cannot license it.
+        identity = self._operation_claim_identity(
+            tool_name, authorized, context, operation_id)
+        if identity is None:
+            return None
+        from core import outbound_operation_claim as claims
+
+        payload_hash = claims.operation_payload_sha256(
+            workspace_id=identity["workspace_id"],
+            tenant_id=identity["tenant_id"],
+            actor_id=identity["actor_id"],
+            actor_kind=identity["actor_kind"],
+            agent_id=identity["agent_id"],
+            execution_id=identity["execution_id"],
+            execution_kind=identity["execution_kind"],
+            action=identity["action"],
+            frozen_args=identity["frozen_args"],
+        )
+        claim = claims.claim_generic_operation(
+            workspace_id=identity["workspace_id"],
+            tenant_id=identity["tenant_id"],
+            operation_id=identity["operation_id"],
+            action=identity["action"],
+            payload_hash=payload_hash,
+            execution_id=identity["execution_id"],
+            scope_id=identity["claim_scope"],
+            db_factory=get_db_session,
+        )
+        claim["payload_sha256"] = payload_hash
+        return claim
+
+    def _mark_claim_status(
+        self, claim: Optional[Dict], status: str,
+        expected_status: Any = None,
+    ) -> bool:
+        if not claim or not claim.get("won") or not claim.get("record_id"):
+            return False
+        from core import outbound_operation_claim as claims
+
+        return claims.mark_status(
+            claim["record_id"], status,
+            expected_status=expected_status,
+            db_factory=get_db_session,
+        )
+
+    async def _claim_replay_result(
+        self, tool_name: str, authorized: Dict, expected: Dict,
+        claim: Dict, context: Dict,
+    ) -> Any:
+        """Return the durable state for an already-claimed operation.
+
+        No second dispatch is possible from here. A confirmed operation is
+        replayed only after a *current* independent readback when the verifier
+        can run from frozen material; otherwise the durable confirmation is
+        reported as an idempotent duplicate without a fabricated new effect.
+        """
+        from core import outbound_operation_claim as claims
+
+        status = str(claim.get("status") or "")
+        operation_id = str(
+            (expected or {}).get("_oracle_expected_operation_id")
+            or claim.get("operation_id") or "")
+        if status == claims.SUCCEEDED:
+            checked = await self._oracle_check(
+                tool_name, authorized, {}, mutating=True,
+                expected=expected, context=context)
+            if isinstance(checked, dict) and checked.get("oracle_verified") is True:
+                return {
+                    "success": True,
+                    "status": "success",
+                    "action_result": "applied",
+                    "replayed": True,
+                    "idempotent": True,
+                    "operation_id": operation_id,
+                    "oracle_verified": True,
+                    "oracle_evidence": checked.get("oracle_evidence"),
+                    "message": (
+                        "This logical operation was already applied and "
+                        "independently re-read back; no second dispatch."),
+                }
+            evidence = (
+                "durable claim is succeeded; the fresh independent readback "
+                "did not reconfirm the effect")
+            self._record_uncertain_operation(
+                context, tool_name, operation_id, evidence)
+            return {
+                "success": False,
+                "status": "committed_unverified",
+                "action_result": "already_applied_unverified",
+                "business_success": False,
+                "effect_state": "unknown",
+                "replayed": True,
+                "idempotent": True,
+                "committed": True,
+                "operation_id": operation_id,
+                "oracle_verified": False,
+                "oracle_evidence": evidence,
+                "requires_reconciliation": True,
+                "retryable": False,
+                "message": (
+                    "This logical operation was previously committed, but a "
+                    "fresh independent readback did not confirm it. It was not "
+                    "dispatched again; reconcile the committed effect before "
+                    "dependent work."),
+            }
+        if status in (claims.DISPATCHING, claims.UNCERTAIN_EFFECT):
+            evidence = (
+                "the operation claim is dispatching/uncertain; the earlier "
+                "dispatch may have applied an effect")
+            self._record_uncertain_operation(
+                context, tool_name, operation_id, evidence)
+            return {
+                "success": False,
+                "status": "uncertain",
+                "action_result": "uncertain",
+                "business_success": False,
+                "effect_state": "unknown",
+                "operation_id": operation_id,
+                "oracle_verified": False,
+                "oracle_evidence": evidence,
+                "requires_reconciliation": True,
+                "retryable": False,
+                "idempotent": True,
+                "message": (
+                    f"Operation {operation_id or '<unknown>'} already started "
+                    f"and may have applied an effect. Do NOT retry or resend; "
+                    f"reconcile it first."),
+            }
+        if status == claims.FAILED_BEFORE_EFFECT:
+            return {
+                "success": False,
+                "status": "failed_before_effect",
+                "action_result": "not_applied",
+                "effect_state": "none",
+                "operation_id": operation_id,
+                "requires_reconciliation": False,
+                "retryable": False,
+                "idempotent": True,
+                "message": (
+                    "The durable claim records a failure before any effect; "
+                    "this attempt did not dispatch again."),
+            }
+        if status == claims.CLAIMED:
+            evidence = "operation claim is held but not dispatched"
+            self._record_uncertain_operation(
+                context, tool_name, operation_id, evidence)
+            return {
+                "success": False,
+                "status": "in_progress",
+                "action_result": "claimed",
+                "effect_state": "none",
+                "operation_id": operation_id,
+                "requires_reconciliation": False,
+                "retryable": False,
+                "idempotent": True,
+                "message": (
+                    "Another worker holds this logical operation's claim; no "
+                    "second dispatch was made."),
+            }
+        if status == "conflict":
+            evidence = (
+                "same logical operation is bound to different material; the "
+                "prior effect state is unresolved")
+            self._record_uncertain_operation(
+                context, tool_name, operation_id, evidence)
+            return {
+                "success": False,
+                "status": "conflict",
+                "action_result": "not_applied",
+                "effect_state": "unknown",
+                "operation_id": operation_id,
+                "error": claim.get("error"),
+                "requires_reconciliation": True,
+                "retryable": False,
+                "idempotent": True,
+                "message": (
+                    "The same operation id is bound to different material; "
+                    "the changed request was refused before dispatch."),
+            }
+        evidence = "the durable operation claim is unavailable"
+        self._record_uncertain_operation(
+            context, tool_name, operation_id, evidence)
+        return {
+            "success": False,
+            "status": "uncertain",
+            "action_result": "uncertain",
+            "business_success": False,
+            "effect_state": "unknown",
+            "operation_id": operation_id,
+            "error": claim.get("error"),
+            "requires_reconciliation": True,
+            "retryable": False,
+            "message": (
+                "The durable operation claim is unavailable; dispatch was "
+                "refused so no unclaimed effect could land."),
+        }
+
+    async def _oracle_check(
+        self, tool_name: str, args: Dict, result: Any,
+        *, mutating: bool = False, expected: Dict = None,
+        context: Dict = None,
+    ) -> Any:
         """Post-execution oracle stamp (W2, default ON via ATOM_ORACLE_ENFORCE).
 
         For mutating actions with a registered postcondition verifier, the
@@ -1625,6 +2263,13 @@ What is your next step?"""
         ``oracle_evidence`` keys; string results get an ``[ORACLE:...]`` tag.
         A refuted outcome is marked UNVERIFIED so downstream confidence
         scoring (selector_confidence) can never treat self-report as fact.
+
+        ``mutating`` is the trusted registry declaration for the dispatch
+        consumer. When it is true, a missing/disabled/unusable verifier is
+        itself stamped unverified instead of passing the self-report through
+        unchanged. ``expected`` is the pre-dispatch frozen expectation; result
+        fields can never introduce or overwrite ``_oracle_expected_*`` keys.
+
         Failures here never block the tool result (verification is additive).
         """
         try:
@@ -1640,16 +2285,31 @@ What is your next step?"""
                 os.getenv("ATOM_ORACLE_ENFORCE", "true").strip().lower()
                 in ("1", "true", "yes", "on")
             )
-            if not enforce or not oracle_verifier_enabled():
+            if not enforce:
+                if mutating:
+                    return self._stamp_oracle_verdict(
+                        result, False, "oracle enforcement is disabled")
+                return result
+            if not oracle_verifier_enabled():
+                if mutating:
+                    return self._stamp_oracle_verdict(
+                        result, False, "oracle verifier is disabled")
                 return result
             if get_postcondition(tool_name) is None:
+                if mutating:
+                    return self._stamp_oracle_verdict(
+                        result, False, "no registered postcondition verifier")
                 return result  # not in the high-risk mutating set
             result_fields = result if isinstance(result, dict) else {}
+            oracle_context = self._oracle_context(
+                args, result_fields, expected or {})
             with get_db_session() as oracle_db:
-                oracle_result = await validate(
-                    tool_name, {**args, **result_fields, "db": oracle_db}
-                )
+                oracle_context["db"] = oracle_db
+                oracle_result = await validate(tool_name, oracle_context)
             if oracle_result is None:
+                if mutating:
+                    return self._stamp_oracle_verdict(
+                        result, False, "oracle returned no verdict")
                 return result
             # Observability seam: one span per oracle verdict (local import to
             # avoid import cycles; failures never affect the verdict path).
@@ -1675,15 +2335,15 @@ What is your next step?"""
                 )
             except Exception as _obs_exc:
                 logger.debug(f"oracle span recording skipped for {tool_name}: {_obs_exc}")
-            if isinstance(result, dict):
-                out = dict(result)
-                out["oracle_verified"] = oracle_result.verified
-                out["oracle_evidence"] = oracle_result.evidence
-                return out
-            verdict = "VERIFIED" if oracle_result.verified else "UNVERIFIED"
-            return f"{result}\n[ORACLE:{verdict} — {oracle_result.evidence}]"
+            return self._stamp_oracle_verdict(
+                result, bool(oracle_result.verified),
+                str(oracle_result.evidence or ""))
         except Exception as e:
             logger.debug(f"oracle stamp skipped for {tool_name}: {e}")
+            if mutating:
+                return self._stamp_oracle_verdict(
+                    result, False,
+                    f"oracle unavailable: {type(e).__name__}")
             return result
 
     def _record_tool_failure(
@@ -1749,6 +2409,17 @@ What is your next step?"""
             raise
 
         _is_err = isinstance(result, str) and "error" in result.lower()
+        if isinstance(result, dict):
+            _outcome = str(result.get("status") or "").strip().lower()
+            _is_err = (
+                result.get("success") is False
+                or result.get("business_success") is False
+                or result.get("requires_reconciliation") is True
+                or _outcome in {
+                    "uncertain", "failed", "conflict",
+                    "failed_before_effect",
+                }
+            )
         if _is_err:
             self._record_tool_failure(tool_name, result, context)
         try:
@@ -1762,7 +2433,7 @@ What is your next step?"""
                     "duration_ms": round((_time.monotonic() - _start) * 1000, 1),
                 },
                 success=not _is_err,
-                error_message=result[:2000] if _is_err else None,
+                error_message=str(result)[:2000] if _is_err else None,
             )
         except Exception:  # noqa: BLE001
             pass
@@ -1787,6 +2458,53 @@ What is your next step?"""
             except Exception as e:
                 logger.debug(f"Custom action {tool_name} raised: {e}")
                 return f"Error: Custom action '{tool_name}' failed: {e}"
+        # Freeze the authorized request BEFORE governance/handler: the tool
+        # receives a deep copy, so an in-place mutation can neither rewrite the
+        # caller's dict nor the oracle/claim material computed here.
+        authorized, expected, operation_id = self._freeze_authorized_request(
+            args, context)
+        mutating = self._declared_mutation(tool_name)
+        # Server-owned logical operation identity for claim/no-resend. The
+        # model's tool+params cannot mint it; the durable execution scope can.
+        claim_operation_id = str((context or {}).get("operation_id") or "")
+        server_slot = str(
+            (context or {}).get("operation_slot")
+            or (context or {}).get("intent_id")
+            or (context or {}).get("authorization_id") or "")
+        if mutating and not claim_operation_id and not server_slot:
+            prior = self._unresolved_prior_operation(tool_name, context)
+            if isinstance(prior, dict) and prior.get("unavailable"):
+                evidence = (
+                    "operation claim store unavailable before dispatch "
+                    f"({prior.get('unavailable')})")
+                self._record_uncertain_operation(
+                    context, tool_name, "", evidence)
+                return {
+                    "success": False,
+                    "status": "failed_before_effect",
+                    "action_result": "not_applied",
+                    "business_success": False,
+                    "effect_state": "none",
+                    "durable_claim": False,
+                    "error_class": "operation_store_unavailable",
+                    "requires_reconciliation": False,
+                    "retryable": False,
+                    "message": (
+                        "Refusing to dispatch a declared mutation because the "
+                        "durable operation state could not be read; no effect "
+                        "was attempted."),
+                }
+            if prior:
+                claim_operation_id = str(prior.get("operation_id") or "")
+        if mutating and not claim_operation_id:
+            claim_operation_id = self._server_operation_id(
+                tool_name, authorized, context)
+        if claim_operation_id and "_oracle_expected_operation_id" not in expected:
+            expected["_oracle_expected_operation_id"] = claim_operation_id
+        if not operation_id and claim_operation_id:
+            operation_id = claim_operation_id
+        claim: Optional[Dict] = None
+        dispatch_started = False
         try:
             # 1. Governance Maturity Check
             if not pre_approved:
@@ -1801,7 +2519,7 @@ What is your next step?"""
                         action_id = gov.request_approval(
                             agent_id=self.id,
                             action_type=tool_name,
-                            params=args,
+                            params=authorized,
                             reason=auth_check["reason"]
                         )
 
@@ -1845,43 +2563,207 @@ What is your next step?"""
                     elif not auth_check["allowed"]:
                         return f"Governance Error: {auth_check['reason']}"
 
-            # 2. Execute via MCP Service (Dynamic Resolution)
-            result = await self.mcp.call_tool(tool_name, args, context=context)
-            # 3. Default-on outcome verification (W2): for actions with a
+            # 2. Durable operation claim BEFORE the leaf: a declared mutation
+            # with an explicit logical operation id is arbitrated by the
+            # existing TaskOperationRecord table. The same id with changed
+            # material is a conflict; an id already claimed/dispatched is never
+            # sent a second time.
+            if mutating:
+                claim = self._claim_mutation_operation(
+                    tool_name, authorized, context, claim_operation_id)
+                if claim is None:
+                    evidence = (
+                        "no authoritative server-owned operation scope "
+                        "was available")
+                    self._record_uncertain_operation(
+                        context, tool_name, claim_operation_id, evidence)
+                    return {
+                        "success": False,
+                        "status": "failed_before_effect",
+                        "action_result": "not_applied",
+                        "business_success": False,
+                        "effect_state": "none",
+                        "operation_id": claim_operation_id,
+                        "durable_claim": False,
+                        "error_class": "operation_scope_unavailable",
+                        "requires_reconciliation": False,
+                        "retryable": False,
+                        "message": (
+                            "Refusing to dispatch a declared mutation "
+                            "without an authoritative operation scope; no "
+                            "effect was attempted."),
+                    }
+                if claim is not None:
+                    if not claim.get("won"):
+                        return await self._claim_replay_result(
+                            tool_name, authorized, expected, claim, context)
+                    from core import outbound_operation_claim as claims
+                    if not self._mark_claim_status(
+                            claim, claims.DISPATCHING,
+                            expected_status=claims.CLAIMED):
+                        return {
+                            "success": False,
+                            "status": "uncertain",
+                            "action_result": "uncertain",
+                            "business_success": False,
+                            "effect_state": "none",
+                            "operation_id": operation_id,
+                            "durable_claim": False,
+                            "requires_reconciliation": True,
+                            "retryable": False,
+                            "message": (
+                                "The operation claim could not enter the "
+                                "dispatch state; no effect was attempted."),
+                        }
+
+            # 3. Execute via MCP Service (Dynamic Resolution)
+            dispatch_started = True
+            # Handlers receive the SAME server-owned operation identity so a
+            # durable producer receipt can bind to it, but never the caller's
+            # dict (in-place mutation cannot rewrite authority) and never a
+            # result-owned expected key.
+            handler_context = dict(context or {})
+            if claim_operation_id:
+                handler_context["operation_id"] = claim_operation_id
+            handler_context.setdefault("agent_id", getattr(self, "id", None))
+            result = await self.mcp.call_tool(
+                tool_name, copy.deepcopy(authorized), context=handler_context)
+            # 4. Default-on outcome verification (W2): for actions with a
             # registered postcondition verifier, re-derive success against the
             # system of record and stamp the observation with the oracle's
             # verdict — the tool never grades its own work.
-            return await self._oracle_check(tool_name, args, result)
-            
+            checked = await self._oracle_check(
+                tool_name, authorized, result, mutating=mutating,
+                expected=expected, context=context)
+            if not mutating:
+                return checked
+            final = self._finalize_mutation_result(
+                tool_name, checked, expected, operation_id, context, claim)
+            from core import outbound_operation_claim as claims
+            if self._declares_effect_none(checked):
+                self._mark_claim_status(
+                    claim, claims.FAILED_BEFORE_EFFECT,
+                    expected_status=claims.DISPATCHING)
+            elif isinstance(checked, dict) and checked.get(
+                    "oracle_verified") is True:
+                self._mark_claim_status(
+                    claim, claims.SUCCEEDED,
+                    expected_status=claims.DISPATCHING)
+            else:
+                # The effect may have landed; the claim is terminal for
+                # automatic resend until a human/readback reconciles it.
+                self._mark_claim_status(
+                    claim, claims.UNCERTAIN_EFFECT,
+                    expected_status=claims.DISPATCHING)
+            return final
+
         except Exception as e:
             error_msg = str(e)
-            if "not found" in error_msg.lower():
-                return f"Error: Tool '{tool_name}' not found. Check tool name."
-            elif "validation" in error_msg.lower() or "invalid" in error_msg.lower():
-                return f"Error: Invalid arguments for '{tool_name}': {error_msg}. Please check schema and retry."
-            elif (
+            _is_timeout = (
                 isinstance(e, (asyncio.TimeoutError, TimeoutError))
                 or "timeout" in error_msg.lower()
                 or "timed out" in error_msg.lower()
-            ):
+            )
+            if dispatch_started and _is_timeout:
                 # P3b (arXiv 2608.02645): verify-before-retry. The effect may
                 # have landed despite the timeout — re-derive against the
-                # system of record BEFORE telling the LLM to try once more,
-                # or a retry would duplicate the side effect.
+                # system of record BEFORE any retry advice. Reads keep their
+                # historical advisory path; a declared mutation has no
+                # retry invitation unless the postcondition is confirmed.
+                postcondition_met = False
                 try:
                     from core.oracle import verify_before_retry
                     with get_db_session() as oracle_db:
                         postcondition_met = await verify_before_retry(
-                            tool_name, {**args, "db": oracle_db}
-                        )
-                    if postcondition_met:
-                        return (
-                            f"Tool '{tool_name}' timed out, but the oracle "
-                            f"verified its postcondition is already met. "
-                            f"Do NOT retry — treat the action as succeeded."
+                            tool_name, {**authorized, "db": oracle_db}
                         )
                 except Exception as oracle_err:
                     logger.debug(f"verify_before_retry skipped: {oracle_err}")
+                if postcondition_met:
+                    if mutating:
+                        from core import outbound_operation_claim as claims
+                        self._mark_claim_status(
+                            claim, claims.SUCCEEDED,
+                            expected_status=claims.DISPATCHING)
+                    return (
+                        f"Tool '{tool_name}' timed out, but the oracle "
+                        f"verified its postcondition is already met. "
+                        f"Do NOT retry — treat the action as succeeded."
+                    )
+                if mutating:
+                    from core import outbound_operation_claim as claims
+                    evidence = (
+                        "tool timed out after dispatch and no independent "
+                        "postcondition verdict confirmed the landed effect"
+                    )
+                    self._mark_claim_status(
+                        claim, claims.UNCERTAIN_EFFECT,
+                        expected_status=claims.DISPATCHING)
+                    self._record_uncertain_operation(
+                        context, tool_name, operation_id, evidence)
+                    return {
+                        "success": False,
+                        "status": "uncertain",
+                        "action_result": "uncertain",
+                        "business_success": False,
+                        "effect_state": "unknown",
+                        "operation_id": operation_id,
+                        "durable_claim": bool(claim and claim.get("won")),
+                        "oracle_verified": False,
+                        "oracle_evidence": evidence,
+                        "requires_reconciliation": True,
+                        "retryable": False,
+                        "message": (
+                            f"Tool '{tool_name}' timed out after dispatch and "
+                            f"may have applied an effect. Do NOT retry or "
+                            f"resend"
+                            + (f" operation {operation_id}" if operation_id else "")
+                            + "; reconcile it first."),
+                    }
+                return f"Error: Tool '{tool_name}' timed out. You may try once more if critical."
+            if dispatch_started and mutating:
+                from core import outbound_operation_claim as claims
+
+                # A non-timeout exception after dispatch is ambiguous: only
+                # an error that proves nothing was attempted may stay a plain
+                # failure. Anything else is an unknown effect.
+                no_effect = (
+                    "not found" in error_msg.lower()
+                    or "validation" in error_msg.lower()
+                    or "invalid" in error_msg.lower()
+                )
+                self._mark_claim_status(
+                    claim,
+                    claims.FAILED_BEFORE_EFFECT if no_effect
+                    else claims.UNCERTAIN_EFFECT,
+                    expected_status=claims.DISPATCHING)
+                if not no_effect:
+                    evidence = (
+                        f"dispatch raised after start ({type(e).__name__})")
+                    self._record_uncertain_operation(
+                        context, tool_name, operation_id, evidence)
+                    return {
+                        "success": False,
+                        "status": "uncertain",
+                        "action_result": "uncertain",
+                        "business_success": False,
+                        "effect_state": "unknown",
+                        "operation_id": operation_id,
+                        "durable_claim": bool(claim and claim.get("won")),
+                        "oracle_verified": False,
+                        "oracle_evidence": evidence,
+                        "requires_reconciliation": True,
+                        "retryable": False,
+                        "message": (
+                            f"Tool '{tool_name}' failed after dispatch and may "
+                            f"have applied an effect. Do NOT retry or resend; "
+                            f"reconcile it first."),
+                    }
+            if "not found" in error_msg.lower():
+                return f"Error: Tool '{tool_name}' not found. Check tool name."
+            elif "validation" in error_msg.lower() or "invalid" in error_msg.lower():
+                return f"Error: Invalid arguments for '{tool_name}': {error_msg}. Please check schema and retry."
+            elif _is_timeout:
                 return f"Error: Tool '{tool_name}' timed out. You may try once more if critical."
             
             return f"Tool Execution Failed: {error_msg}. You can try to correct parameters or move to next step."
