@@ -7,8 +7,8 @@ receipts stay byte-identical. The symmetric valid twin answers B afterwards
 without touching A's next question.
 
 Public assignment routes, the real compiler/executor and scratch durable
-records are exercised. Proposal/auth transport are the repository's controlled
-fixtures; no provider, spend, account, send or deployment action occurs.
+records are exercised. High-level discovery/adaptation proposal choices and authentication use
+controlled fixtures; these are not transport-only or served-model controls; no provider, spend, account, send or deployment action occurs.
 """
 from __future__ import annotations
 
@@ -232,6 +232,11 @@ def test_two_same_workspace_jobs_keep_questions_and_receipts_isolated(
         1 for call in calls if CASES["B"]["po"] in call["objective"]) == (
             before_b_calls), calls
 
+    before_a_questions = copy.deepcopy(next_a)
+    before_a_receipts = _receipt_snapshot(lifecycle.get_assignment(run_a))
+    before_a_calls = sum(
+        1 for call in calls if CASES['A']['po'] in call['objective'])
+
     # Symmetric valid twin: B's invoice wakes only B.
     answered_b = client.post(
         f"/api/assignments/{run_b}/sources",
@@ -246,6 +251,11 @@ def test_two_same_workspace_jobs_keep_questions_and_receipts_isolated(
     still_a = _questions(lifecycle, run_a)
     assert [item["question_id"] for item in still_a] == [
         next_a[0]["question_id"]]
+    assert still_a == before_a_questions
+    assert _receipt_snapshot(lifecycle.get_assignment(run_a)) == before_a_receipts
+    assert sum(
+        1 for call in calls if CASES['A']['po'] in call['objective']) == (
+            before_a_calls), calls
     assert _reconciliations(lifecycle.get_assignment(run_a)) == []
     assert _reconciliations(lifecycle.get_assignment(run_b)) == []
 
