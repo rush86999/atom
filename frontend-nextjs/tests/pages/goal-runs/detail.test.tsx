@@ -39,6 +39,9 @@ jest.mock("@/lib/goal-run-api", () => ({
   getGoalRun: jest.fn(),
   getGoalRunCanvases: jest.fn().mockResolvedValue([]),
   getGoal: jest.fn(),
+  getGoalUtility: jest.fn(),
+  setGoalUtility: jest.fn(),
+  clearGoalUtility: jest.fn(),
   resumeGoalRun: jest.fn(),
   resolveCheckpoint: jest.fn(),
   advanceGoalRun: jest.fn(),
@@ -57,6 +60,9 @@ import type { GoalRun } from "@/lib/goal-run-api";
 const getGoalRun = api.getGoalRun as jest.Mock;
 const getGoalRunCanvases = api.getGoalRunCanvases as jest.Mock;
 const getGoal = api.getGoal as jest.Mock;
+const getGoalUtility = api.getGoalUtility as jest.Mock;
+const setGoalUtility = api.setGoalUtility as jest.Mock;
+const clearGoalUtility = api.clearGoalUtility as jest.Mock;
 const getPromotionEvidence = api.getPromotionEvidence as jest.Mock;
 const listAgentLessons = api.listAgentLessons as jest.Mock;
 const teachAgentFromRun = api.teachAgentFromRun as jest.Mock;
@@ -99,6 +105,21 @@ beforeEach(() => {
     criteria: [],
     key_results: [],
   });
+  getGoalUtility.mockReset().mockResolvedValue({
+    goal_id: "goal-abcdef12-0000",
+    target: null,
+    ranking: [],
+    winner: null,
+    eligible_count: 0,
+  });
+  setGoalUtility.mockReset().mockResolvedValue({
+    utility_target: {
+      metric: "human_interventions",
+      direction: "minimize",
+      source: "goal_run",
+    },
+  });
+  clearGoalUtility.mockReset().mockResolvedValue({ utility_target: null });
   getPromotionEvidence.mockReset();
   getGoalRun.mockResolvedValue(run());
   listAgentLessons.mockReset().mockResolvedValue([]);
@@ -484,5 +505,157 @@ describe("GoalRunDetailPage assignment projection ownership", () => {
     await waitFor(() => screen.getByTestId("goal-run-detail"));
     expect(screen.queryByTestId("assignment-continuation")).toBeNull();
     expect(screen.getByRole("button", { name: /advance/i })).toBeInTheDocument();
+  });
+});
+
+describe("Goal utility target (GOAL-02)", () => {
+  const target = {
+    metric: "human_interventions" as const,
+    direction: "minimize" as const,
+    source: "goal_run" as const,
+    description: "prefer less supervision",
+  };
+  const ranked = {
+    goal_id: "goal-abcdef12-0000",
+    target,
+    ranking: [
+      {
+        id: "run-fast", utility: -1, rank: 1, eligible: true,
+        reason: "ranked",
+      },
+      {
+        id: "run-slow", utility: -4, rank: 2, eligible: true,
+        reason: "ranked",
+      },
+      {
+        id: "run-failed", utility: null, rank: null, eligible: false,
+        reason: "not_completed",
+      },
+    ],
+    winner: "run-fast",
+    eligible_count: 2,
+  };
+
+  it("member sees the target and truthful ranking but cannot mutate it", async () => {
+    mockUseUserRole.mockReturnValue({
+      role: "member", level: 3, isSupervisor: false, isAdmin: false, loading: false,
+    });
+    getGoalUtility.mockResolvedValue(ranked);
+    render(<GoalRunDetailPage />);
+
+    await waitFor(() => screen.getByTestId("goal-utility-ranking"));
+    expect(screen.getByTestId("goal-utility-target").textContent)
+      .toContain("Human interventions");
+    expect(screen.getByTestId("goal-utility-target").textContent)
+      .toContain("lower is better");
+    expect(screen.getAllByTestId("goal-utility-entry")).toHaveLength(2);
+    expect(screen.getByTestId("goal-utility-winner").textContent).toBe("best");
+    expect(screen.getByTestId("goal-utility-withheld").textContent)
+      .toContain("not completed");
+    expect(screen.queryByTestId("goal-utility-save")).toBeNull();
+    expect(screen.queryByTestId("goal-utility-clear")).toBeNull();
+    expect(screen.getByTestId("goal-utility-readonly")).toBeInTheDocument();
+  });
+
+  it("supervisor sets the existing target and sees the ranking after reload", async () => {
+    mockUseUserRole.mockReturnValue(supervisorRole);
+    getGoalUtility
+      .mockReset()
+      .mockResolvedValueOnce({
+        goal_id: "goal-abcdef12-0000",
+        target: null,
+        ranking: [],
+        winner: null,
+        eligible_count: 0,
+      })
+      .mockResolvedValueOnce(ranked);
+    render(<GoalRunDetailPage />);
+
+    await waitFor(() => screen.getByTestId("goal-utility-no-target"));
+    fireEvent.change(screen.getByTestId("goal-utility-metric"), {
+      target: { value: "human_interventions" },
+    });
+    fireEvent.change(screen.getByTestId("goal-utility-direction"), {
+      target: { value: "minimize" },
+    });
+    fireEvent.change(screen.getByTestId("goal-utility-description"), {
+      target: { value: "prefer less supervision" },
+    });
+    fireEvent.click(screen.getByTestId("goal-utility-save"));
+
+    await waitFor(() => expect(setGoalUtility).toHaveBeenCalledWith(
+      "goal-abcdef12-0000",
+      {
+        metric: "human_interventions",
+        direction: "minimize",
+        source: "goal_run",
+        description: "prefer less supervision",
+      },
+    ));
+    expect(await screen.findByTestId("goal-utility-ranking")).toBeInTheDocument();
+    expect(screen.getByTestId("goal-utility-target").textContent)
+      .toContain("prefer less supervision");
+  });
+
+  it("clears the target and removes the ranking", async () => {
+    mockUseUserRole.mockReturnValue(supervisorRole);
+    getGoalUtility
+      .mockReset()
+      .mockResolvedValueOnce(ranked)
+      .mockResolvedValueOnce({
+        goal_id: "goal-abcdef12-0000",
+        target: null,
+        ranking: [],
+        winner: null,
+        eligible_count: 0,
+      });
+    render(<GoalRunDetailPage />);
+
+    await waitFor(() => screen.getByTestId("goal-utility-clear"));
+    fireEvent.click(screen.getByTestId("goal-utility-clear"));
+
+    await waitFor(() => expect(clearGoalUtility).toHaveBeenCalledWith(
+      "goal-abcdef12-0000",
+    ));
+    await waitFor(() =>
+      expect(screen.queryByTestId("goal-utility-ranking")).toBeNull());
+    expect(screen.getByTestId("goal-utility-no-target")).toBeInTheDocument();
+  });
+
+  it("shows an unknown/no-eligible state without inventing a winner", async () => {
+    mockUseUserRole.mockReturnValue(supervisorRole);
+    getGoalUtility.mockResolvedValue({
+      goal_id: "goal-abcdef12-0000",
+      target,
+      ranking: [{
+        id: "run-failed", utility: null, rank: null, eligible: false,
+        reason: "not_completed",
+      }],
+      winner: null,
+      eligible_count: 0,
+    });
+    render(<GoalRunDetailPage />);
+
+    await waitFor(() => screen.getByTestId("goal-utility-no-eligible"));
+    expect(screen.getByTestId("goal-utility-no-eligible").textContent)
+      .toContain("No eligible completed trajectory");
+    expect(screen.queryByTestId("goal-utility-winner")).toBeNull();
+    expect(screen.getByTestId("goal-utility-withheld").textContent)
+      .toContain("not completed");
+  });
+
+  it("surfaces a load error and retries without claiming a target", async () => {
+    mockUseUserRole.mockReturnValue(supervisorRole);
+    getGoalUtility
+      .mockReset()
+      .mockRejectedValueOnce(new Error("goal utility unavailable"))
+      .mockResolvedValueOnce(ranked);
+    render(<GoalRunDetailPage />);
+
+    const error = await waitFor(() => screen.getByTestId("goal-utility-error"));
+    expect(error.textContent).toContain("goal utility unavailable");
+    expect(screen.queryByTestId("goal-utility-target")).toBeNull();
+    fireEvent.click(screen.getByTestId("goal-utility-retry"));
+    expect(await screen.findByTestId("goal-utility-ranking")).toBeInTheDocument();
   });
 });

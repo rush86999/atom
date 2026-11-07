@@ -50,10 +50,11 @@ def world(tmp_path):
     return {"path": db_path, "engine": engine, "factory": factory}
 
 
-def _add_goal(factory, goal_id="g-1", criteria=None, metadata=None):
+def _add_goal(factory, goal_id="g-1", criteria=None, metadata=None,
+              workspace_id="ws"):
     with factory() as session:
         session.add(GoalObjective(
-            id=goal_id, tenant_id="t", workspace_id="ws",
+            id=goal_id, tenant_id="t", workspace_id=workspace_id,
             title=f"Goal {goal_id}", status="active",
             criteria=list(criteria or []),
             key_results=[], metadata_json=dict(metadata or {})))
@@ -309,6 +310,24 @@ class TestDeterministicRanking:
         assert ranking["winner"] == "run-own"
         assert [e["id"] for e in ranking["ranking"]] == ["run-own"]
 
+    def test_service_reads_are_workspace_scoped_with_explicit_opt_out(self, world):
+        """The direct goal read matches list visibility; trusted callers can
+        opt out explicitly (no production caller does today)."""
+        _add_goal(world["factory"], goal_id="g-1")
+        _service(world).set_utility_target("g-1", TARGET_MIN_INTERVENTIONS)
+        peer = GoalService(workspace_id="peer-workspace", tenant_id="t",
+                           session_factory=world["factory"])
+
+        assert peer.get_goal("g-1") is None
+        assert peer.get_utility_target("g-1") is None
+        assert peer.utility_ranking("g-1") is None
+
+        # Deliberate internal opt-out preserves an unscoped read without
+        # weakening the public default.
+        assert peer.get_goal("g-1", workspace_scoped=False)["id"] == "g-1"
+        assert peer.get_utility_target(
+            "g-1", workspace_scoped=False) == TARGET_MIN_INTERVENTIONS
+
     def test_complete_coverage_beyond_the_old_hundred_run_cap(self, world):
         """PR707 finding: the 101st (latest, best) run was silently omitted.
 
@@ -435,7 +454,7 @@ class TestProductionConsumers:
 
 
 class TestGoalApiBoundary:
-    def _client(self, api, user_id: str):
+    def _client(self, api, user_id: str, *, workspace_id="ws"):
         from fastapi import FastAPI
         from fastapi.testclient import TestClient
         from api.goal_routes import router as goals_router
@@ -446,7 +465,7 @@ class TestGoalApiBoundary:
         app.include_router(goals_router)
         user = type("U", (), {
             "id": user_id, "tenant_id": None, "status": "active",
-            "workspace_id": "ws",
+            "workspace_id": workspace_id,
         })()
         app.dependency_overrides[get_current_user] = lambda: user
         app.dependency_overrides[get_db] = lambda: api["session"]
@@ -463,8 +482,38 @@ class TestGoalApiBoundary:
                         first_name="Member", last_name="User",
                         role=UserRole.MEMBER.value, status="active",
                         is_active=True, workspace_id="ws"))
+            db.add(User(id="peer", email="peer@example.com",
+                        first_name="Peer", last_name="User",
+                        role=UserRole.MEMBER.value, status="active",
+                        is_active=True, workspace_id="peer-workspace"))
+            db.add(User(id="peer-lead", email="peer-lead@example.com",
+                        first_name="Peer", last_name="Lead",
+                        role=UserRole.TEAM_LEAD.value, status="active",
+                        is_active=True, workspace_id="peer-workspace"))
+            db.add(User(id="nulluser", email="null@example.com",
+                        first_name="Null", last_name="User",
+                        role=UserRole.MEMBER.value, status="active",
+                        is_active=True, workspace_id=None, tenant_id=None))
+            db.add(User(id="lead-default", email="lead-default@example.com",
+                        first_name="Lead", last_name="Default",
+                        role=UserRole.TEAM_LEAD.value, status="active",
+                        is_active=True, workspace_id="default"))
+            # The request snapshot says lead, but the current DB row is member.
+            db.add(User(id="stale-lead", email="stale-lead@example.com",
+                        first_name="Stale", last_name="Lead",
+                        role=UserRole.MEMBER.value, status="active",
+                        is_active=True, workspace_id="ws"))
+            # The request snapshot says member, but the current DB row is lead.
+            db.add(User(id="stale-member", email="stale-member@example.com",
+                        first_name="Stale", last_name="Member",
+                        role=UserRole.TEAM_LEAD.value, status="active",
+                        is_active=True, workspace_id="ws"))
             db.commit()
         _add_goal(world["factory"])
+        _add_goal(world["factory"], goal_id="goal-default",
+                  workspace_id="default")
+        _add_goal(world["factory"], goal_id="goal-peer",
+                  workspace_id="peer-workspace")
         _add_run(world["factory"], "run-slow", human_interventions=4)
         _add_run(world["factory"], "run-fast", human_interventions=1)
         session = world["factory"]()
@@ -518,3 +567,78 @@ class TestGoalApiBoundary:
         })
         assert bad.status_code == 422, bad.text
         assert lead.get("/api/goals/g-1/utility").json()["target"] is None
+
+    def test_direct_goal_and_utility_reads_match_workspace_visibility(self, api):
+        same = self._client(api, "member", workspace_id="ws")
+        assert same.get("/api/goals/g-1").status_code == 200
+        assert same.get("/api/goals/g-1/utility").status_code == 200
+
+        peer = self._client(api, "peer", workspace_id="peer-workspace")
+        for suffix in ("", "/utility"):
+            response = peer.get(f"/api/goals/g-1{suffix}")
+            assert response.status_code == 404, (suffix, response.text)
+            # Unknown and foreign are indistinguishable: no title/target leak.
+            body = response.text
+            assert "Goal g-1" not in body
+            assert "human_interventions" not in body
+        assert peer.get("/api/goals/goal-peer").status_code == 200
+
+    def test_null_workspace_reads_personal_default_goal(self, api):
+        nulluser = self._client(api, "nulluser", workspace_id=None)
+        assert nulluser.get("/api/goals/g-1").status_code == 404
+        assert nulluser.get("/api/goals/goal-default").status_code == 200
+
+        lead_default = self._client(api, "lead-default",
+                                    workspace_id="default")
+        set_target = lead_default.put(
+            "/api/goals/goal-default/utility",
+            json=TARGET_MIN_INTERVENTIONS)
+        assert set_target.status_code == 200, set_target.text
+
+        read = nulluser.get("/api/goals/goal-default/utility")
+        assert read.status_code == 200, read.text
+        assert read.json()["target"] == TARGET_MIN_INTERVENTIONS
+        # The default/null twin did not widen access to the ws goal.
+        assert nulluser.get("/api/goals/g-1/utility").status_code == 404
+
+    def test_current_database_role_governs_utility_mutation(self, api):
+        # Request snapshot says member, but the current DB row is team_lead.
+        current_lead = self._client(api, "stale-member")
+        assert current_lead.put(
+            "/api/goals/g-1/utility",
+            json=TARGET_MIN_INTERVENTIONS).status_code == 200
+
+        # Request snapshot says lead, but the current DB row is member.
+        current_member = self._client(api, "stale-lead")
+        assert current_member.put(
+            "/api/goals/g-1/utility",
+            json=TARGET_MIN_INTERVENTIONS).status_code == 403
+
+    def test_peer_workspace_supervisor_cannot_mutate_foreign_goal(self, api):
+        foreign_lead = self._client(api, "peer-lead",
+                                    workspace_id="peer-workspace")
+        assert foreign_lead.put(
+            "/api/goals/g-1/utility",
+            json=TARGET_MIN_INTERVENTIONS).status_code == 404
+        assert foreign_lead.delete(
+            "/api/goals/g-1/utility").status_code == 404
+
+    def test_utility_read_does_not_change_status_or_progress(self, api):
+        lead = self._client(api, "lead")
+        assert lead.put(
+            "/api/goals/g-1/utility",
+            json=TARGET_MIN_INTERVENTIONS).status_code == 200
+        with api["world"]["factory"]() as db:
+            before = db.query(GoalObjective).filter(
+                GoalObjective.id == "g-1").one()
+            before_status, before_progress = before.status, before.progress
+
+        read = lead.get("/api/goals/g-1/utility")
+        assert read.status_code == 200, read.text
+        assert read.json()["winner"] == "run-fast"
+
+        with api["world"]["factory"]() as db:
+            after = db.query(GoalObjective).filter(
+                GoalObjective.id == "g-1").one()
+            assert after.status == before_status
+            assert after.progress == before_progress
