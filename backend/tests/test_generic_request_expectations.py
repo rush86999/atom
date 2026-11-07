@@ -294,6 +294,8 @@ def test_handler_result_cannot_overwrite_frozen_expectations(
 
     assert result.get("success") is True, result
     assert result.get("oracle_verified") is True, result
+    assert not any(
+        str(key).startswith("_oracle_expected_") for key in result), result
 
     from core.models import CanvasAudit, MiniApp
 

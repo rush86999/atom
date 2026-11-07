@@ -1845,7 +1845,12 @@ What is your next step?"""
     @staticmethod
     def _stamp_oracle_verdict(result: Any, verified: bool, evidence: str) -> Any:
         if isinstance(result, dict):
-            out = dict(result)
+            from core.oracle.request_expectations import strip_expected_fields
+
+            # A handler must not be able to echo the protected expectation
+            # namespace back to the loop either; only the server snapshot is
+            # authority.
+            out = strip_expected_fields(result)
             out["oracle_verified"] = bool(verified)
             out["oracle_evidence"] = str(evidence or "")
             return out
