@@ -1,0 +1,34 @@
+{
+  "executed_source": "227579321b2c56873df072962eae06f4d0add674",
+  "source_files": {
+    ".github/workflows/ci.yml": "4ed4dc68aa2f9afc3391bff6ac0b40b0cb0fba56fa1c8ced7ca32018a048635f",
+    "backend/api/assignment_routes.py": "902ae62533b3355d54be68fb5b1d712eb85c0310c54f49271415748ddb1f5dd1",
+    "backend/core/assignment_executor.py": "09e736dd8cf61487f5c218d7477c7d627f6bfb6c189b48d25db0ae78622d8280",
+    "backend/core/assignment_recovery.py": "c1c9f2182c19860ca3eedaedb17f9bb636f2ca25b9d3c1186627a36e4335dba0",
+    "backend/main_api_app.py": "0d47bc2fcab89c5a53ac32b2ae3d1760396ce8adcaa2f68acb959c778683db86",
+    "backend/tests/process_support/task_wait_process_worker.py": "f68f3d06607683f01921d9099260d4b6fee13bb96fdea87ab201aeaa6971b196",
+    "backend/tests/test_boot_recovery_not_gated_by_scheduler.py": "cdc399440de90fed57ce3aa23f33b25d7e8b828c2c37511a3fff34ef9161e2bb",
+    "backend/tests/test_task_wait_process_recovery.py": "2514bf41ce951e7fa9af140d7160ddf55d8d2bc8b42fb6a1fb084d45f8d80a67",
+    "backend/tests/test_task_wait_source_continuation_regressions.py": "500a564f360910644a49cdf91298e86513b1cc5c8d3a8e828511b1089b934746"
+  },
+  "artifacts": {
+    "README.md": "8d2653079ce0e636dc76690d0a257f121ee57d589494565b8dab267b2d824331",
+    "generation-fixed-exit.json": "796baf59f97619b33c1ab022eae18dbfc25fd335bae4b95ac7b0d4ac51d8b753",
+    "generation-fixed-spec.json": "758457044e0cc92ab9390893872da1c341b1ad21741b39bc4f05145e53b2c5fb",
+    "generation-fixed.log": "9e1c8cc42d5c4eff0592bbd15017eff0d7885e07972d8ac085ee09af31d99710",
+    "generation-fixed.xml": "99b9a917739712aca5a42a11bb5f0f1a7e4ca5429f419757c8594fc610c2b764",
+    "generation-negative-exit.json": "7526e69877d7f7b886f734724c3cd477443f8b3f42859d1573517b5a5ee5a7d0",
+    "generation-negative.log": "f3bc6089e51596d5c46700e15c2a97aa18546b585197a16482741e31f89a17e5",
+    "independent-generation-probe.py": "14b9352e0f5e2f76f9c27b75b48d4dbd59e9b20905041bedfb42c53990cb247c",
+    "integrated-exit.json": "8da0364fa7065a6c9ba03857db766d9d0b1942eead29d5f066afe5b85853815f",
+    "integrated-spec.json": "a985eef26490b0b0be082bf7f4914c8ec1e3b5c2ec4b6f0c20b459ed4d267951",
+    "integrated.log": "ad3074b39559b34e469b74a460482eea891b014738a3a90274b3ebd8aaeec0da",
+    "integrated.xml": "ecb2e3545d6c824249d608c3c23b53e323092cbaf81603095f0e12c8820bf435",
+    "portable-process-exit.json": "7e1d7e710394007f61d4dba676c27166b43b294d7aba74e03fa6b1ad2bee186e",
+    "portable-process-spec.json": "9229e99301938771e60dedeac840eeba5ce6ec24a48d3d6668b3897f7051d5b2",
+    "portable-process.log": "1b4a20ce81a4eee5187506a61c425545481ccaac9d713ec0a6c36de1bf010968",
+    "portable-process.xml": "be1fcb395f5481568c82e374efd5c17ea9c04790a167d7e9c2289b7707255c03",
+    "process-reports-derived.json": "d93fda8c45719e920db82e4b4c7375b9b9688aa9848414fe978bcd5dfee20503",
+    "verification.json": "5561ece822c7f36103ccbc6ce09e5231a22b931cd1b2331871a3ffae88b2c03e"
+  }
+}

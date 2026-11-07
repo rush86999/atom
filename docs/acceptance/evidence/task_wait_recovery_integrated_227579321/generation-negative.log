@@ -1,0 +1,34 @@
+.F                                                                       [100%]
+=================================== FAILURES ===================================
+______________ test_finish_is_bound_to_the_claim_generation[True] ______________
+../../test_lead_evidence_recovery_generation.py:32: in test_finish_is_bound_to_the_claim_generation
+    assert after==before,"old completion overwrote the successor claim; next boot now treats unconsumed work as already attempted"
+E   AssertionError: old completion overwrote the successor claim; next boot now treats unconsumed work as already attempted
+E   assert {'key': '483e...6.396076, ...} == {'key': '483e...6.396076, ...}
+E     
+E     Omitting 6 identical items, use -vv to show
+E     Differing items:
+E     {'status': 'attempted'} != {'status': 'claimed'}
+E     Left contains 1 more item:
+E     {'finished_at': '2026-11-07T07:46:46.398171+00:00'}
+E     Use -v to get more diff
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED ../../test_lead_evidence_recovery_generation.py::test_finish_is_bound_to_the_claim_generation[True]
+1 failed, 1 passed, 6 warnings in 2.81s
