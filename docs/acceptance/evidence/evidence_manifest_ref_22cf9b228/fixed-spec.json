@@ -1,0 +1,17 @@
+{
+  "executed_source": "22cf9b228443114dad245e7040f61a6bd8f25b79",
+  "command": [
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "tests/test_evidence_git_ref_contract.py",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-evidence-ref-fixed-ji8snqvz/pytest",
+    "--junitxml=/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-evidence-ref-fixed-ji8snqvz/result.xml",
+    "-q",
+    "--tb=short"
+  ],
+  "scratch": "/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-evidence-ref-fixed-ji8snqvz",
+  "scope": "real temporary Git repositories, selected ref/index manifest and truthful CLI; no app/provider"
+}

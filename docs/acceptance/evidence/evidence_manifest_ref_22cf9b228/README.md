@@ -1,0 +1,7 @@
+# Evidence manifests follow the selected Git reference
+
+The checker previously loaded MANIFEST.json from the working tree while reading its artifacts from --evidence-ref. A dirty manifest could turn a committed hash mismatch into a pass, or refute valid committed/staged evidence. A missing working-tree manifest also caused the CLI to crash with KeyError instead of returning a truthful failed result. Five valid temporary-Git controls fail on predecessor fb34b4b0b.
+
+Source22cf9b228 reads the manifest and artifacts from the same selected commit or index. Named refs are resolved once before reads; a forced HEAD change cannot mix later artifacts into the certificate. Missing, malformed or non-object manifests return passed=false and a normal failing CLI exit. Existing source-files checks still use the declared executed source, and strict unlisted-file checks remain.
+
+Eight controls pass, actualexit0, including the original five, malformed JSON/object twins and a real temporary-Git HEAD change between reads. The retained negative5/fixed8 logs stay at their actual sources. Compatibility readback verifies four existing source-bound packets, including one absent from the working checkout, without changing their bytes or regenerating their runtime evidence. This changes verification tooling only; no app runtime, credential/provider/browser/model operation or historical acceptance score is changed. Known app recovery-authority and UI work remain open.

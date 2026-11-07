@@ -1,0 +1,62 @@
+[
+  {
+    "evidence": "/private/tmp/atom-source-trigger-lead-review/docs/acceptance/evidence/agent_workspace_reads_integrated_418bb0cd4",
+    "evidence_ref": "f3b32005a6997e35f820c0510d42801d4946b12b",
+    "source_ok": 7,
+    "source_total": 7,
+    "artifact_ok": 13,
+    "artifact_total": 13,
+    "extra_tracked": [],
+    "failures": [],
+    "passed": true,
+    "evidence_path": "docs/acceptance/evidence/agent_workspace_reads_integrated_418bb0cd4",
+    "evidence_ref_commit": "f3b32005a6997e35f820c0510d42801d4946b12b",
+    "executed_source": "418bb0cd415f98e93ee9df587533f0a5e0595160",
+    "executed_source_commit": "418bb0cd415f98e93ee9df587533f0a5e0595160"
+  },
+  {
+    "evidence": "/private/tmp/atom-source-trigger-lead-review/docs/acceptance/evidence/sequential_isolation_integrated_b5fdea5ac",
+    "evidence_ref": "f3b32005a6997e35f820c0510d42801d4946b12b",
+    "source_ok": 9,
+    "source_total": 9,
+    "artifact_ok": 7,
+    "artifact_total": 7,
+    "extra_tracked": [],
+    "failures": [],
+    "passed": true,
+    "evidence_path": "docs/acceptance/evidence/sequential_isolation_integrated_b5fdea5ac",
+    "evidence_ref_commit": "f3b32005a6997e35f820c0510d42801d4946b12b",
+    "executed_source": "b5fdea5acbfb5d4effaf35729448bed2db8496e7",
+    "executed_source_commit": "b5fdea5acbfb5d4effaf35729448bed2db8496e7"
+  },
+  {
+    "evidence": "/private/tmp/atom-source-trigger-lead-review/docs/acceptance/evidence/generic_information_recovery_integrated_e08482e81",
+    "evidence_ref": "f3b32005a6997e35f820c0510d42801d4946b12b",
+    "source_ok": 10,
+    "source_total": 10,
+    "artifact_ok": 10,
+    "artifact_total": 10,
+    "extra_tracked": [],
+    "failures": [],
+    "passed": true,
+    "evidence_path": "docs/acceptance/evidence/generic_information_recovery_integrated_e08482e81",
+    "evidence_ref_commit": "f3b32005a6997e35f820c0510d42801d4946b12b",
+    "executed_source": "e08482e81d623d538eb9185d19f5a37ffa54b382",
+    "executed_source_commit": "e08482e81d623d538eb9185d19f5a37ffa54b382"
+  },
+  {
+    "evidence": "/private/tmp/atom-source-trigger-lead-review/docs/acceptance/evidence/source_revocation_main_a8cb0cba6",
+    "evidence_ref": "1568715935340a4a2d2fa3548cc1458d75343056",
+    "source_ok": 9,
+    "source_total": 9,
+    "artifact_ok": 7,
+    "artifact_total": 7,
+    "extra_tracked": [],
+    "failures": [],
+    "passed": true,
+    "evidence_path": "docs/acceptance/evidence/source_revocation_main_a8cb0cba6",
+    "evidence_ref_commit": "1568715935340a4a2d2fa3548cc1458d75343056",
+    "executed_source": "a8cb0cba608a81c9b21afc70588ebd056a721ad7",
+    "executed_source_commit": "a8cb0cba608a81c9b21afc70588ebd056a721ad7"
+  }
+]
