@@ -1,0 +1,57 @@
+{
+  "artifacts": {
+    "README.md": "96ebfd837047a8e1cd79a49977eb8caa58ba0acf4d1b8f69fcd08c7b8f87b374",
+    "capture-run.log": "0699c6d33ca709095a41d650b514fa0b1992d85f23a93a6bed46e37e422d7366",
+    "final-affected-failures.txt": "9b0dccaf90ed0ff396b7c576e31d47c7d6cb933beeaa55ada873648865564fab",
+    "final-affected.log": "a734b7afee88fd3de07df089b0d06f7c3ec9e3efbb9fc353bff7e158e2f7cfc3",
+    "final-failure-identity.json": "48a52206eb3c90d6ab68c1e74ba33273d2d46d29b98c883cc4e94e4107df13d3",
+    "final-focused.log": "131cfc076ed51f03baf6cbf4b4b9a6a8d92746a58a9d639d6815d3b7a7b70bfb",
+    "public-capture.json": "0d23951b7dd1d4f4c300e5807c390a1a5a9ef713e9d35fe440aacded87eda428",
+    "real-consumer-capture.json": "77e51fb121986f2055b03a624a3de25c8c75b0d4e89e6e41c4c823b9b6da5ba2",
+    "real-consumer.log": "bfb4056806ae0f0582fe2c38bdca0543fa3b366cef4e0f2919e0c69de2640601",
+    "root-actual-baseline-findings.json": "c435cb0b57608ee96d9b4e0a6e68a062d41dddcbd114c12289e3e9f108a284fe",
+    "root-actual-baseline.log": "7f1de6fa6771d3f78a6131a376e42ab951125aeaae86403de4f099a00dc01caa",
+    "source-hashes.json": "02ae7edfedfd3404444c262cf55337a6be5a2de510fe96c472554deac7b449b8"
+  },
+  "authoritative_baseline": {
+    "failure_count": 36,
+    "findings": "root-actual-baseline-findings.json",
+    "source": "335fd77fa7ca495c40cc2a238615e853f0a8fe1d"
+  },
+  "boundaries": [
+    "SQLite scratch database in one process/event loop; PostgreSQL, multi-worker and soak remain separate",
+    "public route, admission service, durable job/receipt, wrapper, WS routing and real GenericAgent execution/audit producers are real",
+    "waiting is a non-terminal durable wait with its receipt/question; the existing continuation owner performs same-task resume",
+    "no browser/UI campaign, no team-realtime authorization claim beyond authenticated user/workspace channels",
+    "no live model/provider/account/credential/send/spend/download/deployment/merge action",
+    "root owns PR716 integration, PR metadata and merge"
+  ],
+  "claim": "Admitted execution outcome and trusted context join: explicit success only, durable waits preserved, original admission actor/scope/parameters bound, peer/stale terminal writes guarded, scoped WS delivery, real GenericAgent execution/audit identity.",
+  "public_capture": {
+    "file": "public-capture.json",
+    "summary": "real route/admission/wrapper context: ws1/t1/member-1, real job+execution ids; body-forged values replaced; WS on workspace:ws1 + user:member-1; durable job success"
+  },
+  "real_consumer_capture": {
+    "file": "real-consumer-capture.json",
+    "seams_doubled": [
+      "model/MCP transport (_react_step)",
+      "budget preflight",
+      "unrelated episodic-memory / episode-summary leaves"
+    ],
+    "summary": "real GenericAgent: AgentExecution id == public execution_id, ws1/t1/status success; 2 audit rows carry the same execution id"
+  },
+  "results": {
+    "actual_affected_gate": "exit 1; 36 failure IDs; identical to the root actual baseline",
+    "combined_focused_gate": "47 passed; exit 0",
+    "generic_consumer_follow_through": "test_generic_agent.py, test_agent_action_audit.py, test_generic_oracle_mutation_contract.py, test_objective_loop_termination.py passed",
+    "new_candidate_contracts": "36 passed; exit 0",
+    "new_failure_ids": 0,
+    "supplied_lead_probes": "11 passed; exit 0",
+    "supplied_probe": "5 passed; exit 0",
+    "syntax": "py_compile pass"
+  },
+  "schema": "atom-agent-job-outcome-join-1",
+  "source_base": "02bf17f98",
+  "source_checkpoint": "5fd63783b8bc066d3030dc211ba0e22a446d5fd7",
+  "status": "verified at controlled public-route + real-wrapper + real/controlled-Generic transport scope"
+}

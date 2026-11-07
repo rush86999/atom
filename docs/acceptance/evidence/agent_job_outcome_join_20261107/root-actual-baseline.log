@@ -1,0 +1,466 @@
+........................................................................ [ 10%]
+........................................................................ [ 21%]
+....................F....................FF............................. [ 31%]
+....................F.....F...F.......................F............F.... [ 42%]
+...........................................F............................ [ 52%]
+...................................................F............F....... [ 63%]
+...........................FFFFFFFFFFFFFFFFF..................F......... [ 73%]
+........................................................................ [ 84%]
+................F..........................................F..........FF [ 95%]
+..FFF.............................                                       [100%]
+=================================== FAILURES ===================================
+E   sqlalchemy.orm.exc.ObjectDeletedError: Instance '<AgentRegistry at 0x1421496a0>' has been deleted, or its row is otherwise not present.
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/orm/loading.py:1686: sqlalchemy.orm.exc.ObjectDeletedError: Instance '<AgentRegistry at 0x1421496a0>' has been deleted, or its row is otherwise not present.
+E   assert 200 == 400
+     +  where 200 = <Response [200 OK]>.status_code
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:58:09] [[91mERROR[0m] [api.agent_routes] Agent b79c04b1-84a2-4e0f-9c8f-281647755ca6 not found in background task
+------------------------------ Captured log call -------------------------------
+ERROR    api.agent_routes:agent_routes.py:793 Agent b79c04b1-84a2-4e0f-9c8f-281647755ca6 not found in background task
+/private/tmp/atom-agent-job-baseline/backend/tests/api/test_agent_routes_coverage_ext.py:710: assert 200 == 400
+E   assert 200 == 400
+     +  where 200 = <Response [200 OK]>.status_code
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:58:09] [[91mERROR[0m] [api.agent_routes] Agent 1ea69535-a737-4393-8bad-a8486bc45094 not found in background task
+------------------------------ Captured log call -------------------------------
+ERROR    api.agent_routes:agent_routes.py:793 Agent 1ea69535-a737-4393-8bad-a8486bc45094 not found in background task
+/private/tmp/atom-agent-job-baseline/backend/tests/api/test_agent_routes_coverage_ext.py:717: assert 200 == 400
+E   AssertionError: assert 'anthropic' in ('google_flash', 'google_flash_3_5')
+/private/tmp/atom-agent-job-baseline/backend/tests/test_covpush_w81b_api_routes.py:373: AssertionError: assert 'anthropic' in ('google_flash', 'google_flash_3_5')
+E   assert False is True
+/private/tmp/atom-agent-job-baseline/backend/tests/test_covpush_w81b_api_routes.py:408: assert False is True
+E   AssertionError: assert False is True
+     +  where False = has_tenant_keys('t-1', db=<MagicMock id='5416078032'>)
+     +    where has_tenant_keys = <api.byok_routes.BYOKManager object at 0x14317b1d0>.has_tenant_keys
+/private/tmp/atom-agent-job-baseline/backend/tests/test_covpush_w81b_api_routes.py:426: AssertionError: assert False is True
+E   assert 200 == 404
+     +  where 200 = <Response [200 OK]>.status_code
+/private/tmp/atom-agent-job-baseline/backend/tests/test_covpush_w81b_api_routes.py:583: assert 200 == 404
+E   AssertionError: assert None == 'plaintext-key-in-db'
+/private/tmp/atom-agent-job-baseline/backend/tests/test_covpush_w81b_api_routes.py:672: AssertionError: assert None == 'plaintext-key-in-db'
+E   assert 400 == 200
+     +  where 400 = <Response [400 Bad Request]>.status_code
+/private/tmp/atom-agent-job-baseline/backend/tests/test_covpush_w81b_api_routes.py:1143: assert 400 == 200
+E   AssertionError: assert 0 == 1
+     +  where 0 = count()
+     +    where count = <sqlalchemy.orm.query.Query object at 0x143147df0>.count
+     +      where <sqlalchemy.orm.query.Query object at 0x143147df0> = query(<class 'core.models.CanvasAudit'>)
+     +        where query = <sqlalchemy.orm.session.Session object at 0x12e4852b0>.query
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:58:20] [[93mWARNING[0m] [core.websockets] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:user-1'. type='agent:request'
+[2026-11-06 23:58:20] [[91mERROR[0m] [core.agent_request_manager] Failed to create audit: name 'audit_session_id' is not defined
+[2026-11-06 23:58:20] [[92mINFO[0m] [core.agent_request_manager] Created permission request 1098bff2-518f-46f2-b047-c69124fa2359 from agent agent-1, user user-1
+------------------------------ Captured log call -------------------------------
+WARNING  core.websockets:websockets.py:172 [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:user-1'. type='agent:request'
+ERROR    core.agent_request_manager:agent_request_manager.py:487 Failed to create audit: name 'audit_session_id' is not defined
+INFO     core.agent_request_manager:agent_request_manager.py:176 Created permission request 1098bff2-518f-46f2-b047-c69124fa2359 from agent agent-1, user user-1
+/private/tmp/atom-agent-job-baseline/backend/tests/test_covpush_agents.py:406: AssertionError: assert 0 == 1
+E   AssertionError: assert 0 == 2
+     +  where 0 = count()
+     +    where count = <sqlalchemy.orm.query.Query object at 0x142ea0270>.count
+     +      where <sqlalchemy.orm.query.Query object at 0x142ea0270> = query(<class 'core.models.CanvasAudit'>)
+     +        where query = <sqlalchemy.orm.session.Session object at 0x12e493b60>.query
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:58:27] [[93mWARNING[0m] [core.websockets] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:user-1'. type='agent:request'
+[2026-11-06 23:58:27] [[91mERROR[0m] [core.agent_request_manager] Failed to create audit: name 'audit_session_id' is not defined
+[2026-11-06 23:58:27] [[92mINFO[0m] [core.agent_request_manager] Created permission request d3e808e0-684c-432f-a407-9e8703dea388 from agent agent-1, user user-1
+[2026-11-06 23:58:27] [[91mERROR[0m] [core.agent_request_manager] Failed to create audit: name 'audit_session_id' is not defined
+[2026-11-06 23:58:27] [[92mINFO[0m] [core.agent_request_manager] Handled response for request d3e808e0-684c-432f-a407-9e8703dea388
+------------------------------ Captured log call -------------------------------
+WARNING  core.websockets:websockets.py:172 [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:user-1'. type='agent:request'
+ERROR    core.agent_request_manager:agent_request_manager.py:487 Failed to create audit: name 'audit_session_id' is not defined
+INFO     core.agent_request_manager:agent_request_manager.py:176 Created permission request d3e808e0-684c-432f-a407-9e8703dea388 from agent agent-1, user user-1
+ERROR    core.agent_request_manager:agent_request_manager.py:487 Failed to create audit: name 'audit_session_id' is not defined
+INFO     core.agent_request_manager:agent_request_manager.py:423 Handled response for request d3e808e0-684c-432f-a407-9e8703dea388
+/private/tmp/atom-agent-job-baseline/backend/tests/test_covpush_agents.py:553: AssertionError: assert 0 == 2
+E   AssertionError: assert 'approval_binding_mismatch' == 'failed'
+      
+      - failed
+      + approval_binding_mismatch
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:58:45] [[92mINFO[0m] [core.agent_integration_gateway] Agent executing send_message on meta
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on meta
+/private/tmp/atom-agent-job-baseline/backend/tests/test_covpush_agents.py:1034: AssertionError: assert 'approval_binding_mismatch' == 'failed'
+E   AssertionError: assert 'approval_binding_mismatch' == 'success'
+      
+      - success
+      + approval_binding_mismatch
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:58:45] [[92mINFO[0m] [core.agent_integration_gateway] Agent executing send_message on meta
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on meta
+/private/tmp/atom-agent-job-baseline/backend/tests/test_covpush_agents.py:1044: AssertionError: assert 'approval_binding_mismatch' == 'success'
+E   AssertionError: assert 'approval_binding_mismatch' == 'failed'
+      
+      - failed
+      + approval_binding_mismatch
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:58:45] [[92mINFO[0m] [core.agent_integration_gateway] Agent executing send_message on meta
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on meta
+/private/tmp/atom-agent-job-baseline/backend/tests/test_covpush_agents.py:1053: AssertionError: assert 'approval_binding_mismatch' == 'failed'
+E   AssertionError: assert 'approval_binding_mismatch' == 'success'
+      
+      - success
+      + approval_binding_mismatch
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:58:45] [[92mINFO[0m] [core.agent_integration_gateway] Agent executing send_message on whatsapp
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on whatsapp
+/private/tmp/atom-agent-job-baseline/backend/tests/test_covpush_agents.py:1063: AssertionError: assert 'approval_binding_mismatch' == 'success'
+E   AssertionError: assert {'status': 'a...atched.', ...} == {'status': 'ok'}
+      
+      Differing items:
+      {'status': 'approval_binding_mismatch'} != {'status': 'ok'}
+      Left contains 4 more items:
+      {'error': <MagicMock name='contact_governance.find_approved_action().get()' id='5423136256'>,
+       'hitl_id': <MagicMock name='contact_governance.find_approved_action().get()' id='5423136256'>,
+       'message': 'The request changed after human review; the approved payload is '...
+      
+      ...Full output truncated (3 lines hidden), use '-vv' to show
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:58:45] [[92mINFO[0m] [core.agent_integration_gateway] Agent executing send_message on agent
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on agent
+/private/tmp/atom-agent-job-baseline/backend/tests/test_covpush_agents.py:1083: AssertionError: assert {'status': 'a...atched.', ...} == {'status': 'ok'}
+E   AssertionError: assert 'approval_binding_mismatch' == 'success'
+      
+      - success
+      + approval_binding_mismatch
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:58:45] [[92mINFO[0m] [core.agent_integration_gateway] Agent executing send_message on discord
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on discord
+/private/tmp/atom-agent-job-baseline/backend/tests/test_covpush_agents.py:1094: AssertionError: assert 'approval_binding_mismatch' == 'success'
+E   AssertionError: assert 'approval_binding_mismatch' == 'failed'
+      
+      - failed
+      + approval_binding_mismatch
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:58:45] [[92mINFO[0m] [core.agent_integration_gateway] Agent executing send_message on teams
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on teams
+/private/tmp/atom-agent-job-baseline/backend/tests/test_covpush_agents.py:1107: AssertionError: assert 'approval_binding_mismatch' == 'failed'
+E   AssertionError: assert 'approval_binding_mismatch' == 'success'
+      
+      - success
+      + approval_binding_mismatch
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:58:45] [[92mINFO[0m] [core.agent_integration_gateway] Agent executing send_message on telegram
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on telegram
+/private/tmp/atom-agent-job-baseline/backend/tests/test_covpush_agents.py:1120: AssertionError: assert 'approval_binding_mismatch' == 'success'
+E   AssertionError: assert 'approval_binding_mismatch' == 'failed'
+      
+      - failed
+      + approval_binding_mismatch
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:58:45] [[92mINFO[0m] [core.agent_integration_gateway] Agent executing send_message on google_chat
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on google_chat
+/private/tmp/atom-agent-job-baseline/backend/tests/test_covpush_agents.py:1128: AssertionError: assert 'approval_binding_mismatch' == 'failed'
+E   AssertionError: assert 'approval_binding_mismatch' == 'failed'
+      
+      - failed
+      + approval_binding_mismatch
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:58:45] [[92mINFO[0m] [core.agent_integration_gateway] Agent executing send_message on slack
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on slack
+/private/tmp/atom-agent-job-baseline/backend/tests/test_covpush_agents.py:1142: AssertionError: assert 'approval_binding_mismatch' == 'failed'
+E   AssertionError: assert 'approval_binding_mismatch' == 'success'
+      
+      - success
+      + approval_binding_mismatch
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:58:45] [[92mINFO[0m] [core.agent_integration_gateway] Agent executing send_message on twilio
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on twilio
+/private/tmp/atom-agent-job-baseline/backend/tests/test_covpush_agents.py:1164: AssertionError: assert 'approval_binding_mismatch' == 'success'
+E   AssertionError: assert 'approval_binding_mismatch' == 'failed'
+      
+      - failed
+      + approval_binding_mismatch
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:58:45] [[92mINFO[0m] [core.agent_integration_gateway] Agent executing send_message on matrix
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on matrix
+/private/tmp/atom-agent-job-baseline/backend/tests/test_covpush_agents.py:1172: AssertionError: assert 'approval_binding_mismatch' == 'failed'
+E   AssertionError: assert 'approval_binding_mismatch' == 'success'
+      
+      - success
+      + approval_binding_mismatch
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:58:45] [[92mINFO[0m] [core.agent_integration_gateway] Agent executing send_message on matrix
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on matrix
+/private/tmp/atom-agent-job-baseline/backend/tests/test_covpush_agents.py:1184: AssertionError: assert 'approval_binding_mismatch' == 'success'
+E   AssertionError: assert 'approval_binding_mismatch' == 'failed'
+      
+      - failed
+      + approval_binding_mismatch
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:58:45] [[92mINFO[0m] [core.agent_integration_gateway] Agent executing send_message on messenger
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on messenger
+/private/tmp/atom-agent-job-baseline/backend/tests/test_covpush_agents.py:1192: AssertionError: assert 'approval_binding_mismatch' == 'failed'
+E   AssertionError: assert 'approval_binding_mismatch' == 'success'
+      
+      - success
+      + approval_binding_mismatch
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:58:45] [[92mINFO[0m] [core.agent_integration_gateway] Agent executing send_message on line
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on line
+/private/tmp/atom-agent-job-baseline/backend/tests/test_covpush_agents.py:1203: AssertionError: assert 'approval_binding_mismatch' == 'success'
+E   AssertionError: assert 'approval_binding_mismatch' == 'failed'
+      
+      - failed
+      + approval_binding_mismatch
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:58:45] [[92mINFO[0m] [core.agent_integration_gateway] Agent executing send_message on openclaw
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on openclaw
+/private/tmp/atom-agent-job-baseline/backend/tests/test_covpush_agents.py:1222: AssertionError: assert 'approval_binding_mismatch' == 'failed'
+E   AssertionError: assert 'approval_binding_mismatch' == 'success'
+      
+      - success
+      + approval_binding_mismatch
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:58:45] [[92mINFO[0m] [core.agent_integration_gateway] Agent executing send_message on carrier_pigeon
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on carrier_pigeon
+/private/tmp/atom-agent-job-baseline/backend/tests/test_covpush_agents.py:1235: AssertionError: assert 'approval_binding_mismatch' == 'success'
+E   AssertionError: assert 'approval_binding_mismatch' == 'error'
+      
+      - error
+      + approval_binding_mismatch
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:58:45] [[92mINFO[0m] [core.agent_integration_gateway] Agent executing send_message on whatsapp
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_integration_gateway:agent_integration_gateway.py:112 Agent executing send_message on whatsapp
+/private/tmp/atom-agent-job-baseline/backend/tests/test_covpush_agents.py:1484: AssertionError: assert 'approval_binding_mismatch' == 'error'
+E   AssertionError: assert 0 == 2
+     +  where 0 = count()
+     +    where count = <sqlalchemy.orm.query.Query object at 0x12e5f8490>.count
+     +      where <sqlalchemy.orm.query.Query object at 0x12e5f8490> = query(<class 'core.models.OperationErrorResolution'>)
+     +        where query = <sqlalchemy.orm.session.Session object at 0x1433e5d30>.query
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:58:49] [[92mINFO[0m] [core.agent_marketplace_service] Successfully installed marketplace agent tpl-1 as managed agent 105e3c9a-2ca1-4e0a-8514-cc8851c3d79d
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_marketplace_service:agent_marketplace_service.py:737 Successfully installed marketplace agent tpl-1 as managed agent 105e3c9a-2ca1-4e0a-8514-cc8851c3d79d
+/private/tmp/atom-agent-job-baseline/backend/tests/test_covpush_core_c.py:1598: AssertionError: assert 0 == 2
+E   assert 2 == 1
+/private/tmp/atom-agent-job-baseline/backend/tests/test_covpush_core_c.py:2463: assert 2 == 1
+E   AssertionError: assert False
+     +  where False = <MagicMock name='GenericAgent' id='5445623088'>.called
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:58:54] [[91mERROR[0m] [api.agent_routes] Agent competitive_intel not found in background task
+------------------------------ Captured log call -------------------------------
+ERROR    api.agent_routes:agent_routes.py:793 Agent competitive_intel not found in background task
+/private/tmp/atom-agent-job-baseline/backend/tests/test_legacy_react_migration.py:55: AssertionError: assert False
+E   TypeError: 'NoneType' object is not subscriptable
+----------------------------- Captured stdout call -----------------------------
+[2026-11-06 23:58:54] [[91mERROR[0m] [api.agent_routes] Agent payroll_guardian not found in background task
+------------------------------ Captured log call -------------------------------
+ERROR    api.agent_routes:agent_routes.py:793 Agent payroll_guardian not found in background task
+/private/tmp/atom-agent-job-baseline/backend/tests/test_legacy_react_migration.py:96: TypeError: 'NoneType' object is not subscriptable
+E   AssertionError: 404 != 200
+/Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/unittest/case.py:918: AssertionError: 404 != 200
+E   AssertionError: 404 != 200
+/Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/unittest/case.py:918: AssertionError: 404 != 200
+E   AssertionError: 404 != 403
+/Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/unittest/case.py:918: AssertionError: 404 != 403
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+core/graphrag_engine.py:203
+  /private/tmp/atom-agent-job-baseline/backend/core/graphrag_engine.py:203: SyntaxWarning: "\%" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\%"? A raw string is also an option.
+    Escaped pattern where % and _ are escaped to \%
+
+core/token_storage.py:17
+  /private/tmp/atom-agent-job-baseline/backend/core/token_storage.py:17: DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+api/routes/ingestion_crud_routes.py:26
+  /private/tmp/atom-agent-job-baseline/backend/api/routes/ingestion_crud_routes.py:26: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class DiscoveredEntityResponse(BaseModel):
+
+api/routes/ingestion_crud_routes.py:102
+  /private/tmp/atom-agent-job-baseline/backend/api/routes/ingestion_crud_routes.py:102: PydanticDeprecatedSince20: `min_items` is deprecated and will be removed, use `min_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    entity_ids: List[UUID] = Field(..., min_items=1, description="List of entity UUIDs to delete")
+
+integrations/whatsapp_fastapi_routes.py:49
+  /private/tmp/atom-agent-job-baseline/backend/integrations/whatsapp_fastapi_routes.py:49: PydanticDeprecatedSince20: `max_items` is deprecated and will be removed, use `max_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    recipients: List[str] = Field(
+
+api/episode_routes.py:397
+  /private/tmp/atom-agent-job-baseline/backend/api/episode_routes.py:397: FastAPIDeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    canvas_context_detail: str = Query("summary", regex="^(summary|standard|full)$"),
+
+api/admin_routes.py:202
+  /private/tmp/atom-agent-job-baseline/backend/api/admin_routes.py:202: PydanticDeprecatedSince20: Using extra keyword arguments on `Field` is deprecated and will be removed. Use `json_schema_extra` instead. (Extra keys: 'unique'). Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    name: str = Field(..., min_length=1, max_length=100, unique=True, description="Role name (must be unique)")
+
+api/admin_routes.py:1017
+  /private/tmp/atom-agent-job-baseline/backend/api/admin_routes.py:1017: PydanticDeprecatedSince20: `min_items` is deprecated and will be removed, use `min_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    conflict_ids: List[int] = Field(..., min_items=1, max_items=100, description="List of conflict IDs to resolve (max 100)")
+
+api/admin_routes.py:1017
+  /private/tmp/atom-agent-job-baseline/backend/api/admin_routes.py:1017: PydanticDeprecatedSince20: `max_items` is deprecated and will be removed, use `max_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    conflict_ids: List[int] = Field(..., min_items=1, max_items=100, description="List of conflict IDs to resolve (max 100)")
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 1364 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_agent_routes_coverage.py: 77 warnings
+tests/api/test_agent_routes.py: 63 warnings
+tests/api/test_agent_routes_coverage_ext.py: 41 warnings
+  /private/tmp/atom-agent-job-baseline/backend/tests/conftest.py:507: SAWarning: Cannot correctly sort tables; there are unresolvable cycles between tables "agent_divisions, agent_registry, canvases, mini_apps", which is usually caused by mutually dependent foreign key constraints.  Foreign key constraints involving these tables will not be considered; this warning may raise an error in a future release.
+    for table in reversed(_all_models_base.metadata.sorted_tables):
+
+tests/test_agent_routes_coverage.py: 75 warnings
+  /private/tmp/atom-agent-job-baseline/backend/tests/test_agent_routes_coverage.py:53: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    created_at=datetime.utcnow()
+
+tests/test_agent_routes_coverage.py: 54 warnings
+  /private/tmp/atom-agent-job-baseline/backend/tests/test_agent_routes_coverage.py:95: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    created_at=datetime.utcnow()
+
+tests/test_agent_routes_coverage.py::TestHITLApprovalEndpoints::test_list_pending_approvals_with_actions
+  /private/tmp/atom-agent-job-baseline/backend/tests/test_agent_routes_coverage.py:734: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    created_at=datetime.utcnow()
+
+tests/test_agent_routes_coverage.py::TestHITLApprovalEndpoints::test_approve_hitl_action
+  /private/tmp/atom-agent-job-baseline/backend/tests/test_agent_routes_coverage.py:757: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    created_at=datetime.utcnow()
+
+tests/test_agent_routes_coverage.py::TestHITLApprovalEndpoints::test_reject_hitl_action
+  /private/tmp/atom-agent-job-baseline/backend/tests/test_agent_routes_coverage.py:787: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    created_at=datetime.utcnow()
+
+tests/api/test_agent_routes.py::test_get_agent_with_last_run
+  /private/tmp/atom-agent-job-baseline/backend/tests/api/test_agent_routes.py:125: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    start_time=datetime.utcnow(),
+
+tests/api/test_agent_routes.py::test_get_agent_with_last_run
+  /private/tmp/atom-agent-job-baseline/backend/tests/api/test_agent_routes.py:126: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    end_time=datetime.utcnow()
+
+tests/api/test_agent_routes.py::test_list_agents_with_pagination
+tests/api/test_agent_routes.py::test_list_agents_with_pagination
+tests/api/test_agent_routes.py::test_list_agents_with_pagination
+  /private/tmp/atom-agent-job-baseline/backend/tests/fixtures/agent_fixtures.py:48: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    created_at=kwargs.get("created_at", datetime.utcnow()),
+
+tests/api/test_agent_routes_coverage_ext.py::test_get_agent_execution_history_with_rows
+  /private/tmp/atom-agent-job-baseline/backend/tests/api/test_agent_routes_coverage_ext.py:146: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.utcnow()
+
+tests/test_covpush_w105_gaps_b.py::TestUniversalWebhookBridge::test_standardize_platforms
+  tests/test_covpush_w105_gaps_b.py:317: PytestWarning: The test <Function test_standardize_platforms> is marked with '@pytest.mark.asyncio' but it is not an async function. Please remove the asyncio mark. If the test is not marked explicitly, check for global marks applied via 'pytestmark'.
+    def test_standardize_platforms(self):
+
+tests/test_covpush_w105_gaps_b.py: 27 warnings
+tests/test_webhook_bridge.py: 8 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pydantic/main.py:263: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    validated_self = self.__pydantic_validator__.validate_python(data, self_instance=self)
+
+tests/test_covpush_w105_gaps_b.py::TestUniversalWebhookBridge::test_workflow_command
+  /Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/unittest/mock.py:2259: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    def __init__(self, name, parent):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_covpush_w105_gaps_b.py::TestUniversalWebhookBridge::test_workflow_command
+  /Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/unittest/mock.py:2259: RuntimeWarning: coroutine 'execute_agent_task' was never awaited
+    def __init__(self, name, parent):
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+tests/test_covpush_w105_gaps_b.py::TestReasoningChainModule::test_to_mermaid_and_to_dict
+tests/test_covpush_w105_gaps_b.py::TestReasoningChainModule::test_to_mermaid_and_to_dict
+tests/test_covpush_w105_gaps_b.py::TestReasoningChainModule::test_submit_step_feedback_paths
+tests/test_covpush_w105_gaps_b.py::TestReasoningChainModule::test_submit_step_feedback_paths
+tests/test_covpush_w105_gaps_b.py::TestReasoningChainModule::test_apply_feedback_to_agent
+tests/test_covpush_w105_gaps_b.py::TestReasoningChainModule::test_apply_feedback_to_agent
+tests/test_covpush_w105_gaps_b.py::TestReasoningChainModule::test_apply_feedback_to_agent
+tests/test_covpush_w105_gaps_b.py::TestReasoningChainModule::test_apply_feedback_to_agent
+  <string>:12: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+
+tests/test_covpush_agents.py::TestAgentPromotionService::test_get_promotion_suggestions_agents_not_ready
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/util/topological.py:85: RuntimeWarning: coroutine 'AsyncMockMixin._execute_mock_call' was never awaited
+    edges[parent].add(child)
+  Enable tracemalloc to get traceback where the object was allocated.
+  See https://docs.pytest.org/en/stable/how-to/capture-warnings.html#resource-warnings for more info.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/api/test_agent_routes_coverage_ext.py::test_delete_agent_registry_exception_allows_delete
+FAILED tests/api/test_agent_routes_coverage_ext.py::test_run_agent_paused_returns_400
+FAILED tests/api/test_agent_routes_coverage_ext.py::test_run_agent_deprecated_returns_400
+FAILED tests/test_covpush_w81b_api_routes.py::TestOptimalProvider::test_tenant_optimal_provider_uses_tenant_keys
+FAILED tests/test_covpush_w81b_api_routes.py::TestProviderStatus::test_tenant_provider_status_with_db_setting
+FAILED tests/test_covpush_w81b_api_routes.py::TestProviderStatus::test_has_tenant_keys_true_via_db
+FAILED tests/test_covpush_w81b_api_routes.py::TestRoutes::test_delete_key_404
+FAILED tests/test_covpush_w81b_api_routes.py::TestByokGaps::test_get_tenant_key_legacy_plaintext
+FAILED tests/test_covpush_w81b_api_routes.py::TestByokRoutes3::test_pdf_optimize_image_comprehension
+FAILED tests/test_covpush_agents.py::TestAgentRequestManager::test_create_permission_request_success
+FAILED tests/test_covpush_agents.py::TestAgentRequestManager::test_handle_response_success_sets_event
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_meta_unavailable
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_meta_success
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_meta_failed
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_whatsapp
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_agent_route
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_discord
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_teams
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_telegram
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_google_chat
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_slack
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_twilio
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_matrix_import_error
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_matrix_success
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_messenger_import_error
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_line_signal
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_openclaw
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_send_message_legacy_fallback
+FAILED tests/test_covpush_agents.py::TestAgentIntegrationGateway::test_gateway_generic_exception
+FAILED tests/test_covpush_core_c.py::TestAgentMarketplaceService::test_install_agent_success
+FAILED tests/test_covpush_core_c.py::TestAPAREngine::test_get_collection_summary
+FAILED tests/test_legacy_react_migration.py::test_legacy_agent_uses_react_loop
+FAILED tests/test_legacy_react_migration.py::test_payroll_agent_defaults - Ty...
+FAILED tests/test_phase21_rbac.py::TestRBACIntegration::test_agent_routes_denial
+FAILED tests/test_phase21_rbac.py::TestRBACIntegration::test_agent_routes_enforcement
+FAILED tests/test_phase21_rbac.py::TestRBACIntegration::test_workflow_routes_enforcement
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
