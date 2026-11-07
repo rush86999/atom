@@ -19,17 +19,33 @@ pieces the postcondition oracle needs:
   applied/uncertain outcome.  Missing or contradictory readback is never
   turned into success.
 
-Official provider contract used for the by-id readback (verified against the
-current Shopify Admin REST documentation on 2026-11-07):
+The material projection is COMPLETE for the fields the caller authorized:
+every accepted variant field and every accepted image is compared, not a
+curated subset.  Numeric fields keep exact decimal identity (format may be
+normalised, values are never rounded).  A provider-rewritten image URL is not
+treated as content proof: with no content readback the verdict stays
+unverified, never fabricated.
+
+Official provider contract used for the shape assumptions and by-id readback
+(verified against the current Shopify Admin REST documentation on 2026-11-07):
+
+* product (``images``/``variants`` arrays on create/readback):
+  https://shopify.dev/docs/api/admin-rest/2026-07/resources/product
+* product image (``src``/``alt``; provider/CDN-served URL):
+  https://shopify.dev/docs/api/admin-rest/2026-07/resources/product-image
+* product variant (``price``/``compare_at_price`` decimals):
+  https://shopify.dev/docs/api/admin-rest/2026-07/resources/product-variant
+
+The by-id readback is:
 
     GET /admin/api/{version}/products/{product_id}.json
-    https://shopify.dev/docs/api/admin-rest/2026-07/resources/product
 
 The service's pinned ``ShopifyService.API_VERSION`` is the ``{version}``.
 """
 from __future__ import annotations
 
 import copy
+import json
 from decimal import Decimal, InvalidOperation
 from typing import Any, Dict, List, Mapping, Optional, Sequence
 
@@ -40,8 +56,17 @@ PRODUCT_TEXT_FIELDS = (
 )
 PRODUCT_MATERIAL_FIELDS = (
     "title", "body_html", "vendor", "product_type", "handle", "status",
-    "tags",
+    "tags", "images", "variants",
 )
+
+#: Variant fields whose values are decimals/integers rather than text.  They
+#: are compared as exact decimal values: numeric *format* may be normalised
+#: (``1.0`` == ``1.00``) but no rounding is allowed (``1.005`` != ``1.00``).
+_NUMERIC_VARIANT_FIELDS = frozenset({
+    "price", "compare_at_price", "cost", "weight", "grams",
+    "inventory_quantity", "position",
+})
+_NUMERIC_IMAGE_FIELDS = frozenset({"position"})
 
 #: A body/model argument that names a store or credential is a default-store
 #: override attempt, not product material.  Refuse before any transport call.
@@ -59,14 +84,25 @@ def _normalized_html(value: Any) -> str:
     return _text(value).replace("\r\n", "\n").replace("\r", "\n")
 
 
-def _normalized_price(value: Any) -> str:
+def _normalized_number(value: Any) -> str:
+    """Exact decimal/integer identity without rounding.
+
+    A provider may format ``1.00`` where the caller sent ``1.0``; that is the
+    same number.  It may not silently turn ``1.005`` into ``1.00``: doing so
+    would hide a real provider change, so only format is normalised.
+    """
     text = _text(value).strip()
     if not text:
         return ""
     try:
-        return str(Decimal(text).quantize(Decimal("0.01")))
+        number = Decimal(text)
     except (InvalidOperation, ValueError):
         return text
+    if not number.is_finite():
+        return text
+    if number == 0:
+        return "0"
+    return format(number.normalize(), "f")
 
 
 def normalize_tags(value: Any) -> List[str]:
@@ -89,15 +125,47 @@ def _tags_payload(value: Any) -> str:
         ) if part.strip()}, key=str.casefold))
 
 
+def _material_value(value: Any) -> Any:
+    """JSON-safe, order-stable projection of an arbitrary material value."""
+    if isinstance(value, Mapping):
+        return {
+            str(key).strip(): _material_value(item)
+            for key, item in value.items()
+            if str(key).strip()
+        }
+    if isinstance(value, (list, tuple)):
+        return [_material_value(item) for item in value]
+    if isinstance(value, set):
+        return sorted(
+            (_material_value(item) for item in value),
+            key=lambda item: json.dumps(item, sort_keys=True, default=str))
+    if isinstance(value, bool) or value is None:
+        return value
+    if isinstance(value, (int, float)):
+        return value
+    return _text(value).strip()
+
+
 def _normalize_variant(value: Mapping[str, Any]) -> Dict[str, Any]:
+    """Project every accepted variant field, not a curated subset.
+
+    Shopify's variant resource carries many caller-authored fields
+    (``price``, ``compare_at_price``, ``barcode``, weight/tax flags, ...).
+    Dropping any of them from the material would let a provider change it
+    without refuting the effect, so every accepted field is retained and
+    compared.  Numeric fields use exact decimal identity (no rounding).
+    """
     variant: Dict[str, Any] = {}
-    for key in ("option1", "option2", "option3", "title", "sku"):
-        raw = value.get(key)
-        if raw not in (None, ""):
-            variant[key] = _text(raw).strip()
-    price = value.get("price")
-    if price not in (None, ""):
-        variant["price"] = _normalized_price(price)
+    for key, raw in value.items():
+        name = str(key).strip()
+        if not name:
+            continue
+        if raw is None:
+            variant[name] = ""
+        elif name in _NUMERIC_VARIANT_FIELDS:
+            variant[name] = _normalized_number(raw)
+        else:
+            variant[name] = _material_value(raw)
     return variant
 
 
@@ -107,6 +175,39 @@ def _normalize_variants(value: Any) -> List[Dict[str, Any]]:
     return [
         _normalize_variant(item) for item in value
         if isinstance(item, Mapping)
+    ]
+
+
+def _normalize_image(value: Any) -> Dict[str, Any]:
+    """Project one requested/returned image object.
+
+    A caller may pass a URL string or an object.  Shopify returns an object
+    with at least ``id``/``src``/``alt``/``position``; only fields the caller
+    actually authorized are compared, so provider-only decorations are not
+    fabricated into caller intent.
+    """
+    if not isinstance(value, Mapping):
+        return {"src": _text(value).strip()}
+    image: Dict[str, Any] = {}
+    for key, raw in value.items():
+        name = str(key).strip()
+        if not name:
+            continue
+        if raw is None:
+            image[name] = ""
+        elif name in _NUMERIC_IMAGE_FIELDS:
+            image[name] = _normalized_number(raw)
+        else:
+            image[name] = _material_value(raw)
+    return image
+
+
+def _normalize_images(value: Any) -> List[Dict[str, Any]]:
+    if not isinstance(value, Sequence) or isinstance(value, (str, bytes)):
+        return []
+    return [
+        _normalize_image(item) for item in value
+        if item not in (None, "")
     ]
 
 
@@ -176,6 +277,9 @@ def accepted_product_material(
     variants = payload.get("variants")
     if variants:
         material["variants"] = _normalize_variants(variants)
+    images = payload.get("images")
+    if images:
+        material["images"] = _normalize_images(images)
     return material
 
 
@@ -197,7 +301,34 @@ def observed_product_material(product: Mapping[str, Any] | None) -> Dict[str, An
         normalized = _normalize_variants(variants)
         if normalized:
             material["variants"] = normalized
+    images = item.get("images")
+    if isinstance(images, Sequence) and not isinstance(images, (str, bytes)):
+        normalized_images = _normalize_images(images)
+        if normalized_images:
+            material["images"] = normalized_images
     return material
+
+
+def _field_matches(field: str, expected: Any, observed: Any) -> bool:
+    """Compare one accepted material field with its provider readback.
+
+    Numeric fields use exact decimal identity (format may differ, value may
+    not).  Structured values compare their canonical JSON-safe projection;
+    text compares trimmed text.  No field is skipped because it is hard to
+    compare: an unavailable proof is reported as a mismatch by the caller.
+    """
+    if field in _NUMERIC_VARIANT_FIELDS or field in _NUMERIC_IMAGE_FIELDS:
+        return _normalized_number(expected) == _normalized_number(observed)
+    if field == "body_html":
+        return _normalized_html(expected) == _normalized_html(observed)
+    if field == "tags":
+        return normalize_tags(expected) == normalize_tags(observed)
+    if isinstance(expected, (Mapping, list, tuple, set)) or isinstance(
+            observed, (Mapping, list, tuple, set)):
+        return _material_value(expected) == _material_value(observed)
+    if isinstance(expected, bool) or isinstance(observed, bool):
+        return expected is observed
+    return _text(expected).strip() == _text(observed).strip()
 
 
 def _variant_mismatches(expected: Any, observed: Any) -> List[str]:
@@ -208,6 +339,7 @@ def _variant_mismatches(expected: Any, observed: Any) -> List[str]:
     reasons: List[str] = []
     for index, expected_item in enumerate(expected_items):
         if not isinstance(expected_item, Mapping):
+            reasons.append(f"variants[{index}]")
             continue
         observed_item = (
             observed_items[index] if index < len(observed_items) else {})
@@ -215,15 +347,36 @@ def _variant_mismatches(expected: Any, observed: Any) -> List[str]:
             reasons.append(f"variants[{index}]")
             continue
         for key, expected_value in expected_item.items():
-            observed_value = observed_item.get(key)
-            if key == "price":
-                same = _normalized_price(expected_value) == _normalized_price(
-                    observed_value)
-            else:
-                same = _text(expected_value).strip() == _text(
-                    observed_value).strip()
-            if not same:
+            if not _field_matches(key, expected_value, observed_item.get(key)):
                 reasons.append(f"variants[{index}].{key}")
+    return reasons
+
+
+def _image_mismatches(expected: Any, observed: Any) -> List[str]:
+    """Compare the authorized image identity/material, never a CDN rewrite.
+
+    Shopify's readback ``src`` is a provider-served URL.  A different URL is
+    not proof that the same image content was stored, and no download/content
+    proof is available here, so the effect must stay unverified rather than
+    treating URI equality as content identity.
+    """
+    expected_items = expected if isinstance(expected, list) else []
+    observed_items = observed if isinstance(observed, list) else []
+    if len(expected_items) != len(observed_items):
+        return ["images"]
+    reasons: List[str] = []
+    for index, expected_item in enumerate(expected_items):
+        if not isinstance(expected_item, Mapping):
+            reasons.append(f"images[{index}]")
+            continue
+        observed_item = (
+            observed_items[index] if index < len(observed_items) else {})
+        if not isinstance(observed_item, Mapping):
+            reasons.append(f"images[{index}]")
+            continue
+        for key, expected_value in expected_item.items():
+            if not _field_matches(key, expected_value, observed_item.get(key)):
+                reasons.append(f"images[{index}].{key}")
     return reasons
 
 
@@ -237,20 +390,15 @@ def material_mismatches(
     mismatches: List[str] = []
     for field, expected_value in want.items():
         observed_value = got.get(field)
-        if field == "tags":
-            same = normalize_tags(expected_value) == normalize_tags(
-                observed_value)
-        elif field == "variants":
+        if field == "variants":
             mismatches.extend(_variant_mismatches(
                 expected_value, observed_value))
             continue
-        elif field == "body_html":
-            same = _normalized_html(expected_value) == _normalized_html(
-                observed_value)
-        else:
-            same = _text(expected_value).strip() == _text(
-                observed_value).strip()
-        if not same:
+        if field == "images":
+            mismatches.extend(_image_mismatches(
+                expected_value, observed_value))
+            continue
+        if not _field_matches(field, expected_value, observed_value):
             mismatches.append(field)
     return mismatches
 
