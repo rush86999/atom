@@ -1,0 +1,51 @@
+{
+  "activated_source": "2b53eda29d9d357b3b613c1f1633bf79c1bc7cbe",
+  "branch": "codex/oracle-mini-host-proofs-20261107",
+  "files": {
+    ".github/workflows/ci.yml": "7a4c86bbe7958d62db7993e7764226907d5d66d3",
+    "backend/core/assignment_executor.py": "09947c247a06832f0e1f796ebd9589939c51e70c",
+    "backend/core/canvas_logic_service.py": "e2a51a930873bc4bbf4e47ce1bf589b9c6b478b5",
+    "backend/core/mini_app_db_service.py": "80c3853fdef9bce3c20638f78a31e8a36293dbb3",
+    "backend/core/mini_app_service.py": "52023ed0badc60e47a3ee882e0d6f0c29eca7a81",
+    "backend/core/oracle/postcondition_verifiers.py": "bb75f56e09f774935976b086c71120877503a1a3",
+    "backend/tests/integration/journeys/test_mini_app_host_receipts_journey.py": "2cf861fcadae593e029f54a60be27355082f507f",
+    "backend/tests/test_covpush_core_b_3.py": "750ee2c18590a011d8772f186a0e05ab592d675a",
+    "backend/tests/test_mini_app_agent_tools.py": "81233d7645c1bc96d7658f9a11bbac3ece2042fd",
+    "backend/tests/test_oracle_mini_app_host_mutations.py": "3231596383006c76b64688d838e798b4bb3e12c8",
+    "backend/tests/test_oracle_registry_verification_gap.py": "d889c793c79b700337642696aff2633c3108a38e",
+    "backend/tools/mini_app_tool.py": "35c19499fd09f71f0fdd22877c67bc8b07bb21f3",
+    "docs/acceptance/evidence/oracle_mini_app_host_mutations_20261107/README.md": "1c20cac3cb36041389783d33a7240036cbe3993c",
+    "docs/acceptance/evidence/oracle_mini_app_host_mutations_20261107/affected-cluster.log": "b723436031a74aa6329b7a73e65e73cab6b6f2fb",
+    "docs/acceptance/evidence/oracle_mini_app_host_mutations_20261107/baseline-unrelated-failures.txt": "58a12fe82a1e3a3fe6a462ed2e7f4565aa554657",
+    "docs/acceptance/evidence/oracle_mini_app_host_mutations_20261107/coverage/README.md": "8e509b560935a7ac5874540569374e4fcc72f7b7",
+    "docs/acceptance/evidence/oracle_mini_app_host_mutations_20261107/coverage/inventory-run.log": "546a28a56366c786a44b88ec0477d12f8f3fee24",
+    "docs/acceptance/evidence/oracle_mini_app_host_mutations_20261107/coverage/inventory.json": "910441dae165b41c50090bbcef2355b47c4164d9",
+    "docs/acceptance/evidence/oracle_mini_app_host_mutations_20261107/focused-gate.log": "47de0030ff13dd0b03f7da542acd4bbeaa2a9161",
+    "docs/acceptance/evidence/oracle_mini_app_host_mutations_20261107/supplied-logic-cas.log": "d7717869549db8e1c2bbb187c18b89f52703a7c5",
+    "docs/acceptance/evidence/oracle_mini_app_host_mutations_20261107/supplied-publish-preparation.log": "42a324b2f9a8d5b96ef8c99af23bcb9c20a83550",
+    "docs/acceptance/evidence/oracle_mini_app_host_mutations_20261107/verification.txt": "beea06c26123e5557c9c78d46c049485c98aed10",
+    "docs/architecture/ORACLE_VERIFICATION.md": "702bb0853f39e666ca324f188221711b7a359078",
+    "docs/engineering/APP_COMPLETION_STATE_2026_11_07.md": "2135c87ae77176377344f08324c8a00dfeb7254c"
+  },
+  "hash_object": "git hash-object (SHA-1 blob)",
+  "implementation_commit": "af97665c73112b96e2bbc5a13ecbcafa72cc023c",
+  "merge_included": null,
+  "predecessor_source": "2b53eda29d9d357b3b613c1f1633bf79c1bc7cbe",
+  "qualified_source": "b205fc151",
+  "repair_commit": "b205fc151",
+  "schema": "atom-oracle-mini-app-host-mutations-evidence-manifest-1",
+  "verification": {
+    "affected_cluster": "785 passed, 9 pre-existing unrelated failures",
+    "focused_oracle_control_step": "209 passed",
+    "registry_inventory": "90 actions, 26 declared mutations, 21 covered, 5 explicitly uncovered, 0 undeclared, 1 plan-output covered",
+    "supplied_logic_cas": "2 passed (draft baseline 1 failed, 1 passed)",
+    "supplied_publish_preparation": "2 passed (draft baseline 1 failed, 1 passed)",
+    "uncovered": [
+      "mini_app_run",
+      "shopify_create_article",
+      "shopify_create_blog",
+      "shopify_create_fulfillment",
+      "shopify_create_product"
+    ]
+  }
+}
