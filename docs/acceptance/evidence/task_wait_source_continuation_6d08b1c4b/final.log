@@ -1,0 +1,891 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.14.7, pytest-9.1.1, pluggy-1.6.0 -- /Users/rushiparikh/projects/atom/backend/venv314/bin/python
+cachedir: .pytest_cache
+Test order randomisation NOT enabled. Enable with --random-order or --random-order-bucket=<bucket_type>
+metadata: {'Python': '3.14.7', 'Platform': 'macOS-26.5.2-arm64-arm-64bit-Mach-O', 'Packages': {'pytest': '9.1.1', 'pluggy': '1.6.0'}, 'Plugins': {'mock': '3.15.1', 'freezegun': '0.4.2', 'repeat': '0.9.4', 'locust': '2.46.5', 'allure-pytest': '2.16.0', 'json-report': '1.5.0', 'random-order': '1.2.0', 'timeout': '2.4.0', 'schemathesis': '3.39.16', 'asyncio': '1.4.0', 'metadata': '3.1.1', 'benchmark': '5.3.0', 'cov': '4.1.0', 'rerunfailures': '14.0', 'html': '4.2.0', 'base-url': '2.1.0', 'hypothesis': '6.167.1', 'playwright': '0.5.2', 'anyio': '4.15.1', 'Faker': '22.7.0', 'xdist': '3.6.1'}, 'Base URL': ''}
+benchmark: 5.3.0 (defaults: timer=time.perf_counter disable_gc=False min_rounds=5 min_time=0.000005 max_time=1.0 calibration_precision=10 warmup=False warmup_iterations=100000)
+hypothesis profile 'default'
+rootdir: /private/tmp/goal-write-tw01-clean/backend
+configfile: pytest.ini
+plugins: mock-3.15.1, freezegun-0.4.2, repeat-0.9.4, locust-2.46.5, allure-pytest-2.16.0, json-report-1.5.0, random-order-1.2.0, timeout-2.4.0, schemathesis-3.39.16, asyncio-1.4.0, metadata-3.1.1, benchmark-5.3.0, cov-4.1.0, rerunfailures-14.0, html-4.2.0, base-url-2.1.0, hypothesis-6.167.1, playwright-0.5.2, anyio-4.15.1, Faker-22.7.0, xdist-3.6.1
+asyncio: mode=Mode.AUTO, debug=False, asyncio_default_fixture_loop_scope=None, asyncio_default_test_loop_scope=function
+collecting ... 
+----------------------------- live log collection ------------------------------
+2026-11-07 01:38:53 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+collected 74 items
+
+tests/test_task_wait_source_trigger_contract.py::test_authorized_source_answer_continues_same_task[False] 
+-------------------------------- live log setup --------------------------------
+2026-11-07 01:38:53 [    INFO] EscalationManager initialized
+2026-11-07 01:38:53 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 01:38:53 [    INFO] EscalationManager initialized
+2026-11-07 01:38:53 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 01:38:53 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 01:38:53 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:38:54 [    INFO] runtime identity: source_id=6d08b1c4baa9 revision=6d08b1c4baa9 dirty=False (0 modified, 0 untracked)
+2026-11-07 01:38:54 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 01:38:54 [    INFO] HTTP Request: POST http://testserver/api/assignments/0749375b-a205-4dcd-b707-717c2de18628/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [  1%]
+tests/test_task_wait_source_trigger_contract.py::test_authorized_source_answer_continues_same_task[True] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:38:55 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 01:38:55 [    INFO] HTTP Request: POST http://testserver/api/assignments/279bdee5-2969-41b8-b971-3a641e978e87/sources "HTTP/1.1 200 OK"
+2026-11-07 01:38:55 [    INFO] HTTP Request: POST http://testserver/api/assignments/279bdee5-2969-41b8-b971-3a641e978e87/advance "HTTP/1.1 200 OK"
+PASSED                                                                   [  2%]
+tests/test_task_wait_source_continuation_regressions.py::test_source_acceptance_survives_interruption_and_replay_recovers 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:38:56 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 01:38:56 [    INFO] HTTP Request: POST http://testserver/api/assignments/35fb40a0-2065-4384-80e9-81a7356ca0cd/sources "HTTP/1.1 200 OK"
+2026-11-07 01:38:56 [    INFO] HTTP Request: POST http://testserver/api/assignments/35fb40a0-2065-4384-80e9-81a7356ca0cd/sources "HTTP/1.1 200 OK"
+2026-11-07 01:38:56 [    INFO] HTTP Request: POST http://testserver/api/assignments/35fb40a0-2065-4384-80e9-81a7356ca0cd/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [  4%]
+tests/test_task_wait_source_continuation_regressions.py::test_model_retain_after_relevant_source_does_not_fake_completion 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:38:56 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 01:38:56 [    INFO] HTTP Request: POST http://testserver/api/assignments/41084499-9418-4380-a18b-30a281866733/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [  5%]
+tests/test_task_wait_source_continuation_regressions.py::test_irrelevant_source_answer_stays_unresolved[wrong_subject] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:38:57 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 01:38:57 [    INFO] HTTP Request: POST http://testserver/api/assignments/c9f61fe0-72d2-4c64-8ded-adaacf72ff79/sources "HTTP/1.1 200 OK"
+2026-11-07 01:38:57 [    INFO] HTTP Request: POST http://testserver/api/assignments/c9f61fe0-72d2-4c64-8ded-adaacf72ff79/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [  6%]
+tests/test_task_wait_source_continuation_regressions.py::test_irrelevant_source_answer_stays_unresolved[partial] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:38:58 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 01:38:58 [    INFO] HTTP Request: POST http://testserver/api/assignments/209c98f2-a2d6-4eec-ad3a-a34f571bea1a/sources "HTTP/1.1 200 OK"
+2026-11-07 01:38:58 [    INFO] HTTP Request: POST http://testserver/api/assignments/209c98f2-a2d6-4eec-ad3a-a34f571bea1a/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [  8%]
+tests/test_task_wait_source_continuation_regressions.py::test_irrelevant_source_answer_stays_unresolved[unrelated] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:38:58 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 01:38:58 [    INFO] HTTP Request: POST http://testserver/api/assignments/bfcff563-26e9-4024-9393-f426c2924181/sources "HTTP/1.1 200 OK"
+2026-11-07 01:38:58 [    INFO] HTTP Request: POST http://testserver/api/assignments/bfcff563-26e9-4024-9393-f426c2924181/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [  9%]
+tests/test_task_wait_source_continuation_regressions.py::test_explicit_use_model_false_does_not_adapt_after_source_answer 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:38:59 [    INFO] HTTP Request: POST http://testserver/api/assignments/f7b4ec61-eb23-4005-9995-82896c000a71/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [ 10%]
+tests/test_task_wait_source_continuation_regressions.py::test_cancelled_task_refuses_source_arrival_without_resurrection 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:00 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 01:39:00 [    INFO] HTTP Request: POST http://testserver/api/assignments/b3f997c8-ada6-4d24-ba6a-9de06fec959e/cancel "HTTP/1.1 200 OK"
+2026-11-07 01:39:00 [    INFO] HTTP Request: POST http://testserver/api/assignments/b3f997c8-ada6-4d24-ba6a-9de06fec959e/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [ 12%]
+tests/test_task_wait_source_continuation_regressions.py::test_absolute_deadline_is_not_extended_by_source_arrival 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:00 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 01:39:00 [    INFO] HTTP Request: POST http://testserver/api/assignments/bff25da0-22dc-46fe-96e5-b8c9f3c12d0b/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [ 13%]
+tests/test_assignment_routes.py::test_authorized_team_lead_approves_once 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:01 [    INFO] HTTP Request: POST http://testserver/api/assignments/7068da57-98b9-4a71-ba6e-0a55307894c9/approve/send "HTTP/1.1 200 OK"
+2026-11-07 01:39:01 [    INFO] HTTP Request: POST http://testserver/api/assignments/7068da57-98b9-4a71-ba6e-0a55307894c9/approve/send "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 14%]
+tests/test_assignment_routes.py::test_same_workspace_member_cannot_approve 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:02 [    INFO] HTTP Request: POST http://testserver/api/assignments/2e6d4d07-7d92-45f4-8baa-96dfb6590271/approve/send "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 16%]
+tests/test_assignment_routes.py::test_wrong_workspace_approver_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:02 [    INFO] HTTP Request: POST http://testserver/api/assignments/387e218d-b2b4-42cd-926d-4bef13146611/approve/send "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 17%]
+tests/test_assignment_routes.py::test_changed_payload_is_not_approved_under_old_request 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:03 [    INFO] HTTP Request: POST http://testserver/api/assignments/5bc73ae3-fa45-4af6-9c3c-247151d862ec/approve/send "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 18%]
+tests/test_assignment_routes.py::test_cancelled_assignment_cannot_be_approved 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:04 [    INFO] HTTP Request: POST http://testserver/api/assignments/09906861-9672-4eea-898e-251675e1faa5/approve/send "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 20%]
+tests/test_assignment_routes.py::test_start_from_chat_objective_uses_registered_plan_and_teaching 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:04 [    INFO] Learning skipped for agent-0e656808: status intern (not STUDENT)
+2026-11-07 01:39:04 [    INFO] Learning skipped for agent-0e656808: status intern (not STUDENT)
+2026-11-07 01:39:04 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+2026-11-07 01:39:05 [    INFO] EscalationManager initialized
+2026-11-07 01:39:05 [    INFO] CognitiveTierService initialized for workspace: ws-1
+2026-11-07 01:39:05 [ WARNING] No LLM clients available
+2026-11-07 01:39:05 [ WARNING] No LLM clients available
+2026-11-07 01:39:05 [    INFO] HTTP Request: POST http://testserver/api/assignments/8df7ea1d-2041-4828-afae-a0e170ab3a6c/responses/corr-A "HTTP/1.1 200 OK"
+2026-11-07 01:39:05 [    INFO] HTTP Request: POST http://testserver/api/assignments/8df7ea1d-2041-4828-afae-a0e170ab3a6c/approve/send "HTTP/1.1 200 OK"
+PASSED                                                                   [ 21%]
+tests/test_assignment_routes.py::test_start_rejects_unregistered_proposed_adapter 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:05 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 22%]
+tests/test_assignment_routes.py::test_guided_discovery_mode_needs_no_paths 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:06 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 24%]
+tests/test_assignment_routes.py::test_public_proposed_steps_are_gated 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:06 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 25%]
+tests/test_assignment_routes.py::test_guided_connected_aggregate_is_grounded_and_survives_restart 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:07 [    INFO] Learning skipped for agent-0682166f: status intern (not STUDENT)
+2026-11-07 01:39:07 [    INFO] Learning skipped for agent-0682166f: status intern (not STUDENT)
+2026-11-07 01:39:07 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+2026-11-07 01:39:07 [    INFO] HTTP Request: POST http://testserver/api/assignments/736ac349-700c-4722-9e32-3450153264ec/approve/send "HTTP/1.1 200 OK"
+PASSED                                                                   [ 27%]
+tests/test_assignment_routes.py::test_guided_connected_count_presentation 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:08 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+PASSED                                                                   [ 28%]
+tests/test_assignment_routes.py::test_supervisor_assignment_rechecks_requester_source_grant 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:08 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+PASSED                                                                   [ 29%]
+tests/test_assignment_routes.py::test_bounded_taught_method_job_with_wait_and_draft 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:09 [    INFO] Learning skipped for agent-3bef9551: status intern (not STUDENT)
+2026-11-07 01:39:09 [    INFO] Learning skipped for agent-3bef9551: status intern (not STUDENT)
+2026-11-07 01:39:09 [    INFO] Learning skipped for agent-3bef9551: status intern (not STUDENT)
+2026-11-07 01:39:09 [    INFO] Learning skipped for agent-3bef9551: status intern (not STUDENT)
+2026-11-07 01:39:09 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+2026-11-07 01:39:09 [    INFO] EscalationManager initialized
+2026-11-07 01:39:09 [    INFO] CognitiveTierService initialized for workspace: ws-1
+2026-11-07 01:39:09 [ WARNING] No LLM clients available
+2026-11-07 01:39:09 [ WARNING] No LLM clients available
+2026-11-07 01:39:09 [    INFO] HTTP Request: POST http://testserver/api/assignments/2e132606-b565-46f3-ad4a-d822ed32fa9f/responses/bounded-correction "HTTP/1.1 200 OK"
+PASSED                                                                   [ 31%]
+tests/test_assignment_routes.py::test_taught_method_missing_wait_is_a_clarification 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:10 [    INFO] Learning skipped for agent-40064973: status intern (not STUDENT)
+2026-11-07 01:39:10 [    INFO] Learning skipped for agent-40064973: status intern (not STUDENT)
+2026-11-07 01:39:10 [    INFO] Learning skipped for agent-40064973: status intern (not STUDENT)
+2026-11-07 01:39:10 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 32%]
+tests/test_assignment_routes.py::test_unsupported_taught_method_is_a_clarification 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:10 [    INFO] Learning skipped for agent-f8046048: status intern (not STUDENT)
+2026-11-07 01:39:10 [    INFO] Learning skipped for agent-f8046048: status intern (not STUDENT)
+2026-11-07 01:39:10 [    INFO] Learning skipped for agent-f8046048: status intern (not STUDENT)
+2026-11-07 01:39:10 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 33%]
+tests/test_assignment_routes.py::test_guided_no_match_is_explicit_pending_work 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:11 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 35%]
+tests/test_assignment_routes.py::test_guided_wrong_workspace_scope_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:12 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 36%]
+tests/test_assignment_routes.py::test_real_catalog_resource_from_another_workspace_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:12 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 37%]
+tests/test_assignment_routes.py::test_client_cannot_choose_an_output_path 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:13 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+PASSED                                                                   [ 39%]
+tests/test_assignment_routes.py::test_start_second_domain_presentation_completes 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:13 [    INFO] Learning skipped for agent-4fae9603: status intern (not STUDENT)
+2026-11-07 01:39:13 [    INFO] Learning skipped for agent-4fae9603: status intern (not STUDENT)
+2026-11-07 01:39:14 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+PASSED                                                                   [ 40%]
+tests/test_assignment_routes.py::test_mapping_correction_route_applies_and_resumes 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:14 [    INFO] HTTP Request: POST http://testserver/api/assignments/ebb1b0e5-d97f-4c4e-acf8-424bb3de4b3b/mappings/correct "HTTP/1.1 200 OK"
+PASSED                                                                   [ 41%]
+tests/test_assignment_routes.py::test_stale_mapping_correction_is_refused_before_source_resolution 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:15 [    INFO] HTTP Request: POST http://testserver/api/assignments/daece02f-ab1c-46d3-9c49-7c3f1e08dc0b/mappings/correct "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 43%]
+tests/test_assignment_routes.py::test_wrong_workspace_mapping_correction_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:15 [    INFO] HTTP Request: POST http://testserver/api/assignments/88a8be11-bab1-4234-8e98-418fb4d01122/mappings/correct "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 44%]
+tests/test_assignment_routes.py::test_ambiguous_mapping_correction_requires_source_identity 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:16 [    INFO] HTTP Request: POST http://testserver/api/assignments/8caebccc-d6e2-494a-993c-7927ebb35e6e/mappings/correct "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 45%]
+tests/test_assignment_routes.py::test_mapping_gap_authority_controls_and_idempotent_replay 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:16 [    INFO] HTTP Request: POST http://testserver/api/assignments/f32791c8-acee-41a2-8606-53d00d6ebbf9/gaps/2179041e-99fc-49c9-898b-5dfa963ae6ea/resolve "HTTP/1.1 200 OK"
+2026-11-07 01:39:17 [    INFO] HTTP Request: POST http://testserver/api/assignments/f32791c8-acee-41a2-8606-53d00d6ebbf9/gaps/2179041e-99fc-49c9-898b-5dfa963ae6ea/resolve "HTTP/1.1 409 Conflict"
+2026-11-07 01:39:17 [    INFO] HTTP Request: POST http://testserver/api/assignments/f32791c8-acee-41a2-8606-53d00d6ebbf9/gaps/2179041e-99fc-49c9-898b-5dfa963ae6ea/resolve "HTTP/1.1 409 Conflict"
+2026-11-07 01:39:17 [    INFO] HTTP Request: POST http://testserver/api/assignments/f32791c8-acee-41a2-8606-53d00d6ebbf9/gaps/2179041e-99fc-49c9-898b-5dfa963ae6ea/resolve "HTTP/1.1 409 Conflict"
+2026-11-07 01:39:17 [    INFO] HTTP Request: POST http://testserver/api/assignments/f32791c8-acee-41a2-8606-53d00d6ebbf9/gaps/2179041e-99fc-49c9-898b-5dfa963ae6ea/resolve "HTTP/1.1 409 Conflict"
+2026-11-07 01:39:17 [    INFO] HTTP Request: POST http://testserver/api/assignments/f32791c8-acee-41a2-8606-53d00d6ebbf9/gaps/2179041e-99fc-49c9-898b-5dfa963ae6ea/resolve "HTTP/1.1 409 Conflict"
+2026-11-07 01:39:17 [    INFO] HTTP Request: POST http://testserver/api/assignments/f32791c8-acee-41a2-8606-53d00d6ebbf9/gaps/2179041e-99fc-49c9-898b-5dfa963ae6ea/resolve "HTTP/1.1 409 Conflict"
+2026-11-07 01:39:17 [    INFO] HTTP Request: POST http://testserver/api/assignments/f32791c8-acee-41a2-8606-53d00d6ebbf9/gaps/2179041e-99fc-49c9-898b-5dfa963ae6ea/resolve "HTTP/1.1 409 Conflict"
+2026-11-07 01:39:17 [    INFO] HTTP Request: POST http://testserver/api/assignments/f32791c8-acee-41a2-8606-53d00d6ebbf9/gaps/2179041e-99fc-49c9-898b-5dfa963ae6ea/resolve "HTTP/1.1 404 Not Found"
+2026-11-07 01:39:17 [    INFO] HTTP Request: POST http://testserver/api/assignments/f32791c8-acee-41a2-8606-53d00d6ebbf9/gaps/2179041e-99fc-49c9-898b-5dfa963ae6ea/resolve "HTTP/1.1 200 OK"
+2026-11-07 01:39:17 [    INFO] HTTP Request: POST http://testserver/api/assignments/f32791c8-acee-41a2-8606-53d00d6ebbf9/gaps/2179041e-99fc-49c9-898b-5dfa963ae6ea/resolve "HTTP/1.1 200 OK"
+2026-11-07 01:39:17 [    INFO] HTTP Request: POST http://testserver/api/assignments/f32791c8-acee-41a2-8606-53d00d6ebbf9/gaps/2179041e-99fc-49c9-898b-5dfa963ae6ea/resolve "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 47%]
+tests/test_assignment_routes.py::test_incomplete_inline_evidence_cannot_resume_route 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:17 [    INFO] HTTP Request: POST http://testserver/api/assignments/e24c4d56-4d66-42f5-a387-80e01068b98b/responses/inline-corr "HTTP/1.1 200 OK"
+PASSED                                                                   [ 48%]
+tests/test_assignment_routes.py::test_assignment_consumes_contextual_conversation_method 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:18 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 409 Conflict"
+2026-11-07 01:39:18 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 409 Conflict"
+2026-11-07 01:39:18 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+2026-11-07 01:39:18 [    INFO] HTTP Request: GET http://testserver/api/assignments/61d7610c-bf37-4fc3-ab85-8f2af22920b3 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 50%]
+tests/test_assignment_routes.py::test_route_reconcile_applied_never_resends 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:18 [    INFO] HTTP Request: POST http://testserver/api/assignments/e3577255-1e0e-4fee-b6e1-a31b65d6be7d/reconcile/send "HTTP/1.1 200 OK"
+PASSED                                                                   [ 51%]
+tests/test_assignment_routes.py::test_route_reconcile_insufficient_keeps_uncertain_and_never_resends 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:19 [    INFO] HTTP Request: POST http://testserver/api/assignments/62f08949-6187-468f-9d19-393d4bc86688/reconcile/send "HTTP/1.1 200 OK"
+PASSED                                                                   [ 52%]
+tests/test_assignment_routes.py::test_route_reconcile_not_applied_allows_one_new_operation 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:20 [    INFO] HTTP Request: POST http://testserver/api/assignments/c1cf7b05-c6db-4788-aa35-62ffb17c0331/reconcile/send "HTTP/1.1 200 OK"
+2026-11-07 01:39:20 [    INFO] HTTP Request: POST http://testserver/api/assignments/c1cf7b05-c6db-4788-aa35-62ffb17c0331/approve/send "HTTP/1.1 200 OK"
+PASSED                                                                   [ 54%]
+tests/test_assignment_routes.py::test_route_reconcile_requires_evidence_and_authority 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:20 [    INFO] HTTP Request: POST http://testserver/api/assignments/5a4de3c6-b9f8-45b1-acbc-e1af69fe8eaa/reconcile/send "HTTP/1.1 409 Conflict"
+2026-11-07 01:39:20 [    INFO] HTTP Request: POST http://testserver/api/assignments/5a4de3c6-b9f8-45b1-acbc-e1af69fe8eaa/reconcile/send "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 55%]
+tests/test_assignment_routes.py::test_standing_authority_requires_a_real_bound PASSED [ 56%]
+tests/test_assignment_routes.py::test_over_limit_outbound_body_is_rejected_before_run_creation 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:21 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 58%]
+tests/test_assignment_routes.py::test_budget_extension_raises_limits_without_restarting_the_job 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:22 [    INFO] HTTP Request: POST http://testserver/api/assignments/fc113d52-91af-4521-bd73-4df90ecb3c2e/budget "HTTP/1.1 200 OK"
+2026-11-07 01:39:22 [    INFO] HTTP Request: POST http://testserver/api/assignments/fc113d52-91af-4521-bd73-4df90ecb3c2e/budget "HTTP/1.1 200 OK"
+PASSED                                                                   [ 59%]
+tests/test_assignment_routes.py::test_cancel_clears_correlated_wait_and_refuses_late_reply 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:22 [    INFO] HTTP Request: POST http://testserver/api/assignments/b2606c3b-8273-445b-b9a0-005eecba2546/cancel "HTTP/1.1 200 OK"
+2026-11-07 01:39:22 [    INFO] HTTP Request: POST http://testserver/api/assignments/b2606c3b-8273-445b-b9a0-005eecba2546/responses/corr-cancel-route "HTTP/1.1 409 Conflict"
+2026-11-07 01:39:22 [    INFO] HTTP Request: POST http://testserver/api/assignments/b2606c3b-8273-445b-b9a0-005eecba2546/cancel "HTTP/1.1 200 OK"
+2026-11-07 01:39:22 [    INFO] HTTP Request: GET http://testserver/api/assignments/b2606c3b-8273-445b-b9a0-005eecba2546 "HTTP/1.1 200 OK"
+2026-11-07 01:39:22 [    INFO] HTTP Request: POST http://testserver/api/assignments/b2606c3b-8273-445b-b9a0-005eecba2546/resume "HTTP/1.1 200 OK"
+PASSED                                                                   [ 60%]
+tests/test_assignment_routes.py::test_cancel_clears_mapping_wait_and_refuses_gap_and_reply 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:23 [    INFO] HTTP Request: POST http://testserver/api/assignments/16ae8eea-7ee0-44a4-9a7c-e365ec25e1a0/cancel "HTTP/1.1 200 OK"
+2026-11-07 01:39:23 [    INFO] HTTP Request: POST http://testserver/api/assignments/16ae8eea-7ee0-44a4-9a7c-e365ec25e1a0/gaps/203f7713-fa29-4a11-8f8d-420ba56f1d0d/resolve "HTTP/1.1 409 Conflict"
+2026-11-07 01:39:23 [    INFO] HTTP Request: POST http://testserver/api/assignments/16ae8eea-7ee0-44a4-9a7c-e365ec25e1a0/responses/corr-map-cancel "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 62%]
+tests/test_assignment_routes.py::test_quote_journey_uses_sources_and_taught_line_discount 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:23 [    INFO] Learning skipped for agent-814eeebd: status intern (not STUDENT)
+2026-11-07 01:39:23 [    INFO] Learning skipped for agent-814eeebd: status intern (not STUDENT)
+2026-11-07 01:39:23 [    INFO] Learning skipped for agent-814eeebd: status intern (not STUDENT)
+2026-11-07 01:39:24 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+PASSED                                                                   [ 63%]
+tests/test_assignment_routes.py::test_service_proposal_route_uses_the_same_assignment_api 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:24 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+PASSED                                                                   [ 64%]
+tests/test_assignment_routes.py::test_teaching_correction_preserves_snapshot_and_reassessment_invalidates 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:25 [    INFO] Learning skipped for agent-79cf0d54: status intern (not STUDENT)
+2026-11-07 01:39:25 [    INFO] Learning skipped for agent-79cf0d54: status intern (not STUDENT)
+2026-11-07 01:39:25 [    INFO] Learning skipped for agent-79cf0d54: status intern (not STUDENT)
+2026-11-07 01:39:25 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+2026-11-07 01:39:25 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+2026-11-07 01:39:25 [    INFO] HTTP Request: POST http://testserver/api/assignments/f2ac476e-8ace-4861-b6cb-701b70ef75e5/reassess "HTTP/1.1 200 OK"
+PASSED                                                                   [ 66%]
+tests/test_assignment_routes.py::test_quote_controlled_commercial_update_duplicate_and_uncertain 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:26 [    INFO] Learning skipped for agent-4220a71b: status intern (not STUDENT)
+2026-11-07 01:39:26 [    INFO] Learning skipped for agent-4220a71b: status intern (not STUDENT)
+2026-11-07 01:39:26 [    INFO] Learning skipped for agent-4220a71b: status intern (not STUDENT)
+2026-11-07 01:39:26 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+2026-11-07 01:39:26 [    INFO] HTTP Request: POST http://testserver/api/assignments/87c2419c-29c9-4f98-88c5-8ecd415b4444/approve/commercial-update "HTTP/1.1 200 OK"
+2026-11-07 01:39:26 [    INFO] HTTP Request: POST http://testserver/api/assignments/87c2419c-29c9-4f98-88c5-8ecd415b4444/resume "HTTP/1.1 200 OK"
+2026-11-07 01:39:26 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+2026-11-07 01:39:26 [    INFO] HTTP Request: POST http://testserver/api/assignments/be61fc77-bb02-4401-8d18-7e05668fb39c/approve/commercial-update "HTTP/1.1 200 OK"
+2026-11-07 01:39:26 [    INFO] HTTP Request: GET http://testserver/api/assignments/be61fc77-bb02-4401-8d18-7e05668fb39c "HTTP/1.1 200 OK"
+2026-11-07 01:39:26 [    INFO] HTTP Request: POST http://testserver/api/assignments/be61fc77-bb02-4401-8d18-7e05668fb39c/reconcile/commercial-update "HTTP/1.1 200 OK"
+2026-11-07 01:39:27 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+2026-11-07 01:39:27 [    INFO] HTTP Request: POST http://testserver/api/assignments/b6a3f6b7-fb9e-4181-8ba7-7f8a1368a658/cancel "HTTP/1.1 200 OK"
+2026-11-07 01:39:27 [    INFO] HTTP Request: POST http://testserver/api/assignments/b6a3f6b7-fb9e-4181-8ba7-7f8a1368a658/approve/commercial-update "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 67%]
+tests/test_assignment_routes.py::test_quote_missing_tax_is_a_typed_clarification_not_zero 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:27 [    INFO] Learning skipped for agent-a87c4351: status intern (not STUDENT)
+2026-11-07 01:39:27 [    INFO] Learning skipped for agent-a87c4351: status intern (not STUDENT)
+2026-11-07 01:39:27 [    INFO] Learning skipped for agent-a87c4351: status intern (not STUDENT)
+2026-11-07 01:39:27 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+PASSED                                                                   [ 68%]
+tests/test_assignment_routes.py::test_source_revision_change_invalidates_dependent_artifact 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:28 [    INFO] Learning skipped for agent-b41403c1: status intern (not STUDENT)
+2026-11-07 01:39:28 [    INFO] Learning skipped for agent-b41403c1: status intern (not STUDENT)
+2026-11-07 01:39:28 [    INFO] Learning skipped for agent-b41403c1: status intern (not STUDENT)
+2026-11-07 01:39:28 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+2026-11-07 01:39:28 [    INFO] HTTP Request: POST http://testserver/api/assignments/af57b0ec-be44-4e14-a600-70000abac1e8/invalidate/source-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 70%]
+tests/test_assignment_routes.py::test_quote_same_sku_different_pack_asks_before_arithmetic 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:29 [    INFO] Learning skipped for agent-f0bcda46: status intern (not STUDENT)
+2026-11-07 01:39:29 [    INFO] Learning skipped for agent-f0bcda46: status intern (not STUDENT)
+2026-11-07 01:39:29 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+PASSED                                                                   [ 71%]
+tests/test_assignment_routes.py::test_unsupported_pricing_rule_refuses_public_plan_and_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:30 [    INFO] Learning skipped for agent-08ebd0dc: status intern (not STUDENT)
+2026-11-07 01:39:30 [    INFO] Learning skipped for agent-08ebd0dc: status intern (not STUDENT)
+2026-11-07 01:39:30 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 72%]
+tests/test_assignment_routes.py::test_onedrive_xlsx_public_route_uses_production_parser 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:30 [    INFO] Learning skipped for agent-70b07bae: status intern (not STUDENT)
+2026-11-07 01:39:30 [    INFO] Learning skipped for agent-70b07bae: status intern (not STUDENT)
+2026-11-07 01:39:30 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+PASSED                                                                   [ 74%]
+tests/test_assignment_routes.py::test_quote_missing_qualification_waits_and_resolves_through_route 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:31 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+2026-11-07 01:39:31 [    INFO] HTTP Request: POST http://testserver/api/assignments/0a7a7496-9c51-4bce-b08a-cf2e8b7a6019/gaps/0a0d4fcb-9a9a-4a4a-8192-d87159360fbc/resolve "HTTP/1.1 200 OK"
+2026-11-07 01:39:31 [    INFO] HTTP Request: POST http://testserver/api/assignments/0a7a7496-9c51-4bce-b08a-cf2e8b7a6019/gaps/0a0d4fcb-9a9a-4a4a-8192-d87159360fbc/resolve "HTTP/1.1 200 OK"
+2026-11-07 01:39:31 [    INFO] HTTP Request: POST http://testserver/api/assignments/0a7a7496-9c51-4bce-b08a-cf2e8b7a6019/gaps/0a0d4fcb-9a9a-4a4a-8192-d87159360fbc/resolve "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 75%]
+tests/test_assignment_routes.py::test_quote_ambiguous_discount_refuses_unrecognized_resolution 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:32 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+2026-11-07 01:39:32 [    INFO] HTTP Request: POST http://testserver/api/assignments/b4dacd22-bbbe-4d23-81bd-5d21129512be/gaps/9713f3ac-f04d-4c37-988a-e1caadf36b51/resolve "HTTP/1.1 200 OK"
+2026-11-07 01:39:32 [    INFO] HTTP Request: GET http://testserver/api/assignments/b4dacd22-bbbe-4d23-81bd-5d21129512be "HTTP/1.1 200 OK"
+2026-11-07 01:39:32 [    INFO] HTTP Request: POST http://testserver/api/assignments/b4dacd22-bbbe-4d23-81bd-5d21129512be/gaps/3f3a67ab-b4ab-4d9d-8808-70ab0955d5cb/resolve "HTTP/1.1 200 OK"
+PASSED                                                                   [ 77%]
+tests/test_assignment_routes.py::test_expense_reconciliation_uses_the_same_assignment_route 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:32 [    INFO] HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+PASSED                                                                   [ 78%]
+tests/test_assignment_routes.py::test_objective_only_reads_authorized_evidence 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:33 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+PASSED                                                                   [ 79%]
+tests/test_assignment_routes.py::test_objective_uploaded_document_is_selectable_and_readable 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:36 [    INFO] HTTP Request: GET http://testserver/api/assignments/sources "HTTP/1.1 200 OK"
+2026-11-07 01:39:36 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+PASSED                                                                   [ 81%]
+tests/test_assignment_routes.py::test_objective_only_returns_one_targeted_business_question 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:37 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 82%]
+tests/test_assignment_routes.py::test_objective_only_unknown_qualification_blocks_dependent_read 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:39 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+PASSED                                                                   [ 83%]
+tests/test_assignment_routes.py::test_plan_patch_route_adopts_fact_and_refuses_stale_proposal 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:41 [    INFO] HTTP Request: POST http://testserver/api/assignments/24e86c20-729c-4626-9afc-0db2de63c5c8/patch "HTTP/1.1 200 OK"
+2026-11-07 01:39:41 [    INFO] HTTP Request: POST http://testserver/api/assignments/24e86c20-729c-4626-9afc-0db2de63c5c8/patch "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 85%]
+tests/test_assignment_routes.py::test_objective_only_runs_typed_adaptive_follow_up 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:42 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+PASSED                                                                   [ 86%]
+tests/test_assignment_routes.py::test_advance_route_adopts_typed_work_from_applied_evidence 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:45 [    INFO] HTTP Request: POST http://testserver/api/assignments/ee87bbd7-045d-4e8d-9c8e-cdd2dd13dd58/advance "HTTP/1.1 200 OK"
+PASSED                                                                   [ 87%]
+tests/test_assignment_routes.py::test_advance_route_accepts_model_wait_choice_source 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:46 [    INFO] HTTP Request: POST http://testserver/api/assignments/04aca2ab-df12-4003-937a-6f5e14af5a3b/advance "HTTP/1.1 200 OK"
+PASSED                                                                   [ 89%]
+tests/test_assignment_routes.py::test_advance_route_does_not_adopt_a_policy_forbidden_wait 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:47 [    INFO] EscalationManager initialized
+2026-11-07 01:39:47 [    INFO] CognitiveTierService initialized for workspace: ws-1
+2026-11-07 01:39:48 [    INFO] HTTP Request: POST http://testserver/api/assignments/5ff41bc5-255b-419b-99f7-0f6be09c6934/advance "HTTP/1.1 200 OK"
+PASSED                                                                   [ 90%]
+tests/test_assignment_routes.py::test_source_addition_settles_missing_prerequisite_without_duplicates 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:50 [    INFO] HTTP Request: POST http://testserver/api/assignments/e0c94469-25fd-48c4-9912-f53af0f67911/sources "HTTP/1.1 200 OK"
+2026-11-07 01:39:50 [    INFO] HTTP Request: POST http://testserver/api/assignments/e0c94469-25fd-48c4-9912-f53af0f67911/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [ 91%]
+tests/test_assignment_routes.py::test_retained_authorized_scope_supports_later_evidence_reads 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:52 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+PASSED                                                                   [ 93%]
+tests/test_assignment_routes.py::test_discovery_outside_scope_asks_one_actionable_question 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:54 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+PASSED                                                                   [ 94%]
+tests/test_assignment_routes.py::test_discovery_repeated_read_falls_back_to_unread_authorized_scope 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:56 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+PASSED                                                                   [ 95%]
+tests/test_assignment_routes.py::test_requested_document_compiles_after_verified_evidence_quote 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:39:58 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+PASSED                                                                   [ 97%]
+tests/test_assignment_routes.py::test_requested_document_compiles_after_verified_invoice_reconciliation 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:40:00 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+PASSED                                                                   [ 98%]
+tests/test_assignment_routes.py::test_no_suitable_reasoning_route_is_durable_and_business_safe 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:40:01 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 01:40:01 [    INFO] HTTP Request: GET http://testserver/api/assignments/88e0465a-2024-4933-86d6-51ff48908deb "HTTP/1.1 200 OK"
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 148 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_task_wait_source_trigger_contract.py::test_authorized_source_answer_continues_same_task[False]
+  /private/tmp/goal-write-tw01-clean/backend/core/graphrag_engine.py:203: SyntaxWarning: "\%" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\%"? A raw string is also an option.
+    Escaped pattern where % and _ are escaped to \%
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+==================================== PASSES ====================================
+___________ test_authorized_source_answer_continues_same_task[False] ___________
+------------------------------ Captured log setup ------------------------------
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.embedding_service:embedding_service.py:131 Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+INFO     core.agent_task_registry:agent_task_registry.py:64 AgentTaskRegistry initialized
+------------------------------ Captured log call -------------------------------
+INFO     core.runtime_identity:runtime_identity.py:199 runtime identity: source_id=6d08b1c4baa9 revision=6d08b1c4baa9 dirty=False (0 modified, 0 untracked)
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/0749375b-a205-4dcd-b707-717c2de18628/sources "HTTP/1.1 200 OK"
+___________ test_authorized_source_answer_continues_same_task[True] ____________
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/279bdee5-2969-41b8-b971-3a641e978e87/sources "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/279bdee5-2969-41b8-b971-3a641e978e87/advance "HTTP/1.1 200 OK"
+_______ test_source_acceptance_survives_interruption_and_replay_recovers _______
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/35fb40a0-2065-4384-80e9-81a7356ca0cd/sources "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/35fb40a0-2065-4384-80e9-81a7356ca0cd/sources "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/35fb40a0-2065-4384-80e9-81a7356ca0cd/sources "HTTP/1.1 200 OK"
+_______ test_model_retain_after_relevant_source_does_not_fake_completion _______
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/41084499-9418-4380-a18b-30a281866733/sources "HTTP/1.1 200 OK"
+________ test_irrelevant_source_answer_stays_unresolved[wrong_subject] _________
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/c9f61fe0-72d2-4c64-8ded-adaacf72ff79/sources "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/c9f61fe0-72d2-4c64-8ded-adaacf72ff79/sources "HTTP/1.1 200 OK"
+___________ test_irrelevant_source_answer_stays_unresolved[partial] ____________
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/209c98f2-a2d6-4eec-ad3a-a34f571bea1a/sources "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/209c98f2-a2d6-4eec-ad3a-a34f571bea1a/sources "HTTP/1.1 200 OK"
+__________ test_irrelevant_source_answer_stays_unresolved[unrelated] ___________
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/bfcff563-26e9-4024-9393-f426c2924181/sources "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/bfcff563-26e9-4024-9393-f426c2924181/sources "HTTP/1.1 200 OK"
+_______ test_explicit_use_model_false_does_not_adapt_after_source_answer _______
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/f7b4ec61-eb23-4005-9995-82896c000a71/sources "HTTP/1.1 200 OK"
+_______ test_cancelled_task_refuses_source_arrival_without_resurrection ________
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/b3f997c8-ada6-4d24-ba6a-9de06fec959e/cancel "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/b3f997c8-ada6-4d24-ba6a-9de06fec959e/sources "HTTP/1.1 200 OK"
+___________ test_absolute_deadline_is_not_extended_by_source_arrival ___________
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/bff25da0-22dc-46fe-96e5-b8c9f3c12d0b/sources "HTTP/1.1 200 OK"
+___________________ test_authorized_team_lead_approves_once ____________________
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/7068da57-98b9-4a71-ba6e-0a55307894c9/approve/send "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/7068da57-98b9-4a71-ba6e-0a55307894c9/approve/send "HTTP/1.1 404 Not Found"
+__________________ test_same_workspace_member_cannot_approve ___________________
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/2e6d4d07-7d92-45f4-8baa-96dfb6590271/approve/send "HTTP/1.1 403 Forbidden"
+___________________ test_wrong_workspace_approver_is_refused ___________________
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/387e218d-b2b4-42cd-926d-4bef13146611/approve/send "HTTP/1.1 404 Not Found"
+____________ test_changed_payload_is_not_approved_under_old_request ____________
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/5bc73ae3-fa45-4af6-9c3c-247151d862ec/approve/send "HTTP/1.1 409 Conflict"
+_________________ test_cancelled_assignment_cannot_be_approved _________________
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/09906861-9672-4eea-898e-251675e1faa5/approve/send "HTTP/1.1 409 Conflict"
+_______ test_start_from_chat_objective_uses_registered_plan_and_teaching _______
+------------------------------ Captured log call -------------------------------
+INFO     core.student_learning_service:student_learning_service.py:1538 Learning skipped for agent-0e656808: status intern (not STUDENT)
+INFO     core.student_learning_service:student_learning_service.py:1538 Learning skipped for agent-0e656808: status intern (not STUDENT)
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: ws-1
+WARNING  core.llm.byok_handler:byok_handler.py:8214 No LLM clients available
+WARNING  core.llm.byok_handler:byok_handler.py:8214 No LLM clients available
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/8df7ea1d-2041-4828-afae-a0e170ab3a6c/responses/corr-A "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/8df7ea1d-2041-4828-afae-a0e170ab3a6c/approve/send "HTTP/1.1 200 OK"
+_______________ test_start_rejects_unregistered_proposed_adapter _______________
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 422 Unprocessable Entity"
+__________________ test_guided_discovery_mode_needs_no_paths ___________________
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 409 Conflict"
+_____________________ test_public_proposed_steps_are_gated _____________________
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 422 Unprocessable Entity"
+_______ test_guided_connected_aggregate_is_grounded_and_survives_restart _______
+------------------------------ Captured log call -------------------------------
+INFO     core.student_learning_service:student_learning_service.py:1538 Learning skipped for agent-0682166f: status intern (not STUDENT)
+INFO     core.student_learning_service:student_learning_service.py:1538 Learning skipped for agent-0682166f: status intern (not STUDENT)
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/736ac349-700c-4722-9e32-3450153264ec/approve/send "HTTP/1.1 200 OK"
+___________________ test_guided_connected_count_presentation ___________________
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+__________ test_supervisor_assignment_rechecks_requester_source_grant __________
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+______________ test_bounded_taught_method_job_with_wait_and_draft ______________
+------------------------------ Captured log call -------------------------------
+INFO     core.student_learning_service:student_learning_service.py:1538 Learning skipped for agent-3bef9551: status intern (not STUDENT)
+INFO     core.student_learning_service:student_learning_service.py:1538 Learning skipped for agent-3bef9551: status intern (not STUDENT)
+INFO     core.student_learning_service:student_learning_service.py:1538 Learning skipped for agent-3bef9551: status intern (not STUDENT)
+INFO     core.student_learning_service:student_learning_service.py:1538 Learning skipped for agent-3bef9551: status intern (not STUDENT)
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: ws-1
+WARNING  core.llm.byok_handler:byok_handler.py:8214 No LLM clients available
+WARNING  core.llm.byok_handler:byok_handler.py:8214 No LLM clients available
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/2e132606-b565-46f3-ad4a-d822ed32fa9f/responses/bounded-correction "HTTP/1.1 200 OK"
+______________ test_taught_method_missing_wait_is_a_clarification ______________
+------------------------------ Captured log call -------------------------------
+INFO     core.student_learning_service:student_learning_service.py:1538 Learning skipped for agent-40064973: status intern (not STUDENT)
+INFO     core.student_learning_service:student_learning_service.py:1538 Learning skipped for agent-40064973: status intern (not STUDENT)
+INFO     core.student_learning_service:student_learning_service.py:1538 Learning skipped for agent-40064973: status intern (not STUDENT)
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 409 Conflict"
+______________ test_unsupported_taught_method_is_a_clarification _______________
+------------------------------ Captured log call -------------------------------
+INFO     core.student_learning_service:student_learning_service.py:1538 Learning skipped for agent-f8046048: status intern (not STUDENT)
+INFO     core.student_learning_service:student_learning_service.py:1538 Learning skipped for agent-f8046048: status intern (not STUDENT)
+INFO     core.student_learning_service:student_learning_service.py:1538 Learning skipped for agent-f8046048: status intern (not STUDENT)
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 409 Conflict"
+________________ test_guided_no_match_is_explicit_pending_work _________________
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 409 Conflict"
+_________________ test_guided_wrong_workspace_scope_is_refused _________________
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 403 Forbidden"
+_________ test_real_catalog_resource_from_another_workspace_is_refused _________
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 403 Forbidden"
+___________________ test_client_cannot_choose_an_output_path ___________________
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+_______________ test_start_second_domain_presentation_completes ________________
+------------------------------ Captured log call -------------------------------
+INFO     core.student_learning_service:student_learning_service.py:1538 Learning skipped for agent-4fae9603: status intern (not STUDENT)
+INFO     core.student_learning_service:student_learning_service.py:1538 Learning skipped for agent-4fae9603: status intern (not STUDENT)
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+______________ test_mapping_correction_route_applies_and_resumes _______________
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/ebb1b0e5-d97f-4c4e-acf8-424bb3de4b3b/mappings/correct "HTTP/1.1 200 OK"
+______ test_stale_mapping_correction_is_refused_before_source_resolution _______
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/daece02f-ab1c-46d3-9c49-7c3f1e08dc0b/mappings/correct "HTTP/1.1 409 Conflict"
+______________ test_wrong_workspace_mapping_correction_is_refused ______________
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/88a8be11-bab1-4234-8e98-418fb4d01122/mappings/correct "HTTP/1.1 404 Not Found"
+__________ test_ambiguous_mapping_correction_requires_source_identity __________
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/8caebccc-d6e2-494a-993c-7927ebb35e6e/mappings/correct "HTTP/1.1 409 Conflict"
+__________ test_mapping_gap_authority_controls_and_idempotent_replay ___________
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/f32791c8-acee-41a2-8606-53d00d6ebbf9/gaps/2179041e-99fc-49c9-898b-5dfa963ae6ea/resolve "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/f32791c8-acee-41a2-8606-53d00d6ebbf9/gaps/2179041e-99fc-49c9-898b-5dfa963ae6ea/resolve "HTTP/1.1 409 Conflict"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/f32791c8-acee-41a2-8606-53d00d6ebbf9/gaps/2179041e-99fc-49c9-898b-5dfa963ae6ea/resolve "HTTP/1.1 409 Conflict"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/f32791c8-acee-41a2-8606-53d00d6ebbf9/gaps/2179041e-99fc-49c9-898b-5dfa963ae6ea/resolve "HTTP/1.1 409 Conflict"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/f32791c8-acee-41a2-8606-53d00d6ebbf9/gaps/2179041e-99fc-49c9-898b-5dfa963ae6ea/resolve "HTTP/1.1 409 Conflict"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/f32791c8-acee-41a2-8606-53d00d6ebbf9/gaps/2179041e-99fc-49c9-898b-5dfa963ae6ea/resolve "HTTP/1.1 409 Conflict"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/f32791c8-acee-41a2-8606-53d00d6ebbf9/gaps/2179041e-99fc-49c9-898b-5dfa963ae6ea/resolve "HTTP/1.1 409 Conflict"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/f32791c8-acee-41a2-8606-53d00d6ebbf9/gaps/2179041e-99fc-49c9-898b-5dfa963ae6ea/resolve "HTTP/1.1 409 Conflict"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/f32791c8-acee-41a2-8606-53d00d6ebbf9/gaps/2179041e-99fc-49c9-898b-5dfa963ae6ea/resolve "HTTP/1.1 404 Not Found"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/f32791c8-acee-41a2-8606-53d00d6ebbf9/gaps/2179041e-99fc-49c9-898b-5dfa963ae6ea/resolve "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/f32791c8-acee-41a2-8606-53d00d6ebbf9/gaps/2179041e-99fc-49c9-898b-5dfa963ae6ea/resolve "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/f32791c8-acee-41a2-8606-53d00d6ebbf9/gaps/2179041e-99fc-49c9-898b-5dfa963ae6ea/resolve "HTTP/1.1 409 Conflict"
+_____________ test_incomplete_inline_evidence_cannot_resume_route ______________
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/e24c4d56-4d66-42f5-a387-80e01068b98b/responses/inline-corr "HTTP/1.1 200 OK"
+___________ test_assignment_consumes_contextual_conversation_method ____________
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 409 Conflict"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 409 Conflict"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/api/assignments/61d7610c-bf37-4fc3-ab85-8f2af22920b3 "HTTP/1.1 200 OK"
+__________________ test_route_reconcile_applied_never_resends __________________
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/e3577255-1e0e-4fee-b6e1-a31b65d6be7d/reconcile/send "HTTP/1.1 200 OK"
+_____ test_route_reconcile_insufficient_keeps_uncertain_and_never_resends ______
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/62f08949-6187-468f-9d19-393d4bc86688/reconcile/send "HTTP/1.1 200 OK"
+__________ test_route_reconcile_not_applied_allows_one_new_operation ___________
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/c1cf7b05-c6db-4788-aa35-62ffb17c0331/reconcile/send "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/c1cf7b05-c6db-4788-aa35-62ffb17c0331/approve/send "HTTP/1.1 200 OK"
+_____________ test_route_reconcile_requires_evidence_and_authority _____________
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/5a4de3c6-b9f8-45b1-acbc-e1af69fe8eaa/reconcile/send "HTTP/1.1 409 Conflict"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/5a4de3c6-b9f8-45b1-acbc-e1af69fe8eaa/reconcile/send "HTTP/1.1 403 Forbidden"
+________ test_over_limit_outbound_body_is_rejected_before_run_creation _________
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 422 Unprocessable Entity"
+________ test_budget_extension_raises_limits_without_restarting_the_job ________
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/fc113d52-91af-4521-bd73-4df90ecb3c2e/budget "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/fc113d52-91af-4521-bd73-4df90ecb3c2e/budget "HTTP/1.1 200 OK"
+__________ test_cancel_clears_correlated_wait_and_refuses_late_reply ___________
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/b2606c3b-8273-445b-b9a0-005eecba2546/cancel "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/b2606c3b-8273-445b-b9a0-005eecba2546/responses/corr-cancel-route "HTTP/1.1 409 Conflict"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/b2606c3b-8273-445b-b9a0-005eecba2546/cancel "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/api/assignments/b2606c3b-8273-445b-b9a0-005eecba2546 "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/b2606c3b-8273-445b-b9a0-005eecba2546/resume "HTTP/1.1 200 OK"
+__________ test_cancel_clears_mapping_wait_and_refuses_gap_and_reply ___________
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/16ae8eea-7ee0-44a4-9a7c-e365ec25e1a0/cancel "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/16ae8eea-7ee0-44a4-9a7c-e365ec25e1a0/gaps/203f7713-fa29-4a11-8f8d-420ba56f1d0d/resolve "HTTP/1.1 409 Conflict"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/16ae8eea-7ee0-44a4-9a7c-e365ec25e1a0/responses/corr-map-cancel "HTTP/1.1 409 Conflict"
+___________ test_quote_journey_uses_sources_and_taught_line_discount ___________
+------------------------------ Captured log call -------------------------------
+INFO     core.student_learning_service:student_learning_service.py:1538 Learning skipped for agent-814eeebd: status intern (not STUDENT)
+INFO     core.student_learning_service:student_learning_service.py:1538 Learning skipped for agent-814eeebd: status intern (not STUDENT)
+INFO     core.student_learning_service:student_learning_service.py:1538 Learning skipped for agent-814eeebd: status intern (not STUDENT)
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+___________ test_service_proposal_route_uses_the_same_assignment_api ___________
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+___ test_teaching_correction_preserves_snapshot_and_reassessment_invalidates ___
+------------------------------ Captured log call -------------------------------
+INFO     core.student_learning_service:student_learning_service.py:1538 Learning skipped for agent-79cf0d54: status intern (not STUDENT)
+INFO     core.student_learning_service:student_learning_service.py:1538 Learning skipped for agent-79cf0d54: status intern (not STUDENT)
+INFO     core.student_learning_service:student_learning_service.py:1538 Learning skipped for agent-79cf0d54: status intern (not STUDENT)
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/f2ac476e-8ace-4861-b6cb-701b70ef75e5/reassess "HTTP/1.1 200 OK"
+_______ test_quote_controlled_commercial_update_duplicate_and_uncertain ________
+------------------------------ Captured log call -------------------------------
+INFO     core.student_learning_service:student_learning_service.py:1538 Learning skipped for agent-4220a71b: status intern (not STUDENT)
+INFO     core.student_learning_service:student_learning_service.py:1538 Learning skipped for agent-4220a71b: status intern (not STUDENT)
+INFO     core.student_learning_service:student_learning_service.py:1538 Learning skipped for agent-4220a71b: status intern (not STUDENT)
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/87c2419c-29c9-4f98-88c5-8ecd415b4444/approve/commercial-update "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/87c2419c-29c9-4f98-88c5-8ecd415b4444/resume "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/be61fc77-bb02-4401-8d18-7e05668fb39c/approve/commercial-update "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/api/assignments/be61fc77-bb02-4401-8d18-7e05668fb39c "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/be61fc77-bb02-4401-8d18-7e05668fb39c/reconcile/commercial-update "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/b6a3f6b7-fb9e-4181-8ba7-7f8a1368a658/cancel "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/b6a3f6b7-fb9e-4181-8ba7-7f8a1368a658/approve/commercial-update "HTTP/1.1 409 Conflict"
+___________ test_quote_missing_tax_is_a_typed_clarification_not_zero ___________
+------------------------------ Captured log call -------------------------------
+INFO     core.student_learning_service:student_learning_service.py:1538 Learning skipped for agent-a87c4351: status intern (not STUDENT)
+INFO     core.student_learning_service:student_learning_service.py:1538 Learning skipped for agent-a87c4351: status intern (not STUDENT)
+INFO     core.student_learning_service:student_learning_service.py:1538 Learning skipped for agent-a87c4351: status intern (not STUDENT)
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+__________ test_source_revision_change_invalidates_dependent_artifact __________
+------------------------------ Captured log call -------------------------------
+INFO     core.student_learning_service:student_learning_service.py:1538 Learning skipped for agent-b41403c1: status intern (not STUDENT)
+INFO     core.student_learning_service:student_learning_service.py:1538 Learning skipped for agent-b41403c1: status intern (not STUDENT)
+INFO     core.student_learning_service:student_learning_service.py:1538 Learning skipped for agent-b41403c1: status intern (not STUDENT)
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/af57b0ec-be44-4e14-a600-70000abac1e8/invalidate/source-1 "HTTP/1.1 200 OK"
+__________ test_quote_same_sku_different_pack_asks_before_arithmetic ___________
+------------------------------ Captured log call -------------------------------
+INFO     core.student_learning_service:student_learning_service.py:1538 Learning skipped for agent-f0bcda46: status intern (not STUDENT)
+INFO     core.student_learning_service:student_learning_service.py:1538 Learning skipped for agent-f0bcda46: status intern (not STUDENT)
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+_________ test_unsupported_pricing_rule_refuses_public_plan_and_effect _________
+------------------------------ Captured log call -------------------------------
+INFO     core.student_learning_service:student_learning_service.py:1538 Learning skipped for agent-08ebd0dc: status intern (not STUDENT)
+INFO     core.student_learning_service:student_learning_service.py:1538 Learning skipped for agent-08ebd0dc: status intern (not STUDENT)
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 422 Unprocessable Entity"
+____________ test_onedrive_xlsx_public_route_uses_production_parser ____________
+------------------------------ Captured log call -------------------------------
+INFO     core.student_learning_service:student_learning_service.py:1538 Learning skipped for agent-70b07bae: status intern (not STUDENT)
+INFO     core.student_learning_service:student_learning_service.py:1538 Learning skipped for agent-70b07bae: status intern (not STUDENT)
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+______ test_quote_missing_qualification_waits_and_resolves_through_route _______
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/0a7a7496-9c51-4bce-b08a-cf2e8b7a6019/gaps/0a0d4fcb-9a9a-4a4a-8192-d87159360fbc/resolve "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/0a7a7496-9c51-4bce-b08a-cf2e8b7a6019/gaps/0a0d4fcb-9a9a-4a4a-8192-d87159360fbc/resolve "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/0a7a7496-9c51-4bce-b08a-cf2e8b7a6019/gaps/0a0d4fcb-9a9a-4a4a-8192-d87159360fbc/resolve "HTTP/1.1 409 Conflict"
+________ test_quote_ambiguous_discount_refuses_unrecognized_resolution _________
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/b4dacd22-bbbe-4d23-81bd-5d21129512be/gaps/9713f3ac-f04d-4c37-988a-e1caadf36b51/resolve "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/api/assignments/b4dacd22-bbbe-4d23-81bd-5d21129512be "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/b4dacd22-bbbe-4d23-81bd-5d21129512be/gaps/3f3a67ab-b4ab-4d9d-8808-70ab0955d5cb/resolve "HTTP/1.1 200 OK"
+__________ test_expense_reconciliation_uses_the_same_assignment_route __________
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments "HTTP/1.1 200 OK"
+________________ test_objective_only_reads_authorized_evidence _________________
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+_________ test_objective_uploaded_document_is_selectable_and_readable __________
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/api/assignments/sources "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+__________ test_objective_only_returns_one_targeted_business_question __________
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 409 Conflict"
+_______ test_objective_only_unknown_qualification_blocks_dependent_read ________
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+_________ test_plan_patch_route_adopts_fact_and_refuses_stale_proposal _________
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/24e86c20-729c-4626-9afc-0db2de63c5c8/patch "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/24e86c20-729c-4626-9afc-0db2de63c5c8/patch "HTTP/1.1 409 Conflict"
+______________ test_objective_only_runs_typed_adaptive_follow_up _______________
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+__________ test_advance_route_adopts_typed_work_from_applied_evidence __________
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/ee87bbd7-045d-4e8d-9c8e-cdd2dd13dd58/advance "HTTP/1.1 200 OK"
+_____________ test_advance_route_accepts_model_wait_choice_source ______________
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/04aca2ab-df12-4003-937a-6f5e14af5a3b/advance "HTTP/1.1 200 OK"
+__________ test_advance_route_does_not_adopt_a_policy_forbidden_wait ___________
+------------------------------ Captured log call -------------------------------
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: ws-1
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/5ff41bc5-255b-419b-99f7-0f6be09c6934/advance "HTTP/1.1 200 OK"
+_____ test_source_addition_settles_missing_prerequisite_without_duplicates _____
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/e0c94469-25fd-48c4-9912-f53af0f67911/sources "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/e0c94469-25fd-48c4-9912-f53af0f67911/sources "HTTP/1.1 200 OK"
+_________ test_retained_authorized_scope_supports_later_evidence_reads _________
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+__________ test_discovery_outside_scope_asks_one_actionable_question ___________
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+______ test_discovery_repeated_read_falls_back_to_unread_authorized_scope ______
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+________ test_requested_document_compiles_after_verified_evidence_quote ________
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+____ test_requested_document_compiles_after_verified_invoice_reconciliation ____
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+________ test_no_suitable_reasoning_route_is_durable_and_business_safe _________
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/api/assignments/88e0465a-2024-4933-86d6-51ff48908deb "HTTP/1.1 200 OK"
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+PASSED tests/test_task_wait_source_trigger_contract.py::test_authorized_source_answer_continues_same_task[False]
+PASSED tests/test_task_wait_source_trigger_contract.py::test_authorized_source_answer_continues_same_task[True]
+PASSED tests/test_task_wait_source_continuation_regressions.py::test_source_acceptance_survives_interruption_and_replay_recovers
+PASSED tests/test_task_wait_source_continuation_regressions.py::test_model_retain_after_relevant_source_does_not_fake_completion
+PASSED tests/test_task_wait_source_continuation_regressions.py::test_irrelevant_source_answer_stays_unresolved[wrong_subject]
+PASSED tests/test_task_wait_source_continuation_regressions.py::test_irrelevant_source_answer_stays_unresolved[partial]
+PASSED tests/test_task_wait_source_continuation_regressions.py::test_irrelevant_source_answer_stays_unresolved[unrelated]
+PASSED tests/test_task_wait_source_continuation_regressions.py::test_explicit_use_model_false_does_not_adapt_after_source_answer
+PASSED tests/test_task_wait_source_continuation_regressions.py::test_cancelled_task_refuses_source_arrival_without_resurrection
+PASSED tests/test_task_wait_source_continuation_regressions.py::test_absolute_deadline_is_not_extended_by_source_arrival
+PASSED tests/test_assignment_routes.py::test_authorized_team_lead_approves_once
+PASSED tests/test_assignment_routes.py::test_same_workspace_member_cannot_approve
+PASSED tests/test_assignment_routes.py::test_wrong_workspace_approver_is_refused
+PASSED tests/test_assignment_routes.py::test_changed_payload_is_not_approved_under_old_request
+PASSED tests/test_assignment_routes.py::test_cancelled_assignment_cannot_be_approved
+PASSED tests/test_assignment_routes.py::test_start_from_chat_objective_uses_registered_plan_and_teaching
+PASSED tests/test_assignment_routes.py::test_start_rejects_unregistered_proposed_adapter
+PASSED tests/test_assignment_routes.py::test_guided_discovery_mode_needs_no_paths
+PASSED tests/test_assignment_routes.py::test_public_proposed_steps_are_gated
+PASSED tests/test_assignment_routes.py::test_guided_connected_aggregate_is_grounded_and_survives_restart
+PASSED tests/test_assignment_routes.py::test_guided_connected_count_presentation
+PASSED tests/test_assignment_routes.py::test_supervisor_assignment_rechecks_requester_source_grant
+PASSED tests/test_assignment_routes.py::test_bounded_taught_method_job_with_wait_and_draft
+PASSED tests/test_assignment_routes.py::test_taught_method_missing_wait_is_a_clarification
+PASSED tests/test_assignment_routes.py::test_unsupported_taught_method_is_a_clarification
+PASSED tests/test_assignment_routes.py::test_guided_no_match_is_explicit_pending_work
+PASSED tests/test_assignment_routes.py::test_guided_wrong_workspace_scope_is_refused
+PASSED tests/test_assignment_routes.py::test_real_catalog_resource_from_another_workspace_is_refused
+PASSED tests/test_assignment_routes.py::test_client_cannot_choose_an_output_path
+PASSED tests/test_assignment_routes.py::test_start_second_domain_presentation_completes
+PASSED tests/test_assignment_routes.py::test_mapping_correction_route_applies_and_resumes
+PASSED tests/test_assignment_routes.py::test_stale_mapping_correction_is_refused_before_source_resolution
+PASSED tests/test_assignment_routes.py::test_wrong_workspace_mapping_correction_is_refused
+PASSED tests/test_assignment_routes.py::test_ambiguous_mapping_correction_requires_source_identity
+PASSED tests/test_assignment_routes.py::test_mapping_gap_authority_controls_and_idempotent_replay
+PASSED tests/test_assignment_routes.py::test_incomplete_inline_evidence_cannot_resume_route
+PASSED tests/test_assignment_routes.py::test_assignment_consumes_contextual_conversation_method
+PASSED tests/test_assignment_routes.py::test_route_reconcile_applied_never_resends
+PASSED tests/test_assignment_routes.py::test_route_reconcile_insufficient_keeps_uncertain_and_never_resends
+PASSED tests/test_assignment_routes.py::test_route_reconcile_not_applied_allows_one_new_operation
+PASSED tests/test_assignment_routes.py::test_route_reconcile_requires_evidence_and_authority
+PASSED tests/test_assignment_routes.py::test_standing_authority_requires_a_real_bound
+PASSED tests/test_assignment_routes.py::test_over_limit_outbound_body_is_rejected_before_run_creation
+PASSED tests/test_assignment_routes.py::test_budget_extension_raises_limits_without_restarting_the_job
+PASSED tests/test_assignment_routes.py::test_cancel_clears_correlated_wait_and_refuses_late_reply
+PASSED tests/test_assignment_routes.py::test_cancel_clears_mapping_wait_and_refuses_gap_and_reply
+PASSED tests/test_assignment_routes.py::test_quote_journey_uses_sources_and_taught_line_discount
+PASSED tests/test_assignment_routes.py::test_service_proposal_route_uses_the_same_assignment_api
+PASSED tests/test_assignment_routes.py::test_teaching_correction_preserves_snapshot_and_reassessment_invalidates
+PASSED tests/test_assignment_routes.py::test_quote_controlled_commercial_update_duplicate_and_uncertain
+PASSED tests/test_assignment_routes.py::test_quote_missing_tax_is_a_typed_clarification_not_zero
+PASSED tests/test_assignment_routes.py::test_source_revision_change_invalidates_dependent_artifact
+PASSED tests/test_assignment_routes.py::test_quote_same_sku_different_pack_asks_before_arithmetic
+PASSED tests/test_assignment_routes.py::test_unsupported_pricing_rule_refuses_public_plan_and_effect
+PASSED tests/test_assignment_routes.py::test_onedrive_xlsx_public_route_uses_production_parser
+PASSED tests/test_assignment_routes.py::test_quote_missing_qualification_waits_and_resolves_through_route
+PASSED tests/test_assignment_routes.py::test_quote_ambiguous_discount_refuses_unrecognized_resolution
+PASSED tests/test_assignment_routes.py::test_expense_reconciliation_uses_the_same_assignment_route
+PASSED tests/test_assignment_routes.py::test_objective_only_reads_authorized_evidence
+PASSED tests/test_assignment_routes.py::test_objective_uploaded_document_is_selectable_and_readable
+PASSED tests/test_assignment_routes.py::test_objective_only_returns_one_targeted_business_question
+PASSED tests/test_assignment_routes.py::test_objective_only_unknown_qualification_blocks_dependent_read
+PASSED tests/test_assignment_routes.py::test_plan_patch_route_adopts_fact_and_refuses_stale_proposal
+PASSED tests/test_assignment_routes.py::test_objective_only_runs_typed_adaptive_follow_up
+PASSED tests/test_assignment_routes.py::test_advance_route_adopts_typed_work_from_applied_evidence
+PASSED tests/test_assignment_routes.py::test_advance_route_accepts_model_wait_choice_source
+PASSED tests/test_assignment_routes.py::test_advance_route_does_not_adopt_a_policy_forbidden_wait
+PASSED tests/test_assignment_routes.py::test_source_addition_settles_missing_prerequisite_without_duplicates
+PASSED tests/test_assignment_routes.py::test_retained_authorized_scope_supports_later_evidence_reads
+PASSED tests/test_assignment_routes.py::test_discovery_outside_scope_asks_one_actionable_question
+PASSED tests/test_assignment_routes.py::test_discovery_repeated_read_falls_back_to_unread_authorized_scope
+PASSED tests/test_assignment_routes.py::test_requested_document_compiles_after_verified_evidence_quote
+PASSED tests/test_assignment_routes.py::test_requested_document_compiles_after_verified_invoice_reconciliation
+PASSED tests/test_assignment_routes.py::test_no_suitable_reasoning_route_is_durable_and_business_safe
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================= 74 passed, 156 warnings in 78.61s (0:01:18) ==================
+EXIT_CODE:0

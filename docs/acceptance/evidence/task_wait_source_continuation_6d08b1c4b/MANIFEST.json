@@ -1,0 +1,23 @@
+{
+  "executed_source": "6d08b1c4baa9645876c7a964c45aa120ec39809e",
+  "runtime_identity": "source_id=6d08b1c4baa9 revision=6d08b1c4baa9 dirty=False (0 modified, 0 untracked)",
+  "source_files": {
+    "backend/api/assignment_routes.py": "7252327d8cdbdb4dae7b58609065c2fdcb2235c5cf75e2b0bd4012d9d99ef020",
+    "backend/tests/test_task_wait_source_trigger_contract.py": "278ffe95f8a3f2433d75528585d815b9b3d595709fb4a0578ee912e66863bfd7",
+    "backend/tests/test_task_wait_source_continuation_regressions.py": "eebbe642cdd40ae0c2fe824e129f6041ffd3fc1f5e3163e94c836cdcc2863fec",
+    "backend/tests/test_assignment_routes.py": "3cd13cc700663e20d1d84b451854bcd38c761338bb8a0b4f7aa084c00e514ce8",
+    "backend/core/assignment_executor.py": "7170d6e85b2aab5288aa03617a322a213da5e22fb119317e93fb6536b8c5fa4b",
+    "backend/core/task_lifecycle.py": "4e6e67384ec759f691d084f4781d0567add04fd7dfead4a47c36a82d9a68ba61",
+    "backend/core/employee_job_runner.py": "8b7346ca40745728d64558e6869635465b786b526fc97d7ae22d239f7b82e3b1",
+    "backend/core/employee_adaptation.py": "caefd9e57291c37d3ed24231976de078325df34a429d259a967fe8185b7a7f7e"
+  },
+  "frontend_source_files_not_executed": {
+    "frontend-nextjs/components/assignments/AssignmentPanel.tsx": "74547baecaa39ad8e0dc66311357940ced5fe1e1c4f90edbe1fc68c86fe3856b",
+    "frontend-nextjs/components/assignments/__tests__/AssignmentPanel.test.tsx": "afd6b1f50e2136b1518a7719c2ca8b6afaca9c201cb5297db6a8374f49a6ce3c"
+  },
+  "artifacts": {
+    "README.md": "38fca94cab88bd9235724c71d852925fca6e269e5d711af5d1c9c1ffa66d579c",
+    "verification.json": "2671e9afdc232d12c9b47b87aa0aadd24106cc9d575bebe1810c135a8e131355",
+    "final.log": "e5b5f63912cb935e30cd840320ea89224b77a0ac9ee6a7de9392ed7dd0793135"
+  }
+}
