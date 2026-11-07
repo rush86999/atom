@@ -767,14 +767,41 @@ def _fulfillment_source_line_identity(line_item: Mapping[str, Any]) -> str:
 
 
 def _fulfillment_observed_line_identity(line_item: Mapping[str, Any]) -> str:
-    """Order-line id of a completed Fulfillment line.
+    """Authoritative order-line id of a completed Fulfillment line.
 
-    The documented Fulfillment line item uses ``id`` for the order-line id
-    (the FO-line namespace does not apply here).  A provider that also returns
-    ``line_item_id`` is accepted, but no other field is borrowed.
+    The documented Fulfillment line item uses ``id`` for the order-line id (the
+    FO-line namespace does not apply here).  ``line_item_id`` is only an
+    optional provider echo: it can confirm the official id, but it can never
+    replace or override it.
     """
-    return _text(
-        line_item.get("line_item_id") or line_item.get("id")).strip()
+    return _text(line_item.get("id")).strip()
+
+
+def _fulfillment_completed_line_binding(
+    line_item: Mapping[str, Any],
+) -> Dict[str, Any]:
+    """Bind a completed line without normalising away contradictory fields.
+
+    ``id`` is required and authoritative.  A matching optional
+    ``line_item_id`` is harmless.  Two present-but-different identities are a
+    contradiction, and an absent ``id`` is genuinely missing required
+    identity; neither is collapsed to the other or dropped.
+    """
+    official_id = _fulfillment_observed_line_identity(line_item)
+    optional_alias = _text(line_item.get("line_item_id")).strip()
+    binding: Dict[str, Any] = {}
+    if not official_id:
+        binding["line_item_identity_missing"] = True
+    if optional_alias and official_id and optional_alias != official_id:
+        binding["line_item_identity_conflict"] = {
+            "official_id": official_id,
+            "line_item_id": optional_alias,
+        }
+    elif optional_alias and not official_id:
+        # Keep the contradictory/unusable optional value visible; it cannot
+        # identify the completed line by itself.
+        binding["line_item_id_alias"] = optional_alias
+    return binding
 
 
 def _fulfillment_line_material(
@@ -791,6 +818,8 @@ def _fulfillment_line_material(
             _fulfillment_completed_quantity(line_item)
             if completed else _fulfillment_planned_quantity(line_item)),
     }
+    if completed:
+        entry.update(_fulfillment_completed_line_binding(line_item))
     fo_id = _text(
         line_item.get("fulfillment_order_id")
         if fulfillment_order_id is None else fulfillment_order_id
@@ -946,6 +975,16 @@ def _fulfillment_line_identity(line: Mapping[str, Any]) -> tuple:
     )
 
 
+def _fulfillment_line_binding_issue(line: Mapping[str, Any]) -> str:
+    """Return a missing/contradictory completed identity marker, if any."""
+    if line.get("line_item_identity_missing"):
+        return "line_item_identity_missing"
+    conflict = line.get("line_item_identity_conflict")
+    if isinstance(conflict, Mapping) and conflict:
+        return "line_item_identity_conflict"
+    return ""
+
+
 def fulfillment_plan_mismatches(
     plan: Mapping[str, Any] | None,
     observed: Mapping[str, Any] | None,
@@ -973,6 +1012,8 @@ def fulfillment_plan_mismatches(
         line for line in (got.get("line_items") or [])
         if isinstance(line, Mapping)
     ]
+    if any(_fulfillment_line_binding_issue(line) for line in observed_lines):
+        reasons.append("line_items")
     observed_has_fo_ids = bool(observed_lines) and all(
         _text(line.get("fulfillment_order_id")).strip()
         for line in observed_lines)
@@ -994,7 +1035,7 @@ def fulfillment_plan_mismatches(
             _fulfillment_line_identity(line) for line in planned_lines)
         observed_identity = sorted(
             _fulfillment_line_identity(line) for line in observed_lines)
-    if planned_identity != observed_identity:
+    if planned_identity != observed_identity and "line_items" not in reasons:
         reasons.append("line_items")
     return reasons
 

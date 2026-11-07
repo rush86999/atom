@@ -798,6 +798,112 @@ def test_contradictory_completed_order_line_binding_is_unverified(
     assert "line_items" in result["verification"]["mismatches"], result
 
 
+def test_completed_fulfillment_matching_id_and_alias_is_valid(
+        env, monkeypatch):
+    _add_store(env)
+    transport = FakeShopifyTransport()
+
+    def _matching_alias(fid, fulfillment):
+        item = copy.deepcopy(fulfillment)
+        for line in item["line_items"]:
+            line["line_item_id"] = line["id"]
+        return item
+
+    transport.read_override = _matching_alias
+    _install_transport(monkeypatch, transport)
+    operation_id = f"op-fulfillment-line-match-{uuid.uuid4().hex}"
+
+    result = _call(
+        _agent(), _fulfillment_args(operation_id), _context(operation_id))
+
+    assert result["success"] is True, result
+    assert result["oracle_verified"] is True, result
+
+
+def test_completed_fulfillment_matching_official_id_rejects_wrong_alias(
+        env, monkeypatch):
+    _add_store(env)
+    transport = FakeShopifyTransport()
+
+    def _wrong_alias(fid, fulfillment):
+        item = copy.deepcopy(fulfillment)
+        for line in item["line_items"]:
+            line["line_item_id"] = "foreign-order-line"
+        return item
+
+    transport.read_override = _wrong_alias
+    _install_transport(monkeypatch, transport)
+    operation_id = f"op-fulfillment-line-alias-{uuid.uuid4().hex}"
+
+    result = _call(
+        _agent(), _fulfillment_args(operation_id), _context(operation_id))
+
+    assert len(transport.posts) == 1, result
+    assert result["success"] is not True, result
+    assert result["oracle_verified"] is not True, result
+    assert "line_items" in result["verification"]["mismatches"], result
+    assert result["read_receipt"]["fields"]["line_items"][0][
+        "line_item_identity_conflict"] == {
+            "official_id": "line-1", "line_item_id": "foreign-order-line",
+        }, result["read_receipt"]
+
+
+def test_completed_fulfillment_wrong_official_id_rejects_matching_alias(
+        env, monkeypatch):
+    _add_store(env)
+    transport = FakeShopifyTransport()
+
+    def _wrong_official(fid, fulfillment):
+        item = copy.deepcopy(fulfillment)
+        for line in item["line_items"]:
+            line["line_item_id"] = line["id"]
+            line["id"] = "foreign-order-line"
+        return item
+
+    transport.read_override = _wrong_official
+    _install_transport(monkeypatch, transport)
+    operation_id = f"op-fulfillment-line-official-{uuid.uuid4().hex}"
+
+    result = _call(
+        _agent(), _fulfillment_args(operation_id), _context(operation_id))
+
+    assert len(transport.posts) == 1, result
+    assert result["success"] is not True, result
+    assert result["oracle_verified"] is not True, result
+    assert "line_items" in result["verification"]["mismatches"], result
+
+
+@pytest.mark.parametrize("keep_alias", [False, True])
+def test_completed_fulfillment_missing_required_official_id_is_unverified(
+        env, monkeypatch, keep_alias):
+    _add_store(env)
+    transport = FakeShopifyTransport()
+
+    def _missing_official(fid, fulfillment, alias=keep_alias):
+        item = copy.deepcopy(fulfillment)
+        for line in item["line_items"]:
+            line.pop("id", None)
+            if alias:
+                line["line_item_id"] = "line-1"
+            else:
+                line.pop("line_item_id", None)
+        return item
+
+    transport.read_override = _missing_official
+    _install_transport(monkeypatch, transport)
+    operation_id = f"op-fulfillment-line-missing-{uuid.uuid4().hex}"
+
+    result = _call(
+        _agent(), _fulfillment_args(operation_id), _context(operation_id))
+
+    assert len(transport.posts) == 1, result
+    assert result["success"] is not True, result
+    assert result["oracle_verified"] is not True, result
+    assert "line_items" in result["verification"]["mismatches"], result
+    assert result["read_receipt"]["fields"]["line_items"][0][
+        "line_item_identity_missing"] is True, result["read_receipt"]
+
+
 def test_missing_tracking_proof_is_explicitly_unverified(
         env, monkeypatch):
     _add_store(env)
