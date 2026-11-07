@@ -1,0 +1,15 @@
+{
+  "scope": "retained frozen scratch readback after episode, no new app writes",
+  "claims": [
+    {
+      "operation_id": "agent:run:6a6ff965ff8741b3819f66859c9d8034",
+      "status": "succeeded"
+    }
+  ],
+  "terminal_maturity": [
+    {
+      "status": "student",
+      "confidence_score": 0.36
+    }
+  ]
+}

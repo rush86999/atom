@@ -1,0 +1,20 @@
+{
+  "repo": "/private/tmp/atom-browser-capture-frozen-20261107",
+  "head": "d3f58d81d8ec8c728f331d5511b8710853ef4fe3",
+  "expected_sha": "d3f58d81d8ec8c728f331d5511b8710853ef4fe3",
+  "matches_expected": true,
+  "tracked_dirty": [],
+  "tracked_dirty_count": 0,
+  "backend_dirty": [],
+  "backend_dirty_count": 0,
+  "driver_sha256": "66431e44bc36ce28adace7409b72a291e5fd626ecf1d472364aa33b53333850e",
+  "driver_path": "/private/tmp/atom-browser-capture-frozen-20261107/scripts/acceptance/browser_agent_job_wait.py",
+  "runtime_identity": {
+    "source_id": "d3f58d81d8ec",
+    "revision": "d3f58d81d8ec8c728f331d5511b8710853ef4fe3",
+    "dirty": false,
+    "dirty_paths_count": 0,
+    "untracked_paths_count": 0,
+    "error": null
+  }
+}
