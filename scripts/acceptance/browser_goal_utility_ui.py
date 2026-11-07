@@ -604,21 +604,43 @@ def _public_utility(api: Any, goal_id: str) -> Dict[str, Any]:
     }
 
 
-def _complete_onboarding_if_present(page: Any) -> Dict[str, Any]:
-    out = {"wizard_seen": False, "dismissed": False}
-    page.wait_for_timeout(800)
-    try:
-        welcome = page.get_by_role("heading", name="Welcome to Atom", exact=True)
-        if welcome.is_visible(timeout=3000):
-            out["wizard_seen"] = True
-            for _ in range(3):
-                page.get_by_role("button", name="Next", exact=True).click()
-            page.get_by_role(
-                "button", name="Start Automating", exact=True).click()
-            welcome.wait_for(state="hidden", timeout=30000)
-            out["dismissed"] = True
-    except Exception:
-        pass
+def _complete_onboarding_if_present(page: Any, api: Any) -> Dict[str, Any]:
+    """Observe authoritative onboarding, then finish it through ordinary UI.
+
+    ``Locator.is_visible`` does not wait for a late host fetch. Fresh accounts
+    must wait for the wizard rather than racing a fixed delay or swallowing a
+    blocked click. Existing completed accounts keep their durable state.
+    """
+    def status() -> bool:
+        response = api.get("/api/onboarding/status")
+        if response.status_code != 200:
+            raise DriverError("onboarding status unavailable")
+        body = response.json()
+        data = body.get("data") or body
+        value = data.get("onboarding_completed")
+        if not isinstance(value, bool):
+            raise DriverError("onboarding status missing completion evidence")
+        return value
+
+    out = {"wizard_seen": False, "dismissed": False,
+           "completion_durable": False}
+    welcome = page.get_by_role("heading", name="Welcome to Atom", exact=True)
+    if status():
+        welcome.wait_for(state="hidden", timeout=30000)
+        out["completion_durable"] = True
+        return out
+    welcome.wait_for(state="visible", timeout=30000)
+    out["wizard_seen"] = True
+    for _ in range(3):
+        page.get_by_role("button", name="Next", exact=True).click()
+    page.get_by_role("button", name="Start Automating", exact=True).click()
+    welcome.wait_for(state="hidden", timeout=30000)
+    deadline = time.monotonic() + 30
+    while not status():
+        if time.monotonic() >= deadline:
+            raise DriverError("onboarding UI closed without durable completion")
+        time.sleep(0.2)
+    out.update(dismissed=True, completion_durable=True)
     return out
 
 
@@ -1253,7 +1275,7 @@ def _run_execute(args: argparse.Namespace) -> int:
                             login.get("token_present_after_login")),
                     }, details=login)
                     D3._screenshot(page, out, "00_supervisor_login.png")
-                    onboarding = _complete_onboarding_if_present(page)
+                    onboarding = _complete_onboarding_if_present(page, api)
                     scenario["supervisor_onboarding"] = onboarding
 
                     _open_run_detail(page, fe_base, run_id)
@@ -1378,7 +1400,9 @@ def _run_execute(args: argparse.Namespace) -> int:
                             member_login["landed_url"] = member_page.url
                         except Exception:
                             pass
-                    _complete_onboarding_if_present(member_page)
+                    with D3._api_client(args.backend_port, member_token) as member_api:
+                        scenario["member_onboarding"] = _complete_onboarding_if_present(
+                            member_page, member_api)
                     _open_run_detail(member_page, fe_base, run_id)
                     member_target = member_page.locator(
                         '[data-testid="goal-utility-target"]').inner_text()
