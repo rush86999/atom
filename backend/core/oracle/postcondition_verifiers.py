@@ -434,6 +434,342 @@ async def _verify_shopify_create_product(
         f"matches (payload {expected_digest[:12]})")
 
 
+@register_durable_receipt_projector("shopify_create_blog")
+def _shopify_blog_durable_receipt_projection(
+    result: Dict[str, Any], expected: Dict[str, Any],
+) -> Dict[str, Any]:
+    from core.shopify_mutations import durable_blog_receipt_projection
+
+    return durable_blog_receipt_projection(result, expected)
+
+
+@register_durable_receipt_matcher("shopify_create_blog")
+def _shopify_blog_durable_receipt_conflicts(
+    expected: Dict[str, Any], durable_result: Dict[str, Any],
+) -> Iterable[str]:
+    from core.shopify_mutations import durable_blog_material_conflicts
+
+    return durable_blog_material_conflicts(expected, durable_result)
+
+
+@register_postcondition("shopify_create_blog")
+async def _verify_shopify_create_blog(
+    ctx: Dict[str, Any],
+) -> OracleResult:
+    """Verify one Shopify blog create by an exact fresh readback.
+
+    The frozen accepted title/handle and the durable operation identity come
+    from the server-owned request snapshot.  A transport 201, a matching
+    title, or the producer's own receipt is insufficient: the exact returned
+    id is re-read from the *current* workspace store through the real Shopify
+    service, and the readback must match the accepted material.
+    """
+    from core.shopify_mutations import (
+        material_mismatches,
+        observed_blog_material,
+    )
+
+    action = "shopify_create_blog"
+    if str(ctx.get("action_result") or "").strip().lower() != "applied":
+        return OracleResult(
+            action, False,
+            f"action_result == {ctx.get('action_result')!r}, not applied")
+
+    remote_id = str(ctx.get("remote_id") or "").strip()
+    if not remote_id:
+        return OracleResult(
+            action, False,
+            "no exact remote id in the result; an unidentifiable effect is "
+            "uncertain, not safe to recreate")
+
+    expected_operation = str(
+        ctx.get("_oracle_expected_operation_id") or "").strip()
+    if not expected_operation:
+        return OracleResult(action, False, "no frozen operation identity")
+
+    expected_digest = _digest(
+        ctx.get("_oracle_expected_payload_sha256"))
+    if not _valid_digest(expected_digest):
+        return OracleResult(
+            action, False, "no valid frozen request payload digest")
+    result_digest = _digest(ctx.get("payload_sha256"))
+    if not _valid_digest(result_digest):
+        return OracleResult(
+            action, False, "result carries no valid payload digest")
+    if result_digest != expected_digest:
+        return OracleResult(
+            action, False,
+            "returned payload digest does not match the expected request")
+
+    receipt = ctx.get("provider_receipt")
+    if not isinstance(receipt, dict) or not receipt:
+        return OracleResult(action, False, "no provider receipt")
+    if str(receipt.get("operation_id") or "") != expected_operation:
+        return OracleResult(
+            action, False,
+            "returned operation id does not match the expected operation")
+    if _digest(receipt.get("payload_sha256")) != expected_digest:
+        return OracleResult(
+            action, False,
+            "provider receipt payload digest does not match the request")
+
+    expected_material = ctx.get("_oracle_expected_shopify_blog")
+    if not isinstance(expected_material, dict) or not expected_material:
+        return OracleResult(
+            action, False, "no frozen accepted blog material")
+
+    read_receipt = ctx.get("read_receipt")
+    if not isinstance(read_receipt, dict) or not read_receipt:
+        return OracleResult(action, False, "no authoritative read_receipt")
+    if str(read_receipt.get("resource_id") or "") != remote_id:
+        return OracleResult(
+            action, False,
+            "read_receipt.resource_id does not match the created blog id")
+    coverage = str(read_receipt.get("coverage") or "").lower()
+    if coverage not in {"single", "complete"}:
+        return OracleResult(
+            action, False, f"read_receipt.coverage == {coverage!r}")
+    receipt_material = read_receipt.get("fields")
+    if not isinstance(receipt_material, dict) or not receipt_material:
+        return OracleResult(
+            action, False,
+            "read_receipt carries no complete material mapping")
+    receipt_mismatches = material_mismatches(
+        expected_material, receipt_material)
+    if receipt_mismatches:
+        return OracleResult(
+            action, False,
+            "producer readback does not match the accepted material: "
+            + ", ".join(receipt_mismatches))
+
+    # Re-read the exact resource from the CURRENT workspace store.  This is
+    # the independent system-of-record check; the producer's receipt is only
+    # evidence input, never the verdict.
+    from core.action_registry import _resolve_shopify_store
+
+    token, shop = _resolve_shopify_store(ctx)
+    if not token or not shop:
+        return OracleResult(
+            action, False, "no current workspace store authority")
+    observed_shop = str(
+        read_receipt.get("account_id") or read_receipt.get("shop") or "")
+    if observed_shop and observed_shop != shop:
+        return OracleResult(
+            action, False,
+            "readback store does not match the current workspace store")
+    receipt_shop = str(receipt.get("shop") or "")
+    if receipt_shop and receipt_shop != shop:
+        return OracleResult(
+            action, False,
+            "provider receipt store does not match the current workspace "
+            "store")
+
+    from integrations.shopify_service import ShopifyService
+
+    try:
+        observed = await ShopifyService().get_blog(
+            token, shop, remote_id)
+    except Exception as exc:  # noqa: BLE001 - unavailable is not verified
+        return OracleResult(
+            action, False,
+            "independent Shopify readback unavailable: "
+            f"{type(exc).__name__}: {str(exc)[:200]}")
+    observed = observed if isinstance(observed, dict) else {}
+    observed_id = str(observed.get("id") or "").strip()
+    if not observed_id:
+        return OracleResult(
+            action, False,
+            "independent Shopify readback returned no exact blog id")
+    if observed_id != remote_id:
+        return OracleResult(
+            action, False,
+            "independent Shopify readback returned a different blog id")
+
+    observed_material = observed_blog_material(observed)
+    mismatches = material_mismatches(
+        expected_material, observed_material)
+    if mismatches:
+        return OracleResult(
+            action, False,
+            "independent Shopify readback contradicts the accepted material: "
+            + ", ".join(mismatches))
+    return OracleResult(
+        action, True,
+        f"Shopify blog {remote_id} re-read from {shop}; accepted material "
+        f"matches (payload {expected_digest[:12]})")
+
+
+@register_durable_receipt_projector("shopify_create_article")
+def _shopify_article_durable_receipt_projection(
+    result: Dict[str, Any], expected: Dict[str, Any],
+) -> Dict[str, Any]:
+    from core.shopify_mutations import durable_article_receipt_projection
+
+    return durable_article_receipt_projection(result, expected)
+
+
+@register_durable_receipt_matcher("shopify_create_article")
+def _shopify_article_durable_receipt_conflicts(
+    expected: Dict[str, Any], durable_result: Dict[str, Any],
+) -> Iterable[str]:
+    from core.shopify_mutations import durable_article_material_conflicts
+
+    return durable_article_material_conflicts(expected, durable_result)
+
+
+@register_postcondition("shopify_create_article")
+async def _verify_shopify_create_article(
+    ctx: Dict[str, Any],
+) -> OracleResult:
+    """Verify one Shopify article create by an exact fresh readback.
+
+    The frozen accepted blog/title/body/author/tags/published material and the
+    durable operation identity come from the server-owned request snapshot.
+    The exact returned id is re-read from the authorized blog on the CURRENT
+    workspace store through the real Shopify service; a transport 201, a
+    matching title, or the producer's own receipt is never the verdict.
+    """
+    from core.shopify_mutations import (
+        material_mismatches,
+        observed_article_material,
+    )
+
+    action = "shopify_create_article"
+    if str(ctx.get("action_result") or "").strip().lower() != "applied":
+        return OracleResult(
+            action, False,
+            f"action_result == {ctx.get('action_result')!r}, not applied")
+
+    remote_id = str(ctx.get("remote_id") or "").strip()
+    if not remote_id:
+        return OracleResult(
+            action, False,
+            "no exact remote id in the result; an unidentifiable effect is "
+            "uncertain, not safe to recreate")
+
+    expected_operation = str(
+        ctx.get("_oracle_expected_operation_id") or "").strip()
+    if not expected_operation:
+        return OracleResult(action, False, "no frozen operation identity")
+
+    expected_digest = _digest(
+        ctx.get("_oracle_expected_payload_sha256"))
+    if not _valid_digest(expected_digest):
+        return OracleResult(
+            action, False, "no valid frozen request payload digest")
+    result_digest = _digest(ctx.get("payload_sha256"))
+    if not _valid_digest(result_digest):
+        return OracleResult(
+            action, False, "result carries no valid payload digest")
+    if result_digest != expected_digest:
+        return OracleResult(
+            action, False,
+            "returned payload digest does not match the expected request")
+
+    receipt = ctx.get("provider_receipt")
+    if not isinstance(receipt, dict) or not receipt:
+        return OracleResult(action, False, "no provider receipt")
+    if str(receipt.get("operation_id") or "") != expected_operation:
+        return OracleResult(
+            action, False,
+            "returned operation id does not match the expected operation")
+    if _digest(receipt.get("payload_sha256")) != expected_digest:
+        return OracleResult(
+            action, False,
+            "provider receipt payload digest does not match the request")
+
+    expected_material = ctx.get("_oracle_expected_shopify_article")
+    if not isinstance(expected_material, dict) or not expected_material:
+        return OracleResult(
+            action, False, "no frozen accepted article material")
+    expected_blog_id = str(
+        expected_material.get("blog_id") or "").strip()
+    if not expected_blog_id:
+        return OracleResult(
+            action, False, "no frozen authorized blog id")
+
+    read_receipt = ctx.get("read_receipt")
+    if not isinstance(read_receipt, dict) or not read_receipt:
+        return OracleResult(action, False, "no authoritative read_receipt")
+    if str(read_receipt.get("resource_id") or "") != remote_id:
+        return OracleResult(
+            action, False,
+            "read_receipt.resource_id does not match the created article id")
+    coverage = str(read_receipt.get("coverage") or "").lower()
+    if coverage not in {"single", "complete"}:
+        return OracleResult(
+            action, False, f"read_receipt.coverage == {coverage!r}")
+    receipt_material = read_receipt.get("fields")
+    if not isinstance(receipt_material, dict) or not receipt_material:
+        return OracleResult(
+            action, False,
+            "read_receipt carries no complete material mapping")
+    receipt_mismatches = material_mismatches(
+        expected_material, receipt_material)
+    if receipt_mismatches:
+        return OracleResult(
+            action, False,
+            "producer readback does not match the accepted material: "
+            + ", ".join(receipt_mismatches))
+
+    # Re-read the exact resource from the CURRENT workspace store.  This is
+    # the independent system-of-record check; the producer's receipt is only
+    # evidence input, never the verdict.
+    from core.action_registry import _resolve_shopify_store
+
+    token, shop = _resolve_shopify_store(ctx)
+    if not token or not shop:
+        return OracleResult(
+            action, False, "no current workspace store authority")
+    observed_shop = str(
+        read_receipt.get("account_id") or read_receipt.get("shop") or "")
+    if observed_shop and observed_shop != shop:
+        return OracleResult(
+            action, False,
+            "readback store does not match the current workspace store")
+    receipt_shop = str(receipt.get("shop") or "")
+    if receipt_shop and receipt_shop != shop:
+        return OracleResult(
+            action, False,
+            "provider receipt store does not match the current workspace "
+            "store")
+
+    from integrations.shopify_service import ShopifyService
+
+    try:
+        observed = await ShopifyService().get_article(
+            token, shop, expected_blog_id, remote_id)
+    except Exception as exc:  # noqa: BLE001 - unavailable is not verified
+        return OracleResult(
+            action, False,
+            "independent Shopify readback unavailable: "
+            f"{type(exc).__name__}: {str(exc)[:200]}")
+    observed = observed if isinstance(observed, dict) else {}
+    observed_id = str(observed.get("id") or "").strip()
+    if not observed_id:
+        return OracleResult(
+            action, False,
+            "independent Shopify readback returned no exact article id")
+    if observed_id != remote_id:
+        return OracleResult(
+            action, False,
+            "independent Shopify readback returned a different article id")
+
+    observed_material = observed_article_material(observed)
+    mismatches = material_mismatches(
+        expected_material, observed_material)
+    if mismatches:
+        return OracleResult(
+            action, False,
+            "independent Shopify readback contradicts the accepted material: "
+            + ", ".join(mismatches))
+    return OracleResult(
+        action, True,
+        f"Shopify article {remote_id} re-read from {shop} blog "
+        f"{expected_blog_id}; accepted material matches "
+        f"(payload {expected_digest[:12]})")
+
+
 @register_durable_receipt_projector("radio.send_message")
 def _radio_message_durable_receipt_projection(
     result: Dict[str, Any], expected: Dict[str, Any],

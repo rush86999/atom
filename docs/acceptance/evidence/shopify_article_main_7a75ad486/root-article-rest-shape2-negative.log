@@ -1,0 +1,78 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-07 10:44:08 [    INFO] MCP Service initialized
+
+tests/test_lead_shopify_article_rest_shape.py::test_official_rest_publication_readback_is_usable[True-2020-01-01T00:00:00Z] 
+-------------------------------- live log setup --------------------------------
+2026-11-07 10:44:09 [    INFO] EscalationManager initialized
+2026-11-07 10:44:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 10:44:09 [    INFO] EscalationManager initialized
+2026-11-07 10:44:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 10:44:09 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 10:44:09 [    INFO] AgentTaskRegistry initialized
+FAILED                                                                   [ 50%]
+tests/test_lead_shopify_article_rest_shape.py::test_official_rest_publication_readback_is_usable[False-None] FAILED [100%]
+
+=================================== FAILURES ===================================
+_ test_official_rest_publication_readback_is_usable[True-2020-01-01T00:00:00Z] _
+tests/test_lead_shopify_article_rest_shape.py:26: in test_official_rest_publication_readback_is_usable
+    assert result.get('oracle_verified') is True, result
+E   AssertionError: {'status': 'uncertain', 'success': False, 'action_result': 'uncertain', 'effect_possible': True, ...}
+E   assert False is True
+E    +  where False = <built-in method get of dict object at 0x12b5456c0>('oracle_verified')
+E    +    where <built-in method get of dict object at 0x12b5456c0> = {'status': 'uncertain', 'success': False, 'action_result': 'uncertain', 'effect_possible': True, ...}.get
+------------------------------ Captured log setup ------------------------------
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.embedding_service:embedding_service.py:131 Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+INFO     core.agent_task_registry:agent_task_registry.py:64 AgentTaskRegistry initialized
+________ test_official_rest_publication_readback_is_usable[False-None] _________
+tests/test_lead_shopify_article_rest_shape.py:26: in test_official_rest_publication_readback_is_usable
+    assert result.get('oracle_verified') is True, result
+E   AssertionError: {'status': 'uncertain', 'success': False, 'action_result': 'uncertain', 'effect_possible': True, ...}
+E   assert False is True
+E    +  where False = <built-in method get of dict object at 0x12b64aa00>('oracle_verified')
+E    +    where <built-in method get of dict object at 0x12b64aa00> = {'status': 'uncertain', 'success': False, 'action_result': 'uncertain', 'effect_possible': True, ...}.get
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_lead_shopify_article_rest_shape.py::test_official_rest_publication_readback_is_usable[True-2020-01-01T00:00:00Z]
+FAILED tests/test_lead_shopify_article_rest_shape.py::test_official_rest_publication_readback_is_usable[False-None]
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 2 failed, 10 warnings in 10.49s ========================

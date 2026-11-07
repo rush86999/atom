@@ -184,6 +184,24 @@ def build_request_expectations(
         except Exception:  # noqa: BLE001 - verifier refuses absent binding
             expected_shopify_product = None
 
+    expected_shopify_blog = None
+    if name == "shopify_create_blog":
+        try:
+            from core.shopify_mutations import accepted_blog_material
+
+            expected_shopify_blog = accepted_blog_material(args)
+        except Exception:  # noqa: BLE001 - verifier refuses absent binding
+            expected_shopify_blog = None
+
+    expected_shopify_article = None
+    if name == "shopify_create_article":
+        try:
+            from core.shopify_mutations import accepted_article_material
+
+            expected_shopify_article = accepted_article_material(args)
+        except Exception:  # noqa: BLE001 - verifier refuses absent binding
+            expected_shopify_article = None
+
     expected_radio_message = None
     if name == "radio.send_message":
         try:
@@ -294,6 +312,8 @@ def build_request_expectations(
         "_oracle_expected_task_title": expected_task_title,
         "_oracle_expected_board_id": expected_board_id,
         "_oracle_expected_shopify_product": expected_shopify_product,
+        "_oracle_expected_shopify_blog": expected_shopify_blog,
+        "_oracle_expected_shopify_article": expected_shopify_article,
         "_oracle_expected_radio_message": expected_radio_message,
         "_oracle_expected_app_id": expected_app_id,
         "_oracle_expected_tests": expected_tests,
