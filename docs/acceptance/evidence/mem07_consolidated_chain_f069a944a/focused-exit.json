@@ -1,0 +1,24 @@
+{
+  "command": [
+    "/usr/local/opt/python@3.14/bin/python3.14",
+    "-m",
+    "pytest",
+    "tests/test_mem07_consolidated_chain.py",
+    "tests/test_tool_error_memento_lifecycle.py",
+    "tests/test_memento_candidate_review.py",
+    "tests/test_reviewed_improvement_apply.py",
+    "tests/test_reviewed_improvement_boundaries.py",
+    "tests/test_reviewed_skill_agent_consumption.py",
+    "tests/test_tool_error_evolution.py",
+    "tests/test_autodev_review_routes.py",
+    "-q",
+    "--disable-warnings",
+    "--junitxml=/private/tmp/atom-mem07-20261107/docs/acceptance/evidence/mem07_consolidated_chain_f069a944a/focused.xml"
+  ],
+  "cwd": "/private/tmp/atom-mem07-20261107/backend",
+  "exit_code": 0,
+  "stdout_sha256": "8f7b2e79cf59cc4bdbd35808afbd93031b74a7d0899b892ff9a2838c6c5cec38",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "junitxml": "focused.xml",
+  "process_spawned": true
+}
