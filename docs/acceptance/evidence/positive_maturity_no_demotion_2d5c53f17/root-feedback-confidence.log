@@ -1,0 +1,39 @@
+
+backend/tests/test_round81b_journey_followups.py::TestReasoningFeedbackConfidence::test_approve_and_reject_update_confidence[APPROVE-True] 
+-------------------------------- live log setup --------------------------------
+2026-11-07 11:15:53 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-07 11:15:53 [    INFO] EscalationManager initialized
+2026-11-07 11:15:53 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 11:15:53 [    INFO] EscalationManager initialized
+2026-11-07 11:15:53 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 11:15:53 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 11:15:53 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:15:53 [    INFO] Applied feedback to agent agent-1 learning
+PASSED                                                                   [ 33%]
+backend/tests/test_round81b_journey_followups.py::TestReasoningFeedbackConfidence::test_approve_and_reject_update_confidence[REJECT-False] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 11:15:53 [    INFO] Applied feedback to agent agent-1 learning
+PASSED                                                                   [ 66%]
+backend/tests/test_round81b_journey_followups.py::TestReasoningFeedbackConfidence::test_no_agent_id_is_noop PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 3 passed, 8 warnings in 1.32s =========================
