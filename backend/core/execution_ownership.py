@@ -259,3 +259,20 @@ def record_os_start(metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]
         if start:
             owner["os_process_start"] = start
     return meta
+
+
+def current_owner() -> Dict[str, Any]:
+    """Describe THIS process for a durable claim.
+
+    Unlike :func:`stamp_owner`, this always returns the current process (it is
+    used for a fresh claim, never to preserve an existing owner). The OS start
+    time makes a later liveness check able to distinguish a live resumer from a
+    reused PID.
+    """
+    return {
+        "pid": os.getpid(),
+        "token": PROCESS_TOKEN,
+        "host": HOSTNAME,
+        "process_started_at": process_started_at(),
+        "os_process_start": _os_process_start(os.getpid()),
+    }

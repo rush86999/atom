@@ -1,0 +1,16 @@
+{
+  "executed_source": "3e2d72b96a1924a3bc0964fbbc4518c077957bd8",
+  "negative": {
+    "runtime_source": "d922601050546364560474a2e6d0388a34c2a974",
+    "failed": 1,
+    "actual_exit_code": 1,
+    "seconds": 10.61
+  },
+  "fixed": {
+    "passed": 1,
+    "actual_exit_code": 0,
+    "seconds": 9.46
+  },
+  "bulk_acceptance": "open",
+  "full_main_lifespan": "not_claimed"
+}

@@ -1,0 +1,27 @@
+{
+  "executed_source": "e08482e81d623d538eb9185d19f5a37ffa54b382",
+  "source_files": {
+    ".github/workflows/ci.yml": "801836ae0fe8b1d8d9dc3a6b23e5bc04488a9b96e99e566d952690e34f39e293",
+    "backend/api/agent_routes.py": "f5c031767cd90defcf74e9cfdcd1230678c378f4615e3c75ac77643c3dde9a36",
+    "backend/core/execution_ownership.py": "77c648ce0448e983c840953f89f3b13f1835c3d64afb4789e0a12b85d230dc19",
+    "backend/core/information_wait.py": "e8bbfacf9b7bef069691bb0756993c785945b9e87b9f21107c4c3819d646290e",
+    "backend/main_api_app.py": "323d75e9699edb49a6cae48e1fd613ae7fd31e6d114113e343d6fcaa59c515fe",
+    "backend/tests/process_support/generic_information_wait_process_worker.py": "0fb7293c5b7c5d972b4ce7fdd134eccd79d926d547a811fc8a59106f4900436b",
+    "backend/tests/test_agent_generic_information_wait_process.py": "977db076f348ed3fad4219f73f5f45d44032f55024b850bf1728855629accfeb",
+    "backend/tests/test_boot_recovery_not_gated_by_scheduler.py": "d53331f506d24d677bff2aa7ce7f1b44e09eafe58abe1ba8d8022be8552c0bd8",
+    "backend/tests/test_generic_information_recovery_batch_contract.py": "e1484e1bd17d04c7f0fdee3a5a74b18c1a4a8a36a9db9ccf61500b0f28517a83",
+    "backend/tests/test_generic_information_wait_recovery.py": "ac4e9fa89a5d6da7084e3849384f517b8773e9cade052c1e0974548676f5107e"
+  },
+  "artifacts": {
+    "final.xml": "03482dfb04edf9332f4ff935b3939b10776d6b604eae258f4375e41f1c50e657",
+    "batch-negative-exit.json": "a4aae78adf2745204869bbbaa9a4e835ed9ef84d6b0eb77c26fd8be59fabc0fd",
+    "batch-negative-spec.json": "7e9540818970922e4aca2d52d8fe93c372b4cd5df4b087f47f106fb105b479ad",
+    "final-spec.json": "a7a2d17de69c3c2c1ab6d90827e93fc94b34f43578611ffc52af10fe828c2c28",
+    "final-exit.json": "29dd9a0c487764031b812cac1513628689f4237ce324f9bb628e3a133c5c4283",
+    "README.md": "20334cedff125094d7d3944df383de0b8121d150e00276d7dc2c8865908e551d",
+    "verification.json": "5c962fc2dd480878acc2a0ef885090c7e44b068ecbb15b3d0b95e979627d7ba1",
+    "final.log": "ebc5e27ba93af0b99133b4872076356caec199c2e694e55dff9188ee1c788486",
+    "independent-batch-controls.py": "e1484e1bd17d04c7f0fdee3a5a74b18c1a4a8a36a9db9ccf61500b0f28517a83",
+    "batch-negative.log": "6e444d3d790898c507027a311de6686eee699a01e8e5773df42d779eb5fd07e0"
+  }
+}

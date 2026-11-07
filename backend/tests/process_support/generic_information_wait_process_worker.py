@@ -23,6 +23,7 @@ from __future__ import annotations
 import json
 import os
 import sys
+import time
 from pathlib import Path
 
 BACKEND = Path(__file__).resolve().parents[2]
@@ -156,6 +157,23 @@ from core.llm_service import LLMService  # noqa: E402
 
 LLMService.generate_structured = _controlled_structured
 
+# Test-only crash boundary. The parent kills a real process at the exact seam
+# under test; the hook exists only in this disposable worker and is never
+# imported by production code.
+CRASH_MODE = os.environ.get("GENERIC_WAIT_CRASH", "").strip()
+if CRASH_MODE:
+    import api.agent_routes as _agent_routes
+
+    _original_claim = _agent_routes._claim_waiting_job_for_resume
+
+    def _crash_claim(*args, **kwargs):
+        if CRASH_MODE == "before_claim":
+            os._exit(17)
+        _original_claim(*args, **kwargs)
+        os._exit(17)
+
+    _agent_routes._claim_waiting_job_for_resume = _crash_claim
+
 # The real startup recovery owner runs before the app accepts requests. A
 # durable information wait must be left untouched by orphan recovery.
 recovery = {"ran": False}
@@ -169,6 +187,35 @@ report = SCRATCH / f"recovery-{os.getpid()}.json"
 report.write_text(json.dumps(recovery, indent=2, sort_keys=True, default=str))
 print("WORKER_PID=" + str(os.getpid()), flush=True)
 print("RECOVERY=" + json.dumps(recovery, default=str), flush=True)
+
+# Optional actual startup-join behaviour: call the same recovery function the
+# production lifespan wires in, before serving requests.
+if os.environ.get("GENERIC_WAIT_RECOVER_ACCEPTED") == "1":
+    import asyncio
+
+    # Optional test barrier so two real startup processes can race the same
+    # accepted wait. It is only used by the disposable process test.
+    gate = os.environ.get("GENERIC_WAIT_RECOVERY_GATE", "")
+    if gate:
+        (SCRATCH / f"recovery-ready-{os.getpid()}.json").write_text("{}")
+        deadline = time.time() + 60
+        while not os.path.exists(gate) and time.time() < deadline:
+            time.sleep(0.01)
+
+    accepted = {"ran": False}
+    try:
+        from core.information_wait import drain_accepted_information_waits
+
+        accepted = {
+            "ran": True,
+            "result": asyncio.run(drain_accepted_information_waits()),
+        }
+    except Exception as exc:  # noqa: BLE001
+        accepted = {"ran": False, "error": f"{type(exc).__name__}:{exc}"}
+    accepted_report = SCRATCH / f"accepted-recovery-{os.getpid()}.json"
+    accepted_report.write_text(
+        json.dumps(accepted, indent=2, sort_keys=True, default=str))
+    print("ACCEPTED_RECOVERY=" + json.dumps(accepted, default=str), flush=True)
 
 app = FastAPI()
 app.include_router(agent_router)

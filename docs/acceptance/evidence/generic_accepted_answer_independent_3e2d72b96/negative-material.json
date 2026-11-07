@@ -1,0 +1,12 @@
+{
+  "runtime_source": "d922601050546364560474a2e6d0388a34c2a974",
+  "runtime_clean": true,
+  "helper_origin": "A1 untracked process test files copied once; only worker backend anchor and post-answer/pre-resume crash hook changed",
+  "scope": "real public agent router + production recovery helper in three OS processes; auth and model transport controlled, not full main lifespan",
+  "files": {
+    "worker.py": "8c1ed53abe70c1d3f8c51868df0a42b5fab693be9f0daab420e9b1e25640c7a9",
+    "driver_helpers.py": "2e926a6e1deabc98e368b4050c6cd3734a3b52757f0a11c36a23f1d46f5e27e4",
+    "test_accepted_answer_recovery.py": "4416e6c4f42e178fccabbfa7d027a34ceb60479bb43373577e41bb6493a974b0"
+  },
+  "authoring_note": "Earlier fixture omitted module import for crash hook; startup NameError is not product evidence, retained separately."
+}

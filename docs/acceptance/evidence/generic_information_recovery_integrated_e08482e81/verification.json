@@ -1,0 +1,18 @@
+{
+  "executed_source": "e08482e81d623d538eb9185d19f5a37ffa54b382",
+  "shared_ci_selection": {
+    "passed": 364,
+    "failed": 0,
+    "actual_exit_code": 0,
+    "seconds": 179.93
+  },
+  "batch_negative": {
+    "runtime_source": "3b21a4b84",
+    "failed": 2,
+    "actual_exit_code": 1,
+    "test_only_substitution": "See original batch-negative-spec.json hash"
+  },
+  "ordinary_browser": "not_claimed",
+  "full_main_lifespan_execution": "not_claimed",
+  "general_app_completion": "open"
+}

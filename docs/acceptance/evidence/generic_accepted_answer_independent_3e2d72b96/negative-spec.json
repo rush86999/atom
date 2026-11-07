@@ -1,0 +1,17 @@
+{
+  "runtime_source": "d922601050546364560474a2e6d0388a34c2a974",
+  "scratch": "/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-generic-accepted-crash-valid-tamzv9z8",
+  "probe_material": "/private/tmp/root-generic-accepted-answer-probe/probe-material.json",
+  "command": [
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "/private/tmp/root-generic-accepted-answer-probe/test_accepted_answer_recovery.py",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-generic-accepted-crash-valid-tamzv9z8/pytest",
+    "--junitxml=/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-generic-accepted-crash-valid-tamzv9z8/result.xml",
+    "-q",
+    "--tb=short"
+  ]
+}

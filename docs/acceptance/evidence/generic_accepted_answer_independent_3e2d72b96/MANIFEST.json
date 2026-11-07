@@ -1,0 +1,31 @@
+{
+  "executed_source": "3e2d72b96a1924a3bc0964fbbc4518c077957bd8",
+  "source_files": {
+    "backend/api/agent_routes.py": "f5c031767cd90defcf74e9cfdcd1230678c378f4615e3c75ac77643c3dde9a36",
+    "backend/core/execution_ownership.py": "77c648ce0448e983c840953f89f3b13f1835c3d64afb4789e0a12b85d230dc19",
+    "backend/core/information_wait.py": "d71ee771c94c4f221a11a4fe8626618f5e82c0aa81454861c7a0ee11a0e4ce08",
+    "backend/core/generic_agent.py": "8c3bd61447d2f600c1153ab3c8b84597097fad342add3809c9a79c40bb5dee8b",
+    "backend/core/react_models.py": "9c9b18bbec1ac8020aadaddc10aacfbf954a7a6181baca413201d0a8b9ccdaed",
+    "backend/core/hitl_resume.py": "1a5b018e815b6e8371f09d54e47623d26a6697d9b9e591be3588b5a494374eaf",
+    "backend/main_api_app.py": "b291f161bbe113dbb36b08f95aaf04e8a7cc846aee54f0ddb13f73cabc914ea1"
+  },
+  "artifacts": {
+    "fixed-exit.json": "559187cc19c3f604f0492bc2367b9bf2f804d1d26955741fb1ba711fdcdb3783",
+    "fixed-worker.py": "f5a59434023c5d116bd1050176ba09ff23c25e1a90b085ef99913e20f2892c56",
+    "fixed-spec.json": "ec10267c3c892a14af5e53a1d83527671ca7fae6762578a8d036e0dbd2525173",
+    "fixed-test_accepted_answer_recovery.py": "4416e6c4f42e178fccabbfa7d027a34ceb60479bb43373577e41bb6493a974b0",
+    "negative-driver_helpers.py": "2e926a6e1deabc98e368b4050c6cd3734a3b52757f0a11c36a23f1d46f5e27e4",
+    "negative-spec.json": "44d09cb9abf9cadda8846fee2c7908bf7cb2a0c167b328a9fd36982e692f7504",
+    "negative-worker.py": "8c1ed53abe70c1d3f8c51868df0a42b5fab693be9f0daab420e9b1e25640c7a9",
+    "negative-exit.json": "697f1f73a0e43746c47fb3dbafc6d06bf8b54d12c84c1bdb6adf25082fa26595",
+    "fixed.log": "6998f3e1c83b8a3b5c35e3608b1ce7bda235247f2c51486a1b36bbbb985d30c7",
+    "negative.log": "16ab670c3ab1cae8a50f8947ee33237704f0cd7ef3d198b1be0884be64770361",
+    "fixed-material.json": "878f1f51fcd0561401ee4af2ea87c82856221d58bfb8ddf89d22e962fc08fcfb",
+    "fixed-driver_helpers.py": "2e926a6e1deabc98e368b4050c6cd3734a3b52757f0a11c36a23f1d46f5e27e4",
+    "README.md": "8e5a45dace20a087473e70addf6e3896f7f7f88255c701c6e722fa601baa1663",
+    "PUBLIC_EXPORT_PROVENANCE.json": "b9d3f8dbea27243f9b05b570e1ba7dd3eae4780b2bde72e3121ab92ed206c784",
+    "verification.json": "17aaaaec2606fcc7bc7438bbb38e41d5a6f90c06cd2926c6ffe4a2b1b74ce533",
+    "negative-test_accepted_answer_recovery.py": "4416e6c4f42e178fccabbfa7d027a34ceb60479bb43373577e41bb6493a974b0",
+    "negative-material.json": "7d358dcba9a314270811108cc61316f805e1f5f76edf7bbd752dbff6c42f663f"
+  }
+}
