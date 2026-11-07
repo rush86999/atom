@@ -808,12 +808,10 @@ class AgentGovernanceService:
         require_approval: bool = False,
         chain_id: Optional[str] = None,
     ) -> Dict[str, Any]:
-        """Async variant of can_perform_action — USE THIS from async callers.
+        """Async governance API over the shared local-ledger decision.
 
-        The sync can_perform_action() cannot await the budget check when called
-        inside a running event loop (it would raise "loop already running"),
-        so callers in an async context (the meta-agent, MCP, streaming
-        endpoints) must use this variant to actually enforce spend limits.
+        Synchronous callers inside async consumers also enforce the budget;
+        neither entrypoint attempts to re-enter a running event loop.
         """
         # Compute the maturity/complexity/recursion decision synchronously,
         # skipping the budget check (handled below via await).
@@ -821,10 +819,15 @@ class AgentGovernanceService:
             agent_id, action_type, require_approval=require_approval,
             chain_id=chain_id, _skip_budget=True,
         )
-        # If the sync path already blocked it (maturity/recursion), honor that.
-        if not decision.get("allowed", True):
+        # A reviewable maturity denial is not a final refusal: callers may
+        # offer action approval. Check its budget before offering that path,
+        # so a verified hard/soft stop takes precedence over maturity review.
+        # Preserve non-reviewable/unknown-agent/recursion failures unchanged.
+        reviewable_maturity = (
+            decision.get("agent_status") is not None
+            and decision.get("requires_human_approval") is True)
+        if not decision.get("allowed", True) and not reviewable_maturity:
             return decision
-        # Enforce the budget via a real await (the whole point of this variant).
         budget_check = await self._check_budget_async(agent_id, action_type, chain_id)
         if not budget_check.get("allowed", True):
             return self._budget_refusal(budget_check)
@@ -898,7 +901,7 @@ class AgentGovernanceService:
         # Check the same local-ledger decision instead of merely warning and
         # allowing a configured limit to be skipped. Outside an event loop,
         # keep the async compatibility hook used by existing callers.
-        if allowed and not _skip_budget:
+        if (allowed or approval_needed) and not _skip_budget:
             import asyncio
             try:
                 asyncio.get_running_loop()
