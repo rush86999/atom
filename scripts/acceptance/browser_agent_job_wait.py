@@ -1903,6 +1903,28 @@ def _run_scenario(args: argparse.Namespace) -> int:
                 }, details=login)
                 _screenshot(page, out, "00_login.png")
 
+                # A fresh ordinary account must finish its visible first-run
+                # wizard before the agent card is clickable. Never bypass the
+                # scrim, seed completion state, or configure a real provider.
+                welcome = page.get_by_role(
+                    "heading", name="Welcome to Atom", exact=True)
+                welcome.wait_for(state="visible", timeout=30000)
+                for _ in range(3):
+                    page.get_by_role("button", name="Next", exact=True).click()
+                page.get_by_role(
+                    "button", name="Start Automating", exact=True).click()
+                welcome.wait_for(state="hidden", timeout=30000)
+                me_response = api.get("/api/auth/me")
+                me = me_response.json() if me_response.status_code == 200 else {}
+                me_user = me.get("user") or me.get("data") or me
+                step("ordinary_onboarding_completed", {
+                    "wizard_closed": not welcome.is_visible(),
+                    "authoritative_me_ok": me_response.status_code == 200,
+                    "completion_durable": me_user.get("onboarding_completed") is True,
+                }, details={"completed": me_user.get("onboarding_completed"),
+                            "step": me_user.get("onboarding_step")})
+                _screenshot(page, out, "00_onboarding_completed.png")
+
                 page.goto(f"{fe_base}/agents", wait_until="domcontentloaded",
                           timeout=300000)
                 card_selector = f'[data-testid="agent-card-{AGENT_NAME}"]'
