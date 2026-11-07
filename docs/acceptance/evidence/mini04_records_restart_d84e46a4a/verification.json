@@ -1,0 +1,106 @@
+{
+  "executed_source": "d84e46a4a",
+  "pytest_result": "1 passed",
+  "qualification_run": "new dedicated retained run; initial passed log retained separately",
+  "launches": {
+    "first_pid": 50585,
+    "second_pid": 50600,
+    "same_database_file": true,
+    "same_loaded_source_hashes": true
+  },
+  "source_files": {
+    "backend/main_api_app.py": "83f6c051d58d39c70c94617cd6eedc9ce65e6414047c1297899dc6e771321af0",
+    "backend/core/mini_app_service.py": "43327625a8989b635b46c5158fbf3a93d5ff9b9a44109c6447cc0fdade08e1a9",
+    "backend/core/mini_app_db_service.py": "9c6ea1e513ab41089d3f0513fb7a4a2483fee63361ebad16ed8ebdefd8dba683"
+  },
+  "database_readback": {
+    "users": 2,
+    "roles": [
+      "member",
+      "member"
+    ],
+    "apps": 1,
+    "records": [
+      {
+        "id": "ecebf00c-3f9f-4b93-a2c2-3ea7fcfa8049",
+        "canvas_id": "43cfcf94-9bde-4239-bc8f-d86813ac6556",
+        "app_id": "f06e8b75-511b-431d-b512-371fe2bd5a64",
+        "created_by": "dc244f46-cd4c-43ce-aeb3-0a70cc563497",
+        "series": "events",
+        "seq": 1,
+        "data": {
+          "kind": "note",
+          "body": "before-restart-1"
+        }
+      },
+      {
+        "id": "228f1a50-bed2-4549-95eb-a7197ec962b5",
+        "canvas_id": "43cfcf94-9bde-4239-bc8f-d86813ac6556",
+        "app_id": "f06e8b75-511b-431d-b512-371fe2bd5a64",
+        "created_by": "dc244f46-cd4c-43ce-aeb3-0a70cc563497",
+        "series": "events",
+        "seq": 2,
+        "data": {
+          "kind": "note",
+          "body": "before-restart-2"
+        }
+      },
+      {
+        "id": "6b3d8f85-cdfa-4be3-89c9-686d696b1bc2",
+        "canvas_id": "43cfcf94-9bde-4239-bc8f-d86813ac6556",
+        "app_id": "f06e8b75-511b-431d-b512-371fe2bd5a64",
+        "created_by": "dc244f46-cd4c-43ce-aeb3-0a70cc563497",
+        "series": "events",
+        "seq": 3,
+        "data": {
+          "kind": "note",
+          "body": "after-restart"
+        }
+      }
+    ],
+    "app_canvases": [
+      {
+        "id": "6d41952c-80e7-4724-b073-5c1588ace62a",
+        "canvas_type": "mini_app",
+        "mini_app_id": "f06e8b75-511b-431d-b512-371fe2bd5a64"
+      },
+      {
+        "id": "43cfcf94-9bde-4239-bc8f-d86813ac6556",
+        "canvas_type": "mini_app",
+        "mini_app_id": "f06e8b75-511b-431d-b512-371fe2bd5a64"
+      },
+      {
+        "id": "8e8e7570-9465-416f-b260-eabd2a18da88",
+        "canvas_type": "mini_app",
+        "mini_app_id": "f06e8b75-511b-431d-b512-371fe2bd5a64"
+      }
+    ],
+    "blueprint_canvas_id": "6d41952c-80e7-4724-b073-5c1588ace62a",
+    "installed_canvases": [
+      {
+        "id": "43cfcf94-9bde-4239-bc8f-d86813ac6556",
+        "canvas_type": "mini_app",
+        "mini_app_id": "f06e8b75-511b-431d-b512-371fe2bd5a64"
+      },
+      {
+        "id": "8e8e7570-9465-416f-b260-eabd2a18da88",
+        "canvas_type": "mini_app",
+        "mini_app_id": "f06e8b75-511b-431d-b512-371fe2bd5a64"
+      }
+    ],
+    "populated_instance": "43cfcf94-9bde-4239-bc8f-d86813ac6556",
+    "empty_instance": "8e8e7570-9465-416f-b260-eabd2a18da88",
+    "empty_instance_record_count": 0
+  },
+  "guest_execution_marker_present": false,
+  "tested_boundary": "real main application, ordinary registration/login, public install/records APIs, real OS restart; host record storage only",
+  "executed_journey_assertions": {
+    "ordinary_registration_and_login": true,
+    "same_user_after_restart": true,
+    "same_record_ids_and_data_after_restart": true,
+    "record_sequence_after_restart_increased": true,
+    "second_instance_remained_empty": true,
+    "other_user_read_and_append_refused": true,
+    "actual_previous_process_exited_before_restart": true
+  }
+}

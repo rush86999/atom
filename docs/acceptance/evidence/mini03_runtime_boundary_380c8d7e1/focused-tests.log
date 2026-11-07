@@ -1,0 +1,588 @@
+
+tests/integration/journeys/test_mini_app_runtime_boundary_journey.py::TestMiniAppRuntimeBoundaryJourney::test_dev_run_fails_closed_actionable_no_side_effects 
+-------------------------------- live log setup --------------------------------
+2026-11-06 20:16:56 [    INFO] AgentTaskRegistry initialized
+2026-11-06 20:16:56 [    INFO] ============================================================
+2026-11-06 20:16:56 [    INFO] ATOM Platform Starting (Hybrid Mode)
+2026-11-06 20:16:56 [    INFO] ============================================================
+2026-11-06 20:16:56 [    INFO] faulthandler: SIGUSR1 dumps thread stacks to stderr
+2026-11-06 20:16:56 [ WARNING] Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
+2026-11-06 20:16:56 [    INFO] Initializing database tables...
+2026-11-06 20:16:56 [    INFO] ⊘ Skipping table creation in test mode (fixture managed)
+2026-11-06 20:16:56 [    INFO] ⊘ Skipping admin bootstrap in test mode (fixture managed)
+2026-11-06 20:16:56 [    INFO] Loaded integrations so far: ['whatsapp', 'zoho_workdrive', 'asana', 'microsoft365', 'oauth', 'twilio', 'mailchimp', 'auth', 'monday', 'notion', 'salesforce', 'outlook']
+2026-11-06 20:16:56 [    INFO] Crash recovery: no orphaned executions found
+2026-11-06 20:16:56 [    INFO] Terminal-delivery recovery task started (outside the scheduler gate)
+2026-11-06 20:16:56 [    INFO] Research continuation worker started (outside the scheduler gate)
+2026-11-06 20:16:56 [    INFO] ⊘ Skipping Schedulers and Workers in test mode
+2026-11-06 20:16:56 [    INFO] ⊘ Skipping Postgres Event Bus in test mode
+2026-11-06 20:16:56 [    INFO] ✓ AI Workflow Service initialized
+2026-11-06 20:16:56 [    INFO] ⏩ Skipping redundant QStash schedule cleanup
+2026-11-06 20:16:56 [    INFO] ReflectionEngine registered on event bus
+2026-11-06 20:16:56 [    INFO] ✓ Auto-Dev ReflectionEngine registered on event bus
+2026-11-06 20:16:56 [    INFO] ============================================================
+2026-11-06 20:16:56 [    INFO] ✓ Server Ready
+2026-11-06 20:16:56 [    INFO] [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+2026-11-06 20:16:56 [    INFO] [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+2026-11-06 20:16:56 [    INFO] [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+2026-11-06 20:16:56 [    INFO] 🚀 [ULTRA LOUD] POST /api/auth/register
+2026-11-06 20:16:56 [    INFO] 🏁 [ULTRA LOUD] POST /api/auth/register -> 200
+2026-11-06 20:16:56 [    INFO] 🚀 [ULTRA LOUD] POST /api/auth/login
+2026-11-06 20:16:57 [    INFO] 🏁 [ULTRA LOUD] POST /api/auth/login -> 200
+-------------------------------- live log call ---------------------------------
+2026-11-06 20:16:57 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_scaffold
+2026-11-06 20:16:57 [    INFO] Canvas type 'mini_app' auto-registered (generic defaults)
+2026-11-06 20:16:57 [ WARNING] Token referenced non-existent user_id=a59a1a9f-6684-4023-8124-884df6e25812
+2026-11-06 20:16:57 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_scaffold -> 200
+2026-11-06 20:16:57 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_write_logic
+2026-11-06 20:16:57 [ WARNING] Token referenced non-existent user_id=a59a1a9f-6684-4023-8124-884df6e25812
+2026-11-06 20:16:57 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_write_logic -> 200
+2026-11-06 20:16:57 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_dev_run
+2026-11-06 20:16:57 [   ERROR] MiniApp run_stateful runtime error for cb4ec04d-5021-417c-9ac0-c2896f6701e6: Firecracker runtime unavailable for mini apps (missing: Linux host with the 'firecracker' binary, FIRECRACKER_KERNEL_IMAGE=None (vmlinux), FIRECRACKER_ROOTFS_TEMPLATE='data/firecracker/miniapp-base.ext4'). See docs/deployment/FIRECRACKER_HOST_SETUP.md and run scripts/build_miniapp_rootfs.sh --base to provision the host. For local development on a non-Linux host (e.g. macOS), set ATOM_MINIAAP_RUNTIME=docker-dev (Docker required) — see docs/deployment/MINIAPP_LOCAL_DEV.md.
+2026-11-06 20:16:57 [ WARNING] Token referenced non-existent user_id=a59a1a9f-6684-4023-8124-884df6e25812
+2026-11-06 20:16:57 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_dev_run -> 200
+2026-11-06 20:16:57 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_status
+2026-11-06 20:16:57 [ WARNING] Token referenced non-existent user_id=a59a1a9f-6684-4023-8124-884df6e25812
+2026-11-06 20:16:57 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_status -> 200
+PASSED                                                                   [ 11%]
+------------------------------ live log teardown -------------------------------
+2026-11-06 20:16:57 [    INFO] [async-continuation] terminal-delivery recovery task stopping
+2026-11-06 20:16:57 [    INFO] Shutting down ATOM Platform...
+2026-11-06 20:16:57 [    INFO] ✓ Workflow Scheduler stopped
+2026-11-06 20:16:57 [    INFO] ℹ️ Initializing AgentEventBus in Postgres mode (Fallback)
+2026-11-06 20:16:57 [    INFO] ✓ Postgres Event Bus listener stopped
+2026-11-06 20:16:57 [    INFO] ✓ AI Workflow Service sessions cleaned up
+
+tests/integration/journeys/test_mini_app_runtime_boundary_journey.py::TestMiniAppRuntimeBoundaryJourney::test_run_tests_reports_unavailable_per_case 
+-------------------------------- live log setup --------------------------------
+2026-11-06 20:16:57 [    INFO] ============================================================
+2026-11-06 20:16:57 [    INFO] ATOM Platform Starting (Hybrid Mode)
+2026-11-06 20:16:57 [    INFO] ============================================================
+2026-11-06 20:16:57 [    INFO] faulthandler: SIGUSR1 dumps thread stacks to stderr
+2026-11-06 20:16:57 [ WARNING] Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
+2026-11-06 20:16:57 [    INFO] Initializing database tables...
+2026-11-06 20:16:57 [    INFO] ⊘ Skipping table creation in test mode (fixture managed)
+2026-11-06 20:16:57 [    INFO] ⊘ Skipping admin bootstrap in test mode (fixture managed)
+2026-11-06 20:16:57 [    INFO] Loaded integrations so far: ['whatsapp', 'zoho_workdrive', 'asana', 'microsoft365', 'oauth', 'twilio', 'mailchimp', 'auth', 'monday', 'notion', 'salesforce', 'outlook']
+2026-11-06 20:16:57 [   ERROR] Execution recovery sweep failed: (sqlite3.OperationalError) no such table: workflow_executions
+[SQL: SELECT workflow_executions.execution_id AS workflow_executions_execution_id, workflow_executions.tenant_id AS workflow_executions_tenant_id, workflow_executions.workflow_id AS workflow_executions_workflow_id, workflow_executions.status AS workflow_executions_status, workflow_executions.input_data AS workflow_executions_input_data, workflow_executions.steps AS workflow_executions_steps, workflow_executions.outputs AS workflow_executions_outputs, workflow_executions.context AS workflow_executions_context, workflow_executions.version AS workflow_executions_version, workflow_executions.created_at AS workflow_executions_created_at, workflow_executions.updated_at AS workflow_executions_updated_at, workflow_executions.error AS workflow_executions_error, workflow_executions.completed_at AS workflow_executions_completed_at, workflow_executions.user_id AS workflow_executions_user_id, workflow_executions.visibility AS workflow_executions_visibility, workflow_executions.owner_id AS workflow_executions_owner_id, workflow_executions.team_id AS workflow_executions_team_id 
+FROM workflow_executions 
+WHERE workflow_executions.status = ?]
+[parameters: ('RUNNING',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-06 20:16:57 [    INFO] Terminal-delivery recovery task started (outside the scheduler gate)
+2026-11-06 20:16:57 [    INFO] Research continuation worker started (outside the scheduler gate)
+2026-11-06 20:16:57 [    INFO] ⊘ Skipping Schedulers and Workers in test mode
+2026-11-06 20:16:57 [    INFO] ⊘ Skipping Postgres Event Bus in test mode
+2026-11-06 20:16:57 [    INFO] ✓ AI Workflow Service initialized
+2026-11-06 20:16:57 [    INFO] ⏩ Skipping redundant QStash schedule cleanup
+2026-11-06 20:16:57 [    INFO] ✓ Auto-Dev ReflectionEngine registered on event bus
+2026-11-06 20:16:57 [    INFO] ============================================================
+2026-11-06 20:16:57 [    INFO] ✓ Server Ready
+2026-11-06 20:16:57 [    INFO] [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+2026-11-06 20:16:57 [    INFO] [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+2026-11-06 20:16:57 [    INFO] [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+2026-11-06 20:16:57 [    INFO] 🚀 [ULTRA LOUD] POST /api/auth/register
+2026-11-06 20:16:57 [    INFO] 🏁 [ULTRA LOUD] POST /api/auth/register -> 200
+2026-11-06 20:16:57 [    INFO] 🚀 [ULTRA LOUD] POST /api/auth/login
+2026-11-06 20:16:57 [    INFO] 🏁 [ULTRA LOUD] POST /api/auth/login -> 200
+-------------------------------- live log call ---------------------------------
+2026-11-06 20:16:57 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_scaffold
+2026-11-06 20:16:57 [ WARNING] Token referenced non-existent user_id=f5bd3ba2-07fd-48d0-8ea6-10fa8c396e37
+2026-11-06 20:16:57 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_scaffold -> 200
+2026-11-06 20:16:57 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_write_logic
+2026-11-06 20:16:57 [ WARNING] Token referenced non-existent user_id=f5bd3ba2-07fd-48d0-8ea6-10fa8c396e37
+2026-11-06 20:16:57 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_write_logic -> 200
+2026-11-06 20:16:57 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_set_tests
+2026-11-06 20:16:57 [ WARNING] Token referenced non-existent user_id=f5bd3ba2-07fd-48d0-8ea6-10fa8c396e37
+2026-11-06 20:16:57 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_set_tests -> 200
+2026-11-06 20:16:57 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_run_tests
+2026-11-06 20:16:57 [   ERROR] MiniApp run_stateful runtime error for 2fe7eb13-fdd3-4f50-af38-1f3076fa89bc: Firecracker runtime unavailable for mini apps (missing: Linux host with the 'firecracker' binary, FIRECRACKER_KERNEL_IMAGE=None (vmlinux), FIRECRACKER_ROOTFS_TEMPLATE='data/firecracker/miniapp-base.ext4'). See docs/deployment/FIRECRACKER_HOST_SETUP.md and run scripts/build_miniapp_rootfs.sh --base to provision the host. For local development on a non-Linux host (e.g. macOS), set ATOM_MINIAAP_RUNTIME=docker-dev (Docker required) — see docs/deployment/MINIAPP_LOCAL_DEV.md.
+2026-11-06 20:16:57 [   ERROR] MiniApp run_stateful runtime error for 2fe7eb13-fdd3-4f50-af38-1f3076fa89bc: Firecracker runtime unavailable for mini apps (missing: Linux host with the 'firecracker' binary, FIRECRACKER_KERNEL_IMAGE=None (vmlinux), FIRECRACKER_ROOTFS_TEMPLATE='data/firecracker/miniapp-base.ext4'). See docs/deployment/FIRECRACKER_HOST_SETUP.md and run scripts/build_miniapp_rootfs.sh --base to provision the host. For local development on a non-Linux host (e.g. macOS), set ATOM_MINIAAP_RUNTIME=docker-dev (Docker required) — see docs/deployment/MINIAPP_LOCAL_DEV.md.
+2026-11-06 20:16:57 [ WARNING] Token referenced non-existent user_id=f5bd3ba2-07fd-48d0-8ea6-10fa8c396e37
+2026-11-06 20:16:57 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_run_tests -> 200
+PASSED                                                                   [ 22%]
+------------------------------ live log teardown -------------------------------
+2026-11-06 20:16:57 [    INFO] [async-continuation] terminal-delivery recovery task stopping
+2026-11-06 20:16:57 [    INFO] Shutting down ATOM Platform...
+2026-11-06 20:16:57 [    INFO] ✓ Workflow Scheduler stopped
+2026-11-06 20:16:57 [    INFO] ✓ Postgres Event Bus listener stopped
+2026-11-06 20:16:57 [    INFO] ✓ AI Workflow Service sessions cleaned up
+
+tests/integration/journeys/test_mini_app_runtime_boundary_journey.py::TestMiniAppRuntimeBoundaryJourney::test_dev_run_and_run_tests_are_owner_only 
+-------------------------------- live log setup --------------------------------
+2026-11-06 20:16:57 [    INFO] ============================================================
+2026-11-06 20:16:57 [    INFO] ATOM Platform Starting (Hybrid Mode)
+2026-11-06 20:16:57 [    INFO] ============================================================
+2026-11-06 20:16:57 [    INFO] faulthandler: SIGUSR1 dumps thread stacks to stderr
+2026-11-06 20:16:57 [ WARNING] Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
+2026-11-06 20:16:57 [    INFO] Initializing database tables...
+2026-11-06 20:16:57 [    INFO] ⊘ Skipping table creation in test mode (fixture managed)
+2026-11-06 20:16:57 [    INFO] ⊘ Skipping admin bootstrap in test mode (fixture managed)
+2026-11-06 20:16:57 [    INFO] Loaded integrations so far: ['whatsapp', 'zoho_workdrive', 'asana', 'microsoft365', 'oauth', 'twilio', 'mailchimp', 'auth', 'monday', 'notion', 'salesforce', 'outlook']
+2026-11-06 20:16:57 [   ERROR] Execution recovery sweep failed: (sqlite3.OperationalError) no such table: workflow_executions
+[SQL: SELECT workflow_executions.execution_id AS workflow_executions_execution_id, workflow_executions.tenant_id AS workflow_executions_tenant_id, workflow_executions.workflow_id AS workflow_executions_workflow_id, workflow_executions.status AS workflow_executions_status, workflow_executions.input_data AS workflow_executions_input_data, workflow_executions.steps AS workflow_executions_steps, workflow_executions.outputs AS workflow_executions_outputs, workflow_executions.context AS workflow_executions_context, workflow_executions.version AS workflow_executions_version, workflow_executions.created_at AS workflow_executions_created_at, workflow_executions.updated_at AS workflow_executions_updated_at, workflow_executions.error AS workflow_executions_error, workflow_executions.completed_at AS workflow_executions_completed_at, workflow_executions.user_id AS workflow_executions_user_id, workflow_executions.visibility AS workflow_executions_visibility, workflow_executions.owner_id AS workflow_executions_owner_id, workflow_executions.team_id AS workflow_executions_team_id 
+FROM workflow_executions 
+WHERE workflow_executions.status = ?]
+[parameters: ('RUNNING',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-06 20:16:57 [    INFO] Terminal-delivery recovery task started (outside the scheduler gate)
+2026-11-06 20:16:57 [    INFO] Research continuation worker started (outside the scheduler gate)
+2026-11-06 20:16:57 [    INFO] ⊘ Skipping Schedulers and Workers in test mode
+2026-11-06 20:16:57 [    INFO] ⊘ Skipping Postgres Event Bus in test mode
+2026-11-06 20:16:57 [    INFO] ✓ AI Workflow Service initialized
+2026-11-06 20:16:57 [    INFO] ⏩ Skipping redundant QStash schedule cleanup
+2026-11-06 20:16:57 [    INFO] ✓ Auto-Dev ReflectionEngine registered on event bus
+2026-11-06 20:16:57 [    INFO] ============================================================
+2026-11-06 20:16:57 [    INFO] ✓ Server Ready
+2026-11-06 20:16:57 [    INFO] [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+2026-11-06 20:16:57 [    INFO] [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+2026-11-06 20:16:57 [    INFO] [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+2026-11-06 20:16:57 [    INFO] 🚀 [ULTRA LOUD] POST /api/auth/register
+2026-11-06 20:16:58 [    INFO] 🏁 [ULTRA LOUD] POST /api/auth/register -> 200
+2026-11-06 20:16:58 [    INFO] 🚀 [ULTRA LOUD] POST /api/auth/login
+2026-11-06 20:16:58 [    INFO] 🏁 [ULTRA LOUD] POST /api/auth/login -> 200
+-------------------------------- live log call ---------------------------------
+2026-11-06 20:16:58 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_scaffold
+2026-11-06 20:16:58 [ WARNING] Token referenced non-existent user_id=26cbe33d-fc4e-46db-95ff-b45d32fcce66
+2026-11-06 20:16:58 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_scaffold -> 200
+2026-11-06 20:16:58 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_write_logic
+2026-11-06 20:16:58 [ WARNING] Token referenced non-existent user_id=26cbe33d-fc4e-46db-95ff-b45d32fcce66
+2026-11-06 20:16:58 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_write_logic -> 200
+2026-11-06 20:16:58 [    INFO] 🚀 [ULTRA LOUD] POST /api/auth/register
+2026-11-06 20:16:58 [    INFO] 🏁 [ULTRA LOUD] POST /api/auth/register -> 200
+2026-11-06 20:16:58 [    INFO] 🚀 [ULTRA LOUD] POST /api/auth/login
+2026-11-06 20:16:58 [    INFO] 🏁 [ULTRA LOUD] POST /api/auth/login -> 200
+2026-11-06 20:16:58 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_dev_run
+2026-11-06 20:16:58 [ WARNING] Token referenced non-existent user_id=2455cc11-3c6a-4681-a436-d13661aa262f
+2026-11-06 20:16:58 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_dev_run -> 200
+2026-11-06 20:16:58 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_run_tests
+2026-11-06 20:16:58 [ WARNING] Token referenced non-existent user_id=2455cc11-3c6a-4681-a436-d13661aa262f
+2026-11-06 20:16:58 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_run_tests -> 200
+2026-11-06 20:16:58 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_status
+2026-11-06 20:16:58 [ WARNING] Token referenced non-existent user_id=2455cc11-3c6a-4681-a436-d13661aa262f
+2026-11-06 20:16:58 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_status -> 200
+PASSED                                                                   [ 33%]
+------------------------------ live log teardown -------------------------------
+2026-11-06 20:16:58 [    INFO] [async-continuation] terminal-delivery recovery task stopping
+2026-11-06 20:16:58 [    INFO] Shutting down ATOM Platform...
+2026-11-06 20:16:58 [    INFO] ✓ Workflow Scheduler stopped
+2026-11-06 20:16:58 [    INFO] ✓ Postgres Event Bus listener stopped
+2026-11-06 20:16:58 [    INFO] ✓ AI Workflow Service sessions cleaned up
+
+tests/integration/journeys/test_mini_app_runtime_boundary_journey.py::TestMiniAppRuntimeBoundaryJourney::test_production_refuses_explicit_docker_dev_at_public_rpc 
+-------------------------------- live log setup --------------------------------
+2026-11-06 20:16:58 [    INFO] ============================================================
+2026-11-06 20:16:58 [    INFO] ATOM Platform Starting (Hybrid Mode)
+2026-11-06 20:16:58 [    INFO] ============================================================
+2026-11-06 20:16:58 [    INFO] faulthandler: SIGUSR1 dumps thread stacks to stderr
+2026-11-06 20:16:58 [ WARNING] Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
+2026-11-06 20:16:58 [    INFO] Initializing database tables...
+2026-11-06 20:16:58 [    INFO] ⊘ Skipping table creation in test mode (fixture managed)
+2026-11-06 20:16:58 [    INFO] ⊘ Skipping admin bootstrap in test mode (fixture managed)
+2026-11-06 20:16:58 [    INFO] Loaded integrations so far: ['whatsapp', 'zoho_workdrive', 'asana', 'microsoft365', 'oauth', 'twilio', 'mailchimp', 'auth', 'monday', 'notion', 'salesforce', 'outlook']
+2026-11-06 20:16:58 [   ERROR] Execution recovery sweep failed: (sqlite3.OperationalError) no such table: workflow_executions
+[SQL: SELECT workflow_executions.execution_id AS workflow_executions_execution_id, workflow_executions.tenant_id AS workflow_executions_tenant_id, workflow_executions.workflow_id AS workflow_executions_workflow_id, workflow_executions.status AS workflow_executions_status, workflow_executions.input_data AS workflow_executions_input_data, workflow_executions.steps AS workflow_executions_steps, workflow_executions.outputs AS workflow_executions_outputs, workflow_executions.context AS workflow_executions_context, workflow_executions.version AS workflow_executions_version, workflow_executions.created_at AS workflow_executions_created_at, workflow_executions.updated_at AS workflow_executions_updated_at, workflow_executions.error AS workflow_executions_error, workflow_executions.completed_at AS workflow_executions_completed_at, workflow_executions.user_id AS workflow_executions_user_id, workflow_executions.visibility AS workflow_executions_visibility, workflow_executions.owner_id AS workflow_executions_owner_id, workflow_executions.team_id AS workflow_executions_team_id 
+FROM workflow_executions 
+WHERE workflow_executions.status = ?]
+[parameters: ('RUNNING',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-06 20:16:58 [    INFO] Terminal-delivery recovery task started (outside the scheduler gate)
+2026-11-06 20:16:58 [    INFO] Research continuation worker started (outside the scheduler gate)
+2026-11-06 20:16:58 [    INFO] ⊘ Skipping Schedulers and Workers in test mode
+2026-11-06 20:16:58 [    INFO] ⊘ Skipping Postgres Event Bus in test mode
+2026-11-06 20:16:58 [    INFO] ✓ AI Workflow Service initialized
+2026-11-06 20:16:58 [    INFO] ⏩ Skipping redundant QStash schedule cleanup
+2026-11-06 20:16:58 [    INFO] ✓ Auto-Dev ReflectionEngine registered on event bus
+2026-11-06 20:16:58 [    INFO] ============================================================
+2026-11-06 20:16:58 [    INFO] ✓ Server Ready
+2026-11-06 20:16:58 [    INFO] [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+2026-11-06 20:16:58 [    INFO] [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+2026-11-06 20:16:58 [    INFO] [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+2026-11-06 20:16:58 [    INFO] 🚀 [ULTRA LOUD] POST /api/auth/register
+2026-11-06 20:16:58 [    INFO] 🏁 [ULTRA LOUD] POST /api/auth/register -> 200
+2026-11-06 20:16:58 [    INFO] 🚀 [ULTRA LOUD] POST /api/auth/login
+2026-11-06 20:16:59 [    INFO] 🏁 [ULTRA LOUD] POST /api/auth/login -> 200
+-------------------------------- live log call ---------------------------------
+2026-11-06 20:16:59 [ WARNING] Token referenced non-existent user_id=0e8ec746-2ec6-41bd-9754-b30042576b94
+2026-11-06 20:16:59 [ WARNING] Token referenced non-existent user_id=0e8ec746-2ec6-41bd-9754-b30042576b94
+2026-11-06 20:16:59 [   ERROR] MiniApp run_stateful runtime error for 100e0c88-dc18-4eb6-8353-4632bb948c7a: ATOM_MINIAAP_RUNTIME='docker-dev' is a DEV-ONLY local execution mode and is refused when ENVIRONMENT=production. Mini apps must run in Firecracker microVMs in production.
+2026-11-06 20:16:59 [ WARNING] Token referenced non-existent user_id=0e8ec746-2ec6-41bd-9754-b30042576b94
+2026-11-06 20:16:59 [ WARNING] Token referenced non-existent user_id=0e8ec746-2ec6-41bd-9754-b30042576b94
+2026-11-06 20:16:59 [ WARNING] Token referenced non-existent user_id=0e8ec746-2ec6-41bd-9754-b30042576b94
+2026-11-06 20:16:59 [   ERROR] MiniApp run_stateful runtime error for 100e0c88-dc18-4eb6-8353-4632bb948c7a: ATOM_MINIAAP_RUNTIME='docker-dev' is a DEV-ONLY local execution mode and is refused when ENVIRONMENT=production. Mini apps must run in Firecracker microVMs in production.
+2026-11-06 20:16:59 [ WARNING] Token referenced non-existent user_id=0e8ec746-2ec6-41bd-9754-b30042576b94
+PASSED                                                                   [ 44%]
+------------------------------ live log teardown -------------------------------
+2026-11-06 20:16:59 [    INFO] [async-continuation] terminal-delivery recovery task stopping
+2026-11-06 20:16:59 [    INFO] Shutting down ATOM Platform...
+2026-11-06 20:16:59 [    INFO] ✓ Workflow Scheduler stopped
+2026-11-06 20:16:59 [    INFO] ✓ Postgres Event Bus listener stopped
+2026-11-06 20:16:59 [    INFO] ✓ AI Workflow Service sessions cleaned up
+
+tests/integration/journeys/test_mini_app_runtime_boundary_journey.py::TestMiniAppRuntimeBoundaryJourney::test_docker_dev_fails_closed_without_daemon 
+-------------------------------- live log setup --------------------------------
+2026-11-06 20:16:59 [    INFO] ============================================================
+2026-11-06 20:16:59 [    INFO] ATOM Platform Starting (Hybrid Mode)
+2026-11-06 20:16:59 [    INFO] ============================================================
+2026-11-06 20:16:59 [    INFO] faulthandler: SIGUSR1 dumps thread stacks to stderr
+2026-11-06 20:16:59 [ WARNING] Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
+2026-11-06 20:16:59 [    INFO] Initializing database tables...
+2026-11-06 20:16:59 [    INFO] ⊘ Skipping table creation in test mode (fixture managed)
+2026-11-06 20:16:59 [    INFO] ⊘ Skipping admin bootstrap in test mode (fixture managed)
+2026-11-06 20:16:59 [    INFO] Loaded integrations so far: ['whatsapp', 'zoho_workdrive', 'asana', 'microsoft365', 'oauth', 'twilio', 'mailchimp', 'auth', 'monday', 'notion', 'salesforce', 'outlook']
+2026-11-06 20:16:59 [   ERROR] Execution recovery sweep failed: (sqlite3.OperationalError) no such table: workflow_executions
+[SQL: SELECT workflow_executions.execution_id AS workflow_executions_execution_id, workflow_executions.tenant_id AS workflow_executions_tenant_id, workflow_executions.workflow_id AS workflow_executions_workflow_id, workflow_executions.status AS workflow_executions_status, workflow_executions.input_data AS workflow_executions_input_data, workflow_executions.steps AS workflow_executions_steps, workflow_executions.outputs AS workflow_executions_outputs, workflow_executions.context AS workflow_executions_context, workflow_executions.version AS workflow_executions_version, workflow_executions.created_at AS workflow_executions_created_at, workflow_executions.updated_at AS workflow_executions_updated_at, workflow_executions.error AS workflow_executions_error, workflow_executions.completed_at AS workflow_executions_completed_at, workflow_executions.user_id AS workflow_executions_user_id, workflow_executions.visibility AS workflow_executions_visibility, workflow_executions.owner_id AS workflow_executions_owner_id, workflow_executions.team_id AS workflow_executions_team_id 
+FROM workflow_executions 
+WHERE workflow_executions.status = ?]
+[parameters: ('RUNNING',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-06 20:16:59 [    INFO] Terminal-delivery recovery task started (outside the scheduler gate)
+2026-11-06 20:16:59 [    INFO] Research continuation worker started (outside the scheduler gate)
+2026-11-06 20:16:59 [    INFO] ⊘ Skipping Schedulers and Workers in test mode
+2026-11-06 20:16:59 [    INFO] ⊘ Skipping Postgres Event Bus in test mode
+2026-11-06 20:16:59 [    INFO] ✓ AI Workflow Service initialized
+2026-11-06 20:16:59 [    INFO] ⏩ Skipping redundant QStash schedule cleanup
+2026-11-06 20:16:59 [    INFO] ✓ Auto-Dev ReflectionEngine registered on event bus
+2026-11-06 20:16:59 [    INFO] ============================================================
+2026-11-06 20:16:59 [    INFO] ✓ Server Ready
+2026-11-06 20:16:59 [    INFO] [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+2026-11-06 20:16:59 [    INFO] [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+2026-11-06 20:16:59 [    INFO] [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+2026-11-06 20:16:59 [    INFO] 🚀 [ULTRA LOUD] POST /api/auth/register
+2026-11-06 20:16:59 [    INFO] 🏁 [ULTRA LOUD] POST /api/auth/register -> 200
+2026-11-06 20:16:59 [    INFO] 🚀 [ULTRA LOUD] POST /api/auth/login
+2026-11-06 20:16:59 [    INFO] 🏁 [ULTRA LOUD] POST /api/auth/login -> 200
+-------------------------------- live log call ---------------------------------
+2026-11-06 20:16:59 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_scaffold
+2026-11-06 20:16:59 [ WARNING] Token referenced non-existent user_id=427cd907-8037-4b85-8648-49aa9f6833d4
+2026-11-06 20:16:59 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_scaffold -> 200
+2026-11-06 20:16:59 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_write_logic
+2026-11-06 20:16:59 [ WARNING] Token referenced non-existent user_id=427cd907-8037-4b85-8648-49aa9f6833d4
+2026-11-06 20:16:59 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_write_logic -> 200
+2026-11-06 20:16:59 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_dev_run
+2026-11-06 20:16:59 [   ERROR] MiniApp run_stateful runtime error for f5fda00b-c6c5-457d-bb7a-d3df8a06f4d8: docker-dev runtime unavailable: the Docker daemon is not reachable. Start Docker Desktop (macOS) or the docker daemon, then retry. Dev images are built locally — see docs/deployment/MINIAPP_LOCAL_DEV.md.
+2026-11-06 20:16:59 [ WARNING] Token referenced non-existent user_id=427cd907-8037-4b85-8648-49aa9f6833d4
+2026-11-06 20:16:59 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_dev_run -> 200
+2026-11-06 20:16:59 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_status
+2026-11-06 20:16:59 [ WARNING] Token referenced non-existent user_id=427cd907-8037-4b85-8648-49aa9f6833d4
+2026-11-06 20:16:59 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_status -> 200
+PASSED                                                                   [ 55%]
+------------------------------ live log teardown -------------------------------
+2026-11-06 20:16:59 [    INFO] [async-continuation] terminal-delivery recovery task stopping
+2026-11-06 20:17:00 [    INFO] Shutting down ATOM Platform...
+2026-11-06 20:17:00 [    INFO] ✓ Workflow Scheduler stopped
+2026-11-06 20:17:00 [    INFO] ✓ Postgres Event Bus listener stopped
+2026-11-06 20:17:00 [    INFO] ✓ AI Workflow Service sessions cleaned up
+
+tests/integration/journeys/test_mini_app_harness_journey.py::TestMiniAppHarnessJourney::test_rpc_surface_exposes_all_13_mini_app_actions 
+-------------------------------- live log setup --------------------------------
+2026-11-06 20:17:00 [    INFO] ============================================================
+2026-11-06 20:17:00 [    INFO] ATOM Platform Starting (Hybrid Mode)
+2026-11-06 20:17:00 [    INFO] ============================================================
+2026-11-06 20:17:00 [    INFO] faulthandler: SIGUSR1 dumps thread stacks to stderr
+2026-11-06 20:17:00 [ WARNING] Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
+2026-11-06 20:17:00 [    INFO] Initializing database tables...
+2026-11-06 20:17:00 [    INFO] ⊘ Skipping table creation in test mode (fixture managed)
+2026-11-06 20:17:00 [    INFO] ⊘ Skipping admin bootstrap in test mode (fixture managed)
+2026-11-06 20:17:00 [    INFO] Loaded integrations so far: ['whatsapp', 'zoho_workdrive', 'asana', 'microsoft365', 'oauth', 'twilio', 'mailchimp', 'auth', 'monday', 'notion', 'salesforce', 'outlook']
+2026-11-06 20:17:00 [   ERROR] Execution recovery sweep failed: (sqlite3.OperationalError) no such table: workflow_executions
+[SQL: SELECT workflow_executions.execution_id AS workflow_executions_execution_id, workflow_executions.tenant_id AS workflow_executions_tenant_id, workflow_executions.workflow_id AS workflow_executions_workflow_id, workflow_executions.status AS workflow_executions_status, workflow_executions.input_data AS workflow_executions_input_data, workflow_executions.steps AS workflow_executions_steps, workflow_executions.outputs AS workflow_executions_outputs, workflow_executions.context AS workflow_executions_context, workflow_executions.version AS workflow_executions_version, workflow_executions.created_at AS workflow_executions_created_at, workflow_executions.updated_at AS workflow_executions_updated_at, workflow_executions.error AS workflow_executions_error, workflow_executions.completed_at AS workflow_executions_completed_at, workflow_executions.user_id AS workflow_executions_user_id, workflow_executions.visibility AS workflow_executions_visibility, workflow_executions.owner_id AS workflow_executions_owner_id, workflow_executions.team_id AS workflow_executions_team_id 
+FROM workflow_executions 
+WHERE workflow_executions.status = ?]
+[parameters: ('RUNNING',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-06 20:17:00 [    INFO] Terminal-delivery recovery task started (outside the scheduler gate)
+2026-11-06 20:17:00 [    INFO] Research continuation worker started (outside the scheduler gate)
+2026-11-06 20:17:00 [    INFO] ⊘ Skipping Schedulers and Workers in test mode
+2026-11-06 20:17:00 [    INFO] ⊘ Skipping Postgres Event Bus in test mode
+2026-11-06 20:17:00 [    INFO] ✓ AI Workflow Service initialized
+2026-11-06 20:17:00 [    INFO] ⏩ Skipping redundant QStash schedule cleanup
+2026-11-06 20:17:00 [    INFO] ✓ Auto-Dev ReflectionEngine registered on event bus
+2026-11-06 20:17:00 [    INFO] ============================================================
+2026-11-06 20:17:00 [    INFO] ✓ Server Ready
+2026-11-06 20:17:00 [    INFO] [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+2026-11-06 20:17:00 [    INFO] [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+2026-11-06 20:17:00 [    INFO] [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+2026-11-06 20:17:00 [    INFO] 🚀 [ULTRA LOUD] POST /api/auth/register
+2026-11-06 20:17:00 [    INFO] 🏁 [ULTRA LOUD] POST /api/auth/register -> 200
+2026-11-06 20:17:00 [    INFO] 🚀 [ULTRA LOUD] POST /api/auth/login
+2026-11-06 20:17:00 [    INFO] 🏁 [ULTRA LOUD] POST /api/auth/login -> 200
+-------------------------------- live log call ---------------------------------
+2026-11-06 20:17:00 [    INFO] 🚀 [ULTRA LOUD] GET /api/rpc/actions
+2026-11-06 20:17:00 [ WARNING] Token referenced non-existent user_id=c895530f-f7e6-43ac-92cf-2b07ab82b0b6
+2026-11-06 20:17:00 [    INFO] 🏁 [ULTRA LOUD] GET /api/rpc/actions -> 200
+PASSED                                                                   [ 66%]
+------------------------------ live log teardown -------------------------------
+2026-11-06 20:17:00 [    INFO] [async-continuation] terminal-delivery recovery task stopping
+2026-11-06 20:17:00 [    INFO] Shutting down ATOM Platform...
+2026-11-06 20:17:00 [    INFO] ✓ Workflow Scheduler stopped
+2026-11-06 20:17:00 [    INFO] ✓ Postgres Event Bus listener stopped
+2026-11-06 20:17:00 [    INFO] ✓ AI Workflow Service sessions cleaned up
+
+tests/integration/journeys/test_mini_app_harness_journey.py::TestMiniAppHarnessJourney::test_unauth_scaffold_rejected 
+-------------------------------- live log setup --------------------------------
+2026-11-06 20:17:00 [    INFO] ============================================================
+2026-11-06 20:17:00 [    INFO] ATOM Platform Starting (Hybrid Mode)
+2026-11-06 20:17:00 [    INFO] ============================================================
+2026-11-06 20:17:00 [    INFO] faulthandler: SIGUSR1 dumps thread stacks to stderr
+2026-11-06 20:17:00 [ WARNING] Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
+2026-11-06 20:17:00 [    INFO] Initializing database tables...
+2026-11-06 20:17:00 [    INFO] ⊘ Skipping table creation in test mode (fixture managed)
+2026-11-06 20:17:00 [    INFO] ⊘ Skipping admin bootstrap in test mode (fixture managed)
+2026-11-06 20:17:00 [    INFO] Loaded integrations so far: ['whatsapp', 'zoho_workdrive', 'asana', 'microsoft365', 'oauth', 'twilio', 'mailchimp', 'auth', 'monday', 'notion', 'salesforce', 'outlook']
+2026-11-06 20:17:00 [   ERROR] Execution recovery sweep failed: (sqlite3.OperationalError) no such table: workflow_executions
+[SQL: SELECT workflow_executions.execution_id AS workflow_executions_execution_id, workflow_executions.tenant_id AS workflow_executions_tenant_id, workflow_executions.workflow_id AS workflow_executions_workflow_id, workflow_executions.status AS workflow_executions_status, workflow_executions.input_data AS workflow_executions_input_data, workflow_executions.steps AS workflow_executions_steps, workflow_executions.outputs AS workflow_executions_outputs, workflow_executions.context AS workflow_executions_context, workflow_executions.version AS workflow_executions_version, workflow_executions.created_at AS workflow_executions_created_at, workflow_executions.updated_at AS workflow_executions_updated_at, workflow_executions.error AS workflow_executions_error, workflow_executions.completed_at AS workflow_executions_completed_at, workflow_executions.user_id AS workflow_executions_user_id, workflow_executions.visibility AS workflow_executions_visibility, workflow_executions.owner_id AS workflow_executions_owner_id, workflow_executions.team_id AS workflow_executions_team_id 
+FROM workflow_executions 
+WHERE workflow_executions.status = ?]
+[parameters: ('RUNNING',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-06 20:17:00 [    INFO] Terminal-delivery recovery task started (outside the scheduler gate)
+2026-11-06 20:17:00 [    INFO] Research continuation worker started (outside the scheduler gate)
+2026-11-06 20:17:00 [    INFO] ⊘ Skipping Schedulers and Workers in test mode
+2026-11-06 20:17:00 [    INFO] ⊘ Skipping Postgres Event Bus in test mode
+2026-11-06 20:17:00 [    INFO] ✓ AI Workflow Service initialized
+2026-11-06 20:17:00 [    INFO] ⏩ Skipping redundant QStash schedule cleanup
+2026-11-06 20:17:00 [    INFO] ✓ Auto-Dev ReflectionEngine registered on event bus
+2026-11-06 20:17:00 [    INFO] ============================================================
+2026-11-06 20:17:00 [    INFO] ✓ Server Ready
+2026-11-06 20:17:00 [    INFO] [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+2026-11-06 20:17:00 [    INFO] [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+2026-11-06 20:17:00 [    INFO] [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+-------------------------------- live log call ---------------------------------
+2026-11-06 20:17:00 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_scaffold
+2026-11-06 20:17:00 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_scaffold -> 401
+PASSED                                                                   [ 77%]
+------------------------------ live log teardown -------------------------------
+2026-11-06 20:17:00 [    INFO] [async-continuation] terminal-delivery recovery task stopping
+2026-11-06 20:17:00 [    INFO] Shutting down ATOM Platform...
+2026-11-06 20:17:00 [    INFO] ✓ Workflow Scheduler stopped
+2026-11-06 20:17:00 [    INFO] ✓ Postgres Event Bus listener stopped
+2026-11-06 20:17:00 [    INFO] ✓ AI Workflow Service sessions cleaned up
+
+tests/integration/journeys/test_mini_app_harness_journey.py::TestMiniAppHarnessJourney::test_full_authoring_journey 
+-------------------------------- live log setup --------------------------------
+2026-11-06 20:17:00 [    INFO] ============================================================
+2026-11-06 20:17:00 [    INFO] ATOM Platform Starting (Hybrid Mode)
+2026-11-06 20:17:00 [    INFO] ============================================================
+2026-11-06 20:17:00 [    INFO] faulthandler: SIGUSR1 dumps thread stacks to stderr
+2026-11-06 20:17:00 [ WARNING] Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
+2026-11-06 20:17:00 [    INFO] Initializing database tables...
+2026-11-06 20:17:00 [    INFO] ⊘ Skipping table creation in test mode (fixture managed)
+2026-11-06 20:17:00 [    INFO] ⊘ Skipping admin bootstrap in test mode (fixture managed)
+2026-11-06 20:17:00 [    INFO] Loaded integrations so far: ['whatsapp', 'zoho_workdrive', 'asana', 'microsoft365', 'oauth', 'twilio', 'mailchimp', 'auth', 'monday', 'notion', 'salesforce', 'outlook']
+2026-11-06 20:17:00 [   ERROR] Execution recovery sweep failed: (sqlite3.OperationalError) no such table: workflow_executions
+[SQL: SELECT workflow_executions.execution_id AS workflow_executions_execution_id, workflow_executions.tenant_id AS workflow_executions_tenant_id, workflow_executions.workflow_id AS workflow_executions_workflow_id, workflow_executions.status AS workflow_executions_status, workflow_executions.input_data AS workflow_executions_input_data, workflow_executions.steps AS workflow_executions_steps, workflow_executions.outputs AS workflow_executions_outputs, workflow_executions.context AS workflow_executions_context, workflow_executions.version AS workflow_executions_version, workflow_executions.created_at AS workflow_executions_created_at, workflow_executions.updated_at AS workflow_executions_updated_at, workflow_executions.error AS workflow_executions_error, workflow_executions.completed_at AS workflow_executions_completed_at, workflow_executions.user_id AS workflow_executions_user_id, workflow_executions.visibility AS workflow_executions_visibility, workflow_executions.owner_id AS workflow_executions_owner_id, workflow_executions.team_id AS workflow_executions_team_id 
+FROM workflow_executions 
+WHERE workflow_executions.status = ?]
+[parameters: ('RUNNING',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-06 20:17:00 [    INFO] Terminal-delivery recovery task started (outside the scheduler gate)
+2026-11-06 20:17:00 [    INFO] Research continuation worker started (outside the scheduler gate)
+2026-11-06 20:17:00 [    INFO] ⊘ Skipping Schedulers and Workers in test mode
+2026-11-06 20:17:00 [    INFO] ⊘ Skipping Postgres Event Bus in test mode
+2026-11-06 20:17:00 [    INFO] ✓ AI Workflow Service initialized
+2026-11-06 20:17:00 [    INFO] ⏩ Skipping redundant QStash schedule cleanup
+2026-11-06 20:17:00 [    INFO] ✓ Auto-Dev ReflectionEngine registered on event bus
+2026-11-06 20:17:00 [    INFO] ============================================================
+2026-11-06 20:17:00 [    INFO] ✓ Server Ready
+2026-11-06 20:17:00 [    INFO] [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+2026-11-06 20:17:00 [    INFO] [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+2026-11-06 20:17:00 [    INFO] [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+2026-11-06 20:17:00 [    INFO] 🚀 [ULTRA LOUD] POST /api/auth/register
+2026-11-06 20:17:01 [    INFO] 🏁 [ULTRA LOUD] POST /api/auth/register -> 200
+2026-11-06 20:17:01 [    INFO] 🚀 [ULTRA LOUD] POST /api/auth/login
+2026-11-06 20:17:01 [    INFO] 🏁 [ULTRA LOUD] POST /api/auth/login -> 200
+-------------------------------- live log call ---------------------------------
+2026-11-06 20:17:01 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_scaffold
+2026-11-06 20:17:01 [ WARNING] Token referenced non-existent user_id=b5040fce-2f18-4f42-8e18-9ccbafc07299
+2026-11-06 20:17:01 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_scaffold -> 200
+2026-11-06 20:17:01 [    INFO] 🚀 [ULTRA LOUD] PUT /api/canvas/91c34be9-a7d1-4a18-9fd0-66832843f659/logic
+2026-11-06 20:17:01 [ WARNING] Token referenced non-existent user_id=b5040fce-2f18-4f42-8e18-9ccbafc07299
+2026-11-06 20:17:01 [    INFO] 🏁 [ULTRA LOUD] PUT /api/canvas/91c34be9-a7d1-4a18-9fd0-66832843f659/logic -> 200
+2026-11-06 20:17:01 [    INFO] 🚀 [ULTRA LOUD] GET /api/canvas/91c34be9-a7d1-4a18-9fd0-66832843f659/logic
+2026-11-06 20:17:01 [ WARNING] Token referenced non-existent user_id=b5040fce-2f18-4f42-8e18-9ccbafc07299
+2026-11-06 20:17:01 [    INFO] 🏁 [ULTRA LOUD] GET /api/canvas/91c34be9-a7d1-4a18-9fd0-66832843f659/logic -> 200
+2026-11-06 20:17:01 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_write_logic
+2026-11-06 20:17:01 [ WARNING] Token referenced non-existent user_id=b5040fce-2f18-4f42-8e18-9ccbafc07299
+2026-11-06 20:17:01 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_write_logic -> 200
+2026-11-06 20:17:01 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_write_logic
+2026-11-06 20:17:01 [ WARNING] Token referenced non-existent user_id=b5040fce-2f18-4f42-8e18-9ccbafc07299
+2026-11-06 20:17:01 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_write_logic -> 200
+2026-11-06 20:17:01 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_logic_history
+2026-11-06 20:17:01 [ WARNING] Token referenced non-existent user_id=b5040fce-2f18-4f42-8e18-9ccbafc07299
+2026-11-06 20:17:01 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_logic_history -> 200
+2026-11-06 20:17:01 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_revert_logic
+2026-11-06 20:17:01 [ WARNING] Token referenced non-existent user_id=b5040fce-2f18-4f42-8e18-9ccbafc07299
+2026-11-06 20:17:01 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_revert_logic -> 200
+2026-11-06 20:17:01 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_set_tests
+2026-11-06 20:17:01 [ WARNING] Token referenced non-existent user_id=b5040fce-2f18-4f42-8e18-9ccbafc07299
+2026-11-06 20:17:01 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_set_tests -> 200
+2026-11-06 20:17:01 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_status
+2026-11-06 20:17:01 [ WARNING] Token referenced non-existent user_id=b5040fce-2f18-4f42-8e18-9ccbafc07299
+2026-11-06 20:17:01 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_status -> 200
+2026-11-06 20:17:01 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_dev_run
+2026-11-06 20:17:01 [   ERROR] MiniApp run_stateful runtime error for 91c34be9-a7d1-4a18-9fd0-66832843f659: Firecracker runtime unavailable for mini apps (missing: Linux host with the 'firecracker' binary, FIRECRACKER_KERNEL_IMAGE=None (vmlinux), FIRECRACKER_ROOTFS_TEMPLATE='data/firecracker/miniapp-base.ext4'). See docs/deployment/FIRECRACKER_HOST_SETUP.md and run scripts/build_miniapp_rootfs.sh --base to provision the host. For local development on a non-Linux host (e.g. macOS), set ATOM_MINIAAP_RUNTIME=docker-dev (Docker required) — see docs/deployment/MINIAPP_LOCAL_DEV.md.
+2026-11-06 20:17:01 [ WARNING] Token referenced non-existent user_id=b5040fce-2f18-4f42-8e18-9ccbafc07299
+2026-11-06 20:17:01 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_dev_run -> 200
+2026-11-06 20:17:01 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_run_tests
+2026-11-06 20:17:01 [   ERROR] MiniApp run_stateful runtime error for 91c34be9-a7d1-4a18-9fd0-66832843f659: Firecracker runtime unavailable for mini apps (missing: Linux host with the 'firecracker' binary, FIRECRACKER_KERNEL_IMAGE=None (vmlinux), FIRECRACKER_ROOTFS_TEMPLATE='data/firecracker/miniapp-base.ext4'). See docs/deployment/FIRECRACKER_HOST_SETUP.md and run scripts/build_miniapp_rootfs.sh --base to provision the host. For local development on a non-Linux host (e.g. macOS), set ATOM_MINIAAP_RUNTIME=docker-dev (Docker required) — see docs/deployment/MINIAPP_LOCAL_DEV.md.
+2026-11-06 20:17:01 [ WARNING] Token referenced non-existent user_id=b5040fce-2f18-4f42-8e18-9ccbafc07299
+2026-11-06 20:17:01 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_run_tests -> 200
+2026-11-06 20:17:01 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_publish
+2026-11-06 20:17:01 [ WARNING] Token referenced non-existent user_id=b5040fce-2f18-4f42-8e18-9ccbafc07299
+2026-11-06 20:17:01 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_publish -> 200
+2026-11-06 20:17:01 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_install
+2026-11-06 20:17:01 [ WARNING] Token referenced non-existent user_id=b5040fce-2f18-4f42-8e18-9ccbafc07299
+2026-11-06 20:17:01 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_install -> 200
+2026-11-06 20:17:01 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_list
+2026-11-06 20:17:01 [ WARNING] Token referenced non-existent user_id=b5040fce-2f18-4f42-8e18-9ccbafc07299
+2026-11-06 20:17:01 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_list -> 200
+2026-11-06 20:17:01 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_get_state
+2026-11-06 20:17:01 [ WARNING] Token referenced non-existent user_id=b5040fce-2f18-4f42-8e18-9ccbafc07299
+2026-11-06 20:17:01 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_get_state -> 200
+2026-11-06 20:17:01 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_run
+2026-11-06 20:17:01 [   ERROR] MiniApp run_stateful runtime error for 8923c4a5-2525-4fe7-bbfc-edb4ad9464a1: Firecracker runtime unavailable for mini apps (missing: Linux host with the 'firecracker' binary, FIRECRACKER_KERNEL_IMAGE=None (vmlinux), FIRECRACKER_ROOTFS_TEMPLATE='data/firecracker/miniapp-base.ext4'). See docs/deployment/FIRECRACKER_HOST_SETUP.md and run scripts/build_miniapp_rootfs.sh --base to provision the host. For local development on a non-Linux host (e.g. macOS), set ATOM_MINIAAP_RUNTIME=docker-dev (Docker required) — see docs/deployment/MINIAPP_LOCAL_DEV.md.
+2026-11-06 20:17:01 [ WARNING] Token referenced non-existent user_id=b5040fce-2f18-4f42-8e18-9ccbafc07299
+2026-11-06 20:17:01 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_run -> 200
+2026-11-06 20:17:01 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_scaffold
+2026-11-06 20:17:01 [ WARNING] Token referenced non-existent user_id=b5040fce-2f18-4f42-8e18-9ccbafc07299
+2026-11-06 20:17:01 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_scaffold -> 200
+2026-11-06 20:17:01 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_install
+2026-11-06 20:17:01 [ WARNING] Token referenced non-existent user_id=b5040fce-2f18-4f42-8e18-9ccbafc07299
+2026-11-06 20:17:01 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_install -> 200
+PASSED                                                                   [ 88%]
+------------------------------ live log teardown -------------------------------
+2026-11-06 20:17:01 [    INFO] [async-continuation] terminal-delivery recovery task stopping
+2026-11-06 20:17:01 [    INFO] Shutting down ATOM Platform...
+2026-11-06 20:17:01 [    INFO] ✓ Workflow Scheduler stopped
+2026-11-06 20:17:01 [    INFO] ✓ Postgres Event Bus listener stopped
+2026-11-06 20:17:01 [    INFO] ✓ AI Workflow Service sessions cleaned up
+
+tests/integration/journeys/test_mini_app_harness_journey.py::TestMiniAppHarnessJourney::test_canvas_logic_save_requires_access 
+-------------------------------- live log setup --------------------------------
+2026-11-06 20:17:01 [    INFO] ============================================================
+2026-11-06 20:17:01 [    INFO] ATOM Platform Starting (Hybrid Mode)
+2026-11-06 20:17:01 [    INFO] ============================================================
+2026-11-06 20:17:01 [    INFO] faulthandler: SIGUSR1 dumps thread stacks to stderr
+2026-11-06 20:17:01 [ WARNING] Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
+2026-11-06 20:17:01 [    INFO] Initializing database tables...
+2026-11-06 20:17:01 [    INFO] ⊘ Skipping table creation in test mode (fixture managed)
+2026-11-06 20:17:01 [    INFO] ⊘ Skipping admin bootstrap in test mode (fixture managed)
+2026-11-06 20:17:01 [    INFO] Loaded integrations so far: ['whatsapp', 'zoho_workdrive', 'asana', 'microsoft365', 'oauth', 'twilio', 'mailchimp', 'auth', 'monday', 'notion', 'salesforce', 'outlook']
+2026-11-06 20:17:01 [   ERROR] Execution recovery sweep failed: (sqlite3.OperationalError) no such table: workflow_executions
+[SQL: SELECT workflow_executions.execution_id AS workflow_executions_execution_id, workflow_executions.tenant_id AS workflow_executions_tenant_id, workflow_executions.workflow_id AS workflow_executions_workflow_id, workflow_executions.status AS workflow_executions_status, workflow_executions.input_data AS workflow_executions_input_data, workflow_executions.steps AS workflow_executions_steps, workflow_executions.outputs AS workflow_executions_outputs, workflow_executions.context AS workflow_executions_context, workflow_executions.version AS workflow_executions_version, workflow_executions.created_at AS workflow_executions_created_at, workflow_executions.updated_at AS workflow_executions_updated_at, workflow_executions.error AS workflow_executions_error, workflow_executions.completed_at AS workflow_executions_completed_at, workflow_executions.user_id AS workflow_executions_user_id, workflow_executions.visibility AS workflow_executions_visibility, workflow_executions.owner_id AS workflow_executions_owner_id, workflow_executions.team_id AS workflow_executions_team_id 
+FROM workflow_executions 
+WHERE workflow_executions.status = ?]
+[parameters: ('RUNNING',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-06 20:17:01 [    INFO] Terminal-delivery recovery task started (outside the scheduler gate)
+2026-11-06 20:17:01 [    INFO] Research continuation worker started (outside the scheduler gate)
+2026-11-06 20:17:01 [    INFO] ⊘ Skipping Schedulers and Workers in test mode
+2026-11-06 20:17:01 [    INFO] ⊘ Skipping Postgres Event Bus in test mode
+2026-11-06 20:17:01 [    INFO] ✓ AI Workflow Service initialized
+2026-11-06 20:17:01 [    INFO] ⏩ Skipping redundant QStash schedule cleanup
+2026-11-06 20:17:01 [    INFO] ✓ Auto-Dev ReflectionEngine registered on event bus
+2026-11-06 20:17:01 [    INFO] ============================================================
+2026-11-06 20:17:01 [    INFO] ✓ Server Ready
+2026-11-06 20:17:01 [    INFO] [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+2026-11-06 20:17:01 [    INFO] [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+2026-11-06 20:17:01 [    INFO] [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+2026-11-06 20:17:01 [    INFO] 🚀 [ULTRA LOUD] POST /api/auth/register
+2026-11-06 20:17:01 [    INFO] 🏁 [ULTRA LOUD] POST /api/auth/register -> 200
+2026-11-06 20:17:01 [    INFO] 🚀 [ULTRA LOUD] POST /api/auth/login
+2026-11-06 20:17:01 [    INFO] 🏁 [ULTRA LOUD] POST /api/auth/login -> 200
+-------------------------------- live log call ---------------------------------
+2026-11-06 20:17:02 [    INFO] 🚀 [ULTRA LOUD] POST /api/auth/register
+2026-11-06 20:17:02 [    INFO] 🏁 [ULTRA LOUD] POST /api/auth/register -> 200
+2026-11-06 20:17:02 [    INFO] 🚀 [ULTRA LOUD] POST /api/auth/login
+2026-11-06 20:17:02 [    INFO] 🏁 [ULTRA LOUD] POST /api/auth/login -> 200
+2026-11-06 20:17:02 [    INFO] 🚀 [ULTRA LOUD] PUT /api/canvas/priv-6e72e8dad80c4e61ad360032b7eea3ce/logic
+2026-11-06 20:17:02 [ WARNING] Token referenced non-existent user_id=88fb2770-19e2-4adc-ab15-a00a0bcc63a1
+2026-11-06 20:17:02 [    INFO] 🏁 [ULTRA LOUD] PUT /api/canvas/priv-6e72e8dad80c4e61ad360032b7eea3ce/logic -> 403
+2026-11-06 20:17:02 [    INFO] 🚀 [ULTRA LOUD] PUT /api/canvas/priv-6e72e8dad80c4e61ad360032b7eea3ce/logic
+2026-11-06 20:17:02 [ WARNING] Token referenced non-existent user_id=33937ca5-0593-487c-b7ec-aa79e2ca09d6
+2026-11-06 20:17:02 [    INFO] 🏁 [ULTRA LOUD] PUT /api/canvas/priv-6e72e8dad80c4e61ad360032b7eea3ce/logic -> 200
+2026-11-06 20:17:02 [    INFO] 🚀 [ULTRA LOUD] PUT /api/canvas/collab-08747a58f63445769349fd3e31490599/logic
+2026-11-06 20:17:02 [ WARNING] Token referenced non-existent user_id=88fb2770-19e2-4adc-ab15-a00a0bcc63a1
+2026-11-06 20:17:02 [    INFO] 🏁 [ULTRA LOUD] PUT /api/canvas/collab-08747a58f63445769349fd3e31490599/logic -> 200
+PASSED                                                                   [100%]
+------------------------------ live log teardown -------------------------------
+2026-11-06 20:17:02 [    INFO] [async-continuation] terminal-delivery recovery task stopping
+2026-11-06 20:17:02 [    INFO] Shutting down ATOM Platform...
+2026-11-06 20:17:02 [    INFO] ✓ Workflow Scheduler stopped
+2026-11-06 20:17:02 [    INFO] ✓ Postgres Event Bus listener stopped
+2026-11-06 20:17:02 [    INFO] ✓ AI Workflow Service sessions cleaned up
+
+
+=============================== warnings summary ===============================
+../../../..<python-environment>/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  <python-environment>/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../..<python-environment>/lib/python3.14/site-packages/starlette/testclient.py:45
+  <python-environment>/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+core/token_storage.py:17
+  <isolated-worktree>/backend/core/token_storage.py:17: DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+api/routes/ingestion_crud_routes.py:26
+  <isolated-worktree>/backend/api/routes/ingestion_crud_routes.py:26: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class DiscoveredEntityResponse(BaseModel):
+
+api/routes/ingestion_crud_routes.py:102
+  <isolated-worktree>/backend/api/routes/ingestion_crud_routes.py:102: PydanticDeprecatedSince20: `min_items` is deprecated and will be removed, use `min_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    entity_ids: List[UUID] = Field(..., min_items=1, description="List of entity UUIDs to delete")
+
+integrations/whatsapp_fastapi_routes.py:49
+  <isolated-worktree>/backend/integrations/whatsapp_fastapi_routes.py:49: PydanticDeprecatedSince20: `max_items` is deprecated and will be removed, use `max_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    recipients: List[str] = Field(
+
+api/episode_routes.py:397
+  <isolated-worktree>/backend/api/episode_routes.py:397: FastAPIDeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    canvas_context_detail: str = Query("summary", regex="^(summary|standard|full)$"),
+
+api/admin_routes.py:202
+  <isolated-worktree>/backend/api/admin_routes.py:202: PydanticDeprecatedSince20: Using extra keyword arguments on `Field` is deprecated and will be removed. Use `json_schema_extra` instead. (Extra keys: 'unique'). Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    name: str = Field(..., min_length=1, max_length=100, unique=True, description="Role name (must be unique)")
+
+api/admin_routes.py:1017
+  <isolated-worktree>/backend/api/admin_routes.py:1017: PydanticDeprecatedSince20: `min_items` is deprecated and will be removed, use `min_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    conflict_ids: List[int] = Field(..., min_items=1, max_items=100, description="List of conflict IDs to resolve (max 100)")
+
+api/admin_routes.py:1017
+  <isolated-worktree>/backend/api/admin_routes.py:1017: PydanticDeprecatedSince20: `max_items` is deprecated and will be removed, use `max_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    conflict_ids: List[int] = Field(..., min_items=1, max_items=100, description="List of conflict IDs to resolve (max 100)")
+
+../../../..<python-environment>/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  <python-environment>/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../..<python-environment>/lib/python3.14/site-packages/pytest_freezegun.py:17: 18 warnings
+  <python-environment>/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 9 passed, 33 warnings in 14.35s ========================
