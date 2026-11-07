@@ -1,0 +1,1054 @@
+{
+  "coverage": {
+    "external_mutation_covered": 6,
+    "external_mutation_total": 10,
+    "external_mutation_uncovered": [
+      "shopify_create_article",
+      "shopify_create_blog",
+      "shopify_create_fulfillment",
+      "shopify_create_product"
+    ],
+    "local_mutation_covered": 9,
+    "local_mutation_total": 16,
+    "local_mutation_uncovered": [
+      "mini_app_db_write",
+      "mini_app_install",
+      "mini_app_publish",
+      "mini_app_revert_logic",
+      "mini_app_run",
+      "mini_app_scaffold",
+      "mini_app_write_logic"
+    ],
+    "mutating_covered": 15,
+    "mutating_total": 26,
+    "mutating_without_verifier": [
+      "shopify_create_article",
+      "shopify_create_blog",
+      "shopify_create_fulfillment",
+      "shopify_create_product",
+      "mini_app_db_write",
+      "mini_app_install",
+      "mini_app_publish",
+      "mini_app_revert_logic",
+      "mini_app_run",
+      "mini_app_scaffold",
+      "mini_app_write_logic"
+    ],
+    "mutation_unscoped_covered": 0,
+    "mutation_unscoped_total": 0,
+    "oracle_verifiers": [
+      "brennan.books.create_bill",
+      "brennan.books.create_estimate",
+      "brennan.outlook.create_draft",
+      "canvas.present_chart",
+      "canvas.present_markdown",
+      "canvas.restore_version",
+      "canvas.update",
+      "connected.books.create_bill",
+      "connected.books.create_estimate",
+      "connected.outlook.create_draft",
+      "goal_runs.start",
+      "goals.create",
+      "goals.decompose",
+      "goals.evaluate",
+      "mini_app_set_tests",
+      "tasks.create",
+      "trigger_workflow"
+    ],
+    "plan_output_covered": 1,
+    "plan_output_note": "goals.decompose is structural plan-output validation; it does not prove a persisted execution or mutation.",
+    "plan_output_total": 1,
+    "undeclared_actions": []
+  },
+  "gaps": [
+    "Declared mutations without an independent verifier are never certified applied: the shared adapter downgrades an already dispatched effect to uncertain and preserves its identity.",
+    "The uncovered names above remain explicit; add a verifier or keep them out of mutating assignment dispatch.",
+    "HTTP mutation routes remain outside the registered action registry; this slice does not qualify them."
+  ],
+  "generated_at": "2026-11-07T02:49:14.722127+00:00",
+  "http_mutation_routes": {
+    "skipped": true
+  },
+  "lazy_registration_modules": [
+    "core.agent_radio.radio_actions",
+    "core.bpe.actions"
+  ],
+  "next_verifiers": [
+    "Add independent readback verifiers for the remaining local mini-app mutations or keep them out of mutating assignment dispatch.",
+    "Provider mutations (Shopify) need authoritative readback before they can be applied through the assignment path.",
+    "Plan-output validation remains structural; add persistence postconditions only where an action actually persists state."
+  ],
+  "provider_write_methods": {
+    "skipped": true
+  },
+  "registered_actions": {
+    "external_mutation": [
+      {
+        "action": "brennan.books.create_bill",
+        "classification": "external_mutation",
+        "description": "Post an authorized, reviewed bill proposal and read it back. Requires explicit authority and operation id.",
+        "effects": [
+          "create"
+        ],
+        "scopes": [
+          "external"
+        ],
+        "verifier_registered": true
+      },
+      {
+        "action": "brennan.books.create_estimate",
+        "classification": "external_mutation",
+        "description": "Post an authorized quote estimate and read it back. Requires explicit authority and operation id.",
+        "effects": [
+          "create"
+        ],
+        "scopes": [
+          "external"
+        ],
+        "verifier_registered": true
+      },
+      {
+        "action": "brennan.outlook.create_draft",
+        "classification": "external_mutation",
+        "description": "Create an Outlook draft only. Never sends; sending requires separate authority.",
+        "effects": [
+          "create"
+        ],
+        "scopes": [
+          "external"
+        ],
+        "verifier_registered": true
+      },
+      {
+        "action": "connected.books.create_bill",
+        "classification": "external_mutation",
+        "description": "Post an authorized, reviewed bill proposal and read it back. Requires explicit authority and operation id.",
+        "effects": [
+          "create"
+        ],
+        "scopes": [
+          "external"
+        ],
+        "verifier_registered": true
+      },
+      {
+        "action": "connected.books.create_estimate",
+        "classification": "external_mutation",
+        "description": "Post an authorized quote estimate and read it back. Requires explicit authority and operation id.",
+        "effects": [
+          "create"
+        ],
+        "scopes": [
+          "external"
+        ],
+        "verifier_registered": true
+      },
+      {
+        "action": "connected.outlook.create_draft",
+        "classification": "external_mutation",
+        "description": "Create an Outlook draft only. Never sends; sending requires separate authority.",
+        "effects": [
+          "create"
+        ],
+        "scopes": [
+          "external"
+        ],
+        "verifier_registered": true
+      },
+      {
+        "action": "shopify_create_article",
+        "classification": "external_mutation",
+        "description": "Create/publish a blog article (post) on the connected Shopify store.",
+        "effects": [
+          "create"
+        ],
+        "scopes": [
+          "external"
+        ],
+        "verifier_registered": false
+      },
+      {
+        "action": "shopify_create_blog",
+        "classification": "external_mutation",
+        "description": "Create a blog on the connected Shopify store to host articles/posts.",
+        "effects": [
+          "create"
+        ],
+        "scopes": [
+          "external"
+        ],
+        "verifier_registered": false
+      },
+      {
+        "action": "shopify_create_fulfillment",
+        "classification": "external_mutation",
+        "description": "Fulfill a Shopify order: ships every remaining line item of its open fulfillment orders, optionally with tracking. Shopify derives the ship-from location from the order's fulfillme",
+        "effects": [
+          "create"
+        ],
+        "scopes": [
+          "external"
+        ],
+        "verifier_registered": false
+      },
+      {
+        "action": "shopify_create_product",
+        "classification": "external_mutation",
+        "description": "Create a product listing on the connected Shopify store (title, description, variants, images, tags).",
+        "effects": [
+          "create"
+        ],
+        "scopes": [
+          "external"
+        ],
+        "verifier_registered": false
+      }
+    ],
+    "local_mutation": [
+      {
+        "action": "canvas.present_chart",
+        "classification": "local_mutation",
+        "description": "Present a chart (line_chart, bar_chart, pie_chart) to the user's canvas surface as a live visualization card. Use this when the user asks to SEE/plot/chart/display data visually \u2014 ",
+        "effects": [
+          "write"
+        ],
+        "scopes": [
+          "local"
+        ],
+        "verifier_registered": true
+      },
+      {
+        "action": "canvas.present_markdown",
+        "classification": "local_mutation",
+        "description": "Present markdown-formatted content to the user's canvas surface as a live card. Use when the user asks to show/display/put content on the canvas rather than for an inline chat repl",
+        "effects": [
+          "write"
+        ],
+        "scopes": [
+          "local"
+        ],
+        "verifier_registered": true
+      },
+      {
+        "action": "canvas.restore_version",
+        "classification": "local_mutation",
+        "description": "Revert a canvas to an earlier version by its audit_id (from canvas.list_versions). The restore is appended as a new version \u2014 nothing is lost, the pre-restore state stays in histor",
+        "effects": [
+          "update"
+        ],
+        "scopes": [
+          "local"
+        ],
+        "verifier_registered": true
+      },
+      {
+        "action": "canvas.update",
+        "classification": "local_mutation",
+        "description": "Update the content of an existing canvas.",
+        "effects": [
+          "update"
+        ],
+        "scopes": [
+          "local"
+        ],
+        "verifier_registered": true
+      },
+      {
+        "action": "goal_runs.start",
+        "classification": "local_mutation",
+        "description": "Start a LONG-RUNNING goal run: a durable execution in which this agent works a persisted goal across multiple steps, canvases and waits (email replies, timers, human checkpoints), ",
+        "effects": [
+          "goal_run_started"
+        ],
+        "scopes": [
+          "local"
+        ],
+        "verifier_registered": true
+      },
+      {
+        "action": "goals.create",
+        "classification": "local_mutation",
+        "description": "Create a persisted goal with machine-checkable success criteria. Use together with goals.evaluate; the goal_id can be passed as context.goal_id to make an agent run terminate when ",
+        "effects": [
+          "goal_created"
+        ],
+        "scopes": [
+          "local"
+        ],
+        "verifier_registered": true
+      },
+      {
+        "action": "goals.evaluate",
+        "classification": "local_mutation",
+        "description": "Evaluate a persisted goal's success criteria against the current graph/board/state; updates progress and status (achieved/at_risk).",
+        "effects": [
+          "goal_evaluated"
+        ],
+        "scopes": [
+          "local"
+        ],
+        "verifier_registered": true
+      },
+      {
+        "action": "mini_app_db_write",
+        "classification": "local_mutation",
+        "description": "Mutate structured records of a mini-app instance (append/update/update_many/delete/delete_series/clear). Owner-gated; SUPERVISED+ tier floor.",
+        "effects": [
+          "write"
+        ],
+        "scopes": [
+          "local"
+        ],
+        "verifier_registered": false
+      },
+      {
+        "action": "mini_app_install",
+        "classification": "local_mutation",
+        "description": "Install a published mini-app: hydrates a fresh, immutable instance canvas (copy-on-install).",
+        "effects": [
+          "create"
+        ],
+        "scopes": [
+          "local"
+        ],
+        "verifier_registered": false
+      },
+      {
+        "action": "mini_app_publish",
+        "classification": "local_mutation",
+        "description": "Publish a mini-app: fail-closed dep scan + rootfs check, snapshots initial_state + blueprint (credentials stripped). Required before install.",
+        "effects": [
+          "update"
+        ],
+        "scopes": [
+          "local"
+        ],
+        "verifier_registered": false
+      },
+      {
+        "action": "mini_app_revert_logic",
+        "classification": "local_mutation",
+        "description": "Revert a mini-app's logic to a previously checkpointed version (clean-state recovery when a run/test fails).",
+        "effects": [
+          "update"
+        ],
+        "scopes": [
+          "local"
+        ],
+        "verifier_registered": false
+      },
+      {
+        "action": "mini_app_run",
+        "classification": "local_mutation",
+        "description": "Run an installed mini-app instance statefully: reads CanvasState, executes logic in a Firecracker microVM, persists new state + storage ops, broadcasts a canvas:update.",
+        "effects": [
+          "update"
+        ],
+        "scopes": [
+          "local"
+        ],
+        "verifier_registered": false
+      },
+      {
+        "action": "mini_app_scaffold",
+        "classification": "local_mutation",
+        "description": "Scaffold a stateful mini-app (draft): creates a source canvas + starter logic + manifest. Agent-driven authoring starts here.",
+        "effects": [
+          "create"
+        ],
+        "scopes": [
+          "local"
+        ],
+        "verifier_registered": false
+      },
+      {
+        "action": "mini_app_set_tests",
+        "classification": "local_mutation",
+        "description": "Declare acceptance-test cases for a mini-app (stored in its manifest). Each case is {name?, initial_state?, inputs?, expect_state?, expect_ops?} \u2014 the harness runs every case and g",
+        "effects": [
+          "update"
+        ],
+        "scopes": [
+          "local"
+        ],
+        "verifier_registered": true
+      },
+      {
+        "action": "mini_app_write_logic",
+        "classification": "local_mutation",
+        "description": "Save the mini-app's Python logic (syntax-gated) to its blueprint canvas. The agent authors code here.",
+        "effects": [
+          "update"
+        ],
+        "scopes": [
+          "local"
+        ],
+        "verifier_registered": false
+      },
+      {
+        "action": "tasks.create",
+        "classification": "local_mutation",
+        "description": "Create a task (Kanban board item).",
+        "effects": [
+          "create"
+        ],
+        "scopes": [
+          "local"
+        ],
+        "verifier_registered": true
+      }
+    ],
+    "mutation_unscoped": [],
+    "plan_output_validation": [
+      {
+        "action": "goals.decompose",
+        "classification": "plan_output_validation",
+        "description": "HTN-decompose a goal into a dependency-validated subtask plan (reusable workflow-template methods; parallel execution groups included).",
+        "effects": [
+          "plan_produced"
+        ],
+        "scopes": [],
+        "verifier_registered": true
+      }
+    ],
+    "read_only": [
+      {
+        "action": "agents.list",
+        "classification": "read_only",
+        "description": "List available registered agents.",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "brennan.books.get_bill",
+        "classification": "read_only",
+        "description": "Read one Zoho Books bill with organization binding and readback evidence.",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "brennan.books.get_estimate",
+        "classification": "read_only",
+        "description": "Read one Zoho Books estimate with organization binding and readback evidence.",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "brennan.books.list_accounts",
+        "classification": "read_only",
+        "description": "List the complete chart of accounts with exact IDs for proposal mapping.",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "brennan.books.propose_bill",
+        "classification": "read_only",
+        "description": "Validate extracted supplier facts and return a reviewed bill proposal; never posts.",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "brennan.books.resolve_vendor",
+        "classification": "read_only",
+        "description": "Resolve a supplier name to exact vendor IDs from the complete vendor list; same-name IDs are ambiguous.",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "brennan.crm.get_record",
+        "classification": "read_only",
+        "description": "Read one CRM record by module and record id, with a typed read receipt.",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "brennan.crm.search_records",
+        "classification": "read_only",
+        "description": "Search one CRM module by query; returns exact record IDs and a bounded coverage receipt.",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "brennan.inventory.check_stock",
+        "classification": "read_only",
+        "description": "Read observed stock for one item. Observation is not a reservation.",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "brennan.inventory.get_item",
+        "classification": "read_only",
+        "description": "Read one inventory item and its observed availability; never reserves stock.",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "brennan.knowledge.sync_status",
+        "classification": "read_only",
+        "description": "Report durable drive-sync coverage, cursor, last success, stale age, revocation and remote deletions.",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "brennan.onedrive.list_page",
+        "classification": "read_only",
+        "description": "List one bounded OneDrive/SharePoint page. Explicit drive/site identity is preserved.",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "brennan.onedrive.read_file",
+        "classification": "read_only",
+        "description": "Download OneDrive/SharePoint file bytes as evidence; never JSON-decodes the content.",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "brennan.onedrive.sync_page",
+        "classification": "read_only",
+        "description": "Read, index and checkpoint one OneDrive/SharePoint page with explicit drive/site identity.",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "brennan.outlook.read_attachments",
+        "classification": "read_only",
+        "description": "List or download invoice/receipt attachments from one Outlook message with binary evidence; never sends.",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "brennan.workdrive.list_page",
+        "classification": "read_only",
+        "description": "List one bounded WorkDrive folder page. Returns provider IDs, version, coverage and cursor; unavailable is an error.",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "brennan.workdrive.read_file",
+        "classification": "read_only",
+        "description": "Read WorkDrive file bytes and metadata as evidence. Content is bounded; returns SHA-256 and version.",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "brennan.workdrive.sync_page",
+        "classification": "read_only",
+        "description": "Read, index and checkpoint one WorkDrive page. Restart resumes from the stored cursor; revocation is a typed error.",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "canvas.list_versions",
+        "classification": "read_only",
+        "description": "List the version history of a canvas, newest first (the append-only audit trail). Use this to review earlier drafts and pick the right version before reverting \u2014 the newest entry i",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "canvas.read",
+        "classification": "read_only",
+        "description": "Read the current content/state of a canvas by ID.",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "connected.books.get_bill",
+        "classification": "read_only",
+        "description": "Read one Zoho Books bill with organization binding and readback evidence.",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "connected.books.get_estimate",
+        "classification": "read_only",
+        "description": "Read one Zoho Books estimate with organization binding and readback evidence.",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "connected.books.list_accounts",
+        "classification": "read_only",
+        "description": "List the complete chart of accounts with exact IDs for proposal mapping.",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "connected.books.propose_bill",
+        "classification": "read_only",
+        "description": "Validate extracted supplier facts and return a reviewed bill proposal; never posts.",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "connected.books.resolve_vendor",
+        "classification": "read_only",
+        "description": "Resolve a supplier name to exact vendor IDs from the complete vendor list; same-name IDs are ambiguous.",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "connected.crm.get_record",
+        "classification": "read_only",
+        "description": "Read one CRM record by module and record id, with a typed read receipt.",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "connected.crm.search_records",
+        "classification": "read_only",
+        "description": "Search one CRM module by query; returns exact record IDs and a bounded coverage receipt.",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "connected.inventory.check_stock",
+        "classification": "read_only",
+        "description": "Read observed stock for one item. Observation is not a reservation.",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "connected.inventory.get_item",
+        "classification": "read_only",
+        "description": "Read one inventory item and its observed availability; never reserves stock.",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "connected.knowledge.sync_status",
+        "classification": "read_only",
+        "description": "Report durable drive-sync coverage, cursor, last success, stale age, revocation and remote deletions.",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "connected.onedrive.list_page",
+        "classification": "read_only",
+        "description": "List one bounded OneDrive/SharePoint page. Explicit drive/site identity is preserved.",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "connected.onedrive.read_file",
+        "classification": "read_only",
+        "description": "Download OneDrive/SharePoint file bytes as evidence; never JSON-decodes the content.",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "connected.onedrive.sync_page",
+        "classification": "read_only",
+        "description": "Read, index and checkpoint one OneDrive/SharePoint page with explicit drive/site identity.",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "connected.outlook.read_attachments",
+        "classification": "read_only",
+        "description": "List or download invoice/receipt attachments from one Outlook message with binary evidence; never sends.",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "connected.workdrive.list_page",
+        "classification": "read_only",
+        "description": "List one bounded WorkDrive folder page. Returns provider IDs, version, coverage and cursor; unavailable is an error.",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "connected.workdrive.read_file",
+        "classification": "read_only",
+        "description": "Read WorkDrive file bytes and metadata as evidence. Content is bounded; returns SHA-256 and version.",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "connected.workdrive.sync_page",
+        "classification": "read_only",
+        "description": "Read, index and checkpoint one WorkDrive page. Restart resumes from the stored cursor; revocation is a typed error.",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "documents.ask_image",
+        "classification": "read_only",
+        "description": "Ask a vision-capable model about an image in the VFS (requires a provider with vision support).",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "documents.cat",
+        "classification": "read_only",
+        "description": "Read a document's FULL text as line-numbered lines (L1: \u2026, L2: \u2026) for precise citation. args: path \u2014 e.g. 'knowledge/documents/<id>/content.lines' using an id from documents.ls or ",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "documents.grep",
+        "classification": "read_only",
+        "description": "Regex-search ALL knowledge content (documents and conversations). args: pattern (regex, case-insensitive), path_prefix ('knowledge'). Returns matches [{path, line, snippet}] \u2014 read",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "documents.head",
+        "classification": "read_only",
+        "description": "Read the first N lines of a VFS leaf (for skimming large documents).",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "documents.ls",
+        "classification": "read_only",
+        "description": "List children of the knowledge VFS. args: path \u2014 start at 'knowledge/documents' (one dir per ingested document) or 'knowledge/conversations'. Returns entries [{name, type, path}].",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "documents.map",
+        "classification": "read_only",
+        "description": "Bounded fan-out over VFS leaf paths: apply one op (cat/head/grep) per item. Complexity 3 / SUPERVISED-gated at the dispatch layer.",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "documents.read",
+        "classification": "read_only",
+        "description": "Read a BOUNDED region of any leaf, with paging metadata (start_line/end_line/total_lines/next_start/complete). USE THIS for long email threads, large workbooks, long PDFs and any f",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "documents.reduce",
+        "classification": "read_only",
+        "description": "Aggregate a documents.map result list (count | concat | unique).",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "documents.scan",
+        "classification": "read_only",
+        "description": "Recursively enumerate every file under a VFS directory (path + size).",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "documents.search",
+        "classification": "read_only",
+        "description": "Hybrid (BM25 + vector) search over ingested and knowledge documents. Semantic: finds docs about a concept even without exact word overlap. Honors since/source/author filters. Retur",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "documents.tail",
+        "classification": "read_only",
+        "description": "Read the last N lines of a VFS leaf (for skimming large documents).",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "documents.tree",
+        "classification": "read_only",
+        "description": "Render a VFS directory as an indented tree (ls recursively, depth-limited).",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "goal_runs.list",
+        "classification": "read_only",
+        "description": "List goal runs (or one run's detail): status, current step, what it waits for, recent router decisions. Read-only \u2014 use it to report progress on runs started with goal_runs.start.",
+        "effects": [
+          "read_only"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "knowledge.query",
+        "classification": "read_only",
+        "description": "Query the workspace knowledge graph (GraphRAG). Local mode returns entities/relationships around the query anchors; global mode synthesizes over community summaries.",
+        "effects": [
+          "read_only"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "mini_app_db_query",
+        "classification": "read_only",
+        "description": "Read structured records of a mini-app instance (query/count/get/list_series). Owner-gated; INTERN+ tier floor. Same op vocabulary as the app's own record_ops.",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "mini_app_dev_run",
+        "classification": "read_only",
+        "description": "Dry-run the mini-app logic in the Firecracker microVM: returns resulting state + proposed storage ops without committing. Fail-closed when deps are unsafe or the per-app rootfs is ",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "mini_app_get_state",
+        "classification": "read_only",
+        "description": "Read the current state + version of a mini-app instance canvas.",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "mini_app_list",
+        "classification": "read_only",
+        "description": "List mini-apps the requesting user owns (or public ones).",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "mini_app_logic_history",
+        "classification": "read_only",
+        "description": "List a mini-app's logic checkpoints (oldest \u2192 newest). Every write_logic records a versioned snapshot; the agent can revert to a known-good version on failure.",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "mini_app_run_tests",
+        "classification": "read_only",
+        "description": "Run a mini-app's acceptance tests in the Firecracker microVM (dry, no commit). Returns per-case pass/fail with expected-vs-actual state diffs and a pass count \u2014 the generator-evalu",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "mini_app_status",
+        "classification": "read_only",
+        "description": "Probe a mini-app's authoring constraints before iterating: logic syntax validity, effective scopes (viewer tier \u2229 declared), dependency-scan state, per-app rootfs presence, and Fir",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "ontology.inspect",
+        "classification": "read_only",
+        "description": "Inspect the workspace ontology: entity types (with hierarchy), declared relations with domain/range, and undeclared relation types found in the graph (formalization candidates).",
+        "effects": [
+          "read_only"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "recall_episodes",
+        "classification": "read_only",
+        "description": "Recall past learning episodes (prior agent work sessions) relevant to a task \u2014 what was done, the outcome, and how the user judged it. Use before attempting a task similar to past ",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "search_communications",
+        "classification": "read_only",
+        "description": "Search conversation memory (ingested emails + chat messages) with hybrid vector+FTS search. Use for 'what did X say about Y' questions. Results include app, timestamp, and content.",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "shopify_get_fulfillments",
+        "classification": "read_only",
+        "description": "List fulfillments (shipments with tracking status) for a Shopify order. Check before creating a fulfillment to avoid double-shipping.",
+        "effects": [
+          "read_only"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      },
+      {
+        "action": "shopify_list_blogs",
+        "classification": "read_only",
+        "description": "List blogs on the connected Shopify store.",
+        "effects": [
+          "read"
+        ],
+        "scopes": [],
+        "verifier_registered": false
+      }
+    ],
+    "read_or_other_count": 63,
+    "total": 90,
+    "undeclared": []
+  },
+  "registry_only": true,
+  "schema": "atom-oracle-mutation-surface-2",
+  "scope": "Source-bound inventory of registered action effect declarations and independent postcondition verifiers. It is not a qualification run; uncovered declarations remain explicit.",
+  "source": "9134893831cacb7ab52e633e8318753c938b888f"
+}
