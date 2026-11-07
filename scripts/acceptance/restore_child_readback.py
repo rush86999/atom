@@ -485,7 +485,7 @@ def _canvas_result(db_path: Path, canvas_http: Mapping[str, Any],
             "content": content,
             "http": {
                 key: canvas_http.get(key) for key in (
-                    "canvas_id", "canvas_type", "action_type", "audit_id",
+                    "success", "canvas_id", "canvas_type", "action_type", "audit_id",
                     "title", "operation_id", "review_status", "content")
             },
         },

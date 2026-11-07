@@ -422,3 +422,22 @@ def test_audit_result_checks_real_rows_and_rejects_extra_effect(tmp_path, extra_
     assert result["original_unchanged"] is True
     assert result["non_restore_new_rows"] == (1 if extra_action else 0)
     assert result["ok"] is (extra_action is None)
+
+
+@pytest.mark.parametrize("success", [True, False, None])
+def test_canvas_projection_preserves_actual_http_success(tmp_path, success):
+    import json
+    import sqlite3
+    target = tmp_path / "target"; target.mkdir()
+    artifact = target / "artifact.docx"; artifact.write_bytes(b"fixture")
+    db = target / "atom.db"
+    con = sqlite3.connect(db)
+    con.execute("CREATE TABLE canvases (id TEXT, tenant_id TEXT, workspace_id TEXT, created_by TEXT, canvas_type TEXT, name TEXT, status TEXT, content TEXT)")
+    con.execute("INSERT INTO canvases VALUES (?,?,?,?,?,?,?,?)", ["c", "t", "w", "u", "document", "Title", "active", json.dumps({"office_file": str(artifact)})])
+    con.commit(); con.close()
+    ids = {"canvas_id": "c", "tenant_id": "t", "workspace_id": "w", "user_id": "u", "canvas_type": "document"}
+    baseline = {"expected_target_paths": {"office_artifact": str(artifact)}, "target_root": str(target), "source_root": str(tmp_path / "source"), "preserved_source_root": str(tmp_path / "source-unavailable")}
+    body = {"canvas_id": "c"}
+    if success is not None: body["success"] = success
+    result = readback._canvas_result(db, body, ids, baseline)
+    assert result["canvas"]["http"]["success"] is success
