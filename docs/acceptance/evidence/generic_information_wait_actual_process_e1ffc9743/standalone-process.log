@@ -1,0 +1,20 @@
+{
+  "ok": true,
+  "first_pid": 45778,
+  "job_id": "150fdfbb-2780-4fae-bdec-473ab3f219df",
+  "execution_id": "81d9eab9-726d-428e-b02a-4c236d1c2b25",
+  "correlation_id": "f46126ad-a8e9-48e2-b316-eef51dd42589",
+  "recovery_after_restart": [
+    "RECOVERY={\"workflow_recovered\": 0, \"agent_recovered\": 0, \"agent_untouched_live\": 0, \"agent_untouched_detail\": [], \"agent_unknown_owner\": 0, \"agent_unknown_detail\": [], \"chat_requests_released\": 0, \"enabled\": true}",
+    "RECOVERY={\"workflow_recovered\": 0, \"agent_recovered\": 0, \"agent_untouched_live\": 0, \"agent_untouched_detail\": [], \"agent_unknown_owner\": 0, \"agent_unknown_detail\": [], \"chat_requests_released\": 0, \"enabled\": true}"
+  ],
+  "model_calls": 3,
+  "resumed_prompt_has_answer": true,
+  "tasks": [
+    {
+      "id": "c1aa106f-b662-4835-8890-1aab38e908e9",
+      "title": "Quarterly close checklist",
+      "status": "backlog"
+    }
+  ]
+}
