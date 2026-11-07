@@ -2,28 +2,36 @@
 
 This dated checkpoint supersedes operational queue rows in the November6 directive. Re-resolve current remote heads and ownership before acting. It records current progress, not whole-app acceptance. The product is single tenant with supported user/role/workspace safeguards. Historical 111/123, planner 5/5, goal router 1/2 and alignment gap 3.0 remain unchanged.
 
-## Current leading checkpoint — main `2d251acdf`
+## Current leading checkpoint — main `cf5e98191`
 
-This checkpoint supersedes every operational queue paragraph below. Re-resolve the remote head, actual worker handle and ownership before acting; historical plans are not new assignments. Full app completion and TASK-WAIT-01 remain OPEN.
+This checkpoint supersedes **all operational queue text below**, including older paragraphs that called themselves current or leading. Re-resolve remote heads and actual worker handles before assigning work. Full app completion and TASK-WAIT-01 remain **OPEN**. This is a single-tenant product with existing user/role/workspace safeguards; no new SaaS policy is implied.
 
-| Delivery | Current evidence and scope |
+| Delivery | Current evidence and bounded scope |
 |---|---|
-| Personal information answer, PR738 | Merged `cbbe029a5`; public bootstrap-user null/default scope repair, independent33 controls and strict4-source/6-artifact packet. |
-| Registered product, PR739 | Merged `e8187a0c2`; independently qualified136 integrated controls. Exact accepted material, durable JSON receipt, migration and Decimal-context repair; HTTP doubled. Raw URL-only image content remains unverified. |
-| Neutral waiting maturity, PR743 | Merged `e39e2af2f`; valid durable waits earn neither success nor failure. Independent failure preserved;37 affected controls; strict3-source/5-artifact packet. |
-| Blog and Article, PR746 | Merged `2d251acdf`; all8 required PR checks passed. Actual main tree matches prospective `58e661ff4`; six provider/runtime modules match independently tested `7a75ad486` (100 controls). Existing wait repairs retained. Blog PR741 is closed as redundant: reviewed blog tests/privacy/evidence retained, strict7-source/5-artifact packet passes on main. This does not claim PR741's later pending CI passed. |
-| Ordinary browser wait episode, PR744 | Submitted head `1f6018fd7`, not merged at this readback. Frozen runtime `d3f58d81d`: ordinary login/onboarding, one job, two questions, real backend/frontend restart, same-job answers, default-Oracle verified task, final UI;29 stages/162 assertions. Strict11-source/18-artifact packet. Controlled loopback provider transport with simulated model decisions, not served-model judgment. |
-| Positive maturity, PR745 | Submitted head `0664c9456`, not merged. A successful outcome must not demote a previously granted tier; failure and promotion evidence gates retained. Independent negative preserved;17 focused controls plus caller twins; current-main gate8 passed. The older browser trace is not relabelled as a replay of this repair. |
+| Prior accepted foundations | Personal answers PR738, registered product PR739, neutral waits PR743 and Blog/Article PR746 remain merged at their recorded sources. Historical negatives and scores are unchanged. |
+| Ordinary browser wait, PR744 | Merged `36fa4ce39`. Frozen episode `d3f58d81d`:29 stages/162 assertions, ordinary login/onboarding, one job/two waits, real restart, same-job answers and one default-Oracle verified task. Simulated decisions through controlled loopback transport, not served-model judgment. Accepted per-file source proof remains authoritative; no replay just for a later commit or health badge. |
+| Natural reviewed improvement, PR751 | Merged `4590560d7`; natural tool-failure event through existing reviewed skill lifecycle to actual agent prompt. Post-merge CI/Docker passed. Controlled consumer evidence, not general model quality or a new feedback engine. |
+| Integrated provider/local controls, PR752 | Merged `cf5e98191` after all8 exact-head checks passed. Main tree exactly matches reviewed `8ed44fabe` and prospective tree `c6e054edc`. Native784 controlled tests plus independent29 controls remain at their actual executed sources; test seams include controlled proposal/caller fixtures, not transport-only. Strict native30-source/11-artifact and independent30-source/5-artifact packets match main. Includes positive-maturity preservation, usable image decoding/receipts, known-message radio uncertainty and official fulfillment parent/line namespaces. Raw URL-only image equivalence, provider transforms and live effects remain unqualified. |
+| Superseded parents | PR745/747/748/749/750 are closed **because PR752 retained their reviewed content and evidence**. Branches remain for provenance. Do not reopen, merge again or relabel their historical runs. |
+| Applied-source consumption, PR753 | Submitted current head `20946867e`, not accepted/merged. Original hosted9/151 failure is preserved. Fixture-only follow-up `a5af36d31` adds active scratch readers, controlled source files and complete typed bindings to previously seeded applied reads; runtime checks were not relaxed. Independent9 regressions+13 safety/recovery controls passed22; earlier47-source controls remain source-bound. Seeded unit rows are not original-parser or ordinary-upload proof. Fresh hosted CI on the current head is required. |
+| Generic source answers | Candidate implementation, **withheld**. Independent22 source/process/namespace controls passed at `0509877ed`, but four further peer changes to wait-row workspace/tenant/user/params still escaped the claim; permanent probes are retained. A dedicated backend owner is repairing full scope/material CAS on `codex/generic-source-scope-cas-20261107`. UI driver/TypeScript preparation is at `b493abb30`; no ordinary source-answer browser episode has run. Root reviews the repaired backend before the single UI episode. |
+| Radio thread creation | Candidate `908026a39`/evidence `f29b4db12`, **withheld**. Frozen first-DML interleavings remain2fail/1pass: authority can change before insert. Agent2 owns atomic current creator/member claims in the same write transaction, preserving exact personal/null/default compatibility and truthful post-commit uncertainty. A SELECT in a transaction alone is not the SQLite write boundary. |
+| Goal utility surface, PR754 | Submitted head `dc92728d6`, not merged. Peer-workspace goal/utility reads are repaired; existing advisory target/ranking is exposed on Goal Runs detail. Independent149 backend controls pass with3 documented existing skips; UI25 passes; native TypeScript exits0. Native6-source/13-artifact and independent19-source/8-artifact packets match Git. Current public consumer/component scope only; ordinary utility UI acceptance remains separate. Utility never grants completion. |
 
-### Actual ongoing work and next gates
+### Ownership, next gates and speed guidance
 
-- **Image CLI workhorse:** runtime `ec0a98dc2`, evidence `3801b0da5`; root33 image/usability/security controls pass and strict7-source/8-artifact packet matches. Real decode replaces MIME/digest-only proof. Current-main integration is active; no concurrent root edits. Raw URL-only and provider byte-transform equivalence remain OPEN.
-- **Radio CLI workhorse:** candidate `5264f6242` withheld. Root permanent test `9aba74234` reproduces lost known message identity after a readback timeout. Repair must preserve original operation/message identity and no-resend uncertainty; root re-verifies the final consumer.
-- **Fulfillment CLI workhorse:** five original blockers repaired at `8055fae56`; root58 controls pass, with explicitly dirty test-tree attribution for the later-added probe. New permanent negative `b813c2a1f` reproduces missing order-line identity borrowing a distinct fulfillment-order-line ID before dispatch. Repair is active and withheld. Official response shapes, parent order, status, completed quantity and exact readback must all remain bound.
-- **Root:** independent engineering/product verification, source/receipt/usable-output scrutiny, normal expected-head merges and goal reconciliation. No self-acceptance, parallel router/store/task engine or authority expansion.
-- **CI:** bounded scripts, no model polling. PR744/745 require current-head green; post-merge main CI `42393469330` and Docker `42393469352` were running at this cut. A prior head's green is not inherited.
+- **Agent1:** source-answer UI preparation is complete; the next non-overlapping task is a read-only stored-document export/download trace. Reconcile every mounted document/resource/VFS/export path before proposing a new endpoint. No production export implementation is authorized by an absence-of-evidence claim alone.
+- **Agent2:** finish the radio first-DML authority repair, push a coherent checkpoint and preserve the original negatives. Do not wait for routine CI.
+- **Backend support owner:** finish Generic source-answer full scope/material CAS, exact replay/lost-CAS rechecks and valid nullable/personal twins. Do not race Agent1's harness files or weaken current authority/version gates.
+- **Goal support owner:** prepare the bounded ordinary utility UI episode on a separate branch, without moving PR754 or launching a duplicate campaign. Seeded analytics histories must be disclosed, never presented as real model work.
+- **Root:** independent engineering/product review, complete requirement matrices, ordinary UI acceptance and normal expected-head merges. Source-answer and utility UI evidence may share one later frozen stack/build, with separate evidence scopes. No self-acceptance, parallel engine/store/router or hidden live authority.
+- **CI:** model-free exact-head observers. New heads never inherit green. Only proven superseded ancestor runs may be cancelled; cancellation is not a pass. Agents continue safe independent work while checks run.
+- **Regression discipline:** test the entire authority/material field class at once, preserve negative/positive twins, and inspect affected consumers. Unit fixtures must carry real current typed authority when they invoke consumption; disclose seeded rows and doubled seams. A focused pass cannot erase a broader CI failure. Use shared local test serialization and explicit unique scratch roots; never delete an arbitrary world or use the live dev DB.
+- **Resources:** three-hour disk monitoring remains active, plus checks before heavy tests/new worlds. Shared heavy tests require4GiB; bounded focused selections require2GiB and at most100 cases. Do not split/drop broad gates to evade the floor. Preserve active processes/data, credentials, original negatives and cold archives; reclaim only proven inactive reproducible caches or byte-verified archived completed copies.
 
-Preserve the accepted browser run, source identities, original negatives and checksum-verified cold archives. Do not repeat model/browser campaigns solely for documentation or source-identical merges. A broader wait goal still needs requirement-by-requirement reconciliation of input relevance, authorization/revocation, both event orders, idle budgets/deadlines, concurrent delivery/cancellation, same-task continuation and verified output at their actual tested scopes. One controlled browser episode does not certify universal event-driven work or general adaptive judgment. Whole-app mutation coverage, live breadth, guest execution, PostgreSQL/multi-worker/soak and other unqualified claims remain separate.
+Remaining full-app boundaries include whole-app ORACLE, the source-answer safety/UI gate, general adaptive judgment, served multi-model/live connector breadth, guest/KVM, PostgreSQL/multi-worker/soak, ordinary utility UI and complete install/backup/isolated-restore operations. Audit proposals are not new passing claims. Historical143 claims (123 functional+20 separate),111/123, planner5/5, goal router1/2 and alignment gap3.0 remain unchanged. Coding CLI subscription authority is separate from live application inference/provider/account/spend authority.
+
+<a id="current-leading-checkpoint--main-2d251acdf"></a>
 
 ## Historical leading snapshot — superseded operational queue
 
@@ -50,7 +58,7 @@ This dated readback supersedes the operational owner rows below. Resolve current
 
 All143 claims and historical scores remain unchanged. TASK-WAIT-01, whole-app ORACLE, broader provider writes, usable image proof, ordinary-browser acceptance, served judgment/model breadth and the separately named operations qualifications remain OPEN. A controlled family pass does not close the app goal.
 
-## Latest execution snapshot — remote main `24c280348`
+## Historical execution snapshot — remote main `24c280348`
 
 This is the leading operational snapshot; the recovery-merge snapshot and dated submissions below are preserved history. Re-resolve remote heads, exact CI runs and actual worker handles before acting. No deployment or whole-app acceptance follows from a merge.
 
@@ -82,7 +90,7 @@ Scratch storage must remain isolated from the live dev DB. On disk pressure, arc
 
 Whole-app ORACLE, broader registered provider writes, guest MiniApp execution, served multi-model comparison/general judgment, live connector breadth, PostgreSQL/multi-worker/soak and full compatibility/operations qualification remain separate unfinished rows. Retain the143-claim denominator and historical111/123, planner5/5, goal-router1/2 and alignment-gap3.0. Do not hide or redefine them to declare completion.
 
-## Current execution snapshot at recovery merge
+## Historical execution snapshot at recovery merge
 
 Main at this checkpoint is `e0430f9ff` (PR729). Re-resolve remote PR heads before review or merge. Full application completion and the general-app TASK-WAIT-01 goal remain open.
 
@@ -131,7 +139,7 @@ General adaptive judgment, served multi-model comparison, live connector breadth
 - PR708 served workflow boundary merged317c1a105. Controlled HTTP process and durable readback; model leaf doubled, no live blueprint judgment.
 - PR710 registered alignment-loop join merged555e4aafa.31 independent neighboring controls;7Git source/artifact checks. Real loop→pass→pending consent, no policy enablement; controlled ticks are not overnight reliability.
 
-## Current deliveries and owners
+## Historical deliveries and owners
 
 - Workspace opt-in repair: PR711 merged as bae68c91d. The controlled 25-control and 16-hash proof remains at its recorded source; 709 stays closed/superseded. No new browser or model replay is required for this preserved proof.
 - Mini-app boundaries: PR712 merged as 272382adb; PR713 merged as 8a577f14a. The former proves explicit unsupported-host refusal, and the latter proves host-record persistence across a real process restart with ordinary authentication and member/instance isolation. Neither proves guest execution or MINI05 isolation/chat.

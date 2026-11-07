@@ -2,20 +2,20 @@
 
 Owned reconciliation by Agent2 (OpenCodeGo / DeepSeek V4.1 Flash).
 
-This document reconciles the canonical **143-claim** README baseline
+The historical baseline section reconciled the canonical **143-claim** README baseline
 (**123 functional + 20 separately tracked**) against the current merged and
 submitted evidence at `origin/main` `248a2329623b433e68104c4d89d2965683d81013`
 (PR #696 merge). It is a read-only audit and coordination input. It grants no
 acceptance, changes no claim denominator, and does not re-score the historical
 **111/123 (90.2%)** result.
 
-## Current queue overlay — 2026-11-07, main `2d251acdf`
+## Current queue overlay — 2026-11-07, main `cf5e98191`
 
-The November6 evidence cut below is historical, not a fresh queue. Use the [current leading checkpoint](../engineering/APP_COMPLETION_STATE_2026_11_07.md#current-leading-checkpoint--main-2d251acdf) before assigning work. PR738 Personal answer, PR739 product, PR743 neutral wait maturity and PR746 blog/Article are merged. Blog PR741 is closed as redundant after exact retained-evidence verification. PR744 browser evidence and PR745 positive-maturity repair remain submitted at heads `1f6018fd7` and `0664c9456`; re-read actual hosted checks before any merge.
+The November6 evidence cut and category rows below are historical, not fresh assignments. Use the [current leading checkpoint](../engineering/APP_COMPLETION_STATE_2026_11_07.md#current-leading-checkpoint--main-cf5e98191), then resolve live remote heads and owners. PR744 browser evidence, PR751 natural reviewed improvement and PR752 integrated provider/local controls are merged. PR745/747/748/749/750 are closed as superseded only after exact tree/evidence retention checks; do not reopen them.
 
-The ordinary controlled browser episode at frozen `d3f58d81d` demonstrates one job, two information waits, real process restart, same-job answers and one default-Oracle verified task:29 stages/162 assertions, strict11-source/18-artifact packet. Model decisions were simulated through the real loopback structured transport; no served-model or universal judgment claim follows. Its positive-outcome tier demotion was preserved and is addressed separately by PR745, not silently replayed.
+PR753 is submitted at `20946867e`: the original hosted9/151 failure remains, the fixture-only follow-up has independent22 passing controls, and fresh full hosted CI is pending. Generic source answers remain withheld on four wait-row scope/material races; the ordinary UI driver is prepared but has not run. Radio thread creation remains withheld on a first-DML authority race. Goal utility PR754 (`dc92728d6`) has independent149 backend controls/3 existing skips, UI25 and TypeScript0, but is not merged or ordinary-browser accepted.
 
-Image usability integration, known-message radio receipt repair and fulfillment order-line namespace repair are the current finite Flash CLI tasks. Root independently verifies their final sources and merges normal ready heads. Model-free scripts track CI. Keep TASK-WAIT-01 and full-app completion OPEN pending requirement-level evidence; historical143 claims,111/123, planner5/5, goal router1/2 and alignment gap3.0 remain unchanged. Preserve prior negatives and source-bound acceptance; no new live model/provider/account/credential/send/spend/download/deployment authority is implied.
+The accepted frozen `d3f58d81d` browser episode remains29 stages/162 assertions at its original identity, with simulated model decisions and per-file source proof. Nothing here replays or relabels it. Local coding uses authorized Flash CLI workers; that is not live application model/provider qualification. The source and utility UI episodes, complete restore operations and broader app boundaries remain open. Preserve all original negatives and source/test/evidence attribution; no score, denominator, authority, provider or deployment change follows.
 
 ## 0. Baseline, evidence cut, and rules
 
