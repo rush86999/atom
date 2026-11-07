@@ -1,7 +1,8 @@
 {
-  "executed_source": "2bf38bc9d8a501d2dd13a3233a0d3ae0e51185cc",
+  "executed_source": "9b3e0daebd30a4cf1c7197e40b1fbef386e1a2fd",
   "base_source": "d922601050546364560474a2e6d0388a34c2a974",
   "prior_recovery_source": "0a2db1f2af142273c59f29e754c12ae67b13b73a",
+  "runtime_drain_fix": "2bf38bc9d8a501d2dd13a3233a0d3ae0e51185cc",
   "cwd": "backend",
   "command": "python -m pytest tests/test_agent_generic_information_wait.py tests/test_generic_information_exact_event_contract.py tests/test_generic_information_resume_namespace_contract.py tests/test_generic_information_wait_recovery.py tests/test_boot_recovery_not_gated_by_scheduler.py tests/test_agent_generic_information_wait_process.py tests/test_hitl_resume.py -q --tb=short --timeout=300 --timeout-method=thread --junitxml=<evidence>/gate-junit.xml",
   "interpreter": "ATOM_TEST_PYTHON or sys.executable in committed tests; executed with the project 3.14.7 venv",

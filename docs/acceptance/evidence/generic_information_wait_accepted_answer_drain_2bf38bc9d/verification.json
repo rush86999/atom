@@ -1,9 +1,10 @@
 {
-  "executed_source": "2bf38bc9d8a501d2dd13a3233a0d3ae0e51185cc",
+  "executed_source": "9b3e0daebd30a4cf1c7197e40b1fbef386e1a2fd",
   "base_source": "d922601050546364560474a2e6d0388a34c2a974",
   "prior_recovery_source": "0a2db1f2af142273c59f29e754c12ae67b13b73a",
+  "runtime_drain_fix": "2bf38bc9d8a501d2dd13a3233a0d3ae0e51185cc",
   "gate": {
-    "passed": 48,
+    "passed": 49,
     "failed": 0,
     "actual_exit_code": 0
   },
@@ -14,6 +15,7 @@
     "second_boot_inert": "passed",
     "twenty_completed_history_plus_21st_ready_process": "passed",
     "fifty_unanswered_active_jobs_do_not_block_ready_fact": "passed",
+    "combined_20_completed_50_unanswered_21_ready": "passed (21 resumed, pages>=8)",
     "keyset_paging_not_offset": "passed",
     "summary_reports_pages_examined_complete": "passed"
   },

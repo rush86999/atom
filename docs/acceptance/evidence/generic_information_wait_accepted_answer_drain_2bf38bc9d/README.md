@@ -1,7 +1,8 @@
 # Generic accepted-answer recovery — fair startup drain
 
-Executed source: `2bf38bc9d8a501d2dd13a3233a0d3ae0e51185cc`
-(follows `0a2db1f2a` recovery fix on integrated base `d92260105`).
+Executed source: `9b3e0daebd30a4cf1c7197e40b1fbef386e1a2fd`
+(final test-only checkpoint; runtime drain fix `2bf38bc9d8a501d2dd13a3233a0d3ae0e51185cc`,
+following `0a2db1f2a` recovery on integrated base `d92260105`).
 
 ## Why this successor
 
@@ -26,6 +27,8 @@ Fairness properties now covered:
   selected and dispatched, historical rows stay auditable;
 - 50 unanswered/pending active jobs ahead of one ready accepted fact do not
   consume the budget or block it (keyset paging reaches it);
+- one combined fixture puts 20 completed, 50 unanswered and 21 ready facts in
+  the same world: one drain boot resumes all 21 and the next is inert;
 - keyset paging avoids the offset-skip problem while earlier pages settle;
 - cancellation, current authority, actor availability, old/replaced receipts,
   foreign scope and post-claim uncertainty still refuse exactly as in
@@ -33,8 +36,8 @@ Fairness properties now covered:
 
 ## Verification
 
-`gate.log` / `gate-junit.xml`: **48 passed**, 0 failed, actual exit 0 (74.07s),
-covering the wait/exact-event/namespace suites, 12 recovery selection/drain
+`gate.log` / `gate-junit.xml`: **49 passed**, 0 failed, actual exit 0 (77.43s),
+covering the wait/exact-event/namespace suites, 13 recovery selection/drain
 units, the boot-placement structural controls (including the negative control),
 six real-process cases using the drain driver, and HITL resume.
 

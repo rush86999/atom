@@ -1,15 +1,16 @@
 {
   "artifacts": {
-    "README.md": "fb74c82d04bdd293ff5f783ed0d13f4b07dbf48e412ed0a3b74452ef441fe076",
-    "gate-exit.json": "35f541dcd7c884e779d2e903dd1d91de13abddeda71848afd012836ebb1e7be7",
-    "gate-junit.xml": "b9802e18c2a03c636c9522412feb6121e7a5c40d62e20a5328fc090490f8787d",
-    "gate-spec.json": "095b5ca6017378c64c7802a1464de45873de67bf5410c8ea5b989f5af4e34abb",
-    "gate.log": "55c100272fda480a04b5915fe72f7596ddc30d8dd7305d851c697b14b4f4155e",
-    "verification.json": "909f1c98e884875eb3a9c0635c932366e96707465914da504e32a9143c67ccea"
+    "README.md": "729950144320b3562b3604788cb45f96bcca8bcad93f49c73652dc2b8986c0fb",
+    "gate-exit.json": "6a62a065cca702502e91c27af7ce21fc6bca92e73ade03a6111d009a7736f40b",
+    "gate-junit.xml": "179f093840271bc65c34f886fe31a0fefe40eb52f2000a760e5cab207480c503",
+    "gate-spec.json": "f8004624f24174d667e78b5972a9e8cbd7eacd06ad6023a8812fac8707018aa7",
+    "gate.log": "4462510a736c202c7c9942042f2f9be3ad105b3f55228dceea957e1cb6c0a9db",
+    "verification.json": "32383481d7d834bcc0a052f8f1c90a1fbfb1942a21f0628af5d3a794d09d7a64"
   },
   "base_source": "d922601050546364560474a2e6d0388a34c2a974",
-  "executed_source": "2bf38bc9d8a501d2dd13a3233a0d3ae0e51185cc",
+  "executed_source": "9b3e0daebd30a4cf1c7197e40b1fbef386e1a2fd",
   "prior_recovery_source": "0a2db1f2af142273c59f29e754c12ae67b13b73a",
+  "runtime_drain_fix": "2bf38bc9d8a501d2dd13a3233a0d3ae0e51185cc",
   "source_files": {
     "backend/api/agent_routes.py": "f5c031767cd90defcf74e9cfdcd1230678c378f4615e3c75ac77643c3dde9a36",
     "backend/core/execution_ownership.py": "77c648ce0448e983c840953f89f3b13f1835c3d64afb4789e0a12b85d230dc19",
@@ -24,7 +25,7 @@
     "backend/tests/test_boot_recovery_not_gated_by_scheduler.py": "d53331f506d24d677bff2aa7ce7f1b44e09eafe58abe1ba8d8022be8552c0bd8",
     "backend/tests/test_generic_information_exact_event_contract.py": "afed948c3b3af40847b14ee201eb3fc2381170a70d487ed9f04f8bd11b9af155",
     "backend/tests/test_generic_information_resume_namespace_contract.py": "c898ac7c8a0295f423a908fceb1e9232830a960d0a452929a6898528db1accc4",
-    "backend/tests/test_generic_information_wait_recovery.py": "ac4e9fa89a5d6da7084e3849384f517b8773e9cade052c1e0974548676f5107e",
+    "backend/tests/test_generic_information_wait_recovery.py": "9d3608c0c86da817a7c5aeca141a0d6bf5ac8361a37f1504f791fd98ad25a67d",
     "backend/tests/test_hitl_resume.py": "b1fff7d57ac17d12345b47481faa9b991b23954346b64f5d0b54399043c267e0"
   }
 }
