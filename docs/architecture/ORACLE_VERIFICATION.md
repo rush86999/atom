@@ -1,6 +1,6 @@
 # ORACLE_VERIFICATION.md — Postcondition Oracle & Two-Tier Confidence (W2, P3)
 
-> **Status**: implemented (shadow-first). Master switch `ATOM_ORACLE_VERIFIER_ENABLED` (default **false**).
+> **Status**: implemented (shadow-first). Master switch `ATOM_ORACLE_VERIFIER_ENABLED` (default **true**).
 > **Scope**: W2 upgrade items P3a (oracle), P3b (verify-before-retry), P3c (two-tier confidence), P3d (fact versioning).
 
 ## TL;DR
@@ -30,6 +30,52 @@ Verifiers (system of record, NOT tool claim):
 |---|---|---|
 | `trigger_workflow` | workflow row exists + status active/running/enabled | `Workflow` |
 | `tasks.create` | Kanban task persists | `BoardTask` (`core.models_board`) |
+| `mini_app_set_tests` | `CanvasAudit` receipt + persisted manifest match the frozen tests digest, operation id, actor and scope | `MiniApp`, `CanvasAudit` |
+
+`mini_app_set_tests` writes its manifest with an exact-prior compare-and-swap
+(SQL NULL / JSON null / empty object / full object) and appends a `CanvasAudit`
+receipt (app id, tests digest, operation id, tenant, workspace, actor). It never
+overwrites a peer's logic/publish/config update; a zero-row CAS is a truthful
+`proven_not_applied` conflict with no audit row.
+
+### 1b. Registered-action consumer contract (shared registry)
+
+`backend/core/action_effects.py` is the single trusted vocabulary for
+`ActionDefinition.effects`. A registration declares durable mutations
+(`write/create/update/delete/send/execute`, goal/record families) and may add
+`"scope": "local"|"external"`. Business names and request headers never decide
+mutation; empty or unknown metadata stays visible as unqualified.
+
+`AssignmentExecutor`'s `action.registry` adapter enforces one rule: a declared
+mutation cannot return `applied` unless the oracle independently verified it.
+
+- The exact authorized arguments and operation id are deep-frozen **before**
+  dispatch; the handler gets a separate copy and cannot change what is
+  verified.
+- Missing verifier, `ATOM_ORACLE_VERIFIER_ENABLED=false`, a verifier returning
+  `None`, raising, or refuting an already-dispatched mutation yields
+  `uncertain` — never `applied`, never `failed`/`none` (which would invite a
+  resend). The operation receipt keeps the remote/provider identity and
+  `oracle_verified=False`; dependents stay blocked.
+- Applied mutations carry `oracle_verified=True` plus the verifier's evidence in
+  the operation execution and receipt.
+- Reads with no verifier keep their historical applied behavior.
+- `goals.decompose` (`plan_produced`) is plan-shape validation, not a durable
+  mutation; a plan effect mixed with an unknown effect is **not** exempted.
+
+The legacy `_LOCAL_MUTATING_ACTIONS` list remains as a compatibility guard
+alongside explicit registration metadata.
+
+Coverage is regenerated from the actual import surface (90 actions with
+`core.connected_actions`):
+
+```bash
+PYTHONPATH=backend python scripts/acceptance/oracle_mutation_surface_inventory.py \
+  --registry-only --out docs/acceptance/evidence/oracle_registry_coverage_20261107
+```
+
+The snapshot lists every uncovered declared mutation explicitly; it does not
+claim whole-app ORACLE completion.
 
 > **Deviation from plan**: the plan named `core/oracle/oracle_service.py`; the implementation lives in
 > `core/oracle/__init__.py` (single small module, avoids a one-function file). Verifier set is the
@@ -85,7 +131,7 @@ stronger-fact supersede, marks the old row's `commit_message`/`diff_summary` and
 
 | Env var | Default | Effect |
 |---|---|---|
-| `ATOM_ORACLE_VERIFIER_ENABLED` | `false` (shadow) | oracle checks computed; kill switch for verify-before-retry |
+| `ATOM_ORACLE_VERIFIER_ENABLED` | `true` | oracle checks computed; kill switch for verify-before-retry (assignment dispatch still fails closed to `uncertain`) |
 | `MATCH_CONFIDENCE_FORCE_PROPOSAL` | `false` (shadow) | gate routes non-credible levels to ProposalService when true |
 | `SELECTOR_CONFIDENCE_LLM_TIEBREAKER_ENABLED` | env | fires LLM tiebreak on PARTIAL (promotes to bridge) |
 

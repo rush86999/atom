@@ -361,6 +361,7 @@ def _context_workspace_id(context: Dict[str, Any]) -> Optional[str]:
                 "Semantic: finds docs about a concept even without exact word overlap. "
                 "Honors since/source/author filters. Returns ranked, VFS-citable results.",
     parameters_schema=_DOCUMENTS_SEARCH_SCHEMA,
+    effects=[{"effect": "read"}],
 )
 async def _documents_search(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     query = (args.get("query") or "").strip()
@@ -408,6 +409,7 @@ _SEARCH_COMMUNICATIONS_SCHEMA = {
                 "with hybrid vector+FTS search. Use for 'what did X say about Y' "
                 "questions. Results include app, timestamp, and content.",
     parameters_schema=_SEARCH_COMMUNICATIONS_SCHEMA,
+    effects=[{"effect": "read"}],
 )
 async def _search_communications(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     query = (args.get("query") or "").strip()
@@ -481,6 +483,7 @@ _RECALL_EPISODES_SCHEMA = {
                 "'have we handled this before' questions. Pass canvas_id for "
                 "canvas-aware recall (episodes from the same canvas are boosted).",
     parameters_schema=_RECALL_EPISODES_SCHEMA,
+    effects=[{"effect": "read"}],
 )
 async def _recall_episodes(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     task = (args.get("task") or "").strip()
@@ -608,6 +611,7 @@ async def _documents_search_legacy(args: Dict[str, Any], context: Dict[str, Any]
     "canvas.read",
     description="Read the current content/state of a canvas by ID.",
     parameters_schema=_CANVAS_READ_SCHEMA,
+    effects=[{"effect": "read"}],
 )
 async def _canvas_read(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     from tools.canvas_crud_tool import read_canvas
@@ -764,6 +768,7 @@ def _ensure_vfs_registered():
         "'knowledge/conversations'. Returns entries [{name, type, path}]."
     ),
     parameters_schema=_DOCUMENTS_LS_SCHEMA,
+    effects=[{"effect": "read"}],
 )
 async def _documents_ls(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     from core.knowledge_vfs_config import knowledge_vfs_enabled
@@ -788,6 +793,7 @@ async def _documents_ls(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[s
         "documents.ls or a path from documents.grep."
     ),
     parameters_schema=_DOCUMENTS_CAT_SCHEMA,
+    effects=[{"effect": "read"}],
 )
 async def _documents_cat(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     from core.knowledge_vfs_config import knowledge_vfs_enabled
@@ -814,6 +820,7 @@ async def _documents_cat(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[
         "exhaust your context. args: path, start_line (1-based), max_lines."
     ),
     parameters_schema=_DOCUMENTS_READ_SCHEMA,
+    effects=[{"effect": "read"}],
 )
 async def _documents_read(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     from core.knowledge_vfs_config import knowledge_vfs_enabled
@@ -846,6 +853,7 @@ async def _documents_read(args: Dict[str, Any], context: Dict[str, Any]) -> Dict
         "with documents.cat(path=path + '/content.lines')."
     ),
     parameters_schema=_DOCUMENTS_GREP_SCHEMA,
+    effects=[{"effect": "read"}],
 )
 async def _documents_grep(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     from core.knowledge_vfs_config import knowledge_vfs_enabled
@@ -866,6 +874,7 @@ async def _documents_grep(args: Dict[str, Any], context: Dict[str, Any]) -> Dict
     "documents.tree",
     description="Render a VFS directory as an indented tree (ls recursively, depth-limited).",
     parameters_schema=_DOCUMENTS_TREE_SCHEMA,
+    effects=[{"effect": "read"}],
 )
 async def _documents_tree(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     from core.knowledge_vfs_config import knowledge_vfs_enabled
@@ -904,6 +913,7 @@ async def _documents_tree(args: Dict[str, Any], context: Dict[str, Any]) -> Dict
     "documents.head",
     description="Read the first N lines of a VFS leaf (for skimming large documents).",
     parameters_schema=_DOCUMENTS_HEAD_TAIL_SCHEMA,
+    effects=[{"effect": "read"}],
 )
 async def _documents_head(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     from core.knowledge_vfs_config import knowledge_vfs_enabled
@@ -924,6 +934,7 @@ async def _documents_head(args: Dict[str, Any], context: Dict[str, Any]) -> Dict
     "documents.tail",
     description="Read the last N lines of a VFS leaf (for skimming large documents).",
     parameters_schema=_DOCUMENTS_HEAD_TAIL_SCHEMA,
+    effects=[{"effect": "read"}],
 )
 async def _documents_tail(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     from core.knowledge_vfs_config import knowledge_vfs_enabled
@@ -944,6 +955,7 @@ async def _documents_tail(args: Dict[str, Any], context: Dict[str, Any]) -> Dict
     "documents.scan",
     description="Recursively enumerate every file under a VFS directory (path + size).",
     parameters_schema=_DOCUMENTS_SCAN_SCHEMA,
+    effects=[{"effect": "read"}],
 )
 async def _documents_scan(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     from core.knowledge_vfs_config import knowledge_vfs_enabled
@@ -969,6 +981,7 @@ async def _documents_scan(args: Dict[str, Any], context: Dict[str, Any]) -> Dict
     "documents.map",
     description="Bounded fan-out over VFS leaf paths: apply one op (cat/head/grep) per item. Complexity 3 / SUPERVISED-gated at the dispatch layer.",
     parameters_schema=_DOCUMENTS_MAP_SCHEMA,
+    effects=[{"effect": "read"}],
 )
 async def _documents_map(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     from core.knowledge_vfs_config import knowledge_vfs_enabled
@@ -1014,6 +1027,7 @@ async def _documents_map(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[
     "documents.reduce",
     description="Aggregate a documents.map result list (count | concat | unique).",
     parameters_schema=_DOCUMENTS_REDUCE_SCHEMA,
+    effects=[{"effect": "read"}],
 )
 async def _documents_reduce(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     from core.knowledge_vfs_config import knowledge_vfs_enabled
@@ -1055,6 +1069,7 @@ async def _documents_reduce(args: Dict[str, Any], context: Dict[str, Any]) -> Di
     "documents.ask_image",
     description="Ask a vision-capable model about an image in the VFS (requires a provider with vision support).",
     parameters_schema=_DOCUMENTS_ASK_IMAGE_SCHEMA,
+    effects=[{"effect": "read"}],
 )
 async def _documents_ask_image(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     from core.knowledge_vfs_config import knowledge_vfs_enabled
@@ -1077,6 +1092,7 @@ async def _documents_ask_image(args: Dict[str, Any], context: Dict[str, Any]) ->
     "canvas.update",
     description="Update the content of an existing canvas.",
     parameters_schema=_CANVAS_UPDATE_SCHEMA,
+    effects=[{"effect": "update", "scope": "local"}],
 )
 async def _canvas_update(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     from tools.canvas_crud_tool import update_canvas_content
@@ -1106,6 +1122,7 @@ async def _canvas_update(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[
         "chart in text when this tool is available."
     ),
     parameters_schema=_CANVAS_PRESENT_CHART_SCHEMA,
+    effects=[{"effect": "write", "scope": "local"}],
 )
 async def _canvas_present_chart(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     from tools.canvas_tool import present_chart
@@ -1168,6 +1185,7 @@ async def _canvas_present_chart(args: Dict[str, Any], context: Dict[str, Any]) -
         "the canvas rather than for an inline chat reply."
     ),
     parameters_schema=_CANVAS_PRESENT_MARKDOWN_SCHEMA,
+    effects=[{"effect": "write", "scope": "local"}],
 )
 async def _canvas_present_markdown(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     from tools.canvas_tool import present_markdown
@@ -1204,6 +1222,7 @@ async def _canvas_present_markdown(args: Dict[str, Any], context: Dict[str, Any]
         "version before reverting — the newest entry is flagged is_current."
     ),
     parameters_schema=_CANVAS_LIST_VERSIONS_SCHEMA,
+    effects=[{"effect": "read"}],
 )
 async def _canvas_list_versions(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     from tools.canvas_crud_tool import list_canvas_versions
@@ -1231,6 +1250,7 @@ async def _canvas_list_versions(args: Dict[str, Any], context: Dict[str, Any]) -
         "mistaken revert is itself revertable."
     ),
     parameters_schema=_CANVAS_RESTORE_VERSION_SCHEMA,
+    effects=[{"effect": "update", "scope": "local"}],
 )
 async def _canvas_restore_version(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     from tools.canvas_crud_tool import restore_canvas_version
@@ -1249,6 +1269,7 @@ async def _canvas_restore_version(args: Dict[str, Any], context: Dict[str, Any])
     "tasks.create",
     description="Create a task (Kanban board item).",
     parameters_schema=_TASKS_CREATE_SCHEMA,
+    effects=[{"effect": "create", "scope": "local"}],
 )
 async def _tasks_create(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     title = (args.get("title") or "").strip()
@@ -1294,6 +1315,7 @@ async def _tasks_create(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[s
     "agents.list",
     description="List available registered agents.",
     parameters_schema=_AGENTS_LIST_SCHEMA,
+    effects=[{"effect": "read"}],
 )
 async def _agents_list(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     try:
@@ -1405,6 +1427,7 @@ _MINI_APP_CANVAS_ID_SCHEMA = {
     "mini_app_scaffold",
     description="Scaffold a stateful mini-app (draft): creates a source canvas + starter logic + manifest. Agent-driven authoring starts here.",
     parameters_schema=_MINI_APP_SCAFFOLD_SCHEMA,
+    effects=[{"effect": "create", "scope": "local"}],
 )
 async def _mini_app_scaffold(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     from tools.mini_app_tool import mini_app_scaffold
@@ -1416,6 +1439,7 @@ async def _mini_app_scaffold(args: Dict[str, Any], context: Dict[str, Any]) -> D
     "mini_app_write_logic",
     description="Save the mini-app's Python logic (syntax-gated) to its blueprint canvas. The agent authors code here.",
     parameters_schema=_MINI_APP_WRITE_LOGIC_SCHEMA,
+    effects=[{"effect": "update", "scope": "local"}],
 )
 async def _mini_app_write_logic(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     from tools.mini_app_tool import mini_app_write_logic
@@ -1427,6 +1451,7 @@ async def _mini_app_write_logic(args: Dict[str, Any], context: Dict[str, Any]) -
     "mini_app_dev_run",
     description="Dry-run the mini-app logic in the Firecracker microVM: returns resulting state + proposed storage ops without committing. Fail-closed when deps are unsafe or the per-app rootfs is not built.",
     parameters_schema=_MINI_APP_DEV_RUN_SCHEMA,
+    effects=[{"effect": "read"}],
 )
 async def _mini_app_dev_run(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     from tools.mini_app_tool import mini_app_dev_run
@@ -1438,6 +1463,7 @@ async def _mini_app_dev_run(args: Dict[str, Any], context: Dict[str, Any]) -> Di
     "mini_app_publish",
     description="Publish a mini-app: fail-closed dep scan + rootfs check, snapshots initial_state + blueprint (credentials stripped). Required before install.",
     parameters_schema=_MINI_APP_APP_ID_SCHEMA,
+    effects=[{"effect": "update", "scope": "local"}],
 )
 async def _mini_app_publish(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     from tools.mini_app_tool import mini_app_publish
@@ -1449,6 +1475,7 @@ async def _mini_app_publish(args: Dict[str, Any], context: Dict[str, Any]) -> Di
     "mini_app_install",
     description="Install a published mini-app: hydrates a fresh, immutable instance canvas (copy-on-install).",
     parameters_schema=_MINI_APP_APP_ID_SCHEMA,
+    effects=[{"effect": "create", "scope": "local"}],
 )
 async def _mini_app_install(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     from tools.mini_app_tool import mini_app_install
@@ -1460,6 +1487,7 @@ async def _mini_app_install(args: Dict[str, Any], context: Dict[str, Any]) -> Di
     "mini_app_run",
     description="Run an installed mini-app instance statefully: reads CanvasState, executes logic in a Firecracker microVM, persists new state + storage ops, broadcasts a canvas:update.",
     parameters_schema=_MINI_APP_RUN_SCHEMA,
+    effects=[{"effect": "update", "scope": "local"}],
 )
 async def _mini_app_run(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     from tools.mini_app_tool import mini_app_run
@@ -1471,6 +1499,7 @@ async def _mini_app_run(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[s
     "mini_app_list",
     description="List mini-apps the requesting user owns (or public ones).",
     parameters_schema={"type": "object", "properties": {}, "required": []},
+    effects=[{"effect": "read"}],
 )
 async def _mini_app_list(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     from tools.mini_app_tool import mini_app_list
@@ -1482,6 +1511,7 @@ async def _mini_app_list(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[
     "mini_app_get_state",
     description="Read the current state + version of a mini-app instance canvas.",
     parameters_schema=_MINI_APP_CANVAS_ID_SCHEMA,
+    effects=[{"effect": "read"}],
 )
 async def _mini_app_get_state(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     from tools.mini_app_tool import mini_app_get_state
@@ -1509,6 +1539,7 @@ _MINI_APP_DB_QUERY_SCHEMA = {
     "mini_app_db_query",
     description="Read structured records of a mini-app instance (query/count/get/list_series). INTERN+ tier. Owner-gated.",
     parameters_schema=_MINI_APP_DB_QUERY_SCHEMA,
+    effects=[{"effect": "read"}],
 )
 async def _mini_app_db_query(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     from tools.mini_app_tool import mini_app_db_query
@@ -1537,6 +1568,7 @@ _MINI_APP_DB_WRITE_SCHEMA = {
     "mini_app_db_write",
     description="Mutate structured records of a mini-app instance (append/update/update_many/delete/delete_series/clear). SUPERVISED+ tier. Owner-gated.",
     parameters_schema=_MINI_APP_DB_WRITE_SCHEMA,
+    effects=[{"effect": "write", "scope": "local"}],
 )
 async def _mini_app_db_write(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     from tools.mini_app_tool import mini_app_db_write
@@ -1591,6 +1623,7 @@ _MINI_APP_VERSION_SCHEMA = {
     "mini_app_set_tests",
     description="Declare acceptance-test cases for a mini-app (stored in its manifest). Each case is {name?, initial_state?, inputs?, expect_state?, expect_ops?} — the harness runs every case and grades expected vs actual state so the agent can self-correct.",
     parameters_schema=_MINI_APP_SET_TESTS_SCHEMA,
+    effects=[{"effect": "update", "scope": "local"}],
 )
 async def _mini_app_set_tests(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     from tools.mini_app_tool import mini_app_set_tests
@@ -1602,6 +1635,7 @@ async def _mini_app_set_tests(args: Dict[str, Any], context: Dict[str, Any]) -> 
     "mini_app_run_tests",
     description="Run a mini-app's acceptance tests in the Firecracker microVM (dry, no commit). Returns per-case pass/fail with expected-vs-actual state diffs and a pass count — the generator-evaluator feedback loop for agent self-correction.",
     parameters_schema=_MINI_APP_APP_ID_SCHEMA,
+    effects=[{"effect": "read"}],
 )
 async def _mini_app_run_tests(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     from tools.mini_app_tool import mini_app_run_tests
@@ -1613,6 +1647,7 @@ async def _mini_app_run_tests(args: Dict[str, Any], context: Dict[str, Any]) -> 
     "mini_app_logic_history",
     description="List a mini-app's logic checkpoints (oldest → newest). Every write_logic records a versioned snapshot; the agent can revert to a known-good version on failure.",
     parameters_schema=_MINI_APP_APP_ID_SCHEMA,
+    effects=[{"effect": "read"}],
 )
 async def _mini_app_logic_history(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     from tools.mini_app_tool import mini_app_logic_history
@@ -1624,6 +1659,7 @@ async def _mini_app_logic_history(args: Dict[str, Any], context: Dict[str, Any])
     "mini_app_revert_logic",
     description="Revert a mini-app's logic to a previously checkpointed version (clean-state recovery when a run/test fails).",
     parameters_schema=_MINI_APP_VERSION_SCHEMA,
+    effects=[{"effect": "update", "scope": "local"}],
 )
 async def _mini_app_revert_logic(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     from tools.mini_app_tool import mini_app_revert_logic
@@ -1635,6 +1671,7 @@ async def _mini_app_revert_logic(args: Dict[str, Any], context: Dict[str, Any]) 
     "mini_app_status",
     description="Probe a mini-app's authoring constraints before iterating: logic syntax validity, effective scopes (viewer tier ∩ declared), dependency-scan state, per-app rootfs presence, and Firecracker runtime availability.",
     parameters_schema=_MINI_APP_APP_ID_SCHEMA,
+    effects=[{"effect": "read"}],
 )
 async def _mini_app_status(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     from tools.mini_app_tool import mini_app_status
@@ -1688,6 +1725,7 @@ _MINI_APP_DB_WRITE_SCHEMA = {
     "mini_app_db_query",
     description="Read structured records of a mini-app instance (query/count/get/list_series). Owner-gated; INTERN+ tier floor. Same op vocabulary as the app's own record_ops.",
     parameters_schema=_MINI_APP_DB_QUERY_SCHEMA,
+    effects=[{"effect": "read"}],
 )
 async def _mini_app_db_query(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     from tools.mini_app_tool import mini_app_db_query
@@ -1699,6 +1737,7 @@ async def _mini_app_db_query(args: Dict[str, Any], context: Dict[str, Any]) -> D
     "mini_app_db_write",
     description="Mutate structured records of a mini-app instance (append/update/update_many/delete/delete_series/clear). Owner-gated; SUPERVISED+ tier floor.",
     parameters_schema=_MINI_APP_DB_WRITE_SCHEMA,
+    effects=[{"effect": "write", "scope": "local"}],
 )
 async def _mini_app_db_write(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     from tools.mini_app_tool import mini_app_db_write
@@ -1805,6 +1844,7 @@ def _resolve_shopify_store(context: Dict[str, Any]) -> tuple:
     "shopify_create_product",
     description="Create a product listing on the connected Shopify store (title, description, variants, images, tags).",
     parameters_schema=_SHOPIFY_PRODUCT_CREATE_SCHEMA,
+    effects=[{"effect": "create", "scope": "external"}],
 )
 async def _shopify_create_product(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     token, shop = _resolve_shopify_store(context)
@@ -1819,6 +1859,7 @@ async def _shopify_create_product(args: Dict[str, Any], context: Dict[str, Any])
     "shopify_list_blogs",
     description="List blogs on the connected Shopify store.",
     parameters_schema=_SHOPIFY_BLOGS_LIST_SCHEMA,
+    effects=[{"effect": "read"}],
 )
 async def _shopify_list_blogs(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     token, shop = _resolve_shopify_store(context)
@@ -1833,6 +1874,7 @@ async def _shopify_list_blogs(args: Dict[str, Any], context: Dict[str, Any]) -> 
     "shopify_create_blog",
     description="Create a blog on the connected Shopify store to host articles/posts.",
     parameters_schema=_SHOPIFY_BLOG_CREATE_SCHEMA,
+    effects=[{"effect": "create", "scope": "external"}],
 )
 async def _shopify_create_blog(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     token, shop = _resolve_shopify_store(context)
@@ -1847,6 +1889,7 @@ async def _shopify_create_blog(args: Dict[str, Any], context: Dict[str, Any]) ->
     "shopify_create_article",
     description="Create/publish a blog article (post) on the connected Shopify store.",
     parameters_schema=_SHOPIFY_ARTICLE_CREATE_SCHEMA,
+    effects=[{"effect": "create", "scope": "external"}],
 )
 async def _shopify_create_article(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     token, shop = _resolve_shopify_store(context)
@@ -1887,6 +1930,7 @@ async def _shopify_get_fulfillments(args: Dict[str, Any], context: Dict[str, Any
                 "fulfillment orders, optionally with tracking. Shopify derives the "
                 "ship-from location from the order's fulfillment orders.",
     parameters_schema=_SHOPIFY_FULFILLMENT_CREATE_SCHEMA,
+    effects=[{"effect": "create", "scope": "external"}],
 )
 async def _shopify_create_fulfillment(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     token, shop = _resolve_shopify_store(context)
@@ -1981,7 +2025,8 @@ _GOAL_CREATE_SCHEMA = {
                 "Use together with goals.evaluate; the goal_id can be passed as "
                 "context.goal_id to make an agent run terminate when the goal is met.",
     parameters_schema=_GOAL_CREATE_SCHEMA,
-    effects=[{"effect": "goal_created", "goal_id": "$args.title"}],
+    effects=[{"effect": "goal_created", "goal_id": "$args.title",
+              "scope": "local"}],
 )
 async def _goals_create(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     from core.goals.goal_service import GoalService
@@ -2015,7 +2060,8 @@ async def _goals_create(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[s
         "properties": {"goal_id": {"type": "string"}},
         "required": ["goal_id"],
     },
-    effects=[{"effect": "goal_evaluated", "goal_id": "$args.goal_id"}],
+    effects=[{"effect": "goal_evaluated", "goal_id": "$args.goal_id",
+              "scope": "local"}],
 )
 async def _goals_evaluate(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     from core.goals.goal_service import GoalService
@@ -2149,7 +2195,7 @@ def _goal_run_summary(run: Dict[str, Any], detail: bool = False) -> Dict[str, An
                 "Follow progress with goal_runs.list.",
     parameters_schema=_GOAL_RUN_START_SCHEMA,
     effects=[{"effect": "goal_run_started", "goal_id": "$args.goal_id",
-              "agent_id": "$args.agent_id"}],
+              "agent_id": "$args.agent_id", "scope": "local"}],
 )
 async def _goal_runs_start(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     from core.database import get_db_session

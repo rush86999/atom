@@ -28,6 +28,7 @@ from core.assignment_plan import (
     new_teaching_snapshot,
     validate_assignment,
 )
+from core.action_effects import MUTATING_EFFECTS
 from core.task_lifecycle import TaskLifecycleError
 
 _DELIVERABLE_ADAPTERS = {
@@ -47,10 +48,7 @@ _SOURCE_ADAPTERS = {
     "document": "document.read",
 }
 
-_MUTATING_ACTION_EFFECTS = {
-    "write", "create", "update", "delete", "send", "execute",
-    "graph_updated", "record_created",
-}
+_MUTATING_ACTION_EFFECTS = MUTATING_EFFECTS
 
 
 def _registered_action_effect(action: Any) -> str:

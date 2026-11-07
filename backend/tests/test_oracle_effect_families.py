@@ -44,10 +44,11 @@ def _canvas(db, *, content=None):
     return canvas
 
 
-def _audit(db, canvas, *, action_type="update", details=None):
+def _audit(db, canvas, *, action_type="update", details=None, user_id=None):
     row = CanvasAudit(
         id=str(uuid.uuid4()), canvas_id=canvas.id, tenant_id="tenant-1",
         action_type=action_type, canvas_type=canvas.canvas_type,
+        user_id=user_id,
         details_json=details or {},
     )
     db.add(row)
@@ -332,7 +333,7 @@ def test_adapter_uses_shared_canvas_update_postcondition(db, monkeypatch):
     audit = _audit(db, canvas, details={
         "content": content, "operation_id": "op-adapter-canvas",
         "review_status": "accepted",
-    })
+    }, user_id="user-1")
     action = action_registry.get_action("canvas.update")
 
     async def handler(args, context):

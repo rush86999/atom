@@ -263,6 +263,110 @@ for _action in (
     register_postcondition(_action)(_connected_postcondition(_action))
 
 
+@register_postcondition("mini_app_set_tests")
+async def _verify_mini_app_set_tests(ctx: Dict[str, Any]) -> OracleResult:
+    """Independent readback for a mini-app manifest write.
+
+    The handler appends a CanvasAudit row with the exact tests digest and the
+    executor-owned operation id. This verifier requires BOTH that receipt and
+    the persisted manifest to match the frozen authorized request, so neither
+    an old identical row nor the handler's own success flag can certify a new
+    operation.
+    """
+    action = "mini_app_set_tests"
+    app_id = str(
+        ctx.get("_oracle_expected_app_id") or ctx.get("app_id") or "").strip()
+    expected_tests = ctx.get("_oracle_expected_tests")
+    if expected_tests is None:
+        expected_tests = ctx.get("tests")
+    expected_operation = str(
+        ctx.get("_oracle_expected_operation_id") or "").strip()
+    audit_id = str(ctx.get("audit_id") or "").strip()
+    if not app_id:
+        return OracleResult(action, False, "missing app_id")
+    if not isinstance(expected_tests, list):
+        return OracleResult(
+            action, False, "no frozen acceptance-test request")
+    if not expected_operation:
+        return OracleResult(
+            action, False, "no frozen operation identity")
+    if not audit_id:
+        return OracleResult(
+            action, False, "no audit receipt from this invocation")
+    try:
+        from core.task_lifecycle import _approval_payload_hash
+
+        expected_digest = str(
+            ctx.get("_oracle_expected_tests_sha256") or ""
+        ) or _approval_payload_hash(expected_tests)
+    except Exception as exc:  # noqa: BLE001 - unreadable is not verified
+        return OracleResult(
+            action, False, f"test request digest unavailable: {exc}")
+
+    def _read(session):
+        from core.models import CanvasAudit, MiniApp
+
+        app = session.query(MiniApp).filter(MiniApp.id == app_id).first()
+        audit = None
+        if app is not None and app.blueprint_canvas_id:
+            audit = (
+                session.query(CanvasAudit)
+                .filter(CanvasAudit.id == audit_id,
+                        CanvasAudit.canvas_id == app.blueprint_canvas_id)
+                .first()
+            )
+        return app, audit
+
+    try:
+        app, audit = _read_with_db(ctx, _read)
+        if app is None:
+            return OracleResult(
+                action, False, f"MiniApp {app_id} absent in DB")
+        if audit is None:
+            return OracleResult(
+                action, False,
+                f"audit receipt {audit_id[:12]} absent for this app")
+        details = audit.details_json or {}
+        if isinstance(details, str):
+            details = json.loads(details)
+        details = details if isinstance(details, dict) else {}
+        manifest = app.manifest or {}
+        reasons = []
+        if str(audit.action_type or "") != action:
+            reasons.append(f"audit action_type={audit.action_type!r}")
+        if str(details.get("app_id") or "") != app_id:
+            reasons.append("audit app_id does not match the request")
+        if str(details.get("tests_sha256") or "") != expected_digest:
+            reasons.append("audit tests digest does not match the request")
+        if str(details.get("operation_id") or "") != expected_operation:
+            reasons.append("audit operation id does not match this operation")
+        if manifest.get("tests") != expected_tests:
+            reasons.append("persisted manifest tests do not match the request")
+        expected_tenant = str(
+            ctx.get("_oracle_expected_tenant_id") or "")
+        expected_workspace = str(
+            ctx.get("_oracle_expected_workspace_id") or "")
+        expected_actor = str(ctx.get("_oracle_expected_actor_id") or "")
+        if expected_tenant and str(
+                details.get("tenant_id") or app.tenant_id or "") != expected_tenant:
+            reasons.append("audit tenant does not match the request")
+        if expected_workspace and str(
+                details.get("workspace_id") or app.workspace_id or ""
+        ) != expected_workspace:
+            reasons.append("audit workspace does not match the request")
+        if expected_actor and str(
+                details.get("actor_id") or audit.user_id or "") != expected_actor:
+            reasons.append("audit actor does not match the request")
+        return OracleResult(
+            action, not reasons,
+            f"MiniApp {app_id} manifest tests={len(manifest.get('tests') or [])} "
+            f"audit={audit_id[:12]} operation={expected_operation[:12]}"
+            + ("" if not reasons else "; " + "; ".join(reasons)))
+    except Exception as e:  # noqa: BLE001 - unreadable is not verified
+        return OracleResult(
+            action, False, f"mini-app read-back failed: {e}")
+
+
 @register_postcondition("tasks.create")
 async def _verify_task_created(ctx: Dict[str, Any]) -> OracleResult:
     """A created task must persist to the DB (not just be returned by the tool)."""

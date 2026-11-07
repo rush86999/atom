@@ -19,20 +19,22 @@ import argparse
 import ast
 import json
 import subprocess
-from collections import Counter, defaultdict
+from collections import Counter
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any, Dict, Iterable, List, Tuple
+from typing import Any, Dict, Iterable, List
+
+from core.action_effects import (
+    declares_mutation,
+    declares_plan_output,
+    declares_read_only,
+    effect_entries,
+)
 
 EXTERNAL_EFFECTS = {
     "create", "update", "delete", "write", "send", "execute",
 }
-PLAN_OUTPUT_EFFECTS = {"plan_produced"}
 PLAN_OUTPUT_ACTIONS = {"goals.decompose"}
-LOCAL_EFFECTS = {
-    "goal_created", "goal_run_started", "goal_evaluated",
-    "record_created", "graph_updated", "record_updated", "record_deleted",
-}
 LOCAL_MUTATING_ACTIONS = {
     "canvas.present_chart", "canvas.present_markdown", "canvas.restore_version",
     "canvas.update", "tasks.create",
@@ -74,19 +76,33 @@ def _registered_actions() -> Dict[str, Any]:
     rows = []
     for name in sorted(action_registry.list_actions()):
         action = action_registry.get_action(name)
-        kinds = _kinds(getattr(action, "effects", None) or [])
+        effects = effect_entries(getattr(action, "effects", None) or [])
+        kinds = _kinds(effects)
         lower = {kind.lower() for kind in kinds}
-        if lower & EXTERNAL_EFFECTS:
-            classification = "external_mutation"
-        elif lower & PLAN_OUTPUT_EFFECTS or name in PLAN_OUTPUT_ACTIONS:
+        scopes = {
+            str(item.get("scope") or "").strip().lower()
+            for item in effects
+            if isinstance(item, dict)
+        }
+        if declares_mutation(effects):
+            if "local" in scopes:
+                classification = "local_mutation"
+            elif "external" in scopes or lower & EXTERNAL_EFFECTS:
+                classification = "external_mutation"
+            else:
+                classification = "mutation_unscoped"
+        elif declares_plan_output(effects) or name in PLAN_OUTPUT_ACTIONS:
             classification = "plan_output_validation"
-        elif lower & LOCAL_EFFECTS or name in LOCAL_MUTATING_ACTIONS:
+        elif declares_read_only(effects):
+            classification = "read_only"
+        elif name in LOCAL_MUTATING_ACTIONS:
             classification = "local_mutation"
         else:
-            classification = "read_or_other"
+            classification = "undeclared"
         rows.append({
             "action": name,
             "effects": kinds,
+            "scopes": sorted(scopes - {""}),
             "classification": classification,
             "verifier_registered": name in _VERIFIERS,
             "description": (getattr(action, "description", "") or "")[:180],
@@ -184,49 +200,74 @@ def main() -> int:
     parser.add_argument("--repo", default=".")
     parser.add_argument("--source", default="",
                         help="code source to record (defaults to HEAD)")
+    parser.add_argument(
+        "--registry-only", action="store_true",
+        help="emit only the registered-action / verifier matrix")
     args = parser.parse_args()
     repo = Path(args.repo).resolve()
     out = Path(args.out).resolve()
     out.mkdir(parents=True, exist_ok=True)
 
     registered = _registered_actions()
-    routes = _route_scan([
+    routes = [] if args.registry_only else _route_scan([
         repo / "backend/api",
         repo / "backend/integrations",
     ])
-    writes = _provider_writes([repo / "backend/integrations"])
+    writes = [] if args.registry_only else _provider_writes([
+        repo / "backend/integrations"])
     high_risk = _high_risk(routes)
 
     external = [row for row in registered["actions"]
                 if row["classification"] == "external_mutation"]
     local = [row for row in registered["actions"]
              if row["classification"] == "local_mutation"]
+    mutation_unscoped = [row for row in registered["actions"]
+                         if row["classification"] == "mutation_unscoped"]
     plan_output = [row for row in registered["actions"]
                    if row["classification"] == "plan_output_validation"]
+    read_only = [row for row in registered["actions"]
+                 if row["classification"] == "read_only"]
+    undeclared = [row for row in registered["actions"]
+                  if row["classification"] == "undeclared"]
+    mutating = external + local + mutation_unscoped
     external_covered = [row for row in external if row["verifier_registered"]]
     local_covered = [row for row in local if row["verifier_registered"]]
+    mutation_unscoped_covered = [
+        row for row in mutation_unscoped if row["verifier_registered"]]
     plan_output_covered = [
         row for row in plan_output if row["verifier_registered"]]
+    mutating_uncovered = [
+        row["action"] for row in mutating if not row["verifier_registered"]]
 
     payload = {
-        "schema": "atom-oracle-whole-app-mutation-surface-1",
+        "schema": "atom-oracle-mutation-surface-2",
         "generated_at": datetime.now(timezone.utc).isoformat(),
         "source": args.source.strip() or _source(),
+        "registry_only": bool(args.registry_only),
+        "lazy_registration_modules": [
+            "core.agent_radio.radio_actions",
+            "core.bpe.actions",
+        ],
         "scope": (
-            "Static inventory of registered action classes, mutating HTTP "
-            "routes and provider-adapter write methods. It is not a "
-            "qualification run and does not prove every route is reachable or "
-            "externally effectful."),
+            "Source-bound inventory of registered action effect declarations "
+            "and independent postcondition verifiers. It is not a "
+            "qualification run; uncovered declarations remain explicit."),
         "registered_actions": {
             "total": registered["total"],
             "external_mutation": external,
             "local_mutation": local,
+            "mutation_unscoped": mutation_unscoped,
             "plan_output_validation": plan_output,
-            "read_or_other_count": sum(
-                1 for row in registered["actions"]
-                if row["classification"] == "read_or_other"),
+            "read_only": read_only,
+            "undeclared": undeclared,
+            "read_or_other_count": len(read_only),
         },
         "coverage": {
+            "mutating_total": len(mutating),
+            "mutating_covered": sum(
+                1 for row in mutating if row["verifier_registered"]),
+            "mutating_without_verifier": mutating_uncovered,
+            "undeclared_actions": [row["action"] for row in undeclared],
             "external_mutation_total": len(external),
             "external_mutation_covered": len(external_covered),
             "external_mutation_uncovered": [
@@ -237,6 +278,8 @@ def main() -> int:
             "local_mutation_uncovered": [
                 row["action"] for row in local
                 if not row["verifier_registered"]],
+            "mutation_unscoped_total": len(mutation_unscoped),
+            "mutation_unscoped_covered": len(mutation_unscoped_covered),
             "plan_output_total": len(plan_output),
             "plan_output_covered": len(plan_output_covered),
             "plan_output_note": (
@@ -244,89 +287,109 @@ def main() -> int:
                 "does not prove a persisted execution or mutation."),
             "oracle_verifiers": registered["verifiers"],
         },
-        "http_mutation_routes": {
-            "total": len(routes),
-            "high_risk_total": len(high_risk),
-            "by_method": dict(Counter(row["method"] for row in routes)),
-            "by_file": _by_file(routes),
-            "high_risk_sample": high_risk[:80],
-        },
-        "provider_write_methods": {
-            "total": len(writes),
-            "by_file": _by_file(writes),
-            "sample": writes[:80],
-        },
+        "http_mutation_routes": (
+            {"skipped": True} if args.registry_only else {
+                "total": len(routes),
+                "high_risk_total": len(high_risk),
+                "by_method": dict(Counter(row["method"] for row in routes)),
+                "by_file": _by_file(routes),
+                "high_risk_sample": high_risk[:80],
+            }),
+        "provider_write_methods": (
+            {"skipped": True} if args.registry_only else {
+                "total": len(writes),
+                "by_file": _by_file(writes),
+                "sample": writes[:80],
+            }),
         "gaps": [
-            "External provider mutations are limited to six connected "
-            "estimate/bill/draft action names; no other provider write action "
-            "is registered or oracle-covered.",
-            "All eight registered local durable-state mutation classes now "
-            "have shared effect-family postconditions. goals.decompose is "
-            "classified separately as structural plan-output validation, not "
-            "persisted execution proof.",
-            "HTTP mutation routes are overwhelmingly outside the registered "
-            "action registry; their correctness is covered, if at all, by "
-            "route/service tests rather than the oracle.",
-            "Provider adapters expose many write methods; only a small subset "
-            "is reachable through registered, verified actions.",
+            "Declared mutations without an independent verifier are never "
+            "certified applied: the shared adapter downgrades an already "
+            "dispatched effect to uncertain and preserves its identity.",
+            "The uncovered names above remain explicit; add a verifier or "
+            "keep them out of mutating assignment dispatch.",
+            "HTTP mutation routes remain outside the registered action "
+            "registry; this slice does not qualify them.",
         ],
         "next_verifiers": [
-            "Map the 827 mutation-shaped HTTP declarations to actually "
-            "reachable write consumers; group them by effect family instead "
-            "of adding a bespoke checker per route.",
-            "Provider send/connect/disconnect/refresh routes: require explicit "
-            "operation identity and authoritative readback before claiming "
-            "success.",
+            "Add independent readback verifiers for the remaining local "
+            "mini-app mutations or keep them out of mutating assignment "
+            "dispatch.",
+            "Provider mutations (Shopify) need authoritative readback before "
+            "they can be applied through the assignment path.",
             "Plan-output validation remains structural; add persistence "
-            "postconditions only where the action actually persists a plan "
-            "or evaluation.",
+            "postconditions only where an action actually persists state.",
         ],
     }
     (out / "inventory.json").write_text(
         json.dumps(payload, indent=2, sort_keys=True) + "\n")
 
     lines = [
-        "# Whole-app ORACLE mutation-surface inventory",
+        "# Registered-action ORACLE coverage",
         "",
         f"Source: `{payload['source']}`",
         "",
-        "This is a static matrix, not a qualification run. It records where "
-        "mutations exist and where an independent postcondition verifier is "
-        "registered.",
+        "This is a source-bound registry/verifier matrix, not a qualification "
+        "run. It records the trusted effect declaration of every registered "
+        "action and whether an independent postcondition verifier exists.",
         "",
         "## Registered actions",
         "",
         f"- Total registered actions: **{registered['total']}**",
-        f"- External/provider mutation actions: **{len(external)}** "
+        f"- Declared mutating actions: **{len(mutating)}** "
+        f"({payload['coverage']['mutating_covered']} covered, "
+        f"{len(mutating_uncovered)} uncovered)",
+        f"  - external/provider mutations: **{len(external)}** "
         f"({len(external_covered)} covered)",
-        f"- Local durable-state mutation actions: **{len(local)}** "
+        f"  - local durable-state mutations: **{len(local)}** "
         f"({len(local_covered)} covered)",
+        f"  - unscoped mutations: **{len(mutation_unscoped)}** "
+        f"({len(mutation_unscoped_covered)} covered)",
         f"- Plan-output validators: **{len(plan_output)}** "
         f"({len(plan_output_covered)} covered; structural, not persisted "
         "execution proof)",
-        f"- Read/other actions: **{payload['registered_actions']['read_or_other_count']}**",
+        f"- Explicit read-only actions: **{len(read_only)}**",
+        f"- Undeclared actions: **{len(undeclared)}**",
         "",
-        "## HTTP and provider surfaces",
-        "",
-        f"- Mutating HTTP routes (POST/PUT/PATCH/DELETE) under `api/` and "
-        f"`integrations/`: **{len(routes)}**",
-        f"- High-risk route names/paths: **{len(high_risk)}**",
-        f"- Provider-adapter write methods: **{len(writes)}**",
-        "",
-        "## Covered external mutations",
-        "",
+        "The 90-action surface matches `core.action_registry` + "
+        "`core.connected_actions` (the baseline import). Lazy modules "
+        "`core.agent_radio.radio_actions` and `core.bpe.actions` also declare "
+        "effects but are registered only when their surfaces load; their "
+        "mutations remain unverified and follow the same uncertain-after-"
+        "dispatch rule.",
     ]
-    lines += [f"- `{row['action']}`" for row in external_covered] or ["- none"]
+    if not args.registry_only:
+        lines += [
+            "",
+            "## HTTP and provider surfaces",
+            "",
+            f"- Mutating HTTP routes (POST/PUT/PATCH/DELETE) under `api/` and "
+            f"`integrations/`: **{len(routes)}**",
+            f"- High-risk route names/paths: **{len(high_risk)}**",
+            f"- Provider-adapter write methods: **{len(writes)}**",
+        ]
     lines += [
         "",
-        "## Uncovered registered mutations",
+        "## Covered mutations",
         "",
     ]
-    uncovered = (external_covered and [
-        row["action"] for row in external if not row["verifier_registered"]]
-        or []) + [row["action"] for row in local
-                  if not row["verifier_registered"]]
-    lines += [f"- `{name}`" for name in uncovered] or ["- none"]
+    lines += [
+        f"- `{row['action']}`"
+        for row in external_covered + local_covered
+        + mutation_unscoped_covered
+    ] or ["- none"]
+    lines += [
+        "",
+        "## Uncovered declared mutations",
+        "",
+    ]
+    lines += [f"- `{name}`" for name in mutating_uncovered] or ["- none"]
+    if undeclared:
+        lines += [
+            "",
+            "## Undeclared actions (metadata drift; must be classified)",
+            "",
+        ]
+        lines += [f"- `{row['action']}`" for row in undeclared]
     lines += [
         "",
         "## Highest-priority next verifiers",
@@ -337,21 +400,26 @@ def main() -> int:
         "",
         "## Boundary",
         "",
-        "This inventory does not close ORACLE-01's whole-app promise. It "
-        "shows why the six connected action classes cannot be treated as "
-        "every mutation surface: hundreds of HTTP mutation routes and many "
-        "provider write methods sit outside that registry.",
+        "This inventory does not close a whole-app ORACLE promise. It makes "
+        "the remaining uncovered registered mutations explicit and keeps "
+        "plan-output validation separate from persisted execution proof.",
         "",
     ]
     (out / "README.md").write_text("\n".join(lines))
     print(json.dumps({
         "registered": registered["total"],
+        "mutating": len(mutating),
+        "mutating_covered": payload["coverage"]["mutating_covered"],
+        "mutating_without_verifier": mutating_uncovered,
         "external_mutation": len(external),
         "external_covered": len(external_covered),
         "local_mutation": len(local),
         "local_covered": len(local_covered),
+        "mutation_unscoped": len(mutation_unscoped),
         "plan_output": len(plan_output),
         "plan_output_covered": len(plan_output_covered),
+        "read_only": len(read_only),
+        "undeclared": [row["action"] for row in undeclared],
         "http_mutation_routes": len(routes),
         "high_risk_routes": len(high_risk),
         "provider_write_methods": len(writes),

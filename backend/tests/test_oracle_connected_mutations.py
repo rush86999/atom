@@ -26,8 +26,11 @@ def _mutating_actions():
 
 
 def test_every_connected_mutating_action_has_a_postcondition_verifier():
-    mutating = _mutating_actions()
-    assert mutating, "no mutating actions registered"
+    mutating = [
+        name for name in _mutating_actions()
+        if name.startswith(("connected.", "brennan."))
+    ]
+    assert mutating, "no connected mutating actions registered"
     missing = [name for name in mutating if name not in _VERIFIERS]
     assert missing == [], missing
 

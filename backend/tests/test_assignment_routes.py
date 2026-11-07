@@ -2469,6 +2469,21 @@ def test_quote_controlled_commercial_update_duplicate_and_uncertain(
         description="Controlled commercial record update",
         effects=[{"effect": "record_created", "object": "deal"}])
 
+    async def verify_update(ctx):
+        from core.oracle import OracleResult
+
+        return OracleResult(
+            action_name,
+            ctx.get("status") == "applied"
+            and ctx.get("record_id") == "deal-1"
+            and (ctx.get("readback") or {}).get("version") == "v2",
+            "controlled readback version v2 for deal-1",
+        )
+
+    from core.oracle import register_postcondition
+
+    register_postcondition(action_name)(verify_update)
+
     agent_id = _teaching_agent(
         route_env, "Commercial quote employee", "Arial", "quote-reviewer")
     _quote_lesson(route_env, agent_id, "0.05", "5% category B")

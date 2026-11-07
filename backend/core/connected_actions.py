@@ -1030,7 +1030,7 @@ async def books_get_bill(args: Dict[str, Any], context: Dict[str, Any]):
                                       "operation_id": {"type": "string"},
                                       "payload_sha256": {"type": "string"}},
                        "required": ["to", "subject", "body", "operation_id"]},
-    effects=[{"effect": "create"}],
+    effects=[{"effect": "create", "scope": "external"}],
 )
 @_serialized_effect(_draft_effect_key)
 async def outlook_create_draft(args: Dict[str, Any], context: Dict[str, Any]):
@@ -1415,7 +1415,7 @@ async def books_propose_bill(args: Dict[str, Any], context: Dict[str, Any]):
                                       "closed_through": {"type": "string"}},
                        "required": ["proposal", "authority_reference",
                                     "operation_id"]},
-    effects=[{"effect": "create"}],
+    effects=[{"effect": "create", "scope": "external"}],
 )
 @_serialized_effect(_bill_effect_key)
 async def books_create_bill(args: Dict[str, Any], context: Dict[str, Any]):
@@ -1680,7 +1680,7 @@ async def books_create_bill(args: Dict[str, Any], context: Dict[str, Any]):
                                       "artifact_version": {"type": "string"}},
                        "required": ["organization_id", "estimate_data",
                                     "authority_reference", "operation_id"]},
-    effects=[{"effect": "create"}],
+    effects=[{"effect": "create", "scope": "external"}],
 )
 @_serialized_effect(_estimate_effect_key)
 async def books_create_estimate(args: Dict[str, Any], context: Dict[str, Any]):

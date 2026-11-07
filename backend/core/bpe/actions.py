@@ -91,6 +91,7 @@ _COMMON_SCHEMA = {
         },
         "required": [],
     },
+    effects=[{"effect": "read"}],
 )
 async def _bpe_track(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     ws, _scope = _resolve_workspace(context)
@@ -111,6 +112,7 @@ async def _bpe_track(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str,
         },
         "required": ["title"],
     },
+    effects=[{"effect": "update", "scope": "local"}],
 )
 async def _bpe_commit(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     ws, _scope = _resolve_workspace(context)
@@ -130,6 +132,7 @@ async def _bpe_commit(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str
         },
         "required": ["query"],
     },
+    effects=[{"effect": "read"}],
 )
 async def _bpe_recall(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     ws, _scope = _resolve_workspace(context)
@@ -148,6 +151,7 @@ async def _bpe_recall(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str
         },
         "required": ["content"],
     },
+    effects=[{"effect": "create", "scope": "local"}],
 )
 async def _bpe_note(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
     ws, _scope = _resolve_workspace(context)
