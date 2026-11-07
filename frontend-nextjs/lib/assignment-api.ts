@@ -301,7 +301,9 @@ export async function addAssignmentSource(
   const { data } = await apiClient.post(
     `/api/assignments/${encodeURIComponent(runId)}/sources`,
     { source, reason },
-    { timeout: 120000, retry: false },
+    // A targeted answer now includes the bounded server-side continuation
+    // (up to 180s), just like advance. Never retry a timed-out mutation.
+    { timeout: 300000, retry: false },
   );
   return data;
 }
