@@ -1455,7 +1455,10 @@ def _run_scenario(args: argparse.Namespace) -> int:
         })
 
         build = _build_world(world, source.get("head") or "")
-        stack["world_build"] = build
+        stack["world_build"] = {
+            key: value for key, value in build.items()
+            if key not in ("code_manifest", "export_tree")
+        }
         step("world_built_once", {
             "manifest_present": Path(build["manifest_path"]).is_file(),
             "fixture_present": Path(build["fixture_path"]).is_file(),
