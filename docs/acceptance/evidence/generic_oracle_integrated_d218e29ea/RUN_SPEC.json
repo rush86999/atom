@@ -1,0 +1,25 @@
+{
+  "executed_source": "d218e29ea3475244bae7d6b7f5263fa767c11b04",
+  "repair_source": "ec9dede00",
+  "accepted_main": "e3e9d8f6c",
+  "integration_predecessor": "6a57ff4ef",
+  "command": "TESTING=1 DATABASE_URL=sqlite:////private/tmp/root-generic-final-import.db PYTHONPATH=. /Users/rushiparikh/projects/atom/backend/venv314/bin/python -m pytest tests/test_oracle_registry_verification_gap.py tests/test_oracle_effect_families.py tests/test_oracle_connected_mutations.py tests/test_assignment_executor.py tests/test_generic_oracle_mutation_contract.py tests/test_generic_normal_retry_identity.py tests/integration/journeys/test_oracle_registry_mutation_journey.py /private/tmp/test_lead_generic_draft_boundaries.py /private/tmp/test_lead_generic_normal_identity.py /private/tmp/test_lead_generic_reload_unavailable.py /private/tmp/test_lead_generic_two_normal_writes.py -q --basetemp=/private/tmp/root-generic-integrated-final-new",
+  "cwd": "/private/tmp/atom-generic-lead-combine/backend",
+  "python": "project venv Python 3.14",
+  "result": {
+    "passed": 228,
+    "failed": 0,
+    "seconds": 40.72
+  },
+  "tracked_runtime_clean_at_run": true,
+  "external_probe_files": "Copies in probes/ were retained after execution; they were not tracked runtime files at d218e29ea. The changed-retry regression was tracked before execution.",
+  "worker_logs_source": "ec9dede00; final_341 skips4, final_reg84pass2known failures, final_root_probe2pass1legacy-assumption failure. Exact logs retained, not regenerated.",
+  "historical_baseline": "8bbad92cb reviewed test-only checkpoint:10failed4passed, distinct source/test set; no percentage or direct whole-suite comparison.",
+  "pre_fix_normal_loop": "6a57ff4ef committed integration:9 independent probes passed and changed-retry probe failed; no effect/plan/model fixture supplied except controlled transport and explicit objective.",
+  "next_caller_baseline": {
+    "source": "6a57ff4ef",
+    "api_source_same_as_main": "e3e9d8f6c",
+    "result": "4 failed, 1 passed",
+    "scope": "real scratch AgentJob plus real _dispatch_admitted_run; execution leaf doubled; separate negative, not part of228."
+  }
+}

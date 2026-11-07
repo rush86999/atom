@@ -1,0 +1,114 @@
+FFFF.                                                                    [100%]
+=================================== FAILURES ===================================
+_____________ test_job_status_preserves_execution_outcome[blocked] _____________
+
+tmp_path = PosixPath('/private/tmp/root-agent-job-join-new/test_job_status_preserves_exec0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1215cde00>
+outcome = 'blocked'
+
+    @pytest.mark.parametrize('outcome',['uncertain','failed','blocked','cancelled','success'])
+    def test_job_status_preserves_execution_outcome(tmp_path,monkeypatch,outcome):
+        engine=create_engine('sqlite:///'+str(tmp_path/'jobs.db'))
+        Base.metadata.create_all(engine,tables=[AgentJob.__table__])
+        jid=str(uuid.uuid4())
+        with Session(engine) as db:db.add(AgentJob(id=jid,agent_id='a',status='pending'));db.commit()
+        result={'status':outcome,'requires_reconciliation':outcome=='uncertain','output':'controlled execution result'}
+        monkeypatch.setattr(routes,'execute_agent_task',AsyncMock(return_value=result))
+        returned=asyncio.run(routes._dispatch_admitted_run('a',{},jid,None,engine))
+        assert returned==result
+        with Session(engine) as db:status=db.get(AgentJob,jid).status
+        if outcome=='success':assert status=='success',status
+>       else:assert status!='success',(outcome,status)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: ('blocked', 'success')
+E       assert 'success' != 'success'
+
+../../test_lead_agent_job_outcome_join.py:23: AssertionError
+____________ test_job_status_preserves_execution_outcome[uncertain] ____________
+
+tmp_path = PosixPath('/private/tmp/root-agent-job-join-new/test_job_status_preserves_exec1')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x1215ceb10>
+outcome = 'uncertain'
+
+    @pytest.mark.parametrize('outcome',['uncertain','failed','blocked','cancelled','success'])
+    def test_job_status_preserves_execution_outcome(tmp_path,monkeypatch,outcome):
+        engine=create_engine('sqlite:///'+str(tmp_path/'jobs.db'))
+        Base.metadata.create_all(engine,tables=[AgentJob.__table__])
+        jid=str(uuid.uuid4())
+        with Session(engine) as db:db.add(AgentJob(id=jid,agent_id='a',status='pending'));db.commit()
+        result={'status':outcome,'requires_reconciliation':outcome=='uncertain','output':'controlled execution result'}
+        monkeypatch.setattr(routes,'execute_agent_task',AsyncMock(return_value=result))
+        returned=asyncio.run(routes._dispatch_admitted_run('a',{},jid,None,engine))
+        assert returned==result
+        with Session(engine) as db:status=db.get(AgentJob,jid).status
+        if outcome=='success':assert status=='success',status
+>       else:assert status!='success',(outcome,status)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: ('uncertain', 'success')
+E       assert 'success' != 'success'
+
+../../test_lead_agent_job_outcome_join.py:23: AssertionError
+____________ test_job_status_preserves_execution_outcome[cancelled] ____________
+
+tmp_path = PosixPath('/private/tmp/root-agent-job-join-new/test_job_status_preserves_exec2')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x12175ccb0>
+outcome = 'cancelled'
+
+    @pytest.mark.parametrize('outcome',['uncertain','failed','blocked','cancelled','success'])
+    def test_job_status_preserves_execution_outcome(tmp_path,monkeypatch,outcome):
+        engine=create_engine('sqlite:///'+str(tmp_path/'jobs.db'))
+        Base.metadata.create_all(engine,tables=[AgentJob.__table__])
+        jid=str(uuid.uuid4())
+        with Session(engine) as db:db.add(AgentJob(id=jid,agent_id='a',status='pending'));db.commit()
+        result={'status':outcome,'requires_reconciliation':outcome=='uncertain','output':'controlled execution result'}
+        monkeypatch.setattr(routes,'execute_agent_task',AsyncMock(return_value=result))
+        returned=asyncio.run(routes._dispatch_admitted_run('a',{},jid,None,engine))
+        assert returned==result
+        with Session(engine) as db:status=db.get(AgentJob,jid).status
+        if outcome=='success':assert status=='success',status
+>       else:assert status!='success',(outcome,status)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: ('cancelled', 'success')
+E       assert 'success' != 'success'
+
+../../test_lead_agent_job_outcome_join.py:23: AssertionError
+_____________ test_job_status_preserves_execution_outcome[failed] ______________
+
+tmp_path = PosixPath('/private/tmp/root-agent-job-join-new/test_job_status_preserves_exec3')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x121587790>
+outcome = 'failed'
+
+    @pytest.mark.parametrize('outcome',['uncertain','failed','blocked','cancelled','success'])
+    def test_job_status_preserves_execution_outcome(tmp_path,monkeypatch,outcome):
+        engine=create_engine('sqlite:///'+str(tmp_path/'jobs.db'))
+        Base.metadata.create_all(engine,tables=[AgentJob.__table__])
+        jid=str(uuid.uuid4())
+        with Session(engine) as db:db.add(AgentJob(id=jid,agent_id='a',status='pending'));db.commit()
+        result={'status':outcome,'requires_reconciliation':outcome=='uncertain','output':'controlled execution result'}
+        monkeypatch.setattr(routes,'execute_agent_task',AsyncMock(return_value=result))
+        returned=asyncio.run(routes._dispatch_admitted_run('a',{},jid,None,engine))
+        assert returned==result
+        with Session(engine) as db:status=db.get(AgentJob,jid).status
+        if outcome=='success':assert status=='success',status
+>       else:assert status!='success',(outcome,status)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E       AssertionError: ('failed', 'success')
+E       assert 'success' != 'success'
+
+../../test_lead_agent_job_outcome_join.py:23: AssertionError
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 10 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED ../../test_lead_agent_job_outcome_join.py::test_job_status_preserves_execution_outcome[blocked]
+FAILED ../../test_lead_agent_job_outcome_join.py::test_job_status_preserves_execution_outcome[uncertain]
+FAILED ../../test_lead_agent_job_outcome_join.py::test_job_status_preserves_execution_outcome[cancelled]
+FAILED ../../test_lead_agent_job_outcome_join.py::test_job_status_preserves_execution_outcome[failed]
+4 failed, 1 passed, 11 warnings in 1.64s

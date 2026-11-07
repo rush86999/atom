@@ -1,0 +1,40 @@
+.F.                                                                      [100%]
+=================================== FAILURES ===================================
+________________ test_unverified_timeout_does_not_invite_retry _________________
+
+tmp_path = PosixPath('/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-163/test_unverified_timeout_does_n0')
+
+    def test_unverified_timeout_does_not_invite_retry(tmp_path):
+        path = str(tmp_path/'timeout.db')
+        with sqlite3.connect(path) as db:
+            db.execute('create table effects(id text primary key)')
+        name = 'test.generic.timeout.' + uuid.uuid4().hex
+        async def leaf(tool,args,context=None):
+            with sqlite3.connect(path) as db:
+                db.execute('insert into effects values (?)', ('one',))
+            raise TimeoutError('confirmation timed out')
+        action_registry.register(name,leaf,effects=[{'effect':'create','scope':'local'}])
+        result=asyncio.run(_agent(leaf)._step_act_unaudited(name,{},context={'operation_id':'op-one'},pre_approved=True))
+        with sqlite3.connect(path) as db:
+>           assert db.execute('select count(*) from effects').fetchone()[0] == 1
+E           assert 0 == 1
+
+../LEAD_GENERIC_PROBE.py:42: AssertionError
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED ../LEAD_GENERIC_PROBE.py::test_unverified_timeout_does_not_invite_retry
+1 failed, 2 passed, 7 warnings in 1.84s

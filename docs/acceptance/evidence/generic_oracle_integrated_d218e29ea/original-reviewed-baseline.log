@@ -1,0 +1,123 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-06 21:56:36 [    INFO] MCP Service initialized
+
+backend/tests/test_generic_oracle_mutation_contract.py::test_committed_declared_write_without_verifier_is_not_success 
+-------------------------------- live log setup --------------------------------
+2026-11-06 21:56:36 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-06 21:56:37 [    INFO] EscalationManager initialized
+2026-11-06 21:56:37 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 21:56:37 [    INFO] EscalationManager initialized
+2026-11-06 21:56:37 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-06 21:56:37 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-06 21:56:37 [    INFO] AgentTaskRegistry initialized
+FAILED                                                                   [  7%]
+backend/tests/test_generic_oracle_mutation_contract.py::test_unverified_timeout_does_not_invite_retry FAILED [ 14%]
+backend/tests/test_generic_oracle_mutation_contract.py::test_explicit_read_stays_usable PASSED [ 21%]
+backend/tests/test_generic_oracle_mutation_contract.py::test_broken_verdicts_do_not_manufacture_business_success[refuting] FAILED [ 28%]
+backend/tests/test_generic_oracle_mutation_contract.py::test_broken_verdicts_do_not_manufacture_business_success[raising] 
+-------------------------------- live log call ---------------------------------
+2026-11-06 21:56:38 [ WARNING] [Oracle] postcondition check for test.generic.verdict.446fb9944dd843309aa13d0f1fbc36a9 failed: verifier transport unavailable
+FAILED                                                                   [ 35%]
+backend/tests/test_generic_oracle_mutation_contract.py::test_broken_verdicts_do_not_manufacture_business_success[none] FAILED [ 42%]
+backend/tests/test_generic_oracle_mutation_contract.py::test_real_effect_with_independent_readback_is_verified PASSED [ 50%]
+backend/tests/test_generic_oracle_mutation_contract.py::test_disabled_oracle_cannot_lend_success[ATOM_ORACLE_VERIFIER_ENABLED] FAILED [ 57%]
+backend/tests/test_generic_oracle_mutation_contract.py::test_disabled_oracle_cannot_lend_success[ATOM_ORACLE_ENFORCE] FAILED [ 64%]
+backend/tests/test_generic_oracle_mutation_contract.py::test_registered_plan_only_output_stays_usable PASSED [ 71%]
+backend/tests/test_generic_oracle_mutation_contract.py::test_returned_payload_cannot_overwrite_frozen_request[False] PASSED [ 78%]
+backend/tests/test_generic_oracle_mutation_contract.py::test_returned_payload_cannot_overwrite_frozen_request[True] FAILED [ 85%]
+backend/tests/test_generic_oracle_mutation_contract.py::test_handler_arg_mutation_does_not_rewrite_authorized_request[False] FAILED [ 92%]
+backend/tests/test_generic_oracle_mutation_contract.py::test_handler_arg_mutation_does_not_rewrite_authorized_request[True] FAILED [100%]
+
+=================================== FAILURES ===================================
+E   AssertionError: {'success': True, 'status': 'success', 'action_result': 'applied', 'operation_id': 'op-one'}
+    assert True is not True
+     +  where True = <built-in method get of dict object at 0x126d0cb00>('success')
+     +    where <built-in method get of dict object at 0x126d0cb00> = {'success': True, 'status': 'success', 'action_result': 'applied', 'operation_id': 'op-one'}.get
+------------------------------ Captured log setup ------------------------------
+INFO     core.auth:auth.py:56 Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.embedding_service:embedding_service.py:131 Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+INFO     core.agent_task_registry:agent_task_registry.py:64 AgentTaskRegistry initialized
+/private/tmp/atom-cli-generic-oracle/backend/tests/test_generic_oracle_mutation_contract.py:111: AssertionError: {'success': True, 'status': 'success', 'action_result': 'applied', 'operation_id': 'op-one'}
+E   AssertionError: Error: Tool 'test.generic.timeout.f38745522055475084899f15e7277b76' timed out. You may try once more if critical.
+    assert 'try once more' not in 'error: tool...if critical.'
+      
+      'try once more' is contained here:
+        error: tool 'test.generic.timeout.f38745522055475084899f15e7277b76' timed out. you may try once more if critical.
+      ?                                                                                        +++++++++++++
+/private/tmp/atom-cli-generic-oracle/backend/tests/test_generic_oracle_mutation_contract.py:183: AssertionError: Error: Tool 'test.generic.timeout.f38745522055475084899f15e7277b76' timed out. You may try once more if critical.
+E   AssertionError: {'success': True, 'status': 'success', 'action_result': 'applied', 'oracle_verified': False, ...}
+    assert True is not True
+     +  where True = <built-in method get of dict object at 0x12fe34040>('success')
+     +    where <built-in method get of dict object at 0x12fe34040> = {'success': True, 'status': 'success', 'action_result': 'applied', 'oracle_verified': False, ...}.get
+/private/tmp/atom-cli-generic-oracle/backend/tests/test_generic_oracle_mutation_contract.py:111: AssertionError: {'success': True, 'status': 'success', 'action_result': 'applied', 'oracle_verified': False, ...}
+E   AssertionError: {'success': True, 'status': 'success', 'action_result': 'applied', 'oracle_verified': False, ...}
+    assert True is not True
+     +  where True = <built-in method get of dict object at 0x12fe6e500>('success')
+     +    where <built-in method get of dict object at 0x12fe6e500> = {'success': True, 'status': 'success', 'action_result': 'applied', 'oracle_verified': False, ...}.get
+------------------------------ Captured log call -------------------------------
+WARNING  core.oracle:__init__.py:81 [Oracle] postcondition check for test.generic.verdict.446fb9944dd843309aa13d0f1fbc36a9 failed: verifier transport unavailable
+/private/tmp/atom-cli-generic-oracle/backend/tests/test_generic_oracle_mutation_contract.py:111: AssertionError: {'success': True, 'status': 'success', 'action_result': 'applied', 'oracle_verified': False, ...}
+E   AssertionError: {'success': True, 'status': 'success', 'action_result': 'applied'}
+    assert True is not True
+     +  where True = <built-in method get of dict object at 0x12fece780>('success')
+     +    where <built-in method get of dict object at 0x12fece780> = {'success': True, 'status': 'success', 'action_result': 'applied'}.get
+/private/tmp/atom-cli-generic-oracle/backend/tests/test_generic_oracle_mutation_contract.py:111: AssertionError: {'success': True, 'status': 'success', 'action_result': 'applied'}
+E   AssertionError: {'success': True, 'status': 'success', 'action_result': 'applied'}
+    assert True is not True
+     +  where True = <built-in method get of dict object at 0x12ff07180>('success')
+     +    where <built-in method get of dict object at 0x12ff07180> = {'success': True, 'status': 'success', 'action_result': 'applied'}.get
+/private/tmp/atom-cli-generic-oracle/backend/tests/test_generic_oracle_mutation_contract.py:111: AssertionError: {'success': True, 'status': 'success', 'action_result': 'applied'}
+E   AssertionError: {'success': True, 'status': 'success', 'action_result': 'applied'}
+    assert True is not True
+     +  where True = <built-in method get of dict object at 0x12ff39600>('success')
+     +    where <built-in method get of dict object at 0x12ff39600> = {'success': True, 'status': 'success', 'action_result': 'applied'}.get
+/private/tmp/atom-cli-generic-oracle/backend/tests/test_generic_oracle_mutation_contract.py:111: AssertionError: {'success': True, 'status': 'success', 'action_result': 'applied'}
+E   AssertionError: {'status': 'success', 'action_result': 'applied', 'provider': 'zoho_books', 'remote_id': 'est-1', ...}
+    assert True is False
+/private/tmp/atom-cli-generic-oracle/backend/tests/test_generic_oracle_mutation_contract.py:401: AssertionError: {'status': 'success', 'action_result': 'applied', 'provider': 'zoho_books', 'remote_id': 'est-1', ...}
+E   AssertionError: the handler's in-place mutation rewrote the authorized request: operation_id='op-hijacked'
+    assert {'payload_sha...'op-hijacked'} == {'payload_sha...: 'op-frozen'}
+      
+      Omitting 3 identical items, use -vv to show
+      Differing items:
+      {'operation_id': 'op-hijacked'} != {'operation_id': 'op-frozen'}
+      
+      Full diff:
+        {...
+      
+      ...Full output truncated (8 lines hidden), use '-vv' to show
+/private/tmp/atom-cli-generic-oracle/backend/tests/test_generic_oracle_mutation_contract.py:437: AssertionError: the handler's in-place mutation rewrote the authorized request: operation_id='op-hijacked'
+E   AssertionError: {'status': 'success', 'action_result': 'applied', 'provider': 'zoho_books', 'remote_id': 'est-1', ...}
+    assert True is False
+/private/tmp/atom-cli-generic-oracle/backend/tests/test_generic_oracle_mutation_contract.py:435: AssertionError: {'status': 'success', 'action_result': 'applied', 'provider': 'zoho_books', 'remote_id': 'est-1', ...}
+=============================== warnings summary ===============================
+../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 28 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED backend/tests/test_generic_oracle_mutation_contract.py::test_committed_declared_write_without_verifier_is_not_success
+FAILED backend/tests/test_generic_oracle_mutation_contract.py::test_unverified_timeout_does_not_invite_retry
+FAILED backend/tests/test_generic_oracle_mutation_contract.py::test_broken_verdicts_do_not_manufacture_business_success[refuting]
+FAILED backend/tests/test_generic_oracle_mutation_contract.py::test_broken_verdicts_do_not_manufacture_business_success[raising]
+FAILED backend/tests/test_generic_oracle_mutation_contract.py::test_broken_verdicts_do_not_manufacture_business_success[none]
+FAILED backend/tests/test_generic_oracle_mutation_contract.py::test_disabled_oracle_cannot_lend_success[ATOM_ORACLE_VERIFIER_ENABLED]
+FAILED backend/tests/test_generic_oracle_mutation_contract.py::test_disabled_oracle_cannot_lend_success[ATOM_ORACLE_ENFORCE]
+FAILED backend/tests/test_generic_oracle_mutation_contract.py::test_returned_payload_cannot_overwrite_frozen_request[True]
+FAILED backend/tests/test_generic_oracle_mutation_contract.py::test_handler_arg_mutation_does_not_rewrite_authorized_request[False]
+FAILED backend/tests/test_generic_oracle_mutation_contract.py::test_handler_arg_mutation_does_not_rewrite_authorized_request[True]
+================== 10 failed, 4 passed, 30 warnings in 4.54s ===================

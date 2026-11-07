@@ -1,0 +1,565 @@
+.F........                                                               [100%]
+=================================== FAILURES ===================================
+________ test_normal_loop_changed_retry_cannot_repeat_uncertain_intent _________
+
+scratch_db = {'path': '/private/tmp/root-generic-combined-ten-new/test_normal_loop_changed_retry0/system_of_record.db', 'engine': Engine(sqlite:////private/tmp/root-generic-combined-ten-new/test_normal_loop_changed_retry0/system_of_record.db)}
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x120afd220>
+
+    def test_normal_loop_changed_retry_cannot_repeat_uncertain_intent(scratch_db,monkeypatch):
+        from core.action_registry import action_registry
+        from core.react_models import ReActStep,ToolCall
+        name='lead.generic.retry-material.'+uuid.uuid4().hex
+        calls=[]
+        async def leaf(tool,args,context=None):
+            calls.append(dict(args))
+            with sqlite3.connect(scratch_db['path']) as db:db.execute('insert into effects values (?,?)',(uuid.uuid4().hex,args['value']))
+            raise TimeoutError('confirmation unavailable after accepted append')
+        action_registry.register(name,leaf,effects=[{'effect':'create','scope':'local'}])
+        agent=_build_execute_agent(scratch_db,monkeypatch)
+        agent.mcp=SimpleNamespace(call_tool=leaf,get_all_tools=AsyncMock(return_value=[]))
+        agent._react_step=AsyncMock(side_effect=[
+            ReActStep(thought='append requested record',action=ToolCall(tool=name,params={'value':'one requested record'})),
+            ReActStep(thought='retry the same append',action=ToolCall(tool=name,params={'value':'one requested record','retry_note':'confirmation retry'})),
+            ReActStep(thought='done',final_answer='Created the requested record.')])
+        result=asyncio.run(agent.execute('Append exactly one record once',context={'workspace_id':'w','tenant_id':'t','user_id':'u','execution_id':'one-record-exec'}))
+        with sqlite3.connect(scratch_db['path']) as db: count=db.execute('select count(*) from effects').fetchone()[0]
+>       assert len(calls)==1 and count==1,(calls,count,result)
+E       AssertionError: ([{'value': 'one requested record'}, {'value': 'one requested record', 'retry_note': 'confirmation retry'}], 2, {'outp...'step': 3, 'thought': 'done', 'action': None, 'output': None, ...}], 'status': 'uncertain', 'stuck_reason': None, ...})
+E       assert (2 == 1)
+E        +  where 2 = len([{'value': 'one requested record'}, {'value': 'one requested record', 'retry_note': 'confirmation retry'}])
+
+../../test_lead_generic_normal_changed_retry.py:25: AssertionError
+------------------------------ Captured log call -------------------------------
+ERROR    core.agent_action_audit:agent_action_audit.py:163 AUDIT WRITE FAILED (event=agent_action action=execution_start execution=52c0bac9-d88b-41f5-a7b5-f80eea4d6407): (sqlite3.OperationalError) no such table: saas_audit_logs
+[SQL: INSERT INTO saas_audit_logs (id, event_type, security_level, threat_level, timestamp, user_id, user_email, tenant_id, workspace_id, ip_address, user_agent, resource, action, description, metadata_json, success, error_message) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)]
+[parameters: ('56edda85-305e-4b1e-b888-5de45a27d796', 'agent_action', 'low', 'none', '2026-11-07 04:23:00.530319', 'u', None, None, 'default', None, None, 'scratch-agent', 'execution_start', 'Agent Scratch Agent starting task', '{"task_input": "Append exactly one record once", "agent_id": "scratch-agent", "agent_execution_id": "52c0bac9-d88b-41f5-a7b5-f80eea4d6407"}', 1, None)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+Traceback (most recent call last):
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/engine/base.py", line 1969, in _exec_single_context
+    self.dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor, str_statement, effective_parameters, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+sqlite3.OperationalError: no such table: saas_audit_logs
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/private/tmp/atom-generic-lead-combine/backend/core/agent_action_audit.py", line 158, in _write_audit_log
+    db.commit()
+    ~~~~~~~~~^^
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/orm/session.py", line 2035, in commit
+    trans.commit(_to_root=True)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "<string>", line 2, in commit
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/orm/state_changes.py", line 137, in _go
+    ret_value = fn(self, *arg, **kw)
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/orm/session.py", line 1316, in commit
+    self._prepare_impl()
+    ~~~~~~~~~~~~~~~~~~^^
+  File "<string>", line 2, in _prepare_impl
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/orm/state_changes.py", line 137, in _go
+    ret_value = fn(self, *arg, **kw)
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/orm/session.py", line 1290, in _prepare_impl
+    self.session.flush()
+    ~~~~~~~~~~~~~~~~~~^^
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/orm/session.py", line 4353, in flush
+    self._flush(objects)
+    ~~~~~~~~~~~^^^^^^^^^
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/orm/session.py", line 4488, in _flush
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/util/langhelpers.py", line 122, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/orm/session.py", line 4449, in _flush
+    flush_context.execute()
+    ~~~~~~~~~~~~~~~~~~~~~^^
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/orm/unitofwork.py", line 465, in execute
+    rec.execute(self)
+    ~~~~~~~~~~~^^^^^^
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/orm/unitofwork.py", line 641, in execute
+    util.preloaded.orm_persistence.save_obj(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self.mapper,
+        ^^^^^^^^^^^^
+        uow.states_for_mapper_hierarchy(self.mapper, False, False),
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        uow,
+        ^^^^
+    )
+    ^
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/orm/persistence.py", line 94, in save_obj
+    _emit_insert_statements(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        base_mapper,
+        ^^^^^^^^^^^^
+    ...<3 lines>...
+        insert,
+        ^^^^^^^
+    )
+    ^
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/orm/persistence.py", line 1049, in _emit_insert_statements
+    result = connection.execute(
+        statement, multiparams, execution_options=execution_options
+    )
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/engine/base.py", line 1421, in execute
+    return meth(
+        self,
+        distilled_parameters,
+        execution_options or NO_OPTIONS,
+    )
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/sql/elements.py", line 526, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self, distilled_params, execution_options
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/engine/base.py", line 1643, in _execute_clauseelement
+    ret = self._execute_context(
+        dialect,
+    ...<8 lines>...
+        cache_hit=cache_hit,
+    )
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/engine/base.py", line 1848, in _execute_context
+    return self._exec_single_context(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~^
+        dialect, context, statement, parameters
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/engine/base.py", line 1988, in _exec_single_context
+    self._handle_dbapi_exception(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        e, str_statement, effective_parameters, cursor, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/engine/base.py", line 2365, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/engine/base.py", line 1969, in _exec_single_context
+    self.dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor, str_statement, effective_parameters, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: saas_audit_logs
+[SQL: INSERT INTO saas_audit_logs (id, event_type, security_level, threat_level, timestamp, user_id, user_email, tenant_id, workspace_id, ip_address, user_agent, resource, action, description, metadata_json, success, error_message) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)]
+[parameters: ('56edda85-305e-4b1e-b888-5de45a27d796', 'agent_action', 'low', 'none', '2026-11-07 04:23:00.530319', 'u', None, None, 'default', None, None, 'scratch-agent', 'execution_start', 'Agent Scratch Agent starting task', '{"task_input": "Append exactly one record once", "agent_id": "scratch-agent", "agent_execution_id": "52c0bac9-d88b-41f5-a7b5-f80eea4d6407"}', 1, None)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+ERROR    core.agent_action_audit:agent_action_audit.py:163 AUDIT WRITE FAILED (event=agent_action action=tool:lead.generic.retry-material.3ac3d363949a4c87bb42813b17e6a52b execution=52c0bac9-d88b-41f5-a7b5-f80eea4d6407): (sqlite3.OperationalError) no such table: saas_audit_logs
+[SQL: INSERT INTO saas_audit_logs (id, event_type, security_level, threat_level, timestamp, user_id, user_email, tenant_id, workspace_id, ip_address, user_agent, resource, action, description, metadata_json, success, error_message) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)]
+[parameters: ('d4e4129e-e1e1-4aa1-8acf-1f21fa3e2418', 'agent_action', 'low', 'none', '2026-11-07 04:23:00.540557', 'u', None, None, 'default', None, None, 'scratch-agent', 'tool:lead.generic.retry-material.3ac3d363949a4c87bb42813b17e6a52b', 'Tool lead.generic.retry-material.3ac3d363949a4c87bb42813b17e6a52b invoked', '{"tool": "lead.generic.retry-material.3ac3d363949a4c87bb42813b17e6a52b", "params": "{\\"value\\": \\"one requested record\\"}", "duration_ms": 7.3, "agent_id": "scratch-agent", "agent_execution_id": "52c0bac9-d88b-41f5-a7b5-f80eea4d6407"}', 0, '{\'success\': False, \'status\': \'uncertain\', \'action_result\': \'uncertain\', \'business_success\': False, \'effect_state\': \'unknown\', \'opera ... (438 characters truncated) ... have applied an effect. Do NOT retry or resend operation auto-0ba0ce0447e75af5af73308aa98f81afc58f3d87596bfbc988ed59c61bb98596; reconcile it first."}')]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+Traceback (most recent call last):
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/engine/base.py", line 1969, in _exec_single_context
+    self.dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor, str_statement, effective_parameters, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+sqlite3.OperationalError: no such table: saas_audit_logs
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/private/tmp/atom-generic-lead-combine/backend/core/agent_action_audit.py", line 158, in _write_audit_log
+    db.commit()
+    ~~~~~~~~~^^
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/orm/session.py", line 2035, in commit
+    trans.commit(_to_root=True)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "<string>", line 2, in commit
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/orm/state_changes.py", line 137, in _go
+    ret_value = fn(self, *arg, **kw)
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/orm/session.py", line 1316, in commit
+    self._prepare_impl()
+    ~~~~~~~~~~~~~~~~~~^^
+  File "<string>", line 2, in _prepare_impl
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/orm/state_changes.py", line 137, in _go
+    ret_value = fn(self, *arg, **kw)
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/orm/session.py", line 1290, in _prepare_impl
+    self.session.flush()
+    ~~~~~~~~~~~~~~~~~~^^
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/orm/session.py", line 4353, in flush
+    self._flush(objects)
+    ~~~~~~~~~~~^^^^^^^^^
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/orm/session.py", line 4488, in _flush
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/util/langhelpers.py", line 122, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/orm/session.py", line 4449, in _flush
+    flush_context.execute()
+    ~~~~~~~~~~~~~~~~~~~~~^^
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/orm/unitofwork.py", line 465, in execute
+    rec.execute(self)
+    ~~~~~~~~~~~^^^^^^
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/orm/unitofwork.py", line 641, in execute
+    util.preloaded.orm_persistence.save_obj(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self.mapper,
+        ^^^^^^^^^^^^
+        uow.states_for_mapper_hierarchy(self.mapper, False, False),
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        uow,
+        ^^^^
+    )
+    ^
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/orm/persistence.py", line 94, in save_obj
+    _emit_insert_statements(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        base_mapper,
+        ^^^^^^^^^^^^
+    ...<3 lines>...
+        insert,
+        ^^^^^^^
+    )
+    ^
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/orm/persistence.py", line 1049, in _emit_insert_statements
+    result = connection.execute(
+        statement, multiparams, execution_options=execution_options
+    )
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/engine/base.py", line 1421, in execute
+    return meth(
+        self,
+        distilled_parameters,
+        execution_options or NO_OPTIONS,
+    )
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/sql/elements.py", line 526, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self, distilled_params, execution_options
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/engine/base.py", line 1643, in _execute_clauseelement
+    ret = self._execute_context(
+        dialect,
+    ...<8 lines>...
+        cache_hit=cache_hit,
+    )
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/engine/base.py", line 1848, in _execute_context
+    return self._exec_single_context(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~^
+        dialect, context, statement, parameters
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/engine/base.py", line 1988, in _exec_single_context
+    self._handle_dbapi_exception(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        e, str_statement, effective_parameters, cursor, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/engine/base.py", line 2365, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/engine/base.py", line 1969, in _exec_single_context
+    self.dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor, str_statement, effective_parameters, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: saas_audit_logs
+[SQL: INSERT INTO saas_audit_logs (id, event_type, security_level, threat_level, timestamp, user_id, user_email, tenant_id, workspace_id, ip_address, user_agent, resource, action, description, metadata_json, success, error_message) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)]
+[parameters: ('d4e4129e-e1e1-4aa1-8acf-1f21fa3e2418', 'agent_action', 'low', 'none', '2026-11-07 04:23:00.540557', 'u', None, None, 'default', None, None, 'scratch-agent', 'tool:lead.generic.retry-material.3ac3d363949a4c87bb42813b17e6a52b', 'Tool lead.generic.retry-material.3ac3d363949a4c87bb42813b17e6a52b invoked', '{"tool": "lead.generic.retry-material.3ac3d363949a4c87bb42813b17e6a52b", "params": "{\\"value\\": \\"one requested record\\"}", "duration_ms": 7.3, "agent_id": "scratch-agent", "agent_execution_id": "52c0bac9-d88b-41f5-a7b5-f80eea4d6407"}', 0, '{\'success\': False, \'status\': \'uncertain\', \'action_result\': \'uncertain\', \'business_success\': False, \'effect_state\': \'unknown\', \'opera ... (438 characters truncated) ... have applied an effect. Do NOT retry or resend operation auto-0ba0ce0447e75af5af73308aa98f81afc58f3d87596bfbc988ed59c61bb98596; reconcile it first."}')]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+ERROR    core.agent_action_audit:agent_action_audit.py:163 AUDIT WRITE FAILED (event=agent_action action=tool:lead.generic.retry-material.3ac3d363949a4c87bb42813b17e6a52b execution=52c0bac9-d88b-41f5-a7b5-f80eea4d6407): (sqlite3.OperationalError) no such table: saas_audit_logs
+[SQL: INSERT INTO saas_audit_logs (id, event_type, security_level, threat_level, timestamp, user_id, user_email, tenant_id, workspace_id, ip_address, user_agent, resource, action, description, metadata_json, success, error_message) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)]
+[parameters: ('9b285e14-4741-4ed2-b102-897643007109', 'agent_action', 'low', 'none', '2026-11-07 04:23:00.548864', 'u', None, None, 'default', None, None, 'scratch-agent', 'tool:lead.generic.retry-material.3ac3d363949a4c87bb42813b17e6a52b', 'Tool lead.generic.retry-material.3ac3d363949a4c87bb42813b17e6a52b invoked', '{"tool": "lead.generic.retry-material.3ac3d363949a4c87bb42813b17e6a52b", "params": "{\\"value\\": \\"one requested record\\", \\"retry_note\\": \\"confirmation retry\\"}", "duration_ms": 6.7, "agent_id": "scratch-agent", "agent_execution_id": "52c0bac9-d88b-41f5-a7b5-f80eea4d6407"}', 0, '{\'success\': False, \'status\': \'uncertain\', \'action_result\': \'uncertain\', \'business_success\': False, \'effect_state\': \'unknown\', \'opera ... (438 characters truncated) ... have applied an effect. Do NOT retry or resend operation auto-c2e1bf40a5f1225bf07a1bf36f03920a1e9031f74b4405220925a19bae4a4349; reconcile it first."}')]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+Traceback (most recent call last):
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/engine/base.py", line 1969, in _exec_single_context
+    self.dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor, str_statement, effective_parameters, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+sqlite3.OperationalError: no such table: saas_audit_logs
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/private/tmp/atom-generic-lead-combine/backend/core/agent_action_audit.py", line 158, in _write_audit_log
+    db.commit()
+    ~~~~~~~~~^^
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/orm/session.py", line 2035, in commit
+    trans.commit(_to_root=True)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "<string>", line 2, in commit
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/orm/state_changes.py", line 137, in _go
+    ret_value = fn(self, *arg, **kw)
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/orm/session.py", line 1316, in commit
+    self._prepare_impl()
+    ~~~~~~~~~~~~~~~~~~^^
+  File "<string>", line 2, in _prepare_impl
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/orm/state_changes.py", line 137, in _go
+    ret_value = fn(self, *arg, **kw)
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/orm/session.py", line 1290, in _prepare_impl
+    self.session.flush()
+    ~~~~~~~~~~~~~~~~~~^^
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/orm/session.py", line 4353, in flush
+    self._flush(objects)
+    ~~~~~~~~~~~^^^^^^^^^
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/orm/session.py", line 4488, in _flush
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/util/langhelpers.py", line 122, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/orm/session.py", line 4449, in _flush
+    flush_context.execute()
+    ~~~~~~~~~~~~~~~~~~~~~^^
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/orm/unitofwork.py", line 465, in execute
+    rec.execute(self)
+    ~~~~~~~~~~~^^^^^^
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/orm/unitofwork.py", line 641, in execute
+    util.preloaded.orm_persistence.save_obj(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self.mapper,
+        ^^^^^^^^^^^^
+        uow.states_for_mapper_hierarchy(self.mapper, False, False),
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        uow,
+        ^^^^
+    )
+    ^
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/orm/persistence.py", line 94, in save_obj
+    _emit_insert_statements(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        base_mapper,
+        ^^^^^^^^^^^^
+    ...<3 lines>...
+        insert,
+        ^^^^^^^
+    )
+    ^
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/orm/persistence.py", line 1049, in _emit_insert_statements
+    result = connection.execute(
+        statement, multiparams, execution_options=execution_options
+    )
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/engine/base.py", line 1421, in execute
+    return meth(
+        self,
+        distilled_parameters,
+        execution_options or NO_OPTIONS,
+    )
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/sql/elements.py", line 526, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self, distilled_params, execution_options
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/engine/base.py", line 1643, in _execute_clauseelement
+    ret = self._execute_context(
+        dialect,
+    ...<8 lines>...
+        cache_hit=cache_hit,
+    )
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/engine/base.py", line 1848, in _execute_context
+    return self._exec_single_context(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~^
+        dialect, context, statement, parameters
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/engine/base.py", line 1988, in _exec_single_context
+    self._handle_dbapi_exception(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        e, str_statement, effective_parameters, cursor, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/engine/base.py", line 2365, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/engine/base.py", line 1969, in _exec_single_context
+    self.dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor, str_statement, effective_parameters, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: saas_audit_logs
+[SQL: INSERT INTO saas_audit_logs (id, event_type, security_level, threat_level, timestamp, user_id, user_email, tenant_id, workspace_id, ip_address, user_agent, resource, action, description, metadata_json, success, error_message) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)]
+[parameters: ('9b285e14-4741-4ed2-b102-897643007109', 'agent_action', 'low', 'none', '2026-11-07 04:23:00.548864', 'u', None, None, 'default', None, None, 'scratch-agent', 'tool:lead.generic.retry-material.3ac3d363949a4c87bb42813b17e6a52b', 'Tool lead.generic.retry-material.3ac3d363949a4c87bb42813b17e6a52b invoked', '{"tool": "lead.generic.retry-material.3ac3d363949a4c87bb42813b17e6a52b", "params": "{\\"value\\": \\"one requested record\\", \\"retry_note\\": \\"confirmation retry\\"}", "duration_ms": 6.7, "agent_id": "scratch-agent", "agent_execution_id": "52c0bac9-d88b-41f5-a7b5-f80eea4d6407"}', 0, '{\'success\': False, \'status\': \'uncertain\', \'action_result\': \'uncertain\', \'business_success\': False, \'effect_state\': \'unknown\', \'opera ... (438 characters truncated) ... have applied an effect. Do NOT retry or resend operation auto-c2e1bf40a5f1225bf07a1bf36f03920a1e9031f74b4405220925a19bae4a4349; reconcile it first."}')]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+ERROR    core.agent_action_audit:agent_action_audit.py:163 AUDIT WRITE FAILED (event=agent_action action=execution_complete execution=52c0bac9-d88b-41f5-a7b5-f80eea4d6407): (sqlite3.OperationalError) no such table: saas_audit_logs
+[SQL: INSERT INTO saas_audit_logs (id, event_type, security_level, threat_level, timestamp, user_id, user_email, tenant_id, workspace_id, ip_address, user_agent, resource, action, description, metadata_json, success, error_message) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)]
+[parameters: ('ddde6796-1236-4b05-b2dd-e235fea2aa65', 'agent_action', 'low', 'none', '2026-11-07 04:23:00.550893', 'u', None, None, 'default', None, None, 'scratch-agent', 'execution_complete', 'Agent Scratch Agent finished with status uncertain', '{"status": "uncertain", "steps": 3, "task_input": "Append exactly one record once", "agent_id": "scratch-agent", "agent_execution_id": "52c0bac9-d88b-41f5-a7b5-f80eea4d6407"}', 0, None)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+Traceback (most recent call last):
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/engine/base.py", line 1969, in _exec_single_context
+    self.dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor, str_statement, effective_parameters, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+sqlite3.OperationalError: no such table: saas_audit_logs
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/private/tmp/atom-generic-lead-combine/backend/core/agent_action_audit.py", line 158, in _write_audit_log
+    db.commit()
+    ~~~~~~~~~^^
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/orm/session.py", line 2035, in commit
+    trans.commit(_to_root=True)
+    ~~~~~~~~~~~~^^^^^^^^^^^^^^^
+  File "<string>", line 2, in commit
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/orm/state_changes.py", line 137, in _go
+    ret_value = fn(self, *arg, **kw)
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/orm/session.py", line 1316, in commit
+    self._prepare_impl()
+    ~~~~~~~~~~~~~~~~~~^^
+  File "<string>", line 2, in _prepare_impl
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/orm/state_changes.py", line 137, in _go
+    ret_value = fn(self, *arg, **kw)
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/orm/session.py", line 1290, in _prepare_impl
+    self.session.flush()
+    ~~~~~~~~~~~~~~~~~~^^
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/orm/session.py", line 4353, in flush
+    self._flush(objects)
+    ~~~~~~~~~~~^^^^^^^^^
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/orm/session.py", line 4488, in _flush
+    with util.safe_reraise():
+         ~~~~~~~~~~~~~~~~~^^
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/util/langhelpers.py", line 122, in __exit__
+    raise exc_value.with_traceback(exc_tb)
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/orm/session.py", line 4449, in _flush
+    flush_context.execute()
+    ~~~~~~~~~~~~~~~~~~~~~^^
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/orm/unitofwork.py", line 465, in execute
+    rec.execute(self)
+    ~~~~~~~~~~~^^^^^^
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/orm/unitofwork.py", line 641, in execute
+    util.preloaded.orm_persistence.save_obj(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self.mapper,
+        ^^^^^^^^^^^^
+        uow.states_for_mapper_hierarchy(self.mapper, False, False),
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        uow,
+        ^^^^
+    )
+    ^
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/orm/persistence.py", line 94, in save_obj
+    _emit_insert_statements(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        base_mapper,
+        ^^^^^^^^^^^^
+    ...<3 lines>...
+        insert,
+        ^^^^^^^
+    )
+    ^
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/orm/persistence.py", line 1049, in _emit_insert_statements
+    result = connection.execute(
+        statement, multiparams, execution_options=execution_options
+    )
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/engine/base.py", line 1421, in execute
+    return meth(
+        self,
+        distilled_parameters,
+        execution_options or NO_OPTIONS,
+    )
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/sql/elements.py", line 526, in _execute_on_connection
+    return connection._execute_clauseelement(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        self, distilled_params, execution_options
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/engine/base.py", line 1643, in _execute_clauseelement
+    ret = self._execute_context(
+        dialect,
+    ...<8 lines>...
+        cache_hit=cache_hit,
+    )
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/engine/base.py", line 1848, in _execute_context
+    return self._exec_single_context(
+           ~~~~~~~~~~~~~~~~~~~~~~~~~^
+        dialect, context, statement, parameters
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/engine/base.py", line 1988, in _exec_single_context
+    self._handle_dbapi_exception(
+    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+        e, str_statement, effective_parameters, cursor, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/engine/base.py", line 2365, in _handle_dbapi_exception
+    raise sqlalchemy_exception.with_traceback(exc_info[2]) from e
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/engine/base.py", line 1969, in _exec_single_context
+    self.dialect.do_execute(
+    ~~~~~~~~~~~~~~~~~~~~~~~^
+        cursor, str_statement, effective_parameters, context
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/sqlalchemy/engine/default.py", line 952, in do_execute
+    cursor.execute(statement, parameters)
+    ~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^
+sqlalchemy.exc.OperationalError: (sqlite3.OperationalError) no such table: saas_audit_logs
+[SQL: INSERT INTO saas_audit_logs (id, event_type, security_level, threat_level, timestamp, user_id, user_email, tenant_id, workspace_id, ip_address, user_agent, resource, action, description, metadata_json, success, error_message) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)]
+[parameters: ('ddde6796-1236-4b05-b2dd-e235fea2aa65', 'agent_action', 'low', 'none', '2026-11-07 04:23:00.550893', 'u', None, None, 'default', None, None, 'scratch-agent', 'execution_complete', 'Agent Scratch Agent finished with status uncertain', '{"status": "uncertain", "steps": 3, "task_input": "Append exactly one record once", "agent_id": "scratch-agent", "agent_execution_id": "52c0bac9-d88b-41f5-a7b5-f80eea4d6407"}', 0, None)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+ERROR    core.agent_action_audit:agent_action_audit.py:330 AUDIT COMPLETENESS CHECK FAILED for 52c0bac9-d88b-41f5-a7b5-f80eea4d6407: (sqlite3.OperationalError) no such table: saas_audit_logs
+[SQL: SELECT count(*) AS count_1 
+FROM (SELECT saas_audit_logs.id AS saas_audit_logs_id, saas_audit_logs.event_type AS saas_audit_logs_event_type, saas_audit_logs.security_level AS saas_audit_logs_security_level, saas_audit_logs.threat_level AS saas_audit_logs_threat_level, saas_audit_logs.timestamp AS saas_audit_logs_timestamp, saas_audit_logs.user_id AS saas_audit_logs_user_id, saas_audit_logs.user_email AS saas_audit_logs_user_email, saas_audit_logs.tenant_id AS saas_audit_logs_tenant_id, saas_audit_logs.workspace_id AS saas_audit_logs_workspace_id, saas_audit_logs.ip_address AS saas_audit_logs_ip_address, saas_audit_logs.user_agent AS saas_audit_logs_user_agent, saas_audit_logs.resource AS saas_audit_logs_resource, saas_audit_logs.action AS saas_audit_logs_action, saas_audit_logs.description AS saas_audit_logs_description, saas_audit_logs.metadata_json AS saas_audit_logs_metadata_json, saas_audit_logs.success AS saas_audit_logs_success, saas_audit_logs.error_message AS saas_audit_logs_error_message 
+FROM saas_audit_logs 
+WHERE saas_audit_logs.event_type IN (?, ?) AND saas_audit_logs.metadata_json LIKE ?) AS anon_1]
+[parameters: ('agent_action', 'llm_call', '%"agent_execution_id": "52c0bac9-d88b-41f5-a7b5-f80eea4d6407"%')]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+ERROR    core.generic_agent:generic_agent.py:992 AUDIT GAP for execution 52c0bac9-d88b-41f5-a7b5-f80eea4d6407: {'complete': False, 'execution_id': '52c0bac9-d88b-41f5-a7b5-f80eea4d6407', 'expected_events': 5, 'actual_events': 0, 'error': '(sqlite3.OperationalError) no such table: saas_audit_logs\n[SQL: SELECT count(*) AS count_1 \nFROM (SELECT saas_audit_logs.id AS saas_audit_logs_id, saas_audit_logs.event_type AS saas_audit_logs_event_type, saas_audit_logs.security_level AS saas_audit_logs_security_level, saas_audit_logs.threat_level AS saas_audit_logs_threat_level, saas_audit_logs.timestamp AS saas_audit_logs_timestamp, saas_audit_logs.user_id AS saas_audit_logs_user_id, saas_audit_logs.user_email AS saas_audit_logs_user_email, saas_audit_logs.tenant_id AS saas_audit_logs_tenant_id, saas_audit_logs.workspace_id AS saas_audit_logs_workspace_id, saas_audit_logs.ip_address AS saas_audit_logs_ip_address, saas_audit_logs.user_agent AS saas_audit_logs_user_agent, saas_audit_logs.resource AS saas_audit_logs_resource, saas_audit_logs.action AS saas_audit_logs_action, saas_audit_logs.description AS saas_audit_logs_description, saas_audit_logs.metadata_json AS saas_audit_logs_metadata_json, saas_audit_logs.success AS saas_audit_logs_success, saas_audit_logs.error_message AS saas_audit_logs_error_message \nFROM saas_audit_logs \nWHERE saas_audit_logs.event_type IN (?, ?) AND saas_audit_logs.metadata_json LIKE ?) AS anon_1]\n[parameters: (\'agent_action\', \'llm_call\', \'%"agent_execution_id": "52c0bac9-d88b-41f5-a7b5-f80eea4d6407"%\')]\n(Background on this error at: https://sqlalche.me/e/20/e3q8)'}
+ERROR    core.llm.provider_policy:provider_policy.py:188 provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+WARNING  core.turn_fact_extractor:turn_fact_extractor.py:475 turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+WARNING  core.turn_fact_extractor:turn_fact_extractor.py:814 turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 1}
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 20 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED ../../test_lead_generic_normal_changed_retry.py::test_normal_loop_changed_retry_cannot_repeat_uncertain_intent
+1 failed, 9 passed, 21 warnings in 6.81s
