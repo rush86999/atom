@@ -218,6 +218,8 @@ jobs:
             tests/test_oracle_mini_app_host_mutations.py \
             tests/test_agent_generic_information_wait.py \
             tests/test_generic_source_answer_contract.py \
+            tests/test_lead_generic_source_answer_material.py \
+            tests/test_lead_generic_source_snapshot_cas.py \
             tests/test_generic_information_idle_contract.py \
             tests/test_generic_information_two_job_isolation.py \
             tests/test_information_wait_maturity_neutral.py \

@@ -273,3 +273,211 @@ def test_duplicate_exact_source_is_idempotent_and_changed_material_refuses(
     with real_env.SessionLocal() as db:
         assert db.query(BoardTask).filter(
             BoardTask.title == "Duplicate source task").count() == 1
+
+
+@pytest.mark.parametrize("failure", ["missing", "foreign", "stale", "revoked"])
+def test_source_authority_failures_do_not_wake_or_effect(
+        real_env, tmp_path, monkeypatch, failure):
+    _seed_board(real_env)
+    doc, version = _source_fixture(real_env, tmp_path, monkeypatch)
+    requested_version = version
+    if failure == "missing":
+        with real_env.SessionLocal() as db:
+            row = db.get(IngestedDocument, doc.id)
+            db.delete(row)
+            db.commit()
+    elif failure == "foreign":
+        with real_env.SessionLocal() as db:
+            row = db.get(IngestedDocument, doc.id)
+            row.workspace_id = "ws-foreign"
+            db.commit()
+    elif failure == "stale":
+        requested_version = "ev4:" + "0" * 64
+    else:
+        with real_env.SessionLocal() as db:
+            row = db.get(IngestedDocument, doc.id)
+            row.freshness_status = "stale"
+            db.commit()
+
+    def wait(task_input, history, context):
+        return ReActStep(
+            thought="Need authorized source.",
+            information_wait=InformationWaitRequest(
+                question="Which source?", missing_fact="source"),
+        )
+
+    calls = _install_model(monkeypatch, [wait])
+    started = _run(
+        real_env, operation_id=f"generic-source-{failure}",
+        parameters={"sync": True, "task_input": "Create a task"})
+    assert started.status_code == 202, started.text
+    data = started.json()["data"]
+    answer = _client(real_env).post(
+        f"/api/agents/a1/jobs/{data['job_id']}/answer",
+        json={
+            "answer": "use source",
+            "correlation_id": data["wait_receipt"]["correlation_id"],
+            "source": {
+                "document_id": doc.id,
+                "source_version": requested_version,
+            },
+        },
+    )
+    assert answer.status_code in (404, 409, 422), answer.text
+    job, payload = _job_payload(real_env, data["job_id"])
+    assert job.status == "waiting"
+    assert payload["wait_receipt"]["correlation_id"] == (
+        data["wait_receipt"]["correlation_id"])
+    assert len(calls) == 1
+
+
+def test_dataset_source_answer_resumes_same_job_with_verified_effect(
+        real_env, tmp_path, monkeypatch):
+    import pandas as pd
+    import core.sheet_dataset_service as catalog
+    import core.canvas_capability_service as capability
+
+    board_id, column_id = _seed_board(real_env)
+    parquet = tmp_path / "dataset.parquet"
+    pd.DataFrame([{
+        "__sheet_row": 2,
+        "po_id": "PO-DATASET-1",
+        "amount": "7.50",
+    }]).to_parquet(parquet, index=False)
+    version = "dataset-v1"
+    coverage = {
+        "known": True, "truncated": False,
+        "source_row_count": 1, "materialized_row_count": 1,
+    }
+    entry = {
+        "id": "generic-dataset-entry",
+        "dataset_name": "generic-dataset",
+        "file_name": "dataset.parquet",
+        "entity_name": "Sheet1",
+        "source_kind": "file",
+        "source": "onedrive",
+        "external_id": "generic-dataset",
+        "content_hash": version,
+        "row_count": 1,
+        "status": "active",
+        "workspace_id": "ws1",
+        "parquet_path": str(parquet),
+        "coverage": coverage,
+    }
+    monkeypatch.setattr(
+        catalog, "resolve_dataset_entry_scoped_sync",
+        lambda *a, **k: {"state": "active", "entry": entry,
+                         "candidates": []})
+    monkeypatch.setattr(catalog, "connected_parquet_path", lambda item: parquet)
+    monkeypatch.setattr(
+        capability, "_assert_connected_source_access",
+        lambda db, provider, user: {"status": "active"})
+    monkeypatch.setattr(
+        capability, "_validate_connected_coverage", lambda item: coverage)
+
+    def wait(task_input, history, context):
+        return ReActStep(
+            thought="Need authorized dataset.",
+            information_wait=InformationWaitRequest(
+                question="Which dataset?", missing_fact="dataset"),
+        )
+
+    def resumed(task_input, history, context):
+        source = context.get("information_source") or {}
+        assert "PO-DATASET-1" in str(source.get("content") or "")
+        assert source.get("source_version") == version
+        return ReActStep(
+            thought="Use dataset.",
+            action=ToolCall(
+                tool="tasks.create",
+                params={
+                    "board_id": board_id,
+                    "column_id": column_id,
+                    "title": "Dataset-backed task",
+                    "status": "backlog",
+                },
+            ),
+        )
+
+    def finished(task_input, history, context):
+        return ReActStep(thought="Verified.", final_answer="Created.")
+
+    _install_model(monkeypatch, [wait, resumed, finished])
+    started = _run(
+        real_env, operation_id="generic-dataset-source",
+        parameters={"sync": True, "task_input": "Create a dataset-backed task"})
+    assert started.status_code == 202, started.text
+    data = started.json()["data"]
+    answer = _client(real_env).post(
+        f"/api/agents/a1/jobs/{data['job_id']}/answer",
+        json={
+            "answer": "",
+            "correlation_id": data["wait_receipt"]["correlation_id"],
+            "source": {
+                "dataset_name": "generic-dataset",
+                "sheet": "Sheet1",
+                "source": "onedrive",
+                "external_id": "generic-dataset",
+                "source_version": version,
+            },
+        },
+    )
+    assert answer.status_code == 200, answer.text
+    assert answer.json()["data"]["job_status"] == "success"
+    with real_env.SessionLocal() as db:
+        assert db.query(BoardTask).filter(
+            BoardTask.title == "Dataset-backed task").count() == 1
+
+
+def test_offline_actor_authority_change_refuses_source_replay(
+        real_env, tmp_path, monkeypatch):
+    """Accepted source material is not perpetual execution authority."""
+    import api.agent_routes as routes
+    from core.models import User
+
+    _seed_board(real_env)
+    doc, version = _source_fixture(real_env, tmp_path, monkeypatch)
+
+    def wait(task_input, history, context):
+        return ReActStep(
+            thought="Need source.",
+            information_wait=InformationWaitRequest(
+                question="Which source?", missing_fact="source"),
+        )
+
+    calls = _install_model(monkeypatch, [wait])
+    started = _run(
+        real_env, operation_id="generic-source-offline-authority",
+        parameters={"sync": True, "task_input": "Create a task"})
+    data = started.json()["data"]
+    body = {
+        "answer": "priority high",
+        "correlation_id": data["wait_receipt"]["correlation_id"],
+        "source": {"document_id": doc.id, "source_version": version},
+    }
+    original = routes.resume_information_wait_action
+
+    async def accepted_but_interrupted(*args, **kwargs):
+        return {"handled": True, "resumed": False,
+                "reason": "lead_interrupt_after_accept", "status": "waiting"}
+
+    monkeypatch.setattr(
+        routes, "resume_information_wait_action", accepted_but_interrupted)
+    first = _client(real_env).post(
+        f"/api/agents/a1/jobs/{data['job_id']}/answer", json=body)
+    assert first.status_code == 409, first.text
+    monkeypatch.setattr(
+        routes, "resume_information_wait_action", original)
+
+    with real_env.SessionLocal() as db:
+        actor = db.get(User, "member-1")
+        actor.workspace_id = "ws-other"
+        db.commit()
+
+    replay = _client(real_env).post(
+        f"/api/agents/a1/jobs/{data['job_id']}/answer", json=body)
+    assert replay.status_code == 409, replay.text
+    assert len(calls) == 1
+    with real_env.SessionLocal() as db:
+        assert db.query(BoardTask).filter(
+            BoardTask.title.like("Accepted answer %")).count() == 0
