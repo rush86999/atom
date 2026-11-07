@@ -2021,6 +2021,444 @@ class AssignmentExecutor:
 
     # ----------------------------------------------------------- execution
 
+    @staticmethod
+    def _source_gap(
+        binding: Dict[str, Any],
+        step: Dict[str, Any],
+        *,
+        code: str,
+        detail: str,
+        version: bool = False,
+        access: bool = False,
+    ) -> Dict[str, Any]:
+        if access:
+            state = ("source_access_revoked" if "revoked" in code
+                     else "source_access_required")
+            question = (
+                "The accepted source is no longer authorized for this task. "
+                "Reauthorize it, then retry the dependent work.")
+            resume_on = "source_reauthorized"
+        elif version:
+            state = "source_version_changed"
+            question = (
+                "The accepted source version changed. Confirm and supply the "
+                "current authorized version, then retry the dependent work.")
+            resume_on = "source_refreshed"
+        else:
+            state = "source_unavailable"
+            question = (
+                "The accepted source is no longer available. Restore or "
+                "re-upload it, or select a current authorized source, then "
+                "retry the dependent work.")
+            resume_on = "resource_restored"
+        waiting = {
+            "state": state,
+            "party": "source owner",
+            "resume_on": resume_on,
+            "since": _utc_now_iso(),
+            "detail": _bounded(detail, 500),
+            "code": code,
+        }
+        return {
+            "concept": "source_access",
+            "reason": f"{code}: {_bounded(detail, 500)}",
+            "question": question,
+            "checked_evidence": [
+                f"resource={binding.get('dataset_name') or binding.get('resource_id') or binding.get('document_id')}",
+                f"sheet={binding.get('sheet')}",
+                f"version={str(binding.get('source_version') or '')[:12]}",
+                code,
+            ],
+            "next_retrieval": "recheck source access, availability and active version",
+            "kind": "missing_evidence",
+            "waiting": waiting,
+        }
+
+    def _source_consumption_gap(
+        self,
+        assignment: Dict[str, Any],
+        record: Dict[str, Any],
+    ) -> Optional[Tuple[Dict[str, Any], Dict[str, Any]]]:
+        """Reauthorize and recheck an accepted source before consumption.
+
+        An applied read is not perpetual authority. The current principal and
+        workspace/tenant are checked before touching bytes; the current
+        resource row/grant and the accepted version pin are checked before any
+        dependent step or final artifact may use the cached result. Missing,
+        removed, unreadable, moved or changed sources produce a typed gap on
+        the source step. This method never silently substitutes a replacement
+        version.
+        """
+        provenance = assignment.get("provenance") or {}
+        context = {
+            "workspace_id": (
+                assignment.get("workspace_id")
+                or provenance.get("workspace_id") or ""),
+            "tenant_id": (
+                assignment.get("tenant_id")
+                or provenance.get("tenant_id") or ""),
+            "employee_id": (
+                provenance.get("employee_id")
+                or provenance.get("agent_id") or ""),
+            "actor_id": (
+                provenance.get("actor_id")
+                or provenance.get("user_id") or ""),
+        }
+        source_adapters = (
+            "workbook.read", "document.read", "document.text", "dataset.read")
+        for step in assignment.get("steps") or []:
+            if str(step.get("status") or "") != "applied":
+                continue
+            if str(step.get("adapter") or "") not in source_adapters:
+                continue
+            inputs = step.get("inputs") if isinstance(
+                step.get("inputs"), dict) else {}
+            binding = inputs.get("resource_binding") if isinstance(
+                inputs.get("resource_binding"), dict) else {}
+            result = step.get("result") if isinstance(
+                step.get("result"), dict) else {}
+            if not binding:
+                return step, self._source_gap(
+                    binding, step, code="resource_binding_missing",
+                    detail="the applied source step has no typed binding",
+                    access=True)
+            document_id = str(
+                binding.get("document_id")
+                or (binding.get("resource_id")
+                    if str(binding.get("source") or "").lower() == "upload"
+                    else "") or "")
+            expected = str(
+                binding.get("source_version")
+                or result.get("source_version") or "")
+            accepted_sha = str(result.get("sha256") or "")
+            try:
+                if document_id:
+                    # Uploaded document authority is the workspace-scoped
+                    # IngestedDocument row, not a path handed in earlier.
+                    from core.database import get_db_session
+                    from core.models import IngestedDocument, User
+                    scope = binding.get("access_scope") if isinstance(
+                        binding.get("access_scope"), dict) else {}
+                    expected_user = str(
+                        scope.get("user_id") or context.get("actor_id")
+                        or context.get("employee_id") or "")
+                    expected_workspace = str(
+                        scope.get("workspace_id")
+                        or context.get("workspace_id") or "")
+                    expected_tenant = str(
+                        scope.get("tenant_id")
+                        or context.get("tenant_id") or "")
+                    with get_db_session() as db:
+                        user_id = expected_user
+                        if user_id:
+                            user = db.query(User).filter(
+                                User.id == user_id).first()
+                            if user is None or not bool(
+                                    getattr(user, "is_active", True)):
+                                return step, self._source_gap(
+                                    binding, step,
+                                    code="authenticated_principal_unavailable",
+                                    detail="the accepted reader is missing or inactive",
+                                    access=True)
+                            user_workspace = str(
+                                getattr(user, "workspace_id", "") or "default")
+                            user_tenant = str(
+                                getattr(user, "tenant_id", "") or "default")
+                            if ((expected_workspace
+                                 and user_workspace != expected_workspace)
+                                or (expected_tenant
+                                    and user_tenant != expected_tenant)):
+                                return step, self._source_gap(
+                                    binding, step,
+                                    code="resource_workspace_mismatch",
+                                    detail="the accepted reader moved workspace/tenant",
+                                    access=True)
+                        row = db.query(IngestedDocument).filter(
+                            IngestedDocument.id == document_id).first()
+                    if row is None:
+                        return step, self._source_gap(
+                            binding, step, code="resource_not_found",
+                            detail="the authoritative uploaded document row is gone")
+                    if (expected_workspace
+                            and str(row.workspace_id or "")
+                            and str(row.workspace_id) != expected_workspace):
+                        return step, self._source_gap(
+                            binding, step, code="resource_workspace_mismatch",
+                            detail="the uploaded document moved workspace",
+                            access=True)
+                    if (expected_tenant and row.tenant_id is not None
+                            and str(row.tenant_id) != expected_tenant):
+                        return step, self._source_gap(
+                            binding, step, code="resource_workspace_mismatch",
+                            detail="the uploaded document moved tenant",
+                            access=True)
+                    freshness = str(
+                        getattr(row, "freshness_status", "fresh")
+                        or "fresh").lower()
+                    if freshness not in ("fresh", "current", "active"):
+                        return step, self._source_gap(
+                            binding, step, code="stale_source_version",
+                            detail=f"the uploaded document is {freshness}",
+                            version=True)
+                    authoritative = str(
+                        getattr(row, "source_content_hash", "") or "")
+                    indexed = str(
+                        result.get("source_version")
+                        or ((result.get("extraction") or {}).get(
+                            "indexed_version")
+                            if isinstance(result.get("extraction"), dict)
+                            else "")
+                        or "")
+                    accepted_revision = str(
+                        binding.get("source_version")
+                        or result.get("source_version")
+                        or "")
+                    if not accepted_revision:
+                        return step, self._source_gap(
+                            binding, step, code="source_revision_missing",
+                            detail="the accepted source receipt has no revision pin",
+                            version=True)
+                    from core.doc_freshness_service import (
+                        ExtractionIdentityError,
+                        current_extraction_revision,
+                    )
+                    try:
+                        current_extraction_revision(
+                            indexed, authoritative, accepted_revision)
+                    except ExtractionIdentityError as exc:
+                        return step, self._source_gap(
+                            binding, step, code="stale_source_version",
+                            detail=str(exc), version=True)
+                    path = str(
+                        getattr(row, "file_path", "")
+                        or inputs.get("path") or binding.get("path") or "")
+                    if path:
+                        if not os.path.isfile(path):
+                            return step, self._source_gap(
+                                binding, step, code="source_unavailable",
+                                detail="the uploaded document file is missing")
+                        try:
+                            current = _sha256_file(path)
+                        except (OSError, PermissionError):
+                            return step, self._source_gap(
+                                binding, step, code="source_unreadable",
+                                detail="the uploaded document file is unreadable")
+                        # Binary file bytes and indexed revisions are
+                        # distinct namespaces. Compare a binary accepted
+                        # sha256 only with file bytes; ev4:/manual opaque
+                        # revisions are validated against the authoritative
+                        # IngestedDocument row above, never hashed as bytes.
+                        binary_pin = (
+                            accepted_sha
+                            if re.fullmatch(r"[0-9a-fA-F]{64}", accepted_sha)
+                            else "")
+                        if binary_pin and current != binary_pin:
+                            return step, self._source_gap(
+                                binding, step, code="stale_source_version",
+                                detail="the uploaded document bytes changed after acceptance",
+                                version=True)
+                    continue
+
+                if binding.get("internal_fixture"):
+                    _recheck_binding(binding, context)
+                    path = str(
+                        inputs.get("path") or binding.get("path") or "")
+                    if not path or not os.path.isfile(path):
+                        return step, self._source_gap(
+                            binding, step, code="source_unavailable",
+                            detail="the accepted controlled source file is missing")
+                    try:
+                        current = _sha256_file(path)
+                    except (OSError, PermissionError):
+                        return step, self._source_gap(
+                            binding, step, code="source_unreadable",
+                            detail="the accepted controlled source is unreadable")
+                    binary_pin = (
+                        accepted_sha
+                        if re.fullmatch(r"[0-9a-fA-F]{64}", accepted_sha)
+                        else (expected if re.fullmatch(
+                            r"[0-9a-fA-F]{64}", expected) else ""))
+                    if binary_pin and current != binary_pin:
+                        return step, self._source_gap(
+                            binding, step, code="stale_source_version",
+                            detail="the accepted controlled source bytes changed",
+                            version=True)
+                    continue
+
+                # Connected dataset: re-resolve the current grant, scope,
+                # resource and active version through the existing checker.
+                resolved = _recheck_binding(binding, context)
+                current_version = str(
+                    resolved.get("source_version") or "")
+                if expected and current_version and expected != current_version:
+                    return step, self._source_gap(
+                        binding, step, code="stale_source_version",
+                        detail="the active connected source version changed",
+                        version=True)
+                path = str(resolved.get("path") or "")
+                if not path or not os.path.isfile(path):
+                    return step, self._source_gap(
+                        binding, step, code="source_unavailable",
+                        detail="the current materialized source is missing")
+                try:
+                    _sha256_file(path)
+                except (OSError, PermissionError):
+                    return step, self._source_gap(
+                        binding, step, code="source_unreadable",
+                        detail="the current materialized source is unreadable")
+            except NeedsContext as exc:
+                return step, exc.gap
+        return None
+
+    def _revalidate_waiting_sources(
+        self,
+        run_id: str,
+        assignment: Dict[str, Any],
+    ) -> Tuple[Dict[str, Any], bool]:
+        """Clear a durable source gap when the same accepted version returns.
+
+        A previously applied source step is marked waiting with open gap_ids
+        when its authority/bytes/version became unavailable. On a later normal
+        retry (source route or advance), probe the same accepted pin again; if
+        the source is permanently present and still the accepted version,
+        restore the applied status and resolve only that step's gap questions.
+        """
+        source_adapters = (
+            "workbook.read", "document.read", "document.text", "dataset.read")
+        waiting = [
+            step for step in assignment.get("steps") or []
+            if str(step.get("status") or "") == "waiting"
+            and step.get("gap_ids")
+            and str(step.get("adapter") or "") in source_adapters
+        ]
+        if not waiting:
+            return assignment, False
+        changed = False
+        restored_ids = []
+        for step in waiting:
+            probe = copy.deepcopy(assignment)
+            target = step_by_id(probe, step["step_id"])
+            if target is None:
+                continue
+            target["status"] = "applied"
+            problem = self._source_consumption_gap(probe, {})
+            if problem is not None:
+                # A different/current source may still be blocked; do not
+                # clear this gap unless this source itself is valid.
+                continue
+            assignment = self._mark_step(assignment, step["step_id"], {
+                "status": "applied",
+                "gap_ids": [],
+                "waiting": None,
+                "updated_at": _utc_now_iso(),
+            })
+            restored_ids.extend(str(q) for q in step.get("gap_ids") or [])
+            changed = True
+        if not changed:
+            return assignment, False
+        if restored_ids:
+            from core.task_lifecycle import resolve_unresolved_questions
+            resolve_unresolved_questions(
+                self.lifecycle, run_id,
+                question_ids=restored_ids,
+                resolution=(
+                    "authorized source restored at the same accepted "
+                    "version; dependent work may resume"))
+        self._persist_assignment(
+            run_id, assignment, "applied source restored at accepted version")
+        return assignment, True
+
+    async def _record_applied_source_gap(
+        self,
+        run_id: str,
+        record: Dict[str, Any],
+        assignment: Dict[str, Any],
+        step: Dict[str, Any],
+        gap: Dict[str, Any],
+    ) -> None:
+        """Persist a typed gap for an already-applied source.
+
+        The source operation stays applied for audit; it cannot be moved back
+        to running/waiting. The plan marks the source step waiting so only its
+        dependents and the final artifact are blocked; unrelated branches stay
+        runnable.
+        """
+        gap = dict(gap or {})
+        waiting = gap.get("waiting") or {
+            "state": "source_unavailable",
+            "party": "source owner",
+            "resume_on": "resource_restored",
+            "since": _utc_now_iso(),
+        }
+        if not gap.get("question"):
+            gap["question"] = (
+                "The accepted source is unavailable; restore it before "
+                "dependent work can continue.")
+        if not gap.get("next_action"):
+            gap["next_action"] = (
+                gap.get("next_retrieval")
+                or "Restore/re-authorize the source and retry.")
+        binding_key = _gap_binding_key(gap)
+        existing = [
+            q for q in (record.get("task_revision") or {}).get(
+                "unresolved") or []
+            if isinstance(q, dict)
+            and q.get("status") == "open"
+            and q.get("step_id") == step.get("step_id")
+            and str(q.get("concept") or "") == str(gap.get("concept") or "")
+            and _gap_binding_key(q) == binding_key
+        ]
+        if existing:
+            question_id = existing[0]["question_id"]
+        else:
+            question = {
+                "question_id": gap.get("question_id"),
+                "item": gap.get("item") or step.get("title") or "",
+                "question": gap["question"],
+                "kind": gap.get("kind") or "missing_evidence",
+                "evidence": gap.get("evidence") or "",
+                "next_action": gap.get("next_action"),
+                "inputs": gap.get("inputs") or {},
+                "concept": gap.get("concept") or "",
+                "reason": gap.get("reason") or "",
+                "affected_subjects": gap.get("affected_subjects") or [],
+                "checked_evidence": gap.get("checked_evidence") or [],
+                "next_retrieval": gap.get("next_retrieval") or "",
+                "resolver": gap.get("resolver") or "",
+                "step_id": step.get("step_id"),
+                "waiting": waiting,
+                "binding_key": binding_key,
+            }
+            self.lifecycle.apply_transition(run_id, {
+                "kind": "record_unresolved",
+                "requested_change": _bounded(gap["question"], 500),
+                "questions": [question],
+                "source_operation": str(step.get("operation_id") or ""),
+            })
+            refreshed = self.lifecycle.get_task(run_id) or record
+            question_id = None
+            for item in (refreshed.get("task_revision") or {}).get(
+                    "unresolved") or []:
+                if (item.get("status") == "open"
+                        and item.get("step_id") == step.get("step_id")
+                        and str(item.get("concept") or "")
+                        == str(gap.get("concept") or "")
+                        and _gap_binding_key(item) == binding_key):
+                    question_id = item["question_id"]
+            question_id = question_id or str(gap.get("question_id") or "")
+        assignment = self._mark_step(assignment, step["step_id"], {
+            "status": "waiting",
+            "gap_ids": sorted(set(
+                list(step.get("gap_ids") or []) + [question_id])),
+            "waiting": _json_safe(waiting),
+            "updated_at": _utc_now_iso()})
+        self._enter_wait(
+            run_id,
+            waiting={**waiting, "gap_question_id": question_id},
+            summary=gap["question"])
+        self._persist_assignment(
+            run_id, assignment, "applied source needs reauthorization")
+
     async def execute(
         self,
         run_id: str,
@@ -2036,6 +2474,7 @@ class AssignmentExecutor:
         """
         limit = max(1, min(int(max_steps or 50), 200))
         steps_run = 0
+        source_retry_checked = False
         while steps_run < limit:
             record = self.lifecycle.get_task(run_id)
             if record is None:
@@ -2053,6 +2492,22 @@ class AssignmentExecutor:
             expected_task_revision = None
 
             assignment = self._sync_assignment(record, assignment)
+            if not source_retry_checked:
+                # A restoration retry is checked once per external advance,
+                # not repeatedly inside one execution loop. This clears a
+                # durable gap only when the same accepted version is valid
+                # again, while an unavailable source yields immediately.
+                assignment, source_restored = self._revalidate_waiting_sources(
+                    run_id, assignment)
+                source_retry_checked = True
+                if source_restored:
+                    record = self.lifecycle.get_task(run_id) or record
+            source_problem = self._source_consumption_gap(assignment, record)
+            if source_problem:
+                source_step, source_gap = source_problem
+                await self._record_applied_source_gap(
+                    run_id, record, assignment, source_step, source_gap)
+                continue
             task_authorization = str(
                 (record.get("task_revision") or {}).get("authorization")
                 or "read_only")
@@ -4936,10 +5391,19 @@ class AssignmentExecutor:
             }
             target = mapping.get(status)
             if target and step.get("status") != target:
-                # Never downgrade an applied step to awaiting because an
-                # older operation row was re-read.
-                if not (step.get("status") == "applied"
-                        and target != "applied"):
+                # A current source gap is a live wait, not an older applied
+                # receipt. Keep the immutable operation result for audit but
+                # do not let _sync_assignment overwrite the waiting state on
+                # the next execute loop (that caused a busy loop and stale
+                # completion). A normal applied step still maps to applied.
+                current_source_gap = (
+                    step.get("status") == "waiting"
+                    and bool(step.get("gap_ids"))
+                    and target == "applied")
+                if current_source_gap:
+                    pass
+                elif not (step.get("status") == "applied"
+                          and target != "applied"):
                     step["status"] = target
                     changed = True
             if status == "applied":

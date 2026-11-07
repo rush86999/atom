@@ -2127,6 +2127,7 @@ async def add_assignment_source(
         or "").strip().lower()
     resolved_version = str(resolved.get("source_version") or "")
     same_resource_previous_version = False
+    prior_source_step = None
     for existing_step in assignment.get("steps") or []:
         inputs = (existing_step.get("inputs")
                   if isinstance(existing_step.get("inputs"), dict) else {})
@@ -2142,6 +2143,8 @@ async def add_assignment_source(
             binding) == resolved_name
         if same_resource or same_name:
             same_resource_previous_version = True
+            if previous_version and previous_version != resolved_version:
+                prior_source_step = existing_step
             break
     # A duplicate source addition must not add another read step or cause
     # duplicate arithmetic/effects later. Same resource identity/version is
@@ -2184,49 +2187,81 @@ async def add_assignment_source(
             "step_id": step.get("step_id"),
         }
     else:
-        indexes = []
-        for step in assignment.get("steps") or []:
-            step_id = str(step.get("step_id") or "")
-            if step_id.startswith("source-"):
-                try:
-                    indexes.append(int(step_id.split("-", 1)[1]))
-                except ValueError:
-                    pass
-        raw_step = _source_step(
-            resolved, (max(indexes) if indexes else 0) + 1)
-        step = {
-            key: raw_step.get(key) for key in (
-                "step_id", "title", "operation_type", "adapter", "depends_on",
-                "inputs", "effect", "requires", "required")
-            if raw_step.get(key) is not None
-        }
-        identity = _hashlib.sha256(json.dumps(
-            {"resource_id": resolved.get("resource_id"),
-             "source_version": resolved.get("source_version")},
-            sort_keys=True, default=str).encode()).hexdigest()[:16]
-        patch = {
-            "patch_id": f"source-add-{identity}",
-            "base_task_version": int(record.get("task_version") or 0),
-            "base_plan_revision": int(assignment.get("plan_revision") or 1),
-            "reason": body.reason,
-            "observations": [{
-                "kind": "authorized_source_added",
-                "resource_id": resolved.get("resource_id"),
-                "source_version": resolved.get("source_version"),
-            }],
-            "invalidate_steps": [],
-            "remove_steps": [],
-            "add_steps": [step],
-            "update_steps": [],
-            "add_facts": [],
-            "set_requires": {},
-        }
-        try:
-            adopted = apply_plan_patch(
-                executor.lifecycle, run_id, patch, rationale=body.reason)
-            status = await executor.execute(run_id, max_steps=12)
-        except Exception as exc:  # noqa: BLE001 — durable state remains
-            raise HTTPException(status_code=409, detail=str(exc)) from exc
+        # The caller explicitly supplied a newer version of the same
+        # authorized source. Reuse the existing source step and its
+        # descendants; do not add a second source identity or silently keep
+        # the stale cached result. Existing invalidation/CAS preserves the
+        # prior result for audit and reopens only the affected branch.
+        prior_path = ""
+        if prior_source_step is not None:
+            prior_inputs = prior_source_step.get("inputs")
+            prior_path = str(
+                (prior_inputs or {}).get("path") or "") if isinstance(
+                    prior_inputs, dict) else ""
+        resolved_path = str(resolved.get("path") or "")
+        if (prior_source_step is not None and not was_completed
+                and prior_path and resolved_path
+                and os.path.realpath(prior_path) == os.path.realpath(
+                    resolved_path)):
+            try:
+                executor.invalidate_step(
+                    run_id, prior_source_step["step_id"],
+                    reason=(
+                        "explicitly authorized newer source version; "
+                        "re-reading the current accepted source"))
+                status = await executor.execute(run_id, max_steps=12)
+            except Exception as exc:  # noqa: BLE001 — durable state remains
+                raise HTTPException(status_code=409, detail=str(exc)) from exc
+            step = prior_source_step
+            adopted = {
+                "status": "source_replaced",
+                "reason": "explicitly authorized newer source version",
+                "step_id": step.get("step_id"),
+            }
+        else:
+            indexes = []
+            for step in assignment.get("steps") or []:
+                step_id = str(step.get("step_id") or "")
+                if step_id.startswith("source-"):
+                    try:
+                        indexes.append(int(step_id.split("-", 1)[1]))
+                    except ValueError:
+                        pass
+            raw_step = _source_step(
+                resolved, (max(indexes) if indexes else 0) + 1)
+            step = {
+                key: raw_step.get(key) for key in (
+                    "step_id", "title", "operation_type", "adapter", "depends_on",
+                    "inputs", "effect", "requires", "required")
+                if raw_step.get(key) is not None
+            }
+            identity = _hashlib.sha256(json.dumps(
+                {"resource_id": resolved.get("resource_id"),
+                 "source_version": resolved.get("source_version")},
+                sort_keys=True, default=str).encode()).hexdigest()[:16]
+            patch = {
+                "patch_id": f"source-add-{identity}",
+                "base_task_version": int(record.get("task_version") or 0),
+                "base_plan_revision": int(assignment.get("plan_revision") or 1),
+                "reason": body.reason,
+                "observations": [{
+                    "kind": "authorized_source_added",
+                    "resource_id": resolved.get("resource_id"),
+                    "source_version": resolved.get("source_version"),
+                }],
+                "invalidate_steps": [],
+                "remove_steps": [],
+                "add_steps": [step],
+                "update_steps": [],
+                "add_facts": [],
+                "set_requires": {},
+            }
+            try:
+                adopted = apply_plan_patch(
+                    executor.lifecycle, run_id, patch, rationale=body.reason)
+                status = await executor.execute(run_id, max_steps=12)
+            except Exception as exc:  # noqa: BLE001 — durable state remains
+                raise HTTPException(status_code=409, detail=str(exc)) from exc
     # A genuinely new authorized version on a completed job is fresh
     # evidence: let the same employee adaptation contract decide whether the
     # changed evidence supports more work or a material clarification. The

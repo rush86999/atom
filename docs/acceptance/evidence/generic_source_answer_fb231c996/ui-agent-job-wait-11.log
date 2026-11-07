@@ -1,0 +1,6 @@
+PASS components/Agents/__tests__/AgentJobWaitPanel.test.tsx
+
+Test Suites: 1 passed, 1 total
+Tests:       11 passed, 11 total
+Snapshots:   0 total
+Time:        1.637 s, estimated 2 s

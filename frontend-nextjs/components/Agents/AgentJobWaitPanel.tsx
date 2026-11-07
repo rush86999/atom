@@ -21,6 +21,17 @@ export type AgentJobWait = {
   can_answer?: boolean;
 };
 
+export type AuthorizedAnswerSource = {
+  document_id?: string | null;
+  dataset_name?: string | null;
+  sheet?: string | null;
+  source?: string | null;
+  external_id?: string | null;
+  source_version?: string | null;
+  kind?: string | null;
+  file_name?: string | null;
+};
+
 export type AgentJobReadback = {
   agent_id: string;
   job_id: string;
@@ -101,6 +112,11 @@ export default function AgentJobWaitPanel({ agentId, jobId, onForget }: Props) {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
+  const [sourcePickerOpen, setSourcePickerOpen] = useState(false);
+  const [sources, setSources] = useState<AuthorizedAnswerSource[]>([]);
+  const [sourceKey, setSourceKey] = useState("");
+  const [sourceLoading, setSourceLoading] = useState(false);
+  const [sourceError, setSourceError] = useState<string | null>(null);
 
   const jobKeyRef = useRef("");
   const waitIdentityRef = useRef<string | null>(null);
@@ -116,8 +132,12 @@ export default function AgentJobWaitPanel({ agentId, jobId, onForget }: Props) {
   const apply = useCallback((next: AgentJobReadback | null) => {
     const nextWaitId = next?.wait?.id || null;
     if (waitIdentityRef.current !== nextWaitId) {
-      // A new question (or a terminal state) invalidates any typed answer.
+      // A new question (or a terminal state) invalidates any typed answer and
+      // any selected source; the next question needs its own explicit input.
       setAnswer("");
+      setSourceKey("");
+      setSourcePickerOpen(false);
+      setSourceError(null);
     }
     waitIdentityRef.current = nextWaitId;
     jobRef.current = next;
@@ -224,16 +244,76 @@ export default function AgentJobWaitPanel({ agentId, jobId, onForget }: Props) {
     void loadRef.current?.();
   }, []);
 
+  const selectedSource = sources.find(
+    (item, index) => String(index) === sourceKey,
+  ) || null;
+
+  const sourceLabel = (item: AuthorizedAnswerSource): string => {
+    const name = String(item.file_name || item.dataset_name || item.document_id || "authorized source");
+    const sheet = item.sheet ? ` / ${item.sheet}` : "";
+    const version = item.source_version ? ` · ${String(item.source_version).slice(0, 12)}` : "";
+    return `${name}${sheet}${version}`;
+  };
+
+  const loadSources = useCallback(async () => {
+    if (sourceLoading) return;
+    setSourceLoading(true);
+    setSourceError(null);
+    const key = jobKeyRef.current;
+    try {
+      const res = await fetch(
+        `${API_BASE}/api/assignments/sources?limit=50`,
+        {
+          headers: {
+            Authorization: `Bearer ${getAuthToken() || ""}`,
+            "Content-Type": "application/json",
+          },
+        },
+      );
+      if (jobKeyRef.current !== key) return;
+      if (res.status === 401) {
+        handleSessionExpired();
+        return;
+      }
+      if (!res.ok) {
+        setSourceError("Authorized sources could not be loaded. Refresh and try again.");
+        return;
+      }
+      const body = await res.json();
+      const rows = Array.isArray(body?.data) ? body.data : (Array.isArray(body) ? body : []);
+      if (jobKeyRef.current !== key) return;
+      setSources(rows as AuthorizedAnswerSource[]);
+      if (!rows.length) {
+        setSourceError("No authorized documents or datasets are available for this job.");
+      }
+    } catch {
+      if (jobKeyRef.current === key) {
+        setSourceError("Authorized sources could not be loaded. Refresh and try again.");
+      }
+    } finally {
+      if (jobKeyRef.current === key) setSourceLoading(false);
+    }
+  }, [sourceLoading]);
+
+  const toggleSourcePicker = useCallback(() => {
+    setSourcePickerOpen((open) => {
+      const next = !open;
+      if (next && !sources.length) void loadSources();
+      return next;
+    });
+  }, [loadSources, sources.length]);
+
   const submitAnswer = useCallback(async () => {
     const current = jobRef.current;
     const wait = current?.wait;
     const text = answer.trim();
+    const source = selectedSource;
     if (
       !agentId
       || !jobId
       || !wait
       || !wait.can_answer
-      || !text
+      || (!text && !source)
       || submitting
       || submittingRef.current
     ) {
@@ -256,6 +336,21 @@ export default function AgentJobWaitPanel({ agentId, jobId, onForget }: Props) {
           body: JSON.stringify({
             answer: text,
             correlation_id: wait.correlation_id,
+            ...(source
+              ? {
+                  source: Object.fromEntries(
+                    Object.entries({
+                      document_id: source.document_id,
+                      dataset_name: source.dataset_name,
+                      sheet: source.sheet,
+                      source: source.source,
+                      external_id: source.external_id,
+                      source_version: source.source_version,
+                      kind: source.kind,
+                    }).filter(([, value]) => value !== null && value !== undefined && value !== ""),
+                  ),
+                }
+              : {}),
           }),
         },
       );
@@ -278,6 +373,7 @@ export default function AgentJobWaitPanel({ agentId, jobId, onForget }: Props) {
           // The server already returned an authoritative continuation state.
           apply(next);
         }
+        setSourceKey("");
         setNotice(
           next?.wait
             ? "Answer accepted. The agent needs one more fact for the same job."
@@ -326,7 +422,7 @@ export default function AgentJobWaitPanel({ agentId, jobId, onForget }: Props) {
       submittingRef.current = false;
       if (jobKeyRef.current === key) setSubmitting(false);
     }
-  }, [agentId, jobId, answer, submitting, apply]);
+  }, [agentId, jobId, answer, selectedSource, submitting, apply]);
 
   if (!agentId || !jobId) return null;
 
@@ -435,18 +531,64 @@ export default function AgentJobWaitPanel({ agentId, jobId, onForget }: Props) {
           </p>
           {openWait.can_answer ? (
             <div className="space-y-2">
+              <Button
+                variant="outline"
+                size="sm"
+                data-testid="agent-job-source-open"
+                onClick={toggleSourcePicker}
+                disabled={submitting || sourceLoading}
+              >
+                {sourcePickerOpen ? "Hide authorized sources" : "Attach an authorized source"}
+              </Button>
+              {sourcePickerOpen && (
+                <div className="space-y-1">
+                  {sourceLoading && (
+                    <p className="text-xs text-gray-500 dark:text-gray-400">
+                      Loading authorized sources…
+                    </p>
+                  )}
+                  {sourceError && (
+                    <p
+                      data-testid="agent-job-source-error"
+                      className="text-xs text-amber-700"
+                    >
+                      {sourceError}
+                    </p>
+                  )}
+                  <select
+                    aria-label="Select an authorized source"
+                    data-testid="agent-job-source-select"
+                    className="w-full rounded border p-2 text-sm bg-white dark:bg-gray-900"
+                    value={sourceKey}
+                    onChange={(e) => setSourceKey(e.target.value)}
+                  >
+                    <option value="">Use a text answer only</option>
+                    {sources.map((item, index) => (
+                      <option key={`${item.document_id || item.dataset_name || index}`} value={String(index)}>
+                        {sourceLabel(item)}
+                      </option>
+                    ))}
+                  </select>
+                  {selectedSource && (
+                    <p className="text-xs text-gray-600 dark:text-gray-400">
+                      The selected source will be bound to this exact question;
+                      uploading a file elsewhere does not answer it.
+                    </p>
+                  )}
+                </div>
+              )}
               <Textarea
                 aria-label="Answer the agent's question"
                 data-testid="agent-job-answer-input"
                 value={answer}
                 onChange={(e) => setAnswer(e.target.value)}
-                placeholder="Type the missing fact…"
+                placeholder={selectedSource ? "Optional note or label for this source…" : "Type the missing fact…"}
                 className="min-h-[80px]"
               />
               <Button
                 data-testid="agent-job-answer-submit"
                 onClick={submitAnswer}
-                disabled={submitting || !answer.trim()}
+                disabled={submitting || (!answer.trim() && !selectedSource)}
               >
                 {submitting ? "Sending…" : "Send answer"}
               </Button>

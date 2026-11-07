@@ -175,7 +175,7 @@ jobs:
           SECRET_KEY: "ci-test-secret-key"
           ENVIRONMENT: "development"
         run: |
-          python -m pytest tests/test_task_wait_source_trigger_contract.py tests/test_task_wait_source_continuation_regressions.py tests/test_task_wait_two_fact_events.py tests/test_task_wait_two_job_isolation.py tests/test_task_wait_source_revocation.py tests/test_employee_prerequisite_eligibility.py tests/test_sequential_fact_completion_contract.py tests/test_task_wait_process_recovery.py tests/test_task_wait_independent_work.py tests/test_task_wait_artifact_content_contract.py tests/test_employee_work_requests.py tests/test_employee_work_request_matrix.py tests/test_employee_durable_wait_g5.py tests/test_employee_evidence_change_g5.py tests/test_employee_adaptation_contract.py tests/test_employee_compiler_question_contract.py tests/test_boot_recovery_not_gated_by_scheduler.py tests/test_assignment_routes.py -q --tb=short --timeout=300 --timeout-method=thread
+          python -m pytest tests/test_task_wait_source_trigger_contract.py tests/test_task_wait_source_continuation_regressions.py tests/test_task_wait_two_fact_events.py tests/test_task_wait_two_job_isolation.py tests/test_task_wait_source_revocation.py tests/test_task_wait_source_version_after_acceptance.py tests/test_lead_wait_source_disappears.py tests/test_lead_wait_source_progress_and_extraction.py tests/test_lead_wait_missing_authoritative_revision.py tests/test_employee_prerequisite_eligibility.py tests/test_sequential_fact_completion_contract.py tests/test_task_wait_process_recovery.py tests/test_task_wait_independent_work.py tests/test_task_wait_artifact_content_contract.py tests/test_employee_work_requests.py tests/test_employee_work_request_matrix.py tests/test_employee_durable_wait_g5.py tests/test_employee_evidence_change_g5.py tests/test_employee_adaptation_contract.py tests/test_employee_compiler_question_contract.py tests/test_boot_recovery_not_gated_by_scheduler.py tests/test_assignment_routes.py -q --tb=short --timeout=300 --timeout-method=thread
       - name: Run evidence manifest Git-ref controls
         env:
           TESTING: "1"
@@ -225,6 +225,11 @@ jobs:
             tests/test_generic_normal_retry_identity.py \
             tests/test_oracle_mini_app_host_mutations.py \
             tests/test_agent_generic_information_wait.py \
+            tests/test_generic_source_answer_contract.py \
+            tests/test_lead_generic_source_answer_material.py \
+            tests/test_lead_generic_source_snapshot_cas.py \
+            tests/test_generic_information_idle_contract.py \
+            tests/test_generic_information_two_job_isolation.py \
             tests/test_information_wait_maturity_neutral.py \
             tests/test_positive_maturity_no_demotion.py \
             ../scripts/tests/test_browser_agent_job_wait_identity.py \

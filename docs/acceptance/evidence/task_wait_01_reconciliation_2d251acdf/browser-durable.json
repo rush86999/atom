@@ -1,0 +1,43 @@
+{
+  "job": {
+    "id": "c5a6eee3-9676-4f13-aa1e-a0457d803f14",
+    "status": "success",
+    "result_summary_present": true
+  },
+  "execution": {
+    "id": "78f9d8af-5d3e-433b-a483-035a5f521509",
+    "status": "success",
+    "result_steps": []
+  },
+  "waits": [
+    {
+      "id": "b8c84de9-1d0b-4f6e-80dc-61b6711a4021",
+      "status": "approved",
+      "action_type": "agent_information_request",
+      "user_feedback": "Quarterly close checklist",
+      "correlation_id": "9070bc11-816e-455d-9281-4d9aeec9eea4"
+    },
+    {
+      "id": "ae00cd43-d552-4a6f-a4f6-85e1bcfa0ed6",
+      "status": "approved",
+      "action_type": "agent_information_request",
+      "user_feedback": "high",
+      "correlation_id": "d8055859-f64b-446b-9299-5b6a03007ffb"
+    }
+  ],
+  "tasks": [
+    {
+      "id": "8c6e17c0-2dc7-44a6-8b2d-0130267ae207",
+      "title": "Quarterly close checklist",
+      "priority": "high",
+      "status": "backlog",
+      "board_id": "f0514ad8-95a1-450b-bf14-70400244cdb9",
+      "column_id": "919f09d2-5213-402b-a866-1653796259e0"
+    }
+  ],
+  "counts": {
+    "jobs_for_agent": 1,
+    "executions_for_id": 1,
+    "tasks_on_scratch_board": 1
+  }
+}

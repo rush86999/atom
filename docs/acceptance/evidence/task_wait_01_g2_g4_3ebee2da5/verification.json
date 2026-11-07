@@ -1,0 +1,39 @@
+{
+  "kind": "task_wait_01_g2_g4_g1_continuation",
+  "executed_source": "3ebee2da55f052b688d1ccb9047ff8a7277b0482",
+  "merge_main": "36fa4ce39dd19a6b53b662699e5ceebede129df1",
+  "source_tree_clean_at_execution": true,
+  "runtime_files_changed": [
+    "backend/core/assignment_executor.py"
+  ],
+  "test_files_added": [
+    "backend/tests/test_task_wait_source_version_after_acceptance.py",
+    "backend/tests/test_generic_information_two_job_isolation.py",
+    "backend/tests/test_generic_information_idle_contract.py"
+  ],
+  "g2": {
+    "reproduced": "1 failed; completed 130.00 stale value",
+    "fixed": "passes; completes 210.00 current value",
+    "failure_log": "g2-failure-before-fix.log"
+  },
+  "g4": {
+    "status": "covered by new test",
+    "runtime_fix": false
+  },
+  "g1": {
+    "status": "no Generic wall-budget/deadline contract; idle no-poll/retention test",
+    "runtime_fix": false
+  },
+  "g3": {
+    "status": "trace/proposal only; root review next",
+    "runtime_fix": false
+  },
+  "targeted_controls": {
+    "passed": 30,
+    "exit": 0,
+    "log": "affected-clean.log"
+  },
+  "task_wait_01": "open",
+  "claim_denominator": 143,
+  "live_actions": false
+}
