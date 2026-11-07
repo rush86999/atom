@@ -1,0 +1,24 @@
+{
+  "integrated_backend_source": "e02c1f2a21de6ca70a1e04b895cdb078365f279a",
+  "backend_result": {
+    "passed": 74,
+    "failed": 0,
+    "actual_exit_code": 0
+  },
+  "component_result": {
+    "passed": 9,
+    "failed": 0,
+    "actual_exit_code": 0,
+    "component_bytes_unchanged_from": "6d08b1c4b"
+  },
+  "client_timeout_checkpoint": "cb1f5a95ea55b2e336c0abcfc8c27fa60ea16b72",
+  "client_path": "frontend-nextjs/lib/assignment-api.ts",
+  "client_blob": "e4efa30d806d9ef620031fb728b38d7cfa9d0614",
+  "typecheck": {
+    "command": "node node_modules/typescript/bin/tsc --noEmit --incremental false",
+    "actual_exit_code": 0,
+    "log": "typecheck.log",
+    "source_note": "executed in e02 working tree with the sole tracked client-timeout diff now committed at client_timeout_checkpoint; do not relabel as clean source6d08"
+  },
+  "limits": "No actualprocess restart or no-owner-replay certification; Agent2 successor active."
+}

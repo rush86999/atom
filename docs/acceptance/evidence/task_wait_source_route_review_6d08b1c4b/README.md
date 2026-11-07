@@ -29,3 +29,15 @@ This is not ordinary UI/browser login, served model quality, PostgreSQL or
 multi-worker qualification. No live model/provider/credential/send/spend,
 guest, deployment, new task engine, new table or authority widening occurred.
 The new backend route gate and source-answer component gate are added to CI.
+
+## Main-foundation integration and client allowance
+
+After merging main8cbc99cc9, sourcee02c1f2a2 again passes74 backend controls
+(actualexit0); the unchanged source-answer component passes9. Captures and
+JUnit are retained separately from the original6d08 run. The source-answer
+client's120-second timeout was shorter than its new180-second server-side
+continuation. A separate client checkpoint now uses the existing advance
+client's300-second allowance, stillretry=false; no server/owner budget changes.
+TypeScriptnoEmit exits0; INTEGRATION_FOLLOWUP.json records the exact client
+checkpoint/blob and that the typecheck ran on the pending diff, rather than
+misattributing it to the earlier clean source. Actualprocess recovery remainsopen.

@@ -13,13 +13,20 @@
     "frontend-nextjs/components/assignments/__tests__/AssignmentPanel.test.tsx": "afd6b1f50e2136b1518a7719c2ca8b6afaca9c201cb5297db6a8374f49a6ce3c"
   },
   "artifacts": {
-    "README.md": "24efb1892c526f19aecb6b5df71ba9970af3d0aa2150b5938bebd303e6662a3c",
+    "INTEGRATION_FOLLOWUP.json": "8ab9f908642338fbf5001761346f19e4a3611a6cba99799fb525317ab8a32e18",
+    "README.md": "d81c761f9b5a9d2d10f1c732a45766737c41dcb8418518476fae838ed421b639",
     "backend-exit.json": "2e60c768f8b64a85fcbd8a3d738345eb1ad3430da5ae0d45f70880e7dd29b0c5",
     "backend-spec.json": "9c9dc993ef8815744f17b29f777022c60bb6e23da13bd6e1e9080c690f645cd8",
     "backend.log": "5a4e7780c350a67d3d7052883cfc17ca995aac7640e430332284553f70752493",
     "backend.xml": "c73254ca841ee131cdcf90ca40371d780ef9a16094161705c017fbec729ebe68",
     "frontend-result.json": "5c4cc840f50f4311ca6bf5ecd23881ec4ef1971ab0b3dbc9fd65f9611d9eca2b",
+    "integrated-backend-exit.json": "e78bef49873c4177bd71782014d66174786d2fe86c28b77eed4012957c763374",
+    "integrated-backend-spec.json": "dcc832d3fda2f323776361ff2bcf00e27e56b0e54914ca92028802150eed15fe",
+    "integrated-backend.log": "36968529e7546a86c77bfa5378b4874538902dd30429c53b809974149f330137",
+    "integrated-backend.xml": "da9f33c82d571029cc1ea3c2ae29d77c4dfe08a28d7b11020136ec4514224ca3",
+    "integrated-panel.log": "b9c2a164174612297c17edce45e4069ac5e8b1919cf4e962c97e4e8b2743ae28",
     "original-packet-git-check.json": "b5bf4b63624f9d62c6f8de31e2f5101c1d05627b7087ff753c184e84286a68d6",
-    "panel.log": "7bbf9d77095cd4490a33a47dd329945177df85d576aae6323c25d7f95d925d12"
+    "panel.log": "7bbf9d77095cd4490a33a47dd329945177df85d576aae6323c25d7f95d925d12",
+    "typecheck.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
   }
 }
