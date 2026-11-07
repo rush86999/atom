@@ -1,0 +1,23 @@
+{
+  "executed_source": "a8cb0cba608a81c9b21afc70588ebd056a721ad7",
+  "source_files": {
+    ".github/workflows/ci.yml": "a981d19b3463c38ae3184a944fc5fff0bba432867aeb058e3d5e61a747178ebd",
+    "backend/api/assignment_routes.py": "cd89d63992ca9753d67c7e1fdcf8be7789a7adcdfeec0f1c50438ebc1494a788",
+    "backend/core/assignment_resources.py": "970dc2fab70f985faaa57f6c41ae55e430055403f65a130dac3e9978895ced33",
+    "backend/core/employee_job_runner.py": "17c2980a1cb8332389cec0f713bb4aae8175e7221bfb27f66a290db632d246a2",
+    "backend/tests/test_task_wait_source_revocation.py": "7f385bd4461785f6a80dd1ca19a39a6b77cb8df6899c390d7a02dbf32172b454",
+    "backend/tests/test_task_wait_two_job_isolation.py": "3f1520203c1786fa900d942372582d8248ee948a4573feb13ea6c674de3085da",
+    "backend/tests/test_task_wait_two_fact_events.py": "70b52996e14fa06a50a4fc19e41c9edf57f5449964d7d2411b39d0a19bb997d9",
+    "backend/tests/test_sequential_fact_completion_contract.py": "bc0f6d19483deb9c91b5277e88d84ebcb12f5c9ff272a96f502c03e336c10d61",
+    "backend/tests/test_agent_read_scope_contract.py": "2d9c4d52a8ba30609120dc83635b15037f2d4419700612b578c7a727153a17ba"
+  },
+  "artifacts": {
+    "merge-readback.json": "467097699d1ae597a494cf176db38609e22bd0ecaf40e35c8dba9c970165481f",
+    "focused.xml": "805c885cad2ab9a318b99115b5eda6fee2679bbd35a26622cb40e6f592af1de5",
+    "README.md": "d0e06a2914910fdfa046ff3ed86ce04160b4d3c7b250c3a0d390040aa1a567a4",
+    "focused-exit.json": "d906f04386b51dc169b5b1b8515e52708f6fddc534407fa1bfbe76a1eded96fe",
+    "focused-spec.json": "35338ee4999a76d675eb82fc5171fecba077164488f95762e5771f8bec94bc1e",
+    "verification.json": "ed1426b78e10c14756caca052d74430359db52ab69895940267619b756598cbe",
+    "focused.log": "48d203baec0c9eb2858d318044e42473ab0f85e2574e940c59fe3e2b559b4e81"
+  }
+}

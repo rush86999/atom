@@ -1,0 +1,11 @@
+{
+  "pr": 730,
+  "reviewed_head": "750953499c8c228dc66b7425e74bdd1697b8bf39",
+  "merged": "f3b32005a6997e35f820c0510d42801d4946b12b",
+  "independent_combination": "a83437fa3ad1f82dffd703c679de339093007ab5",
+  "whole_tree_diff_exit": 0,
+  "hosted_continuation_passed": 148,
+  "hosted_shared_passed": 364,
+  "combined_controls_passed": 57,
+  "postmerge_ci": "separately observed, not inferred"
+}

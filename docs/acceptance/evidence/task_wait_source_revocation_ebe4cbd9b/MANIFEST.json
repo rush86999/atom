@@ -1,0 +1,22 @@
+{
+  "executed_source": "ebe4cbd9b5f4767b14d21d0280a8ae277e39c767",
+  "source_files": {
+    "backend/api/assignment_routes.py": "cd89d63992ca9753d67c7e1fdcf8be7789a7adcdfeec0f1c50438ebc1494a788",
+    "backend/core/assignment_resources.py": "970dc2fab70f985faaa57f6c41ae55e430055403f65a130dac3e9978895ced33",
+    "backend/core/sheet_dataset_service.py": "2bc67fdc4f2a3aa6be36e2229cfaee22725d0178bb4ed2efdf801bbeb6cb50ba",
+    "backend/core/employee_job_runner.py": "17c2980a1cb8332389cec0f713bb4aae8175e7221bfb27f66a290db632d246a2",
+    "backend/core/employee_adaptation.py": "f0214906347ba4ad961b604707dede957d2d3f3a82fbe04a236b5f02fe39e715",
+    "backend/tests/test_task_wait_source_revocation.py": "7f385bd4461785f6a80dd1ca19a39a6b77cb8df6899c390d7a02dbf32172b454",
+    "backend/tests/test_task_wait_two_job_isolation.py": "3f1520203c1786fa900d942372582d8248ee948a4573feb13ea6c674de3085da",
+    "backend/tests/test_task_wait_two_fact_events.py": "70b52996e14fa06a50a4fc19e41c9edf57f5449964d7d2411b39d0a19bb997d9",
+    "backend/tests/test_sequential_fact_completion_contract.py": "bc0f6d19483deb9c91b5277e88d84ebcb12f5c9ff272a96f502c03e336c10d61"
+  },
+  "artifacts": {
+    "independent.xml": "a0baea122bd07c5a120b9fadc37b1b6a3071c649a1745502327458cbd3bd418e",
+    "README.md": "e7ae6b22deb4d1bc3a3c6e90d6bcecd6dfe7449157c9d15b11d091b96d7750f7",
+    "verification.json": "ae817becf6d5c8343b231bc0ece5d59ed66b85e3a0d84c3f0c0a65101a5a5fc4",
+    "independent.log": "973fee0d52675958a8ae96d7402c7df0c88611439ecf25e1e32397968a1d9b65",
+    "independent-exit.json": "637bf1189b78cd307f1a33e9250b833d598a66f9c09a210e56cc1d36188122e5",
+    "independent-spec.json": "f9fb5546d43cc02232ea925644e8be9054db3c76f79555878af26181cb72f0a1"
+  }
+}
