@@ -755,11 +755,10 @@ def _storage_readiness_probe() -> Dict[str, Any]:
     try:
         import core.world_storage_guard as WSG
         report = WSG.preflight()
-        data = report.as_dict() if hasattr(report, "as_dict") else {}
         return {
-            "ok": bool(data.get("ok")),
-            "checks": data.get("checks", []),
-            "problems": data.get("problems", []),
+            "ok": bool(getattr(report, "ok", False)),
+            "checks": list(getattr(report, "checks", []) or []),
+            "problems": list(getattr(report, "problems", []) or []),
             "worlds_root": str(WORLDS_ROOT),
             "worlds_root_exists": WORLDS_ROOT.exists(),
             "worlds_root_is_symlink": WORLDS_ROOT.is_symlink(),
