@@ -1,7 +1,8 @@
 {
   "artifacts": {
-    "README.md": "51730ba1074b55cd0f95a1be56d2bf6ef6b2354ce0389dda0fa1d6d0325371e8",
+    "README.md": "695b6ac2fda18dc33eaa38edcb8ad00f64418f03a80e504ceaa2fc0a6ca7ac1f",
     "capture-run.log": "0699c6d33ca709095a41d650b514fa0b1992d85f23a93a6bed46e37e422d7366",
+    "consolidated-25-controls.log": "c37303baf54d34a6129bdc985589edd28910da9c5e892407702cd4054f7c9529",
     "final-affected-failures.txt": "9b0dccaf90ed0ff396b7c576e31d47c7d6cb933beeaa55ada873648865564fab",
     "final-affected.log": "997a32b8f8b830a99d037b721a2dca4768d7237a468fb8a62b3d3b895485ea37",
     "final-failure-identity.json": "48a52206eb3c90d6ab68c1e74ba33273d2d46d29b98c883cc4e94e4107df13d3",
@@ -44,6 +45,7 @@
   "results": {
     "actual_affected_gate": "exit 1; 36 failure IDs; identical to the root actual baseline",
     "combined_focused_gate": "67 passed; exit 0",
+    "consolidated_supplied_controls": "25 passed; exit 0",
     "generic_consumer_follow_through": "test_generic_agent.py, test_agent_action_audit.py, test_generic_oracle_mutation_contract.py, test_objective_loop_termination.py passed",
     "new_candidate_contracts": "42 passed; exit 0",
     "new_failure_ids": 0,

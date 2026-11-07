@@ -110,6 +110,7 @@ child under `/private/tmp/atom-job-join-gate-20261107-agent2/`.
 | Supplied five-cell probe | `/private/tmp/test_lead_agent_job_outcome_join.py` (in `final-focused.log`) | **5 passed, exit 0** |
 | New candidate contracts | `test_agent_run_outcome_join_contract.py` + `test_agent_run_admission_contract.py` | **42 passed, exit 0** |
 | Supplied lead probes | claim race + draft bindings + all four wait files in `LEAD_PROBES/` | **20 passed, exit 0** |
+| Consolidated supplied controls | five-cell probe + claim race + draft bindings + all four wait files, `consolidated-25-controls.log` | **25 passed, exit 0** |
 | Combined focused gate | 67 tests, `final-focused.log` | **exit 0** |
 | Actual affected gate | 13 files, `final-affected.log` | **exit 1; 36 failure IDs** |
 | Failure identity | `final-failure-identity.json` | **36/36 exactly the root actual baseline; zero new IDs** |
