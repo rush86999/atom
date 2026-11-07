@@ -3,7 +3,7 @@
   "branch": "codex/generic-source-answer-20261107",
   "base_source": "7d38d2ac946ca8b4470bde8edd72ed00ef49497d",
   "root_probe_source": "c58340b1805b13602f169c113abd5b9727056fa3",
-  "executed_source": "6cc5075ace971682d08c9dfd044ef64fb665a057",
+  "executed_source": "32bb1e8cc952efb673fb69b5db96f1a4917b4c14",
   "source_tree_clean": true,
   "root_negatives": {
     "material_failed": 1,
@@ -11,10 +11,11 @@
     "exit": 1
   },
   "focused": {
-    "backend_passed": 11,
+    "backend_passed": 20,
     "ui_passed": 11,
     "exit": 0
   },
+  "process_rows": 3,
   "fixes": [
     "full_answer_material_digest",
     "snapshot_observed_cas",
@@ -22,9 +23,7 @@
     "typed_409_zero_effect"
   ],
   "remaining": [
-    "source-specific actual-process restart order",
-    "source-upload-alone route confirmation",
-    "ordinary UI episode"
+    "single ordinary UI source-selection episode"
   ],
   "no_dependency_install": true,
   "no_live_actions": true,
@@ -36,19 +35,21 @@
     "backend/tests/test_generic_source_answer_contract.py": "d671b8c6b33623f0693d09547c26427058e861497047bab94c865e99f3cf2d97",
     "backend/tests/test_lead_generic_source_answer_material.py": "611642600fccae4323b1287e016a2069e7b6b34cfd52f1e51f5855a52f6dddf1",
     "backend/tests/test_lead_generic_source_snapshot_cas.py": "fa6e5a95e52979d4214585bfd9c795dac1d5e02bb2bf618229246beaadba41ac",
+    "backend/tests/test_agent_generic_information_wait_process.py": "4b3619952b6b1a452c6249658d40a0e13b82e8e2cbf9a14d16b80901714fe5c2",
+    "backend/tests/process_support/generic_information_wait_process_worker.py": "db96b6a10327f055f299ff41300144973a7f42c60687e7013aa55272025cd250",
     "frontend-nextjs/components/Agents/AgentJobWaitPanel.tsx": "30c6055f0af72e2a5108e0fb9aa1ccbc9c56ba14b4e938462f44c724f2fa6301",
     "frontend-nextjs/components/Agents/__tests__/AgentJobWaitPanel.test.tsx": "c953f4305515c628c2813768e0743036b8069c417b3beb04524f5c7baaba2916",
     ".github/workflows/ci.yml": "fd609f1007c1aacb8595365422ddfd1166c7b77884c4879d57df1545cfe071ca"
   },
   "artifacts": {
-    "HANDOFF.md": "5208ed3379d9529236d2034830927d4ea61b87c3613be2c895d34b2b3cfaf433",
-    "README.md": "b5e0f3b1bebcc9961552a919e033eeef2fd6a0aa6eab645c1ec77832b52ddd43",
-    "focused-backend-11-clean.log": "85715df1ba91ddaa96ef05e6014367c443bb2e30a7a610e5cf1d233faf21b8e5",
-    "focused-ui-11-clean.log": "1e0e37bfa37228fec2682ad730be6d728d7bf78975d94be60cc45beaf6659d16",
+    "HANDOFF.md": "934e9d6266c6285c99090eb7c965459787616604ec74b5b82a146845aafe62f2",
+    "README.md": "4b95fe00eb4e3959cf960b45e656c72c82a80aa4e374ef6ca0a4a503c8b6c774",
+    "focused-backend-20-clean.log": "57c2460cdec94d6439d408367138c74c82a0afbbfc6dbcb5da3e3044a4a010fe",
+    "focused-ui-11-clean.log": "7738c89bb614da211b4d8d20abdd593671565152a2692139dbcf3a8d89574694",
     "root-findings.json": "2c02550070820b1073756bf1e77c114440b8a73ae78b69e0f7dc39399e1519f0",
     "root-material-negative.log": "d0d97928e208a5b5d1b1ad2dd69a9f541b7f7d00169f32dd9911a33d451460c8",
     "root-snapshot-cas-negative.log": "d173598434209c2a45583a8b6b4dc3cbf5d09647ee0fe8303428b73897f86de3",
-    "source-change.patch": "424f4540514497e32dcfc4c7315091a1a095b3ec95184dedf78782688852d55f",
-    "verification.json": "f6cb170700916da1c912a8c9248d0a995c176d49467aff00a5d2f8188dd5e4a7"
+    "source-change.patch": "243f29d57f27f6bc198db65a42c8240ce8847e1bff48ce8db6084c589b0f7564",
+    "verification.json": "e638e2c10e0a77f5a67492da4c6ce4ec2c171000c837209b99ca8c121065fde0"
   }
 }

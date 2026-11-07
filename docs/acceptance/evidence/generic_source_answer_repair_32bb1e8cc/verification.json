@@ -3,7 +3,7 @@
   "branch": "codex/generic-source-answer-20261107",
   "base_source": "7d38d2ac946ca8b4470bde8edd72ed00ef49497d",
   "root_probe_source": "c58340b1805b13602f169c113abd5b9727056fa3",
-  "executed_source": "6cc5075ace971682d08c9dfd044ef64fb665a057",
+  "executed_source": "32bb1e8cc952efb673fb69b5db96f1a4917b4c14",
   "source_tree_clean": true,
   "root_negatives": {
     "material_failed": 1,
@@ -11,10 +11,11 @@
     "both_exit": 1
   },
   "focused": {
-    "backend_passed": 11,
+    "backend_passed": 20,
     "ui_passed": 11,
     "exit": 0
   },
+  "process_rows": 3,
   "fixes": [
     "full_answer_material_digest",
     "snapshot_observed_cas",
@@ -22,6 +23,10 @@
     "typed_409_zero_effect"
   ],
   "coverage_completed": [
+    "source answer after restart",
+    "accepted source crash before claim",
+    "upload alone inert",
+    "result withheld until verified",
     "dataset valid",
     "missing/foreign/stale/revoked source",
     "offline actor authority",
@@ -30,9 +35,7 @@
     "UI source picker"
   ],
   "remaining": [
-    "source-specific actual-process restart order",
-    "source-upload-alone route confirmation",
-    "ordinary UI episode"
+    "single ordinary UI source-selection episode"
   ],
   "no_dependency_install": true,
   "no_live_actions": true,
