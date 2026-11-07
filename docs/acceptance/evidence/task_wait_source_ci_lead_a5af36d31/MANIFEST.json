@@ -1,0 +1,23 @@
+{
+  "executed_source": "a5af36d3142edfb7326db782704ec897b3f8dd72",
+  "source_files": {
+    "backend/tests/source_authority_fixtures.py": "6f697979691c7c544e8c2fb284b3844e591c3c358bc6fc1b6e4df5fd620c66d6",
+    "backend/tests/test_employee_work_requests.py": "05daf1cfa2f9fd68750af02ac5d5440cda7407efb0fcd273b0e9b190d8e8c387",
+    "backend/tests/test_employee_work_request_matrix.py": "38ed567db9d82c1cbd3eabf4589152346c7aa7898b989634b769f028f27c224b",
+    "backend/tests/test_assignment_routes.py": "febc83254b06b6c6de49a344024df8232fdd6d6729bc83c14a10bbb796adf450",
+    "backend/core/assignment_executor.py": "0e8212f7932a0f3100409cde7e6f3264a57e5a1bd05bf2f81413fcae836001a2",
+    "backend/api/assignment_routes.py": "7cf3091d48a23952c9c56f945bf79cb04171ce6f7b166337af1da544b722902d",
+    "backend/core/assignment_resources.py": "4f67e795a96999e12323173d5f84f6033deba27cf3a9c35c827ca790c53ad034",
+    "backend/tests/test_lead_wait_source_progress_and_extraction.py": "61b13fc1c0dede10e670f67b347ed5fd2bc4a3e3d64245ff86560166e7d288b3",
+    "backend/tests/test_lead_wait_source_disappears.py": "b08d90fc3bdf65c4e43186cff5bb60b2647b45421768199645722c89f4c3449c",
+    "backend/tests/test_task_wait_source_version_after_acceptance.py": "03e789789dbeeb5c501ef6ddad9074608e9e3c590588c3433bd60fcf31446199",
+    "backend/tests/test_task_wait_two_fact_events.py": "70b52996e14fa06a50a4fc19e41c9edf57f5449964d7d2411b39d0a19bb997d9",
+    "backend/tests/test_lead_wait_missing_authoritative_revision.py": "1db1eea8687d6bdb404a254b25c153ed2c41967806fcc5fefc165da1c8552e78"
+  },
+  "artifacts": {
+    "README.md": "0d78863c55fcfe0c0416eede5e9b7d9d6bd1e125245be7caa40fcce28f8c0ac5",
+    "root-pr753-fixture-followup.exit.json": "41cf4fec1d16481975cef6931c79e35934089f1a56e0c2f31c4b6541239a4aa3",
+    "root-pr753-fixture-followup.spec.json": "518b618e77db42dbe1fee132dac46887f4f14668f12efaba53b8556072052747",
+    "root-pr753-fixture-followup.log": "5c9f865d6f4c5e1f199922cb34f04a9baddcae67d1dc1afe2cc6f9b56535cf82"
+  }
+}
