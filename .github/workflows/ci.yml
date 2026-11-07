@@ -209,6 +209,7 @@ jobs:
             tests/test_generic_information_exact_event_contract.py \
             tests/test_agent_run_outcome_join_contract.py \
             tests/test_agent_run_admission_contract.py \
+            tests/test_agent_read_scope_contract.py \
             tests/test_agent_job_wait_reference_contract.py \
             tests/test_agent_job_wait_execution_contract.py \
             tests/test_agent_job_wait_scope_contract.py \
