@@ -238,6 +238,108 @@ def _process_cwd(pid: int) -> Optional[str]:
     return None
 
 
+def _same_path(observed: Any, expected: Any) -> bool:
+    """Exact resolved-path equality; absent/unreadable observations fail."""
+    if not observed or not expected:
+        return False
+    try:
+        return Path(str(observed)).resolve() == Path(str(expected)).resolve()
+    except Exception:
+        return False
+
+
+def _frontend_cwd_matches(observed: Optional[str], expected: Path) -> bool:
+    """A frontend cwd is valid only when OBSERVED and exactly the world copy."""
+    return _same_path(observed, expected)
+
+
+def _manifest_subset_hash(manifest: Dict[str, str],
+                          prefix: str = "") -> Dict[str, Any]:
+    subset = {
+        str(path): str(digest)
+        for path, digest in (manifest or {}).items()
+        if str(path).startswith(prefix)
+    }
+    encoded = json.dumps(sorted(subset.items()), separators=(",", ":")).encode()
+    return {
+        "prefix": prefix,
+        "file_count": len(subset),
+        "sha256": hashlib.sha256(encoded).hexdigest(),
+    }
+
+
+def _backend_source_binding(
+    *,
+    frozen_source_sha: str,
+    source_head: str,
+    preflight: Dict[str, Any],
+    manifest: Dict[str, Any],
+    code_manifest: Dict[str, str],
+    export_tree: Dict[str, str],
+    health_identity: Dict[str, Any],
+    descriptor: Dict[str, Any],
+    world: Path,
+) -> Dict[str, Any]:
+    """Bind the initial server to the frozen source and its exported files.
+
+    The world MANIFEST has no source_revision, so absence is recorded but is
+    never allowed to satisfy the check. Certification is the chain:
+    frozen source == preflight source, exported tree == code_manifest, and the
+    running server cwd/export path is exactly this world's backend_root.
+    """
+    health = health_identity or {}
+    desc = descriptor or {}
+    manifest_rev = (manifest or {}).get("source_revision")
+    backend_export = _manifest_subset_hash(code_manifest, "backend/")
+    whole_export = _manifest_subset_hash(code_manifest, "")
+    expected_export = (Path(world) / "backend_root").resolve()
+    checks = {
+        "frozen_source_sha_present": bool(frozen_source_sha),
+        "frozen_source_matches_head": (
+            bool(frozen_source_sha)
+            and str(frozen_source_sha) == str(source_head)),
+        "preflight_source_matches_frozen": (
+            bool(frozen_source_sha)
+            and str((preflight or {}).get("source_revision") or "")
+            == str(frozen_source_sha)),
+        "manifest_export_hash_present": bool(
+            (manifest or {}).get("code_snapshot_sha256")
+            or (manifest or {}).get("code_archive_sha256")),
+        "manifest_source_revision_not_conflicting": (
+            manifest_rev is None
+            or (bool(frozen_source_sha)
+                and str(manifest_rev) == str(frozen_source_sha))),
+        "export_tree_matches_code_manifest": (
+            export_tree == code_manifest),
+        "backend_export_hash_present": backend_export["file_count"] > 0,
+        "health_cwd_exact": _same_path(health.get("cwd"), expected_export),
+        "descriptor_export_exact": _same_path(
+            desc.get("export_path"), expected_export),
+        "health_source_id_observed": bool(health.get("source_id")),
+    }
+    return {
+        **checks,
+        "ok": all(checks.values()),
+        "certified_by": (
+            "frozen_source+preflight_source+export_tree+backend_export+"
+            "isolated_cwd+descriptor"),
+        "frozen_source_sha": frozen_source_sha,
+        "source_head": source_head,
+        "preflight_source_revision": (preflight or {}).get("source_revision"),
+        "manifest_source_revision": manifest_rev,
+        "manifest_source_revision_present": manifest_rev is not None,
+        "code_snapshot_sha256": (manifest or {}).get("code_snapshot_sha256"),
+        "code_archive_sha256": (manifest or {}).get("code_archive_sha256"),
+        "export_tree": whole_export,
+        "backend_export": backend_export,
+        "health_source_id": health.get("source_id"),
+        "health_source_id_is_unknown": (
+            str(health.get("source_id") or "").startswith("unknown")),
+        "health_cwd": health.get("cwd"),
+        "descriptor_export_path": desc.get("export_path"),
+    }
+
+
 def _stop_frontend_group(proc: Any) -> None:
     """Stop the frontend's own process group, then fall back to terminate."""
     try:
@@ -779,13 +881,17 @@ def _check_execute_ready(args: argparse.Namespace) -> Dict[str, Any]:
     return {"dependencies": deps, "ports": {str(k): v for k, v in ports.items()}}
 
 
-def _build_world(world: Path) -> Dict[str, Any]:
+def _build_world(world: Path, frozen_source_sha: str) -> Dict[str, Any]:
     from core.world_storage_guard import require_storage_ready
     require_storage_ready()
     if world.exists():
         raise DriverError(
             f"world {world.name!r} already exists; this driver requires a "
             "unique fresh world and does not delete or rebuild one")
+    # preflight() resolves the source from R.WORKTREE. The snapshot export is
+    # taken from this driver's REPO, so bind the harness's source identity to
+    # the same worktree instead of its historical default.
+    R.WORKTREE = REPO
     disk = R._check_disk_before_world(world).as_dict()
     R.build_world.snapshot_working_tree = True
     R.build_world.full_dev_db = False
@@ -795,16 +901,33 @@ def _build_world(world: Path) -> Dict[str, Any]:
     if not manifest.exists() or not fixture.exists():
         raise DriverError("world build did not produce MANIFEST.json/fixture/atom.db")
     manifest_doc = _load_json(manifest)
+    pre = R.preflight(world)
+    code_manifest = _load_json(world / "code_manifest.json")
+    export_tree = R._tree_manifest(world / "code")
+    if pre.get("source_revision") != frozen_source_sha:
+        raise DriverError(
+            "harness preflight source revision does not match the frozen "
+            f"source: {pre.get('source_revision')!r} != {frozen_source_sha!r}")
+    if export_tree != code_manifest:
+        raise DriverError(
+            "exported code tree does not match code_manifest.json; the files "
+            "that would run are not the frozen snapshot")
     return {
         "world": str(world),
         "disk_preflight": disk,
         "manifest_path": str(manifest),
         "fixture_path": str(fixture),
+        "preflight": pre,
+        "manifest_doc": manifest_doc,
+        "code_manifest": code_manifest,
+        "export_tree": export_tree,
         "source_revision": manifest_doc.get("source_revision"),
         "code_snapshot_sha256": manifest_doc.get("code_snapshot_sha256"),
         "code_archive_sha256": manifest_doc.get("code_archive_sha256"),
         "code_source": manifest_doc.get("code_source"),
         "fixture_source": manifest_doc.get("fixture_source"),
+        "backend_export": _manifest_subset_hash(code_manifest, "backend/"),
+        "export": _manifest_subset_hash(code_manifest, ""),
     }
 
 
@@ -1331,14 +1454,25 @@ def _run_scenario(args: argparse.Namespace) -> int:
             "runtime_identity": source.get("runtime_identity"),
         })
 
-        build = _build_world(world)
+        build = _build_world(world, source.get("head") or "")
         stack["world_build"] = build
         step("world_built_once", {
             "manifest_present": Path(build["manifest_path"]).is_file(),
             "fixture_present": Path(build["fixture_path"]).is_file(),
             "disk_preflight_ok": bool(
                 (build.get("disk_preflight") or {}).get("ok")),
-        }, details={"disk_preflight": build.get("disk_preflight")})
+            "preflight_source_matches_frozen": (
+                (build.get("preflight") or {}).get("source_revision")
+                == source.get("head")),
+            "export_tree_matches_manifest": (
+                build.get("export_tree") == build.get("code_manifest")),
+            "backend_export_hash_present": (
+                bool((build.get("backend_export") or {}).get("file_count"))),
+        }, details={"disk_preflight": build.get("disk_preflight"),
+                    "preflight": build.get("preflight"),
+                    "export": build.get("export"),
+                    "backend_export": build.get("backend_export"),
+                    "manifest_source_revision": build.get("source_revision")})
 
         os.environ["ADDITIONAL_ALLOWED_ORIGINS"] = (
             f"http://localhost:{args.frontend_port},"
@@ -1363,6 +1497,25 @@ def _run_scenario(args: argparse.Namespace) -> int:
             "auth_secret_present": bool(os.environ.get("SECRET_KEY")),
         })
         identity1 = health1.get("identity") or {}
+        source_binding = _backend_source_binding(
+            frozen_source_sha=source.get("head") or "",
+            source_head=source.get("head") or "",
+            preflight=build.get("preflight") or {},
+            manifest=build.get("manifest_doc") or {},
+            code_manifest=build.get("code_manifest") or {},
+            export_tree=build.get("export_tree") or {},
+            health_identity=identity1,
+            descriptor=descriptor1,
+            world=world,
+        )
+        stack["initial_source_binding"] = source_binding
+        if not source_binding["manifest_source_revision_present"]:
+            stack.setdefault("notes", []).append(
+                "world MANIFEST has no source_revision; the initial server is "
+                "certified by frozen source + exported tree hashes + isolated "
+                "cwd, never by the absent manifest field")
+        step("initial_backend_source_bound", source_binding["checks"],
+             details=source_binding)
         step("backend_identity", {
             "health_ok": health1.get("status") in (
                 None, "healthy", "degraded", "ok"),
@@ -1441,12 +1594,10 @@ def _run_scenario(args: argparse.Namespace) -> int:
                 "dev server; BUILD_ID is recorded only if Next writes one")
             frontend_cwd = stack["frontend"]["cwd"]
             step("frontend_cwd_isolated", {
-                "cwd_not_user_tree": (
-                    frontend_cwd is None
-                    or Path(frontend_cwd).resolve()
-                    == (world / "frontend_snapshot").resolve()),
+                "cwd_observed": frontend_cwd is not None,
+                "cwd_exact": _frontend_cwd_matches(
+                    frontend_cwd, world / "frontend_snapshot"),
             }, details={"cwd": frontend_cwd,
-                        "observed": frontend_cwd is not None,
                         "expected": str(world / "frontend_snapshot")})
 
             from playwright.sync_api import sync_playwright
@@ -1647,12 +1798,11 @@ def _run_scenario(args: argparse.Namespace) -> int:
                         if build_id_path2.is_file() else None),
                 }
                 step("frontend_restarted_isolated", {
-                    "cwd_not_user_tree": (
-                        fe_cwd2 is None
-                        or Path(fe_cwd2).resolve()
-                        == (world / "frontend_snapshot").resolve()),
+                    "cwd_observed": fe_cwd2 is not None,
+                    "cwd_exact": _frontend_cwd_matches(
+                        fe_cwd2, world / "frontend_snapshot"),
                 }, details={"cwd": fe_cwd2,
-                            "observed": fe_cwd2 is not None})
+                            "expected": str(world / "frontend_snapshot")})
                 stack["health_after_restart"] = health2
                 stack["backend_descriptor_after_restart"] = descriptor2
                 step("backend_restarted_same_world", {
