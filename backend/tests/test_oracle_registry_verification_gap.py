@@ -20,7 +20,10 @@ import pytest
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
 
-from core.action_effects import declares_mutation
+from core.action_effects import (
+    declares_mutation,
+    effect_declaration_problems,
+)
 from core.action_registry import action_registry
 from core.assignment_executor import (
     AssignmentExecutor,
@@ -498,6 +501,128 @@ def test_unqualified_effect_metadata_is_not_an_implicit_read(
     assert result["status"] == "uncertain", result
     assert result["oracle_verified"] is False
     assert "no registered postcondition verifier" in result["oracle_evidence"]
+
+
+MALFORMED_EFFECT_DECLARATIONS = [
+    pytest.param([{"effect": "read"}, {}], id="read-missing-entry"),
+    pytest.param(
+        [{"effect": "plan_produced"}, {}], id="plan-missing-entry"),
+    pytest.param([{"effect": "read"}, 42], id="read-non-mapping-entry"),
+    pytest.param(
+        [{"effect": "read"}, {"effect": "   "}], id="read-blank-name"),
+    pytest.param(
+        [{"effect": "read"}, {"effect": None}], id="read-null-name"),
+    pytest.param(
+        [{"effect": "read"}, {"effect": 42}], id="read-non-string-name"),
+    pytest.param(
+        [{"effect": "read"}, {"effect": "unrecognised"}],
+        id="read-unknown-name"),
+]
+
+
+@pytest.mark.parametrize("effects", MALFORMED_EFFECT_DECLARATIONS)
+def test_malformed_effect_metadata_cannot_certify_write(
+        tmp_path, monkeypatch, effects):
+    """A partial/malformed declaration is unqualified, never a read proof.
+
+    The write really lands in scratch SQLite through the shared adapter, so the
+    only truthful outcome is uncertain (unverified), exactly like a declared
+    mutation without a verifier.
+    """
+    monkeypatch.setattr(
+        action_registry, "_actions", dict(action_registry._actions))
+    path = tmp_path / "malformed.db"
+    with sqlite3.connect(path) as db:
+        db.execute("create table effects (value integer)")
+
+    async def write(args, context):
+        with sqlite3.connect(path) as db:
+            db.execute("insert into effects values (?)", (args["value"],))
+        return {"status": "success", "action_result": "applied",
+                "remote_id": "local-malformed",
+                "verification": {"status": "verified", "verified": True}}
+
+    name = f"lead_probe.malformed.{uuid.uuid4().hex[:8]}"
+    action_registry.register(name, write, effects=effects)
+    assert get_postcondition(name) is None
+    result = asyncio.run(_action_registry_adapter(
+        {"action": name, "arguments": {"value": 7}},
+        {"workspace_id": "proof-ws", "tenant_id": "proof-tenant",
+         "employee_id": "proof-owner", "run_id": "proof-run",
+         "step": {"effect": "local", "operation_id": "proof-op"}}))
+    with sqlite3.connect(path) as db:
+        assert db.execute("select value from effects").fetchall() == [(7,)]
+    assert result["status"] == "uncertain", result
+    assert result["oracle_verified"] is False
+    assert result["action_result"] == "uncertain"
+    assert "no registered postcondition verifier" in result["oracle_evidence"]
+
+
+@pytest.mark.parametrize("effects", [
+    pytest.param([{"effect": "read"}], id="read"),
+    pytest.param([{"effect": "read_only"}], id="read-only"),
+    pytest.param([{"effect": "plan_produced"}], id="plan"),
+])
+def test_clean_non_mutating_metadata_still_applies(monkeypatch, effects):
+    """Fully valid read/plan declarations keep their legitimate exemption."""
+    monkeypatch.setattr(
+        action_registry, "_actions", dict(action_registry._actions))
+
+    async def handler(args, context):
+        return {"status": "success", "action_result": "applied",
+                "success": True}
+
+    name = f"lead_probe.clean.{uuid.uuid4().hex[:8]}"
+    action_registry.register(name, handler, effects=effects)
+    result = asyncio.run(_action_registry_adapter(
+        {"action": name, "arguments": {}},
+        {"workspace_id": "ws", "employee_id": "u1", "tenant_id": "t1",
+         "step": {"effect": "local", "operation_id": "op-clean"}}))
+    assert result["status"] == "applied", result
+    assert result["oracle_verified"] is None
+
+
+@pytest.mark.parametrize("declaration", [
+    pytest.param([{"effect": "read"}, {}], id="missing-entry"),
+    pytest.param([{"effect": "read"}, {"effect": "  "}], id="blank-name"),
+    pytest.param([{"effect": "read"}, {"effect": 42}], id="non-string-name"),
+    pytest.param([{"effect": "read"}, 42], id="non-mapping-entry"),
+    pytest.param(
+        [{"effect": "plan_produced"}, {}], id="plan-missing-entry"),
+    pytest.param([{"effect": "unknown_effect"}], id="unknown-name"),
+    pytest.param("read", id="string-container"),
+    pytest.param({"effect": "read"}, id="mapping-container"),
+])
+def test_malformed_declaration_is_never_a_read_or_plan_exemption(declaration):
+    from core.action_effects import declares_plan_output, declares_read_only
+
+    assert effect_declaration_problems(declaration)
+    assert declares_read_only(declaration) is False
+    assert declares_plan_output(declaration) is False
+
+
+def test_valid_declaration_semantics_remain_bounded():
+    from core.action_effects import declares_plan_output, declares_read_only
+
+    assert declares_read_only([{"effect": "read"}]) is True
+    assert declares_read_only([{"effect": "read_only"}]) is True
+    assert declares_read_only([{"effect": " read "}]) is True
+    assert declares_read_only(["read"]) is True
+    assert declares_read_only(
+        [{"effect": "read"}, {"effect": "plan_produced"}]) is True
+    assert declares_plan_output([{"effect": "plan_produced"}]) is True
+    assert declares_plan_output(
+        [{"effect": "plan_produced"}, {"effect": "read"}]) is True
+    assert declares_plan_output([{"effect": "read"}]) is False
+    assert declares_read_only([]) is False
+    assert declares_read_only(None) is False
+
+    # A declared mutation always wins over other entries.
+    assert declares_mutation([{"effect": "write"}, {}]) is True
+    assert declares_read_only(
+        [{"effect": "write"}, {"effect": "read"}]) is False
+    assert declares_plan_output(
+        [{"effect": "plan_produced"}, {"effect": "write"}]) is False
 
 
 def test_registry_declares_effects_and_keeps_uncovered_explicit():
