@@ -1,0 +1,57 @@
+{
+  "task": "authoritative enabled-registry-to-verifier refresh",
+  "executed_source": "36fa4ce39dd19a6b53b662699e5ceebede129df1",
+  "inventory_command": [
+    "python3",
+    "docs/acceptance/evidence/oracle_registry_refresh_20261107/generate_inventory.py"
+  ],
+  "inventory_exit": 0,
+  "lazy_modules_loaded": [
+    "core.agent_radio.radio_actions",
+    "core.bpe.actions"
+  ],
+  "counts": {
+    "registered_actions": 98,
+    "declared_mutations": 30,
+    "mutation_local": 20,
+    "mutation_external": 10,
+    "mutation_covered": 24,
+    "mutation_uncovered": 6,
+    "read_only": 67,
+    "plan_output_validation": 1,
+    "undeclared": 0
+  },
+  "uncovered": {
+    "radio.create_thread": "selected trace; local durable AgentThread row",
+    "radio.send_message": "implemented on codex/oracle-next-20261107; pending merge; not duplicated",
+    "workspace.commit": "deferred; in-process BPE state",
+    "workspace.note": "deferred; pre-consolidation buffer",
+    "mini_app_run": "unqualified; guest runtime",
+    "shopify_create_fulfillment": "provider write; root worker 56636 owns PRs 745/748/749/750"
+  },
+  "provider_reconciliation": {
+    "covered_on_main": [
+      "shopify_create_product",
+      "shopify_create_blog",
+      "shopify_create_article"
+    ],
+    "pending": [
+      "shopify_create_fulfillment"
+    ],
+    "historical_snapshot_preserved": true
+  },
+  "scope_note": "Static inventory is discovery evidence, not runtime coverage or acceptance.",
+  "not_used": [
+    "live provider",
+    "model",
+    "account",
+    "credential",
+    "send",
+    "spend",
+    "install",
+    "deploy",
+    "KVM",
+    "PostgreSQL",
+    "all-827 sweep"
+  ]
+}

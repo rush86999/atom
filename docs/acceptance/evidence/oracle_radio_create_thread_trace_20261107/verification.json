@@ -1,0 +1,82 @@
+{
+  "task": "radio.create_thread exact postcondition trace (failure-first)",
+  "executed_source": "36fa4ce39dd19a6b53b662699e5ceebede129df1",
+  "origin_main": "36fa4ce39dd19a6b53b662699e5ceebede129df1",
+  "result": "failure-first: desired independent verification is absent on this source",
+  "probe": {
+    "file": "probe_radio_create_thread_gap.py",
+    "command": [
+      "/usr/local/opt/python@3.14/bin/python3.14",
+      "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+      "--cwd",
+      "/private/tmp/atom-oracle-refresh-20261107/backend",
+      "--",
+      "/usr/local/opt/python@3.14/bin/python3.14",
+      "-m",
+      "pytest",
+      "/private/tmp/atom-oracle-refresh-20261107/docs/acceptance/evidence/oracle_radio_create_thread_trace_20261107/probe_radio_create_thread_gap.py",
+      "-q",
+      "--disable-warnings",
+      "-p",
+      "no:cacheprovider"
+    ],
+    "exit_code": 1,
+    "result": "2 failed in 3.67s",
+    "gate_dispatched": true,
+    "free_before_bytes": 5121454080,
+    "minimum_bytes": 4294967296,
+    "test_records": {
+      "test_create_thread_is_independently_verified": "thread persisted exactly; oracle_verified False, evidence \"no registered postcondition verifier\"",
+      "test_cross_tenant_roster_cannot_be_certified": "cross-tenant roster persisted; consumer did not evaluate the tenant/member contradiction"
+    }
+  },
+  "findings": {
+    "durable_row": "AgentThread committed with name/creator/roster/scope/tenant",
+    "consumer": "real GenericAgent._step_act_unaudited mutation claim + shared Oracle",
+    "missing": "no registered postcondition verifier for radio.create_thread",
+    "authority_gap": "create_thread does not validate creator/member AgentRegistry tenant scope"
+  },
+  "registry_map": {
+    "packet": "../oracle_registry_refresh_20261107/inventory.json",
+    "registered_actions": 98,
+    "declared_mutations": 30,
+    "covered_mutations": 24,
+    "uncovered_mutations": [
+      "mini_app_run",
+      "radio.create_thread",
+      "radio.send_message",
+      "shopify_create_fulfillment",
+      "workspace.commit",
+      "workspace.note"
+    ]
+  },
+  "controlled_seams": [
+    "real action_registry dispatch",
+    "real radio_actions handler and radio_service persistence",
+    "real GenericAgent mutation/oracle consumer",
+    "real scratch SQLite models"
+  ],
+  "not_used": [
+    "live provider",
+    "model",
+    "account",
+    "credential",
+    "send",
+    "spend",
+    "install",
+    "deploy",
+    "KVM",
+    "PostgreSQL",
+    "sandbox/guest execution",
+    "all-827 sweep"
+  ],
+  "prior_environmental_interruption": {
+    "supervisor_pid": 73593,
+    "actual_exit": 1,
+    "cause": "ENOSPC while saving state",
+    "surviving_process": false,
+    "retained": "worktree HEAD 36fa4ce39 and oracle_registry_refresh_20261107",
+    "treatment": "environmental negative only; no test verdict inferred"
+  },
+  "root_owns": "independent acceptance, CI and merge"
+}

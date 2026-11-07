@@ -1,0 +1,23 @@
+{
+  "packet": "oracle_registry_refresh_20261107",
+  "executed_source": "36fa4ce39dd19a6b53b662699e5ceebede129df1",
+  "source_files": {
+    "backend/core/action_effects.py": "47b9130cf601eb581159c117281febbbf692f9372c1226d621bbc55c5c480e5a",
+    "backend/core/action_registry.py": "5acd3dda2b071b73f15b39721f6dd900b0067c319f74cfea47efedc77d017f0c",
+    "backend/core/agent_radio/radio_actions.py": "c0c338e4d43b413f1af4a17578233898be3dc94ba0643e1e56dc77c92db8e02e",
+    "backend/core/bpe/actions.py": "778bedb24169869ea8bf6595c86f05a2627c43dec6d05f9c87dbe3ad4ef41e70",
+    "backend/core/connected_actions.py": "8acfce904f280b5e7529cbf44f3af4aede3831e53293df1e37f6c7643d43423a",
+    "backend/core/models.py": "9aec60c9155da8af8652b3209839c658d78896837b1a30d38763007b44e14b59",
+    "backend/core/oracle/__init__.py": "70852a61398d0fdcbe4202beaa708dab8045dd49929d77f860c2be357e4614df",
+    "backend/core/oracle/postcondition_verifiers.py": "02e348849239cc4da7e1abdf9cff2dd09e71a4fd6fbdd489b6e32608bc584846",
+    "backend/core/oracle/request_expectations.py": "8d56d5934887aa2b443c914c594257cb97b7343680018cedea3d335161522a8d"
+  },
+  "artifacts": {
+    "README.md": "afb36862ef6cd38080da81749bd95c707497ca5aaa444b527358a2d162dbc29c",
+    "generate_inventory.py": "90b9426ed5418a42754334105b913ee85d5637f25965b06ee1b0527044f2f5b1",
+    "inventory-exit.json": "1fa4fc88685e8518068cf623730846a44e1f9aaed38de3d479b3e681420e7ab9",
+    "inventory-run.log": "bf705774731a66e8753f4fc0bede00d67538cb09d03c0d165c3033e078b52ca2",
+    "inventory.json": "f0f30ed421767e04fb98aca46a7deb5708f1c4a8159d5cc4adbe9c50ce7cec3b",
+    "verification.json": "9e55f3378017d75db7bc7672d46f23d1b5b9d0817f45ed9eb9b32aa10cadead1"
+  }
+}

@@ -1,0 +1,15 @@
+{
+  "declared_mutations": 30,
+  "mutation_covered": 24,
+  "mutation_external": 10,
+  "mutation_local": 20,
+  "mutation_uncovered": 6,
+  "plan_output_validation": 1,
+  "read_only": 67,
+  "registered_actions": 98,
+  "undeclared": 0
+}
+uncovered: ['mini_app_run', 'radio.create_thread', 'radio.send_message', 'shopify_create_fulfillment', 'workspace.commit', 'workspace.note']
+wrote /private/tmp/atom-oracle-refresh-20261107/docs/acceptance/evidence/oracle_registry_refresh_20261107/inventory.json
+
+STDERR
