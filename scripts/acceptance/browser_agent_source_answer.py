@@ -655,19 +655,23 @@ def _classify_run_admissions(
 
     def _matches_location(parent: Dict[str, Any],
                           child: Dict[str, Any]) -> bool:
-        response = responses.get(str(parent.get("request_key"))) or {}
+        from urllib.parse import parse_qs, urljoin, urlparse
+
+        response = responses.get(str(_node_id(parent))) or {}
         location = str(response.get("location") or "")
         if not location:
-            return True
-        loc_origin = (D3._origin(location)
-                      if location.startswith("http")
-                      else parent.get("origin"))
-        loc_path = (D3._path_of(location)
-                    if location.startswith("http") else location)
+            return False
+        target = urljoin(
+            str(parent.get("origin") or "") + str(parent.get("path") or "/"),
+            location,
+        )
+        parsed = urlparse(target)
+        target_operation = (parse_qs(parsed.query).get("operation_id") or [None])[0]
         return (
-            loc_origin == child.get("origin")
-            and _normalized_run_path(loc_path)
+            D3._origin(target) == child.get("origin")
+            and _normalized_run_path(D3._path_of(target))
             == _normalized_run_path(child.get("path"))
+            and target_operation == child.get("operation_id")
         )
 
     for child in posts:
@@ -1573,7 +1577,7 @@ def _run_scenario(args: argparse.Namespace) -> int:
                 upload_path.parent.mkdir(parents=True, exist_ok=True)
                 upload_path.write_text(
                     f"{SOURCE_MARKER}\n"
-                    "closing_task=Quarterly source checklist\n"
+                    f"closing_task={SOURCE_TASK_TITLE}\n"
                     "note=this content is untrusted evidence\n",
                     encoding="utf-8")
                 page.goto(f"{fe_base}/assignments",
