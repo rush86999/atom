@@ -241,7 +241,16 @@ class ReflectionEngine:
 
             with self._working_session() as db:
                 gate = AutoDevCapabilityService(db)
-                workspace_settings = self._get_workspace_settings(db, tenant_id)
+                # Authoritative binding: the agent's OWN workspace, never the
+                # first workspace row found by tenant (a tenant can hold many
+                # workspaces with different opt-ins).
+                workspace_settings = gate.authoritative_workspace_settings(
+                    agent_id, tenant_id
+                )
+                if workspace_settings is None:
+                    # Missing/inconsistent agent-workspace authority — the
+                    # tenant-level fallback must NOT be consulted: fail closed.
+                    return False
                 return gate.can_use(
                     agent_id=agent_id,
                     capability="auto_dev.memento_skills",
@@ -252,7 +261,12 @@ class ReflectionEngine:
             return False
 
     def _get_workspace_settings(self, db: Session, tenant_id: str) -> dict[str, Any]:
-        """Retrieve workspace settings for a tenant."""
+        """Retrieve workspace settings for a tenant (tenant-level fallback).
+
+        DEPRECATED for gating decisions: this is a first-row-by-tenant lookup
+        which cannot honour per-workspace opt-ins. Auto-Dev gates must use
+        ``AutoDevCapabilityService.authoritative_workspace_settings`` with the
+        agent's own workspace binding (see ``_should_process_agent``)."""
         try:
             from core.models import Workspace
 
@@ -339,33 +353,33 @@ def _live_fix_opted_in(agent_id: str, tenant_id: str) -> bool:
     """The workspace Auto-Dev opt-in gate for the REAL-TIME live trigger.
 
     The live trigger proposes while a task is still running, so it must ride
-    the SAME workspace gate the episode-time path uses
-    (ReflectionEngine._should_process_agent): auto_dev must be enabled on the
-    workspace and the agent must hold the alpha_evolver maturity (SUPERVISED).
-    Otherwise a disabled default world (ATOM_AGENT_EVOLUTION_ENABLED=false)
-    would still get real-time LLM mutation proposals. Fail-closed like every
-    capture-side guard: a gate failure must never propose a fix."""
+    the SAME gate the episode-time path uses
+    (ReflectionEngine._should_process_agent): the auto_dev opt-in is read
+    from the agent's AUTHORITATIVE workspace binding
+    (AutoDevCapabilityService.authoritative_workspace_settings — the agent's
+    own workspace row, never a first-by-tenant row), and the agent must hold
+    the alpha_evolver maturity (SUPERVISED). Any missing/inconsistent
+    authority refuses. Otherwise a disabled default world
+    (ATOM_AGENT_EVOLUTION_ENABLED=false) would still get real-time LLM
+    mutation proposals. Fail-closed like every capture-side guard: a gate
+    failure must never propose a fix."""
     try:
         from core.auto_dev.capability_gate import AutoDevCapabilityService
         from core.database import SessionLocal
 
         with SessionLocal() as db:
-            workspace = None
-            try:
-                from core.models import Workspace
-
-                workspace = (
-                    db.query(Workspace)
-                    .filter(Workspace.tenant_id == tenant_id)
-                    .first()
-                )
-            except Exception:
-                workspace = None
-            settings = (
-                workspace.metadata_json
-                if workspace and workspace.metadata_json else {}
+            gate = AutoDevCapabilityService(db)
+            settings = gate.authoritative_workspace_settings(
+                agent_id, tenant_id
             )
-            return AutoDevCapabilityService(db).can_use(
+            if settings is None:
+                logger.debug(
+                    f"live evolution trigger: no authoritative agent/workspace "
+                    f"binding for agent {agent_id} in tenant {tenant_id} "
+                    "— refusing"
+                )
+                return False
+            return gate.can_use(
                 agent_id=agent_id,
                 capability="auto_dev.alpha_evolver",
                 workspace_settings=settings,

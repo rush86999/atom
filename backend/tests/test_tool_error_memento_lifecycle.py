@@ -445,3 +445,272 @@ def GenericAgent_for_scope(env, rows):
 
     agent._custom_actions = {"unknown.tool": boom}
     return agent
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# MEM-07 authority twins — the gate must read the agent's OWN workspace, not
+# the first workspace row found by tenant. One tenant holds two workspaces
+# with OPPOSITE opt-ins; the decoy is inserted first so the buggy
+# first-by-tenant lookup deterministically picks it.
+# ─────────────────────────────────────────────────────────────────────────────
+
+
+def _twin_scope(env, *, first_enabled, own_enabled):
+    """One tenant, two workspaces with an OPPOSITE first-row decoy: the
+    agent is bound to the SECOND workspace, whose opt-in is supplied."""
+    tenant = Tenant(id="tenant-twin", name="Twin Tenant",
+                    subdomain="twin")
+    first = Workspace(
+        id="ws-twin-first", name="Twin Decoy Workspace",
+        tenant_id=tenant.id,
+        metadata_json={"auto_dev": {"enabled": True}} if first_enabled
+        else {},
+    )
+    own = Workspace(
+        id="ws-twin-own", name="Twin Own Workspace",
+        tenant_id=tenant.id,
+        metadata_json={"auto_dev": {"enabled": True}} if own_enabled
+        else {},
+    )
+    agent = AgentRegistry(
+        id="agent-twin", name="Twin Employee", category="operations",
+        module_path="core.generic_agent", class_name="GenericAgent",
+        status="supervised", confidence_score=0.5,
+        configuration={
+            "system_prompt": "original",
+            # Both caps satisfied by maturity so ONLY the workspace opt-in
+            # decides — workspace bias is the defect under test.
+            "capability_maturities": {
+                "auto_dev.alpha_evolver": "supervised",
+                "auto_dev.memento_skills": "intern",
+            },
+        },
+        capabilities=[], workspace_id=own.id, tenant_id=tenant.id,
+    )
+    execution = AgentExecution(
+        id="exec-twin", agent_id=agent.id, tenant_id=tenant.id,
+        workspace_id=own.id, status="running", metadata_json={},
+    )
+    env["db"].add_all([tenant, first, own, agent, execution])
+    env["db"].commit()
+    return {
+        "tenant": tenant, "first": first, "own": own,
+        "agent": agent, "execution": execution,
+    }
+
+
+def test_live_fix_gates_on_the_agents_own_workspace_not_the_first(env, monkeypatch):
+    """Valid twin: first workspace DISABLED, the agent's own ENABLED — the
+    real-time trigger must still propose (authoritative binding wins over
+    the first-by-tenant row). A first-row lookup would wrongly refuse."""
+    from core.auto_dev import tool_error_signals as tes
+    from core.auto_dev.alpha_evolver_engine import AlphaEvolverEngine
+    from core.auto_dev.models import ToolMutation
+
+    _fresh_error_ring(monkeypatch)
+    _registered_tool(monkeypatch)
+    llm_calls: list = []
+    monkeypatch.setattr(
+        AlphaEvolverEngine, "_get_llm_service",
+        lambda self: _counting_llm_double(monkeypatch, llm_calls))
+
+    rows = _twin_scope(env, first_enabled=False, own_enabled=True)
+    svc = _failing_loop_service(monkeypatch)
+    _drive_chokepoint_errors(svc, rows["agent"].id, rows["tenant"].id)
+
+    env["db"].expire_all()
+    mutation = env["db"].query(ToolMutation).filter(
+        ToolMutation.tenant_id == rows["tenant"].id).one()
+    assert mutation.sandbox_status == "pending"
+    assert mutation.tool_name == "outlook.search_emails"
+    assert llm_calls
+
+
+def test_live_fix_refuses_when_agent_own_workspace_is_disabled_even_if_first_enabled(
+        env, monkeypatch):
+    """Negative twin: first workspace ENABLED, the agent's own DISABLED —
+    the real-time trigger must refuse. A first-by-tenant lookup would
+    wrongly allow (and sign the very proposal the user opted out of)."""
+    from core.auto_dev import tool_error_signals as tes
+    from core.auto_dev.alpha_evolver_engine import AlphaEvolverEngine
+    from core.auto_dev.models import ToolMutation
+
+    _fresh_error_ring(monkeypatch)
+    _registered_tool(monkeypatch)
+    llm_calls: list = []
+    monkeypatch.setattr(
+        AlphaEvolverEngine, "_get_llm_service",
+        lambda self: _counting_llm_double(monkeypatch, llm_calls))
+
+    rows = _twin_scope(env, first_enabled=True, own_enabled=False)
+    svc = _failing_loop_service(monkeypatch)
+    _drive_chokepoint_errors(svc, rows["agent"].id, rows["tenant"].id)
+
+    env["db"].expire_all()
+    assert env["db"].query(ToolMutation).filter(
+        ToolMutation.tenant_id == rows["tenant"].id).count() == 0
+    assert llm_calls == []
+
+
+def test_live_fix_refuses_on_missing_or_inconsistent_authority(env, monkeypatch):
+    """Missing-binding and inconsistent-authority controls: a ghost agent,
+    an orphaned agent bound to a nonexistent workspace, and an agent
+    registered in a DIFFERENT tenant than the acting one — all must refuse
+    with zero proposals, even though the acting tenant's decoy workspace is
+    fully opted in."""
+    from core.auto_dev import tool_error_signals as tes
+    from core.auto_dev.alpha_evolver_engine import AlphaEvolverEngine
+    from core.auto_dev.models import ToolMutation
+
+    _fresh_error_ring(monkeypatch)
+    _registered_tool(monkeypatch)
+    llm_calls: list = []
+    monkeypatch.setattr(
+        AlphaEvolverEngine, "_get_llm_service",
+        lambda self: _counting_llm_double(monkeypatch, llm_calls))
+
+    rows = _twin_scope(env, first_enabled=True, own_enabled=True)
+
+    # A second tenant with a fully opted-in workspace and a registered agent.
+    cross_tenant = Tenant(id="tenant-cross", name="Cross Tenant",
+                          subdomain="cross")
+    cross_ws = Workspace(id="ws-cross", name="Cross Workspace",
+                         tenant_id=cross_tenant.id,
+                         metadata_json={"auto_dev": {"enabled": True}})
+    cross_agent = AgentRegistry(
+        id="agent-cross", name="Cross Employee", category="operations",
+        module_path="core.generic_agent", class_name="GenericAgent",
+        status="supervised", confidence_score=0.5,
+        configuration={
+            "system_prompt": "original",
+            "capability_maturities": {
+                "auto_dev.alpha_evolver": "supervised"},
+        },
+        capabilities=[], workspace_id=cross_ws.id,
+        tenant_id=cross_tenant.id,
+    )
+    env["db"].add_all([cross_tenant, cross_ws, cross_agent])
+    env["db"].commit()
+
+    # Orphan: registered in the acting tenant but pointing at a ghost ws.
+    env["db"].add(AgentRegistry(
+        id="agent-orphan", name="Orphan Employee", category="operations",
+        module_path="core.generic_agent", class_name="GenericAgent",
+        status="supervised", confidence_score=0.5,
+        configuration={
+            "system_prompt": "original",
+            "capability_maturities": {
+                "auto_dev.alpha_evolver": "supervised"},
+        },
+        capabilities=[], workspace_id="ws-ghost", tenant_id=rows["tenant"].id,
+    ))
+    env["db"].commit()
+
+    svc = _failing_loop_service(monkeypatch)
+    affected = ["agent-ghost", "agent-orphan", "agent-cross"]
+    for agent_id in affected:
+        _fresh_error_ring(monkeypatch)
+        _drive_chokepoint_errors(svc, agent_id, rows["tenant"].id)
+
+    env["db"].expire_all()
+    assert env["db"].query(ToolMutation).count() == 0
+    assert llm_calls == []
+    env["db"].expire_all()
+    assert rows["agent"].configuration["system_prompt"] == "original"
+
+
+def _twin_episode(env, rows):
+    """Drive two REAL failing tool steps through the twin agent, then
+    finalize the episode exactly as the lifecycle tests do."""
+    from core.episode_service import EpisodeService
+
+    agent = GenericAgent_for_scope(env, {"agent": rows["agent"],
+                                         "workspace": rows["own"]})
+    context = {
+        "execution_id": rows["execution"].id,
+        "tenant_id": rows["tenant"].id,
+        "run_id": "run-twin",
+        "operation_id": "op-twin",
+    }
+    for _ in range(2):
+        result = asyncio.run(agent._step_act("unknown.tool", {}, context))
+        assert "Error" in result
+
+    env["db"].expire_all()
+    episode = asyncio.run(EpisodeService(env["db"]).create_episode_from_execution(
+        rows["execution"].id, "look up the customer email",
+        outcome="success", success=True, metadata={}))
+    from core.models import EpisodeSegment
+    env["db"].add(EpisodeSegment(
+        episode_id=episode.id, segment_type="error", sequence_order=1,
+        content="Tool call: unknown.tool - failed: 400 Syntax error"))
+    env["db"].commit()
+    return episode
+
+
+def test_episode_time_gates_on_the_agents_own_workspace_not_the_first(
+        env, monkeypatch):
+    """Valid episode-time twin: first workspace DISABLED, the agent's own
+    ENABLED — the real ReflectionEngine gate files the pending candidate.
+    A first-by-tenant settings lookup would wrongly refuse."""
+    from core.auto_dev.event_hooks import TaskEvent
+    from core.auto_dev.memento_engine import MementoEngine
+    from core.auto_dev.models import SkillCandidate
+    from core.auto_dev.reflection_engine import ReflectionEngine
+
+    rows = _twin_scope(env, first_enabled=False, own_enabled=True)
+    llm_calls: list = []
+    monkeypatch.setattr(
+        MementoEngine, "_get_llm_service",
+        lambda self: _counting_llm_double(monkeypatch, llm_calls))
+    episode = _twin_episode(env, rows)
+
+    event = TaskEvent(
+        episode_id=episode.id, agent_id=rows["agent"].id,
+        tenant_id=rows["tenant"].id,
+        task_description=episode.task_description,
+        error_trace="unknown.tool: 400 Syntax error",
+        outcome=episode.outcome, metadata=episode.metadata_json,
+    )
+    asyncio.run(ReflectionEngine(
+        db=env["db"], failure_threshold=1).process_failure(event))
+
+    candidate = env["db"].query(SkillCandidate).filter(
+        SkillCandidate.agent_id == rows["agent"].id).one()
+    assert candidate.validation_status == "pending"
+    env["db"].expire_all()
+    assert rows["agent"].configuration["system_prompt"] == "original"
+
+
+def test_episode_time_refuses_when_agent_own_workspace_is_disabled_even_if_first_enabled(
+        env, monkeypatch):
+    """Negative episode-time twin: first workspace ENABLED, the agent's own
+    DISABLED — no candidate may be filed. A first-by-tenant settings
+    lookup would wrongly approve processing."""
+    from core.auto_dev.event_hooks import TaskEvent
+    from core.auto_dev.memento_engine import MementoEngine
+    from core.auto_dev.models import SkillCandidate
+    from core.auto_dev.reflection_engine import ReflectionEngine
+
+    rows = _twin_scope(env, first_enabled=True, own_enabled=False)
+    llm_calls: list = []
+    monkeypatch.setattr(
+        MementoEngine, "_get_llm_service",
+        lambda self: _counting_llm_double(monkeypatch, llm_calls))
+    episode = _twin_episode(env, rows)
+
+    event = TaskEvent(
+        episode_id=episode.id, agent_id=rows["agent"].id,
+        tenant_id=rows["tenant"].id,
+        task_description=episode.task_description,
+        error_trace="unknown.tool: 400 Syntax error",
+        outcome=episode.outcome, metadata=episode.metadata_json,
+    )
+    asyncio.run(ReflectionEngine(
+        db=env["db"], failure_threshold=1).process_failure(event))
+
+    assert env["db"].query(SkillCandidate).filter(
+        SkillCandidate.agent_id == rows["agent"].id).count() == 0
+    assert llm_calls == []
+    env["db"].expire_all()
+    assert rows["agent"].configuration["system_prompt"] == "original"
