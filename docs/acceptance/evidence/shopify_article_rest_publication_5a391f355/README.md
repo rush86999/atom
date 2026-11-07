@@ -8,6 +8,7 @@ consumer, Article material mapper, Oracle and durable claim/replay are real.
 **Base:** root article integration `1d7b0ec83`.
 **Failure-first commit:** `a1ffa57ec` (independent twin only; 2/2 failed).
 **Fix:** `5a391f355` (`backend/core/shopify_mutations.py` + test doubles/twins).
+**Final test commit:** `7b03d6e61` (closes the two publication mismatch directions).
 
 ## Confirmed provider shape
 
@@ -40,10 +41,11 @@ observer derives the comparable state only from `published_at`.
 
 ## Tests
 
-- Independent twin `tests/test_lead_shopify_article_rest_shape.py`: **17 passed**
+- Independent twin `tests/test_lead_shopify_article_rest_shape.py`: **19 passed**
   — official past/null positives, timezone offset, future/scheduled, missing,
-  malformed, naive, contradictory, published-only unknown, consistent legacy
-  compatibility (justified), replay/no second create.
+  malformed, naive, contradictory, published-only unknown, requested-published/
+  null-readback, requested-draft/past-readback, consistent legacy compatibility
+  (justified), replay/no second create.
 - Existing Article contract `tests/test_oracle_shopify_article_create.py`:
   **36 passed** — default doubles now emit official REST shape; existing
   wrong-id/material/durable/no-resend controls retained.
@@ -64,7 +66,7 @@ ATOM_DATA_DIR="$SCRATCH/data" \
 ATOM_OFFICE_DIR="$SCRATCH/office" \
 LANCEDB_URI="$SCRATCH/lancedb" \
 $PY -m pytest tests/test_lead_shopify_article_rest_shape.py -q
-# 17 passed
+# 19 passed
 
 TESTING=1 ... $PY -m pytest tests/test_oracle_shopify_article_create.py -q
 # 36 passed

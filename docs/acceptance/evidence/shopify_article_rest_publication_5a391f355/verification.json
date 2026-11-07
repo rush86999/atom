@@ -16,7 +16,7 @@
   "tests": {
     "independent": {
       "rc": 0,
-      "passed": 17,
+      "passed": 19,
       "failed": 0
     },
     "article_contract": {
@@ -29,5 +29,6 @@
   "http_leaves_doubled": [
     "Shopify article POST/GET"
   ],
-  "shared_module_behavior_change": "backend/core/shopify_mutations.py observed_article_material"
+  "shared_module_behavior_change": "backend/core/shopify_mutations.py observed_article_material",
+  "final_test_commit": "7b03d6e61"
 }
