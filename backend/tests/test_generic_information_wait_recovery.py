@@ -328,6 +328,27 @@ def test_startup_drain_finds_ready_fact_behind_unanswered_history(
     assert result["pages"] >= 6, result
 
 
+def test_startup_drain_combines_21_ready_old_and_unanswered_history(
+        world, monkeypatch):
+    """All three fairness shapes at once: old completed + pending + 21 ready."""
+    for _ in range(20):
+        _wait(world, job_status="success", execution_status="completed")
+    for _ in range(50):
+        _wait(world, status="pending", feedback=None)
+    targets = [_wait(world) for _ in range(21)]
+
+    result, calls = _drain(world, monkeypatch, batch_size=10)
+
+    assert result["resumed"] == 21, result
+    assert result["complete"] is True, result
+    assert set(calls) == {target.action_id for target in targets}, calls
+    assert result["pages"] >= 8, result
+
+    second, second_calls = _drain(world, monkeypatch, batch_size=10)
+    assert second["resumed"] == 0, second
+    assert second_calls == [], second_calls
+
+
 def test_recovery_marks_dead_claimed_resume_uncertain_without_resend(
         world, monkeypatch):
     target = _wait(
