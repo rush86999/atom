@@ -3006,7 +3006,13 @@ async def stop_agent(
 
 class AgentInformationAnswer(BaseModel):
     answer: str = Field(..., min_length=1)
-    correlation_id: Optional[str] = None
+    # Server-owned wait identity. A job id alone is not enough once a job can
+    # wait more than once: an omitted correlation would otherwise answer
+    # whichever prerequisite happens to be current, including a NEW one that
+    # the same caller has never seen. The job-scoped answer route has no
+    # legacy ambiguity obligation; the shared HITL/approvals surface already
+    # names its exact action in the path.
+    correlation_id: str = Field(..., min_length=1)
 
 
 @router.post("/{agent_id}/jobs/{job_id}/answer")
