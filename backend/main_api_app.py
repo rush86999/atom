@@ -698,6 +698,25 @@ async def lifespan(app: FastAPI):
     except Exception as e:  # noqa: BLE001 — lifespan must not fail
         logger.error(f"Failed to start assignment recovery: {e}")
 
+    # 5e. ACCEPTED-INFORMATION WAIT RECOVERY — an answer can be durably
+    # accepted (HITLAction approved + user_feedback committed) just before the
+    # process dies, leaving the same job/execution waiting even though nobody
+    # will send the answer again. The bounded pass below hands only that exact
+    # server-owned binding back to the existing resume consumer, whose CAS job
+    # claim guarantees one dispatch. A resume claimed by a dead process is
+    # marked uncertain and never re-fired; live/unknown owners are left alone.
+    # It is a one-shot integrity pass outside the scheduler gate, not a
+    # polling daemon, and it never replays ordinary governed effects.
+    try:
+        from core.information_wait import recover_accepted_information_waits
+
+        _spawn_background_task(recover_accepted_information_waits())
+        logger.info(
+            "Accepted-information wait recovery started (outside the "
+            "scheduler gate)")
+    except Exception as e:  # noqa: BLE001 — lifespan must not fail
+        logger.error(f"Failed to start accepted-information wait recovery: {e}")
+
     if os.getenv("ENABLE_SCHEDULER", "true").lower() == "true" and not is_test_mode:
         # Startup Coordinator: Ensure registration tasks run only once per day
         qstash_init_skip = False
