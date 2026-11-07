@@ -59,3 +59,38 @@ def test_missing_manifest_cli_returns_truthful_failure_without_traceback(packet,
     result=json.loads(capsys.readouterr().out)
     assert exit_code==1 and result["passed"] is False,result
     assert result["failures"],result
+
+@pytest.mark.parametrize("body", ["{", "[]"])
+def test_bad_committed_manifest_is_a_failed_result(packet, body):
+    repo, directory, manifest = packet
+    (directory / "MANIFEST.json").write_text(body)
+    git(repo, "add", "evidence/MANIFEST.json")
+    git(repo, "commit", "-qm", "malformed manifest")
+    result = checker.verify(repo, directory, "HEAD", True)
+    assert result["passed"] is False and result["failures"], result
+
+
+def test_named_ref_is_frozen_before_concurrent_head_change(packet, monkeypatch):
+    repo, directory, manifest = packet
+    expected_head = git(repo, "rev-parse", "HEAD")
+    original_resolve = checker._resolve_commit
+    changed = []
+
+    def resolve_then_move(repo_path, ref):
+        resolved = original_resolve(repo_path, ref)
+        if ref == "HEAD" and not changed:
+            changed.append(True)
+            (directory / "result.txt").write_text("later peer result\n")
+            manifest["artifacts"]["result.txt"] = hashlib.sha256(
+                (directory / "result.txt").read_bytes()).hexdigest()
+            (directory / "MANIFEST.json").write_text(json.dumps(manifest))
+            git(repo, "add", "evidence")
+            git(repo, "commit", "-qm", "peer moves head")
+        return resolved
+
+    monkeypatch.setattr(checker, "_resolve_commit", resolve_then_move)
+    result = checker.verify(repo, directory, "HEAD", True)
+    assert changed and git(repo, "rev-parse", "HEAD") != expected_head
+    assert result["passed"] is True, result
+    assert result["evidence_ref_commit"] == expected_head, result
+    assert result["source_ok"] == 1 and result["artifact_ok"] == 1, result
