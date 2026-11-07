@@ -1,0 +1,4 @@
+revision '20261107_task_operation_result' = 30 chars (<= 32)
+parent 'a2f0c1d4e5b6' resolves to backend/alembic/versions/20261105_auth_2fa_durable_state.py
+revision '20261107_task_operation_result' is a head
+revision contract verified (static ABI only; no PostgreSQL runtime)

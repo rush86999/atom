@@ -1,0 +1,136 @@
+{
+  "executed_source": "4dfc3402b3d232ce1fda993f2c2362331600ef6f",
+  "source_files": {
+    "backend/alembic/versions/20261107_task_operation_result_json.py": "5aab9ca5755d774204b0ccdb2dc68645bae98b5601bee0d20a541c8f22f85b6c",
+    "backend/tests/test_oracle_shopify_product_replay.py": "72fdbf7ec6d5cd097873ac9f0f9f2e3bc00c7df5a7a985489448fdf33818a1d2"
+  },
+  "journey": "Shopify durable product-create replay: migration identity and existing-database upgrade",
+  "date": "2026-11-07",
+  "owner": "Agent2 Shopify Oracle family; independent acceptance retained by root",
+  "source_identity": {
+    "worktree": "/private/tmp/atom-agent-job-baseline",
+    "branch": "codex/shopify-product-oracle-20261107",
+    "predecessor_source": "6ed0fc82e8ec1846b84c11ef00c0f04a6550e168",
+    "predecessor_evidence": "docs/acceptance/evidence/shopify_product_replay_6ed0fc82e (preserved unchanged)",
+    "source_commit": "4dfc3402b3d232ce1fda993f2c2362331600ef6f",
+    "source_commit_subject": "fix(migration): keep result_json revision within alembic limit",
+    "run_tree": {
+      "tracked_modified": "",
+      "note": "tracked tree clean at the implementation commit; the packet and retained scratch are evidence"
+    }
+  },
+  "scope": {
+    "implemented": "revision identifier within Alembic's String(32) version column; real predecessor-database upgrade/restart control",
+    "mechanism": "existing guarded alembic revision on the existing TaskOperationRecord table; no new table/engine/lifecycle",
+    "not_implemented": [
+      "shopify_create_blog",
+      "shopify_create_article",
+      "shopify_create_fulfillment"
+    ],
+    "no_new": [
+      "operation engine",
+      "provider router",
+      "table/store",
+      "approval lifecycle",
+      "title-based resource lookup"
+    ]
+  },
+  "environment": {
+    "python": "3.14.7",
+    "TESTING": "1",
+    "SECRET_KEY": "explicit synthetic value; not recorded",
+    "DATABASE_URL": "fresh scratch sqlite under this packet",
+    "ATOM_DATA_DIR": "packet scratch/data",
+    "LANCEDB_PATH": "packet scratch/lancedb",
+    "ATOM_OFFICE_DIR": "packet scratch/office",
+    "ATOM_OUTPUT_DIR": "packet scratch/output",
+    "provider_credentials": "SHOPIFY_API_KEY, SHOPIFY_API_SECRET, SHOPIFY_SHOP_NAME and live model keys pinned to empty strings",
+    "live_effects": "none",
+    "external_transport_double": "ShopifyService.http only",
+    "database_qualification": "SQLite executed only; no PostgreSQL runtime claim"
+  },
+  "result": {
+    "tests": 102,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "exit_code": 0
+  },
+  "artifacts": {
+    "README.md": "b08020e7e25d7a337c1f1c444521738b48784331c01bd303fccb979993ad03f3",
+    "check_migration_upgrade.py": "0b1b12c79ad267ee8ebaa170f01cdfb727abd19a3212e3b57127314becb90baa",
+    "check_revision_contract.py": "ff21369593939cf06eb00a0eca76c6b0ff31636ce2c6a359a92104edcfb5126e",
+    "focused-exit.json": "c973a0914583fa1e0a56a546ab2bd1f3fb0a74d177d11b348de5c2e731fb3daa",
+    "focused-spec.json": "9a66521224f307ab0e0b2b727e46fd3e235113689fe590437d2b1174354e6596",
+    "focused.log": "b64907b16c109e44867248f0fcfe33e37b42c4a9cee6716092ddb65f278e7390",
+    "focused.xml": "f81ebe4e8751f1d10e75d483f42670e5c0874e383e2a072d2f7b7b34bc3b1301",
+    "make_manifest.py": "a411ec791a5f573e46b45024ceba1379316eb22df2b5c0d00e3c73085bd9c062",
+    "migration_upgrade.log": "3eab9c3aa0bba138c638872edd9b3cc5d28b060b233d658f9061276e4f4799b2",
+    "revision_contract.log": "5335b5474398bbc20f0f0ebe0129c09e4bbc114eb3d77b51acc206c712e86860",
+    "run_and_capture.py": "aacb9062258ad519c8d028fbc8eb097a8e4d852f3358c08f04c8b8eabef58463",
+    "verification.json": "569e43a2b27e66b58299c6547c4af9df858b20f9cfe45d4f846111434e09db91"
+  },
+  "artifact_details": [
+    {
+      "file": "README.md",
+      "sha256": "b08020e7e25d7a337c1f1c444521738b48784331c01bd303fccb979993ad03f3",
+      "bytes": 4010
+    },
+    {
+      "file": "check_migration_upgrade.py",
+      "sha256": "0b1b12c79ad267ee8ebaa170f01cdfb727abd19a3212e3b57127314becb90baa",
+      "bytes": 4678
+    },
+    {
+      "file": "check_revision_contract.py",
+      "sha256": "ff21369593939cf06eb00a0eca76c6b0ff31636ce2c6a359a92104edcfb5126e",
+      "bytes": 2874
+    },
+    {
+      "file": "focused-exit.json",
+      "sha256": "c973a0914583fa1e0a56a546ab2bd1f3fb0a74d177d11b348de5c2e731fb3daa",
+      "bytes": 874
+    },
+    {
+      "file": "focused-spec.json",
+      "sha256": "9a66521224f307ab0e0b2b727e46fd3e235113689fe590437d2b1174354e6596",
+      "bytes": 1268
+    },
+    {
+      "file": "focused.log",
+      "sha256": "b64907b16c109e44867248f0fcfe33e37b42c4a9cee6716092ddb65f278e7390",
+      "bytes": 20136
+    },
+    {
+      "file": "focused.xml",
+      "sha256": "f81ebe4e8751f1d10e75d483f42670e5c0874e383e2a072d2f7b7b34bc3b1301",
+      "bytes": 14994
+    },
+    {
+      "file": "make_manifest.py",
+      "sha256": "a411ec791a5f573e46b45024ceba1379316eb22df2b5c0d00e3c73085bd9c062",
+      "bytes": 4851
+    },
+    {
+      "file": "migration_upgrade.log",
+      "sha256": "3eab9c3aa0bba138c638872edd9b3cc5d28b060b233d658f9061276e4f4799b2",
+      "bytes": 226
+    },
+    {
+      "file": "revision_contract.log",
+      "sha256": "5335b5474398bbc20f0f0ebe0129c09e4bbc114eb3d77b51acc206c712e86860",
+      "bytes": 275
+    },
+    {
+      "file": "run_and_capture.py",
+      "sha256": "aacb9062258ad519c8d028fbc8eb097a8e4d852f3358c08f04c8b8eabef58463",
+      "bytes": 3444
+    },
+    {
+      "file": "verification.json",
+      "sha256": "569e43a2b27e66b58299c6547c4af9df858b20f9cfe45d4f846111434e09db91",
+      "bytes": 5382
+    }
+  ],
+  "retained_scratch": "scratch (owned scratch; not part of the commit)"
+}

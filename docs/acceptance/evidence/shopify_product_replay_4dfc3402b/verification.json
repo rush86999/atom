@@ -1,0 +1,100 @@
+{
+  "journey": "Shopify durable product-create replay: migration identity and existing-database upgrade",
+  "scope": "shopify_create_product durable replay contract; no other Shopify mutation claimed",
+  "source_commit": "4dfc3402b3d232ce1fda993f2c2362331600ef6f",
+  "predecessor_source": "6ed0fc82e8ec1846b84c11ef00c0f04a6550e168",
+  "preserved_predecessor_packet": "docs/acceptance/evidence/shopify_product_replay_6ed0fc82e",
+  "blockers": [
+    {
+      "id": "B4_migration_revision_abi",
+      "predecessor_evidence": "6ed0fc82e revision = 20261107_task_operation_result_json (35 chars); installed alembic/ddl/impl.py creates alembic_version.version_num as String(32)",
+      "repair": "revision = 20261107_task_operation_result (30 chars) on the existing a2f0c1d4e5b6 parent; filename unchanged",
+      "controls": [
+        "test_migration_revision_fits_alembic_version_column_and_parent_resolves",
+        "check_revision_contract.py"
+      ],
+      "result": "pass"
+    },
+    {
+      "id": "B3b_actual_existing_db_upgrade",
+      "predecessor_evidence": "prior control used the SQLite repair path and an in-process revision import; it did not exercise the real alembic upgrade command, record the chosen revision, retain an old claim, or repeat across a new process",
+      "repair": "real alembic upgrade against a predecessor scratch DB stamped at a2f0c1d4e5b6 with an old succeeded claim; repeated upgrade and restart are no-ops; retained claim replays without a second create",
+      "controls": [
+        "test_alembic_upgrade_records_revision_keeps_old_claim_and_restart_replays_once",
+        "check_migration_upgrade.py"
+      ],
+      "result": "pass"
+    }
+  ],
+  "final_run": {
+    "exit_code": 0,
+    "tests": 102,
+    "failures": 0,
+    "errors": 0,
+    "skipped": 0,
+    "duration_seconds": 68.22,
+    "environment": {
+      "TESTING": "1",
+      "python": "3.14.7 (project venv314)",
+      "DATABASE_URL": "fresh scratch sqlite under this packet",
+      "SECRET_KEY": "explicit synthetic value; not recorded",
+      "ATOM_DATA_DIR": "packet scratch/data",
+      "LANCEDB_PATH": "packet scratch/lancedb",
+      "ATOM_OFFICE_DIR": "packet scratch/office",
+      "ATOM_OUTPUT_DIR": "packet scratch/output",
+      "provider_credentials": "pinned to empty strings",
+      "external_transport_double": "ShopifyService.http only"
+    }
+  },
+  "migration_controls": [
+    {
+      "id": "M1_revision_contract",
+      "control": "check_revision_contract.py + test_migration_revision_fits_alembic_version_column_and_parent_resolves",
+      "observed": "installed Alembic still declares String(32); revision is 30 chars; parent a2f0c1d4e5b6 resolves to 20261105_auth_2fa_durable_state.py; revision id is unique and is a head",
+      "result": "pass",
+      "artifacts": ["revision_contract.log"]
+    },
+    {
+      "id": "M2_real_upgrade_records_revision_and_keeps_claim",
+      "control": "check_migration_upgrade.py",
+      "observed": "predecessor DB at a2f0c1d4e5b6 with an old succeeded claim upgraded through the real alembic command; version row = 20261107_task_operation_result; result_json added nullable; old claim retained with NULL receipt; second upgrade no-op",
+      "result": "pass",
+      "artifacts": ["migration_upgrade.log"]
+    },
+    {
+      "id": "M3_upgrade_restart_replay_no_second_create",
+      "control": "test_alembic_upgrade_records_revision_keeps_old_claim_and_restart_replays_once",
+      "observed": "genuine consumer-created succeeded claim kept through the real upgrade and a process-style restart; replay stayed committed_unverified with exactly one POST total (no second create)",
+      "result": "pass"
+    }
+  ],
+  "preserved_replay_controls": [
+    "test_known_success_replays_exact_resource_without_second_create",
+    "test_restart_fresh_session_reloads_exact_durable_identity",
+    "test_failed_identity_receipt_is_not_rolled_back_or_resent",
+    "test_replay_with_wrong_current_resource_material_stays_committed_unverified",
+    "test_replay_with_missing_current_resource_stays_committed_unverified",
+    "test_replay_after_store_changed_stays_committed_unverified",
+    "test_replay_without_durable_identity_receipt_is_committed_unverified",
+    "test_replay_with_unavailable_current_readback_is_committed_unverified",
+    "test_same_operation_changed_material_refuses_before_readback",
+    "test_lost_confirmation_stays_uncertain_and_never_replays_as_success",
+    "test_strict_json_proof_rejects_unsupported_values",
+    "test_durable_receipt_builder_rejects_lossy_proof",
+    "test_lossy_proof_cannot_persist_a_succeeded_claim",
+    "test_existing_database_upgrade_and_replay_survives_restart"
+  ],
+  "shared_callers_checked": [
+    "GenericAgent durable claim/replay controls",
+    "Generic request expectations and reconcile-commit controls",
+    "Connected mutation/Books/Outlook receipt verifier controls",
+    "SQLite schema repair control"
+  ],
+  "excluded_claims": [
+    "No PostgreSQL runtime qualification; the revision-length check is a deterministic installed-schema contract and only SQLite was executed.",
+    "No live Shopify/provider/account/store/token/credential call or configuration.",
+    "No claim for shopify_create_blog, shopify_create_article or shopify_create_fulfillment.",
+    "No title-based resource guessing and no second create.",
+    "No self-acceptance; root independently verifies."
+  ]
+}

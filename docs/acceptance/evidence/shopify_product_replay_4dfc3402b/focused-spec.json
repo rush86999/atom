@@ -1,0 +1,22 @@
+{
+  "nodes": [
+    "tests/test_oracle_shopify_product_replay.py",
+    "tests/test_oracle_shopify_product_create.py",
+    "tests/test_generic_oracle_mutation_contract.py",
+    "tests/test_generic_reconcile_commit_contract.py",
+    "tests/test_generic_request_expectations.py",
+    "tests/test_oracle_connected_mutations.py",
+    "tests/test_sqlite_schema_repair.py"
+  ],
+  "environment": {
+    "TESTING": "1",
+    "DATABASE_URL": "sqlite:////private/tmp/atom-agent-job-baseline/docs/acceptance/evidence/shopify_product_replay_4dfc3402b/scratch/scratch.db",
+    "ATOM_DATA_DIR": "/private/tmp/atom-agent-job-baseline/docs/acceptance/evidence/shopify_product_replay_4dfc3402b/scratch/data",
+    "LANCEDB_PATH": "/private/tmp/atom-agent-job-baseline/docs/acceptance/evidence/shopify_product_replay_4dfc3402b/scratch/lancedb",
+    "ATOM_OFFICE_DIR": "/private/tmp/atom-agent-job-baseline/docs/acceptance/evidence/shopify_product_replay_4dfc3402b/scratch/office",
+    "ATOM_OUTPUT_DIR": "/private/tmp/atom-agent-job-baseline/docs/acceptance/evidence/shopify_product_replay_4dfc3402b/scratch/output",
+    "SECRET_KEY": "<synthetic not recorded>",
+    "provider_credentials": "pinned to empty strings"
+  },
+  "python": "3.14.7 (main, Sep  1 2026, 14:05:28) [Clang 22.1.3 ]"
+}

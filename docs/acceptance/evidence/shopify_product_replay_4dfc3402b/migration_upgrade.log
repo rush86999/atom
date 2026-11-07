@@ -1,0 +1,3 @@
+upgrade recorded '20261107_task_operation_result'; old succeeded claim retained (NULL receipt)
+second upgrade is an idempotent no-op (one version row, claim unchanged)
+scratch existing-database upgrade verified on SQLite only

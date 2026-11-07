@@ -1,0 +1,21 @@
+{
+  "command": [
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "tests/test_oracle_shopify_product_replay.py",
+    "tests/test_oracle_shopify_product_create.py",
+    "tests/test_generic_oracle_mutation_contract.py",
+    "tests/test_generic_reconcile_commit_contract.py",
+    "tests/test_generic_request_expectations.py",
+    "tests/test_oracle_connected_mutations.py",
+    "tests/test_sqlite_schema_repair.py",
+    "-q",
+    "--disable-warnings",
+    "--junitxml=/private/tmp/atom-agent-job-baseline/docs/acceptance/evidence/shopify_product_replay_4dfc3402b/focused.xml"
+  ],
+  "cwd": "/private/tmp/atom-agent-job-baseline/backend",
+  "exit_code": 0,
+  "stdout_sha256": "1a607ce3969ac6046d9bb30d1b2833d199d60c969973ecdb4f6d8b04600b929d",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+}
