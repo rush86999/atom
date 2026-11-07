@@ -479,9 +479,9 @@ def _current_wait_action_id(payload: Dict[str, Any]) -> str:
 
 
 def _eligible_accepted_page(
-    session, *, after_id: str, batch: int,
+    session, *, after_id: str, batch: int, through_id: Optional[str] = None,
 ) -> tuple:
-    """Return ``(eligible_action_ids, last_job_id, exhausted)`` for one page.
+    """Return ``(eligible_action_ids, last_job_id, exhausted, scanned)`` for one page.
 
     Pages are keyed on ``AgentJob.id`` rather than an offset, so jobs that settle
     while a scan is running cannot shift later rows into a missed window.
@@ -496,9 +496,11 @@ def _eligible_accepted_page(
         AgentJob.status.in_(active_states))
     if after_id:
         query = query.filter(AgentJob.id > after_id)
+    if through_id is not None:
+        query = query.filter(AgentJob.id <= through_id)
     jobs = query.order_by(AgentJob.id.asc()).limit(page_size).all()
     if not jobs:
-        return [], after_id, True
+        return [], after_id, True, 0
     last_id = str(jobs[-1].id)
     exhausted = len(jobs) < page_size
     action_ids = []
@@ -509,7 +511,7 @@ def _eligible_accepted_page(
             seen.add(action_id)
             action_ids.append(action_id)
     if not action_ids:
-        return [], last_id, exhausted
+        return [], last_id, exhausted, len(jobs)
     rows = (
         session.query(HITLAction)
         .filter(
@@ -522,7 +524,7 @@ def _eligible_accepted_page(
     )
     approved = {str(row.id) for row in rows}
     eligible = [action_id for action_id in action_ids if action_id in approved]
-    return eligible, last_id, exhausted
+    return eligible, last_id, exhausted, len(jobs)
 
 
 def _merge_recovery_detail(summary: Dict[str, Any], detail: Dict[str, Any]) -> None:
@@ -563,7 +565,7 @@ async def recover_accepted_information_waits(*, limit: int = 20) -> Dict[str, An
         return _empty_recovery_summary()
     session = SessionLocal()
     try:
-        action_ids, _last_id, _exhausted = _eligible_accepted_page(
+        action_ids, _last_id, _exhausted, _scanned = _eligible_accepted_page(
             session, after_id="", batch=limit)
     finally:
         session.close()
@@ -610,16 +612,32 @@ async def drain_accepted_information_waits(
     max_pages = max(0, int(max_pages))
     summary = _empty_recovery_summary()
     summary.update({"pages": 0, "scanned_jobs": 0, "complete": True})
+    # Freeze the boot backlog boundary. Jobs admitted while this pass runs
+    # use their normal input consumer and cannot extend startup indefinitely.
+    from sqlalchemy import func
+    from core.models import AgentJob
+
+    session = SessionLocal()
+    try:
+        through_id = session.query(func.max(AgentJob.id)).filter(
+            AgentJob.status.in_(tuple(sorted(
+                _WAITING_JOB_STATUSES | _ACTIVE_JOB_STATUSES)))).scalar()
+    finally:
+        session.close()
+    if through_id is None:
+        return summary
     after_id = ""
     complete = False
     while max_pages == 0 or summary["pages"] < max_pages:
         session = SessionLocal()
         try:
-            action_ids, after_id, exhausted = _eligible_accepted_page(
-                session, after_id=after_id, batch=batch_size)
+            action_ids, after_id, exhausted, scanned = _eligible_accepted_page(
+                session, after_id=after_id, batch=batch_size,
+                through_id=str(through_id))
         finally:
             session.close()
         summary["pages"] += 1
+        summary["scanned_jobs"] += scanned
         summary["examined"] += len(action_ids)
         for action_id in action_ids:
             try:
