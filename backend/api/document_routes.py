@@ -9,13 +9,14 @@ from pathlib import Path
 from typing import Any, Dict, List, Optional
 import uuid
 import json
-from fastapi import Depends, File, Request, UploadFile, Query
+from fastapi import Depends, File, HTTPException, Request, UploadFile, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
 from core.api_governance import ActionComplexity, require_governance
 from core.base_routes import BaseAPIRouter
 from core.database import get_db
+from core.document_delete_service import delete_document_verified
 from core.models import User
 from core.security_dependencies import get_current_user
 from core.lancedb_handler import get_lancedb_handler
@@ -514,12 +515,26 @@ async def get_document(
 async def delete_document(
     doc_id: str,
     request: Request,
+    operation_id: Optional[str] = Query(
+        None,
+        description=(
+            "Optional stable identity of the logical deletion. A replay of "
+            "the same id returns the original receipt without a second "
+            "deletion."),
+    ),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
     agent_id: Optional[str] = None
 ):
     """
-    Delete a document.
+    Delete a document and its chunk family, then verify the effect.
+
+    LanceDB and SQL are separate stores: this route does not claim one atomic
+    transaction. The returned ``verification`` is ``verified`` only after a
+    fresh readback shows both the exact base row and the ``<doc_id>::``
+    chunk family gone. A removed base row with surviving chunks is reported
+    as a 503 ``committed_unverified`` outcome with the original operation id
+    and ``replay: do_not_repeat``; it is never a clean success.
     """
     if agent_id:
          pass # unused for now
@@ -532,9 +547,6 @@ async def delete_document(
     if not lancedb_handler:
             raise router.internal_error("Search database not available")
 
-    # 404 on unknown id, then delete by the id column (to_thread: delete may
-    # touch the sync LanceDB path). Previously a logged no-op that returned
-    # success — the document was never removed and the user was told it was.
     # Chunk-family semantics (2026-09-13 review, third site of the
     # d94a5e6df fix — auto_document_ingestion already pairs both deletes):
     #   1. An id that exists ONLY as chunks (`<doc_id>::c0..cN`, parent row
@@ -543,39 +555,88 @@ async def delete_document(
     #      chunk is orphaned in LanceDB (still retrievable, still stamped
     #      with a departed parent — 2,676 such orphans measured live
     #      2026-09-11).
-    doc = await asyncio.to_thread(lancedb_handler.get_document_by_id, "documents", doc_id)
-    if not doc:
-        family_ids = []
-        try:
-            family_ids = await asyncio.to_thread(
-                lancedb_handler.get_document_ids_by_prefix,
-                "documents", f"{doc_id}::",
-            )
-        except Exception as fam_probe_err:  # noqa: BLE001 — probe is best-effort
-            logger.warning(f"chunk-family probe failed for {doc_id}: {fam_probe_err}")
-        if not family_ids:
-             raise router.not_found_error("Document", doc_id)
-        logger.info(
-            f"Document {doc_id} exists only as a chunk family "
-            f"({len(family_ids)} rows) — deleting the family"
-        )
-    deleted = await asyncio.to_thread(
-        lancedb_handler.delete_documents_by_id, "documents", doc_id
+    result = await delete_document_verified(
+        db=db,
+        actor=current_user,
+        workspace_id=ws_id,
+        doc_id=doc_id,
+        handler=lancedb_handler,
+        operation_id=operation_id,
     )
-    if not deleted:
-         raise router.internal_error(message="Failed to delete document")
-    # Best-effort chunk-family cleanup (same idiom as
-    # auto_document_ingestion.remove_integration_documents): prefix delete
-    # after the id delete; failure here must not fail the whole request.
-    try:
-        await asyncio.to_thread(
-            lancedb_handler.delete_documents_by_prefix,
-            "documents", f"{doc_id}::",
-        )
-    except Exception as fam_del_err:  # noqa: BLE001 — cleanup is best-effort
-        logger.warning(f"chunk-family cleanup failed for {doc_id}: {fam_del_err}")
 
-    return router.success_response(message=f"Document '{doc_id}' deleted")
+    status_value = str(result.get("status") or "")
+    if status_value == "refused":
+        if int(result.get("http_status") or 0) == 404:
+            raise router.not_found_error("Document", doc_id)
+        raise HTTPException(
+            status_code=int(result.get("http_status") or 422),
+            detail={
+                "error": {
+                    "code": result.get("error_code") or "VALIDATION_ERROR",
+                    "message": result.get("error") or "Request refused",
+                },
+                "field": result.get("field"),
+                "verification": result.get("verification"),
+            },
+        )
+    if status_value == "conflict":
+        raise HTTPException(
+            status_code=409,
+            detail={
+                "error": {
+                    "code": result.get("error_code") or "OPERATION_CONFLICT",
+                    "message": result.get("error") or "Conflict",
+                },
+                "verification": result.get("verification"),
+            },
+        )
+    if status_value in ("committed_unverified", "effect_unknown"):
+        raise HTTPException(
+            status_code=503,
+            detail={
+                "error": {
+                    "code": (
+                        "DOCUMENT_EFFECT_UNKNOWN"
+                        if status_value == "effect_unknown"
+                        else "DOCUMENT_DELETE_UNVERIFIED"),
+                    "message": result.get("message")
+                    or "The document deletion outcome is uncertain.",
+                },
+                "verification": result.get("verification"),
+                "operation_id": result.get("operation_id"),
+                "audit_id": result.get("audit_id"),
+                "target_id": result.get("target_id"),
+                "data": result.get("data"),
+            },
+        )
+    if status_value == "not_applied":
+        raise HTTPException(
+            status_code=int(result.get("http_status") or 409),
+            detail={
+                "error": {
+                    "code": result.get("error_code")
+                    or "DOCUMENT_DELETE_NOT_APPLIED",
+                    "message": result.get("error")
+                    or "The document deletion did not apply.",
+                },
+                "verification": result.get("verification"),
+                "operation_id": result.get("operation_id"),
+            },
+        )
+
+    verification = (
+        result.get("verification")
+        or (result.get("data") or {}).get("verification"))
+    return router.success_response(
+        data=result.get("data"),
+        message=result.get("message"),
+        metadata={
+            "operation_id": result.get("operation_id"),
+            "audit_id": result.get("audit_id"),
+            "target_id": result.get("target_id"),
+            "verification": verification,
+        },
+    )
 
 @router.get("")
 async def list_documents(
