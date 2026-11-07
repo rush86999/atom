@@ -1,0 +1,23 @@
+{
+  "executed_source": "a8cb0cba608a81c9b21afc70588ebd056a721ad7",
+  "main": "f3b32005a6997e35f820c0510d42801d4946b12b",
+  "scratch": "/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-revocation-main-gate-53_ia57q",
+  "command": [
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "tests/test_task_wait_source_revocation.py",
+    "tests/test_task_wait_two_job_isolation.py",
+    "tests/test_task_wait_two_fact_events.py",
+    "tests/test_employee_prerequisite_eligibility.py",
+    "tests/test_sequential_fact_completion_contract.py",
+    "tests/test_agent_read_scope_contract.py",
+    "-p",
+    "no:cacheprovider",
+    "-q",
+    "--tb=short",
+    "--basetemp=/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-revocation-main-gate-53_ia57q/pytest",
+    "--junitxml=/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-revocation-main-gate-53_ia57q/result.xml"
+  ],
+  "scope": "new permanent grant-revocation test and current-main reader/sequential/isolation guards; high-level reasoning/auth controlled; no app model/browser"
+}
