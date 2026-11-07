@@ -664,11 +664,8 @@ def test_registry_declares_effects_and_keeps_uncovered_explicit():
     # assignment adapter downgrades all of them to uncertain after dispatch;
     # none can claim independently verified applied success.
     allowed = {
-        "shopify_create_article", "shopify_create_blog",
-        "shopify_create_fulfillment",
         "mini_app_run",
-        # Lazy registrations (radio/BPE) are mutations too when loaded.
-        "radio.send_message",
+        # Lazy BPE registrations are mutations too when loaded.
         "workspace.commit", "workspace.note",
     }
     assert uncovered <= allowed, sorted(uncovered - allowed)

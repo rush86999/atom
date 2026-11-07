@@ -222,6 +222,7 @@ jobs:
             tests/test_lead_shopify_error_privacy.py \
             tests/test_generic_request_expectations.py \
             tests/test_oracle_radio_create_thread.py \
+            tests/test_lead_radio_thread_authority_linearization.py \
             tests/unit/agents/test_radio_actions.py \
             tests/unit/agents/test_agent_radio_tool.py \
             tests/test_generic_reconcile_commit_contract.py \

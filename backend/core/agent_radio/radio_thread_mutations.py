@@ -21,11 +21,10 @@ The row id locates the thread; it does not supply authority.  The shared
 ``postcondition_verifiers`` layer re-reads the row and the current authority
 from a fresh session.
 
-Ported from the accepted radio send work at
-``3a188840d:backend/core/agent_radio/radio_mutations.py``:
-``_text``, ``read_thread`` (by-id fresh read) and the durable-receipt
-projector/matcher shape.  These are unchanged general helpers; no send-message
-code or receipt state is duplicated.
+The by-id ``read_thread`` helper is imported from the accepted send-message
+work now on main (``core.agent_radio.radio_mutations``), not duplicated.  The
+durable-receipt projector/matcher follows that module's general shape; no
+send-message code or receipt state is duplicated.
 """
 from __future__ import annotations
 
@@ -33,6 +32,7 @@ import copy
 from typing import Any, Dict, List, Mapping, Optional, Sequence
 
 from core.agent_radio import radio_service
+from core.agent_radio.radio_mutations import read_thread
 from core.agent_radio.radio_service import RadioError
 
 #: Material the Oracle compares.  The thread id locates the row; it is not
@@ -188,7 +188,22 @@ def _agent_problems(
     return problems
 
 
-def authorize_thread_material(
+def _raw_agent_snapshot(agent: Any) -> Dict[str, Any]:
+    """Raw AgentRegistry authority material used by the CAS predicate.
+
+    Deliberately not normalized: the conditional UPDATE must bind the exact
+    stored id/enabled/status/workspace/tenant values that were authorized.
+    """
+    return {
+        "id": _text(getattr(agent, "id", "")),
+        "enabled": getattr(agent, "enabled", None),
+        "status": getattr(agent, "status", None),
+        "workspace_id": getattr(agent, "workspace_id", None),
+        "tenant_id": getattr(agent, "tenant_id", None),
+    }
+
+
+def authority_snapshot(
     db,
     creator_id: str,
     member_ids: Sequence[str],
@@ -197,12 +212,12 @@ def authorize_thread_material(
     tenant_id: Any = "",
     context_tier: str = "",
     allow_unknown_tier: bool = False,
-) -> tuple[List[str], Any]:
-    """Return (problems, creator_row) for a would-be thread roster.
+) -> tuple[List[str], List[Dict[str, Any]], Any]:
+    """Return (problems, raw snapshots, creator row) for a roster.
 
-    Runs before any write.  The caller turns a non-empty problem list into an
-    explicit ``failed_before_effect`` refusal; the verifier re-runs the same
-    helper in a fresh session so a later authority change is refuted.
+    The snapshot order is deterministic: creator first, then member ids sorted
+    lexicographically (creator removed).  The caller uses that same order for
+    the first-DML conditional claims.
     """
     creator = _load_agent(db, creator_id)
     problems = _agent_problems(
@@ -214,31 +229,93 @@ def authorize_thread_material(
         context_tier=context_tier,
         allow_unknown_tier=allow_unknown_tier,
     )
-    for member_id in member_ids:
-        if _text(member_id).strip() == _text(creator_id).strip():
-            continue
+    creator_text = _text(creator_id).strip()
+    member_order = sorted({
+        _text(member_id).strip()
+        for member_id in member_ids
+        if _text(member_id).strip()
+        and _text(member_id).strip() != creator_text
+    })
+    snapshots: List[Dict[str, Any]] = []
+    if creator is not None:
+        snapshots.append(_raw_agent_snapshot(creator))
+    for member_id in member_order:
         member = _load_agent(db, member_id)
         problems.extend(_agent_problems(
             member,
-            role=f"member '{_text(member_id).strip()}'",
+            role=f"member '{member_id}'",
             workspace_id=workspace_id,
             tenant_id=tenant_id,
             require_intern=False,
             allow_unknown_tier=True,
         ))
+        if member is not None:
+            snapshots.append(_raw_agent_snapshot(member))
+    return problems, snapshots, creator
+
+
+def authorize_thread_material(
+    db,
+    creator_id: str,
+    member_ids: Sequence[str],
+    *,
+    workspace_id: Any = "",
+    tenant_id: Any = "",
+    context_tier: str = "",
+    allow_unknown_tier: bool = False,
+) -> tuple[List[str], Any]:
+    """Compatibility wrapper used by the independent verifier."""
+    problems, _snapshots, creator = authority_snapshot(
+        db,
+        creator_id,
+        member_ids,
+        workspace_id=workspace_id,
+        tenant_id=tenant_id,
+        context_tier=context_tier,
+        allow_unknown_tier=allow_unknown_tier,
+    )
     return problems, creator
 
 
-def read_thread(db, thread_id: str):
-    """Read the exact AgentThread row in the supplied session.
+def claim_authority_rows(db, snapshots: Sequence[Dict[str, Any]]) -> List[str]:
+    """First-DML conditional authority claim in the thread write transaction.
 
-    Ported unchanged from the accepted send-message work at
-    ``3a188840d:backend/core/agent_radio/radio_mutations.py::read_thread``.
+    Each statement is a no-op UPDATE of ``agent_registry`` constrained by the
+    exact raw id/enabled/status/workspace/tenant snapshot.  SQLite (and the
+    server DB) serialize this write with the peer's authority update: a peer
+    winner before this first DML makes the predicate match zero rows, so the
+    caller rolls back before any ``agent_threads`` insert.  A peer winner after
+    the claim cannot commit ahead of the thread transaction, so the authorized
+    snapshot remains the linearization point.
+
+    Returns the ids whose predicate matched zero (or more than one) rows.  The
+    caller must roll back and return ``proven_not_applied`` when non-empty.
     """
-    from core.models import AgentThread
+    from sqlalchemy import update
 
-    return db.query(AgentThread).filter(
-        AgentThread.id == thread_id).first()
+    from core.models import AgentRegistry
+
+    conflicts: List[str] = []
+    for snapshot in snapshots:
+        conditions = [AgentRegistry.id == snapshot["id"]]
+        for field in ("enabled", "status", "workspace_id", "tenant_id"):
+            value = snapshot.get(field)
+            column = getattr(AgentRegistry, field)
+            conditions.append(
+                column.is_(None) if value is None else column == value)
+        result = db.execute(
+            update(AgentRegistry)
+            .where(*conditions)
+            # Same-value update: the row is still written/locked, so this is a
+            # real DML linearization point, not a read.
+            .values(enabled=AgentRegistry.enabled)
+            .execution_options(synchronize_session=False)
+        )
+        if int(result.rowcount or 0) != 1:
+            conflicts.append(str(snapshot["id"]))
+    if conflicts:
+        db.rollback()
+    return conflicts
 
 
 def find_threads_by_operation(
@@ -558,37 +635,66 @@ async def create_thread(
     if operation:
         metadata["operation_id"] = operation
 
-    # Authority is checked BEFORE the write against the real registry rows and
-    # in the SAME session/transaction as the insert, so a peer scope change
-    # cannot slip between the check and the effect.  The fresh readback below
-    # independently re-checks the committed row.
+    # Read the raw authority snapshot in a short read session.  The write
+    # session below starts with conditional UPDATE DML, so a peer authority
+    # winner before our first write makes the CAS predicate match zero rows.
+    # This is the same-writer-transaction linearization; a preflight SELECT
+    # alone is not sufficient.
+    try:
+        with get_db_session() as read_db:
+            problems, snapshots, _creator = authority_snapshot(
+                read_db,
+                creator_id,
+                payload["member_agent_ids"],
+                workspace_id=payload["workspace_id"],
+                tenant_id=payload["tenant_id"],
+                context_tier=context_tier,
+            )
+    except Exception as exc:  # noqa: BLE001 - no write attempted yet
+        return _failed_before_effect(
+            operation_id=operation, payload_sha256=digest,
+            error="authority_unavailable",
+            message=(
+                "Creator/member authority could not be read; no thread was "
+                f"created ({type(exc).__name__})."),
+            error_kind="authority_unavailable",
+        )
+    if problems:
+        return _failed_before_effect(
+            operation_id=operation, payload_sha256=digest,
+            error="authority_refused",
+            message="; ".join(problems),
+            error_kind="authority_refused",
+            problems=problems,
+        )
+
     try:
         with get_db_session() as db:
             try:
-                problems, _creator = authorize_thread_material(
-                    db,
-                    creator_id,
-                    payload["member_agent_ids"],
-                    workspace_id=payload["workspace_id"],
-                    tenant_id=payload["tenant_id"],
-                    context_tier=context_tier,
-                )
-            except Exception as exc:  # noqa: BLE001 - no write attempted yet
+                conflicts = claim_authority_rows(db, snapshots)
+            except Exception as exc:  # noqa: BLE001 - before any thread insert
+                db.rollback()
                 return _failed_before_effect(
                     operation_id=operation, payload_sha256=digest,
                     error="authority_unavailable",
                     message=(
-                        "Creator/member authority could not be read; no "
-                        f"thread was created ({type(exc).__name__})."),
+                        "Creator/member authority claim could not be "
+                        f"linearized; no thread was created "
+                        f"({type(exc).__name__})."),
                     error_kind="authority_unavailable",
                 )
-            if problems:
+            if conflicts:
                 return _failed_before_effect(
                     operation_id=operation, payload_sha256=digest,
-                    error="authority_refused",
-                    message="; ".join(problems),
-                    error_kind="authority_refused",
-                    problems=problems,
+                    error="authority_changed",
+                    message=(
+                        "Creator/member authority changed before the first "
+                        "thread write: " + ", ".join(conflicts)),
+                    error_kind="authority_changed",
+                    problems=[
+                        f"agent '{agent_id}' authority changed before effect"
+                        for agent_id in conflicts
+                    ],
                 )
             thread = radio_service.create_thread(
                 db,
@@ -622,6 +728,7 @@ async def create_thread(
                 "error": f"{type(exc).__name__}: {str(exc)[:300]}",
             },
         )
+
 
     if not thread_id:
         return _uncertain(
