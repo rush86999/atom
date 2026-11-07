@@ -2025,6 +2025,8 @@ def adopt_adaptation(
         observation_digest = hashlib.sha256(
             "\n".join(sorted(observation_ids)).encode("utf-8")
         ).hexdigest()[:16]
+        from core.task_lifecycle import open_unresolved_questions
+
         compile_context = {
             "task_version": int(record.get("task_version") or 0),
             "plan_revision": int(assignment.get("plan_revision") or 1),
@@ -2036,10 +2038,7 @@ def adopt_adaptation(
             # information obligation means the job is still waiting even when
             # an independent branch produced a verified result.
             "open_obligations": [
-                dict(item) for item in
-                (record.get("task_revision") or {}).get("unresolved") or []
-                if isinstance(item, dict)
-                and str(item.get("status") or "open") == "open"
+                dict(item) for item in open_unresolved_questions(record)
             ],
         }
         try:
