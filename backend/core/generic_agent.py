@@ -1858,9 +1858,13 @@ What is your next step?"""
             if status not in unresolved:
                 return
             operation_id = str(row.get("operation_id") or "")
-            action = "durable-operation"
+            op_type = str(row.get("operation_type") or "")
+            action = (
+                op_type.split("generic:agent:", 1)[1]
+                if op_type.startswith("generic:agent:") else
+                "durable-operation")
             self._record_uncertain_operation(
-                context, action, operation_id,
+                context, action or "durable-operation", operation_id,
                 f"durable operation state is {status}")
 
         execution = str(
@@ -2004,6 +2008,44 @@ What is your next step?"""
             "frozen_args": authorized,
             "operation_id": operation,
         }
+
+    def _unresolved_prior_operation(
+        self, tool_name: str, context: Dict,
+    ) -> Optional[Dict]:
+        """The unresolved durable claim for this action in this execution.
+
+        A normal model retry has no call id; if the same action already has a
+        claimed/dispatching/uncertain effect, that operation is the pending
+        intent and must not be re-minted by changed model args. A supplied
+        server intent slot / explicit operation id is handled separately as
+        independent authority. An unreadable store is reported as unavailable
+        (not zero rows) so the caller can refuse before effect.
+        """
+        ctx = context or {}
+        workspace = str(ctx.get("workspace_id") or "")
+        if not workspace:
+            own = str(getattr(self, "workspace_id", "") or "")
+            if own and own != "default":
+                workspace = own
+        execution = str(ctx.get("execution_id") or ctx.get("run_id") or "")
+        if not workspace or not execution:
+            return None
+        from core import outbound_operation_claim as claims
+
+        try:
+            rows = claims.generic_operations_for_execution(
+                workspace, execution, db_factory=get_db_session, strict=True)
+        except Exception as exc:  # noqa: BLE001
+            return {"unavailable": type(exc).__name__}
+        unresolved = {
+            claims.CLAIMED, claims.DISPATCHING, claims.UNCERTAIN_EFFECT,
+        }
+        expected_type = f"generic:agent:{str(tool_name or '')}"
+        for row in rows:
+            if (str(row.get("operation_type") or "") == expected_type
+                    and str(row.get("status") or "") in unresolved):
+                return row
+        return None
 
     def _claim_mutation_operation(
         self, tool_name: str, authorized: Dict, context: Dict,
@@ -2414,6 +2456,35 @@ What is your next step?"""
         # Server-owned logical operation identity for claim/no-resend. The
         # model's tool+params cannot mint it; the durable execution scope can.
         claim_operation_id = str((context or {}).get("operation_id") or "")
+        server_slot = str(
+            (context or {}).get("operation_slot")
+            or (context or {}).get("intent_id")
+            or (context or {}).get("authorization_id") or "")
+        if mutating and not claim_operation_id and not server_slot:
+            prior = self._unresolved_prior_operation(tool_name, context)
+            if isinstance(prior, dict) and prior.get("unavailable"):
+                evidence = (
+                    "operation claim store unavailable before dispatch "
+                    f"({prior.get('unavailable')})")
+                self._record_uncertain_operation(
+                    context, tool_name, "", evidence)
+                return {
+                    "success": False,
+                    "status": "failed_before_effect",
+                    "action_result": "not_applied",
+                    "business_success": False,
+                    "effect_state": "none",
+                    "durable_claim": False,
+                    "error_class": "operation_store_unavailable",
+                    "requires_reconciliation": False,
+                    "retryable": False,
+                    "message": (
+                        "Refusing to dispatch a declared mutation because the "
+                        "durable operation state could not be read; no effect "
+                        "was attempted."),
+                }
+            if prior:
+                claim_operation_id = str(prior.get("operation_id") or "")
         if mutating and not claim_operation_id:
             claim_operation_id = self._server_operation_id(
                 tool_name, authorized, context)

@@ -1,0 +1,38 @@
+Pre-existing / unrelated failures observed in the focused cluster
+(source 882713a0a; these code paths are not modified by this diff).
+
+1. tests/unit/test_agent_integration_gateway.py::TestAgentRouting::test_execute_action_send_message_slack
+   and ::test_execute_action_send_message_whatsapp
+   Return approval_binding_mismatch in the existing outbound approval-flow path.
+
+2. tests/core/integration/test_agent_integration_gateway_coverage.py::
+   TestAgentIntegrationGatewayCoverage::test_handle_send_message_no_approval_needed
+   and ::test_handle_send_message_internal_contact
+   Same existing outbound approval binding behavior.
+
+3. tests/test_fleet_orchestration_deadlocks.py::
+   TestFleetOrchestrationDeadlockBugs::test_asyncio_gather_timeout_missing,
+   ::test_redis_pubsub_listener_timeout_missing,
+   ::test_llm_decomposition_timeout_missing
+   Static fleet-orchestration timeout introspection; unrelated to the generic
+   mutation consumer.
+
+4. tests/core/test_action_registry_coverage.py::
+   TestDocumentsSearchAction::test_search_legacy_path_flag_off
+   Legacy ILIKE mock returns no results; registry effect metadata does not
+   execute in this path.
+
+5. tests/test_r79_action_registry_rpc.py::
+   TestRpcRouteAuthenticated::test_list_actions_includes_registered_names
+   Test-order registration expectation; list_actions itself is unchanged.
+
+6. tests/test_react_loop.py::test_react_loop_reasoning and
+   ::test_react_loop_max_steps
+   Existing test harness sets generate_structured to AsyncMock; the resulting
+   MagicMock final answer fails AgentExperience string validation before this
+   diff's paths. Not part of the focused qualification cluster.
+
+The generic/oracle/fleet focused cluster selected for qualification has
+341 passed, 4 skipped and none of these failures. The two action-registry
+failures and the gateway/fleet cases are retained only as surrounding-baseline
+context.
