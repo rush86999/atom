@@ -1,0 +1,8 @@
+{
+  "raw_negative_log": "/private/tmp/root-generic-accepted-crash.log",
+  "raw_negative_log_sha256": "81b95031722b06d581ce2106c2e4d571e99bf802f81cca1bf926059490240919",
+  "replacement_count": 1,
+  "rule": "only internal owner.token values replaced consistently; raw values not published",
+  "original_helpers": "/private/tmp/root-generic-accepted-answer-probe",
+  "fixed_helpers": "/private/tmp/root-generic-accepted-answer-fixed-probe"
+}
