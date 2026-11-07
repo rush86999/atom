@@ -8,10 +8,15 @@ answer route), and the resume bridge re-dispatches the SAME admitted job.
 """
 from __future__ import annotations
 
+import json
+import logging
 import uuid
+from datetime import datetime, timezone
 from typing import Any, Dict, Optional
 
 from core.models import HITLAction, HITLActionStatus
+
+logger = logging.getLogger(__name__)
 
 INFORMATION_WAIT_ACTION_TYPE = "agent_information_request"
 INFORMATION_WAIT_ACTION_TYPES = frozenset({
@@ -140,3 +145,453 @@ def request_information_wait(
         "channel": channel,
         "subject": dict(subject),
     }
+
+
+# Job states that still own the same run slot. Kept local (rather than
+# importing api.agent_routes) to keep this core module import-light; they match
+# the public job lifecycle constants.
+_WAITING_JOB_STATUSES = frozenset({
+    "waiting", "awaiting_information", "awaiting_input", "awaiting_approval",
+})
+_ACTIVE_JOB_STATUSES = frozenset({"pending", "running"})
+
+
+def _json_object(value: Any) -> Dict[str, Any]:
+    if isinstance(value, dict):
+        return dict(value)
+    if isinstance(value, str):
+        try:
+            parsed = json.loads(value)
+        except (TypeError, ValueError):
+            return {}
+        return dict(parsed) if isinstance(parsed, dict) else {}
+    return {}
+
+
+def _recovery_binding(action: HITLAction) -> Optional[Dict[str, Any]]:
+    """Resolve the exact server-owned wait identity from the durable snapshot.
+
+    Recovery must not reconstruct authority from caller-supplied params or
+    partially-populated rows: every identity/material field comes from the
+    server-written ``context_snapshot``. The accepted answer is the durable
+    ``user_feedback`` on the approved row.
+    """
+    snapshot = _json_object(getattr(action, "context_snapshot", None))
+    job_id = str(snapshot.get("job_id") or "")
+    execution_id = str(
+        snapshot.get("execution_id") or snapshot.get("run_id") or "")
+    agent_id = str(snapshot.get("agent_id") or "")
+    workspace_id = str(snapshot.get("workspace_id") or "")
+    tenant_id = snapshot.get("tenant_id")
+    correlation_id = str(snapshot.get("correlation_id") or "")
+    actor_id = str(
+        snapshot.get("actor_id") or snapshot.get("user_id") or "") or None
+    answer = str(getattr(action, "user_feedback", None) or "").strip()
+    reviewer_id = getattr(action, "reviewed_by", None)
+    if not (
+        job_id and execution_id and agent_id and workspace_id
+        and correlation_id and answer
+    ):
+        return None
+    return {
+        "job_id": job_id,
+        "execution_id": execution_id,
+        "agent_id": agent_id,
+        "workspace_id": workspace_id,
+        "tenant_id": None if tenant_id is None else str(tenant_id),
+        "actor_id": actor_id,
+        "correlation_id": correlation_id,
+        "answer": answer,
+        "reviewer_id": None if reviewer_id is None else str(reviewer_id),
+    }
+
+
+def _matches_tenant(left: Any, right: Any) -> bool:
+    if left is None or right is None:
+        return True
+    return str(left) == str(right)
+
+
+def _validate_recovery_target(session, action, binding) -> tuple:
+    """Return ``(job, execution, reason)`` after checking exact server facts.
+
+    A malformed, foreign, settled or unrelated action must never reach the
+    resume consumer. ``reason`` is empty only for a valid target.
+    """
+    from core.models import AgentExecution, AgentJob, AgentRegistry, User
+
+    job = session.get(AgentJob, binding["job_id"])
+    if job is None:
+        return None, None, "job_not_found"
+    if str(job.agent_id or "") != binding["agent_id"]:
+        return None, None, "job_agent_mismatch"
+    execution = session.get(AgentExecution, binding["execution_id"])
+    if execution is None:
+        return None, None, "execution_not_found"
+    if str(execution.agent_id or "") != binding["agent_id"]:
+        return None, None, "execution_agent_mismatch"
+    agent = session.get(AgentRegistry, binding["agent_id"])
+    if agent is None:
+        return None, None, "agent_not_found"
+    actor_id = binding.get("actor_id")
+    if actor_id:
+        actor = session.get(User, actor_id)
+        if (
+            actor is None
+            or not bool(getattr(actor, "is_active", False))
+            or str(getattr(actor, "status", "")) != "active"
+        ):
+            return None, None, "actor_unavailable"
+    if getattr(action, "agent_id", None) not in (None, binding["agent_id"]):
+        return None, None, "action_agent_mismatch"
+    for entity in (agent, execution):
+        workspace = getattr(entity, "workspace_id", None)
+        if workspace is not None and str(workspace) != binding["workspace_id"]:
+            return None, None, "workspace_mismatch"
+    action_workspace = getattr(action, "workspace_id", None)
+    if (
+        action_workspace is not None
+        and str(action_workspace) != binding["workspace_id"]
+    ):
+        return None, None, "workspace_mismatch"
+    for entity in (job, agent, execution, action):
+        if not _matches_tenant(
+                getattr(entity, "tenant_id", None), binding["tenant_id"]):
+            return None, None, "tenant_mismatch"
+
+    payload = _json_object(getattr(job, "result_summary", None))
+    job_execution = str(
+        payload.get("execution_id")
+        or payload.get("dispatch_execution_id") or "")
+    if job_execution != binding["execution_id"]:
+        return None, None, "job_execution_mismatch"
+    receipt = payload.get("wait_receipt")
+    receipt_action = (
+        str(receipt.get("hitl_action_id") or receipt.get("id") or "")
+        if isinstance(receipt, dict) else "")
+    if receipt_action != str(action.id):
+        return None, None, "wait_receipt_mismatch"
+    return job, execution, ""
+
+
+async def _reconcile_interrupted_resume_claim(binding) -> Dict[str, Any]:
+    """Truthfully retire a claimed-but-unconfirmed continuation without replay.
+
+    A dead process can die after the job CAS claim but before/while the resumed
+    run executes. We cannot tell whether a side effect landed, so this must not
+    re-dispatch. Verified-live owners are left alone; unknown ownership is
+    reported, not asserted. Only a verified-dead owner is marked
+    ``failed/uncertain`` with ``requires_reconciliation``.
+    """
+    from core.database import SessionLocal
+    from core.execution_ownership import owner_liveness
+    from core.models import AgentExecution, AgentJob
+
+    session = SessionLocal()
+    try:
+        execution = session.get(AgentExecution, binding["execution_id"])
+        if execution is None:
+            return {"status": "skipped", "reason": "execution_not_found"}
+
+        job = session.get(AgentJob, binding["job_id"])
+        if job is None:
+            return {"status": "skipped", "reason": "job_not_found"}
+        if str(job.status or "") not in _ACTIVE_JOB_STATUSES:
+            return {"status": "skipped", "reason": "job_already_settled"}
+        payload = _json_object(job.result_summary)
+        claim = payload.get("resume_claim")
+        claim = dict(claim) if isinstance(claim, dict) else {}
+        if (
+            str(claim.get("action_id") or "") != str(binding["action_id"])
+            or str(claim.get("execution_id") or "")
+            != binding["execution_id"]
+        ):
+            return {"status": "skipped", "reason": "claim_not_for_this_wait"}
+
+        # The claim records the process that won it. That is the authoritative
+        # liveness signal: the execution owner stamp still names the original
+        # waiting run, which is expected to be dead even when a successor is
+        # actively resuming right now. Older claims without an owner fall back
+        # to the execution stamp.
+        claim_owner = claim.get("claim_owner")
+        if isinstance(claim_owner, dict) and claim_owner.get("pid"):
+            state, info = owner_liveness({"owner": claim_owner})
+            owner_source = "resume_claim"
+        else:
+            state, info = owner_liveness(execution.metadata_json)
+            owner_source = "execution"
+        if state in ("live", "self"):
+            return {
+                "status": "skipped", "reason": "live_owner",
+                "owner_source": owner_source, **info}
+        if state == "unknown":
+            return {
+                "status": "skipped", "reason": "unknown_owner",
+                "owner_source": owner_source, **info}
+
+        if str(execution.status or "") not in ("waiting", "running"):
+            return {"status": "skipped", "reason": "execution_already_settled"}
+
+        now = datetime.now(timezone.utc)
+        payload.update({
+            "finished": True,
+            "waiting": False,
+            "status": "failed",
+            "outcome": "uncertain",
+            "reason": "execution_uncertain",
+            "next_action": "reconcile_operation",
+            "requires_reconciliation": True,
+        })
+        from sqlalchemy import update
+
+        updated = session.execute(
+            update(AgentJob)
+            .where(
+                AgentJob.id == binding["job_id"],
+                AgentJob.status == job.status,
+                AgentJob.result_summary == job.result_summary,
+            )
+            .values(
+                status="failed",
+                result_summary=json.dumps(payload, sort_keys=True),
+                end_time=now,
+            ))
+        if updated.rowcount != 1:
+            session.rollback()
+            return {"status": "skipped", "reason": "job_changed_concurrently"}
+        metadata = dict(execution.metadata_json or {})
+        metadata["recovery"] = {
+            "crashed": True,
+            "recovered_at": now.isoformat(),
+            "reason": "resume_claim_interrupted_uncertain",
+            "owner_state": state,
+        }
+        # CAS the execution too: a peer that independently settled this
+        # execution must win over stale cleanup. If it already left the
+        # waiting/running states, roll the job update back rather than
+        # recording a contradictory failed job over a completed execution.
+        settled_execution = session.execute(
+            update(AgentExecution)
+            .where(
+                AgentExecution.id == binding["execution_id"],
+                AgentExecution.status.in_(("waiting", "running")),
+            )
+            .values(
+                status="failed",
+                error_message=(
+                    "Process restarted after the answer was accepted and the "
+                    "same job was claimed, but before a durable result. The "
+                    "effect is uncertain; reconcile before retrying."),
+                completed_at=now,
+                metadata_json=metadata,
+            ))
+        if settled_execution.rowcount != 1:
+            session.rollback()
+            return {
+                "status": "skipped",
+                "reason": "execution_changed_concurrently",
+            }
+        session.commit()
+        return {
+            "status": "uncertain",
+            "reason": "resume_claim_interrupted_uncertain",
+            "job_status": "failed",
+            "requires_reconciliation": True,
+        }
+    finally:
+        session.close()
+
+
+async def _recover_one_accepted_wait(action_id: str) -> Dict[str, Any]:
+    from core.database import SessionLocal
+
+    session = SessionLocal()
+    try:
+        action = session.get(HITLAction, str(action_id))
+        if action is None:
+            return {"status": "skipped", "reason": "wait_not_found"}
+        if not is_information_wait_action(getattr(action, "action_type", None)):
+            return {"status": "skipped", "reason": "not_information_wait"}
+        if str(action.status or "") != HITLActionStatus.APPROVED.value:
+            return {"status": "skipped", "reason": "not_approved"}
+        binding = _recovery_binding(action)
+        if binding is None:
+            return {"status": "refused", "reason": "wait_binding_or_answer_missing"}
+        job, execution, reason = _validate_recovery_target(
+            session, action, binding)
+        if reason:
+            return {"status": "refused", "reason": reason}
+        job_status = str(job.status or "")
+        payload = _json_object(job.result_summary)
+        claim = payload.get("resume_claim")
+        claim = dict(claim) if isinstance(claim, dict) else {}
+        claimed_here = (
+            str(claim.get("action_id") or "") == str(action.id)
+            and str(claim.get("execution_id") or "") == binding["execution_id"]
+        )
+    finally:
+        session.close()
+
+    binding["action_id"] = str(action_id)
+    if job_status in _WAITING_JOB_STATUSES:
+        from api.agent_routes import resume_information_wait_action
+        from core.database import engine
+
+        result = await resume_information_wait_action(
+            str(action_id),
+            approved=True,
+            answer=None,
+            reviewer_id=binding["reviewer_id"],
+            bind=engine,
+            correlation_id=binding["correlation_id"],
+        )
+        if result.get("resumed"):
+            return {
+                "status": "resumed",
+                "job_id": binding["job_id"],
+                "execution_id": binding["execution_id"],
+                "job_status": result.get("job_status"),
+            }
+        return {
+            "status": "skipped",
+            "reason": result.get("reason") or result.get("status") or "not_resumed",
+            "job_id": binding["job_id"],
+            "execution_id": binding["execution_id"],
+        }
+    if job_status in _ACTIVE_JOB_STATUSES and claimed_here:
+        return await _reconcile_interrupted_resume_claim(binding)
+    if job_status in _ACTIVE_JOB_STATUSES:
+        return {"status": "skipped", "reason": "job_active_without_this_claim"}
+    return {"status": "skipped", "reason": "job_not_waiting"}
+
+
+def _current_wait_action_id(payload: Dict[str, Any]) -> str:
+    receipt = payload.get("wait_receipt")
+    if isinstance(receipt, dict):
+        action_id = str(
+            receipt.get("hitl_action_id") or receipt.get("id") or "")
+        if action_id:
+            return action_id
+    claim = payload.get("resume_claim")
+    if isinstance(claim, dict):
+        return str(claim.get("action_id") or "")
+    return ""
+
+
+def _eligible_accepted_action_ids(
+    session, *, limit: int, max_scan: int = 2000, batch: int = 200,
+) -> list:
+    """Find accepted waits from CURRENT jobs, not from the approved history.
+
+    Completed jobs keep their approved wait rows forever, so scanning
+    ``hitl_actions`` by approval date and then limiting can starve a newly
+    accepted wait behind any amount of terminal history. Driving the scan from
+    jobs that still hold a run slot (and paging until enough *eligible*
+    actions are found) filters job status before any limit is applied. The
+    bounded pages keep startup work finite; settled jobs drop out on the next
+    pass, so a backlog drains rather than repeats forever.
+    """
+    from core.models import AgentJob
+
+    eligible: list = []
+    seen = set()
+    offset = 0
+    active_states = tuple(sorted(_WAITING_JOB_STATUSES | _ACTIVE_JOB_STATUSES))
+    while len(eligible) < limit and offset < max_scan:
+        page_size = min(batch, max_scan - offset)
+        jobs = (
+            session.query(AgentJob)
+            .filter(AgentJob.status.in_(active_states))
+            .order_by(AgentJob.start_time.asc(), AgentJob.id.asc())
+            .offset(offset)
+            .limit(page_size)
+            .all()
+        )
+        if not jobs:
+            break
+        offset += len(jobs)
+        action_ids = []
+        for job in jobs:
+            action_id = _current_wait_action_id(
+                _json_object(job.result_summary))
+            if action_id and action_id not in seen:
+                seen.add(action_id)
+                action_ids.append(action_id)
+        if not action_ids:
+            continue
+        rows = (
+            session.query(HITLAction)
+            .filter(
+                HITLAction.id.in_(action_ids),
+                HITLAction.action_type.in_(
+                    tuple(sorted(INFORMATION_WAIT_ACTION_TYPES))),
+                HITLAction.status == HITLActionStatus.APPROVED.value,
+            )
+            .all()
+        )
+        approved = {str(row.id) for row in rows}
+        for action_id in action_ids:
+            if action_id in approved:
+                eligible.append(action_id)
+                if len(eligible) >= limit:
+                    break
+    return eligible
+
+
+async def recover_accepted_information_waits(*, limit: int = 20) -> Dict[str, Any]:
+    """Bounded startup join: wake durably accepted information waits once.
+
+    Only ``approved`` information waits whose exact server-owned binding still
+    points at a waiting job/execution are handed to the existing resume
+    consumer. The consumer's conditional job claim makes concurrent startups
+    race-free, so a duplicate boot or a replayed answer cannot dispatch twice.
+
+    A claimed-but-unconfirmed continuation (the process died after the job CAS
+    claim) is never re-dispatched: verified-dead ownership is marked
+    failed/uncertain with ``requires_reconciliation``; live or unknown owners
+    are left alone and reported. This is a one-shot integrity pass, not a
+    polling daemon, and it does not replay ordinary governed effects.
+    """
+    from core.database import SessionLocal
+
+    limit = max(0, min(int(limit), 100))
+    session = SessionLocal()
+    try:
+        action_ids = _eligible_accepted_action_ids(session, limit=limit)
+    finally:
+        session.close()
+
+    summary: Dict[str, Any] = {
+        "examined": len(action_ids),
+        "resumed": 0,
+        "skipped": 0,
+        "refused": 0,
+        "uncertain": 0,
+        "details": [],
+    }
+    for action_id in action_ids:
+        try:
+            detail = await _recover_one_accepted_wait(action_id)
+        except Exception as exc:  # noqa: BLE001 — one bad row must not stop boot
+            logger.error(
+                "Accepted information wait recovery failed for %s: %s",
+                action_id, type(exc).__name__)
+            detail = {"status": "refused", "reason": "recovery_error"}
+        detail["action_id"] = action_id
+        summary["details"].append(detail)
+        if detail.get("status") == "resumed":
+            summary["resumed"] += 1
+        elif detail.get("status") == "uncertain":
+            summary["uncertain"] += 1
+        elif detail.get("status") == "refused":
+            summary["refused"] += 1
+        else:
+            summary["skipped"] += 1
+    if summary["resumed"] or summary["uncertain"]:
+        logger.warning(
+            "Accepted information wait recovery: resumed=%s uncertain=%s "
+            "skipped=%s refused=%s",
+            summary["resumed"], summary["uncertain"],
+            summary["skipped"], summary["refused"])
+    return summary
+
