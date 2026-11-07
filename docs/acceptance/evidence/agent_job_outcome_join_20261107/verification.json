@@ -1,0 +1,61 @@
+{
+  "artifacts": {
+    "README.md": "695b6ac2fda18dc33eaa38edcb8ad00f64418f03a80e504ceaa2fc0a6ca7ac1f",
+    "capture-run.log": "0699c6d33ca709095a41d650b514fa0b1992d85f23a93a6bed46e37e422d7366",
+    "consolidated-25-controls.log": "c37303baf54d34a6129bdc985589edd28910da9c5e892407702cd4054f7c9529",
+    "final-affected-failures.txt": "9b0dccaf90ed0ff396b7c576e31d47c7d6cb933beeaa55ada873648865564fab",
+    "final-affected.log": "997a32b8f8b830a99d037b721a2dca4768d7237a468fb8a62b3d3b895485ea37",
+    "final-failure-identity.json": "48a52206eb3c90d6ab68c1e74ba33273d2d46d29b98c883cc4e94e4107df13d3",
+    "final-focused.log": "43e3909b8f0f21650186658a6755b12e8edc9c606253e3bf076b4b9e182cbd8a",
+    "public-capture.json": "5d970998d9ff08214f8a8c55ec8cc37353e805b24dc763467b9fce2e6504951c",
+    "real-consumer-capture.json": "0065d2d5490712872adfb8121d2ab85dd501bbba852efc004abeb0ed3961b8a9",
+    "real-consumer.log": "bfb4056806ae0f0582fe2c38bdca0543fa3b366cef4e0f2919e0c69de2640601",
+    "root-actual-baseline-findings.json": "c435cb0b57608ee96d9b4e0a6e68a062d41dddcbd114c12289e3e9f108a284fe",
+    "root-actual-baseline.log": "7f1de6fa6771d3f78a6131a376e42ab951125aeaae86403de4f099a00dc01caa",
+    "source-hashes.json": "a4bb8513924bd236af7959bebeee67f88e7a61268bef83e5bd3fce6507b618d9"
+  },
+  "authoritative_baseline": {
+    "failure_count": 36,
+    "findings": "root-actual-baseline-findings.json",
+    "source": "335fd77fa7ca495c40cc2a238615e853f0a8fe1d"
+  },
+  "boundaries": [
+    "SQLite scratch database in one process/event loop; PostgreSQL, multi-worker and soak remain separate",
+    "public route, admission service, durable job/receipt, wrapper, WS routing and real GenericAgent execution/audit producers are real",
+    "waiting is a non-terminal durable wait with its receipt/question; the existing continuation owner performs same-task resume",
+    "no browser/UI campaign, no team-realtime authorization claim beyond authenticated user/workspace channels",
+    "no live model/provider/account/credential/send/spend/download/deployment/merge action",
+    "root owns PR716 integration, PR metadata and merge"
+  ],
+  "claim": "Admitted execution outcome and trusted context join: explicit success only, verified durable HITL waits preserved, original admission actor/scope/parameters bound, peer/stale terminal writes guarded, scoped WS delivery, real GenericAgent execution/audit identity.",
+  "producer_binding": "GenericAgent scopes AgentGovernanceService to the run workspace/tenant; request_approval persists job_id/execution_id/actor in the existing context_snapshot without rewriting business params. The consumer reads identity only from that snapshot and validates every supplied protected field against the frozen namespace.",
+  "public_capture": {
+    "file": "public-capture.json",
+    "summary": "real route/admission/wrapper context: ws1/t1/member-1, real job+execution ids; body-forged values replaced; WS on workspace:ws1 + user:member-1; durable job success"
+  },
+  "real_consumer_capture": {
+    "file": "real-consumer-capture.json",
+    "seams_doubled": [
+      "model/MCP transport (_react_step)",
+      "budget preflight",
+      "unrelated episodic-memory / episode-summary leaves"
+    ],
+    "summary": "real GenericAgent: AgentExecution id == public execution_id, ws1/t1/status success; 2 audit rows carry the same execution id"
+  },
+  "results": {
+    "actual_affected_gate": "exit 1; 36 failure IDs; identical to the root actual baseline",
+    "combined_focused_gate": "67 passed; exit 0",
+    "consolidated_supplied_controls": "25 passed; exit 0",
+    "generic_consumer_follow_through": "test_generic_agent.py, test_agent_action_audit.py, test_generic_oracle_mutation_contract.py, test_objective_loop_termination.py passed",
+    "new_candidate_contracts": "42 passed; exit 0",
+    "new_failure_ids": 0,
+    "supplied_lead_probes": "20 passed; exit 0",
+    "supplied_probe": "5 passed; exit 0",
+    "syntax": "py_compile pass",
+    "wait_authority": "all four supplied wait files pass: invented/foreign/settled/missing-scope/missing-execution/params-shadowed refs refused; exact pending HITL with exact job+execution read back for the backed wait"
+  },
+  "schema": "atom-agent-job-outcome-join-1",
+  "source_base": "02bf17f98",
+  "source_checkpoint": "80b17a4898272d44ec0a7c510b1ef0f930ec6dc2",
+  "status": "verified at controlled public-route + real-wrapper + real/controlled-Generic transport scope"
+}

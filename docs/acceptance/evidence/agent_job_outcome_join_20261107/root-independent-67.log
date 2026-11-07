@@ -1,0 +1,450 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-07 01:21:07 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+
+tests/test_agent_run_outcome_join_contract.py::test_success_joins_truth_scope_and_durable_execution_identity 
+-------------------------------- live log setup --------------------------------
+2026-11-07 01:21:08 [    INFO] EscalationManager initialized
+2026-11-07 01:21:08 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 01:21:08 [    INFO] EscalationManager initialized
+2026-11-07 01:21:08 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 01:21:08 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 01:21:08 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:08 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:21:08 [    INFO] Executing Agent Agent One with ReAct Loop. Input: do the work
+2026-11-07 01:21:08 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=success-op "HTTP/1.1 200 OK"
+PASSED                                                                   [  1%]
+tests/test_agent_run_outcome_join_contract.py::test_non_success_matrix_never_completes_a_job[result0-uncertain-AGENT_EXECUTION_UNCERTAIN-reconcile_operation-True] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:09 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:21:09 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+2026-11-07 01:21:09 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=matrix-op "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [  2%]
+tests/test_agent_run_outcome_join_contract.py::test_non_success_matrix_never_completes_a_job[result1-failed-AGENT_EXECUTION_NOT_SUCCESSFUL-review_failure-False] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:10 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:21:10 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+2026-11-07 01:21:10 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=matrix-op "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  4%]
+tests/test_agent_run_outcome_join_contract.py::test_non_success_matrix_never_completes_a_job[result2-blocked-AGENT_EXECUTION_NOT_SUCCESSFUL-resolve_blocker-False] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:10 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:21:10 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+2026-11-07 01:21:10 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=matrix-op "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  5%]
+tests/test_agent_run_outcome_join_contract.py::test_non_success_matrix_never_completes_a_job[result3-cancelled-AGENT_EXECUTION_NOT_SUCCESSFUL-none-False] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:11 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:21:11 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+2026-11-07 01:21:11 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=matrix-op "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  7%]
+tests/test_agent_run_outcome_join_contract.py::test_non_success_matrix_never_completes_a_job[result4-waiting-AGENT_EXECUTION_NOT_SUCCESSFUL-review_execution-False] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:11 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:21:11 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+2026-11-07 01:21:11 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=matrix-op "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  8%]
+tests/test_agent_run_outcome_join_contract.py::test_non_success_matrix_never_completes_a_job[result5-unknown-AGENT_EXECUTION_NOT_SUCCESSFUL-review_execution-False] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:12 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:21:12 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+2026-11-07 01:21:12 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=matrix-op "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 10%]
+tests/test_agent_run_outcome_join_contract.py::test_non_success_matrix_never_completes_a_job[result6-unknown-AGENT_EXECUTION_NOT_SUCCESSFUL-review_execution-False] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:12 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:21:12 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+2026-11-07 01:21:12 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=matrix-op "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 11%]
+tests/test_agent_run_outcome_join_contract.py::test_non_success_matrix_never_completes_a_job[result7-contradictory-AGENT_EXECUTION_UNCERTAIN-reconcile_operation-True] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:13 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:21:13 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+2026-11-07 01:21:13 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=matrix-op "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 13%]
+tests/test_agent_run_outcome_join_contract.py::test_non_success_matrix_never_completes_a_job[result8-success-AGENT_EXECUTION_UNCERTAIN-reconcile_operation-True] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:14 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:21:14 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+2026-11-07 01:21:14 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=matrix-op "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 14%]
+tests/test_agent_run_outcome_join_contract.py::test_replay_and_cold_read_do_not_dispatch_again 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:14 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:21:14 [    INFO] Executing Agent Agent One with ReAct Loop. Input: same
+2026-11-07 01:21:14 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=replay-op "HTTP/1.1 200 OK"
+2026-11-07 01:21:14 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=replay-op "HTTP/1.1 200 OK"
+2026-11-07 01:21:14 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=replay-op "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 16%]
+tests/test_agent_run_outcome_join_contract.py::test_continued_read_preserves_running_state PASSED [ 17%]
+tests/test_agent_run_outcome_join_contract.py::test_unscoped_agent_uses_the_scoped_actor_workspace 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:15 [    INFO] Starting agent Global Agent (ID: a-global)...
+2026-11-07 01:21:15 [    INFO] Executing Agent Global Agent with ReAct Loop. Input: work
+2026-11-07 01:21:15 [    INFO] HTTP Request: POST http://testserver/api/agents/a-global/run?operation_id=global-agent-op "HTTP/1.1 200 OK"
+PASSED                                                                   [ 19%]
+tests/test_agent_run_outcome_join_contract.py::test_backed_wait_is_non_terminal_and_does_not_consume_the_slot 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:16 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:21:16 [    INFO] Executing Agent Agent One with ReAct Loop. Input: long task
+2026-11-07 01:21:16 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=wait-op "HTTP/1.1 202 Accepted"
+2026-11-07 01:21:16 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=wait-op "HTTP/1.1 202 Accepted"
+2026-11-07 01:21:16 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:21:16 [    INFO] Executing Agent Agent One with ReAct Loop. Input: other work
+2026-11-07 01:21:16 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=after-wait-op "HTTP/1.1 200 OK"
+PASSED                                                                   [ 20%]
+tests/test_agent_run_outcome_join_contract.py::test_unbacked_wait_reference_is_not_durable[result0] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:16 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:21:16 [    INFO] Executing Agent Agent One with ReAct Loop. Input: long task
+2026-11-07 01:21:16 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=unbacked-wait-op "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 22%]
+tests/test_agent_run_outcome_join_contract.py::test_unbacked_wait_reference_is_not_durable[result1] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:17 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:21:17 [    INFO] Executing Agent Agent One with ReAct Loop. Input: long task
+2026-11-07 01:21:17 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=unbacked-wait-op "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 23%]
+tests/test_agent_run_outcome_join_contract.py::test_unbacked_wait_reference_is_not_durable[result2] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:17 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:21:17 [    INFO] Executing Agent Agent One with ReAct Loop. Input: long task
+2026-11-07 01:21:17 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=unbacked-wait-op "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 25%]
+tests/test_agent_run_outcome_join_contract.py::test_foreign_or_settled_review_is_not_durable_authority 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:18 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:21:18 [    INFO] Executing Agent Agent One with ReAct Loop. Input: long task
+2026-11-07 01:21:18 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=unbacked-foreign-review "HTTP/1.1 409 Conflict"
+2026-11-07 01:21:18 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:21:18 [    INFO] Executing Agent Agent One with ReAct Loop. Input: long task
+2026-11-07 01:21:18 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=unbacked-settled-review "HTTP/1.1 409 Conflict"
+2026-11-07 01:21:18 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:21:18 [    INFO] Executing Agent Agent One with ReAct Loop. Input: long task
+2026-11-07 01:21:18 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=unbacked-other-agent-review "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 26%]
+tests/test_agent_run_outcome_join_contract.py::test_legacy_unscoped_hitl_row_cannot_certify_a_scoped_task 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:18 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:21:18 [    INFO] Executing Agent Agent One with ReAct Loop. Input: long task
+2026-11-07 01:21:18 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=legacy-wait-op "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 28%]
+tests/test_agent_run_outcome_join_contract.py::test_governance_producer_persists_admitted_scope_and_binding PASSED [ 29%]
+tests/test_agent_run_outcome_join_contract.py::test_foreign_scope_is_refused_before_any_dispatch 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:20 [    INFO] HTTP Request: POST http://testserver/api/agents/a2/run?operation_id=foreign-op "HTTP/1.1 404 Not Found"
+2026-11-07 01:21:20 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:21:20 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Execute task with params: {'sync': True, 'workspace_id': 'ws1', 'tenant_id': 't1', 'user_id': 'member-1', 'actor_id': 'member-1', 'job_id': '4bf2ccb7-9de6-4c8e-9128-74246bca5758', 'execution_id': 'e85e590e-850b-4124-a504-f5a94418781c', 'run_id': 'e85e590e-850b-4124-a504-f5a94418781c', 'operation_id': 'agent:run:forged-scope-op', 'operation_slot': None, 'intent_id': None, 'authorization_id': None, 'session_id': None, 'proposal_id': None, 'goal_id': None, 'trigger': 'agent_run_route'}
+2026-11-07 01:21:20 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=forged-scope-op "HTTP/1.1 200 OK"
+PASSED                                                                   [ 31%]
+tests/test_agent_run_outcome_join_contract.py::test_late_success_cannot_overwrite_peer_cancellation 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:20 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:21:20 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+2026-11-07 01:21:20 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=cancel-race-op "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 32%]
+tests/test_agent_run_outcome_join_contract.py::test_duplicate_dispatch_claims_one_run_slot 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:21 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:21:21 [    INFO] Executing Agent Agent One with ReAct Loop. Input: x
+2026-11-07 01:21:21 [ WARNING] Admitted agent run not dispatched (already claimed or terminal): agent=a1 job=race-job
+PASSED                                                                   [ 34%]
+tests/test_agent_run_outcome_join_contract.py::test_execution_exception_is_failed_without_public_leak 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:21 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:21:21 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+2026-11-07 01:21:21 [   ERROR] Agent a1 logic failed: provider failed: provider-secret-sk-live-123
+2026-11-07 01:21:21 [CRITICAL] !!! CRITICAL AGENT ERROR !!!
+Agent execution FAILED: provider failed: provider-secret-sk-live-123
+Traceback (most recent call last):
+  File "/private/tmp/atom-cli-agent-job-join/backend/api/agent_routes.py", line 1118, in execute_agent_task
+    raise e
+  File "/private/tmp/atom-cli-agent-job-join/backend/api/agent_routes.py", line 1034, in execute_agent_task
+    result_obj = await runner.execute(task_input, context=scoped_params, step_callback=streaming_callback)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/atom-cli-agent-job-join/backend/tests/test_agent_run_outcome_join_contract.py", line 63, in execute
+    return behavior(context or {})
+  File "/private/tmp/atom-cli-agent-job-join/backend/tests/test_agent_run_outcome_join_contract.py", line 882, in explode
+    raise RuntimeError(f"provider failed: {secret}")
+RuntimeError: provider failed: provider-secret-sk-live-123
+
+2026-11-07 01:21:21 [   ERROR] Agent a1 execution wrapper failed: provider failed: provider-secret-sk-live-123
+2026-11-07 01:21:21 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=error-op "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 35%]
+tests/test_agent_run_outcome_join_contract.py::test_stale_dispatcher_cannot_finish_the_winning_run_slot PASSED [ 37%]
+tests/test_agent_run_outcome_join_contract.py::test_changed_parameters_after_admission_are_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:22 [ WARNING] Admitted agent run not dispatched (admitted parameters changed): agent=a1 job=digest-job
+PASSED                                                                   [ 38%]
+tests/test_agent_run_outcome_join_contract.py::test_receipt_freezes_original_actor_and_workspace 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:23 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:21:23 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+2026-11-07 01:21:23 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=receipt-op "HTTP/1.1 200 OK"
+PASSED                                                                   [ 40%]
+tests/test_agent_run_outcome_join_contract.py::test_inactive_admission_actor_refuses_dispatch 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:24 [ WARNING] Admitted agent run not dispatched (admission receipt or authority unavailable): agent=a1 job=authority-job
+PASSED                                                                   [ 41%]
+tests/test_agent_run_outcome_join_contract.py::test_real_generic_agent_binds_execution_and_audit_identity 
+-------------------------------- live log setup --------------------------------
+2026-11-07 01:21:24 [    INFO] MCP Service initialized
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:24 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:21:24 [    INFO] EscalationManager initialized
+2026-11-07 01:21:24 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 01:21:24 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 01:21:24 [    INFO] EscalationManager initialized
+2026-11-07 01:21:24 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 01:21:24 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 01:21:24 [    INFO] Executing Agent Agent One with ReAct Loop. Input: real work
+2026-11-07 01:21:24 [    INFO] Agent Agent One (a1) starting task: real work
+2026-11-07 01:21:24 [    INFO] EscalationManager initialized
+2026-11-07 01:21:24 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 01:21:24 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 01:21:24 [    INFO] LanceDBHandler initialized. ID: 5112165264. LANCEDB_AVAILABLE: True
+2026-11-07 01:21:24 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 01:21:24 [    INFO] Connecting to LanceDB at /private/tmp/atom-cli-agent-job-join/backend/data/atom_memory with storage_options=None
+2026-11-07 01:21:24 [    INFO] LanceDB connected successfully
+2026-11-07 01:21:24 [    INFO] Recorded outcome for a1: success
+2026-11-07 01:21:24 [    INFO] EscalationManager initialized
+2026-11-07 01:21:24 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 01:21:24 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=real-generic-op "HTTP/1.1 200 OK"
+PASSED                                                                   [ 43%]
+tests/test_agent_run_outcome_join_contract.py::test_background_run_uses_the_same_truthful_join 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:25 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:21:25 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+2026-11-07 01:21:25 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=background-op "HTTP/1.1 200 OK"
+PASSED                                                                   [ 44%]
+tests/test_agent_run_admission_contract.py::test_member_admits_own_agent_and_dispatch_completes 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:26 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws1'. type='agent_status_change'
+2026-11-07 01:21:26 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:member-1'. type='agent_status_change'
+2026-11-07 01:21:26 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=run-one "HTTP/1.1 200 OK"
+PASSED                                                                   [ 46%]
+tests/test_agent_run_admission_contract.py::test_member_cross_workspace_and_tenant_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:26 [    INFO] HTTP Request: POST http://testserver/api/agents/a2/run "HTTP/1.1 404 Not Found"
+2026-11-07 01:21:26 [    INFO] HTTP Request: POST http://testserver/api/agents/a3/run "HTTP/1.1 404 Not Found"
+2026-11-07 01:21:26 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws2'. type='agent_status_change'
+2026-11-07 01:21:26 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:admin-1'. type='agent_status_change'
+2026-11-07 01:21:26 [    INFO] HTTP Request: POST http://testserver/api/agents/a2/run?operation_id=cross-ws "HTTP/1.1 200 OK"
+2026-11-07 01:21:26 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 47%]
+tests/test_agent_run_admission_contract.py::test_deprecated_paused_and_running_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:27 [    INFO] HTTP Request: POST http://testserver/api/agents/a-deprecated/run "HTTP/1.1 400 Bad Request"
+2026-11-07 01:21:27 [    INFO] HTTP Request: POST http://testserver/api/agents/a-paused/run "HTTP/1.1 400 Bad Request"
+2026-11-07 01:21:27 [    INFO] HTTP Request: POST http://testserver/api/agents/a-running/run "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 49%]
+tests/test_agent_run_admission_contract.py::test_active_job_blocks_second_admission 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:27 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=active-job "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 50%]
+tests/test_agent_run_admission_contract.py::test_target_change_before_claim_refuses 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:28 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=stale-run "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 52%]
+tests/test_agent_run_admission_contract.py::test_authority_change_before_claim_refuses[deactivate] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:28 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=authority-run "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 53%]
+tests/test_agent_run_admission_contract.py::test_authority_change_before_claim_refuses[demote] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:29 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=authority-run "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 55%]
+tests/test_agent_run_admission_contract.py::test_replay_same_operation_no_second_dispatch 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:29 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws1'. type='agent_status_change'
+2026-11-07 01:21:29 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:admin-1'. type='agent_status_change'
+2026-11-07 01:21:29 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=run-replay "HTTP/1.1 200 OK"
+2026-11-07 01:21:29 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=run-replay "HTTP/1.1 200 OK"
+2026-11-07 01:21:29 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=run-replay "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 56%]
+tests/test_agent_run_admission_contract.py::test_audit_rollback_preserves_agent_and_job 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:30 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=rollback-run "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 58%]
+tests/test_agent_run_admission_contract.py::test_readback_failure_is_committed_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:31 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=readback-run "HTTP/1.1 503 Service Unavailable"
+PASSED                                                                   [ 59%]
+tests/test_agent_run_admission_contract.py::test_execution_failure_marks_job_failed_and_restores_status 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:31 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws1'. type='agent_status_change'
+2026-11-07 01:21:31 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:admin-1'. type='agent_status_change'
+2026-11-07 01:21:31 [   ERROR] Admitted agent run failed: agent=a1 job=d5339970-fc0e-46e8-befa-a055b71db444 error_class=RuntimeError
+2026-11-07 01:21:31 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=failed-run "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 61%]
+tests/test_agent_run_admission_contract.py::test_sync_run_returns_stub_result_and_success_job 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:32 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws1'. type='agent_status_change'
+2026-11-07 01:21:32 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:admin-1'. type='agent_status_change'
+2026-11-07 01:21:32 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=sync-run "HTTP/1.1 200 OK"
+PASSED                                                                   [ 62%]
+::test_unbacked_returned_wait_reference_cannot_be_durable_authority[result0] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:32 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:21:32 [    INFO] Executing Agent Agent One with ReAct Loop. Input: long task
+2026-11-07 01:21:32 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=unbacked-wait-op "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 64%]
+::test_unbacked_returned_wait_reference_cannot_be_durable_authority[result1] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:33 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:21:33 [    INFO] Executing Agent Agent One with ReAct Loop. Input: long task
+2026-11-07 01:21:33 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=unbacked-wait-op "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 65%]
+::test_unbacked_returned_wait_reference_cannot_be_durable_authority[result2] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:33 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:21:33 [    INFO] Executing Agent Agent One with ReAct Loop. Input: long task
+2026-11-07 01:21:33 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=unbacked-wait-op "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 67%]
+::test_normal_verified_completion_still_works 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:34 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:21:34 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+2026-11-07 01:21:34 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=valid-completion "HTTP/1.1 200 OK"
+PASSED                                                                   [ 68%]
+::test_pending_wait_is_bound_to_exact_execution[missing] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:34 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:21:34 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+2026-11-07 01:21:34 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=wait-binding-op "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 70%]
+::test_pending_wait_is_bound_to_exact_execution[foreign] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:35 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:21:35 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+2026-11-07 01:21:35 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=wait-binding-op "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 71%]
+::test_pending_wait_is_bound_to_exact_execution[exact] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:36 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:21:36 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+2026-11-07 01:21:36 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=wait-binding-op "HTTP/1.1 202 Accepted"
+PASSED                                                                   [ 73%]
+::test_scoped_wait_needs_exact_authoritative_scope[ws1-t1] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:36 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:21:36 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+2026-11-07 01:21:36 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=scope-wait "HTTP/1.1 202 Accepted"
+PASSED                                                                   [ 74%]
+::test_scoped_wait_needs_exact_authoritative_scope[default-t1] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:37 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:21:37 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+2026-11-07 01:21:37 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=scope-wait "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 76%]
+::test_scoped_wait_needs_exact_authoritative_scope[None-t1] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:37 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:21:37 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+2026-11-07 01:21:37 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=scope-wait "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 77%]
+::test_scoped_wait_needs_exact_authoritative_scope[ws1-None] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:38 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:21:38 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+2026-11-07 01:21:38 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=scope-wait "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 79%]
+::test_action_parameters_do_not_authorize_a_task_wait[exact] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:38 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:21:38 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+2026-11-07 01:21:38 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=wait-shadow "HTTP/1.1 202 Accepted"
+PASSED                                                                   [ 80%]
+::test_action_parameters_do_not_authorize_a_task_wait[foreign_snapshot_shadowed] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:39 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:21:39 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+2026-11-07 01:21:39 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=wait-shadow "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 82%]
+::test_action_parameters_do_not_authorize_a_task_wait[missing_snapshot_from_params] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:40 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:21:40 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+2026-11-07 01:21:40 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=wait-shadow "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 83%]
+::test_begin_job_guards_exact_agent_at_dml[False] PASSED                 [ 85%]
+::test_begin_job_guards_exact_agent_at_dml[True] PASSED                  [ 86%]
+::test_step_event_has_only_its_workspace_channel[default] PASSED         [ 88%]
+::test_step_event_has_only_its_workspace_channel[workspace-private] PASSED [ 89%]
+::test_finish_requires_exact_dispatch_identity[False] PASSED             [ 91%]
+::test_finish_requires_exact_dispatch_identity[True] PASSED              [ 92%]
+::test_job_status_preserves_execution_outcome[uncertain] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:40 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='agent_status_change'
+PASSED                                                                   [ 94%]
+::test_job_status_preserves_execution_outcome[failed] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:40 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='agent_status_change'
+PASSED                                                                   [ 95%]
+::test_job_status_preserves_execution_outcome[blocked] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:40 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='agent_status_change'
+PASSED                                                                   [ 97%]
+::test_job_status_preserves_execution_outcome[cancelled] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:40 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='agent_status_change'
+PASSED                                                                   [ 98%]
+::test_job_status_preserves_execution_outcome[success] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:21:40 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='agent_status_change'
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 134 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_agent_run_outcome_join_contract.py::test_real_generic_agent_binds_execution_and_audit_identity
+  /private/tmp/atom-cli-agent-job-join/backend/core/lancedb_handler.py:407: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    names = set(self.db.table_names())
+
+tests/test_agent_run_outcome_join_contract.py::test_real_generic_agent_binds_execution_and_audit_identity
+tests/test_agent_run_outcome_join_contract.py::test_real_generic_agent_binds_execution_and_audit_identity
+  /Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/asyncio/events.py:94: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    self._context.run(self._callback, *self._args)
+
+tests/test_agent_run_outcome_join_contract.py::test_real_generic_agent_binds_execution_and_audit_identity
+  /private/tmp/atom-cli-agent-job-join/backend/core/lancedb_handler.py:620: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    if table_name in self.db.table_names():
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+------ generated xml file: /private/tmp/job-80b17-final-w2GqPC/result.xml ------
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+====================== 67 passed, 145 warnings in 42.24s =======================

@@ -1,0 +1,87 @@
+{
+  "durable_job": {
+    "dispatch_execution_id": "56e0fa62-a7b3-4ba8-ab43-569e80a9b0de",
+    "dispatch_started": true,
+    "execution_id": "56e0fa62-a7b3-4ba8-ab43-569e80a9b0de",
+    "finished": true,
+    "next_action": "none",
+    "operation_id": "agent:run:success-op",
+    "outcome": "success",
+    "parameters_digest": "d6f1206e0f3731deb15b8663cdca528b1ebc08af55736fae2d7669d5deed1f14",
+    "reason": "execution_succeeded",
+    "requires_reconciliation": false,
+    "status": "success",
+    "waiting": false
+  },
+  "generic_constructor": {
+    "tenant_id": "t1",
+    "workspace_id": "ws1"
+  },
+  "generic_context": {
+    "actor_id": "member-1",
+    "authorization_id": null,
+    "business_note": "keep me",
+    "execution_id": "56e0fa62-a7b3-4ba8-ab43-569e80a9b0de",
+    "goal_id": null,
+    "intent_id": null,
+    "job_id": "30118a2d-e7f5-4e7e-9c51-718fed86ee96",
+    "operation_id": "agent:run:success-op",
+    "operation_slot": null,
+    "proposal_id": null,
+    "run_id": "56e0fa62-a7b3-4ba8-ab43-569e80a9b0de",
+    "session_id": null,
+    "sync": true,
+    "task_input": "do the work",
+    "tenant_id": "t1",
+    "trigger": "agent_run_route",
+    "user_id": "member-1",
+    "workspace_id": "ws1"
+  },
+  "public_response": {
+    "agent_id": "a1",
+    "execution_id": "56e0fa62-a7b3-4ba8-ab43-569e80a9b0de",
+    "job_id": "30118a2d-e7f5-4e7e-9c51-718fed86ee96",
+    "job_status": "success",
+    "next_action": "none",
+    "outcome": "success",
+    "reason": "execution_succeeded",
+    "requires_reconciliation": false,
+    "result": {
+      "output": "done",
+      "requires_reconciliation": false,
+      "status": "success",
+      "steps": [
+        {
+          "step": 1
+        }
+      ]
+    },
+    "verification": {
+      "audit_id": "agent:run:success-op",
+      "effect": "committed",
+      "status": "verified"
+    }
+  },
+  "ws_channels": [
+    "user:member-1",
+    "workspace:ws1"
+  ],
+  "ws_terminal": {
+    "agent_id": "a1",
+    "execution_id": "56e0fa62-a7b3-4ba8-ab43-569e80a9b0de",
+    "job_id": "30118a2d-e7f5-4e7e-9c51-718fed86ee96",
+    "job_status": "success",
+    "next_action": "none",
+    "outcome": "success",
+    "reason": "execution_succeeded",
+    "requires_reconciliation": false,
+    "result": {
+      "output": "done",
+      "status": "success"
+    },
+    "status": "success",
+    "tenant_id": "t1",
+    "type": "agent_status_change",
+    "workspace_id": "ws1"
+  }
+}
