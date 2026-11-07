@@ -42,6 +42,7 @@ def _parse_args() -> argparse.Namespace:
     parser.add_argument("--run-id", default="")
     parser.add_argument("--report", required=True)
     parser.add_argument("--checkpoint", default="")
+    parser.add_argument("--deferred-timeout", default="0")
     return parser.parse_args()
 
 
@@ -353,6 +354,37 @@ def main() -> int:
             "unexpected": "adaptation consumer was not reached"})
         return 19
 
+    if args.phase == "startup-claim-crash":
+        from core.assignment_executor import AssignmentExecutor
+        from core.assignment_recovery import (
+            recover_active_assignments_at_startup,
+        )
+
+        original_claim = AssignmentExecutor._claim_evidence_recovery
+
+        def claim_then_crash(self, run_id, key):
+            claim = original_claim(self, run_id, key)
+            if claim is not None:
+                claimed = _snapshot(self.lifecycle, run_id, calls)
+                claimed.update({
+                    "phase": args.phase,
+                    "pid": os.getpid(),
+                    "interrupted_stage": (
+                        "after_recovery_claim_before_continuation"),
+                })
+                _write_json(args.checkpoint or args.report, claimed)
+                os._exit(17)
+            return claim
+
+        AssignmentExecutor._claim_evidence_recovery = claim_then_crash
+        asyncio_run(recover_active_assignments_at_startup(
+            limit=20, max_steps_per_assignment=12))
+        # The hard exit above is the expected path.
+        _write_json(args.report, {
+            "phase": args.phase, "pid": os.getpid(),
+            "unexpected": "recovery never reached the claim boundary"})
+        return 19
+
     if args.phase == "startup-recover":
         from core.assignment_executor import AssignmentExecutor
 
@@ -377,6 +409,46 @@ def main() -> int:
             "phase": args.phase,
             "pid": os.getpid(),
             "startup_entrypoint": entrypoint,
+            "recovery_results": recovered,
+        })
+        _write_json(args.report, report)
+        return 0
+
+    if args.phase == "startup-recover-deferred":
+        from core.assignment_executor import (
+            await_evidence_recovery_wakes,
+            pending_evidence_recovery_wakes,
+        )
+        from core.assignment_recovery import (
+            recover_active_assignments_at_startup,
+        )
+
+        async def startup_then_wake():
+            started_at = time.time()
+            recovered = await recover_active_assignments_at_startup(
+                limit=20, max_steps_per_assignment=12)
+            initial = _snapshot(lifecycle, args.run_id, calls)
+            pending = pending_evidence_recovery_wakes()
+            timeout = float(args.deferred_timeout or 0)
+            await await_evidence_recovery_wakes(timeout=timeout)
+            return started_at, recovered, initial, pending
+
+        started_at, recovered, initial, pending = asyncio_run(
+            startup_then_wake())
+        report = _snapshot(lifecycle, args.run_id, calls)
+        report.update({
+            "phase": args.phase,
+            "pid": os.getpid(),
+            "startup_entrypoint": (
+                "core.assignment_recovery."
+                "recover_active_assignments_at_startup"),
+            "recovery_started_at": started_at,
+            "deferred_completed_at": time.time(),
+            "pending_wakes_at_startup": pending,
+            "initial_recovery_marker": initial.get("recovery_marker") or {},
+            "initial_status": initial.get("status"),
+            "initial_adaptation_calls": initial.get("adaptation_calls"),
+            "initial_reconciliations": initial.get("reconciliations") or [],
             "recovery_results": recovered,
         })
         _write_json(args.report, report)

@@ -59,12 +59,15 @@ def _child_env(scratch: Path) -> dict:
         "PYTHONPATH": str(BACKEND),
         "PYTHONDONTWRITEBYTECODE": "1",
         "ATOM_TASK_WAIT_SCRATCH": str(scratch),
+        # Short but long enough that the successor process starts before the
+        # first recovery claim expires; the deferred wake then owns takeover.
+        "ATOM_ASSIGNMENT_EVIDENCE_RECOVERY_CLAIM_TTL": "20",
     })
     return env
 
 
 def _spawn(scratch: Path, phase: str, *, run_id: str = "",
-           timeout: int = 240):
+           timeout: int = 240, deferred_timeout: str = "0"):
     reports = scratch / "reports"
     reports.mkdir(parents=True, exist_ok=True)
     stamp = f"{phase}-{os.getpid()}-{time.time_ns()}"
@@ -76,6 +79,7 @@ def _spawn(scratch: Path, phase: str, *, run_id: str = "",
         "--scratch", str(scratch),
         "--report", str(report),
         "--checkpoint", str(checkpoint),
+        "--deferred-timeout", str(deferred_timeout),
     ]
     if run_id:
         cmd.extend(["--run-id", run_id])
@@ -262,3 +266,87 @@ def test_actual_process_restart_recovers_accepted_source_without_replay(
     assert len(_reconciliations(duplicate)) == 1, duplicate
     assert duplicate["status"] == "completed", duplicate
     assert duplicate["run_id"] == run_id
+
+
+def test_actual_process_successor_crash_after_recovery_claim_wakes_at_lease(
+        tmp_path):
+    """A claim can outlive its process: the next boot must wake at the lease.
+
+    Event order: a source is accepted/read/settled and the process hard-exits;
+    a successor runs the real startup owner, CAS-claims the accepted evidence,
+    then hard-exits BEFORE continuation; a third real process starts before
+    that claim expires. It must skip the fresh claim once, then recover through
+    the existing lifecycle/recovery owner at the bounded lease -- no owner
+    replay, no /sources POST, no /advance, no new task and no hot model poll.
+    """
+    _require_python()
+    scratch = tmp_path / "process-world"
+    _write_facts(scratch)
+
+    started_proc, started, _ = _spawn(scratch, "start")
+    assert started_proc.returncode == 0, _fail_message(started_proc, started)
+    run_id = started["run_id"]
+
+    interrupt_proc, _, committed = _spawn(
+        scratch, "source-interrupt", run_id=run_id)
+    assert interrupt_proc.returncode == 17, _fail_message(
+        interrupt_proc, committed)
+    assert committed["open_questions"] == [], committed
+    assert committed["reconciliations"] == [], committed
+    assert committed["status"] != "completed", committed
+
+    # Second crash: claim the accepted evidence, then die before continuation.
+    claim_proc, _, claim_checkpoint = _spawn(
+        scratch, "startup-claim-crash", run_id=run_id)
+    assert claim_proc.returncode == 17, _fail_message(
+        claim_proc, claim_checkpoint)
+    assert claim_checkpoint is not None, "the claimed checkpoint must persist"
+    claim_marker = claim_checkpoint["recovery_marker"]
+    assert claim_marker["status"] == "claimed", claim_marker
+    assert claim_marker["claim_token"], claim_marker
+    assert claim_checkpoint["adaptation_calls"] == 0, claim_checkpoint
+    assert claim_checkpoint["reconciliations"] == [], claim_checkpoint
+    assert claim_checkpoint["status"] != "completed", claim_checkpoint
+    claim_expires_at = float(claim_marker["at"]) + float(claim_marker["ttl"])
+
+    # The next process starts BEFORE expiry and must not treat the fresh claim
+    # as a final one-shot skip; the bounded wake recovers at the lease.
+    recover_proc, recovered, _ = _spawn(
+        scratch, "startup-recover-deferred", run_id=run_id,
+        deferred_timeout="120")
+    assert recover_proc.returncode == 0, _fail_message(recover_proc, recovered)
+    assert recovered["pid"] not in (
+        started["pid"], committed["pid"], claim_checkpoint["pid"]), (
+        "each recovery phase must be a fresh OS process")
+    assert recovered["recovery_started_at"] < claim_expires_at, (
+        "the successor must start before the dead claim's lease expires",
+        recovered["recovery_started_at"], claim_expires_at)
+    assert recovered["deferred_completed_at"] >= claim_expires_at, recovered
+    assert recovered["startup_entrypoint"].endswith(
+        "recover_active_assignments_at_startup"), recovered
+
+    # The one-shot boot observed the fresh claim and made no model call.
+    initial_marker = recovered["initial_recovery_marker"]
+    assert initial_marker["status"] == "claimed", initial_marker
+    assert initial_marker["claim_token"] == claim_marker["claim_token"], (
+        initial_marker, claim_marker)
+    assert recovered["initial_adaptation_calls"] == 0, recovered
+    assert recovered["initial_reconciliations"] == [], recovered
+    assert recovered["initial_status"] != "completed", recovered
+    assert run_id in (recovered.get("pending_wakes_at_startup") or []), (
+        "the successor must leave a bounded wake, not a permanent skip",
+        recovered)
+
+    # The deferred wake took over with a NEW generation and completed once.
+    final_marker = recovered["recovery_marker"]
+    assert final_marker["claim_token"] != claim_marker["claim_token"], (
+        final_marker, claim_marker)
+    assert final_marker["status"] in ("attempted", "completed"), final_marker
+    assert recovered["adaptation_calls"] == 1, recovered
+    assert recovered["status"] == "completed", recovered
+    reconciliations = _reconciliations(recovered)
+    assert len(reconciliations) == 1, recovered
+    assert reconciliations[0]["result_value"] == EXPECTED_TOTAL
+    assert recovered["open_questions"] == [], recovered
+    assert recovered["run_id"] == run_id
+    assert recovered["objective"] == started["objective"]
