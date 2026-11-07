@@ -1,0 +1,29 @@
+{
+  "command": [
+    "/usr/local/opt/python@3.14/bin/python3.14",
+    "-m",
+    "pytest",
+    "tests/test_oracle_shopify_article_create.py",
+    "tests/test_oracle_shopify_blog_create.py",
+    "tests/test_oracle_shopify_product_authorized_material.py",
+    "tests/test_oracle_shopify_product_create.py",
+    "tests/test_oracle_shopify_product_replay.py",
+    "tests/test_oracle_registry_verification_gap.py",
+    "tests/test_oracle_connected_mutations.py",
+    "tests/test_generic_oracle_mutation_contract.py",
+    "tests/test_shopify_fulfillment_actions.py",
+    "tests/test_covpush_w95_shopify.py",
+    "-q",
+    "--disable-warnings",
+    "--junitxml=/private/tmp/atom-agent-job-baseline/docs/acceptance/evidence/shopify_article_create_0ffea5666/focused.xml",
+    "--deselect",
+    "tests/test_oracle_shopify_product_replay.py::test_alembic_upgrade_records_revision_keeps_old_claim_and_restart_replays_once"
+  ],
+  "cwd": "/private/tmp/atom-agent-job-baseline/backend",
+  "exit_code": 0,
+  "stdout_sha256": "bfd61a0d7a9615945d67ccb97fe66352dc926fe02827d158f4c76a7c57e95a3d",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "junitxml": "focused.xml",
+  "runner_pid": null,
+  "process_spawned": true
+}

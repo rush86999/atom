@@ -1,0 +1,14 @@
+{
+  "packet": "shopify_article_create_0ffea5666",
+  "files": {
+    "README.md": "61a78aa6db99ac61708645885e1642186a89a03418f67e1c4ff3354dde6e822f",
+    "failure-first-exit.json": "912dfda3a0f382367f1a9c9a64bf9a8f7f6e0f3f28c47ee63fcab99439b9545b",
+    "failure-first.log": "8d6d5116912d1011c891524fe7255f6326d7855e44e1dbc6b30b6b32c7d3d354",
+    "failure-first.xml": "3528ddfe0757b895564a716b1fc11ce5c8fa984399922212197fd341df9751bc",
+    "focused-exit.json": "bf04cd128a9c33980257a1adb028f5de7c5e51626d6c312c8ae59cdae3363616",
+    "focused.log": "0888ead5c3dde7c18f4c7d50aa2fc068039b515bdbefc78d11a7b0e2f37e8ee4",
+    "focused.xml": "0ca19a415e475413f9f4b7bada55061e511031afef95ce56228208b2e33fbe84",
+    "run_and_capture.py": "3ba78dda6ba756748a91566e07c009039434763d079fb00e7b757debe08add30",
+    "verification.json": "6e145cb7c956a3445b15e99670f971bb0d41ce89f437cd8c0bc7e6785d69cf3b"
+  }
+}

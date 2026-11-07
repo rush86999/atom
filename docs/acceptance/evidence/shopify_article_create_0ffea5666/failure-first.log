@@ -1,0 +1,217 @@
+$ /usr/local/opt/python@3.14/bin/python3.14 -m pytest tests/test_oracle_shopify_article_create.py -q --disable-warnings --junitxml=/private/tmp/atom-agent-job-baseline/docs/acceptance/evidence/shopify_article_create_0ffea5666/failure-first.xml
+cwd=/private/tmp/atom-agent-job-baseline/backend
+
+STDOUT
+
+----------------------------- live log collection ------------------------------
+2026-11-07 10:30:25 [    INFO] MCP Service initialized
+
+tests/test_oracle_shopify_article_create.py::test_exact_article_create_is_independently_verified 
+-------------------------------- live log setup --------------------------------
+2026-11-07 10:30:26 [    INFO] EscalationManager initialized
+2026-11-07 10:30:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 10:30:26 [    INFO] EscalationManager initialized
+2026-11-07 10:30:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 10:30:26 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 10:30:26 [    INFO] AgentTaskRegistry initialized
+FAILED                                                                   [  2%]
+tests/test_oracle_shopify_article_create.py::test_missing_store_refuses_before_transport FAILED [  5%]
+tests/test_oracle_shopify_article_create.py::test_foreign_store_refuses_before_transport FAILED [  8%]
+tests/test_oracle_shopify_article_create.py::test_moved_store_metadata_refuses_before_transport FAILED [ 11%]
+tests/test_oracle_shopify_article_create.py::test_inactive_store_refuses_before_transport FAILED [ 13%]
+tests/test_oracle_shopify_article_create.py::test_ambiguous_store_refuses_before_transport FAILED [ 16%]
+tests/test_oracle_shopify_article_create.py::test_body_store_selector_refuses_before_transport[shop] FAILED [ 19%]
+tests/test_oracle_shopify_article_create.py::test_body_store_selector_refuses_before_transport[access_token] FAILED [ 22%]
+tests/test_oracle_shopify_article_create.py::test_body_store_selector_refuses_before_transport[tenant_id] FAILED [ 25%]
+tests/test_oracle_shopify_article_create.py::test_missing_required_target_refuses_before_transport[blog_id] FAILED [ 27%]
+tests/test_oracle_shopify_article_create.py::test_missing_required_target_refuses_before_transport[title] FAILED [ 30%]
+tests/test_oracle_shopify_article_create.py::test_same_title_with_different_returned_id_is_not_success FAILED [ 33%]
+tests/test_oracle_shopify_article_create.py::test_every_authorized_field_must_match_readback[blog_id-blog-other] FAILED [ 36%]
+tests/test_oracle_shopify_article_create.py::test_every_authorized_field_must_match_readback[title-Unapproved Article] FAILED [ 38%]
+tests/test_oracle_shopify_article_create.py::test_every_authorized_field_must_match_readback[body_html-<p>Unapproved body</p>] FAILED [ 41%]
+tests/test_oracle_shopify_article_create.py::test_every_authorized_field_must_match_readback[author-Unapproved Author] FAILED [ 44%]
+tests/test_oracle_shopify_article_create.py::test_every_authorized_field_must_match_readback[tags-gamma] FAILED [ 47%]
+tests/test_oracle_shopify_article_create.py::test_every_authorized_field_must_match_readback[published-False] FAILED [ 50%]
+tests/test_oracle_shopify_article_create.py::test_unavailable_published_proof_is_explicitly_unverified FAILED [ 52%]
+tests/test_oracle_shopify_article_create.py::test_absent_readback_is_uncertain_not_success FAILED [ 55%]
+tests/test_oracle_shopify_article_create.py::test_unidentifiable_effect_is_uncertain_and_not_recreated FAILED [ 58%]
+tests/test_oracle_shopify_article_create.py::test_known_success_replays_exact_resource_without_second_create FAILED [ 61%]
+tests/test_oracle_shopify_article_create.py::test_restart_fresh_session_reloads_exact_durable_identity FAILED [ 63%]
+tests/test_oracle_shopify_article_create.py::test_replay_with_changed_current_material_stays_committed_unverified[title-Changed after create] FAILED [ 66%]
+tests/test_oracle_shopify_article_create.py::test_replay_with_changed_current_material_stays_committed_unverified[body_html-<p>Changed body</p>] FAILED [ 69%]
+tests/test_oracle_shopify_article_create.py::test_replay_with_changed_current_material_stays_committed_unverified[author-Changed Author] FAILED [ 72%]
+tests/test_oracle_shopify_article_create.py::test_replay_with_changed_current_material_stays_committed_unverified[tags-changed] FAILED [ 75%]
+tests/test_oracle_shopify_article_create.py::test_replay_with_changed_current_material_stays_committed_unverified[published-False] FAILED [ 77%]
+tests/test_oracle_shopify_article_create.py::test_replay_with_changed_current_material_stays_committed_unverified[blog_id-blog-other] FAILED [ 80%]
+tests/test_oracle_shopify_article_create.py::test_replay_with_missing_current_resource_stays_committed_unverified FAILED [ 83%]
+tests/test_oracle_shopify_article_create.py::test_replay_after_store_changed_stays_committed_unverified FAILED [ 86%]
+tests/test_oracle_shopify_article_create.py::test_replay_without_durable_identity_receipt_is_committed_unverified FAILED [ 88%]
+tests/test_oracle_shopify_article_create.py::test_replay_with_unavailable_readback_is_committed_unverified FAILED [ 91%]
+tests/test_oracle_shopify_article_create.py::test_same_operation_changed_material_refuses_before_readback FAILED [ 94%]
+tests/test_oracle_shopify_article_create.py::test_lost_confirmation_stays_uncertain_and_never_replays_as_success 
+-------------------------------- live log call ---------------------------------
+2026-11-07 10:30:50 [   ERROR] Failed to create article: confirmation timed out
+PASSED                                                                   [ 97%]
+tests/test_oracle_shopify_article_create.py::test_failed_identity_receipt_is_not_rolled_back_or_resent FAILED [100%]
+
+=================================== FAILURES ===================================
+E   AssertionError: {'action_result': 'uncertain', 'article': {'author': 'Scratch Author', 'blog_id': 'blog-700', 'body_html': '<p>Exact authorized article body</p>', 'handle': 'scratch-authorized-article', ...}, 'business_success': False, 'durable_claim': True, ...}
+    assert False is True
+------------------------------ Captured log setup ------------------------------
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.embedding_service:embedding_service.py:131 Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+INFO     core.agent_task_registry:agent_task_registry.py:64 AgentTaskRegistry initialized
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_article_create.py:316: AssertionError: {'action_result': 'uncertain', 'article': {'author': 'Scratch Author', 'blog_id': 'blog-700', 'body_html': '<p>Exact authorized article body</p>', 'handle': 'scratch-authorized-article', ...}, 'business_success': False, 'durable_claim': True, ...}
+E   AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+    assert 'uncertain' == 'proven_not_applied'
+      
+      - proven_not_applied
+      + uncertain
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_article_create.py:354: AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+E   AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+    assert 'uncertain' == 'proven_not_applied'
+      
+      - proven_not_applied
+      + uncertain
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_article_create.py:370: AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+E   AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+    assert 'uncertain' == 'proven_not_applied'
+      
+      - proven_not_applied
+      + uncertain
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_article_create.py:384: AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+E   AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+    assert 'uncertain' == 'proven_not_applied'
+      
+      - proven_not_applied
+      + uncertain
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_article_create.py:398: AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+E   AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+    assert 'uncertain' == 'proven_not_applied'
+      
+      - proven_not_applied
+      + uncertain
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_article_create.py:413: AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+E   KeyError: 'error_kind'
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_article_create.py:431: KeyError: 'error_kind'
+E   KeyError: 'error_kind'
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_article_create.py:431: KeyError: 'error_kind'
+E   KeyError: 'error_kind'
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_article_create.py:431: KeyError: 'error_kind'
+E   KeyError: 'error_kind'
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_article_create.py:448: KeyError: 'error_kind'
+E   KeyError: 'error_kind'
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_article_create.py:448: KeyError: 'error_kind'
+E   KeyError: 'verification'
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_article_create.py:471: KeyError: 'verification'
+E   KeyError: 'verification'
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_article_create.py:500: KeyError: 'verification'
+E   KeyError: 'verification'
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_article_create.py:500: KeyError: 'verification'
+E   KeyError: 'verification'
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_article_create.py:500: KeyError: 'verification'
+E   KeyError: 'verification'
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_article_create.py:500: KeyError: 'verification'
+E   KeyError: 'verification'
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_article_create.py:500: KeyError: 'verification'
+E   KeyError: 'verification'
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_article_create.py:500: KeyError: 'verification'
+E   KeyError: 'verification'
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_article_create.py:525: KeyError: 'verification'
+E   KeyError: 'verification'
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_article_create.py:541: KeyError: 'verification'
+E   KeyError: 'remote_id'
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_article_create.py:562: KeyError: 'remote_id'
+E   AssertionError: {'action_result': 'uncertain', 'article': {'author': 'Scratch Author', 'blog_id': 'blog-700', 'body_html': '<p>Exact authorized article body</p>', 'handle': 'scratch-authorized-article', ...}, 'business_success': False, 'durable_claim': True, ...}
+    assert False is True
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_article_create.py:579: AssertionError: {'action_result': 'uncertain', 'article': {'author': 'Scratch Author', 'blog_id': 'blog-700', 'body_html': '<p>Exact authorized article body</p>', 'handle': 'scratch-authorized-article', ...}, 'business_success': False, 'durable_claim': True, ...}
+E   AssertionError: {'action_result': 'uncertain', 'article': {'author': 'Scratch Author', 'blog_id': 'blog-700', 'body_html': '<p>Exact authorized article body</p>', 'handle': 'scratch-authorized-article', ...}, 'business_success': False, 'durable_claim': True, ...}
+    assert False is True
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_article_create.py:579: AssertionError: {'action_result': 'uncertain', 'article': {'author': 'Scratch Author', 'blog_id': 'blog-700', 'body_html': '<p>Exact authorized article body</p>', 'handle': 'scratch-authorized-article', ...}, 'business_success': False, 'durable_claim': True, ...}
+E   AssertionError: {'action_result': 'uncertain', 'article': {'author': 'Scratch Author', 'blog_id': 'blog-700', 'body_html': '<p>Exact authorized article body</p>', 'handle': 'scratch-authorized-article', ...}, 'business_success': False, 'durable_claim': True, ...}
+    assert False is True
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_article_create.py:579: AssertionError: {'action_result': 'uncertain', 'article': {'author': 'Scratch Author', 'blog_id': 'blog-700', 'body_html': '<p>Exact authorized article body</p>', 'handle': 'scratch-authorized-article', ...}, 'business_success': False, 'durable_claim': True, ...}
+E   AssertionError: {'action_result': 'uncertain', 'article': {'author': 'Scratch Author', 'blog_id': 'blog-700', 'body_html': '<p>Exact authorized article body</p>', 'handle': 'scratch-authorized-article', ...}, 'business_success': False, 'durable_claim': True, ...}
+    assert False is True
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_article_create.py:579: AssertionError: {'action_result': 'uncertain', 'article': {'author': 'Scratch Author', 'blog_id': 'blog-700', 'body_html': '<p>Exact authorized article body</p>', 'handle': 'scratch-authorized-article', ...}, 'business_success': False, 'durable_claim': True, ...}
+E   AssertionError: {'action_result': 'uncertain', 'article': {'author': 'Scratch Author', 'blog_id': 'blog-700', 'body_html': '<p>Exact authorized article body</p>', 'handle': 'scratch-authorized-article', ...}, 'business_success': False, 'durable_claim': True, ...}
+    assert False is True
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_article_create.py:579: AssertionError: {'action_result': 'uncertain', 'article': {'author': 'Scratch Author', 'blog_id': 'blog-700', 'body_html': '<p>Exact authorized article body</p>', 'handle': 'scratch-authorized-article', ...}, 'business_success': False, 'durable_claim': True, ...}
+E   AssertionError: {'action_result': 'uncertain', 'article': {'author': 'Scratch Author', 'blog_id': 'blog-700', 'body_html': '<p>Exact authorized article body</p>', 'handle': 'scratch-authorized-article', ...}, 'business_success': False, 'durable_claim': True, ...}
+    assert False is True
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_article_create.py:579: AssertionError: {'action_result': 'uncertain', 'article': {'author': 'Scratch Author', 'blog_id': 'blog-700', 'body_html': '<p>Exact authorized article body</p>', 'handle': 'scratch-authorized-article', ...}, 'business_success': False, 'durable_claim': True, ...}
+E   AssertionError: {'action_result': 'uncertain', 'article': {'author': 'Scratch Author', 'blog_id': 'blog-700', 'body_html': '<p>Exact authorized article body</p>', 'handle': 'scratch-authorized-article', ...}, 'business_success': False, 'durable_claim': True, ...}
+    assert False is True
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_article_create.py:579: AssertionError: {'action_result': 'uncertain', 'article': {'author': 'Scratch Author', 'blog_id': 'blog-700', 'body_html': '<p>Exact authorized article body</p>', 'handle': 'scratch-authorized-article', ...}, 'business_success': False, 'durable_claim': True, ...}
+E   AssertionError: {'action_result': 'uncertain', 'article': {'author': 'Scratch Author', 'blog_id': 'blog-700', 'body_html': '<p>Exact authorized article body</p>', 'handle': 'scratch-authorized-article', ...}, 'business_success': False, 'durable_claim': True, ...}
+    assert False is True
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_article_create.py:579: AssertionError: {'action_result': 'uncertain', 'article': {'author': 'Scratch Author', 'blog_id': 'blog-700', 'body_html': '<p>Exact authorized article body</p>', 'handle': 'scratch-authorized-article', ...}, 'business_success': False, 'durable_claim': True, ...}
+E   AssertionError: {'action_result': 'uncertain', 'article': {'author': 'Scratch Author', 'blog_id': 'blog-700', 'body_html': '<p>Exact authorized article body</p>', 'handle': 'scratch-authorized-article', ...}, 'business_success': False, 'durable_claim': True, ...}
+    assert False is True
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_article_create.py:579: AssertionError: {'action_result': 'uncertain', 'article': {'author': 'Scratch Author', 'blog_id': 'blog-700', 'body_html': '<p>Exact authorized article body</p>', 'handle': 'scratch-authorized-article', ...}, 'business_success': False, 'durable_claim': True, ...}
+E   AssertionError: {'action_result': 'uncertain', 'article': {'author': 'Scratch Author', 'blog_id': 'blog-700', 'body_html': '<p>Exact authorized article body</p>', 'handle': 'scratch-authorized-article', ...}, 'business_success': False, 'durable_claim': True, ...}
+    assert False is True
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_article_create.py:579: AssertionError: {'action_result': 'uncertain', 'article': {'author': 'Scratch Author', 'blog_id': 'blog-700', 'body_html': '<p>Exact authorized article body</p>', 'handle': 'scratch-authorized-article', ...}, 'business_success': False, 'durable_claim': True, ...}
+E   AssertionError: {'action_result': 'uncertain', 'article': {'author': 'Scratch Author', 'blog_id': 'blog-700', 'body_html': '<p>Exact authorized article body</p>', 'handle': 'scratch-authorized-article', ...}, 'business_success': False, 'durable_claim': True, ...}
+    assert False is True
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_article_create.py:579: AssertionError: {'action_result': 'uncertain', 'article': {'author': 'Scratch Author', 'blog_id': 'blog-700', 'body_html': '<p>Exact authorized article body</p>', 'handle': 'scratch-authorized-article', ...}, 'business_success': False, 'durable_claim': True, ...}
+E   AssertionError: {'action_result': 'uncertain', 'article': {'author': 'Scratch Author', 'blog_id': 'blog-700', 'body_html': '<p>Exact authorized article body</p>', 'handle': 'scratch-authorized-article', ...}, 'business_success': False, 'durable_claim': True, ...}
+    assert False is True
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_article_create.py:579: AssertionError: {'action_result': 'uncertain', 'article': {'author': 'Scratch Author', 'blog_id': 'blog-700', 'body_html': '<p>Exact authorized article body</p>', 'handle': 'scratch-authorized-article', ...}, 'business_success': False, 'durable_claim': True, ...}
+E   AssertionError: {'action_result': 'uncertain', 'article': {'author': 'Scratch Author', 'blog_id': 'blog-700', 'body_html': '<p>Exact authorized article body</p>', 'handle': 'scratch-authorized-article', ...}, 'business_success': False, 'durable_claim': True, ...}
+    assert False is True
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_article_create.py:579: AssertionError: {'action_result': 'uncertain', 'article': {'author': 'Scratch Author', 'blog_id': 'blog-700', 'body_html': '<p>Exact authorized article body</p>', 'handle': 'scratch-authorized-article', ...}, 'business_success': False, 'durable_claim': True, ...}
+E   AssertionError: {'action_result': 'uncertain', 'article': {'author': 'Scratch Author', 'blog_id': 'blog-700', 'body_html': '<p>Exact authorized article body</p>', 'handle': 'scratch-authorized-article', ...}, 'business_success': False, 'durable_claim': True, ...}
+    assert None is False
+     +  where None = <built-in method get of dict object at 0x1759d4a80>('identity_receipt_persisted')
+     +    where <built-in method get of dict object at 0x1759d4a80> = {'action_result': 'uncertain', 'article': {'author': 'Scratch Author', 'blog_id': 'blog-700', 'body_html': '<p>Exact authorized article body</p>', 'handle': 'scratch-authorized-article', ...}, 'business_success': False, 'durable_claim': True, ...}.get
+/private/tmp/atom-agent-job-baseline/backend/tests/test_oracle_shopify_article_create.py:826: AssertionError: {'action_result': 'uncertain', 'article': {'author': 'Scratch Author', 'blog_id': 'blog-700', 'body_html': '<p>Exact authorized article body</p>', 'handle': 'scratch-authorized-article', ...}, 'business_success': False, 'durable_claim': True, ...}
+- generated xml file: /private/tmp/atom-agent-job-baseline/docs/acceptance/evidence/shopify_article_create_0ffea5666/failure-first.xml -
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_oracle_shopify_article_create.py::test_exact_article_create_is_independently_verified
+FAILED tests/test_oracle_shopify_article_create.py::test_missing_store_refuses_before_transport
+FAILED tests/test_oracle_shopify_article_create.py::test_foreign_store_refuses_before_transport
+FAILED tests/test_oracle_shopify_article_create.py::test_moved_store_metadata_refuses_before_transport
+FAILED tests/test_oracle_shopify_article_create.py::test_inactive_store_refuses_before_transport
+FAILED tests/test_oracle_shopify_article_create.py::test_ambiguous_store_refuses_before_transport
+FAILED tests/test_oracle_shopify_article_create.py::test_body_store_selector_refuses_before_transport[shop]
+FAILED tests/test_oracle_shopify_article_create.py::test_body_store_selector_refuses_before_transport[access_token]
+FAILED tests/test_oracle_shopify_article_create.py::test_body_store_selector_refuses_before_transport[tenant_id]
+FAILED tests/test_oracle_shopify_article_create.py::test_missing_required_target_refuses_before_transport[blog_id]
+FAILED tests/test_oracle_shopify_article_create.py::test_missing_required_target_refuses_before_transport[title]
+FAILED tests/test_oracle_shopify_article_create.py::test_same_title_with_different_returned_id_is_not_success
+FAILED tests/test_oracle_shopify_article_create.py::test_every_authorized_field_must_match_readback[blog_id-blog-other]
+FAILED tests/test_oracle_shopify_article_create.py::test_every_authorized_field_must_match_readback[title-Unapproved Article]
+FAILED tests/test_oracle_shopify_article_create.py::test_every_authorized_field_must_match_readback[body_html-<p>Unapproved body</p>]
+FAILED tests/test_oracle_shopify_article_create.py::test_every_authorized_field_must_match_readback[author-Unapproved Author]
+FAILED tests/test_oracle_shopify_article_create.py::test_every_authorized_field_must_match_readback[tags-gamma]
+FAILED tests/test_oracle_shopify_article_create.py::test_every_authorized_field_must_match_readback[published-False]
+FAILED tests/test_oracle_shopify_article_create.py::test_unavailable_published_proof_is_explicitly_unverified
+FAILED tests/test_oracle_shopify_article_create.py::test_absent_readback_is_uncertain_not_success
+FAILED tests/test_oracle_shopify_article_create.py::test_unidentifiable_effect_is_uncertain_and_not_recreated
+FAILED tests/test_oracle_shopify_article_create.py::test_known_success_replays_exact_resource_without_second_create
+FAILED tests/test_oracle_shopify_article_create.py::test_restart_fresh_session_reloads_exact_durable_identity
+FAILED tests/test_oracle_shopify_article_create.py::test_replay_with_changed_current_material_stays_committed_unverified[title-Changed after create]
+FAILED tests/test_oracle_shopify_article_create.py::test_replay_with_changed_current_material_stays_committed_unverified[body_html-<p>Changed body</p>]
+FAILED tests/test_oracle_shopify_article_create.py::test_replay_with_changed_current_material_stays_committed_unverified[author-Changed Author]
+FAILED tests/test_oracle_shopify_article_create.py::test_replay_with_changed_current_material_stays_committed_unverified[tags-changed]
+FAILED tests/test_oracle_shopify_article_create.py::test_replay_with_changed_current_material_stays_committed_unverified[published-False]
+FAILED tests/test_oracle_shopify_article_create.py::test_replay_with_changed_current_material_stays_committed_unverified[blog_id-blog-other]
+FAILED tests/test_oracle_shopify_article_create.py::test_replay_with_missing_current_resource_stays_committed_unverified
+FAILED tests/test_oracle_shopify_article_create.py::test_replay_after_store_changed_stays_committed_unverified
+FAILED tests/test_oracle_shopify_article_create.py::test_replay_without_durable_identity_receipt_is_committed_unverified
+FAILED tests/test_oracle_shopify_article_create.py::test_replay_with_unavailable_readback_is_committed_unverified
+FAILED tests/test_oracle_shopify_article_create.py::test_same_operation_changed_material_refuses_before_readback
+FAILED tests/test_oracle_shopify_article_create.py::test_failed_identity_receipt_is_not_rolled_back_or_resent
+================== 35 failed, 1 passed, 6 warnings in 41.35s ===================
+
+STDERR

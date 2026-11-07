@@ -1,0 +1,93 @@
+{
+  "task": "registered Shopify article create exact-id/material Oracle",
+  "git_branch": "codex/shopify-article-oracle-20261107",
+  "git_revision": "0ffea5666469c83f89bde7dbf282988d0323df1d",
+  "base_delivery": "d7e8f972b",
+  "root_reference_commits": {
+    "product_pr": "72c73001d",
+    "formatter_fix": "e359b5ac7",
+    "prerequisite_tests": [
+      "4e0ead635",
+      "00979657d"
+    ],
+    "integration": "not integrated on this isolated article branch; their _normalized_number lines were not modified"
+  },
+  "implementation_files": {
+    "backend/core/action_registry.py": "5acd3dda2b071b73f15b39721f6dd900b0067c319f74cfea47efedc77d017f0c",
+    "backend/core/connected_actions.py": "8acfce904f280b5e7529cbf44f3af4aede3831e53293df1e37f6c7643d43423a",
+    "backend/core/oracle/postcondition_verifiers.py": "02e348849239cc4da7e1abdf9cff2dd09e71a4fd6fbdd489b6e32608bc584846",
+    "backend/core/oracle/request_expectations.py": "8d56d5934887aa2b443c914c594257cb97b7343680018cedea3d335161522a8d",
+    "backend/core/shopify_mutations.py": "da25c8aebe9b2ccc336a54fe9ce4cfc86896d74d8799808520340467de7c2b4b",
+    "backend/integrations/shopify_service.py": "ee726bdc1623851d7e7bb173eeee7c73d05380889b734d579dd876e9a6a5cdd7"
+  },
+  "test": {
+    "path": "backend/tests/test_oracle_shopify_article_create.py",
+    "sha256": "70a972a3172a12a7d4bd68c45d23254ea73e73fd88c9eed6bdd6f711093fab3d"
+  },
+  "runs": {
+    "failure_first": {
+      "command": [
+        "/usr/local/opt/python@3.14/bin/python3.14",
+        "-m",
+        "pytest",
+        "tests/test_oracle_shopify_article_create.py",
+        "-q",
+        "--disable-warnings",
+        "--junitxml=/private/tmp/atom-agent-job-baseline/docs/acceptance/evidence/shopify_article_create_0ffea5666/failure-first.xml"
+      ],
+      "cwd": "/private/tmp/atom-agent-job-baseline/backend",
+      "exit_code": 1,
+      "stdout_sha256": "2dcbcb5fc208fd71b147cadfcce1c512dc851884cf1dc0c129de7c24d1641d1a",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "junitxml": "failure-first.xml",
+      "runner_pid": null,
+      "process_spawned": true
+    },
+    "focused": {
+      "command": [
+        "/usr/local/opt/python@3.14/bin/python3.14",
+        "-m",
+        "pytest",
+        "tests/test_oracle_shopify_article_create.py",
+        "tests/test_oracle_shopify_blog_create.py",
+        "tests/test_oracle_shopify_product_authorized_material.py",
+        "tests/test_oracle_shopify_product_create.py",
+        "tests/test_oracle_shopify_product_replay.py",
+        "tests/test_oracle_registry_verification_gap.py",
+        "tests/test_oracle_connected_mutations.py",
+        "tests/test_generic_oracle_mutation_contract.py",
+        "tests/test_shopify_fulfillment_actions.py",
+        "tests/test_covpush_w95_shopify.py",
+        "-q",
+        "--disable-warnings",
+        "--junitxml=/private/tmp/atom-agent-job-baseline/docs/acceptance/evidence/shopify_article_create_0ffea5666/focused.xml",
+        "--deselect",
+        "tests/test_oracle_shopify_product_replay.py::test_alembic_upgrade_records_revision_keeps_old_claim_and_restart_replays_once"
+      ],
+      "cwd": "/private/tmp/atom-agent-job-baseline/backend",
+      "exit_code": 0,
+      "stdout_sha256": "bfd61a0d7a9615945d67ccb97fe66352dc926fe02827d158f4c76a7c57e95a3d",
+      "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "junitxml": "focused.xml",
+      "runner_pid": null,
+      "process_spawned": true
+    }
+  },
+  "deselected": [
+    "tests/test_oracle_shopify_product_replay.py::test_alembic_upgrade_records_revision_keeps_old_claim_and_restart_replays_once"
+  ],
+  "environment": {
+    "TESTING": "1",
+    "DATABASE_URL": "sqlite:////private/tmp/atom-agent-job-baseline/docs/acceptance/evidence/shopify_article_create_0ffea5666/scratch/atom.db",
+    "ATOM_DATA_DIR": "/private/tmp/atom-agent-job-baseline/docs/acceptance/evidence/shopify_article_create_0ffea5666/scratch/data",
+    "LANCEDB_URI": "/private/tmp/atom-agent-job-baseline/docs/acceptance/evidence/shopify_article_create_0ffea5666/scratch/lancedb",
+    "ATOM_OUTPUT_DIR": "/private/tmp/atom-agent-job-baseline/docs/acceptance/evidence/shopify_article_create_0ffea5666/scratch/output",
+    "provider_credentials": "blank",
+    "external_http": "ShopifyService.http doubled inside the tests only",
+    "interpreter": "/usr/local/opt/python@3.14/bin/python3.14"
+  },
+  "expectation": {
+    "failure_first_exit_code": 1,
+    "focused_exit_code": 0
+  }
+}

@@ -1,0 +1,18 @@
+{
+  "command": [
+    "/usr/local/opt/python@3.14/bin/python3.14",
+    "-m",
+    "pytest",
+    "tests/test_oracle_shopify_article_create.py",
+    "-q",
+    "--disable-warnings",
+    "--junitxml=/private/tmp/atom-agent-job-baseline/docs/acceptance/evidence/shopify_article_create_0ffea5666/failure-first.xml"
+  ],
+  "cwd": "/private/tmp/atom-agent-job-baseline/backend",
+  "exit_code": 1,
+  "stdout_sha256": "2dcbcb5fc208fd71b147cadfcce1c512dc851884cf1dc0c129de7c24d1641d1a",
+  "stderr_sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+  "junitxml": "failure-first.xml",
+  "runner_pid": null,
+  "process_spawned": true
+}
