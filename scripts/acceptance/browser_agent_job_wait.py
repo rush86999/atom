@@ -794,11 +794,17 @@ def _build_world(world: Path) -> Dict[str, Any]:
     fixture = world / "fixture" / "atom.db"
     if not manifest.exists() or not fixture.exists():
         raise DriverError("world build did not produce MANIFEST.json/fixture/atom.db")
+    manifest_doc = _load_json(manifest)
     return {
         "world": str(world),
         "disk_preflight": disk,
         "manifest_path": str(manifest),
         "fixture_path": str(fixture),
+        "source_revision": manifest_doc.get("source_revision"),
+        "code_snapshot_sha256": manifest_doc.get("code_snapshot_sha256"),
+        "code_archive_sha256": manifest_doc.get("code_archive_sha256"),
+        "code_source": manifest_doc.get("code_source"),
+        "fixture_source": manifest_doc.get("fixture_source"),
     }
 
 
@@ -1409,7 +1415,14 @@ def _run_scenario(args: argparse.Namespace) -> int:
                 "copy": str(world / "frontend_snapshot"),
                 "api_origin": f"http://localhost:{args.backend_port}",
                 "cwd": _process_cwd(fe_proc.pid),
+                "source_revision": (stack.get("source") or {}).get("head"),
             }
+            build_id_path = world / "frontend_snapshot" / ".next" / "BUILD_ID"
+            stack["frontend"]["build_id"] = (
+                build_id_path.read_text(encoding="utf-8").strip()
+                if build_id_path.is_file() else None)
+            stack["frontend"]["build_id_note"] = (
+                "dev server; BUILD_ID is recorded only if Next writes one")
             frontend_cwd = stack["frontend"]["cwd"]
             step("frontend_cwd_isolated", {
                 "cwd_not_user_tree": (
@@ -1596,9 +1609,14 @@ def _run_scenario(args: argparse.Namespace) -> int:
                     raise DriverError("frontend restart failed")
                 cleanups.append(("frontend", fe_proc))
                 fe_cwd2 = _process_cwd(fe_proc.pid)
+                build_id_path2 = (
+                    world / "frontend_snapshot" / ".next" / "BUILD_ID")
                 stack["frontend_after_restart"] = {
                     "pid": fe_proc.pid,
                     "cwd": fe_cwd2,
+                    "build_id": (
+                        build_id_path2.read_text(encoding="utf-8").strip()
+                        if build_id_path2.is_file() else None),
                 }
                 step("frontend_restarted_isolated", {
                     "cwd_not_user_tree": (
