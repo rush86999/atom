@@ -1,0 +1,72 @@
+
+backend/tests/test_lead_asset_usable_image.py::test_mime_and_matching_hash_cannot_certify_unusable_image[] 
+-------------------------------- live log setup --------------------------------
+2026-11-07 11:33:54 [    INFO] EscalationManager initialized
+2026-11-07 11:33:54 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 11:33:54 [    INFO] EscalationManager initialized
+2026-11-07 11:33:54 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 11:33:54 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 11:33:54 [    INFO] AgentTaskRegistry initialized
+FAILED                                                                   [  7%]
+backend/tests/test_lead_asset_usable_image.py::test_mime_and_matching_hash_cannot_certify_unusable_image[<html>not an image</html>] FAILED [ 14%]
+backend/tests/test_lead_asset_usable_image.py::test_mime_and_matching_hash_cannot_certify_unusable_image[\x89PNG\r\n\x1a\ntruncated] FAILED [ 21%]
+backend/tests/test_lead_asset_usable_image.py::test_real_decodable_png_with_matching_digest_is_supported PASSED [ 28%]
+backend/tests/test_asset_content_receipt.py::test_private_resolved_address_is_refused_before_fetch PASSED [ 35%]
+backend/tests/test_asset_content_receipt.py::test_non_allowlisted_host_is_refused PASSED [ 42%]
+backend/tests/test_asset_content_receipt.py::test_https_userinfo_and_nonstandard_port_are_refused PASSED [ 50%]
+backend/tests/test_asset_content_receipt.py::test_redirect_is_refused PASSED [ 57%]
+backend/tests/test_asset_content_receipt.py::test_html_json_empty_and_non_image_are_refused PASSED [ 64%]
+backend/tests/test_asset_content_receipt.py::test_oversize_body_is_refused PASSED [ 71%]
+backend/tests/test_asset_content_receipt.py::test_exact_digest_and_bytes_are_verified PASSED [ 78%]
+backend/tests/test_asset_content_receipt.py::test_provider_transform_remains_unknown PASSED [ 85%]
+backend/tests/test_asset_content_receipt.py::test_dns_is_resolved_once_and_public_ip_is_pinned PASSED [ 92%]
+backend/tests/test_asset_content_receipt.py::test_http_request_carries_no_credentials_or_cookies PASSED [100%]
+
+=================================== FAILURES ===================================
+_________ test_mime_and_matching_hash_cannot_certify_unusable_image[] __________
+backend/tests/test_lead_asset_usable_image.py:27: in test_mime_and_matching_hash_cannot_certify_unusable_image
+    assert result.get('verified') is not True, 'non-image bytes certified as usable image'
+E   AssertionError: non-image bytes certified as usable image
+E   assert True is not True
+E    +  where True = <built-in method get of dict object at 0x12c1b3840>('verified')
+E    +    where <built-in method get of dict object at 0x12c1b3840> = {'verified': True, 'reason': '', 'sha256': 'e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855', 'bytes': 0, ...}.get
+------------------------------ Captured log setup ------------------------------
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.embedding_service:embedding_service.py:131 Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+INFO     core.agent_task_registry:agent_task_registry.py:64 AgentTaskRegistry initialized
+_ test_mime_and_matching_hash_cannot_certify_unusable_image[<html>not an image</html>] _
+backend/tests/test_lead_asset_usable_image.py:27: in test_mime_and_matching_hash_cannot_certify_unusable_image
+    assert result.get('verified') is not True, 'non-image bytes certified as usable image'
+E   AssertionError: non-image bytes certified as usable image
+E   assert True is not True
+E    +  where True = <built-in method get of dict object at 0x12c1b7080>('verified')
+E    +    where <built-in method get of dict object at 0x12c1b7080> = {'verified': True, 'reason': '', 'sha256': 'df801ad53b59fd7034d522043e8c181a9aad24d8057bec91bc52400de51c3694', 'bytes': 25, ...}.get
+_ test_mime_and_matching_hash_cannot_certify_unusable_image[\x89PNG\r\n\x1a\ntruncated] _
+backend/tests/test_lead_asset_usable_image.py:27: in test_mime_and_matching_hash_cannot_certify_unusable_image
+    assert result.get('verified') is not True, 'non-image bytes certified as usable image'
+E   AssertionError: non-image bytes certified as usable image
+E   assert True is not True
+E    +  where True = <built-in method get of dict object at 0x12c19a200>('verified')
+E    +    where <built-in method get of dict object at 0x12c19a200> = {'verified': True, 'reason': '', 'sha256': '29b978c62617c817f5b0c06542f3e4dc7fcfef1aae90aa2736c674b4f5171c9b', 'bytes': 17, ...}.get
+=============================== warnings summary ===============================
+../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 28 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED backend/tests/test_lead_asset_usable_image.py::test_mime_and_matching_hash_cannot_certify_unusable_image[]
+FAILED backend/tests/test_lead_asset_usable_image.py::test_mime_and_matching_hash_cannot_certify_unusable_image[<html>not an image</html>]
+FAILED backend/tests/test_lead_asset_usable_image.py::test_mime_and_matching_hash_cannot_certify_unusable_image[\x89PNG\r\n\x1a\ntruncated]
+================== 3 failed, 11 passed, 30 warnings in 1.96s ===================

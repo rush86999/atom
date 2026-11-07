@@ -1,0 +1,82 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-07 11:54:10 [    INFO] MCP Service initialized
+
+tests/test_lead_asset_usable_image.py::test_mime_and_matching_hash_cannot_certify_unusable_image[] 
+-------------------------------- live log setup --------------------------------
+2026-11-07 11:54:10 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-07 11:54:10 [    INFO] EscalationManager initialized
+2026-11-07 11:54:10 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 11:54:10 [    INFO] EscalationManager initialized
+2026-11-07 11:54:10 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 11:54:10 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 11:54:10 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  3%]
+tests/test_lead_asset_usable_image.py::test_mime_and_matching_hash_cannot_certify_unusable_image[<html>not an image</html>] PASSED [  6%]
+tests/test_lead_asset_usable_image.py::test_mime_and_matching_hash_cannot_certify_unusable_image[\x89PNG\r\n\x1a\ntruncated] PASSED [  9%]
+tests/test_lead_asset_usable_image.py::test_real_decodable_png_with_matching_digest_is_supported PASSED [ 12%]
+tests/test_asset_content_receipt.py::test_private_resolved_address_is_refused_before_fetch PASSED [ 15%]
+tests/test_asset_content_receipt.py::test_non_allowlisted_host_is_refused PASSED [ 18%]
+tests/test_asset_content_receipt.py::test_https_userinfo_and_nonstandard_port_are_refused PASSED [ 21%]
+tests/test_asset_content_receipt.py::test_redirect_is_refused PASSED     [ 24%]
+tests/test_asset_content_receipt.py::test_html_json_empty_and_non_image_are_refused PASSED [ 27%]
+tests/test_asset_content_receipt.py::test_oversize_body_is_refused PASSED [ 30%]
+tests/test_asset_content_receipt.py::test_exact_digest_and_bytes_are_verified PASSED [ 33%]
+tests/test_asset_content_receipt.py::test_provider_transform_remains_unknown PASSED [ 36%]
+tests/test_asset_content_receipt.py::test_dns_is_resolved_once_and_public_ip_is_pinned PASSED [ 39%]
+tests/test_asset_content_receipt.py::test_http_request_carries_no_credentials_or_cookies PASSED [ 42%]
+tests/test_asset_content_receipt.py::test_mime_must_match_decoded_format PASSED [ 45%]
+tests/test_asset_content_receipt.py::test_pixel_bound_refuses_before_full_decode PASSED [ 48%]
+tests/test_asset_content_receipt.py::test_real_jpeg_is_supported PASSED  [ 51%]
+tests/test_lead_shopify_image_content_receipt.py::test_explicit_digest_verifies_cdn_rewritten_image PASSED [ 54%]
+tests/test_lead_shopify_image_content_receipt.py::test_existing_asset_receipt_verifies_cdn_rewritten_image PASSED [ 57%]
+tests/test_lead_shopify_image_content_receipt.py::test_raw_url_only_remains_open_and_unverified PASSED [ 60%]
+tests/test_lead_shopify_image_content_receipt.py::test_wrong_digest_is_not_certified PASSED [ 63%]
+tests/test_lead_shopify_image_content_receipt.py::test_missing_by_id_image_is_not_certified PASSED [ 66%]
+tests/test_lead_shopify_image_content_receipt.py::test_exact_image_replay_without_second_create PASSED [ 69%]
+tests/test_lead_shopify_image_content_receipt.py::test_many_images_are_not_arbitrarily_capped PASSED [ 72%]
+tests/test_lead_shopify_image_content_receipt.py::test_wrong_by_id_image_id_is_not_certified PASSED [ 75%]
+tests/test_lead_shopify_image_content_receipt.py::test_wrong_by_id_product_id_is_not_certified PASSED [ 78%]
+tests/test_lead_shopify_image_content_receipt.py::test_invalid_explicit_proof_fails_before_effect PASSED [ 81%]
+tests/test_lead_shopify_image_content_receipt.py::test_invalid_asset_receipt_fails_before_effect PASSED [ 84%]
+tests/test_lead_shopify_image_content_receipt.py::test_replay_provider_transform_stays_committed_unverified PASSED [ 87%]
+tests/test_lead_shopify_image_content_receipt.py::test_authorized_image_qualifier_mismatch_is_not_certified[alt-Unapproved alt] PASSED [ 90%]
+tests/test_lead_shopify_image_content_receipt.py::test_authorized_image_qualifier_mismatch_is_not_certified[position-9] PASSED [ 93%]
+tests/test_lead_shopify_image_content_receipt.py::test_authorized_image_qualifier_mismatch_is_not_certified[variant_ids-value2] PASSED [ 96%]
+tests/test_lead_shopify_image_content_receipt.py::test_provider_metadata_dimensions_must_match_decoded_image PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 66 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 33 passed, 72 warnings in 32.94s =======================
