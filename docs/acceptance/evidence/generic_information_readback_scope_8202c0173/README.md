@@ -1,0 +1,5 @@
+# Exact admitted-scope readback
+
+Root negative at66447a918: changing authoritative HITLAction workspace/tenant/actor leaked the question through public GET (3fail). Independent tests preserved ind3d4e58db; runtime unchanged during negative. Wrong-CWD exit4 is excluded. Native88c38a5b5 hardening integrated on currentmain as8202c017328d67c9e87bd45dfcb1cbe798957e9b. Wait/question projection now checks the actual wait row against admitted scope/actor; completed output checks the execution agent and scope. Nullable personal compatibility remains. No new authority or lifecycle.
+
+Frozen integrated backend118pass, actual0; frontend53pass retains original35page controls; affected common-handler guide/maturity23pass; TypeScript0. Shared component/network fixtures remain controlled. This is public API/component evidence, not ordinary browser or served-model acceptance. Original335/635/850packets remain at their own identities. New independent privacy tests are added to normal CI in the delivery commit.
