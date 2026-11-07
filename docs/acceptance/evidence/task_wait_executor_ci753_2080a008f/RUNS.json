@@ -1,0 +1,44 @@
+{
+  "after_combined35": {
+    "command": "python3 /private/tmp/atom-agent-cli/run_bounded_test_gate.py --cwd backend --profile bounded -- venv314/bin/python -m pytest <prior9+legacy_freshness13+executor13> -q --tb=short -p no:cacheprovider --basetemp=<fresh>",
+    "exit": 0,
+    "raw": "after-35-pass.log",
+    "result": "35 passed",
+    "scope_correction": "The middle13 are 11 employee_document_freshness controls plus2 external legacy extraction-label probes, not the independent root13 wait consumption controls. Root separately reruns the actual root13."
+  },
+  "after_exact12": {
+    "command": "python3 /private/tmp/atom-agent-cli/run_bounded_test_gate.py --cwd backend --profile bounded -- venv314/bin/python -m pytest <exact12> -q --tb=short -p no:cacheprovider --basetemp=<fresh>",
+    "exit": 0,
+    "raw": "after-12-pass.log",
+    "result": "12 passed"
+  },
+  "before_exact12": {
+    "command": "python3 /private/tmp/atom-agent-cli/run_bounded_test_gate.py --cwd backend --profile bounded -- venv314/bin/python -m pytest <exact12> -q --tb=short -p no:cacheprovider --basetemp=<fresh>",
+    "exit": 1,
+    "raw": "before-12-fail.log",
+    "result": "12 failed"
+  },
+  "command_precision": "Original entries are shell templates, not fully resolved argv; the root independent packet carries its own exact argv/spec. Do not present template placeholders as exact commands.",
+  "environment": {
+    "ATOM_ASSIGNMENT_INTERNAL_FIXTURE_ROOT": "<fresh-unique>/output",
+    "ATOM_OFFICE_DIR": "<fresh-unique>/output",
+    "DATABASE_URL": "sqlite:///<fresh-unique>/data/test_ci.db",
+    "ENVIRONMENT": "development",
+    "LANCEDB_URI": "<fresh-unique>/lance",
+    "SECRET_KEY": "<synthetic>",
+    "TESTING": "1",
+    "interpreter": "/Users/rushiparikh/projects/atom/backend/venv314/bin/python"
+  },
+  "external_probe": {
+    "original_path": "/private/tmp/test_verifier_extraction_labels_2e086.py",
+    "retained_artifact": "legacy-extraction-verifier.test.py",
+    "sha256": "eb33ce4819eadde182adaae596f994c5058f7e9110b5605abab96fc57793de24"
+  },
+  "hosted": {
+    "head": "20946867e",
+    "job_id": 128505680150,
+    "raw": "hosted-backend-209-failure.log",
+    "result": "12 failed",
+    "run_id": 42406649096
+  }
+}
