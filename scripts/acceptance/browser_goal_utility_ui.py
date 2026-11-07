@@ -267,8 +267,14 @@ def _fixture_proof() -> Dict[str, Any]:
     ranking = rank_trajectories(target, outcomes)
     by_id = {entry["id"]: entry for entry in ranking["ranking"]}
     eligible = [entry for entry in ranking["ranking"] if entry["eligible"]]
+
+    def _reason_matches(row: Dict[str, Any], entry: Dict[str, Any]) -> bool:
+        if row["expected"] == "eligible":
+            return entry["eligible"] is True
+        return entry["reason"] == row["expected"]
+
     reasons_ok = all(
-        by_id[row["fixture_id"]]["reason"] == row["expected"]
+        _reason_matches(row, by_id[row["fixture_id"]])
         for row in FIXTURE_ROWS)
     return {
         "target": target,
