@@ -202,6 +202,27 @@ def build_request_expectations(
         except Exception:  # noqa: BLE001 - verifier refuses absent binding
             expected_shopify_article = None
 
+    # Radio thread material is frozen from the accepted business arguments
+    # plus the server-owned creator/scope identity.  The verifier re-reads the
+    # exact AgentThread row and the current AgentRegistry authority.
+    expected_radio_thread = None
+    if name == "radio.create_thread":
+        try:
+            from core.agent_radio.radio_thread_mutations import thread_payload
+
+            # Use the server-owned identity parameters directly.  The
+            # model-visible business args must not be able to supply or
+            # override creator/tenant/workspace authority for this action.
+            expected_radio_thread = thread_payload(
+                args,
+                agent_id=agent_id,
+                workspace_id=workspace_id,
+                tenant_id=tenant_id,
+            )
+            expected_digest = approved_payload_sha256(expected_radio_thread)
+        except Exception:  # noqa: BLE001 - verifier refuses absent binding
+            expected_radio_thread = None
+
     # Presentation material is frozen from the authorized arguments, not from
     # the handler's returned envelope.  Both consumers and the canvas producer
     # derive it through ``core.presentation_material`` so the digests cannot
@@ -301,6 +322,7 @@ def build_request_expectations(
         "_oracle_expected_shopify_product": expected_shopify_product,
         "_oracle_expected_shopify_blog": expected_shopify_blog,
         "_oracle_expected_shopify_article": expected_shopify_article,
+        "_oracle_expected_radio_thread": expected_radio_thread,
         "_oracle_expected_app_id": expected_app_id,
         "_oracle_expected_tests": expected_tests,
         "_oracle_expected_tests_sha256": expected_tests_sha256,

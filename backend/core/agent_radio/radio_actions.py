@@ -27,7 +27,7 @@ than impersonating a sender.
 from __future__ import annotations
 
 import logging
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, Optional
 
 from core.action_registry import register_action
 from core.agent_radio import radio_config, radio_service, radio_server
@@ -165,39 +165,18 @@ async def radio_create_thread(args: Dict[str, Any], context: Dict[str, Any]) -> 
     if not agent_id:
         return {"success": False, "error": "Context agent_id is required to create a thread."}
 
-    name = (args.get("name") or "").strip()
-    members: List[str] = [m for m in (args.get("member_agent_ids") or []) if m]
-    if not name:
-        return {"success": False, "error": "name is required"}
-    if not members:
-        return {"success": False, "error": "member_agent_ids must list at least one other agent"}
+    # Producer/authority/Oracle contract lives in the radio thread mutation
+    # module so the assignment adapter and Generic consumer share the same
+    # pre-effect checks and exact-row readback.
+    from core.agent_radio.radio_thread_mutations import create_thread
 
-    scope_hint = (args.get("scope_hint") or "manual").strip()
-    tenant_id = (context or {}).get("tenant_id")
-    try:
-        from core.database import get_db_session
-
-        with get_db_session() as db:
-            thread = radio_service.create_thread(
-                db,
-                name=name,
-                created_by_agent_id=agent_id,
-                member_agent_ids=members,
-                tenant_id=tenant_id,
-                metadata_json={"scope": scope_hint},
-            )
-            return {
-                "success": True,
-                "thread_id": thread.id,
-                "name": thread.name,
-                "member_agent_ids": thread.member_agent_ids or [],
-                "message": f"Thread '{thread.name}' created with {len(thread.member_agent_ids or [])} member(s).",
-            }
-    except RadioError as e:
-        return {"success": False, "error": "radio_error", "message": str(e)}
-    except Exception as e:  # pragma: no cover - defensive
-        logger.warning(f"radio.create_thread failed: {e}")
-        return {"success": False, "error": "internal_error", "message": "Could not create thread."}
+    return await create_thread(
+        args,
+        context,
+        operation_id=str(
+            (context or {}).get("operation_id")
+            or (args or {}).get("operation_id") or ""),
+    )
 
 
 @register_action(

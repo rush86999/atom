@@ -20,14 +20,17 @@ import asyncio
 import math
 import sys
 import uuid
+from contextlib import contextmanager
 from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 
 import pytest
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
 
 from core.agent_radio import radio_adapter, radio_breaker, radio_config, radio_guard
 from core.agent_radio import radio_actions, radio_server, radio_service, radio_teams
-from core.models import AgentThread, LateralMessage
+from core.models import AgentRegistry, AgentThread, LateralMessage
 
 UTC = timezone.utc
 
@@ -172,6 +175,50 @@ class RadioMessage:
 
 def patch_db(monkeypatch, db: RadioFakeDb) -> None:
     monkeypatch.setattr("core.database.get_db_session", lambda: db)
+
+
+@pytest.fixture
+def authority_db(tmp_path, monkeypatch):
+    """Real scratch SQLite session for the create-thread authority gate."""
+    import core.models  # noqa: F401 - register every model on the base
+    from core.models_registration import Base
+
+    path = tmp_path / "radio-authority.db"
+    engine = create_engine(f"sqlite:///{path}")
+    Base.metadata.create_all(engine)
+    Session = sessionmaker(bind=engine, expire_on_commit=False)
+
+    @contextmanager
+    def _session():
+        session = Session()
+        try:
+            yield session
+            session.commit()
+        finally:
+            session.close()
+
+    monkeypatch.setattr("core.database.get_db_session", _session)
+    with Session() as db:
+        db.add_all([
+            AgentRegistry(
+                id="agent-a", name="Agent A", category="operations",
+                module_path="x.a", class_name="A", status="autonomous",
+                enabled=True, tenant_id="t-1", workspace_id=None),
+            AgentRegistry(
+                id="agent-b", name="Agent B", category="operations",
+                module_path="x.b", class_name="B", status="intern",
+                enabled=True, tenant_id="t-1", workspace_id=None),
+            AgentRegistry(
+                id="a1", name="Agent One", category="operations",
+                module_path="x.a1", class_name="A1", status="intern",
+                enabled=True, tenant_id=None, workspace_id=None),
+            AgentRegistry(
+                id="b", name="Agent B", category="operations",
+                module_path="x.b2", class_name="B2", status="intern",
+                enabled=True, tenant_id=None, workspace_id=None),
+        ])
+        db.commit()
+    return Session
 
 
 # ===========================================================================
@@ -767,10 +814,8 @@ class TestRadioCreateThread:
         assert "member_agent_ids" in result["error"]
 
     @pytest.mark.asyncio
-    async def test_success(self, monkeypatch):
+    async def test_success(self, monkeypatch, authority_db):
         monkeypatch.setattr(radio_config, "radio_enabled", lambda: True)
-        db = RadioFakeDb()
-        patch_db(monkeypatch, db)
         result = await radio_actions.radio_create_thread(
             {
                 "name": "squad",
@@ -783,17 +828,16 @@ class TestRadioCreateThread:
         assert result["thread_id"]
         assert result["name"] == "squad"
         assert "agent-b" in result["member_agent_ids"]
-        thread = db.added[0]
+        with authority_db() as db:
+            thread = db.query(AgentThread).one()
         assert thread.created_by_agent_id == "agent-a"
         assert thread.metadata_json["scope"] == "fleet"
         assert thread.tenant_id == "t-1"
         assert thread.member_agent_ids[0] == "agent-a"
 
     @pytest.mark.asyncio
-    async def test_radio_error(self, monkeypatch):
+    async def test_radio_error(self, monkeypatch, authority_db):
         monkeypatch.setattr(radio_config, "radio_enabled", lambda: True)
-        db = RadioFakeDb()
-        patch_db(monkeypatch, db)
 
         def boom(*a, **k):
             raise radio_service.RadioError("nope")
@@ -807,10 +851,8 @@ class TestRadioCreateThread:
         assert result["error"] == "radio_error"
 
     @pytest.mark.asyncio
-    async def test_internal_error(self, monkeypatch):
+    async def test_internal_error(self, monkeypatch, authority_db):
         monkeypatch.setattr(radio_config, "radio_enabled", lambda: True)
-        db = RadioFakeDb()
-        patch_db(monkeypatch, db)
 
         def boom(*a, **k):
             raise RuntimeError("boom")

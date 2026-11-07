@@ -668,7 +668,7 @@ def test_registry_declares_effects_and_keeps_uncovered_explicit():
         "shopify_create_fulfillment",
         "mini_app_run",
         # Lazy registrations (radio/BPE) are mutations too when loaded.
-        "radio.create_thread", "radio.send_message",
+        "radio.send_message",
         "workspace.commit", "workspace.note",
     }
     assert uncovered <= allowed, sorted(uncovered - allowed)

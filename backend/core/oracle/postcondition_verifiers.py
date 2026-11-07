@@ -2454,3 +2454,189 @@ async def _verify_mini_app_db_write(ctx: Dict[str, Any]) -> OracleResult:
             + ("" if not reasons else "; " + "; ".join(reasons)))
     except Exception as e:  # noqa: BLE001 - unreadable is not verified
         return OracleResult(action, False, f"mini-app record read-back failed: {e}")
+
+
+# ---------------------------------------------------------------------------
+# AgentRadio thread creation
+# ---------------------------------------------------------------------------
+
+
+@register_durable_receipt_projector("radio.create_thread")
+def _radio_thread_durable_receipt_projection(
+    result: Dict[str, Any], expected: Dict[str, Any],
+) -> Dict[str, Any]:
+    from core.agent_radio.radio_thread_mutations import (
+        durable_thread_receipt_projection,
+    )
+
+    return durable_thread_receipt_projection(result, expected)
+
+
+@register_durable_receipt_matcher("radio.create_thread")
+def _radio_thread_durable_receipt_conflicts(
+    expected: Dict[str, Any], durable_result: Dict[str, Any],
+) -> Iterable[str]:
+    from core.agent_radio.radio_thread_mutations import (
+        durable_thread_material_conflicts,
+    )
+
+    return durable_thread_material_conflicts(expected, durable_result)
+
+
+@register_postcondition("radio.create_thread")
+async def _verify_radio_create_thread(ctx: Dict[str, Any]) -> OracleResult:
+    """Verify one radio thread by exact id/material and current authority.
+
+    The durable row locates the thread; it does not supply authority.  The
+    verifier re-reads the exact ``AgentThread`` row in a fresh session and
+    re-runs the same single-tenant AgentRegistry scope checks used before the
+    write.  A later disabled/moved/deleted creator or member is therefore a
+    truthful stale-authority refusal, never a copied-details success.
+    """
+    from core.agent_radio.radio_thread_mutations import (
+        authorize_thread_material,
+        find_threads_by_operation,
+        observed_thread_material,
+        read_thread,
+        thread_material_mismatches,
+    )
+
+    action = "radio.create_thread"
+    expected_material = ctx.get("_oracle_expected_radio_thread")
+    if not isinstance(expected_material, dict) or not expected_material:
+        return OracleResult(
+            action, False, "no frozen accepted radio thread material")
+
+    expected_operation = str(
+        ctx.get("_oracle_expected_operation_id") or "").strip()
+    if not expected_operation:
+        return OracleResult(action, False, "no frozen operation identity")
+
+    expected_digest = _digest(ctx.get("_oracle_expected_payload_sha256"))
+    if not _valid_digest(expected_digest):
+        return OracleResult(
+            action, False, "no valid frozen request payload digest")
+
+    action_result = str(ctx.get("action_result") or "").strip().lower()
+    result_digest = _digest(ctx.get("payload_sha256"))
+    if result_digest:
+        if not _valid_digest(result_digest):
+            return OracleResult(
+                action, False, "result carries no valid payload digest")
+        if result_digest != expected_digest:
+            return OracleResult(
+                action, False,
+                "returned payload digest does not match the expected request")
+    elif action_result == "applied":
+        return OracleResult(
+            action, False, "result carries no valid payload digest")
+
+    receipt = ctx.get("provider_receipt")
+    if isinstance(receipt, dict) and receipt:
+        if str(receipt.get("operation_id") or "") != expected_operation:
+            return OracleResult(
+                action, False,
+                "returned operation id does not match the expected operation")
+        if _digest(receipt.get("payload_sha256")) != expected_digest:
+            return OracleResult(
+                action, False,
+                "provider receipt payload digest does not match the request")
+    elif action_result == "applied":
+        return OracleResult(action, False, "no provider receipt")
+
+    expected_thread_id = str(
+        ctx.get("thread_id") or ctx.get("remote_id") or "").strip()
+    expected_creator = str(
+        expected_material.get("created_by_agent_id") or "").strip()
+    expected_members = list(
+        expected_material.get("member_agent_ids") or [])
+
+    read_receipt = ctx.get("read_receipt")
+    if isinstance(read_receipt, dict) and read_receipt:
+        coverage = str(read_receipt.get("coverage") or "").lower()
+        if coverage not in {"single", "complete"}:
+            return OracleResult(
+                action, False, f"read_receipt.coverage == {coverage!r}")
+        receipt_id = str(read_receipt.get("resource_id") or "").strip()
+        if expected_thread_id and receipt_id and receipt_id != expected_thread_id:
+            return OracleResult(
+                action, False,
+                "read_receipt.resource_id does not match the thread id")
+        receipt_fields = read_receipt.get("fields")
+        if isinstance(receipt_fields, dict) and receipt_fields:
+            receipt_mismatches = thread_material_mismatches(
+                expected_material, receipt_fields)
+            if receipt_mismatches:
+                return OracleResult(
+                    action, False,
+                    "producer readback does not match the accepted material: "
+                    + ", ".join(receipt_mismatches))
+
+    def _read(session):
+        row = None
+        if expected_thread_id:
+            row = read_thread(session, expected_thread_id)
+        operation_rows = find_threads_by_operation(
+            session, expected_operation, expected_creator) \
+            if expected_operation else []
+        if len(operation_rows) > 1:
+            return None, [], (
+                f"multiple threads ({len(operation_rows)}) are bound to the "
+                f"same operation {expected_operation}")
+        operation_row = operation_rows[0] if operation_rows else None
+        if row is None:
+            row = operation_row
+        elif operation_row is not None and str(
+                getattr(operation_row, "id", "")) != expected_thread_id:
+            return None, [], (
+                "operation id is bound to a different thread than the "
+                "returned identity")
+        if row is None:
+            return None, [], ""
+        problems, _creator = authorize_thread_material(
+            session,
+            expected_creator,
+            expected_members,
+            workspace_id=str(expected_material.get("workspace_id") or ""),
+            tenant_id=str(expected_material.get("tenant_id") or ""),
+            context_tier="",
+            allow_unknown_tier=True,
+        )
+        return row, problems, ""
+
+    try:
+        # A fresh session is mandatory: the caller's identity map could
+        # otherwise certify an uncommitted/expired row.
+        row, authority_problems, conflict = _fresh_read_with_db(ctx, _read)
+    except Exception as exc:  # noqa: BLE001 - unreadable is not verified
+        return OracleResult(
+            action, False,
+            "radio thread readback failed: "
+            f"{type(exc).__name__}: {str(exc)[:200]}")
+    if conflict:
+        return OracleResult(action, False, conflict)
+    if row is None:
+        return OracleResult(
+            action, False,
+            "radio thread absent in the authoritative store")
+    observed_id = str(getattr(row, "id", "") or "").strip()
+    if expected_thread_id and observed_id != expected_thread_id:
+        return OracleResult(
+            action, False,
+            "independent radio readback returned a different thread id")
+    observed = observed_thread_material(row)
+    mismatches = thread_material_mismatches(expected_material, observed)
+    if mismatches:
+        return OracleResult(
+            action, False,
+            "independent radio readback contradicts the accepted material: "
+            + ", ".join(mismatches))
+    if authority_problems:
+        return OracleResult(
+            action, False,
+            "current creator/member authority no longer supports the roster: "
+            + "; ".join(authority_problems))
+    return OracleResult(
+        action, True,
+        f"radio thread {observed_id} re-read; authorized material and current "
+        f"AgentRegistry authority match (payload {expected_digest[:12]})")
