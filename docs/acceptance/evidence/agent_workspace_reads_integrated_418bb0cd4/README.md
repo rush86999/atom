@@ -1,0 +1,9 @@
+# Agent workspace read confidentiality — independent current-main integration
+
+The original public history route exposed a same-tenant peer-workspace result. The independent probe failed at dd871b2c6 (one failure, exit 1). Frozen native repair 2a92e7f27 plus test successor 4aef8e318 passed 120 independent/neighborhood controls at root source 469f4df25. After merging recovery main e0430f9ff and adding the read controls to normal shared CI, executed source 418bb0cd4 again passes 120, actual exit 0. Original logs/specs are retained unchanged and separately attributed.
+
+The HTTP readers reload the authoritative active principal, enforce the existing view permission, and filter registry and execution resources by their appropriate authoritative scope. Historical execution workspace remains frozen; moving an agent cannot relabel earlier results. The supported Personal Edition null/default case remains explicit. Missing authority or failed database read does not return a falsely successful empty list. No mutation or model call occurs during readback.
+
+Controls include same-workspace positive, peer-workspace negative, moved-agent historical ownership, authoritative role/active-state reads, unavailable authority, personal/default compatibility, public list/detail/status/graduation neighbors, and run/admission/replacement regressions. Authentication leaves are controlled; routes and scratch database queries are real. This proves the tested reader family, not whole-app authorization or a browser/model campaign. No live account, provider, spend, send, deployment or PostgreSQL qualification is claimed.
+
+Native evidence remains on its own branch and source identities. This packet independently binds the integrated source, the original failure, both actual passing test exits and the exact external probe. Broader TASK-WAIT-01 and app goals remain open.

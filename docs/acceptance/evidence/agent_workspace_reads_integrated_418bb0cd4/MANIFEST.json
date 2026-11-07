@@ -1,0 +1,27 @@
+{
+  "executed_source": "418bb0cd415f98e93ee9df587533f0a5e0595160",
+  "source_files": {
+    ".github/workflows/ci.yml": "2100311a4ab549b1f12d98a5220f4d39933ad4cf7e6ab7fa59d00e1d14fd8131",
+    "backend/api/agent_routes.py": "2013c031ca4c665d84aa5c4c79ed579b8eecccb5ddd3bb8b5a8d4eb9759d29e8",
+    "backend/tests/test_agent_read_scope_contract.py": "2d9c4d52a8ba30609120dc83635b15037f2d4419700612b578c7a727153a17ba",
+    "backend/tests/test_agent_routes_coverage.py": "e243f7d27152ca880f69e815d21f1c280d3054fdaa653b624db0380343af4947",
+    "backend/tests/test_phase27_scheduler.py": "167cdcc8a96d89818d9a501712d7e17ff381f015524eb3e374ba3583ff1017f4",
+    "backend/tests/test_agent_run_admission_contract.py": "b5f640423850a9f8949c53fde140e7b10cb77242f204baa224cd25c6b9028227",
+    "backend/tests/test_agent_replace_scope_contract.py": "1cfb47d63c2e89c00ab9e2a561c86df12cdb9ad9c8a1ee8de1420ca389a07245"
+  },
+  "artifacts": {
+    "independent_history_probe.py": "99380255924c4fa65011d3b2d781adbb2900358ca6dca162b67a7d487eeae0c0",
+    "negative-spec.json": "ed3b23fb246f64c4917e91ae57949490797435353f01d9827566b8d4bc94e48f",
+    "negative-exit.json": "a4aae78adf2745204869bbbaa9a4e835ed9ef84d6b0eb77c26fd8be59fabc0fd",
+    "integrated-spec.json": "6b446707b4ee511b6b1442d77c2cea482d30ea4b34dab04c1a9b909a7a57b93d",
+    "integrated.xml": "4adaf90bd0428cbdc08ae69aaa15d8f5d3024a90b07619d2cba6b068b4c4a97d",
+    "integrated-exit.json": "bdd958722a49bab1f6b5471853a5abc26a124b569fa19fe100bd120eca92d884",
+    "negative.log": "a88b3c4bf7573edf74dbbea939b7875708ea0984f4e8888b2dd955ee1a7bee0c",
+    "README.md": "85eba0b9935ff54d4fc6f5796a6806ec9867f532c534d80acf026591e7ffd519",
+    "prior-fixed.log": "b9502c726d600f7f0c6f4e6c1bd26c1637df1bd3f87473427fba942528af9416",
+    "prior-fixed-spec.json": "2f873169fbea3c7893c7bba01d012bac5c2cd25486f22bc5ec0708805a047519",
+    "prior-fixed-exit.json": "6d85cbca4a06e923102bebfae92547083ed2f248b64c2d96e800992552b14121",
+    "verification.json": "8987f507b6167170f810ebff8d990c56d8d720d43d88417d4c798031a8c66f63",
+    "integrated.log": "205ecdb5a334cfe09d8f492d0b70fb83793ade5923040e33ea970275f5dfb279"
+  }
+}

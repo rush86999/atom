@@ -29,7 +29,10 @@ class TestPhase27Scheduler(unittest.TestCase):
             email="test@example.com",
             hashed_password="x",
             role=UserRole.SUPER_ADMIN.value,
+            status="active",
+            is_active=True,
         )
+        self.fake_user = fake_user
         self.app.dependency_overrides[get_current_user] = lambda: fake_user
         self.client = TestClient(self.app)
 
@@ -97,8 +100,10 @@ class TestPhase27Scheduler(unittest.TestCase):
         mock_job.error_message = None
         mock_job.triggered_by = "manual"
 
-        # Setup chain: db.query().order_by().limit().all()
-        mock_db.query.return_value.order_by.return_value.limit.return_value.all.return_value = [mock_job]
+        # The read route re-loads the authoritative actor from the DB and
+        # applies the execution-scope filter before ordering/limiting.
+        mock_db.query.return_value.filter.return_value.populate_existing.return_value.first.return_value = self.fake_user
+        mock_db.query.return_value.filter.return_value.order_by.return_value.limit.return_value.all.return_value = [mock_job]
 
         response = self.client.get("/api/agents/history")
 

@@ -1,0 +1,18 @@
+{
+  "negative": {
+    "source": "dd871b2c6",
+    "failed": 1,
+    "actual_exit": 1
+  },
+  "prior_fixed": {
+    "source": "469f4df257939d409c4ba733577bc6c45172d403",
+    "passed": 120,
+    "actual_exit": 0
+  },
+  "integrated": {
+    "source": "418bb0cd415f98e93ee9df587533f0a5e0595160",
+    "passed": 120,
+    "actual_exit": 0
+  },
+  "scope": "real public reader/scratch DB; controlled auth; no model or browser"
+}
