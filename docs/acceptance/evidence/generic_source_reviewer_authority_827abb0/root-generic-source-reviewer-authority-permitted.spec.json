@@ -1,0 +1,21 @@
+{
+  "source": "20d2f1e77752200cebcc358a12d8bcb937f1c6ce",
+  "scratch": "/private/tmp/root-wait-source-final-review-4nlsbbgg",
+  "command": [
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-source-ci753-followup/backend",
+    "--profile",
+    "bounded",
+    "--",
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "/private/tmp/test_lead_generic_source_reviewer_authority.py",
+    "-q",
+    "--tb=short",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=/private/tmp/root-wait-source-final-review-4nlsbbgg/pytest"
+  ]
+}
