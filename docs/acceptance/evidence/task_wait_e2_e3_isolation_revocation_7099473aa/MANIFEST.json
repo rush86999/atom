@@ -1,0 +1,23 @@
+{
+  "executed_source": "7099473aaea41d0478fbe8b8276d0c7f9f5d3a33",
+  "source_files": {
+    "backend/api/assignment_routes.py": "cd89d63992ca9753d67c7e1fdcf8be7789a7adcdfeec0f1c50438ebc1494a788",
+    "backend/core/assignment_resources.py": "970dc2fab70f985faaa57f6c41ae55e430055403f65a130dac3e9978895ced33",
+    "backend/core/employee_adaptation.py": "f0214906347ba4ad961b604707dede957d2d3f3a82fbe04a236b5f02fe39e715",
+    "backend/core/employee_job_runner.py": "17c2980a1cb8332389cec0f713bb4aae8175e7221bfb27f66a290db632d246a2",
+    "backend/core/employee_proposal.py": "aa6ebcf459f05951fd1acdf36a7cdb8704fca48fe22752cd1fa65b7f391ab4a5",
+    "backend/tests/test_assignment_resource_boundary.py": "0051929937e5f4774793a15c8e136a4d5f1efa31c61087cf63a0d33d03c1b791",
+    "backend/tests/test_task_wait_source_revocation.py": "0e778194abb7c3f7b33f5503dc263f980c241175a15ebde22024d0167d8af7e7",
+    "backend/tests/test_task_wait_two_fact_events.py": "70b52996e14fa06a50a4fc19e41c9edf57f5449964d7d2411b39d0a19bb997d9",
+    "backend/tests/test_task_wait_two_job_isolation.py": "e5f7a65a2431c52dd39ab03fb539a9275e25cc68d92e0d98af0f1aa9c11c6ac6"
+  },
+  "artifacts": {
+    "README.md": "7a368d396ad150c6e1b5032ef8e9fe05bee939d8d90364a6b9b8a7672627930f",
+    "final-exit.json": "6a0a5bfb9dc568e5a05d4866ba002342923f2d3d6c0f27689245491a4b7a1512",
+    "final-spec.json": "ccf9b296681272744b6bb2fdcbeca067b89bfa64c71cb59a51aaf5d2c7d9b93a",
+    "final.log": "dc5afcd44bb15affe85cf84f82cb81a11a57b90164d90db669d682ab5d602ae9",
+    "final.xml": "94af3ac264d9c72fddb1b6d02a81070128f5c01e0bc70fa2710e476dbdce5710",
+    "run_and_capture.py": "397ce3c8b6ce21ccdbb4db883c8873e9b5183d428e6b56993e9b628ead63b9eb",
+    "verification.json": "4c7d95bece8572f34be6a6c8d8f4203b351da64ced4c2c40cb0c26a9131727e3"
+  }
+}

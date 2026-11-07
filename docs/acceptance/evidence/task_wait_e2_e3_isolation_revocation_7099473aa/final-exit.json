@@ -1,0 +1,28 @@
+{
+  "actual_exit_code": 0,
+  "argv": [
+    "python3",
+    "-m",
+    "pytest",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/opencode/e1-two-facts/pytest-e2e3",
+    "tests/test_task_wait_two_job_isolation.py",
+    "tests/test_task_wait_source_revocation.py",
+    "tests/test_task_wait_two_fact_events.py",
+    "tests/test_task_wait_source_trigger_contract.py",
+    "tests/test_task_wait_source_continuation_regressions.py",
+    "tests/test_task_wait_independent_work.py",
+    "tests/test_task_wait_artifact_content_contract.py",
+    "tests/test_task_wait_process_recovery.py",
+    "tests/test_employee_prerequisite_eligibility.py",
+    "tests/test_employee_adaptation_contract.py",
+    "tests/test_assignment_resource_boundary.py",
+    "tests/test_assignment_routes.py",
+    "tests/test_assignment_executor.py",
+    "--junitxml=/private/tmp/atom-agent-job-baseline/docs/acceptance/evidence/task_wait_e2_e3_isolation_revocation_7099473aa/final.xml",
+    "-q",
+    "--tb=short"
+  ],
+  "cwd": "/private/tmp/atom-agent-job-baseline/backend"
+}

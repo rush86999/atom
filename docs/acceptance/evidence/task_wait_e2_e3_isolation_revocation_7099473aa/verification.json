@@ -1,0 +1,39 @@
+{
+  "source": "7099473aaea41d0478fbe8b8276d0c7f9f5d3a33",
+  "final": {
+    "passed": 249,
+    "failed": 0,
+    "actual_exit_code": 0,
+    "duration_seconds": 187.68
+  },
+  "e2_isolation": {
+    "workspace": "same workspace, two assignments",
+    "subjects": ["PO-E2-K7X2", "PO-E2-Q9M4"],
+    "claim": "answering A's invoice resolves only A's question, opens A's receiving question, and leaves B's open question object, B's model-call count and B's applied receipts unchanged",
+    "valid_twin": "answering B's invoice afterward leaves A's next question unchanged; each job later completes with its own 35.00/80.00 reconciliation",
+    "negative": "cross-job settlement/wake/receipt leakage is asserted absent, not inferred from a successful A run",
+    "product_change": false
+  },
+  "e3_revocation": {
+    "entrypoint": "POST /api/assignments/{run_id}/sources",
+    "grant": "existing local IntegrationToken grant over a connected catalog parquet; no external provider call",
+    "revoked_negative": {
+      "status_code": 403,
+      "read_steps_after_refusal": 0,
+      "quote_receipts_after_refusal": 0,
+      "question": "same question remains open"
+    },
+    "valid_unchanged_twin": {
+      "status_code": 200,
+      "resolved_question_ids": "only the waiting question",
+      "result": "one verified quote of 37.50 in the same completed task"
+    },
+    "product_change": false
+  },
+  "scope": "Controlled proposal/auth transport over public assignment routes, real compiler/executor/catalog recheck, scratch SQLite/parquet. Not served-model/LLM quality, cross-workspace authorization, provider refresh, app-wide TASK-WAIT-01 or final acceptance.",
+  "notes": [
+    "No product code changed in this phase; the existing per-run lifecycle and route-resolution grant recheck already satisfy both claims.",
+    "The E2/E3 negatives are inside the committed tests; no separate frozen baseline probe is claimed.",
+    "No live model, provider, credential, send, spend, guest or deployment action occurred."
+  ]
+}
