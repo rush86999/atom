@@ -2569,9 +2569,15 @@ def _claim_waiting_job_for_resume(
         payload["waiting"] = False
         payload["finished"] = False
         payload["status"] = AgentJobStatus.RUNNING.value
+        from core.execution_ownership import current_owner
+
         payload["resume_claim"] = {
             "action_id": str(action_id),
             "execution_id": str(execution_id),
+            "claimed_at": datetime.datetime.now(timezone.utc).isoformat(),
+            # A concurrent startup must be able to tell an actively resuming
+            # process from a claim left behind by a crash.
+            "claim_owner": current_owner(),
         }
         new_summary = json.dumps(payload, sort_keys=True)
         conditions = [
