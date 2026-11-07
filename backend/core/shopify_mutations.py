@@ -102,7 +102,11 @@ def _normalized_number(value: Any) -> str:
         return text
     if number == 0:
         return "0"
-    return format(number.normalize(), "f")
+    # Decimal.normalize() applies the caller's precision and can round.
+    # Fixed-point formatting preserves the coefficient exactly; strip only
+    # fractional zero padding, never integral zeros or meaningful digits.
+    text = format(number, "f")
+    return text.rstrip("0").rstrip(".") if "." in text else text
 
 
 def normalize_tags(value: Any) -> List[str]:

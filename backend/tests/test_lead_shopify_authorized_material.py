@@ -30,9 +30,10 @@ def test_every_forwarded_business_field_must_match_readback(env, monkeypatch, fi
 
 
 @pytest.mark.parametrize('precision',[3,28])
-def test_money_normalization_cannot_round_under_callers_decimal_context(precision):
+@pytest.mark.parametrize('value',['1.005','1000','1.2300','0.000001','-0.00','12345678901234567890123456789.001'])
+def test_money_normalization_cannot_round_under_callers_decimal_context(precision,value):
     from decimal import Decimal, localcontext
     from core.shopify_mutations import _normalized_number
     with localcontext() as context:
         context.prec=precision
-        assert Decimal(_normalized_number('1.005')) == Decimal('1.005')
+        assert Decimal(_normalized_number(value)) == Decimal(value)
