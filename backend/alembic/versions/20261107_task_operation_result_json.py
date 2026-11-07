@@ -12,6 +12,11 @@ The upgrade is guarded: it is a no-op when the table does not exist (fresh
 created from the current models or already repaired).  No receipt is
 backfilled; a pre-existing succeeded claim legitimately has no identity
 receipt and must continue to replay as ``committed_unverified``.
+
+The revision identifier is deliberately 30 characters: Alembic's installed
+``alembic_version.version_num`` column is ``String(32)`` (``alembic/ddl/impl.py``),
+so a longer identifier fails on PostgreSQL even though SQLite does not enforce
+the declared length.  The filename stays descriptive.
 """
 from __future__ import annotations
 
@@ -19,7 +24,7 @@ import sqlalchemy as sa
 from alembic import op
 
 
-revision = "20261107_task_operation_result_json"
+revision = "20261107_task_operation_result"
 down_revision = "a2f0c1d4e5b6"
 branch_labels = None
 depends_on = None
