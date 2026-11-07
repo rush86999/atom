@@ -1,0 +1,22 @@
+2026-11-07T14:43:08,060: [] fchmod(/Users/rushiparikh/.local/state/watchman/rushiparikh-state, 2700): Operation not permitted
+
+Watchman:  watchman --no-pretty get-sockname returned with exit code=1, signal=null, stderr= 2026-11-07T14:43:08,060: [] fchmod(/Users/rushiparikh/.local/state/watchman/rushiparikh-state, 2700): Operation not permitted
+
+node:events:486
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: watchman --no-pretty get-sockname returned with exit code=1, signal=null, stderr= 2026-11-07T14:43:08,060: [] fchmod(/Users/rushiparikh/.local/state/watchman/rushiparikh-state, 2700): Operation not permitted
+
+    at ChildProcess.<anonymous> (/private/tmp/atom-agent4-upload-journey/frontend-nextjs/node_modules/fb-watchman/index.js:203:18)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1085:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:304:5)
+Emitted 'error' event on Client instance at:
+    at spawnError (/private/tmp/atom-agent4-upload-journey/frontend-nextjs/node_modules/fb-watchman/index.js:174:10)
+    at ChildProcess.<anonymous> (/private/tmp/atom-agent4-upload-journey/frontend-nextjs/node_modules/fb-watchman/index.js:203:7)
+    at ChildProcess.emit (node:events:508:28)
+    at maybeClose (node:internal/child_process:1085:16)
+    at ChildProcess._handle.onexit (node:internal/child_process:304:5)
+
+Node.js v25.2.1
