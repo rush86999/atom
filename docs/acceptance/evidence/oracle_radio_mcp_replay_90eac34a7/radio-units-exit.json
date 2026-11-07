@@ -1,0 +1,10 @@
+{
+  "nodes": [
+    "tests/unit/agents/test_radio_actions.py",
+    "tests/unit/agents/test_agent_radio_tool.py",
+    "tests/unit/agents/test_radio_service.py",
+    "tests/unit/agents/test_radio_adapter.py",
+    "tests/unit/agents/test_radio_server.py"
+  ],
+  "exit_code": 0
+}

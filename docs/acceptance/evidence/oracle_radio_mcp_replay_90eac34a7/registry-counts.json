@@ -1,0 +1,42 @@
+{
+  "registered_actions": 98,
+  "declared_mutations": 30,
+  "covered_mutations": 27,
+  "uncovered_mutations": 3,
+  "uncovered": [
+    "mini_app_run",
+    "workspace.commit",
+    "workspace.note"
+  ],
+  "covered": [
+    "brennan.books.create_bill",
+    "brennan.books.create_estimate",
+    "brennan.outlook.create_draft",
+    "canvas.present_chart",
+    "canvas.present_markdown",
+    "canvas.restore_version",
+    "canvas.update",
+    "connected.books.create_bill",
+    "connected.books.create_estimate",
+    "connected.outlook.create_draft",
+    "goal_runs.start",
+    "goals.create",
+    "goals.evaluate",
+    "mini_app_db_write",
+    "mini_app_install",
+    "mini_app_publish",
+    "mini_app_revert_logic",
+    "mini_app_scaffold",
+    "mini_app_set_tests",
+    "mini_app_write_logic",
+    "radio.create_thread",
+    "radio.send_message",
+    "shopify_create_article",
+    "shopify_create_blog",
+    "shopify_create_fulfillment",
+    "shopify_create_product",
+    "tasks.create"
+  ],
+  "executed_source": "90eac34a7",
+  "note": "Counts unchanged from 7e91a3c91/9c5219242; no verifier registration changed by the goals-main merge."
+}
