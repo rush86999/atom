@@ -1,0 +1,31 @@
+{
+  "kind": "shopify_article_rest_publication_manifest",
+  "executed_source": "5a391f355",
+  "base_source": "1d7b0ec83",
+  "failure_first_commit": "a1ffa57ec",
+  "official_docs": "https://shopify.dev/docs/api/admin-rest/latest/resources/article",
+  "tests": {
+    "independent": {
+      "rc": 0,
+      "passed": 17,
+      "failed": 0
+    },
+    "article_contract": {
+      "rc": 0,
+      "passed": 36,
+      "failed": 0
+    }
+  },
+  "artifacts": {
+    "README.md": "8370f9738cb49716ca3c075b92cd46bcb728efff3b72b9f29b5930609d9c0877",
+    "article_contract.log": "fec3894ac45850cd261398e1a068793022ecc18fe180e13f6828159e54bfe6fd",
+    "independent.log": "34d9b057e5a2560d40d0e421770974ea25dfd089dcab24d096952efc801aab0d",
+    "root-article-rest-shape2-negative.log": "017f6d5e043e6398e8487c29674b076f0661c58ecb56248d4a64bfcc9b3bcdeb",
+    "verification.json": "65ab2ba56208042744aac239268d986e249779477998c8438379aa6dacd16151"
+  },
+  "source_files": {
+    "backend/core/shopify_mutations.py": "5f85931f668af0a38018a4ced62910a2a7732fc22dd6eb562345f9a5b2a71d13",
+    "backend/tests/test_lead_shopify_article_rest_shape.py": "ab6f5094f13fc66cde0123e229b83807d3b8bdd837dbe24f0248bb6cc02c9561",
+    "backend/tests/test_oracle_shopify_article_create.py": "9af3a050705593355f66a066fd84514f0c3671569ea8a0a9ec9584a4a8d66809"
+  }
+}

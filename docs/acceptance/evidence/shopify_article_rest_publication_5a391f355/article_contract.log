@@ -1,0 +1,100 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-07 10:53:35 [    INFO] MCP Service initialized
+
+tests/test_oracle_shopify_article_create.py::test_exact_article_create_is_independently_verified 
+-------------------------------- live log setup --------------------------------
+2026-11-07 10:53:35 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-07 10:53:36 [    INFO] EscalationManager initialized
+2026-11-07 10:53:36 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 10:53:36 [    INFO] EscalationManager initialized
+2026-11-07 10:53:36 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 10:53:36 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 10:53:36 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  2%]
+tests/test_oracle_shopify_article_create.py::test_missing_store_refuses_before_transport PASSED [  5%]
+tests/test_oracle_shopify_article_create.py::test_foreign_store_refuses_before_transport PASSED [  8%]
+tests/test_oracle_shopify_article_create.py::test_moved_store_metadata_refuses_before_transport PASSED [ 11%]
+tests/test_oracle_shopify_article_create.py::test_inactive_store_refuses_before_transport PASSED [ 13%]
+tests/test_oracle_shopify_article_create.py::test_ambiguous_store_refuses_before_transport PASSED [ 16%]
+tests/test_oracle_shopify_article_create.py::test_body_store_selector_refuses_before_transport[shop] PASSED [ 19%]
+tests/test_oracle_shopify_article_create.py::test_body_store_selector_refuses_before_transport[access_token] PASSED [ 22%]
+tests/test_oracle_shopify_article_create.py::test_body_store_selector_refuses_before_transport[tenant_id] PASSED [ 25%]
+tests/test_oracle_shopify_article_create.py::test_missing_required_target_refuses_before_transport[blog_id] PASSED [ 27%]
+tests/test_oracle_shopify_article_create.py::test_missing_required_target_refuses_before_transport[title] PASSED [ 30%]
+tests/test_oracle_shopify_article_create.py::test_same_title_with_different_returned_id_is_not_success PASSED [ 33%]
+tests/test_oracle_shopify_article_create.py::test_every_authorized_field_must_match_readback[blog_id-blog-other] PASSED [ 36%]
+tests/test_oracle_shopify_article_create.py::test_every_authorized_field_must_match_readback[title-Unapproved Article] PASSED [ 38%]
+tests/test_oracle_shopify_article_create.py::test_every_authorized_field_must_match_readback[body_html-<p>Unapproved body</p>] PASSED [ 41%]
+tests/test_oracle_shopify_article_create.py::test_every_authorized_field_must_match_readback[author-Unapproved Author] PASSED [ 44%]
+tests/test_oracle_shopify_article_create.py::test_every_authorized_field_must_match_readback[tags-gamma] PASSED [ 47%]
+tests/test_oracle_shopify_article_create.py::test_every_authorized_field_must_match_readback[published-False] PASSED [ 50%]
+tests/test_oracle_shopify_article_create.py::test_unavailable_published_at_proof_is_explicitly_unverified PASSED [ 52%]
+tests/test_oracle_shopify_article_create.py::test_absent_readback_is_uncertain_not_success 
+-------------------------------- live log call ---------------------------------
+2026-11-07 10:53:50 [   ERROR] Shopify get article 900 in blog blog-700 failed: 404: {"errors":"not found"}
+PASSED                                                                   [ 55%]
+tests/test_oracle_shopify_article_create.py::test_unidentifiable_effect_is_uncertain_and_not_recreated PASSED [ 58%]
+tests/test_oracle_shopify_article_create.py::test_known_success_replays_exact_resource_without_second_create PASSED [ 61%]
+tests/test_oracle_shopify_article_create.py::test_restart_fresh_session_reloads_exact_durable_identity PASSED [ 63%]
+tests/test_oracle_shopify_article_create.py::test_replay_with_changed_current_material_stays_committed_unverified[title-Changed after create] PASSED [ 66%]
+tests/test_oracle_shopify_article_create.py::test_replay_with_changed_current_material_stays_committed_unverified[body_html-<p>Changed body</p>] PASSED [ 69%]
+tests/test_oracle_shopify_article_create.py::test_replay_with_changed_current_material_stays_committed_unverified[author-Changed Author] PASSED [ 72%]
+tests/test_oracle_shopify_article_create.py::test_replay_with_changed_current_material_stays_committed_unverified[tags-changed] PASSED [ 75%]
+tests/test_oracle_shopify_article_create.py::test_replay_with_changed_current_material_stays_committed_unverified[published-False] PASSED [ 77%]
+tests/test_oracle_shopify_article_create.py::test_replay_with_changed_current_material_stays_committed_unverified[blog_id-blog-other] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 10:53:59 [   ERROR] Shopify get article 900 in blog blog-700 failed: 404: {"errors":"not found"}
+PASSED                                                                   [ 80%]
+tests/test_oracle_shopify_article_create.py::test_replay_with_missing_current_resource_stays_committed_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-07 10:54:00 [   ERROR] Shopify get article 900 in blog blog-700 failed: 404: {"errors":"not found"}
+PASSED                                                                   [ 83%]
+tests/test_oracle_shopify_article_create.py::test_replay_after_store_changed_stays_committed_unverified PASSED [ 86%]
+tests/test_oracle_shopify_article_create.py::test_replay_without_durable_identity_receipt_is_committed_unverified PASSED [ 88%]
+tests/test_oracle_shopify_article_create.py::test_replay_with_unavailable_readback_is_committed_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-07 10:54:03 [   ERROR] Failed to get article 900 in blog blog-700: provider readback timed out
+PASSED                                                                   [ 91%]
+tests/test_oracle_shopify_article_create.py::test_same_operation_changed_material_refuses_before_readback PASSED [ 94%]
+tests/test_oracle_shopify_article_create.py::test_lost_confirmation_stays_uncertain_and_never_replays_as_success 
+-------------------------------- live log call ---------------------------------
+2026-11-07 10:54:05 [   ERROR] Failed to create article: confirmation timed out
+PASSED                                                                   [ 97%]
+tests/test_oracle_shopify_article_create.py::test_failed_identity_receipt_is_not_rolled_back_or_resent PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 72 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 36 passed, 78 warnings in 43.75s =======================
