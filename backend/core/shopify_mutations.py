@@ -873,6 +873,420 @@ def durable_article_material_conflicts(
     return material_mismatches(expected_material, stored)
 
 
+def fulfillment_payload(
+    arguments: Mapping[str, Any] | None,
+) -> Dict[str, Any]:
+    """The exact business payload derived from accepted fulfillment args.
+
+    ``notify_customer`` is an input preference and is part of the request
+    binding, but it is not a field Shopify returns on the Fulfillment
+    resource, so it is deliberately not part of the readback material.
+    """
+    args = arguments if isinstance(arguments, Mapping) else {}
+    payload: Dict[str, Any] = {
+        "order_id": _text(args.get("order_id")).strip(),
+        "notify_customer": _normalized_bool(
+            args.get("notify_customer", True), True),
+    }
+    for field in ("location_id", "tracking_number", "tracking_company"):
+        value = args.get(field)
+        if value not in (None, ""):
+            payload[field] = _text(value).strip()
+    return payload
+
+
+def accepted_fulfillment_material(
+    arguments: Mapping[str, Any] | None,
+) -> Dict[str, Any]:
+    """The caller-authorized fulfillment material supported by the registry."""
+    payload = fulfillment_payload(arguments)
+    material: Dict[str, Any] = {
+        "order_id": _text(payload.get("order_id")).strip(),
+    }
+    for field in ("location_id", "tracking_number", "tracking_company"):
+        if field in payload:
+            material[field] = _text(payload.get(field)).strip()
+    return material
+
+
+def _fulfillment_planned_quantity(line_item: Mapping[str, Any]) -> str:
+    """Quantity still to be fulfilled in a source fulfillment order.
+
+    This is the planning namespace.  It may fall back through the source FO
+    line's remaining/fulfillable quantity; it is never the completed quantity
+    observed on a Fulfillment resource.
+    """
+    for field in ("remaining_quantity", "fulfillable_quantity", "quantity"):
+        value = line_item.get(field)
+        if value is not None:
+            return _normalized_number(value)
+    return ""
+
+
+def _fulfillment_completed_quantity(line_item: Mapping[str, Any]) -> str:
+    """Quantity completed by a Fulfillment line item.
+
+    The Fulfillment resource reports the fulfilled ``quantity``; its
+    ``fulfillable_quantity`` is commonly 0 after the fact and must never be
+    borrowed as the completed amount.
+    """
+    value = line_item.get("quantity")
+    return "" if value is None else _normalized_number(value)
+
+
+def _fulfillment_source_line_identity(line_item: Mapping[str, Any]) -> str:
+    """Order-line id of a source FulfillmentOrder line.
+
+    ``FulfillmentOrder.line_items[].id`` is the FO-line id, not the order-line
+    id.  Only ``line_item_id`` names the order line, so a missing value stays
+    missing and the pre-effect validator refuses it.
+    """
+    return _text(line_item.get("line_item_id")).strip()
+
+
+def _fulfillment_observed_line_identity(line_item: Mapping[str, Any]) -> str:
+    """Authoritative order-line id of a completed Fulfillment line.
+
+    The documented Fulfillment line item uses ``id`` for the order-line id (the
+    FO-line namespace does not apply here).  ``line_item_id`` is only an
+    optional provider echo: it can confirm the official id, but it can never
+    replace or override it.
+    """
+    return _text(line_item.get("id")).strip()
+
+
+def _fulfillment_completed_line_binding(
+    line_item: Mapping[str, Any],
+) -> Dict[str, Any]:
+    """Bind a completed line without normalising away contradictory fields.
+
+    ``id`` is required and authoritative.  A matching optional
+    ``line_item_id`` is harmless.  Two present-but-different identities are a
+    contradiction, and an absent ``id`` is genuinely missing required
+    identity; neither is collapsed to the other or dropped.
+    """
+    official_id = _fulfillment_observed_line_identity(line_item)
+    optional_alias = _text(line_item.get("line_item_id")).strip()
+    binding: Dict[str, Any] = {}
+    if not official_id:
+        binding["line_item_identity_missing"] = True
+    if optional_alias and official_id and optional_alias != official_id:
+        binding["line_item_identity_conflict"] = {
+            "official_id": official_id,
+            "line_item_id": optional_alias,
+        }
+    elif optional_alias and not official_id:
+        # Keep the contradictory/unusable optional value visible; it cannot
+        # identify the completed line by itself.
+        binding["line_item_id_alias"] = optional_alias
+    return binding
+
+
+def _fulfillment_line_material(
+    line_item: Mapping[str, Any],
+    *,
+    fulfillment_order_id: Any = None,
+    completed: bool = False,
+) -> Dict[str, Any]:
+    entry = {
+        "line_item_id": (
+            _fulfillment_observed_line_identity(line_item)
+            if completed else _fulfillment_source_line_identity(line_item)),
+        "quantity": (
+            _fulfillment_completed_quantity(line_item)
+            if completed else _fulfillment_planned_quantity(line_item)),
+    }
+    if completed:
+        entry.update(_fulfillment_completed_line_binding(line_item))
+    fo_id = _text(
+        line_item.get("fulfillment_order_id")
+        if fulfillment_order_id is None else fulfillment_order_id
+    ).strip()
+    if fo_id:
+        entry["fulfillment_order_id"] = fo_id
+    return entry
+
+
+def fulfillment_dispatch_plan(
+    fulfillment_orders: Any,
+    location_id: Any = "",
+) -> Dict[str, Any]:
+    """Exact server-resolved dispatch material for a fulfillment create.
+
+    The registry does not accept fulfillment-order/line-item/quantity ids;
+    these are derived from the order's current fulfillment orders immediately
+    before the POST and bound to the durable receipt.  A provider readback must
+    match them exactly.
+    """
+    orders = (
+        fulfillment_orders
+        if isinstance(fulfillment_orders, Sequence)
+        and not isinstance(fulfillment_orders, (str, bytes))
+        else []
+    )
+    fulfillment_order_ids = []
+    line_items = []
+    for order in orders:
+        if not isinstance(order, Mapping):
+            continue
+        fo_id = _text(order.get("id")).strip()
+        if fo_id:
+            fulfillment_order_ids.append(fo_id)
+        for line_item in order.get("line_items") or []:
+            if isinstance(line_item, Mapping):
+                line_items.append(_fulfillment_line_material(
+                    line_item, fulfillment_order_id=fo_id))
+    line_items.sort(key=lambda item: (
+        item.get("fulfillment_order_id", ""), item["line_item_id"],
+        item["quantity"]))
+    return {
+        "fulfillment_order_ids": sorted(set(fulfillment_order_ids)),
+        "line_items": line_items,
+        "location_id": _text(location_id).strip(),
+    }
+
+
+def _tracking_number(item: Mapping[str, Any]) -> Optional[str]:
+    direct = item.get("tracking_number")
+    if direct not in (None, ""):
+        return _text(direct).strip()
+    numbers = item.get("tracking_numbers")
+    if isinstance(numbers, Sequence) and not isinstance(
+            numbers, (str, bytes)):
+        values = [
+            _text(value).strip() for value in numbers
+            if value not in (None, "")
+        ]
+        if len(values) == 1:
+            return values[0]
+    return None
+
+
+def observed_fulfillment_material(
+    fulfillment: Mapping[str, Any] | None,
+    *,
+    fulfillment_order_ids: Optional[Sequence[Any]] = None,
+) -> Dict[str, Any]:
+    """Comparable material of an exact Fulfillment readback.
+
+    The official Fulfillment resource carries completed line ``quantity`` but
+    no trustworthy fulfillment-order association.  ``fulfillment_order_ids``
+    is the authoritative association read from the documented FO-scoped
+    fulfillments endpoint; it is never inferred from the request.  Completed
+    quantities are read from ``quantity`` only, never from
+    ``fulfillable_quantity``/``remaining_quantity``.
+    """
+    item = fulfillment if isinstance(fulfillment, Mapping) else {}
+    material: Dict[str, Any] = {
+        "order_id": _text(item.get("order_id")).strip(),
+    }
+    status = _text(item.get("status")).strip()
+    if status:
+        material["status"] = status
+    if item.get("location_id") not in (None, ""):
+        material["location_id"] = _text(item.get("location_id")).strip()
+    tracking_number = _tracking_number(item)
+    if tracking_number is not None:
+        material["tracking_number"] = tracking_number
+    if item.get("tracking_company") not in (None, ""):
+        material["tracking_company"] = _text(
+            item.get("tracking_company")).strip()
+
+    fulfillment_order_ids_set = set()
+    line_items = []
+    for line_item in item.get("line_items") or []:
+        if not isinstance(line_item, Mapping):
+            continue
+        fo_id = _text(
+            line_item.get("fulfillment_order_id")).strip()
+        if fo_id:
+            fulfillment_order_ids_set.add(fo_id)
+        line_items.append(_fulfillment_line_material(
+            line_item, fulfillment_order_id=fo_id, completed=True))
+    for order in item.get("fulfillment_orders") or []:
+        if isinstance(order, Mapping):
+            fo_id = _text(
+                order.get("fulfillment_order_id")
+                or order.get("id")).strip()
+        else:
+            fo_id = _text(order).strip()
+        if fo_id:
+            fulfillment_order_ids_set.add(fo_id)
+    if fulfillment_order_ids is not None:
+        fulfillment_order_ids_set = {
+            _text(value).strip() for value in fulfillment_order_ids
+            if _text(value).strip()
+        }
+    line_items.sort(key=lambda entry: (
+        entry.get("fulfillment_order_id", ""), entry["line_item_id"],
+        entry["quantity"]))
+    material["fulfillment_order_ids"] = sorted(fulfillment_order_ids_set)
+    material["line_items"] = line_items
+    return material
+
+
+def fulfillment_status_issue(
+    fulfillment: Mapping[str, Any] | None,
+) -> str:
+    """Why a Fulfillment readback is not completed business success.
+
+    ``success`` is the only completed state.  ``failure``/``cancelled``/
+    ``error`` are contradictory; ``pending``/``open``/missing are honestly
+    unresolved.  None of them may be reported as verified success and none
+    may trigger a resend.
+    """
+    item = fulfillment if isinstance(fulfillment, Mapping) else {}
+    status = _text(item.get("status")).strip().lower()
+    if status == "success":
+        return ""
+    if not status:
+        return "fulfillment status is missing"
+    if status in {"failure", "failed", "cancelled", "canceled", "error"}:
+        return f"fulfillment status is {status}"
+    return f"fulfillment status {status} is not completed success"
+
+
+def _fulfillment_line_identity(line: Mapping[str, Any]) -> tuple:
+    return (
+        _text(line.get("line_item_id")).strip(),
+        _normalized_number(line.get("quantity")),
+    )
+
+
+def _fulfillment_line_binding_issue(line: Mapping[str, Any]) -> str:
+    """Return a missing/contradictory completed identity marker, if any."""
+    if line.get("line_item_identity_missing"):
+        return "line_item_identity_missing"
+    conflict = line.get("line_item_identity_conflict")
+    if isinstance(conflict, Mapping) and conflict:
+        return "line_item_identity_conflict"
+    return ""
+
+
+def fulfillment_plan_mismatches(
+    plan: Mapping[str, Any] | None,
+    observed: Mapping[str, Any] | None,
+) -> List[str]:
+    """Fields where the readback contradicts the server-resolved plan.
+
+    Fulfillment-order association is compared as the exact authoritative id
+    set.  Completed line identity is compared by order-line id plus completed
+    quantity.  The official line item has no fulfillment-order id, so a
+    per-line FO id is only compared when the provider actually supplied one.
+    """
+    if not isinstance(plan, Mapping) or not plan:
+        return ["dispatch_plan"]
+    got = observed if isinstance(observed, Mapping) else {}
+    reasons: List[str] = []
+    for field in ("fulfillment_order_ids", "location_id"):
+        if not _field_matches(field, plan.get(field), got.get(field)):
+            reasons.append(field)
+
+    planned_lines = [
+        line for line in (plan.get("line_items") or [])
+        if isinstance(line, Mapping)
+    ]
+    observed_lines = [
+        line for line in (got.get("line_items") or [])
+        if isinstance(line, Mapping)
+    ]
+    if any(_fulfillment_line_binding_issue(line) for line in observed_lines):
+        reasons.append("line_items")
+    observed_has_fo_ids = bool(observed_lines) and all(
+        _text(line.get("fulfillment_order_id")).strip()
+        for line in observed_lines)
+    if observed_has_fo_ids:
+        planned_identity = sorted(
+            (line.get("fulfillment_order_id", ""),
+             _text(line.get("line_item_id")).strip(),
+             _normalized_number(line.get("quantity")))
+            for line in planned_lines
+        )
+        observed_identity = sorted(
+            (line.get("fulfillment_order_id", ""),
+             _text(line.get("line_item_id")).strip(),
+             _normalized_number(line.get("quantity")))
+            for line in observed_lines
+        )
+    else:
+        planned_identity = sorted(
+            _fulfillment_line_identity(line) for line in planned_lines)
+        observed_identity = sorted(
+            _fulfillment_line_identity(line) for line in observed_lines)
+    if planned_identity != observed_identity and "line_items" not in reasons:
+        reasons.append("line_items")
+    return reasons
+
+
+async def authoritative_fulfillment_order_ids(
+    service: Any,
+    token: str,
+    shop: str,
+    planned_fulfillment_order_ids: Sequence[Any],
+    fulfillment_id: str,
+) -> List[str]:
+    """FO ids whose documented FO-scoped collection links this fulfillment.
+
+    The association is read from
+    ``GET /fulfillment_orders/{id}/fulfillments.json`` for every planned FO.
+    A missing/contradictory link is returned as an absent id, so the caller's
+    plan comparison stays unverified instead of inventing the association.
+    """
+    linked: List[str] = []
+    for raw_id in planned_fulfillment_order_ids or []:
+        fo_id = _text(raw_id).strip()
+        if not fo_id:
+            continue
+        items = await service.get_fulfillment_order_fulfillments(
+            token, shop, fo_id)
+        for item in items or []:
+            if isinstance(item, Mapping) and str(
+                item.get("id") or ""
+            ).strip() == str(fulfillment_id):
+                linked.append(fo_id)
+                break
+    return linked
+
+
+def durable_fulfillment_receipt_projection(
+    result: Mapping[str, Any] | None,
+    expected: Mapping[str, Any] | None,
+) -> Dict[str, Any]:
+    """Authorized material plus the server-derived dispatch plan."""
+    expected = expected if isinstance(expected, Mapping) else {}
+    result = result if isinstance(result, Mapping) else {}
+    material = expected.get("_oracle_expected_shopify_fulfillment")
+    plan = result.get("dispatch_plan")
+    return {
+        "authorized_material": (
+            copy.deepcopy(dict(material))
+            if isinstance(material, Mapping) else None),
+        "dispatch_plan": (
+            copy.deepcopy(dict(plan))
+            if isinstance(plan, Mapping) else None),
+    }
+
+
+def durable_fulfillment_material_conflicts(
+    expected: Mapping[str, Any] | None,
+    durable_result: Mapping[str, Any] | None,
+) -> List[str]:
+    """Conflicts between stored authorized material/plan and this request."""
+    expected = expected if isinstance(expected, Mapping) else {}
+    durable_result = (
+        durable_result if isinstance(durable_result, Mapping) else {})
+    expected_material = expected.get("_oracle_expected_shopify_fulfillment")
+    if not isinstance(expected_material, Mapping) or not expected_material:
+        return []
+    stored = durable_result.get("authorized_material")
+    if not isinstance(stored, Mapping) or not stored:
+        return ["authorized_material"]
+    reasons = material_mismatches(expected_material, stored)
+    if not isinstance(durable_result.get("dispatch_plan"), Mapping):
+        reasons.append("dispatch_plan")
+    return reasons
+
+
 def _payload_digest(payload: Mapping[str, Any]) -> str:
     from core.task_lifecycle import _approval_payload_hash
 
@@ -1739,4 +2153,360 @@ async def create_article(
         article_id=article_id,
         article=observed or created,
         read_receipt=read_receipt,
+    )
+
+
+def _fulfillment_failed_before_effect(
+    *,
+    shop: str,
+    operation_id: str,
+    payload_sha256: str,
+    error_kind: str,
+    message: str,
+    evidence: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """An explicit pre-dispatch refusal: no provider effect occurred."""
+    return {
+        "status": "failed_before_effect",
+        "success": False,
+        "action_result": "proven_not_applied",
+        "effect_possible": False,
+        "provider": "shopify",
+        "operation": "create_fulfillment",
+        "error_kind": error_kind,
+        "error": message,
+        "message": message,
+        "retryable": False,
+        "remote_id": "",
+        "payload_sha256": payload_sha256,
+        "provider_receipt": {
+            "provider": "shopify",
+            "operation": "create_fulfillment",
+            "operation_id": operation_id,
+            "payload_sha256": payload_sha256,
+            "remote_id": "",
+            "shop": shop,
+        },
+        "evidence": [evidence] if evidence else [],
+    }
+
+
+def _fulfillment_uncertain(
+    *,
+    shop: str,
+    operation_id: str,
+    payload_sha256: str,
+    fulfillment_id: str,
+    fulfillment: Optional[Dict[str, Any]],
+    error_kind: str,
+    message: str,
+    verification: Dict[str, Any],
+    read_receipt: Optional[Dict[str, Any]] = None,
+    evidence: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Any]:
+    """An explicit post-dispatch fulfillment ambiguity; never success."""
+    return {
+        "status": "uncertain",
+        "success": False,
+        "action_result": "uncertain",
+        "effect_possible": True,
+        "provider": "shopify",
+        "operation": "create_fulfillment",
+        "error_kind": error_kind,
+        "error": message,
+        "retryable": False,
+        "remote_id": fulfillment_id,
+        "payload_sha256": payload_sha256,
+        "provider_receipt": {
+            "provider": "shopify",
+            "operation": "create_fulfillment",
+            "operation_id": operation_id,
+            "payload_sha256": payload_sha256,
+            "remote_id": fulfillment_id,
+            "shop": shop,
+        },
+        "read_receipt": read_receipt,
+        "verification": verification,
+        "fulfillment": fulfillment,
+        "evidence": [evidence] if evidence else [],
+    }
+
+
+def _fulfillment_applied(
+    *,
+    shop: str,
+    operation_id: str,
+    payload_sha256: str,
+    fulfillment_id: str,
+    fulfillment: Dict[str, Any],
+    read_receipt: Dict[str, Any],
+    dispatch_plan: Dict[str, Any],
+) -> Dict[str, Any]:
+    return {
+        "status": "success",
+        "success": True,
+        "action_result": "applied",
+        "provider": "shopify",
+        "operation": "create_fulfillment",
+        "remote_id": fulfillment_id,
+        "payload_sha256": payload_sha256,
+        "provider_receipt": {
+            "provider": "shopify",
+            "operation": "create_fulfillment",
+            "operation_id": operation_id,
+            "payload_sha256": payload_sha256,
+            "remote_id": fulfillment_id,
+            "shop": shop,
+        },
+        "read_receipt": read_receipt,
+        "verification": {
+            "status": "verified",
+            "missing_fields": [],
+            "mismatches": [],
+        },
+        "dispatch_plan": dispatch_plan,
+        "fulfillment": fulfillment,
+    }
+
+
+async def create_fulfillment(
+    token: str,
+    shop: str,
+    arguments: Mapping[str, Any] | None,
+    *,
+    operation_id: str = "",
+) -> Dict[str, Any]:
+    """Create one fulfillment, then bind exact id/order/dispatch readback."""
+    from fastapi import HTTPException
+
+    from integrations.shopify_service import (
+        ShopifyFulfillmentDispatchError,
+        ShopifyFulfillmentPreflightError,
+        ShopifyService,
+    )
+
+    payload = fulfillment_payload(arguments)
+    expected_material = accepted_fulfillment_material(arguments)
+    digest = _payload_digest(payload)
+    operation = str(operation_id or "")
+    service = ShopifyService()
+    meta: Dict[str, Any] = {}
+
+    try:
+        created = await service.create_fulfillment(
+            token, shop,
+            order_id=_text(payload.get("order_id")),
+            location_id=payload.get("location_id"),
+            tracking_number=payload.get("tracking_number"),
+            tracking_company=payload.get("tracking_company"),
+            notify_customer=payload.get("notify_customer"),
+            meta_out=meta,
+        )
+    except ShopifyFulfillmentPreflightError as exc:
+        return _fulfillment_failed_before_effect(
+            shop=shop,
+            operation_id=operation,
+            payload_sha256=digest,
+            error_kind=exc.error_kind,
+            message=_text(exc.detail),
+            evidence={
+                "kind": "shopify_create_fulfillment_preflight_refused",
+                "error_kind": exc.error_kind,
+            },
+        )
+    except ShopifyFulfillmentDispatchError as exc:
+        return _fulfillment_uncertain(
+            shop=shop,
+            operation_id=operation,
+            payload_sha256=digest,
+            fulfillment_id="",
+            fulfillment=None,
+            error_kind=exc.error_kind,
+            message=(
+                "Shopify fulfillment creation did not return a confirmation; "
+                f"the effect may have landed ({type(exc).__name__})"),
+            verification={
+                "status": "incomplete",
+                "missing_fields": ["transport_confirmation"],
+                "mismatches": [],
+            },
+            evidence={
+                "kind": "shopify_create_fulfillment_transport_error",
+                "error": f"{type(exc).__name__}: {str(exc.detail)[:300]}",
+            },
+        )
+    except HTTPException as exc:
+        # The service resolves fulfillment orders before it dispatches. A read
+        # failure there is pre-effect, not an ambiguous write.
+        return _fulfillment_failed_before_effect(
+            shop=shop,
+            operation_id=operation,
+            payload_sha256=digest,
+            error_kind="preflight_read_failed",
+            message=(
+                "Shopify could not resolve the order's fulfillment orders "
+                f"before dispatch ({type(exc).__name__})"),
+            evidence={
+                "kind": "shopify_create_fulfillment_preflight_read_error",
+                "error": f"{type(exc).__name__}: {str(exc.detail)[:300]}",
+            },
+        )
+    except Exception as exc:  # noqa: BLE001 - provider may have applied it
+        return _fulfillment_uncertain(
+            shop=shop,
+            operation_id=operation,
+            payload_sha256=digest,
+            fulfillment_id="",
+            fulfillment=None,
+            error_kind="provider_error",
+            message=(
+                "Shopify fulfillment creation did not return a confirmation; "
+                f"the effect may have landed ({type(exc).__name__})"),
+            verification={
+                "status": "incomplete",
+                "missing_fields": ["transport_confirmation"],
+                "mismatches": [],
+            },
+            evidence={
+                "kind": "shopify_create_fulfillment_transport_error",
+                "error": f"{type(exc).__name__}: {str(exc)[:300]}",
+            },
+        )
+
+    created = created if isinstance(created, dict) else {}
+    fulfillment_id = str(created.get("id") or "").strip()
+    if not fulfillment_id:
+        return _fulfillment_uncertain(
+            shop=shop,
+            operation_id=operation,
+            payload_sha256=digest,
+            fulfillment_id="",
+            fulfillment=created or None,
+            error_kind="unidentified_effect",
+            message=(
+                "Shopify accepted the fulfillment create request but returned "
+                "no fulfillment id; the effect cannot be identified and is not "
+                "safe to recreate"),
+            verification={
+                "status": "incomplete",
+                "missing_fields": ["remote_id"],
+                "mismatches": [],
+            },
+            evidence={
+                "kind": "shopify_create_fulfillment_missing_id",
+                "returned_keys": sorted(created)[:20],
+            },
+        )
+
+    dispatch_plan = fulfillment_dispatch_plan(
+        meta.get("fulfillment_orders") or [],
+        meta.get("location_id") or "",
+    )
+    try:
+        observed = await service.get_fulfillment(
+            token, shop, expected_material.get("order_id") or "",
+            fulfillment_id)
+    except Exception as exc:  # noqa: BLE001 - absent readback is not success
+        return _fulfillment_uncertain(
+            shop=shop,
+            operation_id=operation,
+            payload_sha256=digest,
+            fulfillment_id=fulfillment_id,
+            fulfillment=created,
+            error_kind="readback_unavailable",
+            message=(
+                "Shopify fulfillment was created but the exact resource could "
+                f"not be read back ({type(exc).__name__})"),
+            verification={
+                "status": "incomplete",
+                "missing_fields": ["readback"],
+                "mismatches": [],
+            },
+            evidence={
+                "kind": "shopify_create_fulfillment_readback_unavailable",
+                "remote_id": fulfillment_id,
+                "error": f"{type(exc).__name__}: {str(exc)[:300]}",
+            },
+        )
+
+    observed = observed if isinstance(observed, dict) else {}
+    unknown_association = False
+    try:
+        linked_fulfillment_order_ids = await authoritative_fulfillment_order_ids(
+            service, token, shop,
+            dispatch_plan.get("fulfillment_order_ids") or [],
+            fulfillment_id)
+    except Exception as exc:  # noqa: BLE001 - association is proof input
+        linked_fulfillment_order_ids = []
+        unknown_association = True
+        association_error = f"{type(exc).__name__}: {str(exc)[:300]}"
+    observed_material = observed_fulfillment_material(
+        observed,
+        fulfillment_order_ids=linked_fulfillment_order_ids,
+    )
+    observed_id = str(observed.get("id") or "").strip()
+    mismatches = material_mismatches(
+        expected_material, observed_material)
+    mismatches.extend(fulfillment_plan_mismatches(
+        dispatch_plan, observed_material))
+    status_issue = fulfillment_status_issue(observed)
+    if status_issue:
+        mismatches.append("status")
+    if observed_id != fulfillment_id:
+        mismatches.append("remote_id")
+    read_receipt = {
+        "provider": "shopify",
+        "operation": "get_fulfillment",
+        "resource_id": observed_id,
+        "requested_remote_id": fulfillment_id,
+        "observed_remote_id": observed_id,
+        "coverage": "single",
+        "account_id": shop,
+        "shop": shop,
+        "parent_order_id": expected_material.get("order_id") or "",
+        "fields": observed_material,
+    }
+    if mismatches:
+        missing_fields = (
+            ["fulfillment_order_association"] if unknown_association
+            else ["status"] if status_issue and len(mismatches) == 1
+            else [])
+        evidence = {
+            "kind": "shopify_create_fulfillment_readback_mismatch",
+            "remote_id": fulfillment_id,
+            "observed_remote_id": observed_id,
+            "mismatches": mismatches,
+        }
+        if status_issue:
+            evidence["status_issue"] = status_issue
+        if unknown_association:
+            evidence["association_error"] = association_error
+        return _fulfillment_uncertain(
+            shop=shop,
+            operation_id=operation,
+            payload_sha256=digest,
+            fulfillment_id=fulfillment_id,
+            fulfillment=observed or created,
+            error_kind="readback_mismatch",
+            message=(
+                "The Shopify fulfillment readback did not match the "
+                "authorized/dispatched material: " + ", ".join(mismatches)
+                + (f" ({status_issue})" if status_issue else "")),
+            verification={
+                "status": "mismatch",
+                "missing_fields": missing_fields,
+                "mismatches": mismatches,
+            },
+            read_receipt=read_receipt,
+            evidence=evidence,
+        )
+
+    return _fulfillment_applied(
+        shop=shop,
+        operation_id=operation,
+        payload_sha256=digest,
+        fulfillment_id=fulfillment_id,
+        fulfillment=observed or created,
+        read_receipt=read_receipt,
+        dispatch_plan=dispatch_plan,
     )

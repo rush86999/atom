@@ -1,0 +1,24 @@
+{
+  "credentials_used": false,
+  "files": {
+    "backend/core/oracle/postcondition_verifiers.py": "148aae4d64572d58707875c75c2923e40e96ce8d295b4800c498d73e964c805e",
+    "backend/core/shopify_mutations.py": "c604bfcd09324a7471034d720e893f28ffba6d9e2fe38134fa2b532dc028f540",
+    "backend/integrations/shopify_service.py": "70de4a018819292b16db67e119db81f66105f164c07dea255550620cc1dbbff1",
+    "backend/tests/test_lead_shopify_fulfillment_rest_shape.py": "aa3cb7ff7d4da077d4f99c6630bc17464f2e91886d744b0a9ca3e9ba42bf3370",
+    "backend/tests/test_oracle_shopify_fulfillment_create.py": "3f2a31d3a73d5a255ca65e97facf88bb4c5c3201fbf26265d648b6cc3b25e19b",
+    "backend/tests/test_shopify_fulfillment_actions.py": "7cc38a3804c98d5a634743b3974ca4e2050ab04a14e9b7ec1146c0e1c8aa80c9"
+  },
+  "generated_utc": "2026-11-07T16:46:39.989371+00:00",
+  "head": "c5dbcb68ec0b4482b462472ce280ab6ee76a8326",
+  "head_subject": "fix(shopify): bind fulfillment proof to official REST shapes",
+  "http_leaf_only_doubled": true,
+  "live_calls": false,
+  "python": "3.14.7 (main, Sep  1 2026, 14:05:28) [Clang 22.1.3 ]",
+  "python_executable": "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+  "status_porcelain": [
+    "?? FULFILLMENT_LEAD_REPAIR.md",
+    "?? docs/acceptance/evidence/shopify_fulfillment_lead_repair_20261107/",
+    "?? opencode.jsonc"
+  ],
+  "testing": "1"
+}

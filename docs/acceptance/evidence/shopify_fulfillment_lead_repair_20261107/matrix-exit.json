@@ -1,0 +1,10 @@
+{
+  "expected_failure_first_exit": 1,
+  "overall_exit": 0,
+  "phases": {
+    "callers": 0,
+    "failure-first": 1,
+    "valid": 0
+  },
+  "valid_and_callers_exit": 0
+}

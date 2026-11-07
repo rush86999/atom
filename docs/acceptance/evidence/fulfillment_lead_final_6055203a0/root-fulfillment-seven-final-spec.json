@@ -1,0 +1,15 @@
+{
+  "source": "6055203a00a1a25af2f8d7be84e5d9c2f4054925",
+  "scratch": "/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-fulfillment-seven-final-4q18c0fy",
+  "command": [
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "tests/test_lead_shopify_fulfillment_rest_shape.py",
+    "-q",
+    "--tb=short",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-fulfillment-seven-final-4q18c0fy/pytest"
+  ]
+}
