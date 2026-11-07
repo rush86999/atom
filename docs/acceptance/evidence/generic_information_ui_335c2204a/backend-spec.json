@@ -1,0 +1,22 @@
+{
+  "executed_source": "335c2204a4774c9c6d0cd5b4c776947c14b9d5f3",
+  "native_source": "42283c35e",
+  "scratch": "/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-ui-readback-integrated-4pml8jgi",
+  "command": [
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "tests/test_agent_job_readback.py",
+    "tests/test_agent_read_scope_contract.py",
+    "tests/test_agent_generic_information_wait.py",
+    "tests/test_agent_run_admission_contract.py",
+    "tests/test_agent_routes_coverage.py",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-ui-readback-integrated-4pml8jgi/pytest",
+    "--junitxml=/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-ui-readback-integrated-4pml8jgi/result.xml",
+    "-q",
+    "--tb=short"
+  ],
+  "scope": "real public exact-job readback and neighboring privacy/admission/Generic controls; high-level reasoning/auth controlled; no browser or provider"
+}

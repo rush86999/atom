@@ -1,0 +1,7 @@
+# Exact admitted-job information question UI
+
+Native42283c35e is integrated on main980ba6e7f as335c2204a, retaining the merged personal-scope import. Independent frozen-source gates pass113 backend controls,13 component/job-reference controls and tsc --noEmit (all actual exits0). Jest uses the unchanged normal configuration and both shared setup hooks; the existing Intel Node25.2.1 matches cached native dependencies. Hosted CI remains separate qualification.
+
+The Agents page retains an opaque actor/agent job locator, reads the exact authorized server job, shows its current targeted question, sends the exact correlation answer and follows second questions or durable completion. Reload rehydrates server state. Stale/cancelled/uncertain states do not auto-resend; an unavailable question is not invented as a durable failed job. Readback rechecks active authoritative principal and admission/execution scope, and excludes private claim/resume material.
+
+Backend public routes, durable scratch records and Generic/registry effects are real; high-level reasoning/auth choices are controlled. Frontend tests use controlled fetch. This is not ordinary-login/browser acceptance, served-model judgment, full app lifespan, general adaptive judgment or full TASK-WAIT-01. The independently confirmed accepted-answer recovery actor-reassignment defect remains Agent1's active repair. No live provider/account/credential/send/spend/download/deployment action occurred. Root owns the subsequent frozen ordinary-browser journey and final acceptance.

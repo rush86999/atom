@@ -1,0 +1,11 @@
+{
+  "executed_source": "850d4bd9d18a9b22eb88e06a6f6768841b0557ac",
+  "source_files": {
+    "frontend-nextjs/tests/pages/agents-index.test.tsx": "982d9a0e54e9dcf21e3806e2c4336207f594b537ab1241641f17087718e240bf"
+  },
+  "artifacts": {
+    "jest.log": "ff23db254c406da91677af8e959825993a5738ce3d3fae551dfeac67a1c3368a",
+    "README.md": "37792956d6b850bf91c090925d1bd834fed484a6cabbab3c751deba50716d483",
+    "verification.json": "5eca2f6aead78b0c8424aaa7a5fe016a24331d797b7d384f8fce81f01d374211"
+  }
+}

@@ -1,0 +1,23 @@
+{
+  "executed_source": "8202c017328d67c9e87bd45dfcb1cbe798957e9b",
+  "source_files": {
+    "backend/api/agent_routes.py": "0b19e8f89b0e757e6659a73e4cc3e4f73b3052aa5b3bc6d514c6c61a0c530bad",
+    "backend/tests/test_agent_job_readback.py": "df30b4a31faf1dc50316eeb34aa212cdaf356f8674bdd73eb7b43100c6094270",
+    "backend/tests/test_lead_job_readback_material_scope.py": "1bd023ccb49359e40a0c8ef0e918a63197289ffaafa0910ed19ae0f94d8ce969",
+    "frontend-nextjs/tests/mocks/handlers.ts": "b949f99ef571f5cd6d2a4afe39f06bfa1652374527938a8af931aef18244367b",
+    "frontend-nextjs/components/Agents/AgentJobWaitPanel.tsx": "faacc60ecdab9d1e1058dbf585cca6e35e87ab033c0162e5d4178d8d9f3e8bea",
+    "frontend-nextjs/tests/pages/agents-index.test.tsx": "982d9a0e54e9dcf21e3806e2c4336207f594b537ab1241641f17087718e240bf"
+  },
+  "artifacts": {
+    "backend.log": "ff76e76e554d7bafd2e94ea0eba7a1aea31ad7804c035fe7aae6947e4379ccc8",
+    "jest.log": "6d3380c3b1e30108940d53f7436721bdd7c6c513ad66d4312eba938fab332dca",
+    "negative-exit.json": "a7be15bb444313041ca71ec32ff8441dd00e07c2d2831b59017e68bd21a69dda",
+    "handlers-neighborhood.log": "6cc3f882ba86a5658de2780b666e1dc5470e689f1ecfb406651662f16d12d2c3",
+    "negative.log": "97e7214765588c81b35ee3a256da877a305fca2039e2e001a9896c3a7e226c26",
+    "README.md": "b5a494a21f5799e092309316a25e88712283d9da1775d81972d85c753a101d41",
+    "backend-spec.json": "54187a75d19e291c27f6a141035216952bd5c65b425163cb306c55953992834a",
+    "verification.json": "9a0a778f99c2f020d314dd049f70e364206ac47bd91560019469c69fdab3b5be",
+    "backend-exit.json": "98786e9bf1c92169749dc597a0edb6a805b5e5d93f3f6f20633ad86038f4861e",
+    "tsc.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+  }
+}

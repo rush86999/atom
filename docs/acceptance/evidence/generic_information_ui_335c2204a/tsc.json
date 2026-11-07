@@ -1,0 +1,13 @@
+{
+  "executed_source": "335c2204a4774c9c6d0cd5b4c776947c14b9d5f3",
+  "command": [
+    "/usr/local/bin/node",
+    "node_modules/typescript/bin/tsc",
+    "--noEmit",
+    "--incremental",
+    "false"
+  ],
+  "actual_exit": 0,
+  "node_version_arch": "{\"version\":\"v25.2.1\",\"arch\":\"x64\"}",
+  "scope": "frozen component/job-ref tests and whole frontend types; normal shared setup intact; no browser"
+}

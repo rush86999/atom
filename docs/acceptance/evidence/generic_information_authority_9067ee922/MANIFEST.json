@@ -1,0 +1,22 @@
+{
+  "executed_source": "9067ee9224e819e054992bc7bc5453ad9b1dbfb0",
+  "source_files": {
+    "backend/api/agent_routes.py": "880ffde510efe50a0cd85adf5929f71e0bb6fbfb801fcc1dd83bbcda5ab8f0d1",
+    "backend/core/information_wait.py": "42d0baf59a90f8fe19fb99acefecf1d2a8f39f58e19695f8eb7db80626ef17a8",
+    "backend/core/personal_scope.py": "fb475dcd302845a2d3fb8ed50da1acd2849f0103fa403a395393d4b52d1e21b3",
+    "backend/core/rbac_service.py": "e9720e01d41d77cb3c1516052c8f24cad754b53be2a2aac2b559cb56d6651d29",
+    "backend/tests/test_generic_information_wait_recovery_authority.py": "e08401c57872c6950c303b1d36eda096cba4aab93a9a1792804f7ed240f5f477",
+    "backend/tests/test_lead_recovery_personal_authority.py": "91598677cfe42bc0245b56a6711f1e981b6a4de8dc4991607bdd6ac67dac1f57"
+  },
+  "artifacts": {
+    "spec.json": "903e5d4be27dd8a2e009b43d0a03d3046de3b36015693b6080582e6a335eb56f",
+    "exit.json": "a97aac83787869ddead3b8bf2ad606543dd16058cac5ddd79dc6ea96a5481a03",
+    "backend.log": "ff3e382c4bc734c8c1bcc18fddb80d15f0a2fc72e347675d534dc6d7b1609b03",
+    "personal-negative-exit.json": "3c34fe905903736788d16dc76742cfcc26eb060d495facdb39021b3eb0799e68",
+    "personal-negative.log": "70672803b2b94f293e16c80012e9263ff5929e247e5c8c420c4b442ff0680fee",
+    "actor-negative-exit.json": "07cf7fe7d9f2c40b536e4b0e55f687907c0cd7dd9dd35f7053b88173262984a0",
+    "README.md": "682739c5f0137fc7c5c105b2a6b3a4b1707e891f8000a89baa93a72eb5addf22",
+    "actor-negative.log": "059406050b8298a43e0e6e32b28a6bef13b14413ef67b8814fd06a33d285b026",
+    "verification.json": "ad9700299f0bbdf49fcfa98775aae0acf099611b7402beb5e9f757fc1775c3e0"
+  }
+}

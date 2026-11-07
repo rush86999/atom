@@ -1,0 +1,86 @@
+PASS components/Agents/__tests__/AgentLaunchGuide.test.tsx
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS components/Agents/__tests__/MaturityApprovalPanel.test.tsx
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+PASS components/Agents/__tests__/GuidedAgentCreator.test.tsx
+  ● Console
+
+    console.log
+      MSW server detected - fetch will be intercepted by MSW
+
+      at Object.<anonymous> (tests/setup.ts:92:13)
+
+    console.error
+      Warning: An update to GuidedAgentCreator inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at GuidedAgentCreator (/private/tmp/atom-source-trigger-lead-review/frontend-nextjs/components/Agents/GuidedAgentCreator.tsx:34:42)
+
+      49 |     setSuggestionsLoading(true);
+      50 |     getAutomationSuggestions(3)
+    > 51 |       .then((res) => setSuggestions(res?.suggestions ?? []))
+         |                      ^
+      52 |       .catch(() => setSuggestions([])) // inspiration is optional — never block creation
+      53 |       .finally(() => setSuggestionsLoading(false));
+      54 |   }, [open, suggestions.length, suggestionsLoading]);
+
+      at printWarning (../../atom-agent4-acctret/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../../atom-agent4-acctret/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../../atom-agent4-acctret/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../../atom-agent4-acctret/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (../../atom-agent4-acctret/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at components/Agents/GuidedAgentCreator.tsx:51:22
+
+    console.error
+      Warning: An update to GuidedAgentCreator inside a test was not wrapped in act(...).
+      
+      When testing, code that causes React state updates should be wrapped into act(...):
+      
+      act(() => {
+        /* fire events that update state */
+      });
+      /* assert on the output */
+      
+      This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+          at GuidedAgentCreator (/private/tmp/atom-source-trigger-lead-review/frontend-nextjs/components/Agents/GuidedAgentCreator.tsx:34:42)
+
+      51 |       .then((res) => setSuggestions(res?.suggestions ?? []))
+      52 |       .catch(() => setSuggestions([])) // inspiration is optional — never block creation
+    > 53 |       .finally(() => setSuggestionsLoading(false));
+         |                      ^
+      54 |   }, [open, suggestions.length, suggestionsLoading]);
+      55 |
+      56 |   const reset = useCallback(() => {
+
+      at printWarning (../../atom-agent4-acctret/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:86:30)
+      at error (../../atom-agent4-acctret/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:60:7)
+      at warnIfUpdatesNotWrappedWithActDEV (../../atom-agent4-acctret/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+      at scheduleUpdateOnFiber (../../atom-agent4-acctret/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+      at dispatchSetState (../../atom-agent4-acctret/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+      at components/Agents/GuidedAgentCreator.tsx:53:22
+
+
+Test Suites: 3 passed, 3 total
+Tests:       23 passed, 23 total
+Snapshots:   0 total
+Time:        3.313 s
+Ran all test suites within paths "components/Agents/__tests__/AgentLaunchGuide.test.tsx", "components/Agents/__tests__/GuidedAgentCreator.test.tsx", "components/Agents/__tests__/MaturityApprovalPanel.test.tsx".
