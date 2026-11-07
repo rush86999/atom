@@ -19,7 +19,8 @@ app + one audit row, but the observation was `success=false`,
 The probe was then run against the fixed head: **2 passed**. The copy used for
 the final run differs from the supplied probe only in its scratch output path
 (so the root's historical captures are not overwritten); its test body and
-assertions are byte-identical.
+assertions are byte-identical. The supplied probe is retained byte-for-byte at
+`probe/test_lead_generic_mini_request_binding.py`.
 
 ## Fix under test
 

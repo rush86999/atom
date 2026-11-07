@@ -9,10 +9,11 @@
     "backend/tests/test_generic_request_expectations.py": "c4f9da24100f52de0fff66f94dc65d99967f43f2"
   },
   "artifacts": {
-    "docs/acceptance/evidence/generic_request_binding_20261107/README.md": "2b7c9e6486dcbbb356d41722ffa7016eaffa7be3",
+    "docs/acceptance/evidence/generic_request_binding_20261107/README.md": "c24256d641723ff6e5fcacb9236d2b7459b280dc",
     "docs/acceptance/evidence/generic_request_binding_20261107/final-gate.log": "e6736d82df7141ea52f55fd00adae42ed0ff496d",
     "docs/acceptance/evidence/generic_request_binding_20261107/known-preexisting-failure.log": "a63f0c2a992880ea64e9594ccdedbb371955a6d7",
-    "docs/acceptance/evidence/generic_request_binding_20261107/run-spec.json": "f95946e170955f677aabee30fa565b58efc0f967"
+    "docs/acceptance/evidence/generic_request_binding_20261107/run-spec.json": "f95946e170955f677aabee30fa565b58efc0f967",
+    "docs/acceptance/evidence/generic_request_binding_20261107/probe/test_lead_generic_mini_request_binding.py": "02cb78a1854d4bf21e669bfa6d245beac438dbd2"
   },
   "result": {
     "final_gate_passed": 271,
