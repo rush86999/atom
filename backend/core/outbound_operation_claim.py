@@ -117,6 +117,7 @@ def _row_dict(row) -> Dict[str, Any]:
         "operation_id": row.operation_id,
         "operation_type": row.operation_type,
         "status": row.status,
+        "result_json": row.result_json,
     }
 
 
@@ -287,6 +288,7 @@ def mark_status(
     *,
     expected_status: Optional[Any] = None,
     expected_payload_sha256: Optional[str] = None,
+    result: Optional[Any] = None,
     db_factory=None,
 ) -> bool:
     """Persist a claim status transition. Never raises.
@@ -298,6 +300,13 @@ def mark_status(
     cannot overwrite it. The ORM identity map is expired before commit and the
     UPDATE uses ``synchronize_session=False`` so no dirty-flush path can bypass
     the condition.
+
+    ``result`` is the durable result/receipt for a confirmed effect. It is
+    written in the SAME conditional UPDATE as ``status`` so a succeeded claim
+    can never exist without the identity a replay needs, and a peer's result
+    can never be replaced by a stale writer. Passing ``None`` leaves any
+    existing receipt untouched (an ambiguous/lost confirmation is never
+    silently "rolled back" by a status write).
 
     Existing callers that pass no expectation keep the historical
     unconditional primary-key update; that path is NOT a CAS.
@@ -326,17 +335,22 @@ def mark_status(
                     row.payload_sha256 if expected_payload_sha256 is None
                     else expected_payload_sha256)
                 db.expire_all()
+                values = {"status": status}
+                if result is not None:
+                    values["result_json"] = result
                 stmt = update(TaskOperationRecord).where(
                     TaskOperationRecord.id == record_id,
                     TaskOperationRecord.status.in_(allowed),
                     TaskOperationRecord.payload_sha256 == payload_hash,
-                ).values(status=status).execution_options(
+                ).values(**values).execution_options(
                     synchronize_session=False)
-                result = db.execute(stmt)
+                updated = db.execute(stmt)
                 db.expire_all()
                 db.commit()
-                return int(result.rowcount or 0) == 1
+                return int(updated.rowcount or 0) == 1
             row.status = status
+            if result is not None:
+                row.result_json = result
             db.commit()
             return True
     except Exception as exc:  # noqa: BLE001

@@ -2239,7 +2239,7 @@ What is your next step?"""
 
     def _mark_claim_status(
         self, claim: Optional[Dict], status: str,
-        expected_status: Any = None,
+        expected_status: Any = None, result: Any = None,
     ) -> bool:
         if not claim or not claim.get("won") or not claim.get("record_id"):
             return False
@@ -2248,8 +2248,71 @@ What is your next step?"""
         return claims.mark_status(
             claim["record_id"], status,
             expected_status=expected_status,
+            result=result,
             db_factory=get_db_session,
         )
+
+    @staticmethod
+    def _durable_effect_result(
+        tool_name: str, result: Any, expected: Dict,
+    ) -> Optional[Dict]:
+        """Build the compact durable result/receipt for a confirmed effect.
+
+        The receipt retains the exact provider resource identity (remote id,
+        provider/store, readback) and the authorized material frozen before
+        dispatch.  A later replay can therefore re-read THIS resource instead
+        of guessing from a title.  Values are JSON-round-tripped so an
+        unserializable observation fails closed (no receipt) rather than being
+        written lossily.
+        """
+        if not isinstance(result, dict):
+            return None
+        expected = expected or {}
+        provider_receipt = result.get("provider_receipt")
+        provider_receipt = (
+            provider_receipt if isinstance(provider_receipt, dict) else {})
+        read_receipt = result.get("read_receipt")
+        read_receipt = read_receipt if isinstance(read_receipt, dict) else {}
+        verification = result.get("verification")
+        verification = verification if isinstance(verification, dict) else {}
+        authorized_material = expected.get("_oracle_expected_shopify_product")
+        store = str(provider_receipt.get("shop") or "").strip()
+        if not store:
+            store = str(
+                read_receipt.get("account_id")
+                or read_receipt.get("shop") or "").strip()
+        receipt = {
+            "durable_result_version": 1,
+            "action": str(tool_name or ""),
+            "operation_id": str(
+                expected.get("_oracle_expected_operation_id")
+                or result.get("operation_id") or ""),
+            "payload_sha256": str(result.get("payload_sha256") or ""),
+            "provider": str(result.get("provider") or ""),
+            "operation": str(result.get("operation") or ""),
+            "action_result": str(
+                result.get("action_result") or "applied"),
+            "status": "success",
+            "success": True,
+            "remote_id": str(result.get("remote_id") or "").strip(),
+            "store": store,
+            "workspace_id": str(
+                expected.get("_oracle_expected_workspace_id") or ""),
+            "tenant_id": str(
+                expected.get("_oracle_expected_tenant_id") or ""),
+            "provider_receipt": provider_receipt,
+            "read_receipt": read_receipt,
+            "verification": verification,
+            "authorized_material": (
+                copy.deepcopy(authorized_material)
+                if isinstance(authorized_material, dict) else None),
+            "oracle_verified": bool(result.get("oracle_verified")),
+            "oracle_evidence": str(result.get("oracle_evidence") or ""),
+        }
+        try:
+            return json.loads(json.dumps(receipt, default=str))
+        except Exception:  # noqa: BLE001 - no receipt is honest uncertainty
+            return None
 
     async def _claim_replay_result(
         self, tool_name: str, authorized: Dict, expected: Dict,
@@ -2258,9 +2321,10 @@ What is your next step?"""
         """Return the durable state for an already-claimed operation.
 
         No second dispatch is possible from here. A confirmed operation is
-        replayed only after a *current* independent readback when the verifier
-        can run from frozen material; otherwise the durable confirmation is
-        reported as an idempotent duplicate without a fabricated new effect.
+        replayed from the exact provider identity stored with its durable
+        result/receipt and re-read through the current independent verifier;
+        a claim without that identity can only be reported honestly as
+        ``committed_unverified`` (never fabricated from a title or resent).
         """
         from core import outbound_operation_claim as claims
 
@@ -2269,48 +2333,117 @@ What is your next step?"""
             (expected or {}).get("_oracle_expected_operation_id")
             or claim.get("operation_id") or "")
         if status == claims.SUCCEEDED:
+            def _committed_unverified(evidence: str) -> Dict:
+                self._record_uncertain_operation(
+                    context, tool_name, operation_id, evidence)
+                return {
+                    "success": False,
+                    "status": "committed_unverified",
+                    "action_result": "already_applied_unverified",
+                    "business_success": False,
+                    "effect_state": "unknown",
+                    "replayed": True,
+                    "idempotent": True,
+                    "committed": True,
+                    "operation_id": operation_id,
+                    "oracle_verified": False,
+                    "oracle_evidence": evidence,
+                    "requires_reconciliation": True,
+                    "retryable": False,
+                    "message": (
+                        "This logical operation was previously committed, but "
+                        "the exact resource/store/material could not be "
+                        "confirmed. It was not dispatched again; reconcile the "
+                        "committed effect before dependent work."),
+                }
+
+            # A succeeded claim is replayable only from the EXACT provider
+            # identity persisted with that success.  Without it, no title
+            # lookup or "looks similar" object is proof: the honest state is
+            # committed_unverified and no resend.
+            durable_result = claim.get("result_json")
+            if not isinstance(durable_result, dict) or not durable_result:
+                # Legacy claims (and non-identity verifiers) may still prove
+                # the original effect from frozen material alone.  Preserve
+                # that path; a verifier that needs a remote identity honestly
+                # fails here instead of guessing from a title.
+                legacy_checked = await self._oracle_check(
+                    tool_name, authorized, {}, mutating=True,
+                    expected=expected, context=context)
+                if isinstance(legacy_checked, dict) and legacy_checked.get(
+                        "oracle_verified") is True:
+                    return {
+                        "success": True,
+                        "status": "success",
+                        "action_result": "applied",
+                        "replayed": True,
+                        "idempotent": True,
+                        "operation_id": operation_id,
+                        "oracle_verified": True,
+                        "oracle_evidence": legacy_checked.get("oracle_evidence"),
+                        "message": (
+                            "This logical operation was already applied and "
+                            "independently re-read back; no second dispatch."),
+                    }
+                return _committed_unverified(
+                    "durable claim is succeeded but carries no provider "
+                    "identity receipt; the exact resource cannot be re-read")
+            expected_material = (expected or {}).get(
+                "_oracle_expected_shopify_product")
+            stored_material = durable_result.get("authorized_material")
+            if isinstance(expected_material, dict) and expected_material:
+                if not isinstance(stored_material, dict) or not stored_material:
+                    return _committed_unverified(
+                        "durable receipt carries no authorized material")
+                from core.shopify_mutations import material_mismatches
+
+                material_conflicts = material_mismatches(
+                    expected_material, stored_material)
+                if material_conflicts:
+                    return _committed_unverified(
+                        "durable receipt authorized material does not match "
+                        "this operation: " + ", ".join(material_conflicts))
+            # Re-run the independent verifier against the stored identity.  It
+            # re-reads the exact remote id from the CURRENT workspace store and
+            # compares the authorized material; the stored receipt is proof
+            # input, never its own verdict.
             checked = await self._oracle_check(
-                tool_name, authorized, {}, mutating=True,
+                tool_name, authorized, durable_result, mutating=True,
                 expected=expected, context=context)
             if isinstance(checked, dict) and checked.get("oracle_verified") is True:
                 return {
                     "success": True,
                     "status": "success",
-                    "action_result": "applied",
+                    "action_result": "already_applied",
+                    "already_applied": True,
+                    "verified": True,
+                    "business_success": True,
+                    "effect_state": "applied",
                     "replayed": True,
                     "idempotent": True,
+                    "committed": True,
                     "operation_id": operation_id,
+                    "remote_id": str(durable_result.get("remote_id") or ""),
+                    "provider": durable_result.get("provider"),
+                    "operation": durable_result.get("operation"),
+                    "payload_sha256": durable_result.get("payload_sha256"),
+                    "provider_receipt": durable_result.get("provider_receipt"),
+                    "read_receipt": durable_result.get("read_receipt"),
+                    "verification": durable_result.get("verification"),
                     "oracle_verified": True,
                     "oracle_evidence": checked.get("oracle_evidence"),
+                    "requires_reconciliation": False,
+                    "retryable": False,
                     "message": (
-                        "This logical operation was already applied and "
-                        "independently re-read back; no second dispatch."),
+                        "This logical operation was already applied; the exact "
+                        "resource was independently re-read from the current "
+                        "store and matches the authorized material. No second "
+                        "dispatch."),
                 }
-            evidence = (
-                "durable claim is succeeded; the fresh independent readback "
-                "did not reconfirm the effect")
-            self._record_uncertain_operation(
-                context, tool_name, operation_id, evidence)
-            return {
-                "success": False,
-                "status": "committed_unverified",
-                "action_result": "already_applied_unverified",
-                "business_success": False,
-                "effect_state": "unknown",
-                "replayed": True,
-                "idempotent": True,
-                "committed": True,
-                "operation_id": operation_id,
-                "oracle_verified": False,
-                "oracle_evidence": evidence,
-                "requires_reconciliation": True,
-                "retryable": False,
-                "message": (
-                    "This logical operation was previously committed, but a "
-                    "fresh independent readback did not confirm it. It was not "
-                    "dispatched again; reconcile the committed effect before "
-                    "dependent work."),
-            }
+            return _committed_unverified(
+                "durable claim is succeeded, but the fresh exact-resource "
+                "readback did not reconfirm it: "
+                + str(checked.get("oracle_evidence") or ""))
         if status in (claims.DISPATCHING, claims.UNCERTAIN_EFFECT):
             # Reconciliation, not resend: re-derive the postcondition from the
             # frozen authorized request + server-owned scope.  When a current
@@ -2874,9 +3007,49 @@ What is your next step?"""
                     expected_status=claims.DISPATCHING)
             elif isinstance(checked, dict) and checked.get(
                     "oracle_verified") is True:
-                self._mark_claim_status(
-                    claim, claims.SUCCEEDED,
-                    expected_status=claims.DISPATCHING)
+                # Persist the exact provider identity/material in the SAME
+                # conditional transition as success.  A succeeded claim without
+                # this receipt could never be reconciled later; a receipt that
+                # cannot be committed leaves the effect uncertain (never rolled
+                # back and never eligible for a silent resend).
+                durable_result = self._durable_effect_result(
+                    tool_name, checked, expected)
+                committed = False
+                if durable_result is not None:
+                    committed = self._mark_claim_status(
+                        claim, claims.SUCCEEDED,
+                        expected_status=claims.DISPATCHING,
+                        result=durable_result)
+                if not committed:
+                    self._mark_claim_status(
+                        claim, claims.UNCERTAIN_EFFECT,
+                        expected_status=claims.DISPATCHING)
+                    evidence = (
+                        "the provider effect was independently verified, but "
+                        "its exact durable identity receipt could not be "
+                        "committed; the effect is not rolled back and must not "
+                        "be retried")
+                    self._record_uncertain_operation(
+                        context, tool_name, operation_id, evidence)
+                    downgraded = dict(final) if isinstance(final, dict) else {}
+                    downgraded.update({
+                        "success": False,
+                        "business_success": False,
+                        "status": "uncertain",
+                        "action_result": "uncertain",
+                        "effect_state": "unknown",
+                        "committed": False,
+                        "durable_claim": False,
+                        "identity_receipt_persisted": False,
+                        "requires_reconciliation": True,
+                        "retryable": False,
+                        "message": (
+                            "The effect was independently verified, but its "
+                            "exact provider identity receipt could not be "
+                            "committed. It is not rolled back: do NOT retry or "
+                            "resend; reconcile the original operation."),
+                    })
+                    return downgraded
             else:
                 # The effect may have landed; the claim is terminal for
                 # automatic resend until a human/readback reconciles it.

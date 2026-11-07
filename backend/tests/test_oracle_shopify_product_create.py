@@ -546,7 +546,10 @@ def test_same_operation_same_material_has_one_effect(env, monkeypatch):
     assert second.get("replayed") is True, second
     assert second.get("idempotent") is True, second
     assert second.get("operation_id") == operation_id, second
-    assert second["success"] is not True, second
+    assert second["success"] is True, second
+    assert second["action_result"] == "already_applied", second
+    assert second["remote_id"] == "500", second
+    assert second["oracle_verified"] is True, second
     assert _claim_row(env, operation_id)[0] == "succeeded"
 
 
