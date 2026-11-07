@@ -284,3 +284,7 @@ to avoid duplicate build/startup work. Their **packets must remain separate**:
 this driver still requires its own fresh `goal_utility_ui_` world marker and
 does not reuse, mutate or certify the source-answer world, job, HITL row,
 source upload, model request or evidence.
+
+## Root launch follow-through
+
+The first launch refused before world creation because the sparse capture checkout lacked the verified canonical worlds symlink. The next launch exposed missing local synthetic launcher fixtures/output directory, not product code. The third reached exact-source backend/frontend and a verified public goal create; its harness incorrectly required non-NULL raw bootstrap workspace. Supported bootstrap users have raw NULL scope; the harness now binds public identity to its exact scratch SQL actor and uses existing personal_scope resolvers, then compares the effective workspace to the durable goal. No production role/scope or goal state is changed. Original failed captures are retained separately. Launcher fixture55 hashes were checked against the existing local synthetic fixtures. Each new attempt uses a fresh world, never rewrites a prior world or bypasses storage safety.

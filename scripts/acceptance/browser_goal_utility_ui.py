@@ -410,17 +410,44 @@ def _frontend_export_proof(world: Path) -> Dict[str, Any]:
 def _durable_goal(db_path: Path, goal_id: str) -> Dict[str, Any]:
     rows = D3._db_rows(
         db_path,
-        "SELECT status, progress, metadata_json FROM goal_objectives WHERE id=?",
+        "SELECT status, progress, metadata_json, workspace_id FROM goal_objectives WHERE id=?",
         (goal_id,))
     if not rows:
         return {"found": False}
     metadata = D3._json_column(rows[0][2])
     return {
         "found": True,
+        "workspace_id": rows[0][3],
         "status": rows[0][0],
         "progress": rows[0][1],
         "utility_target": metadata.get("utility_target"),
     }
+
+
+def _actor_scope(db_path: Path, public_user: Dict[str, Any]) -> Dict[str, Any]:
+    """Bind public identity to the scratch SQL actor, then use Personal scope.
+
+    Bootstrap NULL scope is supported production behavior, not missing
+    authority. The public /auth/me endpoint omits tenant_id, so never invent
+    it from a response field that is not part of that endpoint's contract.
+    """
+    from types import SimpleNamespace
+    from core.personal_scope import resolve_tenant_id, resolve_workspace_id
+
+    user_id = str(public_user.get("id") or "")
+    rows = D3._db_rows(db_path,
+        "SELECT id, workspace_id, tenant_id FROM users WHERE id=?", (user_id,))
+    if not user_id or len(rows) != 1:
+        raise DriverError("public authenticated identity has no exact SQL actor")
+    row = rows[0]
+    if public_user.get("workspace_id") != row[1]:
+        raise DriverError("public authenticated workspace disagrees with SQL")
+    actor = SimpleNamespace(workspace_id=row[1], tenant_id=row[2])
+    return {"actor_id": user_id, "raw_workspace_id": row[1],
+            "raw_tenant_id": row[2],
+            "workspace_id": resolve_workspace_id(actor),
+            "tenant_id": resolve_tenant_id(actor),
+            "source": "exact public identity + read-only scratch SQL + existing personal_scope resolvers"}
 
 
 def _create_goal(api: Any) -> Dict[str, Any]:
@@ -993,18 +1020,24 @@ def _run_execute(args: argparse.Namespace) -> int:
         with D3._api_client(args.backend_port, supervisor_token) as api:
             me = api.get("/api/auth/me")
             me_body = me.json() if me.status_code == 200 else {}
+            if me.status_code != 200:
+                raise DriverError("authenticated public identity read failed")
+            actor_scope = _actor_scope(db_path, me_body)
+            scenario["supervisor_scope"] = actor_scope
             goal_create = _create_goal(api)
             goal_id = str(goal_create["goal"]["id"])
             scenario["goal"] = {
                 **goal_create,
                 "goal_id": goal_id,
-                "workspace_id": me_body.get("workspace_id"),
-                "tenant_id": me_body.get("tenant_id"),
+                "workspace_id": actor_scope["workspace_id"],
+                "tenant_id": actor_scope["tenant_id"],
             }
             step("goal_created_through_public_api", {
                 "http_2xx": 200 <= goal_create["status"] < 300,
                 "goal_id_present": bool(goal_id),
-                "workspace_present": bool(me_body.get("workspace_id")),
+                "effective_workspace_matches_durable_goal": (
+                    _durable_goal(db_path, goal_id).get("workspace_id")
+                    == actor_scope["workspace_id"]),
                 "no_utility_target_written": (
                     goal_create["goal"].get("utility_target") is None),
                 "receipt_present": bool(goal_create.get("operation_id")),
@@ -1015,8 +1048,8 @@ def _run_execute(args: argparse.Namespace) -> int:
             member = _seed_member(db_path, member_password)
             scenario["member_fixture"] = member
             history = _seed_history(
-                db_path, me_body.get("workspace_id") or "default",
-                me_body.get("tenant_id") or "default", goal_id,
+                db_path, actor_scope["workspace_id"],
+                actor_scope["tenant_id"], goal_id,
                 created_by=str(me_body.get("id") or "goal-utility-supervisor"))
             scenario["fixture_history"] = history
             expected = scenario["fixture"]
