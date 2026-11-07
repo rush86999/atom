@@ -1,0 +1,81 @@
+{
+  "result": "recovery_claim_generation_and_dead_claim_lease_wake_verified_at_223a286a4",
+  "executed_source": "223a286a4038c7a7c22efb68fd42e92943f121dc",
+  "implementation_source": "c3e695ff4",
+  "source_state": "tracked tree clean; only untracked worker guidance is present and it is not part of the executed gate",
+  "runtime": {
+    "python": "3.14.7",
+    "platform": "darwin",
+    "testing": "1",
+    "database": "fresh private scratch SQLite",
+    "data_lancedb": "fresh private scratch roots",
+    "basetemp": "new owned pytest basetemp"
+  },
+  "root22_gate": {
+    "source": "223a286a4038c7a7c22efb68fd42e92943f121dc",
+    "passed": 22,
+    "failed": 0,
+    "pytest_exit_code": 0,
+    "elapsed_seconds": 60.8,
+    "log": "root22-gate.log",
+    "spec": "root22-gate-spec.json",
+    "exit": "root22-gate-exit.json",
+    "scope_note": "only this source; no claim for an earlier repair source or later packaging state"
+  },
+  "original_negative": {
+    "source": "c0d85d7dc246c56fe202d03558443089cff83a07",
+    "runtime_source": "1f4001dcb",
+    "passed": 1,
+    "failed": 1,
+    "pytest_exit_code": 1,
+    "failed_case": "expired old claim's late finish overwrote a successor claim",
+    "log": "root-original-negative.log",
+    "exit": "root-original-negative-exit.json"
+  },
+  "generation_repair": {
+    "claim_token": "opaque uuid per successful claim, stored in the existing assignment-plan evidence_recovery marker",
+    "finish": "requires key + status=claimed + exact claim_token; key-only or stale generation performs no write",
+    "retain": "requires key + status=claimed + exact claim_token; can only widen the exact live lease",
+    "takeover": "bounded by the recorded TTL and refused while the recorded owner process is live",
+    "late_cleanup": "a dead generation's finish cannot overwrite the successor's claimed marker",
+    "scope": "existing lifecycle/CAS owner only; no new table, daemon, engine or authority"
+  },
+  "second_crash_takeover": {
+    "test": "tests/test_task_wait_process_recovery.py::test_actual_process_successor_crash_after_recovery_claim_wakes_at_lease",
+    "real_processes": true,
+    "sequence": [
+      "start",
+      "source-interrupt (exit 17 after durable acceptance/read/settlement)",
+      "startup-claim-crash (exit 17 after claim, before continuation)",
+      "startup-recover-deferred (starts before the dead claim's lease expiry)"
+    ],
+    "one_shot_boot_adaptation_calls": 0,
+    "bounded_wake_at_lease": true,
+    "takeover_claim_token_rotated": true,
+    "final_adaptation_calls": 1,
+    "reconciliations": 1,
+    "verified_value": "140.25",
+    "source_replay": false,
+    "advance_call": false,
+    "new_objective": false,
+    "injected_plan_or_result": false
+  },
+  "controls_in_root_gate": {
+    "supplied_generation_probe": "2 passed (current generation may finish; expired old generation may not)",
+    "restart_while_missing": "0 adaptation calls; no completion; waiting obligation intact",
+    "duplicate_delivery_after_completion": "already_present; 0 adaptations; still one reconciliation",
+    "concurrent_successors": "exactly one adaptation and one reconciliation",
+    "repeat_boot_same_evidence": "one-shot inert",
+    "second_open_prerequisite": "blocks until resolved, then completes once",
+    "absolute_deadline": "blocked; not extended",
+    "cancellation": "terminal; not revived",
+    "wrong_partial_unrelated_source": "stays unresolved; no adaptation",
+    "model_retain": "does not fake completion",
+    "use_model_false": "no source-triggered adaptation",
+    "live_owner_past_lease": "not displaced; stale token cannot finish or retain"
+  },
+  "transport": "controlled proposal fixture; no inference, provider or spend",
+  "authority": "controlled authenticated-user fixture; private scratch SQLite/data/Lance",
+  "frontend_execution": "not_run_node_modules_absent",
+  "scope": "employee-objective /sources and restart-recovery seam only; Generic/GenericAgent, workflow/long-running-task and other TASK-WAIT-01 entrypoints remain OPEN"
+}

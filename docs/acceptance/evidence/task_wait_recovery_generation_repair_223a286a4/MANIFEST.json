@@ -1,0 +1,67 @@
+{
+  "executed_source": "223a286a4038c7a7c22efb68fd42e92943f121dc",
+  "implementation_source": "c3e695ff4",
+  "source_state": "current branch is 223a286a4; tracked tree clean (0 modified, 0 staged, 0 untracked tracked-tree changes); untracked worker guidance files are not part of the executed gate or this packet",
+  "root_gate": {
+    "executed_by": "root",
+    "source": "223a286a4038c7a7c22efb68fd42e92943f121dc",
+    "result": "22 passed",
+    "actual_exit_code": 0,
+    "elapsed_seconds": 60.8,
+    "retained": [
+      "root22-gate.log",
+      "root22-gate-spec.json",
+      "root22-gate-exit.json"
+    ],
+    "supplied_probe": "probe/test_lead_evidence_recovery_generation.py",
+    "scope": "only source 223a286a4; not asserted for any earlier or later packaging state"
+  },
+  "original_negative": {
+    "source": "c0d85d7dc246c56fe202d03558443089cff83a07",
+    "runtime_source": "1f4001dcb",
+    "result": "1 failed (expired old claim) / 1 passed (current claim)",
+    "actual_exit_code": 1,
+    "retained": [
+      "root-original-negative.log",
+      "root-original-negative-exit.json"
+    ]
+  },
+  "source_files": {
+    "backend/core/assignment_executor.py": "7a9f6da7f1980cf9146cc971d772ccf48b36ddeca9bb7d2775165a9987d921ed",
+    "backend/core/assignment_recovery.py": "c1c9f2182c19860ca3eedaedb17f9bb636f2ca25b9d3c1186627a36e4335dba0",
+    "backend/api/assignment_routes.py": "902ae62533b3355d54be68fb5b1d712eb85c0310c54f49271415748ddb1f5dd1",
+    "backend/main_api_app.py": "0d47bc2fcab89c5a53ac32b2ae3d1760396ce8adcaa2f68acb959c778683db86",
+    "backend/tests/test_task_wait_source_continuation_regressions.py": "500a564f360910644a49cdf91298e86513b1cc5c8d3a8e828511b1089b934746",
+    "backend/tests/test_task_wait_process_recovery.py": "b0f80b550b18b5f8b88770bc5b20498f4fc2769abee7d51e536c782d39a0fa3a",
+    "backend/tests/process_support/task_wait_process_worker.py": "f68f3d06607683f01921d9099260d4b6fee13bb96fdea87ab201aeaa6971b196",
+    "backend/tests/test_boot_recovery_not_gated_by_scheduler.py": "cdc399440de90fed57ce3aa23f33b25d7e8b828c2c37511a3fff34ef9161e2bb"
+  },
+  "artifacts": {
+    "README.md": "ef0e0d7848134fdcdfb55bd1811ec828ab907b62e7047e8329b3261d19cf081a",
+    "root22-gate.log": "9e1c8cc42d5c4eff0592bbd15017eff0d7885e07972d8ac085ee09af31d99710",
+    "root22-gate-spec.json": "758457044e0cc92ab9390893872da1c341b1ad21741b39bc4f05145e53b2c5fb",
+    "root22-gate-exit.json": "796baf59f97619b33c1ab022eae18dbfc25fd335bae4b95ac7b0d4ac51d8b753",
+    "root-original-negative.log": "f3bc6089e51596d5c46700e15c2a97aa18546b585197a16482741e31f89a17e5",
+    "root-original-negative-exit.json": "7526e69877d7f7b886f734724c3cd477443f8b3f42859d1573517b5a5ee5a7d0",
+    "probe/test_lead_evidence_recovery_generation.py": "14b9352e0f5e2f76f9c27b75b48d4dbd59e9b20905041bedfb42c53990cb247c"
+  },
+  "preserved_packets": {
+    "docs/acceptance/evidence/task_wait_process_recovery_baseline_a966bca18/MANIFEST.json": "c5868b387de2e3f3406abe9014f060828af48d55b51c581675f5a954a794059c",
+    "docs/acceptance/evidence/task_wait_process_recovery_baseline_a966bca18/README.md": "bf3f3802fe876af60c977bb6d5669041e30384132602dde8cd182998b310a672",
+    "docs/acceptance/evidence/task_wait_process_recovery_baseline_a966bca18/baseline.log": "5eff0dd8fc6b1144d1650bc0610b0d72368387266ac1beed4b98b374e8449eeb",
+    "docs/acceptance/evidence/task_wait_process_recovery_baseline_a966bca18/verification.json": "c27f890cacc84d984e274e899ffdc0cf1115f80ea880f7e45f09f7cb2c008793",
+    "docs/acceptance/evidence/task_wait_process_recovery_repair_e9e43ea60/MANIFEST.json": "30d0b8287e6b8b42561de02f8077a240980bbe3b0832b4348f0d03dfecc30672",
+    "docs/acceptance/evidence/task_wait_process_recovery_repair_e9e43ea60/README.md": "defd923ac731cec7ad058a8951fb6016fb6e273fe7ef0842707af6eaeff7f342",
+    "docs/acceptance/evidence/task_wait_process_recovery_repair_e9e43ea60/final.log": "fa3b61cf664953ced8f63020c9427ad8463077a0d6e0cdc2ffeece6bee3c04e5",
+    "docs/acceptance/evidence/task_wait_process_recovery_repair_e9e43ea60/processes.json": "85fad2fcd40d9ee8cb63eb03d154f9c152ee81b09f7e5f237bf9efc3729f54b0",
+    "docs/acceptance/evidence/task_wait_process_recovery_repair_e9e43ea60/verification.json": "f2aed3bf4aedfdf6f858a2bc70b79399133ee943b091c82c501cd90e69c0174a",
+    "docs/acceptance/evidence/task_wait_source_continuation_6d08b1c4b/MANIFEST.json": "eb1ea2c5fad0c1c9a1ec24668190b86b4ae1d6bbe39b2af67a894cb5d6e05986",
+    "docs/acceptance/evidence/task_wait_source_continuation_6d08b1c4b/README.md": "d6a736d4a8dd12d6b413d055451b894a07b67a85bd4c633783e79687d2b7996c",
+    "docs/acceptance/evidence/task_wait_source_continuation_6d08b1c4b/final.log": "e5b5f63912cb935e30cd840320ea89224b77a0ac9ee6a7de9392ed7dd0793135",
+    "docs/acceptance/evidence/task_wait_source_continuation_6d08b1c4b/verification.json": "2671e9afdc232d12c9b47b87aa0aadd24106cc9d575bebe1810c135a8e131355",
+    "docs/acceptance/evidence/task_wait_source_trigger_baseline_bc4970f97/MANIFEST.json": "60010e539579cd3d25b5c6a0f51e9fe220d44517f18356d1387c48cba7aa8a6b",
+    "docs/acceptance/evidence/task_wait_source_trigger_baseline_bc4970f97/README.md": "16edf8fd2b626e8831efeb8a257186b7b3bc643fddc20ad5c48d06dbf19046fa",
+    "docs/acceptance/evidence/task_wait_source_trigger_baseline_bc4970f97/baseline.log": "0c893cb97288834a275b32e4cb4a62305b1d2f45518dce466a8a1218604248a1",
+    "docs/acceptance/evidence/task_wait_source_trigger_baseline_bc4970f97/verification.json": "5dd2ed296b0a6719ed1ed582219e0c02042171f3df8c2c8e85cc0efa6e55da08"
+  }
+}
