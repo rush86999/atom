@@ -243,7 +243,7 @@ def claim_generic_operation(
                     idempotency_key=key,
                     payload_sha256=payload_hash,
                     operation_id=str(operation_id),
-                    operation_type="generic:agent",
+                    operation_type=f"generic:agent:{str(action or '').strip()}",
                     status=CLAIMED,
                 ))
                 db.commit()
@@ -377,7 +377,7 @@ def generic_operations(
                 .filter(
                     TaskOperationRecord.workspace_id == str(workspace_id or ""),
                     TaskOperationRecord.operation_id == str(operation_id or ""),
-                    TaskOperationRecord.operation_type == "generic:agent",
+                    TaskOperationRecord.operation_type.like("generic:agent%"),
                 )
                 .all()
             )
@@ -410,7 +410,7 @@ def generic_operations_for_execution(
                 .filter(
                     TaskOperationRecord.workspace_id == str(workspace_id or ""),
                     TaskOperationRecord.run_id == str(execution_id),
-                    TaskOperationRecord.operation_type == "generic:agent",
+                    TaskOperationRecord.operation_type.like("generic:agent%"),
                 )
                 .all()
             )
