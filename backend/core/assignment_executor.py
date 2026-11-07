@@ -2021,6 +2021,43 @@ class AssignmentExecutor:
 
     # ----------------------------------------------------------- execution
 
+    def _source_version_drift(self, assignment: Dict[str, Any]) -> Optional[str]:
+        """Return an applied local source whose current bytes changed.
+
+        A source accepted/read earlier remains authoritative only for the
+        version that was read. If its local file changed before dependent
+        work consumes it, invalidate that source and its descendants so the
+        executor re-reads the current version instead of certifying a stale
+        value. Connected sources keep their existing resolution checks.
+        """
+        for step in assignment.get("steps") or []:
+            if str(step.get("status") or "") != "applied":
+                continue
+            if str(step.get("adapter") or "") not in (
+                    "workbook.read", "document.read", "document.text"):
+                continue
+            inputs = step.get("inputs") if isinstance(
+                step.get("inputs"), dict) else {}
+            binding = inputs.get("resource_binding") if isinstance(
+                inputs.get("resource_binding"), dict) else {}
+            path = str(inputs.get("path") or binding.get("path") or "")
+            result = step.get("result") if isinstance(
+                step.get("result"), dict) else {}
+            accepted = str(
+                result.get("sha256") or result.get("source_version")
+                or binding.get("source_version") or "")
+            if not path or not accepted or not os.path.isfile(path):
+                continue
+            if not re.fullmatch(r"[0-9a-fA-F]{64}", accepted):
+                continue
+            try:
+                current = _sha256_file(path)
+            except OSError:
+                continue
+            if current != accepted:
+                return str(step.get("step_id") or "")
+        return None
+
     async def execute(
         self,
         run_id: str,
@@ -2053,6 +2090,19 @@ class AssignmentExecutor:
             expected_task_revision = None
 
             assignment = self._sync_assignment(record, assignment)
+            drifted_source = self._source_version_drift(assignment)
+            if drifted_source:
+                # Re-read the current authorized version before dependent
+                # consumption. Existing invalidation preserves prior results
+                # for audit, refreshes the local binding version and reopens
+                # only this source and its descendants.
+                self.invalidate_step(
+                    run_id, drifted_source,
+                    reason=(
+                        "authorized source changed after acceptance; "
+                        "re-reading the current version before dependent "
+                        "consumption"))
+                continue
             task_authorization = str(
                 (record.get("task_revision") or {}).get("authorization")
                 or "read_only")
