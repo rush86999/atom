@@ -708,29 +708,97 @@ class AgentGovernanceService:
 
     # --- ADVANCED GOVERNANCE (SaaS Port) ---
 
-    async def _check_budget_async(
-        self, agent_id: str, action_type: str, chain_id: Optional[str]
-    ) -> Dict[str, Any]:
-        """Run the budget-before-action check and return its decision dict.
+    def _budget_scope(self, agent_id: str) -> Dict[str, Any]:
+        """Resolve the existing account key without treating a workspace as it."""
+        from core.models import Workspace
+        from core.personal_scope import resolve_tenant_id
 
-        Shared by the sync and async governance paths so the budget logic isn't
-        duplicated. Returns {"allowed": True} (passthrough) if the budget
-        service is unavailable, matching the historical graceful-degradation
-        behavior — but the call itself is now actually awaited in async
-        contexts (previously it raised "loop already running" and was skipped,
-        silently bypassing spend limits).
+        conditions = [AgentRegistry.id == agent_id]
+        # Legacy governance utilities may not carry request scope. Resolving
+        # an account budget is an additional restriction, not a grant of
+        # actor/target authority: use the actual agent's account in that case.
+        # Explicit request bindings still require their exact workspace.
+        if self.tenant_id is not None or self.workspace_id not in (None, "default"):
+            conditions.append(self._workspace_scope_condition())
+        agent = self.db.query(AgentRegistry).filter(*conditions).first()
+        if agent is None:
+            return {
+                "allowed": False,
+                "reason": "Agent scope is unavailable for budget verification",
+            }
+        workspace = (
+            self.db.query(Workspace).filter(
+                Workspace.id == agent.workspace_id).first()
+            if agent.workspace_id else None)
+        tenants = {
+            str(value) for value in (
+                self.tenant_id, agent.tenant_id,
+                getattr(workspace, "tenant_id", None)) if value
+        }
+        if len(tenants) > 1:
+            return {
+                "allowed": False,
+                "reason": "Agent/account scope changed before budget verification",
+            }
+        return {"tenant_id": resolve_tenant_id(self, agent, workspace)}
+
+    @staticmethod
+    def _budget_refusal(budget_check: Dict[str, Any]) -> Dict[str, Any]:
+        """One refusal policy for async and legacy synchronous consumers."""
+        return {
+            "allowed": False,
+            "reason": budget_check.get("reason"),
+            "requires_human_approval": (
+                budget_check.get("enforcement_mode") == "approval"),
+            "enforcement_mode": budget_check.get("enforcement_mode"),
+            "status_code": "BUDGET_EXCEEDED",
+        }
+
+    def _check_budget_sync(
+        self, agent_id: str, action_type: str, chain_id: Optional[str],
+    ) -> Dict[str, Any]:
+        """Use the existing sync ledger body in this Session's owning thread.
+
+        FastAPI utility functions run directly; an async caller does not make
+        a synchronous helper magically await or move it into a thread pool.
+        The budget decision already performs synchronous ORM work, so share
+        that body rather than skip it or re-enter a running event loop.
+        https://fastapi.tiangolo.com/async/#other-utility-functions
+        https://docs.sqlalchemy.org/en/20/orm/extensions/asyncio.html
+        This is not a new nonblocking-I/O or concurrent-spend qualification.
         """
         try:
             from core.budget_enforcement_service import BudgetEnforcementService
-            budget_svc = BudgetEnforcementService(self.db)
-            return await budget_svc.check_budget_before_action(
-                tenant_id=self.workspace_id,
-                agent_id=agent_id,
-                action=action_type,
-                chain_id=chain_id,
-            )
-        except Exception as e:
-            logger.warning(f"Budget check failed (non-fatal, allowing): {e}")
+
+            scope = self._budget_scope(agent_id)
+            if scope.get("allowed") is False:
+                return scope
+            return BudgetEnforcementService(self.db).check_budget_before_action_sync(
+                tenant_id=scope["tenant_id"], agent_id=agent_id,
+                action=action_type, chain_id=chain_id)
+        except Exception as exc:
+            logger.warning(
+                "Budget check unavailable (legacy degradation): %s",
+                type(exc).__name__)
+            return {"allowed": True}
+
+    async def _check_budget_async(
+        self, agent_id: str, action_type: str, chain_id: Optional[str],
+    ) -> Dict[str, Any]:
+        """Keep the async API and the existing explicit degradation policy."""
+        try:
+            from core.budget_enforcement_service import BudgetEnforcementService
+
+            scope = self._budget_scope(agent_id)
+            if scope.get("allowed") is False:
+                return scope
+            return await BudgetEnforcementService(self.db).check_budget_before_action(
+                tenant_id=scope["tenant_id"], agent_id=agent_id,
+                action=action_type, chain_id=chain_id)
+        except Exception as exc:
+            logger.warning(
+                "Budget check unavailable (legacy degradation): %s",
+                type(exc).__name__)
             return {"allowed": True}
 
     async def can_perform_action_async(
@@ -750,7 +818,8 @@ class AgentGovernanceService:
         # Compute the maturity/complexity/recursion decision synchronously,
         # skipping the budget check (handled below via await).
         decision = self.can_perform_action(
-            agent_id, action_type, require_approval=require_approval, chain_id=chain_id
+            agent_id, action_type, require_approval=require_approval,
+            chain_id=chain_id, _skip_budget=True,
         )
         # If the sync path already blocked it (maturity/recursion), honor that.
         if not decision.get("allowed", True):
@@ -758,12 +827,7 @@ class AgentGovernanceService:
         # Enforce the budget via a real await (the whole point of this variant).
         budget_check = await self._check_budget_async(agent_id, action_type, chain_id)
         if not budget_check.get("allowed", True):
-            return {
-                "allowed": False,
-                "reason": budget_check.get("reason"),
-                "requires_human_approval": True,
-                "status_code": "BUDGET_EXCEEDED",
-            }
+            return self._budget_refusal(budget_check)
         return decision
 
     def can_perform_action(
@@ -830,45 +894,27 @@ class AgentGovernanceService:
 
         approval_needed = not allowed or (stored_status == AgentStatus.SUPERVISED.value and complexity >= 3) or require_approval
 
-        # Budget Check (requires tenant_id - skip if not available). When called
-        # from already-running async code, run_until_complete would raise
-        # "This event loop is already running" — so detect that case and defer
-        # to can_perform_action_async (which callers in an async context should
-        # use). See _check_budget_async for the shared logic.
+        # Sync callers also exist inside async routes/workflow consumers.
+        # Check the same local-ledger decision instead of merely warning and
+        # allowing a configured limit to be skipped. Outside an event loop,
+        # keep the async compatibility hook used by existing callers.
         if allowed and not _skip_budget:
             import asyncio
             try:
                 asyncio.get_running_loop()
-                # We're inside a running loop — the sync path can't await.
-                # Log clearly so operators know to use the async variant; do NOT
-                # silently skip (that was the old bypass). Return a result that
-                # forces the caller to go through can_perform_action_async for a
-                # real budget decision.
-                logger.warning(
-                    "can_perform_action() called from a running event loop "
-                    "(agent=%s action=%s); budget not checked synchronously — "
-                    "use can_perform_action_async() to enforce the budget",
-                    agent_id, action_type,
-                )
             except RuntimeError:
-                # No running loop: safe to drive the coroutine directly. Get a
-                # loop, creating one if necessary (get_event_loop() doesn't
-                # auto-create on 3.14+ when none exists in the thread).
                 try:
                     loop = get_event_loop()
                 except RuntimeError:
                     loop = asyncio.new_event_loop()
                     asyncio.set_event_loop(loop)
                 budget_check = loop.run_until_complete(
-                    self._check_budget_async(agent_id, action_type, chain_id)
-                )
-                if not budget_check.get("allowed", True):
-                    return {
-                        "allowed": False,
-                        "reason": budget_check.get("reason"),
-                        "requires_human_approval": True,
-                        "status_code": "BUDGET_EXCEEDED"
-                    }
+                    self._check_budget_async(agent_id, action_type, chain_id))
+            else:
+                budget_check = self._check_budget_sync(
+                    agent_id, action_type, chain_id)
+            if not budget_check.get("allowed", True):
+                return self._budget_refusal(budget_check)
 
         # NEW Phase 10: Fleet-wide recursion guardrails
         # P1c (R1) fix: the previous check ``len(chain.links) >= chain.max_depth``
@@ -969,7 +1015,10 @@ class AgentGovernanceService:
                 "proceed": False,
                 "status": "BLOCKED",
                 "reason": check["reason"],
-                "action_required": "HUMAN_APPROVAL",
+                "action_required": (
+                    "RESOLVE_BUDGET" if check.get("status_code") == "BUDGET_EXCEEDED"
+                    and not check.get("requires_human_approval")
+                    else "HUMAN_APPROVAL"),
                 **{k: check[k] for k in ("agent_status", "action_complexity", "required_status") if k in check},
             }
 

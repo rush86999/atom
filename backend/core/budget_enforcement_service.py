@@ -78,6 +78,22 @@ class BudgetEnforcementService:
         action: str,
         chain_id: Optional[str] = None # Phase 10
     ) -> Dict[str, Any]:
+        """Async API over the same synchronous local-ledger decision.
+
+        The existing implementation uses this caller's synchronous Session
+        and has no await points. Keep one decision body and do not share the
+        Session with another thread or attempt a nested event loop.
+        """
+        return self.check_budget_before_action_sync(
+            tenant_id, agent_id, action, chain_id)
+
+    def check_budget_before_action_sync(
+        self,
+        tenant_id: str,
+        agent_id: str,
+        action: str,
+        chain_id: Optional[str] = None # Phase 10
+    ) -> Dict[str, Any]:
         """
         Check if action is allowed under current budget and enforcement mode.
 
@@ -93,7 +109,8 @@ class BudgetEnforcementService:
         """
         try:
             # Get current spend from SpendAggregationService
-            spend_result = self.spend_service.update_tenant_spend(tenant_id)
+            spend_result = self.spend_service.update_tenant_spend(
+                tenant_id, persist=False)
 
             if "error" in spend_result:
                 # Fail-open: allow action if spend check fails

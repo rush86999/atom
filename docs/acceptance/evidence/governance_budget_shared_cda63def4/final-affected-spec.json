@@ -1,0 +1,28 @@
+{
+  "command": [
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-budget-complete-final-z08lzupi/pytest",
+    "tests/test_generic_real_mcp_budget_contract.py",
+    "tests/test_budget_caller_transaction_contract.py",
+    "tests/test_budget_control.py",
+    "tests/test_budget_enforcement_service.py",
+    "tests/test_agent_governance_service.py",
+    "tests/test_covpush_w29_governance.py",
+    "tests/test_generic_request_expectations.py",
+    "tests/test_generic_reconcile_commit_contract.py",
+    "tests/test_orch01_real_checkpoint_contract.py",
+    "tests/test_orch01_checkpoint_contract.py",
+    "tests/test_workflow_public_approval_flow.py",
+    "tests/test_workflow_approval_scope.py",
+    "--junitxml=/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-budget-complete-final-z08lzupi/result.xml",
+    "-q",
+    "--tb=short"
+  ],
+  "source": "cda63def4e5865ff36d03b67df6a477d86180043",
+  "scratch": "/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-budget-complete-final-z08lzupi",
+  "started": 1794037387.87603
+}

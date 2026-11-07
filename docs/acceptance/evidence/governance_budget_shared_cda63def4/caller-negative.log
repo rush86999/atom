@@ -1,0 +1,35 @@
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+__________ test_budget_check_does_not_commit_the_callers_edit[False] ___________
+../../test_lead_budget_caller_transaction.py:21: in test_budget_check_does_not_commit_the_callers_edit
+    assert observer.get(User,USER).first_name==old,"budget preflight committed someone else's edit"
+E   AssertionError: budget preflight committed someone else's edit
+E   assert 'Uncommitted owner edit' == 'Host'
+E     
+E     - Host
+E     + Uncommitted owner edit
+___________ test_budget_check_does_not_commit_the_callers_edit[True] ___________
+../../test_lead_budget_caller_transaction.py:21: in test_budget_check_does_not_commit_the_callers_edit
+    assert observer.get(User,USER).first_name==old,"budget preflight committed someone else's edit"
+E   AssertionError: budget preflight committed someone else's edit
+E   assert 'Uncommitted owner edit' == 'Host'
+E     
+E     - Host
+E     + Uncommitted owner edit
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED ../../test_lead_budget_caller_transaction.py::test_budget_check_does_not_commit_the_callers_edit[False]
+FAILED ../../test_lead_budget_caller_transaction.py::test_budget_check_does_not_commit_the_callers_edit[True]
+2 failed, 5 warnings in 2.48s

@@ -1,0 +1,142 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-07 02:47:10 [    INFO] MCP Service initialized
+
+tests/test_generic_real_mcp_budget_contract.py::test_real_mcp_registry_context_and_capability_boundary[allowed] 
+-------------------------------- live log setup --------------------------------
+2026-11-07 02:47:10 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-07 02:47:10 [    INFO] EscalationManager initialized
+2026-11-07 02:47:10 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 02:47:10 [    INFO] EscalationManager initialized
+2026-11-07 02:47:10 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 02:47:10 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 02:47:10 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:47:11 [    INFO] Canvas type 'mini_app' auto-registered (generic defaults)
+PASSED                                                                   [  2%]
+tests/test_generic_real_mcp_budget_contract.py::test_real_mcp_registry_context_and_capability_boundary[capability_denied] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:47:11 [    INFO] Capability gate BLOCKED tool mini_app_scaffold for agent scratch-agent (tier=autonomous)
+PASSED                                                                   [  4%]
+tests/test_generic_real_mcp_budget_contract.py::test_real_mcp_registry_context_and_capability_boundary[hard_stop] PASSED [  6%]
+tests/test_generic_real_mcp_budget_contract.py::test_budget_scope_uses_existing_personal_account_resolution[explicit] PASSED [  8%]
+tests/test_generic_real_mcp_budget_contract.py::test_budget_scope_uses_existing_personal_account_resolution[agent_fallback] PASSED [ 11%]
+tests/test_generic_real_mcp_budget_contract.py::test_budget_scope_uses_existing_personal_account_resolution[workspace_fallback] PASSED [ 13%]
+tests/test_generic_real_mcp_budget_contract.py::test_budget_scope_uses_existing_personal_account_resolution[personal_null] PASSED [ 15%]
+tests/test_generic_real_mcp_budget_contract.py::test_budget_scope_uses_existing_personal_account_resolution[wrong_tenant] PASSED [ 17%]
+tests/test_generic_real_mcp_budget_contract.py::test_budget_scope_uses_existing_personal_account_resolution[wrong_workspace] PASSED [ 20%]
+tests/test_generic_real_mcp_budget_contract.py::test_budget_scope_uses_existing_personal_account_resolution[legacy_unbound] PASSED [ 22%]
+tests/test_generic_real_mcp_budget_contract.py::test_budget_scope_uses_existing_personal_account_resolution[unconfigured] PASSED [ 24%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[hard_stop-False-False-async] PASSED [ 26%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[hard_stop-False-False-sync] PASSED [ 28%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[hard_stop-False-False-sync_in_async] PASSED [ 31%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[soft_stop-False-False-async] PASSED [ 33%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[soft_stop-False-False-sync] PASSED [ 35%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[soft_stop-False-False-sync_in_async] PASSED [ 37%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[approval-False-True-async] PASSED [ 40%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[approval-False-True-sync] PASSED [ 42%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[approval-False-True-sync_in_async] PASSED [ 44%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[alert_only-True-False-async] PASSED [ 46%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[alert_only-True-False-sync] PASSED [ 48%]
+tests/test_generic_real_mcp_budget_contract.py::test_only_configured_approval_mode_proposes_budget_review[alert_only-True-False-sync_in_async] PASSED [ 51%]
+tests/test_budget_caller_transaction_contract.py::test_budget_check_does_not_commit_the_callers_edit[False-False] PASSED [ 53%]
+tests/test_budget_caller_transaction_contract.py::test_budget_check_does_not_commit_the_callers_edit[False-True] PASSED [ 55%]
+tests/test_budget_caller_transaction_contract.py::test_budget_check_does_not_commit_the_callers_edit[True-False] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:47:26 [   ERROR] [SpendAggregationService] Error updating spend: controlled spend read unavailable
+2026-11-07 02:47:26 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-1: controlled spend read unavailable
+PASSED                                                                   [ 57%]
+tests/test_budget_caller_transaction_contract.py::test_budget_check_does_not_commit_the_callers_edit[True-True] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:47:26 [   ERROR] [SpendAggregationService] Error updating spend: controlled spend read unavailable
+2026-11-07 02:47:26 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-1: controlled spend read unavailable
+PASSED                                                                   [ 60%]
+tests/test_budget_caller_transaction_contract.py::test_explicit_rollup_writer_still_persists_cache PASSED [ 62%]
+tests/test_budget_control.py::TestEnforcementModeDefault::test_unset_mode_defaults_to_soft_stop PASSED [ 64%]
+tests/test_budget_control.py::TestEnforcementModeDefault::test_empty_setting_defaults_to_soft_stop PASSED [ 66%]
+tests/test_budget_control.py::TestEnforcementModeDefault::test_invalid_mode_falls_back_to_soft_stop 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:47:27 [ WARNING] [BudgetEnforcementService] Invalid enforcement mode 'bogus' for tenant t1, defaulting to soft_stop
+PASSED                                                                   [ 68%]
+tests/test_budget_control.py::TestEnforcementModeDefault::test_explicit_alert_only_is_respected PASSED [ 71%]
+tests/test_budget_control.py::TestEnforcementModeDefault::test_explicit_hard_stop_is_respected PASSED [ 73%]
+tests/test_budget_control.py::TestEnforcementModeDefault::test_json_error_defaults_to_soft_stop 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:47:27 [ WARNING] [BudgetEnforcementService] Error reading enforcement mode: Expecting value: line 1 column 1 (char 0)
+PASSED                                                                   [ 75%]
+tests/test_budget_control.py::TestEnforcementModeDefault::test_mode_constants_unchanged PASSED [ 77%]
+tests/test_budget_control.py::TestAgentBudgetGate::test_gate_returns_allowed_when_budget_ok PASSED [ 80%]
+tests/test_budget_control.py::TestAgentBudgetGate::test_gate_returns_denied_under_hard_stop PASSED [ 82%]
+tests/test_budget_control.py::TestAgentBudgetGate::test_gate_fails_open_on_exception 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:47:27 [ WARNING] Budget pre-check failed (fail-open): DB down
+PASSED                                                                   [ 84%]
+tests/test_budget_control.py::TestAgentBudgetGate::test_budget_exceeded_status_maps_to_failed PASSED [ 86%]
+tests/test_budget_control.py::TestBudgetExitStatusContract::test_execute_returns_valid_status_when_budget_denied 
+-------------------------------- live log call ---------------------------------
+2026-11-07 02:47:27 [    INFO] Agent TestAgent (agent-1) starting task: do something
+2026-11-07 02:47:27 [    INFO] EscalationManager initialized
+2026-11-07 02:47:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 02:47:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 02:47:27 [    INFO] LanceDBHandler initialized. ID: 5082399440. LANCEDB_AVAILABLE: True
+2026-11-07 02:47:27 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 02:47:27 [    INFO] Connecting to LanceDB at /private/tmp/atom-generic-lead-combine/backend/data/atom_memory with storage_options=None
+2026-11-07 02:47:27 [    INFO] LanceDB connected successfully
+2026-11-07 02:47:27 [ WARNING] Budget gate halted agent TestAgent at step 1: Budget exceeded. All operations halted immediately.
+2026-11-07 02:47:27 [ WARNING] Failed to generate self-critique: 'Mock' object can't be awaited
+PASSED                                                                   [ 88%]
+tests/test_budget_control.py::TestSoftStopDefaultBehavior::test_unset_tenant_blocks_new_episode_when_over_budget PASSED [ 91%]
+tests/test_budget_control.py::TestSoftStopDefaultBehavior::test_unset_tenant_allows_active_episode_when_over_budget PASSED [ 93%]
+tests/test_budget_control.py::TestBudgetExceededMessageContract::test_message_mentions_budget_limit PASSED [ 95%]
+tests/test_budget_control.py::TestBudgetExceededMessageContract::test_message_includes_the_underlying_reason PASSED [ 97%]
+tests/test_budget_control.py::TestBudgetExceededMessageContract::test_message_has_safe_default_when_reason_missing PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 90 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_budget_control.py::TestBudgetExitStatusContract::test_execute_returns_valid_status_when_budget_denied
+  /private/tmp/atom-generic-lead-combine/backend/core/lancedb_handler.py:407: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    names = set(self.db.table_names())
+
+tests/test_budget_control.py::TestBudgetExitStatusContract::test_execute_returns_valid_status_when_budget_denied
+tests/test_budget_control.py::TestBudgetExitStatusContract::test_execute_returns_valid_status_when_budget_denied
+  /Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/asyncio/events.py:94: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    self._context.run(self._callback, *self._args)
+
+tests/test_budget_control.py::TestBudgetExitStatusContract::test_execute_returns_valid_status_when_budget_denied
+  /private/tmp/atom-generic-lead-combine/backend/core/lancedb_handler.py:620: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    if table_name in self.db.table_names():
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+- generated xml file: /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-budget-complete-ci-_ejhgh6b/result.xml -
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+====================== 45 passed, 100 warnings in 26.88s =======================

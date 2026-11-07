@@ -1,0 +1,39 @@
+{
+  "executed_source": "cda63def4e5865ff36d03b67df6a477d86180043",
+  "source_files": {
+    "backend/core/agent_governance_service.py": "5822e5ef8ac8881ffec542d38a954499d0defe4d18bf28652f84a0fa4a946eff",
+    "backend/core/budget_enforcement_service.py": "17495d4454c25c4dc161a40970ba896a7f9b8ac8849ff6dccd6dfecbd2648dc4",
+    "backend/core/spend_aggregation_service.py": "884992ce9d211ddfcf06c28fc5d56e81424c241a6f9f5aa0a91d67af405243b3",
+    "backend/core/personal_scope.py": "f07dd35cf6eedb674ec9afbb06e10776cd4039e64ad7dd0a3427b7e0df31f78f",
+    "backend/core/generic_agent.py": "fbb0c7c4662226b0e7daeb7c3ef3efcccc1c477b06917046daa1ce295c8367b2",
+    "backend/integrations/mcp_service.py": "235c89f416b862c217284d73f9d4f2d8b20ae752b8cbf7ce60a47ddb5527dc10",
+    "backend/core/action_registry.py": "16cfc4c9e6bc31d350b78ba5300e35f1a6d1944c98f1cf6a8efed261c1aad44a",
+    "backend/tests/test_generic_real_mcp_budget_contract.py": "4e2faeb73f49b5e4aff17d264698aecaae55cb1b9d273370f6f19205c797d704",
+    "backend/tests/test_budget_caller_transaction_contract.py": "e762cb9b6a334e4a7ca1633d4d09eaa9bcfdbc1d54d7fe08d2949833a7d6d7bc",
+    "backend/tests/test_budget_control.py": "1d7ff9891fbc88f2eaaeff0614fab10bdc8769bd46a6adeec37b8980cab9d9f1",
+    ".github/workflows/ci.yml": "636c35ee11050e973b0c0328f550052f7993f27bf482a1175947d625ac58aac1"
+  },
+  "artifacts": {
+    "README.md": "5457d02777fc144c6a69217eba93c49a60bd0451ac03b09f97d03b1665daf213",
+    "caller-negative-exit.json": "797b1a01d7308c5223af10c7f815b9ab2b98e58adfc875cffc833c0f8f496b83",
+    "caller-negative-probe.py": "7c80e4be973205ddade5c74259786de4d3038243ca97432b4a2a35f9f3a04e30",
+    "caller-negative.log": "cf15c6f6925f92870977736e625b98c5cffd2f97caf35d89eb6d077aa5d3a340",
+    "final-affected-exit.json": "9bc6f13e251c81ba991c28aa18fc6665701ff2cd4fa347983fe46cec346124b7",
+    "final-affected-spec.json": "312adfea5388dea241f6675bd2ee992f6b852ffcc5991c0b9fb9fe14a1c300ce",
+    "final-affected.log": "4b6830750b8fb8aa9c49319f3a136b1f25cf1e0552e36064b87c2adb79cf0a9d",
+    "final-affected.xml": "c9267c13f4805242fb21e043fbe1491c2e22621d778a00f3489c7a2a93c96fae",
+    "final-ci-exit.json": "74eee2663487d9e7beb742817e405edb1fb94b94160b3bcc9136205e0f1fab83",
+    "final-ci-gate.log": "7a0aa32a0882316f77eaa3199f67220072d3731120530beb3d25f43fd389f71a",
+    "final-ci-gate.xml": "32b6150f5689fb22c9e5ec3ff20ce72527b67e320f390431b692dad299b85dd3",
+    "final-ci-spec.json": "3eda23f5415676227bbc72ec44dec4c57665df8c6b07405f42ba45153a5e7b38",
+    "intermediate-shared-exit.json": "a32907baf854fbc20df476dc8bcf165394249f719575822aab1649e9271b4f38",
+    "intermediate-shared-spec.json": "8b1fbde1355dd2185c3bb34c5c605576b10017a9c234c64245955b42a785d522",
+    "intermediate-shared.log": "8b2f6d009fce5b9f210ee5abbf16cb1b8534f404f9524e51ec99dbefc8056d52",
+    "intermediate-shared.xml": "55f66384e583b054d19126155fb522c95d2f5e9b417a95ec8e0daaad49431877",
+    "precursor-body-extraction-check.json": "e1d76e1bd765a40b6bc5eb770c0ebf51aba11c87e6ddfd31f1b868efb4e20b25",
+    "sync-negative-exit.json": "87ada0ecbd5495f4fdaa096f311d99faac17f87d79d96b830b6b199ba9d9bccd",
+    "sync-negative-probe.py": "9ded1a790db3665d1e8141e3efca2fbdc346cd1aba1fd72be913c9198307f0e0",
+    "sync-negative.log": "7164ab791955a6c67fa70b6b1e1053ffa5780863842f89ed3257d2f68c30f77f",
+    "verification.json": "1a6480c4e4b894b2079726865222158002e76870fcdbc93ffa9f0170b7070d73"
+  }
+}
