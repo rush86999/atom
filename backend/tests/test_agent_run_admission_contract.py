@@ -105,9 +105,10 @@ def env(tmp_path, monkeypatch):
 
     dispatch_calls = []
 
-    async def default_dispatch(agent_id, parameters):
+    async def default_dispatch(agent_id, parameters, execution_context=None):
         dispatch_calls.append((agent_id, dict(parameters)))
-        return {"final_output": "stub"}
+        assert execution_context and execution_context.get("job_id")
+        return {"status": "success", "final_output": "stub"}
 
     monkeypatch.setattr(
         agent_routes, "execute_agent_task", default_dispatch)
@@ -371,7 +372,7 @@ def test_readback_failure_is_committed_unverified(env):
 
 
 def test_execution_failure_marks_job_failed_and_restores_status(env):
-    async def failing_dispatch(agent_id, parameters):
+    async def failing_dispatch(agent_id, parameters, execution_context=None):
         env.dispatch_calls.append((agent_id, dict(parameters)))
         raise RuntimeError("stub execution failure")
 

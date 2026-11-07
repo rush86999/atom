@@ -1102,3 +1102,848 @@ register_postcondition("canvas.restore_version")(
 register_postcondition("goals.create")(_goal_postcondition("create"))
 register_postcondition("goals.evaluate")(_goal_postcondition("evaluate"))
 register_postcondition("goal_runs.start")(_goal_postcondition("run"))
+
+
+# ===========================================================================
+# Mini-app host writes — supported host-side producers (no guest execution).
+# Each verifier requires a receipt written in the SAME transaction as the
+# effect, bound to the executor-owned operation id and the frozen authorized
+# request digest, and re-reads the authoritative store in a fresh session.
+# ===========================================================================
+def _mini_app_receipt_details(row: Any) -> Dict[str, Any]:
+    details = getattr(row, "details_json", None) or {}
+    if isinstance(details, str):
+        try:
+            details = json.loads(details)
+        except (TypeError, ValueError):
+            details = {}
+    return details if isinstance(details, dict) else {}
+
+
+def _mini_app_scope_reasons(
+    *,
+    label: str,
+    tenant_id: Any,
+    workspace_id: Any,
+    expected_tenant: str,
+    expected_workspace: str,
+    strict_workspace: bool = True,
+) -> list:
+    reasons = []
+    if str(tenant_id or "") != str(expected_tenant or ""):
+        reasons.append(
+            f"{label} tenant={tenant_id!r}, expected {expected_tenant!r}")
+    observed_ws = str(workspace_id or "")
+    expected_ws = str(expected_workspace or "")
+    if expected_ws:
+        if observed_ws != expected_ws:
+            reasons.append(
+                f"{label} workspace={workspace_id!r}, expected "
+                f"{expected_workspace!r}")
+    elif strict_workspace and observed_ws:
+        reasons.append(
+            f"{label} workspace={workspace_id!r}, expected an unscoped "
+            "workspace")
+    return reasons
+
+
+def _mini_app_common_receipt_reasons(
+    row: Any,
+    *,
+    action: str,
+    expected_operation: str,
+    expected_request: str,
+    expected_tenant: str,
+    expected_actor: str,
+    canvas_id: str,
+) -> list:
+    reasons = []
+    if row is None:
+        return [f"no {action} receipt for this invocation"]
+    details = _mini_app_receipt_details(row)
+    if str(row.action_type or "") != action:
+        reasons.append(f"receipt action_type={row.action_type!r}")
+    if str(row.canvas_id or "") != str(canvas_id or ""):
+        reasons.append("receipt canvas does not match the target")
+    if str(row.tenant_id or "") != str(expected_tenant or ""):
+        reasons.append(
+            f"receipt tenant={row.tenant_id!r}, expected {expected_tenant!r}")
+    if str(row.user_id or "") != str(expected_actor or ""):
+        reasons.append(
+            f"receipt actor={row.user_id!r}, expected {expected_actor!r}")
+    if str(details.get("operation_id") or "") != expected_operation:
+        reasons.append("receipt operation id does not match this operation")
+    if str(details.get("request_sha256") or "") != expected_request:
+        reasons.append("receipt does not match the authorized request")
+    if str(details.get("tenant_id") or "") != str(expected_tenant or ""):
+        reasons.append("receipt details tenant does not match the request")
+    if str(details.get("actor_id") or "") != str(expected_actor or ""):
+        reasons.append("receipt details actor does not match the request")
+    return reasons
+
+
+@register_postcondition("mini_app_scaffold")
+async def _verify_mini_app_scaffold(ctx: Dict[str, Any]) -> OracleResult:
+    """Verify a scaffolded draft app + blueprint + starter receipt."""
+    action = "mini_app_scaffold"
+    app_id = str(ctx.get("app_id") or "").strip()
+    canvas_id = str(ctx.get("canvas_id") or "").strip()
+    expected_operation = str(
+        ctx.get("_oracle_expected_operation_id") or "").strip()
+    expected_request = str(
+        ctx.get("_oracle_expected_request_sha256") or "").strip()
+    expected_name = str(
+        ctx.get("_oracle_expected_mini_app_name") or "")
+    expected_scopes = list(
+        ctx.get("_oracle_expected_mini_app_declared_scopes") or [])
+    expected_dependencies = list(
+        ctx.get("_oracle_expected_mini_app_dependencies") or [])
+    spec = ctx.get("_oracle_expected_mini_app_spec") or {}
+    spec = spec if isinstance(spec, dict) else {}
+    expected_tenant = str(ctx.get("_oracle_expected_tenant_id") or "")
+    expected_workspace = str(ctx.get("_oracle_expected_workspace_id") or "")
+    expected_actor = str(ctx.get("_oracle_expected_actor_id") or "")
+    if not app_id or not canvas_id:
+        return OracleResult(action, False, "missing scaffolded ids")
+    if not expected_operation or not expected_request:
+        return OracleResult(action, False, "no frozen operation/request binding")
+    if not expected_tenant or not expected_actor:
+        return OracleResult(action, False, "no frozen scope/actor identity")
+
+    def _read(session):
+        from sqlalchemy import desc
+
+        from core.models import Canvas, CanvasAudit, CanvasLogic, MiniApp
+
+        app = session.query(MiniApp).filter(MiniApp.id == app_id).first()
+        canvas = session.query(Canvas).filter(Canvas.id == canvas_id).first()
+        audit = (
+            session.query(CanvasAudit)
+            .filter(CanvasAudit.canvas_id == canvas_id,
+                    CanvasAudit.action_type == action)
+            .order_by(desc(CanvasAudit.created_at), desc(CanvasAudit.id))
+            .first()
+        )
+        logic = (
+            session.query(CanvasLogic)
+            .filter(CanvasLogic.canvas_id == canvas_id)
+            .first()
+        )
+        return app, canvas, audit, logic
+
+    try:
+        app, canvas, audit, logic = _fresh_read_with_db(ctx, _read)
+        if app is None:
+            return OracleResult(action, False, f"MiniApp {app_id} absent in DB")
+        if canvas is None:
+            return OracleResult(action, False, f"Canvas {canvas_id} absent in DB")
+        reasons = _mini_app_common_receipt_reasons(
+            audit, action=action, expected_operation=expected_operation,
+            expected_request=expected_request, expected_tenant=expected_tenant,
+            expected_actor=expected_actor, canvas_id=canvas_id)
+        details = _mini_app_receipt_details(audit)
+        if str(app.id or "") != app_id:
+            reasons.append("scaffolded app id mismatch")
+        if str(app.blueprint_canvas_id or "") != canvas_id:
+            reasons.append("app blueprint canvas is not the returned source")
+        if str(app.name or "") != expected_name:
+            reasons.append(
+                f"app name={app.name!r}, expected {expected_name!r}")
+        if str(app.status or "") != "draft":
+            reasons.append(f"app status={app.status!r}, not draft")
+        if str(app.created_by or "") != expected_actor:
+            reasons.append(
+                f"app owner={app.created_by!r}, expected {expected_actor!r}")
+        reasons.extend(_mini_app_scope_reasons(
+            label="app", tenant_id=app.tenant_id,
+            workspace_id=app.workspace_id, expected_tenant=expected_tenant,
+            expected_workspace=expected_workspace))
+        if str(canvas.mini_app_id or "") != app_id:
+            reasons.append("source canvas is not linked to the app")
+        if str(canvas.created_by or "") != expected_actor:
+            reasons.append(
+                f"canvas owner={canvas.created_by!r}, expected "
+                f"{expected_actor!r}")
+        reasons.extend(_mini_app_scope_reasons(
+            label="canvas", tenant_id=canvas.tenant_id,
+            workspace_id=canvas.workspace_id, expected_tenant=expected_tenant,
+            expected_workspace=expected_workspace))
+        manifest = app.manifest if isinstance(app.manifest, dict) else {}
+        if str(details.get("app_id") or "") != app_id:
+            reasons.append("receipt app_id does not match the scaffolded app")
+        if str(details.get("name") or "") != expected_name:
+            reasons.append("receipt name does not match the authorized request")
+        if list(details.get("declared_scopes") or []) != list(
+                manifest.get("declared_scopes") or []):
+            reasons.append("receipt/scope declaration disagree")
+        if expected_scopes and list(expected_scopes) != list(
+                manifest.get("declared_scopes") or []):
+            reasons.append("app declared scopes do not match the request")
+        if expected_dependencies and list(expected_dependencies) != list(
+                manifest.get("dependencies") or []):
+            reasons.append("app dependencies do not match the request")
+        if list(details.get("dependencies") or []) != list(
+                manifest.get("dependencies") or []):
+            reasons.append("receipt/dependency declaration disagree")
+        expected_base = str(spec.get("base_image") or "python:3.11-slim")
+        if str(manifest.get("base_image") or "") != expected_base:
+            reasons.append("app base image does not match the request")
+        expected_canvas_type = str(
+            spec.get("canvas_type") or "mini_app").strip().lower()
+        if str(manifest.get("canvas_type") or "") != expected_canvas_type:
+            reasons.append("app base canvas type does not match the request")
+        if logic is None:
+            reasons.append("starter logic row is missing")
+        else:
+            try:
+                from core.mini_app_service import logic_source_sha256
+
+                digest = logic_source_sha256(logic.source)
+            except Exception:  # noqa: BLE001 - unreadable is not verified
+                digest = ""
+            if digest != str(details.get("logic_source_sha256") or ""):
+                reasons.append("starter logic digest does not match the receipt")
+        return OracleResult(
+            action, not reasons,
+            f"MiniApp {app_id} canvas {canvas_id} "
+            f"operation={expected_operation[:12]}"
+            + ("" if not reasons else "; " + "; ".join(reasons)))
+    except Exception as e:  # noqa: BLE001 - unreadable is not verified
+        return OracleResult(action, False, f"mini-app scaffold read-back failed: {e}")
+
+
+@register_postcondition("mini_app_publish")
+async def _verify_mini_app_publish(ctx: Dict[str, Any]) -> OracleResult:
+    """Verify the exact publish receipt and current app/manifest material."""
+    action = "mini_app_publish"
+    app_id = str(
+        ctx.get("_oracle_expected_app_id") or ctx.get("app_id") or "").strip()
+    receipt_id = str(ctx.get("audit_id") or "").strip()
+    expected_operation = str(
+        ctx.get("_oracle_expected_operation_id") or "").strip()
+    expected_request = str(
+        ctx.get("_oracle_expected_request_sha256") or "").strip()
+    expected_tenant = str(ctx.get("_oracle_expected_tenant_id") or "")
+    expected_workspace = str(ctx.get("_oracle_expected_workspace_id") or "")
+    expected_actor = str(ctx.get("_oracle_expected_actor_id") or "")
+    if not app_id:
+        return OracleResult(action, False, "missing app_id")
+    if not receipt_id:
+        return OracleResult(action, False, "no publish receipt from this invocation")
+    if not expected_operation or not expected_request:
+        return OracleResult(action, False, "no frozen operation/request binding")
+    if not expected_tenant or not expected_actor:
+        return OracleResult(action, False, "no frozen scope/actor identity")
+
+    def _read(session):
+        from core.models import Canvas, CanvasAudit, MiniApp
+
+        app = session.query(MiniApp).filter(MiniApp.id == app_id).first()
+        audit = (
+            session.query(CanvasAudit)
+            .filter(CanvasAudit.id == receipt_id,
+                    CanvasAudit.action_type == action)
+            .first()
+        )
+        canvas = None
+        if app is not None and app.blueprint_canvas_id:
+            canvas = (
+                session.query(Canvas)
+                .filter(Canvas.id == app.blueprint_canvas_id)
+                .first()
+            )
+        return app, audit, canvas
+
+    try:
+        app, audit, canvas = _fresh_read_with_db(ctx, _read)
+        if app is None:
+            return OracleResult(action, False, f"MiniApp {app_id} absent in DB")
+        if audit is None:
+            return OracleResult(action, False, "publish receipt absent")
+        if canvas is None:
+            return OracleResult(action, False, "blueprint canvas absent")
+        reasons = _mini_app_common_receipt_reasons(
+            audit, action=action, expected_operation=expected_operation,
+            expected_request=expected_request, expected_tenant=expected_tenant,
+            expected_actor=expected_actor,
+            canvas_id=str(app.blueprint_canvas_id or ""))
+        details = _mini_app_receipt_details(audit)
+        if str(details.get("app_id") or "") != app_id:
+            reasons.append("receipt app_id does not match the request")
+        if str(app.status or "") != "published":
+            reasons.append(f"app status={app.status!r}, not published")
+        if str(app.version or "") != str(details.get("version") or ""):
+            reasons.append("receipt published version is not current")
+        if bool(app.is_public) != bool(details.get("is_public")):
+            reasons.append("receipt public flag does not match the app")
+        if str(app.created_by or "") != expected_actor:
+            reasons.append(
+                f"app owner={app.created_by!r}, expected {expected_actor!r}")
+        reasons.extend(_mini_app_scope_reasons(
+            label="app", tenant_id=app.tenant_id,
+            workspace_id=app.workspace_id, expected_tenant=expected_tenant,
+            expected_workspace=expected_workspace))
+        manifest = app.manifest if isinstance(app.manifest, dict) else {}
+        if _content_digest(manifest) != str(
+                details.get("manifest_sha256") or ""):
+            reasons.append("current manifest does not match the published receipt")
+        if _content_digest(manifest.get("blueprint")) != str(
+                details.get("blueprint_sha256") or ""):
+            reasons.append("current blueprint does not match the receipt")
+        if _content_digest(manifest.get("initial_state")) != str(
+                details.get("initial_state_sha256") or ""):
+            reasons.append("current initial_state does not match the receipt")
+        return OracleResult(
+            action, not reasons,
+            f"MiniApp {app_id} v{details.get('version')} "
+            f"receipt={receipt_id[:12]} operation={expected_operation[:12]}"
+            + ("" if not reasons else "; " + "; ".join(reasons)))
+    except Exception as e:  # noqa: BLE001 - unreadable is not verified
+        return OracleResult(action, False, f"mini-app publish read-back failed: {e}")
+
+
+@register_postcondition("mini_app_install")
+async def _verify_mini_app_install(ctx: Dict[str, Any]) -> OracleResult:
+    """Verify the exact new instance, installed version and install receipt."""
+    action = "mini_app_install"
+    app_id = str(
+        ctx.get("_oracle_expected_app_id") or ctx.get("app_id") or "").strip()
+    canvas_id = str(ctx.get("canvas_id") or "").strip()
+    receipt_id = str(ctx.get("audit_id") or "").strip()
+    expected_operation = str(
+        ctx.get("_oracle_expected_operation_id") or "").strip()
+    expected_request = str(
+        ctx.get("_oracle_expected_request_sha256") or "").strip()
+    expected_tenant = str(ctx.get("_oracle_expected_tenant_id") or "")
+    expected_workspace = str(ctx.get("_oracle_expected_workspace_id") or "")
+    expected_actor = str(ctx.get("_oracle_expected_actor_id") or "")
+    if not app_id or not canvas_id:
+        return OracleResult(action, False, "missing app/instance ids")
+    if not receipt_id:
+        return OracleResult(action, False, "no install receipt from this invocation")
+    if not expected_operation or not expected_request:
+        return OracleResult(action, False, "no frozen operation/request binding")
+    if not expected_tenant or not expected_actor:
+        return OracleResult(action, False, "no frozen scope/actor identity")
+
+    def _read(session):
+        from core.models import (
+            Canvas, CanvasAudit, CanvasLogic, CanvasState, MiniApp,
+            MiniAppInstallation,
+        )
+
+        app = session.query(MiniApp).filter(MiniApp.id == app_id).first()
+        canvas = session.query(Canvas).filter(Canvas.id == canvas_id).first()
+        audit = (
+            session.query(CanvasAudit)
+            .filter(CanvasAudit.id == receipt_id,
+                    CanvasAudit.action_type == action)
+            .first()
+        )
+        installation = (
+            session.query(MiniAppInstallation)
+            .filter(MiniAppInstallation.canvas_id == canvas_id)
+            .first()
+        )
+        state = (
+            session.query(CanvasState)
+            .filter(CanvasState.canvas_id == canvas_id)
+            .first()
+        )
+        logic = (
+            session.query(CanvasLogic)
+            .filter(CanvasLogic.canvas_id == canvas_id)
+            .first()
+        )
+        return app, canvas, audit, installation, state, logic
+
+    try:
+        app, canvas, audit, installation, state, logic = _fresh_read_with_db(
+            ctx, _read)
+        if app is None:
+            return OracleResult(action, False, f"MiniApp {app_id} absent in DB")
+        if canvas is None:
+            return OracleResult(action, False, f"instance {canvas_id} absent in DB")
+        if audit is None:
+            return OracleResult(action, False, "install receipt absent")
+        reasons = _mini_app_common_receipt_reasons(
+            audit, action=action, expected_operation=expected_operation,
+            expected_request=expected_request, expected_tenant=expected_tenant,
+            expected_actor=expected_actor, canvas_id=canvas_id)
+        details = _mini_app_receipt_details(audit)
+        if str(details.get("app_id") or "") != app_id:
+            reasons.append("receipt app_id does not match the request")
+        if str(details.get("instance_canvas_id") or "") != canvas_id:
+            reasons.append("receipt instance canvas does not match the returned id")
+        if str(details.get("installed_by") or "") != expected_actor:
+            reasons.append("receipt installer does not match the actor")
+        if str(canvas.mini_app_id or "") != app_id:
+            reasons.append("instance canvas is not linked to the app")
+        if str(canvas.created_by or "") != expected_actor:
+            reasons.append(
+                f"instance owner={canvas.created_by!r}, expected "
+                f"{expected_actor!r}")
+        reasons.extend(_mini_app_scope_reasons(
+            label="instance", tenant_id=canvas.tenant_id,
+            workspace_id=canvas.workspace_id, expected_tenant=expected_tenant,
+            expected_workspace=expected_workspace))
+        # A published-app install may legitimately belong to a different
+        # instance owner; verify the sharing policy instead of owner-only rules.
+        if str(app.created_by or "") != expected_actor and not (
+                bool(app.is_public) and bool(getattr(app, "is_approved", False))):
+            reasons.append("non-owner install is not authorized by the sharing policy")
+        if str(app.status or "") != "published":
+            reasons.append(f"app status={app.status!r}, not published")
+        installed_version = str(details.get("installed_version") or "")
+        if str(app.version or "") != installed_version:
+            reasons.append("receipt installed version is not the current app version")
+        manifest = app.manifest if isinstance(app.manifest, dict) else {}
+        blueprint = manifest.get("blueprint") if isinstance(
+            manifest.get("blueprint"), dict) else {}
+        initial_state = manifest.get("initial_state")
+        if _content_digest(blueprint) != str(
+                details.get("blueprint_sha256") or ""):
+            reasons.append("receipt blueprint does not match the app")
+        if _content_digest(initial_state) != str(
+                details.get("initial_state_sha256") or ""):
+            reasons.append("receipt initial_state does not match the app")
+        if _content_digest(manifest) != str(
+                details.get("manifest_sha256") or ""):
+            reasons.append("receipt manifest does not match the app")
+        if installation is None:
+            reasons.append("MiniAppInstallation row is missing")
+        else:
+            if str(installation.app_id or "") != app_id:
+                reasons.append("installation app id mismatch")
+            if str(installation.canvas_id or "") != canvas_id:
+                reasons.append("installation canvas id mismatch")
+            if str(installation.installed_by or "") != expected_actor:
+                reasons.append("installation installer mismatch")
+            if str(installation.tenant_id or "") != str(canvas.tenant_id or ""):
+                reasons.append("installation tenant does not match the instance")
+            if str(installation.installed_version or "") != installed_version:
+                reasons.append("installation version does not match the receipt")
+            if int(installation.installed_runtime_version or 0) != int(
+                    details.get("installed_runtime_version") or 0):
+                reasons.append("installation runtime version mismatch")
+        if state is None:
+            reasons.append("instance CanvasState row is missing")
+        else:
+            if int(state.version or 0) != 1:
+                reasons.append(
+                    f"instance state version={state.version!r}, expected 1")
+            if state.state != initial_state:
+                reasons.append("instance state does not match the published seed")
+        if logic is not None and str(blueprint.get("logic_source") or ""):
+            try:
+                from core.mini_app_service import logic_source_sha256
+
+                digest = logic_source_sha256(logic.source)
+            except Exception:  # noqa: BLE001 - unreadable is not verified
+                digest = ""
+            if digest != logic_source_sha256(blueprint.get("logic_source")):
+                reasons.append("instance logic does not match the blueprint")
+        if canvas.content != blueprint.get("content"):
+            reasons.append("instance content does not match the blueprint")
+        if canvas.style != blueprint.get("style"):
+            reasons.append("instance style does not match the blueprint")
+        return OracleResult(
+            action, not reasons,
+            f"instance {canvas_id} app {app_id} v{installed_version} "
+            f"operation={expected_operation[:12]}"
+            + ("" if not reasons else "; " + "; ".join(reasons)))
+    except Exception as e:  # noqa: BLE001 - unreadable is not verified
+        return OracleResult(action, False, f"mini-app install read-back failed: {e}")
+
+
+def _mini_app_logic_postcondition(mode: str):
+    async def _verify(ctx: Dict[str, Any]) -> OracleResult:
+        action = (
+            "mini_app_revert_logic" if mode == "revert"
+            else "mini_app_write_logic")
+        app_id = str(
+            ctx.get("_oracle_expected_app_id") or ctx.get("app_id") or "").strip()
+        receipt_id = str(ctx.get("audit_id") or "").strip()
+        expected_operation = str(
+            ctx.get("_oracle_expected_operation_id") or "").strip()
+        expected_request = str(
+            ctx.get("_oracle_expected_request_sha256") or "").strip()
+        expected_tenant = str(ctx.get("_oracle_expected_tenant_id") or "")
+        expected_workspace = str(ctx.get("_oracle_expected_workspace_id") or "")
+        expected_actor = str(ctx.get("_oracle_expected_actor_id") or "")
+        expected_source = str(
+            ctx.get("_oracle_expected_mini_app_source_sha256") or "")
+        expected_version = str(
+            ctx.get("_oracle_expected_mini_app_version") or "")
+        if not app_id:
+            return OracleResult(action, False, "missing app_id")
+        if not receipt_id:
+            return OracleResult(action, False, "no logic receipt from this invocation")
+        if not expected_operation or not expected_request:
+            return OracleResult(action, False, "no frozen operation/request binding")
+        if not expected_tenant or not expected_actor:
+            return OracleResult(action, False, "no frozen scope/actor identity")
+        if mode == "write" and not expected_source:
+            return OracleResult(action, False, "no frozen logic source digest")
+        if mode == "revert" and not expected_version:
+            return OracleResult(action, False, "no frozen checkpoint version")
+
+        def _read(session):
+            from sqlalchemy import asc
+
+            from core.models import Canvas, CanvasAudit, CanvasLogic, MiniApp
+
+            app = session.query(MiniApp).filter(MiniApp.id == app_id).first()
+            canvas = None
+            if app is not None and app.blueprint_canvas_id:
+                canvas = (
+                    session.query(Canvas)
+                    .filter(Canvas.id == app.blueprint_canvas_id)
+                    .first()
+                )
+            logic = (
+                session.query(CanvasLogic)
+                .filter(CanvasLogic.canvas_id == app.blueprint_canvas_id)
+                .first()
+            ) if app is not None and app.blueprint_canvas_id else None
+            receipt = (
+                session.query(CanvasAudit)
+                .filter(CanvasAudit.id == receipt_id)
+                .first()
+            )
+            checkpoints = (
+                session.query(CanvasAudit)
+                .filter(
+                    CanvasAudit.canvas_id == app.blueprint_canvas_id,
+                    CanvasAudit.action_type == "mini_app_logic",
+                )
+                .order_by(asc(CanvasAudit.created_at), asc(CanvasAudit.id))
+                .all()
+            ) if app is not None and app.blueprint_canvas_id else []
+            return app, canvas, logic, receipt, checkpoints
+
+        try:
+            app, canvas, logic, receipt, checkpoints = _fresh_read_with_db(
+                ctx, _read)
+            if app is None:
+                return OracleResult(action, False, f"MiniApp {app_id} absent in DB")
+            if canvas is None or logic is None:
+                return OracleResult(
+                    action, False, "blueprint canvas/logic row is missing")
+            if receipt is None:
+                return OracleResult(action, False, "logic receipt absent")
+            reasons = _mini_app_common_receipt_reasons(
+                receipt, action="mini_app_logic",
+                expected_operation=expected_operation,
+                expected_request=expected_request,
+                expected_tenant=expected_tenant,
+                expected_actor=expected_actor, canvas_id=canvas.id)
+            details = _mini_app_receipt_details(receipt)
+            if str(details.get("app_id") or "") != app_id:
+                reasons.append("receipt app_id does not match the request")
+            if str(app.created_by or "") != expected_actor:
+                reasons.append(
+                    f"app owner={app.created_by!r}, expected {expected_actor!r}")
+            reasons.extend(_mini_app_scope_reasons(
+                label="app", tenant_id=app.tenant_id,
+                workspace_id=app.workspace_id,
+                expected_tenant=expected_tenant,
+                expected_workspace=expected_workspace))
+            reasons.extend(_mini_app_scope_reasons(
+                label="canvas", tenant_id=canvas.tenant_id,
+                workspace_id=canvas.workspace_id,
+                expected_tenant=expected_tenant,
+                expected_workspace=expected_workspace))
+            try:
+                from core.mini_app_service import logic_source_sha256
+
+                logic_digest = logic_source_sha256(logic.source)
+            except Exception:  # noqa: BLE001 - unreadable is not verified
+                logic_digest = ""
+            receipt_digest = str(details.get("source_sha256") or "")
+            if logic_digest != receipt_digest:
+                reasons.append("current logic does not match the receipt digest")
+            if receipt_digest != logic_source_sha256(
+                    details.get("source")):
+                reasons.append("receipt source does not match its digest")
+            # The receipt must be the CURRENT checkpoint, not an older
+            # identical version left on the canvas.
+            if not checkpoints:
+                reasons.append("no logic checkpoints exist")
+            else:
+                latest = checkpoints[-1]
+                if str(latest.id or "") != receipt_id:
+                    reasons.append(
+                        "receipt is not the current logic checkpoint")
+                max_version = max(
+                    int(_mini_app_receipt_details(row).get("version") or 0)
+                    for row in checkpoints)
+                if int(details.get("version") or 0) != max_version:
+                    reasons.append("receipt version is not the current head")
+            if mode == "write":
+                if logic_digest != expected_source:
+                    reasons.append("logic does not match the authorized source")
+            else:
+                if str(details.get("reverted_to") or "") != expected_version:
+                    reasons.append(
+                        "receipt reverted_to does not match the authorized "
+                        "checkpoint")
+                target_id = str(details.get("target_audit_id") or "")
+                target = next(
+                    (row for row in checkpoints
+                     if str(row.id or "") == target_id), None)
+                if target is None:
+                    reasons.append("authorized target checkpoint is absent")
+                else:
+                    target_details = _mini_app_receipt_details(target)
+                    if str(target_details.get("version") or "") != expected_version:
+                        reasons.append(
+                            "target checkpoint version does not match the "
+                            "authorized version")
+                    target_digest = logic_source_sha256(
+                        target_details.get("source"))
+                    if target_digest != receipt_digest:
+                        reasons.append(
+                            "reverted logic does not match the target "
+                            "checkpoint source")
+            return OracleResult(
+                action, not reasons,
+                f"MiniApp {app_id} checkpoint v{details.get('version')} "
+                f"operation={expected_operation[:12]}"
+                + ("" if not reasons else "; " + "; ".join(reasons)))
+        except Exception as e:  # noqa: BLE001 - unreadable is not verified
+            return OracleResult(
+                action, False, f"mini-app logic read-back failed: {e}")
+    return _verify
+
+
+register_postcondition("mini_app_write_logic")(
+    _mini_app_logic_postcondition("write"))
+register_postcondition("mini_app_revert_logic")(
+    _mini_app_logic_postcondition("revert"))
+
+
+@register_postcondition("mini_app_db_write")
+async def _verify_mini_app_db_write(ctx: Dict[str, Any]) -> OracleResult:
+    """Verify exact record ids/sequences/material for one record mutation."""
+    action = "mini_app_db_write"
+    canvas_id = str(
+        ctx.get("_oracle_expected_canvas_id")
+        or ctx.get("_oracle_expected_db_canvas_id") or "").strip()
+    receipt_id = str(ctx.get("audit_id") or "").strip()
+    expected_operation = str(
+        ctx.get("_oracle_expected_operation_id") or "").strip()
+    expected_request = str(
+        ctx.get("_oracle_expected_request_sha256") or "").strip()
+    expected_tenant = str(ctx.get("_oracle_expected_tenant_id") or "")
+    expected_workspace = str(ctx.get("_oracle_expected_workspace_id") or "")
+    expected_actor = str(ctx.get("_oracle_expected_actor_id") or "")
+    expected_op = str(ctx.get("_oracle_expected_db_op") or "")
+    expected_series = ctx.get("_oracle_expected_db_series")
+    expected_data = ctx.get("_oracle_expected_db_data")
+    expected_record_id = str(
+        ctx.get("_oracle_expected_db_record_id") or "")
+    expected_append_id = str(
+        ctx.get("_oracle_expected_db_append_id") or "")
+    expected_filter = ctx.get("_oracle_expected_db_filter") or {}
+    if not canvas_id:
+        return OracleResult(action, False, "missing instance canvas_id")
+    if not receipt_id:
+        return OracleResult(action, False, "no db_write receipt from this invocation")
+    if not expected_operation or not expected_request:
+        return OracleResult(action, False, "no frozen operation/request binding")
+    if not expected_tenant or not expected_actor:
+        return OracleResult(action, False, "no frozen scope/actor identity")
+    if expected_op not in {
+            "append", "update", "update_many", "delete", "delete_series",
+            "clear"}:
+        return OracleResult(action, False, "no frozen record operation")
+
+    def _read(session):
+        from core.models import Canvas, CanvasAudit, CanvasRecord, MiniApp
+
+        canvas = session.query(Canvas).filter(Canvas.id == canvas_id).first()
+        app = None
+        if canvas is not None and canvas.mini_app_id:
+            app = (
+                session.query(MiniApp)
+                .filter(MiniApp.id == canvas.mini_app_id)
+                .first()
+            )
+        receipt = (
+            session.query(CanvasAudit)
+            .filter(CanvasAudit.id == receipt_id,
+                    CanvasAudit.action_type == action)
+            .first()
+        )
+        rows = (
+            session.query(CanvasRecord)
+            .filter(CanvasRecord.canvas_id == canvas_id)
+            .all()
+        )
+        return canvas, app, receipt, rows
+
+    try:
+        canvas, app, receipt, rows = _fresh_read_with_db(ctx, _read)
+        if canvas is None:
+            return OracleResult(action, False, f"instance {canvas_id} absent in DB")
+        if app is None:
+            return OracleResult(action, False, "instance app is absent in DB")
+        if receipt is None:
+            return OracleResult(action, False, "db_write receipt absent")
+        reasons = _mini_app_common_receipt_reasons(
+            receipt, action=action, expected_operation=expected_operation,
+            expected_request=expected_request, expected_tenant=expected_tenant,
+            expected_actor=expected_actor, canvas_id=canvas_id)
+        details = _mini_app_receipt_details(receipt)
+        effect = details.get("effect") if isinstance(
+            details.get("effect"), dict) else {}
+        if str(details.get("canvas_id") or "") != canvas_id:
+            reasons.append("receipt canvas_id does not match the instance")
+        if str(details.get("app_id") or "") != str(app.id or ""):
+            reasons.append("receipt app_id does not match the instance app")
+        if str(details.get("op") or "") != expected_op:
+            reasons.append("receipt op does not match the authorized request")
+        expected_series_text = (
+            "" if expected_op in {"clear"} else str(expected_series or ""))
+        if str(details.get("series") or "") != expected_series_text:
+            reasons.append("receipt series does not match the authorized request")
+        # The record store is owner-gated by the instance or app owner.
+        if not (
+                str(canvas.created_by or "") == expected_actor
+                or str(app.created_by or "") == expected_actor):
+            reasons.append("actor is not the instance/app owner")
+        reasons.extend(_mini_app_scope_reasons(
+            label="instance", tenant_id=canvas.tenant_id,
+            workspace_id=canvas.workspace_id, expected_tenant=expected_tenant,
+            expected_workspace=expected_workspace))
+        by_id = {str(row.id): row for row in rows}
+
+        def _row_matches(row: Any) -> list:
+            problems = []
+            if str(row.canvas_id or "") != canvas_id:
+                problems.append("record canvas mismatch")
+            if str(row.app_id or "") != str(app.id or ""):
+                problems.append("record app mismatch")
+            if str(row.series or "") != expected_series_text:
+                problems.append("record series mismatch")
+            return problems
+
+        if expected_op == "append":
+            record_id = str(effect.get("record_id") or "")
+            row = by_id.get(record_id)
+            if not record_id:
+                reasons.append("receipt carries no appended record id")
+            if expected_append_id and expected_append_id != record_id:
+                reasons.append("appended record id does not match the request")
+            if row is None:
+                reasons.append("appended record is absent")
+            else:
+                reasons.extend(_row_matches(row))
+                if int(row.seq or 0) != int(effect.get("seq") or 0):
+                    reasons.append("appended record sequence mismatch")
+                if row.data != expected_data:
+                    reasons.append("appended record data does not match the request")
+                if _content_digest(row.data) != str(
+                        effect.get("data_sha256") or ""):
+                    reasons.append("appended record digest mismatch")
+                if str(row.tenant_id or "") != str(canvas.tenant_id or ""):
+                    reasons.append("appended record tenant mismatch")
+                if str(row.created_by or "") != expected_actor:
+                    reasons.append("appended record creator mismatch")
+        elif expected_op == "update":
+            if str(effect.get("record_id") or "") != expected_record_id:
+                reasons.append("receipt record id does not match the request")
+            row = by_id.get(expected_record_id)
+            if row is None:
+                reasons.append("updated record is absent")
+            else:
+                reasons.extend(_row_matches(row))
+                if int(row.seq or 0) != int(effect.get("seq") or 0):
+                    reasons.append("updated record sequence mismatch")
+                prior = effect.get("prior_data")
+                merged = dict(prior or {})
+                if not isinstance(expected_data, dict):
+                    reasons.append("no frozen update payload")
+                else:
+                    merged.update(expected_data)
+                if row.data != merged or effect.get("data") != merged:
+                    reasons.append("updated record data does not match prior+request")
+                if _content_digest(row.data) != str(
+                        effect.get("data_sha256") or ""):
+                    reasons.append("updated record digest mismatch")
+                if _content_digest(prior) != str(
+                        effect.get("prior_sha256") or ""):
+                    reasons.append("updated record prior digest mismatch")
+        elif expected_op == "update_many":
+            records = effect.get("records") if isinstance(
+                effect.get("records"), list) else []
+            if effect.get("filter") != expected_filter:
+                reasons.append("receipt filter does not match the request")
+            if not records:
+                reasons.append("receipt carries no affected record set")
+            if int(effect.get("updated") or 0) != len(records):
+                reasons.append("receipt affected-record list is incomplete")
+            seen = set()
+            for item in records:
+                if not isinstance(item, dict):
+                    reasons.append("malformed affected-record entry")
+                    continue
+                rid = str(item.get("id") or "")
+                if not rid or rid in seen:
+                    reasons.append("affected record ids are missing/duplicated")
+                    continue
+                seen.add(rid)
+                row = by_id.get(rid)
+                if row is None:
+                    reasons.append(f"affected record {rid[:12]} is absent")
+                    continue
+                reasons.extend(_row_matches(row))
+                if int(row.seq or 0) != int(item.get("seq") or 0):
+                    reasons.append(f"affected record {rid[:12]} sequence mismatch")
+                if _content_digest(row.data) != str(
+                        item.get("data_sha256") or ""):
+                    reasons.append(f"affected record {rid[:12]} digest mismatch")
+                if isinstance(expected_data, dict) and isinstance(row.data, dict):
+                    for key, value in expected_data.items():
+                        if row.data.get(key) != value:
+                            reasons.append(
+                                f"affected record {rid[:12]} does not carry "
+                                "the authorized update")
+                            break
+        elif expected_op == "delete":
+            if str(effect.get("record_id") or "") != expected_record_id:
+                reasons.append("receipt record id does not match the request")
+            if expected_record_id in by_id:
+                reasons.append("deleted record is still present")
+            if not str(effect.get("prior_sha256") or ""):
+                reasons.append("receipt carries no deleted-record material")
+        elif expected_op in {"delete_series", "clear"}:
+            records = effect.get("records") if isinstance(
+                effect.get("records"), list) else []
+            if not records:
+                reasons.append("receipt carries no deleted record set")
+            if int(effect.get("deleted") or 0) != len(records):
+                reasons.append("receipt deleted-record list is incomplete")
+            seen = set()
+            for item in records:
+                if not isinstance(item, dict):
+                    reasons.append("malformed deleted-record entry")
+                    continue
+                rid = str(item.get("id") or "")
+                if not rid or rid in seen:
+                    reasons.append("deleted record ids are missing/duplicated")
+                    continue
+                seen.add(rid)
+                if rid in by_id:
+                    reasons.append(f"deleted record {rid[:12]} is still present")
+            if expected_op == "delete_series" and str(
+                    details.get("series") or "") != expected_series_text:
+                reasons.append("delete_series target series mismatch")
+        return OracleResult(
+            action, not reasons,
+            f"canvas {canvas_id} {expected_op} "
+            f"operation={expected_operation[:12]}"
+            + ("" if not reasons else "; " + "; ".join(reasons)))
+    except Exception as e:  # noqa: BLE001 - unreadable is not verified
+        return OracleResult(action, False, f"mini-app record read-back failed: {e}")

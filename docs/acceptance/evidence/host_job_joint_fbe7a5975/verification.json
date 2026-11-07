@@ -1,0 +1,27 @@
+{
+  "joint_runtime_source": "fbe7a597585c5912d1eab2350170f05d29bba604",
+  "joint_result": {
+    "passed": 345,
+    "skipped": 3,
+    "failed": 0,
+    "pytest_exit_code": 0
+  },
+  "prior_joint_source": "e7efa50d958ad81b61285d943737c962f2f15a83",
+  "prior_joint_result": {
+    "passed": 341,
+    "skipped": 3,
+    "failed": 4,
+    "pytest_exit_code": 1,
+    "cause": "one stale _Gov test double rejected workspace_id/tenant_id before dispatch; production guards and all assertions retained"
+  },
+  "additional_test_source": "5d6619ad5179a46ae0e867b3dc21951c92f77c92",
+  "additional_fresh_engine": {
+    "passed": 1,
+    "pytest_exit_code": 0,
+    "scope": "new engine/session only, not real OS/backend restart"
+  },
+  "runtime_equivalence": "git diff fbe7a5975 5d6619ad5 -- backend/core backend/api backend/tools exits0; only host test and evidence added",
+  "seams": "controlled model/MCP leaves where stated; real SQLite/registered host producers; public host JWT journey; caller auth dependency overridden; no model/browser/guest/provider/soak claim",
+  "normal_generic_bridge": "separate reproduced1FAILGeneric/1PASSAssignment at7d2579e65; oneeffect/receipt but no frozen operation/request binding; queued Agent1, not fixed by this foundation",
+  "TASK-WAIT-01": "open; fresh Agent2 work active; backed waiting projection is not proof of automatic same-task event continuation"
+}

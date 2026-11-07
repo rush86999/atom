@@ -1,0 +1,929 @@
+
+tests/test_oracle_registry_verification_gap.py::test_declared_mutation_without_verifier_is_uncertain_and_not_reapplied 
+-------------------------------- live log setup --------------------------------
+2026-11-07 01:28:48 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:28:48 [    INFO] runtime identity: source_id=e7efa50d958a revision=e7efa50d958a dirty=False (0 modified, 0 untracked)
+PASSED                                                                   [  0%]
+tests/test_oracle_registry_verification_gap.py::test_unusable_verifier_is_uncertain_with_receipt[none] PASSED [  0%]
+tests/test_oracle_registry_verification_gap.py::test_unusable_verifier_is_uncertain_with_receipt[raise] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:28:48 [ WARNING] [Oracle] postcondition check for test.gap.raise.49d9de4d failed: readback store unavailable
+PASSED                                                                   [  0%]
+tests/test_oracle_registry_verification_gap.py::test_unusable_verifier_is_uncertain_with_receipt[refute] PASSED [  1%]
+tests/test_oracle_registry_verification_gap.py::test_positive_independent_verdict_applies_with_receipt PASSED [  1%]
+tests/test_oracle_registry_verification_gap.py::test_read_action_without_verifier_still_applies PASSED [  1%]
+tests/test_oracle_registry_verification_gap.py::test_full_executor_real_task_create_is_independently_verified PASSED [  2%]
+tests/test_oracle_registry_verification_gap.py::test_full_executor_real_read_action_still_applies PASSED [  2%]
+tests/test_oracle_registry_verification_gap.py::test_plan_output_is_not_treated_as_a_mutation PASSED [  2%]
+tests/test_oracle_registry_verification_gap.py::test_changed_request_is_refuted_against_the_frozen_authorized_request PASSED [  2%]
+tests/test_oracle_registry_verification_gap.py::test_disabled_oracle_never_certifies_applied PASSED [  3%]
+tests/test_oracle_registry_verification_gap.py::test_lead_probe_declared_write_without_verifier_cannot_claim_applied PASSED [  3%]
+tests/test_oracle_registry_verification_gap.py::test_readonly_twin_without_verifier_still_applies PASSED [  3%]
+tests/test_oracle_registry_verification_gap.py::test_unqualified_effect_metadata_is_not_an_implicit_read[effects0] PASSED [  4%]
+tests/test_oracle_registry_verification_gap.py::test_unqualified_effect_metadata_is_not_an_implicit_read[effects1] PASSED [  4%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_effect_metadata_cannot_certify_write[read-missing-entry] PASSED [  4%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_effect_metadata_cannot_certify_write[plan-missing-entry] PASSED [  4%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_effect_metadata_cannot_certify_write[read-non-mapping-entry] PASSED [  5%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_effect_metadata_cannot_certify_write[read-blank-name] PASSED [  5%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_effect_metadata_cannot_certify_write[read-null-name] PASSED [  5%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_effect_metadata_cannot_certify_write[read-non-string-name] PASSED [  6%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_effect_metadata_cannot_certify_write[read-unknown-name] PASSED [  6%]
+tests/test_oracle_registry_verification_gap.py::test_clean_non_mutating_metadata_still_applies[read] PASSED [  6%]
+tests/test_oracle_registry_verification_gap.py::test_clean_non_mutating_metadata_still_applies[read-only] PASSED [  6%]
+tests/test_oracle_registry_verification_gap.py::test_clean_non_mutating_metadata_still_applies[plan] PASSED [  7%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_declaration_is_never_a_read_or_plan_exemption[missing-entry] PASSED [  7%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_declaration_is_never_a_read_or_plan_exemption[blank-name] PASSED [  7%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_declaration_is_never_a_read_or_plan_exemption[non-string-name] PASSED [  8%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_declaration_is_never_a_read_or_plan_exemption[non-mapping-entry] PASSED [  8%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_declaration_is_never_a_read_or_plan_exemption[plan-missing-entry] PASSED [  8%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_declaration_is_never_a_read_or_plan_exemption[unknown-name] PASSED [  8%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_declaration_is_never_a_read_or_plan_exemption[string-container] PASSED [  9%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_declaration_is_never_a_read_or_plan_exemption[mapping-container] PASSED [  9%]
+tests/test_oracle_registry_verification_gap.py::test_valid_declaration_semantics_remain_bounded PASSED [  9%]
+tests/test_oracle_registry_verification_gap.py::test_registry_declares_effects_and_keeps_uncovered_explicit PASSED [ 10%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_manifest_cas_binds_exact_prior_value PASSED [ 10%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_manifest_cas_peer_change_preserves_peer_state PASSED [ 10%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_set_tests_conflict_is_truthful_no_effect PASSED [ 10%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_manifest_cas_scope_change_preserves_peer_state[tenant_id] PASSED [ 11%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_manifest_cas_scope_change_preserves_peer_state[workspace_id] PASSED [ 11%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_manifest_cas_scope_change_preserves_peer_state[created_by] PASSED [ 11%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_set_tests_authoritative_scope_contradiction_refutes[workspace_id] PASSED [ 12%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_set_tests_authoritative_scope_contradiction_refutes[tenant_id] PASSED [ 12%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_set_tests_authoritative_scope_contradiction_refutes[created_by] PASSED [ 12%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_set_tests_authoritative_scope_contradiction_refutes[audit_tenant] PASSED [ 12%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_set_tests_authoritative_scope_contradiction_refutes[audit_actor] PASSED [ 13%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_set_tests_fresh_read_refutes_dirty_request_object PASSED [ 13%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_set_tests_fresh_read_accepts_committed_valid_state PASSED [ 13%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_set_tests_verifier_binds_exact_tests_and_operation PASSED [ 14%]
+tests/test_oracle_effect_families.py::test_canvas_present_family_verifies_exact_material_and_operation PASSED [ 14%]
+tests/test_oracle_effect_families.py::test_canvas_update_family_verifies_content_and_mirror PASSED [ 14%]
+tests/test_oracle_effect_families.py::test_canvas_restore_family_verifies_original_target PASSED [ 14%]
+tests/test_oracle_effect_families.py::test_goal_create_and_evaluate_families PASSED [ 15%]
+tests/test_oracle_effect_families.py::test_goal_run_and_plan_families PASSED [ 15%]
+tests/test_oracle_effect_families.py::test_tasks_create_family_accepts_nested_task_payload PASSED [ 15%]
+tests/test_oracle_effect_families.py::test_adapter_uses_shared_canvas_update_postcondition PASSED [ 16%]
+tests/test_oracle_effect_families.py::test_adapter_downgrades_wrong_local_canvas_content PASSED [ 16%]
+tests/test_oracle_effect_families.py::test_adapter_uses_shared_goal_and_task_postconditions PASSED [ 16%]
+tests/test_oracle_effect_families.py::test_adapter_presentation_positive_binds_exact_audit PASSED [ 16%]
+tests/test_oracle_effect_families.py::test_adapter_presentation_handler_mutation_is_refuted PASSED [ 17%]
+tests/test_oracle_effect_families.py::test_adapter_old_audit_cannot_certify_new_operation PASSED [ 17%]
+tests/test_oracle_effect_families.py::test_adapter_missing_presentation_material_refuses_before_dispatch PASSED [ 17%]
+tests/test_oracle_connected_mutations.py::test_every_connected_mutating_action_has_a_postcondition_verifier PASSED [ 18%]
+tests/test_oracle_connected_mutations.py::test_connected_readback_receipt_is_required_for_verification PASSED [ 18%]
+tests/test_oracle_connected_mutations.py::test_action_registry_consumer_downgrades_a_false_oracle_pass PASSED [ 18%]
+tests/test_oracle_connected_mutations.py::test_connected_mutation_binding_matrix PASSED [ 18%]
+tests/test_oracle_connected_mutations.py::test_action_registry_consumer_downgrades_when_verifier_returns_none PASSED [ 19%]
+tests/test_oracle_connected_mutations.py::test_action_registry_consumer_downgrades_when_oracle_raises 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:28:50 [ WARNING] [Oracle] postcondition check for test.oracle.raises.d09e5aa6 failed: oracle transport unavailable
+PASSED                                                                   [ 19%]
+tests/test_oracle_connected_mutations.py::test_action_registry_consumer_keeps_read_only_outcome PASSED [ 19%]
+tests/test_oracle_connected_mutations.py::test_request_snapshot_is_frozen_before_handler_mutation[body] PASSED [ 20%]
+tests/test_oracle_connected_mutations.py::test_request_snapshot_is_frozen_before_handler_mutation[nested_recipient] PASSED [ 20%]
+tests/test_oracle_connected_mutations.py::test_request_snapshot_is_frozen_before_handler_mutation[subject] PASSED [ 20%]
+tests/test_oracle_connected_mutations.py::test_request_snapshot_is_frozen_before_handler_mutation[operation_id] PASSED [ 20%]
+tests/test_oracle_connected_mutations.py::test_unchanged_connected_request_still_verifies PASSED [ 21%]
+tests/test_oracle_connected_mutations.py::test_supplied_digest_mismatch_refuses_before_dispatch PASSED [ 21%]
+tests/test_oracle_connected_mutations.py::test_unavailable_binding_refuses_before_dispatch PASSED [ 21%]
+tests/test_oracle_connected_mutations.py::test_connected_estimate_organization_mutation_is_uncertain PASSED [ 22%]
+tests/test_assignment_executor.py::test_two_materially_different_assignments_same_executor PASSED [ 22%]
+tests/test_assignment_executor.py::test_changed_artifact_invalidates_approval PASSED [ 22%]
+tests/test_assignment_executor.py::test_provider_accepted_then_worker_lost_is_reconciled_not_resent PASSED [ 22%]
+tests/test_assignment_executor.py::test_cancellation_prevents_unstarted_effect PASSED [ 23%]
+tests/test_assignment_executor.py::test_external_reply_matches_exact_correlation_once PASSED [ 23%]
+tests/test_assignment_executor.py::test_action_dispatched_alone_is_not_provider_acceptance PASSED [ 23%]
+tests/test_assignment_executor.py::test_assignment_approval_binding_cannot_be_rebound PASSED [ 24%]
+tests/test_assignment_executor.py::test_stale_task_revision_prevents_dispatch PASSED [ 24%]
+tests/test_assignment_executor.py::test_failed_prerequisite_blocks_downstream_effect PASSED [ 24%]
+tests/test_assignment_executor.py::test_crash_after_wake_before_advance_recovers PASSED [ 25%]
+tests/test_assignment_executor.py::test_approval_after_cancellation_is_refused PASSED [ 25%]
+tests/test_assignment_executor.py::test_ordinary_resume_leaves_healthy_running_operation_intact PASSED [ 25%]
+tests/test_assignment_executor.py::test_recovery_without_worker_proof_does_not_assert_loss PASSED [ 25%]
+tests/test_assignment_executor.py::test_recovery_names_previous_worker_and_marks_uncertain PASSED [ 26%]
+tests/test_assignment_executor.py::test_liveness_probe_true_keeps_running_operation PASSED [ 26%]
+tests/test_assignment_executor.py::test_two_concurrent_resume_requests_dispatch_once PASSED [ 26%]
+tests/test_assignment_executor.py::test_send_prepare_binds_attachment_bytes_not_just_ids PASSED [ 27%]
+tests/test_assignment_executor.py::test_send_prepare_refuses_attachment_ids_without_hashes PASSED [ 27%]
+tests/test_assignment_executor.py::test_restart_after_artifact_creation_does_not_recreate_work PASSED [ 27%]
+tests/test_assignment_executor.py::test_external_research_reads_action_result_as_evidence PASSED [ 27%]
+tests/test_assignment_executor.py::test_external_research_missing_result_is_typed_obligation_and_resumes PASSED [ 28%]
+tests/test_assignment_executor.py::test_external_research_rejects_write_actions PASSED [ 28%]
+tests/test_assignment_executor.py::test_controlled_outbox_applies_taught_email_protocol PASSED [ 28%]
+tests/test_assignment_executor.py::test_external_response_contradicting_source_fact_stays_waiting PASSED [ 29%]
+tests/test_assignment_executor.py::test_external_response_for_genuinely_missing_fact_resumes PASSED [ 29%]
+tests/test_assignment_executor.py::test_blank_currency_value_accepts_authorized_resolution_and_survives_restart PASSED [ 29%]
+tests/test_assignment_executor.py::test_agreeing_currency_response_is_confirmation_not_conflict PASSED [ 29%]
+tests/test_assignment_executor.py::test_mixed_currency_values_require_record_specific_resolution PASSED [ 30%]
+tests/test_assignment_executor.py::test_substring_replies_do_not_confirm_established_values PASSED [ 30%]
+tests/test_assignment_executor.py::test_numeric_substring_reply_is_not_agreement PASSED [ 30%]
+tests/test_assignment_executor.py::test_explicit_typed_value_can_confirm_with_explanatory_text PASSED [ 31%]
+tests/test_assignment_executor.py::test_fact_resolution_uses_only_accepted_rows PASSED [ 31%]
+tests/test_assignment_executor.py::test_unreadable_evidence_is_not_treated_as_missing PASSED [ 31%]
+tests/test_assignment_executor.py::test_incomplete_coverage_does_not_allow_ordinary_resolution PASSED [ 31%]
+tests/test_assignment_executor.py::test_fact_evidence_branch_matrix PASSED [ 32%]
+tests/test_assignment_executor.py::test_bounded_standing_authority_covers_two_sends_without_approval PASSED [ 32%]
+tests/test_assignment_executor.py::test_standing_authority_bound_falls_back_to_approval PASSED [ 32%]
+tests/test_assignment_executor.py::test_recipient_outside_the_grant_requires_approval PASSED [ 33%]
+tests/test_assignment_executor.py::test_expired_standing_authority_requires_approval PASSED [ 33%]
+tests/test_assignment_executor.py::test_cost_budget_stops_before_the_next_step PASSED [ 33%]
+tests/test_assignment_executor.py::test_post_effect_runtime_error_is_uncertain_not_failed_before_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:28:54 [    INFO] Created HITL action 7279fc96-179b-4862-ba0b-b26a3bc300ed for agent None
+PASSED                                                                   [ 33%]
+tests/test_assignment_executor.py::test_post_effect_timeout_is_uncertain_and_does_not_resend 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:28:54 [    INFO] Created HITL action 4da78b5f-3393-4d4c-8893-4df3586b7290 for agent None
+PASSED                                                                   [ 34%]
+tests/test_assignment_executor.py::test_post_effect_parse_error_is_uncertain 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:28:55 [    INFO] Created HITL action 7ed716b7-4e3f-4085-8306-19e39b7d1b05 for agent None
+PASSED                                                                   [ 34%]
+tests/test_assignment_executor.py::test_post_effect_cancellation_is_uncertain 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:28:55 [    INFO] Created HITL action df5fad48-07a9-45f5-bb2c-f79badc6cebb for agent None
+PASSED                                                                   [ 34%]
+tests/test_assignment_executor.py::test_trusted_before_effect_error_remains_retryable 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:28:55 [    INFO] Created HITL action 272387fa-417b-4fdf-b80a-697a324973e4 for agent None
+PASSED                                                                   [ 35%]
+tests/test_assignment_executor.py::test_hard_cost_budget_refuses_before_dispatch PASSED [ 35%]
+tests/test_assignment_executor.py::test_reserved_cost_blocks_the_next_over_limit_step PASSED [ 35%]
+tests/test_assignment_executor.py::test_soft_cost_limit_is_explicit_and_exposed PASSED [ 35%]
+tests/test_assignment_executor.py::test_cost_bearing_adapter_without_a_bound_is_refused PASSED [ 36%]
+tests/test_assignment_executor.py::test_durable_wait_time_is_excluded_from_the_wall_budget PASSED [ 36%]
+tests/test_assignment_executor.py::test_retry_credits_a_legacy_wait_once_and_keeps_working_time PASSED [ 36%]
+tests/test_assignment_executor.py::test_legacy_already_credited_pause_is_not_extended PASSED [ 37%]
+tests/test_assignment_executor.py::test_each_new_wait_interval_is_credited_once PASSED [ 37%]
+tests/test_assignment_executor.py::test_independent_ready_branch_runs_while_first_branch_waits PASSED [ 37%]
+tests/test_assignment_executor.py::test_idle_budget_unions_overlapping_waits_across_restart PASSED [ 37%]
+tests/test_assignment_executor.py::test_legacy_open_wait_migration_does_not_invent_a_second_credit PASSED [ 38%]
+tests/test_assignment_executor.py::test_absolute_deadline_expires_through_wait_and_restart PASSED [ 38%]
+tests/test_assignment_executor.py::test_concurrent_retries_credit_a_legacy_wait_once PASSED [ 38%]
+tests/test_assignment_executor.py::test_genuine_active_work_exhaustion_is_refused PASSED [ 39%]
+tests/test_assignment_executor.py::test_legacy_open_wait_is_not_subtracted_twice PASSED [ 39%]
+tests/test_assignment_executor.py::test_legacy_credit_clears_matching_active_wait PASSED [ 39%]
+tests/test_assignment_executor.py::test_legacy_retry_keeps_genuine_active_exhaustion PASSED [ 39%]
+tests/test_assignment_executor.py::test_recorded_credit_with_stale_open_wait_is_not_double_subtracted PASSED [ 40%]
+tests/test_assignment_executor.py::test_concurrent_external_responses_credit_the_wait_once PASSED [ 40%]
+tests/test_assignment_executor.py::test_restart_while_waiting_credits_the_interval_once PASSED [ 40%]
+tests/test_assignment_executor.py::test_evidence_backed_quote_plan_end_to_end PASSED [ 41%]
+tests/test_assignment_executor.py::test_service_line_plan_uses_the_same_executor PASSED [ 41%]
+tests/test_assignment_executor.py::test_non_sales_policy_plan_uses_the_same_executor PASSED [ 41%]
+tests/test_assignment_executor.py::test_discount_clarification_is_durable_and_resumes_the_same_work PASSED [ 41%]
+tests/test_assignment_executor.py::test_uncertain_action_envelope_blocks_dependents_until_reconciled 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:28:56 [    INFO] Created HITL action 306d4e29-5eef-4ad2-b6d9-45216b820da4 for agent None
+2026-11-07 01:28:56 [    INFO] Created HITL action 406ba385-f50d-4991-8325-e164afeacd5b for agent None
+PASSED                                                                   [ 42%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result0-effects0-external-uncertain] PASSED [ 42%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result1-effects1-external-failed] PASSED [ 42%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result2-effects2-external-uncertain] PASSED [ 43%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result3-effects3-external-uncertain] PASSED [ 43%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result4-effects4-read_only-unavailable] PASSED [ 43%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result5-effects5-read_only-unavailable] PASSED [ 43%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result6-effects6-external-uncertain] PASSED [ 44%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result7-effects7-external-uncertain] PASSED [ 44%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result8-effects8-external-uncertain] PASSED [ 44%]
+tests/test_assignment_executor.py::test_action_result_envelope_outcomes[result9-effects9-read_only-applied] PASSED [ 45%]
+tests/test_assignment_executor.py::test_mutation_exception_after_dispatch_is_uncertain_not_ordinary_failure PASSED [ 45%]
+tests/test_assignment_executor.py::test_trusted_proof_of_no_effect_is_before_effect_failure 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:28:57 [    INFO] Created HITL action f3051042-79b2-4958-80fc-94e4f43898fe for agent None
+PASSED                                                                   [ 45%]
+tests/test_assignment_executor.py::test_unavailable_read_is_reported_without_fabricated_data PASSED [ 45%]
+tests/test_assignment_executor.py::test_readback_conflict_preserves_remote_identity_and_blocks_dependents 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:28:57 [    INFO] Created HITL action 3bb6580f-a5a1-48b8-96f7-9a19ad22cc20 for agent None
+PASSED                                                                   [ 46%]
+tests/test_assignment_executor.py::test_plan_shape_output_is_not_a_durable_mutation PASSED [ 46%]
+tests/test_assignment_executor.py::test_verified_receipt_gates_dependent_execution[proof0-verified_proof_missing] PASSED [ 46%]
+tests/test_assignment_executor.py::test_verified_receipt_gates_dependent_execution[proof1-verified_proof_refuted] PASSED [ 47%]
+tests/test_assignment_executor.py::test_verified_receipt_gates_dependent_execution[proof2-verified_proof_missing_fields] PASSED [ 47%]
+tests/test_assignment_executor.py::test_verified_receipt_gates_dependent_execution[proof3-verified_coverage_truncated] PASSED [ 47%]
+tests/test_assignment_executor.py::test_verified_receipt_gates_dependent_execution[proof4-verified_coverage_unknown] PASSED [ 47%]
+tests/test_assignment_executor.py::test_verified_receipt_positive_twin_executes_dependent PASSED [ 48%]
+tests/test_assignment_executor.py::test_provider_acceptance_never_confirms_sent_items_through_executor 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:28:57 [    INFO] Created HITL action a4c2c513-5353-4bd5-994b-05505adc9377 for agent None
+PASSED                                                                   [ 48%]
+tests/test_assignment_executor.py::test_sent_items_minimum_schema_gates_executor[operation_only] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:28:57 [    INFO] Created HITL action 4491d1f8-8004-461a-b827-1b69e474e06f for agent None
+PASSED                                                                   [ 48%]
+tests/test_assignment_executor.py::test_sent_items_minimum_schema_gates_executor[message_only] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:28:57 [    INFO] Created HITL action c9945d48-15e0-4e78-b6f9-826f5b592378 for agent None
+PASSED                                                                   [ 49%]
+tests/test_assignment_executor.py::test_explicit_sent_items_readback_confirms_through_executor 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:28:57 [    INFO] Created HITL action e3dfbf40-9c42-493c-9a07-30f99216ae4f for agent None
+PASSED                                                                   [ 49%]
+tests/test_assignment_executor.py::test_business_readiness_blocks_dependent_while_independent_runs PASSED [ 49%]
+tests/test_assignment_executor.py::test_plan_patch_invalidates_only_affected_branch_and_preserves_budget PASSED [ 50%]
+tests/test_assignment_executor.py::test_plan_patch_rewires_invalidated_work_and_refuses_applied_update PASSED [ 50%]
+tests/test_assignment_executor.py::test_plan_patch_rejects_stale_base_and_immutable_effects PASSED [ 50%]
+tests/test_assignment_executor.py::test_plan_patch_duplicate_is_idempotent_and_survives_restart PASSED [ 50%]
+tests/test_assignment_executor.py::test_adaptation_invalidates_only_affected_branch PASSED [ 51%]
+tests/test_assignment_executor.py::test_replayed_observation_does_not_reopen_work_twice PASSED [ 51%]
+tests/test_assignment_executor.py::test_observation_reopens_affected_work_and_reruns_only_that_branch PASSED [ 51%]
+tests/test_assignment_executor.py::test_adaptation_missing_qualification_asks_instead_of_guessing PASSED [ 52%]
+tests/test_assignment_executor.py::test_adaptation_model_choice_is_scoped_and_uncertain_reconciles PASSED [ 52%]
+tests/test_assignment_executor.py::test_plan_patch_validation_refuses_weakening_and_effect_relabel PASSED [ 52%]
+tests/test_assignment_executor.py::test_approval_clears_the_matching_human_input_wait PASSED [ 52%]
+tests/test_generic_oracle_mutation_contract.py::test_committed_declared_write_without_verifier_is_not_success PASSED [ 53%]
+tests/test_generic_oracle_mutation_contract.py::test_unverified_timeout_does_not_invite_retry PASSED [ 53%]
+tests/test_generic_oracle_mutation_contract.py::test_explicit_read_stays_usable PASSED [ 53%]
+tests/test_generic_oracle_mutation_contract.py::test_broken_verdicts_do_not_manufacture_business_success[refuting] PASSED [ 54%]
+tests/test_generic_oracle_mutation_contract.py::test_broken_verdicts_do_not_manufacture_business_success[raising] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:28:59 [ WARNING] [Oracle] postcondition check for test.generic.verdict.9bb2d24dc0574ea3be9ab2b397613406 failed: verifier transport unavailable
+PASSED                                                                   [ 54%]
+tests/test_generic_oracle_mutation_contract.py::test_broken_verdicts_do_not_manufacture_business_success[none] PASSED [ 54%]
+tests/test_generic_oracle_mutation_contract.py::test_real_effect_with_independent_readback_is_verified PASSED [ 54%]
+tests/test_generic_oracle_mutation_contract.py::test_disabled_oracle_cannot_lend_success[ATOM_ORACLE_VERIFIER_ENABLED] PASSED [ 55%]
+tests/test_generic_oracle_mutation_contract.py::test_disabled_oracle_cannot_lend_success[ATOM_ORACLE_ENFORCE] PASSED [ 55%]
+tests/test_generic_oracle_mutation_contract.py::test_registered_plan_only_output_stays_usable PASSED [ 55%]
+tests/test_generic_oracle_mutation_contract.py::test_returned_payload_cannot_overwrite_frozen_request[False] PASSED [ 56%]
+tests/test_generic_oracle_mutation_contract.py::test_returned_payload_cannot_overwrite_frozen_request[True] PASSED [ 56%]
+tests/test_generic_oracle_mutation_contract.py::test_handler_arg_mutation_does_not_rewrite_authorized_request[False] PASSED [ 56%]
+tests/test_generic_oracle_mutation_contract.py::test_handler_arg_mutation_does_not_rewrite_authorized_request[True] PASSED [ 56%]
+tests/test_generic_oracle_mutation_contract.py::test_durable_claim_replays_without_second_dispatch PASSED [ 57%]
+tests/test_generic_oracle_mutation_contract.py::test_changed_material_with_same_operation_is_refused PASSED [ 57%]
+tests/test_generic_oracle_mutation_contract.py::test_uncertain_timeout_claim_never_resends_on_restart 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:29:04 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='autodev_guidance'
+PASSED                                                                   [ 57%]
+tests/test_generic_oracle_mutation_contract.py::test_replay_with_refuted_fresh_readback_is_not_success PASSED [ 58%]
+tests/test_generic_oracle_mutation_contract.py::test_landed_effect_then_failed_selfreport_is_uncertain PASSED [ 58%]
+tests/test_generic_oracle_mutation_contract.py::test_landed_effect_then_ordinary_exception_is_uncertain PASSED [ 58%]
+tests/test_generic_oracle_mutation_contract.py::test_pre_effect_no_effect_refusal_stays_truthful PASSED [ 58%]
+tests/test_generic_oracle_mutation_contract.py::test_unqualified_registered_effect_metadata_is_conservative PASSED [ 59%]
+tests/test_generic_oracle_mutation_contract.py::test_normal_dispatch_without_operation_id_is_durable PASSED [ 59%]
+tests/test_generic_oracle_mutation_contract.py::test_server_intent_slot_is_not_reminted_by_model_material PASSED [ 59%]
+tests/test_generic_oracle_mutation_contract.py::test_cold_resume_without_explicit_operation_id_reloads_claim 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:29:08 [    INFO] Agent Scratch Agent (scratch-agent) starting task: resume the normal task
+2026-11-07 01:29:08 [    INFO] EscalationManager initialized
+2026-11-07 01:29:08 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 60%]
+tests/test_generic_oracle_mutation_contract.py::test_explicit_operation_without_workspace_is_refused_before_effect PASSED [ 60%]
+tests/test_generic_oracle_mutation_contract.py::test_handler_context_carries_server_operation_identity PASSED [ 60%]
+tests/test_generic_oracle_mutation_contract.py::test_cold_resume_with_unreadable_claim_store_stays_unresolved 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:29:10 [    INFO] Agent Scratch Agent (scratch-agent) starting task: continue original task
+PASSED                                                                   [ 60%]
+tests/test_generic_oracle_mutation_contract.py::test_zero_claim_read_only_execution_stays_success 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:29:11 [    INFO] Agent Scratch Agent (scratch-agent) starting task: answer the question
+PASSED                                                                   [ 61%]
+tests/test_generic_oracle_mutation_contract.py::test_mark_status_expected_status_is_database_cas PASSED [ 61%]
+tests/test_generic_oracle_mutation_contract.py::test_execution_finalization_blocks_unverified_mutation_but_keeps_reads 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:29:12 [    INFO] Agent Scratch Agent (scratch-agent) starting task: do the thing
+2026-11-07 01:29:12 [   ERROR] AUDIT GAP for execution c875c231-0655-4607-9526-b7d34235ec94: {'complete': False, 'execution_id': 'c875c231-0655-4607-9526-b7d34235ec94', 'expected_events': 5, 'actual_events': 4, 'coverage_percentage': 80.0, 'checked_at': '2026-11-07T06:29:12.413368+00:00'}
+2026-11-07 01:29:12 [    INFO] EscalationManager initialized
+2026-11-07 01:29:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 01:29:12 [   ERROR] Session sess-final not found
+FAILED                                                                   [ 61%]
+tests/test_generic_oracle_mutation_contract.py::test_execution_finalization_allows_verified_mutation 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:29:13 [    INFO] Agent Scratch Agent (scratch-agent) starting task: do the verified thing
+2026-11-07 01:29:13 [    INFO] EscalationManager initialized
+2026-11-07 01:29:13 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 01:29:13 [   ERROR] Session sess-final not found
+FAILED                                                                   [ 62%]
+tests/test_generic_oracle_mutation_contract.py::test_cold_resumed_execution_reloads_unresolved_claim 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:29:13 [    INFO] Agent Scratch Agent (scratch-agent) starting task: resume the task
+PASSED                                                                   [ 62%]
+tests/test_generic_normal_retry_identity.py::test_normal_loop_changed_retry_cannot_repeat_uncertain_intent 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:29:14 [    INFO] Agent Scratch Agent (scratch-agent) starting task: Append exactly one record once
+2026-11-07 01:29:14 [   ERROR] AUDIT GAP for execution one-record-exec: {'complete': False, 'execution_id': 'one-record-exec', 'expected_events': 5, 'actual_events': 4, 'coverage_percentage': 80.0, 'checked_at': '2026-11-07T06:29:14.398009+00:00'}
+FAILED                                                                   [ 62%]
+tests/test_generic_normal_retry_identity.py::test_late_peer_claim_keeps_normal_run_unresolved 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:29:14 [    INFO] Agent Scratch Agent (scratch-agent) starting task: Perform the requested write
+FAILED                                                                   [ 62%]
+tests/test_oracle_mini_app_host_mutations.py::test_supported_host_flow_is_independently_verified 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:29:15 [    INFO] Canvas type 'mini_app' auto-registered (generic defaults)
+PASSED                                                                   [ 63%]
+tests/test_oracle_mini_app_host_mutations.py::test_same_operation_is_not_dispatched_twice PASSED [ 63%]
+tests/test_oracle_mini_app_host_mutations.py::test_scaffold_receipt_twins PASSED [ 63%]
+tests/test_oracle_mini_app_host_mutations.py::test_scaffold_stale_or_dirty_state_is_refuted PASSED [ 64%]
+tests/test_oracle_mini_app_host_mutations.py::test_logic_write_receipt_twins PASSED [ 64%]
+tests/test_oracle_mini_app_host_mutations.py::test_logic_write_stale_source_is_refuted PASSED [ 64%]
+tests/test_oracle_mini_app_host_mutations.py::test_publish_receipt_twins PASSED [ 64%]
+tests/test_oracle_mini_app_host_mutations.py::test_publish_stale_version_is_refuted PASSED [ 65%]
+tests/test_oracle_mini_app_host_mutations.py::test_install_receipt_twins PASSED [ 65%]
+tests/test_oracle_mini_app_host_mutations.py::test_install_stale_instance_is_refuted PASSED [ 65%]
+tests/test_oracle_mini_app_host_mutations.py::test_install_allows_different_instance_owner PASSED [ 66%]
+tests/test_oracle_mini_app_host_mutations.py::test_revert_receipt_twins PASSED [ 66%]
+tests/test_oracle_mini_app_host_mutations.py::test_db_write_receipt_twins PASSED [ 66%]
+tests/test_oracle_mini_app_host_mutations.py::test_db_write_missing_receipt_and_wrong_target PASSED [ 66%]
+tests/test_oracle_mini_app_host_mutations.py::test_db_write_update_binds_prior_material PASSED [ 67%]
+tests/test_oracle_mini_app_host_mutations.py::test_stale_publish_is_proven_not_applied_and_writes_no_receipt PASSED [ 67%]
+tests/test_oracle_mini_app_host_mutations.py::test_logic_cas_binds_prior_language[False] PASSED [ 67%]
+tests/test_oracle_mini_app_host_mutations.py::test_logic_cas_binds_prior_language[True] PASSED [ 68%]
+tests/test_oracle_mini_app_host_mutations.py::test_publish_precondition_failure_does_not_commit_preparation[None] PASSED [ 68%]
+tests/test_oracle_mini_app_host_mutations.py::test_publish_precondition_failure_does_not_commit_preparation[retained-rootfs.img] PASSED [ 68%]
+tests/test_oracle_mini_app_host_mutations.py::test_stale_record_write_raises_conflict_and_preserves_peer PASSED [ 68%]
+tests/test_oracle_mini_app_host_mutations.py::test_registered_host_mutations_have_verifiers PASSED [ 69%]
+tests/test_agent_run_outcome_join_contract.py::test_success_joins_truth_scope_and_durable_execution_identity 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:29:28 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:29:28 [    INFO] Executing Agent Agent One with ReAct Loop. Input: do the work
+PASSED                                                                   [ 69%]
+tests/test_agent_run_outcome_join_contract.py::test_non_success_matrix_never_completes_a_job[result0-uncertain-AGENT_EXECUTION_UNCERTAIN-reconcile_operation-True] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:29:29 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:29:29 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+PASSED                                                                   [ 69%]
+tests/test_agent_run_outcome_join_contract.py::test_non_success_matrix_never_completes_a_job[result1-failed-AGENT_EXECUTION_NOT_SUCCESSFUL-review_failure-False] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:29:30 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:29:30 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+PASSED                                                                   [ 70%]
+tests/test_agent_run_outcome_join_contract.py::test_non_success_matrix_never_completes_a_job[result2-blocked-AGENT_EXECUTION_NOT_SUCCESSFUL-resolve_blocker-False] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:29:30 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:29:30 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+PASSED                                                                   [ 70%]
+tests/test_agent_run_outcome_join_contract.py::test_non_success_matrix_never_completes_a_job[result3-cancelled-AGENT_EXECUTION_NOT_SUCCESSFUL-none-False] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:29:31 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:29:31 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+PASSED                                                                   [ 70%]
+tests/test_agent_run_outcome_join_contract.py::test_non_success_matrix_never_completes_a_job[result4-waiting-AGENT_EXECUTION_NOT_SUCCESSFUL-review_execution-False] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:29:32 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:29:32 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+PASSED                                                                   [ 70%]
+tests/test_agent_run_outcome_join_contract.py::test_non_success_matrix_never_completes_a_job[result5-unknown-AGENT_EXECUTION_NOT_SUCCESSFUL-review_execution-False] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:29:32 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:29:32 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+PASSED                                                                   [ 71%]
+tests/test_agent_run_outcome_join_contract.py::test_non_success_matrix_never_completes_a_job[result6-unknown-AGENT_EXECUTION_NOT_SUCCESSFUL-review_execution-False] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:29:33 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:29:33 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+PASSED                                                                   [ 71%]
+tests/test_agent_run_outcome_join_contract.py::test_non_success_matrix_never_completes_a_job[result7-contradictory-AGENT_EXECUTION_UNCERTAIN-reconcile_operation-True] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:29:37 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:29:37 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+PASSED                                                                   [ 71%]
+tests/test_agent_run_outcome_join_contract.py::test_non_success_matrix_never_completes_a_job[result8-success-AGENT_EXECUTION_UNCERTAIN-reconcile_operation-True] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:29:38 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:29:38 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+PASSED                                                                   [ 72%]
+tests/test_agent_run_outcome_join_contract.py::test_replay_and_cold_read_do_not_dispatch_again 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:29:38 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:29:38 [    INFO] Executing Agent Agent One with ReAct Loop. Input: same
+PASSED                                                                   [ 72%]
+tests/test_agent_run_outcome_join_contract.py::test_continued_read_preserves_running_state PASSED [ 72%]
+tests/test_agent_run_outcome_join_contract.py::test_unscoped_agent_uses_the_scoped_actor_workspace 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:29:44 [    INFO] Starting agent Global Agent (ID: a-global)...
+2026-11-07 01:29:44 [    INFO] Executing Agent Global Agent with ReAct Loop. Input: work
+PASSED                                                                   [ 72%]
+tests/test_agent_run_outcome_join_contract.py::test_backed_wait_is_non_terminal_and_does_not_consume_the_slot 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:29:47 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:29:47 [    INFO] Executing Agent Agent One with ReAct Loop. Input: long task
+2026-11-07 01:29:47 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:29:47 [    INFO] Executing Agent Agent One with ReAct Loop. Input: other work
+PASSED                                                                   [ 73%]
+tests/test_agent_run_outcome_join_contract.py::test_unbacked_wait_reference_is_not_durable[result0] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:29:49 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:29:49 [    INFO] Executing Agent Agent One with ReAct Loop. Input: long task
+PASSED                                                                   [ 73%]
+tests/test_agent_run_outcome_join_contract.py::test_unbacked_wait_reference_is_not_durable[result1] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:29:50 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:29:50 [    INFO] Executing Agent Agent One with ReAct Loop. Input: long task
+PASSED                                                                   [ 73%]
+tests/test_agent_run_outcome_join_contract.py::test_unbacked_wait_reference_is_not_durable[result2] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:29:50 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:29:50 [    INFO] Executing Agent Agent One with ReAct Loop. Input: long task
+PASSED                                                                   [ 74%]
+tests/test_agent_run_outcome_join_contract.py::test_foreign_or_settled_review_is_not_durable_authority 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:29:52 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:29:52 [    INFO] Executing Agent Agent One with ReAct Loop. Input: long task
+2026-11-07 01:29:52 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:29:52 [    INFO] Executing Agent Agent One with ReAct Loop. Input: long task
+2026-11-07 01:29:52 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:29:52 [    INFO] Executing Agent Agent One with ReAct Loop. Input: long task
+PASSED                                                                   [ 74%]
+tests/test_agent_run_outcome_join_contract.py::test_legacy_unscoped_hitl_row_cannot_certify_a_scoped_task 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:29:53 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:29:53 [    INFO] Executing Agent Agent One with ReAct Loop. Input: long task
+PASSED                                                                   [ 74%]
+tests/test_agent_run_outcome_join_contract.py::test_governance_producer_persists_admitted_scope_and_binding PASSED [ 75%]
+tests/test_agent_run_outcome_join_contract.py::test_foreign_scope_is_refused_before_any_dispatch 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:29:56 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:29:56 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Execute task with params: {'sync': True, 'workspace_id': 'ws1', 'tenant_id': 't1', 'user_id': 'member-1', 'actor_id': 'member-1', 'job_id': '6ec9727e-70e3-4fe5-be9c-664f21f8bb3f', 'execution_id': '6e01934d-93f9-43c2-a363-70441ead2007', 'run_id': '6e01934d-93f9-43c2-a363-70441ead2007', 'operation_id': 'agent:run:forged-scope-op', 'operation_slot': None, 'intent_id': None, 'authorization_id': None, 'session_id': None, 'proposal_id': None, 'goal_id': None, 'trigger': 'agent_run_route'}
+PASSED                                                                   [ 75%]
+tests/test_agent_run_outcome_join_contract.py::test_late_success_cannot_overwrite_peer_cancellation 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:29:59 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:29:59 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+PASSED                                                                   [ 75%]
+tests/test_agent_run_outcome_join_contract.py::test_duplicate_dispatch_claims_one_run_slot 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:30:01 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:30:01 [    INFO] Executing Agent Agent One with ReAct Loop. Input: x
+2026-11-07 01:30:01 [ WARNING] Admitted agent run not dispatched (already claimed or terminal): agent=a1 job=race-job
+PASSED                                                                   [ 75%]
+tests/test_agent_run_outcome_join_contract.py::test_execution_exception_is_failed_without_public_leak 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:30:03 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:30:03 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+2026-11-07 01:30:03 [   ERROR] Agent a1 logic failed: provider failed: provider-secret-sk-live-123
+2026-11-07 01:30:03 [CRITICAL] !!! CRITICAL AGENT ERROR !!!
+Agent execution FAILED: provider failed: provider-secret-sk-live-123
+Traceback (most recent call last):
+  File "/private/tmp/atom-generic-lead-combine/backend/api/agent_routes.py", line 1118, in execute_agent_task
+    raise e
+  File "/private/tmp/atom-generic-lead-combine/backend/api/agent_routes.py", line 1034, in execute_agent_task
+    result_obj = await runner.execute(task_input, context=scoped_params, step_callback=streaming_callback)
+                 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/private/tmp/atom-generic-lead-combine/backend/tests/test_agent_run_outcome_join_contract.py", line 63, in execute
+    return behavior(context or {})
+  File "/private/tmp/atom-generic-lead-combine/backend/tests/test_agent_run_outcome_join_contract.py", line 882, in explode
+    raise RuntimeError(f"provider failed: {secret}")
+RuntimeError: provider failed: provider-secret-sk-live-123
+
+2026-11-07 01:30:03 [   ERROR] Agent a1 execution wrapper failed: provider failed: provider-secret-sk-live-123
+PASSED                                                                   [ 76%]
+tests/test_agent_run_outcome_join_contract.py::test_stale_dispatcher_cannot_finish_the_winning_run_slot PASSED [ 76%]
+tests/test_agent_run_outcome_join_contract.py::test_changed_parameters_after_admission_are_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:30:07 [ WARNING] Admitted agent run not dispatched (admitted parameters changed): agent=a1 job=digest-job
+PASSED                                                                   [ 76%]
+tests/test_agent_run_outcome_join_contract.py::test_receipt_freezes_original_actor_and_workspace 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:30:08 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:30:08 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+PASSED                                                                   [ 77%]
+tests/test_agent_run_outcome_join_contract.py::test_inactive_admission_actor_refuses_dispatch 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:30:11 [ WARNING] Admitted agent run not dispatched (admission receipt or authority unavailable): agent=a1 job=authority-job
+PASSED                                                                   [ 77%]
+tests/test_agent_run_outcome_join_contract.py::test_real_generic_agent_binds_execution_and_audit_identity 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:30:11 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:30:11 [    INFO] EscalationManager initialized
+2026-11-07 01:30:11 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 01:30:11 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 01:30:11 [    INFO] EscalationManager initialized
+2026-11-07 01:30:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 01:30:11 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 01:30:11 [    INFO] Executing Agent Agent One with ReAct Loop. Input: real work
+2026-11-07 01:30:11 [    INFO] Agent Agent One (a1) starting task: real work
+2026-11-07 01:30:11 [    INFO] EscalationManager initialized
+2026-11-07 01:30:11 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 01:30:11 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 01:30:11 [    INFO] LanceDBHandler initialized. ID: 5459176144. LANCEDB_AVAILABLE: True
+2026-11-07 01:30:11 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 01:30:11 [    INFO] Connecting to LanceDB at /private/tmp/atom-generic-lead-combine/backend/data/atom_memory with storage_options=None
+2026-11-07 01:30:11 [    INFO] LanceDB connected successfully
+2026-11-07 01:30:11 [    INFO] Recorded outcome for a1: success
+2026-11-07 01:30:11 [    INFO] EscalationManager initialized
+2026-11-07 01:30:11 [    INFO] CognitiveTierService initialized for workspace: ws1
+PASSED                                                                   [ 77%]
+tests/test_agent_run_outcome_join_contract.py::test_background_run_uses_the_same_truthful_join 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:30:12 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:30:12 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+PASSED                                                                   [ 77%]
+tests/test_agent_run_admission_contract.py::test_member_admits_own_agent_and_dispatch_completes 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:30:14 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws1'. type='agent_status_change'
+2026-11-07 01:30:14 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:member-1'. type='agent_status_change'
+PASSED                                                                   [ 78%]
+tests/test_agent_run_admission_contract.py::test_member_cross_workspace_and_tenant_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:30:15 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws2'. type='agent_status_change'
+2026-11-07 01:30:15 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:admin-1'. type='agent_status_change'
+PASSED                                                                   [ 78%]
+tests/test_agent_run_admission_contract.py::test_deprecated_paused_and_running_refused PASSED [ 78%]
+tests/test_agent_run_admission_contract.py::test_active_job_blocks_second_admission PASSED [ 79%]
+tests/test_agent_run_admission_contract.py::test_target_change_before_claim_refuses PASSED [ 79%]
+tests/test_agent_run_admission_contract.py::test_authority_change_before_claim_refuses[deactivate] PASSED [ 79%]
+tests/test_agent_run_admission_contract.py::test_authority_change_before_claim_refuses[demote] PASSED [ 79%]
+tests/test_agent_run_admission_contract.py::test_replay_same_operation_no_second_dispatch 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:30:24 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws1'. type='agent_status_change'
+2026-11-07 01:30:24 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:admin-1'. type='agent_status_change'
+PASSED                                                                   [ 80%]
+tests/test_agent_run_admission_contract.py::test_audit_rollback_preserves_agent_and_job PASSED [ 80%]
+tests/test_agent_run_admission_contract.py::test_readback_failure_is_committed_unverified PASSED [ 80%]
+tests/test_agent_run_admission_contract.py::test_execution_failure_marks_job_failed_and_restores_status 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:30:28 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws1'. type='agent_status_change'
+2026-11-07 01:30:28 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:admin-1'. type='agent_status_change'
+2026-11-07 01:30:28 [   ERROR] Admitted agent run failed: agent=a1 job=fe9c254a-08a6-4708-a308-a54f6ceb0b80 error_class=RuntimeError
+PASSED                                                                   [ 81%]
+tests/test_agent_run_admission_contract.py::test_sync_run_returns_stub_result_and_success_job 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:30:31 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:ws1'. type='agent_status_change'
+2026-11-07 01:30:31 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:admin-1'. type='agent_status_change'
+PASSED                                                                   [ 81%]
+tests/test_agent_job_wait_reference_contract.py::test_unbacked_returned_wait_reference_cannot_be_durable_authority[result0] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:30:32 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:30:32 [    INFO] Executing Agent Agent One with ReAct Loop. Input: long task
+PASSED                                                                   [ 81%]
+tests/test_agent_job_wait_reference_contract.py::test_unbacked_returned_wait_reference_cannot_be_durable_authority[result1] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:30:34 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:30:34 [    INFO] Executing Agent Agent One with ReAct Loop. Input: long task
+PASSED                                                                   [ 81%]
+tests/test_agent_job_wait_reference_contract.py::test_unbacked_returned_wait_reference_cannot_be_durable_authority[result2] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:30:37 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:30:37 [    INFO] Executing Agent Agent One with ReAct Loop. Input: long task
+PASSED                                                                   [ 82%]
+tests/test_agent_job_wait_reference_contract.py::test_normal_verified_completion_still_works 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:30:38 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:30:38 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+PASSED                                                                   [ 82%]
+tests/test_agent_job_wait_execution_contract.py::test_pending_wait_is_bound_to_exact_execution[missing] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:30:38 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:30:38 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+PASSED                                                                   [ 82%]
+tests/test_agent_job_wait_execution_contract.py::test_pending_wait_is_bound_to_exact_execution[foreign] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:30:41 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:30:41 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+PASSED                                                                   [ 83%]
+tests/test_agent_job_wait_execution_contract.py::test_pending_wait_is_bound_to_exact_execution[exact] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:30:43 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:30:43 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+PASSED                                                                   [ 83%]
+tests/test_agent_job_wait_scope_contract.py::test_scoped_wait_needs_exact_authoritative_scope[ws1-t1] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:30:46 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:30:46 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+PASSED                                                                   [ 83%]
+tests/test_agent_job_wait_scope_contract.py::test_scoped_wait_needs_exact_authoritative_scope[default-t1] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:30:48 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:30:48 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+PASSED                                                                   [ 83%]
+tests/test_agent_job_wait_scope_contract.py::test_scoped_wait_needs_exact_authoritative_scope[None-t1] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:30:51 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:30:51 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+PASSED                                                                   [ 84%]
+tests/test_agent_job_wait_scope_contract.py::test_scoped_wait_needs_exact_authoritative_scope[ws1-None] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:30:51 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:30:51 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+PASSED                                                                   [ 84%]
+tests/test_agent_job_wait_namespace_contract.py::test_action_parameters_do_not_authorize_a_task_wait[exact] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:30:52 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:30:52 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+PASSED                                                                   [ 84%]
+tests/test_agent_job_wait_namespace_contract.py::test_action_parameters_do_not_authorize_a_task_wait[foreign_snapshot_shadowed] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:30:54 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:30:54 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+PASSED                                                                   [ 85%]
+tests/test_agent_job_wait_namespace_contract.py::test_action_parameters_do_not_authorize_a_task_wait[missing_snapshot_from_params] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:30:55 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 01:30:55 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+PASSED                                                                   [ 85%]
+tests/test_agent_job_claim_interleaving.py::test_begin_job_guards_exact_agent_at_dml[False] PASSED [ 85%]
+tests/test_agent_job_claim_interleaving.py::test_begin_job_guards_exact_agent_at_dml[True] PASSED [ 85%]
+tests/test_agent_job_delivery_identity.py::test_step_event_has_only_its_workspace_channel[default] PASSED [ 86%]
+tests/test_agent_job_delivery_identity.py::test_step_event_has_only_its_workspace_channel[workspace-private] PASSED [ 86%]
+tests/test_agent_job_delivery_identity.py::test_finish_requires_exact_dispatch_identity[False] PASSED [ 86%]
+tests/test_agent_job_delivery_identity.py::test_finish_requires_exact_dispatch_identity[True] PASSED [ 87%]
+tests/test_agent_job_outcome_projection.py::test_job_status_preserves_execution_outcome[uncertain] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:30:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='agent_status_change'
+PASSED                                                                   [ 87%]
+tests/test_agent_job_outcome_projection.py::test_job_status_preserves_execution_outcome[failed] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:30:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='agent_status_change'
+PASSED                                                                   [ 87%]
+tests/test_agent_job_outcome_projection.py::test_job_status_preserves_execution_outcome[blocked] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:30:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='agent_status_change'
+PASSED                                                                   [ 87%]
+tests/test_agent_job_outcome_projection.py::test_job_status_preserves_execution_outcome[cancelled] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:30:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='agent_status_change'
+PASSED                                                                   [ 88%]
+tests/test_agent_job_outcome_projection.py::test_job_status_preserves_execution_outcome[success] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:30:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='agent_status_change'
+PASSED                                                                   [ 88%]
+tests/integration/journeys/test_oracle_registry_mutation_journey.py::test_registered_mini_app_manifest_write_is_independently_verified 
+-------------------------------- live log setup --------------------------------
+2026-11-07 01:30:55 [    INFO] ============================================================
+2026-11-07 01:30:55 [    INFO] ATOM Platform Starting (Hybrid Mode)
+2026-11-07 01:30:55 [    INFO] ============================================================
+2026-11-07 01:30:55 [    INFO] faulthandler: SIGUSR1 dumps thread stacks to stderr
+2026-11-07 01:30:55 [ WARNING] Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
+2026-11-07 01:30:55 [    INFO] Initializing database tables...
+2026-11-07 01:30:55 [    INFO] ⊘ Skipping table creation in test mode (fixture managed)
+2026-11-07 01:30:55 [    INFO] ⊘ Skipping admin bootstrap in test mode (fixture managed)
+2026-11-07 01:30:55 [    INFO] Loaded integrations so far: ['twilio', 'salesforce', 'auth', 'whatsapp', 'zoho_workdrive', 'outlook', 'asana', 'mailchimp', 'notion', 'monday', 'oauth', 'microsoft365']
+2026-11-07 01:30:55 [    INFO] Crash recovery: no orphaned executions found
+2026-11-07 01:30:55 [    INFO] Terminal-delivery recovery task started (outside the scheduler gate)
+2026-11-07 01:30:55 [    INFO] Research continuation worker started (outside the scheduler gate)
+2026-11-07 01:30:55 [    INFO] ⊘ Skipping Schedulers and Workers in test mode
+2026-11-07 01:30:55 [    INFO] ⊘ Skipping Postgres Event Bus in test mode
+2026-11-07 01:30:55 [    INFO] ✓ AI Workflow Service initialized
+2026-11-07 01:30:55 [    INFO] ⏩ Skipping redundant QStash schedule cleanup
+2026-11-07 01:30:55 [    INFO] ReflectionEngine registered on event bus
+2026-11-07 01:30:55 [    INFO] ✓ Auto-Dev ReflectionEngine registered on event bus
+2026-11-07 01:30:55 [    INFO] ============================================================
+2026-11-07 01:30:55 [    INFO] ✓ Server Ready
+2026-11-07 01:30:55 [    INFO] [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+2026-11-07 01:30:55 [    INFO] [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+2026-11-07 01:30:55 [    INFO] [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+2026-11-07 01:30:55 [    INFO] 🚀 [ULTRA LOUD] POST /api/auth/register
+2026-11-07 01:30:55 [    INFO] 🏁 [ULTRA LOUD] POST /api/auth/register -> 200
+2026-11-07 01:30:55 [    INFO] 🚀 [ULTRA LOUD] POST /api/auth/login
+2026-11-07 01:30:56 [    INFO] 🏁 [ULTRA LOUD] POST /api/auth/login -> 200
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:30:56 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_scaffold
+2026-11-07 01:30:56 [ WARNING] Token referenced non-existent user_id=863bb309-368e-474d-937d-a833c4b766f4
+2026-11-07 01:30:56 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_scaffold -> 200
+PASSED                                                                   [ 88%]
+------------------------------ live log teardown -------------------------------
+2026-11-07 01:30:56 [    INFO] [async-continuation] terminal-delivery recovery task stopping
+2026-11-07 01:30:56 [    INFO] Shutting down ATOM Platform...
+2026-11-07 01:30:56 [    INFO] ✓ Workflow Scheduler stopped
+2026-11-07 01:30:56 [    INFO] ℹ️ Initializing AgentEventBus in Postgres mode (Fallback)
+2026-11-07 01:30:56 [    INFO] ✓ Postgres Event Bus listener stopped
+2026-11-07 01:30:56 [    INFO] ✓ AI Workflow Service sessions cleaned up
+
+tests/integration/journeys/test_mini_app_host_receipts_journey.py::test_public_rpc_producers_write_bound_receipts 
+-------------------------------- live log setup --------------------------------
+2026-11-07 01:30:56 [    INFO] ============================================================
+2026-11-07 01:30:56 [    INFO] ATOM Platform Starting (Hybrid Mode)
+2026-11-07 01:30:56 [    INFO] ============================================================
+2026-11-07 01:30:56 [    INFO] faulthandler: SIGUSR1 dumps thread stacks to stderr
+2026-11-07 01:30:56 [ WARNING] Microsoft OAuth client configuration incomplete (MICROSOFT_CLIENT_ID, MICROSOFT_CLIENT_SECRET). Administrator configuration repair is required; this is not a revoked user grant.
+2026-11-07 01:30:56 [    INFO] Initializing database tables...
+2026-11-07 01:30:56 [    INFO] ⊘ Skipping table creation in test mode (fixture managed)
+2026-11-07 01:30:56 [    INFO] ⊘ Skipping admin bootstrap in test mode (fixture managed)
+2026-11-07 01:30:56 [    INFO] Loaded integrations so far: ['twilio', 'salesforce', 'auth', 'whatsapp', 'zoho_workdrive', 'outlook', 'asana', 'mailchimp', 'notion', 'monday', 'oauth', 'microsoft365']
+2026-11-07 01:30:56 [   ERROR] Execution recovery sweep failed: (sqlite3.OperationalError) no such table: workflow_executions
+[SQL: SELECT workflow_executions.execution_id AS workflow_executions_execution_id, workflow_executions.tenant_id AS workflow_executions_tenant_id, workflow_executions.workflow_id AS workflow_executions_workflow_id, workflow_executions.status AS workflow_executions_status, workflow_executions.input_data AS workflow_executions_input_data, workflow_executions.steps AS workflow_executions_steps, workflow_executions.outputs AS workflow_executions_outputs, workflow_executions.context AS workflow_executions_context, workflow_executions.version AS workflow_executions_version, workflow_executions.created_at AS workflow_executions_created_at, workflow_executions.updated_at AS workflow_executions_updated_at, workflow_executions.error AS workflow_executions_error, workflow_executions.completed_at AS workflow_executions_completed_at, workflow_executions.user_id AS workflow_executions_user_id, workflow_executions.visibility AS workflow_executions_visibility, workflow_executions.owner_id AS workflow_executions_owner_id, workflow_executions.team_id AS workflow_executions_team_id 
+FROM workflow_executions 
+WHERE workflow_executions.status = ?]
+[parameters: ('RUNNING',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-07 01:30:56 [    INFO] Terminal-delivery recovery task started (outside the scheduler gate)
+2026-11-07 01:30:56 [    INFO] Research continuation worker started (outside the scheduler gate)
+2026-11-07 01:30:56 [    INFO] ⊘ Skipping Schedulers and Workers in test mode
+2026-11-07 01:30:56 [    INFO] ⊘ Skipping Postgres Event Bus in test mode
+2026-11-07 01:30:56 [    INFO] ✓ AI Workflow Service initialized
+2026-11-07 01:30:56 [    INFO] ⏩ Skipping redundant QStash schedule cleanup
+2026-11-07 01:30:56 [    INFO] ✓ Auto-Dev ReflectionEngine registered on event bus
+2026-11-07 01:30:56 [    INFO] ============================================================
+2026-11-07 01:30:56 [    INFO] ✓ Server Ready
+2026-11-07 01:30:56 [    INFO] [async-continuation] terminal-delivery recovery task started (interval 60s, lease 300s)
+2026-11-07 01:30:56 [    INFO] [async-continuation] terminal-delivery recovery: {'candidates': 0, 'deferred_in_flight': 0, 'delivered': 0, 'failed': 0}
+2026-11-07 01:30:56 [    INFO] [research-continuation] durable research worker started (interval 45s, max 4 reads/cycle GLOBAL)
+2026-11-07 01:30:56 [    INFO] 🚀 [ULTRA LOUD] POST /api/auth/register
+2026-11-07 01:30:56 [    INFO] 🏁 [ULTRA LOUD] POST /api/auth/register -> 200
+2026-11-07 01:30:56 [    INFO] 🚀 [ULTRA LOUD] POST /api/auth/login
+2026-11-07 01:30:56 [    INFO] 🏁 [ULTRA LOUD] POST /api/auth/login -> 200
+-------------------------------- live log call ---------------------------------
+2026-11-07 01:30:56 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_scaffold
+2026-11-07 01:30:56 [ WARNING] Token referenced non-existent user_id=352f90ad-82cf-49ae-b15b-f078701dbd43
+2026-11-07 01:30:56 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_scaffold -> 200
+2026-11-07 01:30:56 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_write_logic
+2026-11-07 01:30:56 [ WARNING] Token referenced non-existent user_id=352f90ad-82cf-49ae-b15b-f078701dbd43
+2026-11-07 01:30:56 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_write_logic -> 200
+2026-11-07 01:30:56 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_revert_logic
+2026-11-07 01:30:56 [ WARNING] Token referenced non-existent user_id=352f90ad-82cf-49ae-b15b-f078701dbd43
+2026-11-07 01:30:56 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_revert_logic -> 200
+2026-11-07 01:30:56 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_publish
+2026-11-07 01:30:56 [ WARNING] Token referenced non-existent user_id=352f90ad-82cf-49ae-b15b-f078701dbd43
+2026-11-07 01:30:56 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_publish -> 200
+2026-11-07 01:30:56 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_install
+2026-11-07 01:30:56 [ WARNING] Token referenced non-existent user_id=352f90ad-82cf-49ae-b15b-f078701dbd43
+2026-11-07 01:30:56 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_install -> 200
+2026-11-07 01:30:56 [    INFO] 🚀 [ULTRA LOUD] POST /api/rpc/mini_app_db_write
+2026-11-07 01:30:56 [ WARNING] Token referenced non-existent user_id=352f90ad-82cf-49ae-b15b-f078701dbd43
+2026-11-07 01:30:56 [    INFO] 🏁 [ULTRA LOUD] POST /api/rpc/mini_app_db_write -> 200
+PASSED                                                                   [ 89%]
+------------------------------ live log teardown -------------------------------
+2026-11-07 01:30:56 [    INFO] [async-continuation] terminal-delivery recovery task stopping
+2026-11-07 01:30:56 [    INFO] Shutting down ATOM Platform...
+2026-11-07 01:30:56 [    INFO] ✓ Workflow Scheduler stopped
+2026-11-07 01:30:56 [    INFO] ✓ Postgres Event Bus listener stopped
+2026-11-07 01:30:56 [    INFO] ✓ AI Workflow Service sessions cleaned up
+
+tests/test_goal_write_authority_contract.py::test_create_member_plain_goal_verified_and_audited PASSED [ 89%]
+tests/test_goal_write_authority_contract.py::test_create_supervisor_enrichment_and_role_contract PASSED [ 89%]
+tests/test_goal_write_authority_contract.py::test_utility_roles_and_same_workspace_twins PASSED [ 89%]
+tests/test_goal_write_authority_contract.py::test_read_paths_stay_open_to_signed_in_viewer PASSED [ 90%]
+tests/test_goal_write_authority_contract.py::test_utility_set_refuses_demotion_committed_after_goal_read PASSED [ 90%]
+tests/test_goal_write_authority_contract.py::test_utility_clear_refuses_deactivation_committed_after_goal_read PASSED [ 90%]
+tests/test_goal_write_authority_contract.py::test_utility_set_refuses_workspace_move_after_goal_read PASSED [ 91%]
+tests/test_goal_write_authority_contract.py::test_utility_set_refuses_workspace_move_committed_after_role_gate PASSED [ 91%]
+tests/test_goal_write_authority_contract.py::test_create_refuses_demotion_committed_after_role_gate PASSED [ 91%]
+tests/test_goal_write_authority_contract.py::test_create_refuses_deactivation_committed_after_role_gate PASSED [ 91%]
+tests/test_goal_write_authority_contract.py::test_create_refuses_workspace_move_committed_after_role_gate PASSED [ 92%]
+tests/test_goal_write_authority_contract.py::test_new_request_already_in_current_workspace_can_create PASSED [ 92%]
+tests/test_goal_write_authority_contract.py::test_utility_set_refuses_stale_metadata_and_preserves_peer PASSED [ 92%]
+tests/test_goal_write_authority_contract.py::test_utility_handles_null_and_empty_metadata_distinctly PASSED [ 93%]
+tests/test_goal_write_authority_contract.py::test_utility_set_refuses_stale_null_metadata PASSED [ 93%]
+tests/test_goal_write_authority_contract.py::test_utility_accepts_each_nullable_metadata_kind[sql_null] PASSED [ 93%]
+tests/test_goal_write_authority_contract.py::test_utility_accepts_each_nullable_metadata_kind[json_null] PASSED [ 93%]
+tests/test_goal_write_authority_contract.py::test_utility_accepts_each_nullable_metadata_kind[object] PASSED [ 94%]
+tests/test_goal_write_authority_contract.py::test_nullable_metadata_kinds_have_distinct_prior_digests PASSED [ 94%]
+tests/test_goal_write_authority_contract.py::test_utility_refuses_nullable_metadata_transition_after_read[sql_null-sql_null] SKIPPED [ 94%]
+tests/test_goal_write_authority_contract.py::test_utility_refuses_nullable_metadata_transition_after_read[sql_null-json_null] PASSED [ 95%]
+tests/test_goal_write_authority_contract.py::test_utility_refuses_nullable_metadata_transition_after_read[sql_null-object] PASSED [ 95%]
+tests/test_goal_write_authority_contract.py::test_utility_refuses_nullable_metadata_transition_after_read[json_null-sql_null] PASSED [ 95%]
+tests/test_goal_write_authority_contract.py::test_utility_refuses_nullable_metadata_transition_after_read[json_null-json_null] SKIPPED [ 95%]
+tests/test_goal_write_authority_contract.py::test_utility_refuses_nullable_metadata_transition_after_read[json_null-object] PASSED [ 96%]
+tests/test_goal_write_authority_contract.py::test_utility_refuses_nullable_metadata_transition_after_read[object-sql_null] PASSED [ 96%]
+tests/test_goal_write_authority_contract.py::test_utility_refuses_nullable_metadata_transition_after_read[object-json_null] PASSED [ 96%]
+tests/test_goal_write_authority_contract.py::test_utility_refuses_nullable_metadata_transition_after_read[object-object] SKIPPED [ 97%]
+tests/test_goal_write_authority_contract.py::test_utility_clear_preserves_null_metadata_kind[sql_null] PASSED [ 97%]
+tests/test_goal_write_authority_contract.py::test_utility_clear_preserves_null_metadata_kind[json_null] PASSED [ 97%]
+tests/test_goal_write_authority_contract.py::test_utility_set_replay_same_and_changed_material PASSED [ 97%]
+tests/test_goal_write_authority_contract.py::test_utility_clear_replay_same_operation PASSED [ 98%]
+tests/test_goal_write_authority_contract.py::test_create_replay_same_and_changed_material PASSED [ 98%]
+tests/test_goal_write_authority_contract.py::test_receipt_and_target_read_back_after_fresh_engine PASSED [ 98%]
+::test_logic_cas_binds_prior_language[False] PASSED                      [ 99%]
+::test_logic_cas_binds_prior_language[True] PASSED                       [ 99%]
+::test_missing_blueprint_does_not_commit_preparation[None] PASSED        [ 99%]
+::test_missing_blueprint_does_not_commit_preparation[retained-rootfs.img] PASSED [100%]
+
+=================================== FAILURES ===================================
+____ test_execution_finalization_blocks_unverified_mutation_but_keeps_reads ____
+tests/test_generic_oracle_mutation_contract.py:1151: in test_execution_finalization_blocks_unverified_mutation_but_keeps_reads
+    assert result["status"] == "uncertain", result
+E   AssertionError: {'output': 'Finished the useful read.', 'steps': [{'step': 1, 'thought': 'mutate', 'action': {'tool': 'test.generic.loop-mutation.99f1cb52994147e39f1dc1bd5499152d', 'params': {}}, 'output': "Tool Execution Failed: _build_execute_agent.<locals>._Gov.__init__() got an unexpected keyword argument 'workspace_id'. You can try to correct parameters or move to next step.", ...}, {'step': 2, 'thought': 'read', 'action': {'tool': 'test.generic.loop-read.a3be9f8a199947829b72a87864197d74', 'params': {}}, 'output': "Tool Execution Failed: _build_execute_agent.<locals>._Gov.__init__() got an unexpected keyword argument 'workspace_id'. You can try to correct parameters or move to next step.", ...}, {'step': 3, 'thought': 'done', 'action': None, 'output': None, ...}], 'status': 'success', 'stuck_reason': None, ...}
+E   assert 'success' == 'uncertain'
+E     
+E     - uncertain
+E     + success
+----------------------------- Captured stdout call -----------------------------
+[2026-11-07 01:29:12] [[92mINFO[0m] [core.generic_agent] Agent Scratch Agent (scratch-agent) starting task: do the thing
+[2026-11-07 01:29:12] [[91mERROR[0m] [core.generic_agent] AUDIT GAP for execution c875c231-0655-4607-9526-b7d34235ec94: {'complete': False, 'execution_id': 'c875c231-0655-4607-9526-b7d34235ec94', 'expected_events': 5, 'actual_events': 4, 'coverage_percentage': 80.0, 'checked_at': '2026-11-07T06:29:12.413368+00:00'}
+[2026-11-07 01:29:12] [[92mINFO[0m] [core.llm.escalation_manager] EscalationManager initialized
+[2026-11-07 01:29:12] [[92mINFO[0m] [core.llm.cognitive_tier_service] CognitiveTierService initialized for workspace: default
+[2026-11-07 01:29:12] [[91mERROR[0m] [core.episode_segmentation_service] Session sess-final not found
+------------------------------ Captured log call -------------------------------
+INFO     core.generic_agent:generic_agent.py:250 Agent Scratch Agent (scratch-agent) starting task: do the thing
+ERROR    core.generic_agent:generic_agent.py:1001 AUDIT GAP for execution c875c231-0655-4607-9526-b7d34235ec94: {'complete': False, 'execution_id': 'c875c231-0655-4607-9526-b7d34235ec94', 'expected_events': 5, 'actual_events': 4, 'coverage_percentage': 80.0, 'checked_at': '2026-11-07T06:29:12.413368+00:00'}
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+ERROR    core.episode_segmentation_service:episode_segmentation_service.py:314 Session sess-final not found
+_____________ test_execution_finalization_allows_verified_mutation _____________
+tests/test_generic_oracle_mutation_contract.py:1209: in test_execution_finalization_allows_verified_mutation
+    assert mutate_step["output"]["oracle_verified"] is True, mutate_step
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: string indices must be integers, not 'str'
+----------------------------- Captured stdout call -----------------------------
+[2026-11-07 01:29:13] [[92mINFO[0m] [core.generic_agent] Agent Scratch Agent (scratch-agent) starting task: do the verified thing
+[2026-11-07 01:29:13] [[92mINFO[0m] [core.llm.escalation_manager] EscalationManager initialized
+[2026-11-07 01:29:13] [[92mINFO[0m] [core.llm.cognitive_tier_service] CognitiveTierService initialized for workspace: default
+[2026-11-07 01:29:13] [[91mERROR[0m] [core.episode_segmentation_service] Session sess-final not found
+------------------------------ Captured log call -------------------------------
+INFO     core.generic_agent:generic_agent.py:250 Agent Scratch Agent (scratch-agent) starting task: do the verified thing
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+ERROR    core.episode_segmentation_service:episode_segmentation_service.py:314 Session sess-final not found
+________ test_normal_loop_changed_retry_cannot_repeat_uncertain_intent _________
+tests/test_generic_normal_retry_identity.py:25: in test_normal_loop_changed_retry_cannot_repeat_uncertain_intent
+    assert len(calls)==1 and count==1,(calls,count,result)
+E   AssertionError: ([], 0, {'output': 'Created the requested record.', 'steps': [{'step': 1, 'thought': 'append requested record', 'action': {'tool': 'lead.generic.retry-material.334ea8ecb1d24f0cb1096bdf8b716632', 'params': {'value': 'one requested record'}}, 'output': "Tool Execution Failed: _build_execute_agent.<locals>._Gov.__init__() got an unexpected keyword argument 'workspace_id'. You can try to correct parameters or move to next step.", ...}, {'step': 2, 'thought': 'retry the same append', 'action': {'tool': 'lead.generic.retry-material.334ea8ecb1d24f0cb1096bdf8b716632', 'params': {'value': 'one requested record', 'retry_note': 'confirmation retry'}}, 'output': "Tool Execution Failed: _build_execute_agent.<locals>._Gov.__init__() got an unexpected keyword argument 'workspace_id'. You can try to correct parameters or move to next step.", ...}, {'step': 3, 'thought': 'done', 'action': None, 'output': None, ...}], 'status': 'success', 'stuck_reason': None, ...})
+E   assert (0 == 1)
+E    +  where 0 = len([])
+----------------------------- Captured stdout call -----------------------------
+[2026-11-07 01:29:14] [[92mINFO[0m] [core.generic_agent] Agent Scratch Agent (scratch-agent) starting task: Append exactly one record once
+[2026-11-07 01:29:14] [[91mERROR[0m] [core.generic_agent] AUDIT GAP for execution one-record-exec: {'complete': False, 'execution_id': 'one-record-exec', 'expected_events': 5, 'actual_events': 4, 'coverage_percentage': 80.0, 'checked_at': '2026-11-07T06:29:14.398009+00:00'}
+------------------------------ Captured log call -------------------------------
+INFO     core.generic_agent:generic_agent.py:250 Agent Scratch Agent (scratch-agent) starting task: Append exactly one record once
+ERROR    core.generic_agent:generic_agent.py:1001 AUDIT GAP for execution one-record-exec: {'complete': False, 'execution_id': 'one-record-exec', 'expected_events': 5, 'actual_events': 4, 'coverage_percentage': 80.0, 'checked_at': '2026-11-07T06:29:14.398009+00:00'}
+_______________ test_late_peer_claim_keeps_normal_run_unresolved _______________
+tests/test_generic_normal_retry_identity.py:50: in test_late_peer_claim_keeps_normal_run_unresolved
+    assert result.get('status')=='uncertain' and result.get('requires_reconciliation') is True,result
+E   AssertionError: {'output': 'Finished.', 'steps': [{'step': 1, 'thought': 'requested write', 'action': {'tool': 'lead.generic.peer-claim.6f3d5472fb4c4d82a244c9cb0cb84021', 'params': {'value': 'pending'}}, 'output': "Tool Execution Failed: _build_execute_agent.<locals>._Gov.__init__() got an unexpected keyword argument 'workspace_id'. You can try to correct parameters or move to next step.", ...}, {'step': 2, 'thought': 'done', 'action': None, 'output': None, ...}], 'status': 'success', 'stuck_reason': None, ...}
+E   assert ('success' == 'uncertain'
+E     
+E     - uncertain
+E     + success)
+----------------------------- Captured stdout call -----------------------------
+[2026-11-07 01:29:14] [[92mINFO[0m] [core.generic_agent] Agent Scratch Agent (scratch-agent) starting task: Perform the requested write
+------------------------------ Captured log call -------------------------------
+INFO     core.generic_agent:generic_agent.py:250 Agent Scratch Agent (scratch-agent) starting task: Perform the requested write
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+core/token_storage.py:17
+  /private/tmp/atom-generic-lead-combine/backend/core/token_storage.py:17: DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+api/routes/ingestion_crud_routes.py:26
+  /private/tmp/atom-generic-lead-combine/backend/api/routes/ingestion_crud_routes.py:26: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class DiscoveredEntityResponse(BaseModel):
+
+api/routes/ingestion_crud_routes.py:102
+  /private/tmp/atom-generic-lead-combine/backend/api/routes/ingestion_crud_routes.py:102: PydanticDeprecatedSince20: `min_items` is deprecated and will be removed, use `min_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    entity_ids: List[UUID] = Field(..., min_items=1, description="List of entity UUIDs to delete")
+
+integrations/whatsapp_fastapi_routes.py:49
+  /private/tmp/atom-generic-lead-combine/backend/integrations/whatsapp_fastapi_routes.py:49: PydanticDeprecatedSince20: `max_items` is deprecated and will be removed, use `max_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    recipients: List[str] = Field(
+
+api/episode_routes.py:397
+  /private/tmp/atom-generic-lead-combine/backend/api/episode_routes.py:397: FastAPIDeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    canvas_context_detail: str = Query("summary", regex="^(summary|standard|full)$"),
+
+api/admin_routes.py:202
+  /private/tmp/atom-generic-lead-combine/backend/api/admin_routes.py:202: PydanticDeprecatedSince20: Using extra keyword arguments on `Field` is deprecated and will be removed. Use `json_schema_extra` instead. (Extra keys: 'unique'). Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    name: str = Field(..., min_length=1, max_length=100, unique=True, description="Role name (must be unique)")
+
+api/admin_routes.py:1017
+  /private/tmp/atom-generic-lead-combine/backend/api/admin_routes.py:1017: PydanticDeprecatedSince20: `min_items` is deprecated and will be removed, use `min_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    conflict_ids: List[int] = Field(..., min_items=1, max_items=100, description="List of conflict IDs to resolve (max 100)")
+
+api/admin_routes.py:1017
+  /private/tmp/atom-generic-lead-combine/backend/api/admin_routes.py:1017: PydanticDeprecatedSince20: `max_items` is deprecated and will be removed, use `max_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    conflict_ids: List[int] = Field(..., min_items=1, max_items=100, description="List of conflict IDs to resolve (max 100)")
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 696 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_agent_run_outcome_join_contract.py::test_real_generic_agent_binds_execution_and_audit_identity
+  /private/tmp/atom-generic-lead-combine/backend/core/lancedb_handler.py:407: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    names = set(self.db.table_names())
+
+tests/test_agent_run_outcome_join_contract.py::test_real_generic_agent_binds_execution_and_audit_identity
+tests/test_agent_run_outcome_join_contract.py::test_real_generic_agent_binds_execution_and_audit_identity
+  /Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/asyncio/events.py:94: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    self._context.run(self._callback, *self._args)
+
+tests/test_agent_run_outcome_join_contract.py::test_real_generic_agent_binds_execution_and_audit_identity
+  /private/tmp/atom-generic-lead-combine/backend/core/lancedb_handler.py:620: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    if table_name in self.db.table_names():
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+-- generated xml file: /private/tmp/host-job-e7efa-joint-mr0j2q5h/result.xml ---
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_generic_oracle_mutation_contract.py::test_execution_finalization_blocks_unverified_mutation_but_keeps_reads
+FAILED tests/test_generic_oracle_mutation_contract.py::test_execution_finalization_allows_verified_mutation
+FAILED tests/test_generic_normal_retry_identity.py::test_normal_loop_changed_retry_cannot_repeat_uncertain_intent
+FAILED tests/test_generic_normal_retry_identity.py::test_late_peer_claim_keeps_normal_run_unresolved
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+====== 4 failed, 341 passed, 3 skipped, 715 warnings in 170.28s (0:02:50) ======

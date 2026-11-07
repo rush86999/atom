@@ -1047,7 +1047,9 @@ class AgentGovernanceService:
         action_type: str, 
         params: Dict, 
         reason: str,
-        chain_id: Optional[str] = None # NEW Phase 10
+        chain_id: Optional[str] = None, # NEW Phase 10
+        execution_context: Optional[Dict] = None,
+        user_id: Optional[str] = None,
     ) -> str:
         hitl = HITLAction(
             id=str(uuid.uuid4()),
@@ -1063,15 +1065,37 @@ class AgentGovernanceService:
             status=HITLActionStatus.PENDING.value,
             reason=reason,
             # NEW Phase 10 association
-            chain_id=chain_id
+            chain_id=chain_id,
+            user_id=user_id,
         )
 
         # Capture blackboard snapshot if it's a fleet operation
+        snapshot: Optional[Dict] = None
         if chain_id:
             from core.models import DelegationChain
             chain = self.db.query(DelegationChain).filter(DelegationChain.id == chain_id).first()
             if chain:
-                hitl.context_snapshot = chain.metadata_json
+                snapshot = dict(chain.metadata_json or {})
+        # Reuse the existing snapshot field for the server-owned task/execution
+        # binding. Business action params are never rewritten. Older callers
+        # that pass no execution_context keep their exact previous behavior.
+        if execution_context:
+            if snapshot is None:
+                snapshot = {}
+            for key in (
+                "job_id",
+                "execution_id",
+                "run_id",
+                "workspace_id",
+                "tenant_id",
+                "actor_id",
+                "user_id",
+            ):
+                value = execution_context.get(key)
+                if value is not None:
+                    snapshot[key] = str(value)
+        if snapshot is not None:
+            hitl.context_snapshot = snapshot
 
         self.db.add(hitl)
         self.db.commit()

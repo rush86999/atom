@@ -130,7 +130,8 @@ def mock_generic_agent():
     """Mock GenericAgent."""
     with patch("core.generic_agent.GenericAgent") as mock:
         agent = MagicMock()
-        agent.execute = AsyncMock(return_value={"final_output": "Test result"})
+        agent.execute = AsyncMock(return_value={
+            "status": "success", "final_output": "Test result"})
         mock.return_value = agent
         yield mock
 
@@ -519,7 +520,7 @@ class TestAgentDeleteOperations:
 class TestAgentRunOperations:
     """Test agent run endpoint."""
 
-    def test_run_agent_background(self, client: TestClient, test_agent_factory):
+    def test_run_agent_background(self, client: TestClient, test_agent_factory, mock_background_db):
         """Test running agent in background."""
         agent = test_agent_factory(name="Run Agent", status="active")
 
@@ -534,7 +535,7 @@ class TestAgentRunOperations:
         assert data["data"]["agent_id"] == agent.id
         assert "started" in data["message"].lower()
 
-    def test_run_agent_sync(self, client: TestClient, test_agent_factory):
+    def test_run_agent_sync(self, client: TestClient, test_agent_factory, mock_background_db):
         """Test running agent synchronously."""
         agent = test_agent_factory(name="Sync Agent", status="active")
 
@@ -542,7 +543,7 @@ class TestAgentRunOperations:
             f"/api/agents/{agent.id}/run",
             json={"parameters": {"sync": True, "task_input": "Test task"}}
         )
-        assert response.status_code == 200
+        assert response.status_code == 200, response.text
 
         data = response.json()
         assert data["success"] is True
