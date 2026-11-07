@@ -1,0 +1,29 @@
+{
+  "source": "5d3b478534c9071fc8fb89c772428232c3373ffe",
+  "scratch": "/private/tmp/root-wait-source-final-review-r1vjlh7s",
+  "command": [
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-goal-utility-surface-20261107/backend",
+    "--profile",
+    "heavy",
+    "--",
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "tests/test_lead_goal_reads_workspace_scope.py",
+    "tests/test_goal_utility_target.py",
+    "tests/test_goal_write_authority_contract.py",
+    "tests/test_goal_projection_boundaries.py",
+    "tests/test_goal_run_service.py",
+    "tests/test_goal_run_loop.py",
+    "tests/test_goal_run_routes.py",
+    "tests/test_goal_journey_gaps.py",
+    "tests/core/test_agent_objective.py",
+    "-q",
+    "--tb=short",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=/private/tmp/root-wait-source-final-review-r1vjlh7s/pytest"
+  ]
+}
