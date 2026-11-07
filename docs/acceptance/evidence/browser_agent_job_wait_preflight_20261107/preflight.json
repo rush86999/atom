@@ -1,7 +1,7 @@
 {
   "kind": "browser_agent_job_wait_preflight",
   "status": "preparation-only",
-  "generated_at": "2026-11-07T09:53:56-0500",
+  "generated_at": "2026-11-07T09:54:42-0500",
   "ok": true,
   "checks": {
     "scratch_environment": true,
@@ -24,22 +24,22 @@
   },
   "driver": {
     "path": "/private/tmp/atom-cli-mini-host/scripts/acceptance/browser_agent_job_wait.py",
-    "sha256": "bd75be4421012d593f0dc61126c5b700d2f842c9ba08b61d9f92622ca8c1b61e"
+    "sha256": "782592ceea5f8ee5e2e6c482d5484a64b659cb153d617a951c139ef09ef66cbb"
   },
   "source": {
     "repo": "/private/tmp/atom-cli-mini-host",
-    "head": "16ec8d862677326522d20d21be6e7a0d0daf714c",
+    "head": "7b164f7b6e3ff5bf5b556d92873bd24062b69623",
     "expected_sha": null,
     "matches_expected": null,
     "tracked_dirty": [],
     "tracked_dirty_count": 0,
     "backend_dirty": [],
     "backend_dirty_count": 0,
-    "driver_sha256": "bd75be4421012d593f0dc61126c5b700d2f842c9ba08b61d9f92622ca8c1b61e",
+    "driver_sha256": "782592ceea5f8ee5e2e6c482d5484a64b659cb153d617a951c139ef09ef66cbb",
     "driver_path": "/private/tmp/atom-cli-mini-host/scripts/acceptance/browser_agent_job_wait.py",
     "runtime_identity": {
-      "source_id": "16ec8d862677-dirty.02af2ec0c32b",
-      "revision": "16ec8d862677326522d20d21be6e7a0d0daf714c",
+      "source_id": "7b164f7b6e3f-dirty.02af2ec0c32b",
+      "revision": "7b164f7b6e3ff5bf5b556d92873bd24062b69623",
       "dirty": true,
       "dirty_paths_count": 0,
       "untracked_paths_count": 42,
@@ -48,11 +48,11 @@
   },
   "environment": {
     "testing": "1",
-    "database_url": "sqlite:////var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/atom-browser-preflight-final3-5hvx93rq/atom.db",
-    "database_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/atom-browser-preflight-final3-5hvx93rq/atom.db",
+    "database_url": "sqlite:////var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/atom-browser-preflight-final4-0iq4xjfl/atom.db",
+    "database_path": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/atom-browser-preflight-final4-0iq4xjfl/atom.db",
     "database_is_live_dev_db": false,
-    "data_dir": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/atom-browser-preflight-final3-5hvx93rq/data",
-    "office_dir": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/atom-browser-preflight-final3-5hvx93rq/office",
+    "data_dir": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/atom-browser-preflight-final4-0iq4xjfl/data",
+    "office_dir": "/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/atom-browser-preflight-final4-0iq4xjfl/office",
     "scratch_ok": true
   },
   "schema": {
@@ -176,8 +176,8 @@
     "8097": true
   },
   "world": {
-    "name": "browser_wait_16ec8d8626",
-    "path": "/private/tmp/atom-cli-mini-host/backend/data/acceptance_worlds/browser_wait_16ec8d8626",
+    "name": "browser_wait_7b164f7b6e",
+    "path": "/private/tmp/atom-cli-mini-host/backend/data/acceptance_worlds/browser_wait_7b164f7b6e",
     "exists": false,
     "required_fresh": true
   },
