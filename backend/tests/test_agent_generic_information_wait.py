@@ -22,6 +22,12 @@ from tests.test_agent_run_outcome_join_contract import (
     real_env,
 )
 
+# The ``real_env`` fixture replaces ``_react_step`` with a small mechanics
+# double. Keep a handle to the production consumer so the qualification test
+# below can exercise the real prompt/schema path; the fixture patch happens
+# after this module is imported.
+_PRODUCTION_REACT_STEP = real_generic.GenericAgent._react_step
+
 
 def _seed_board(env):
     board_id = "board-generic-wait"
@@ -240,11 +246,16 @@ def test_duplicate_answer_does_not_dispatch_again(real_env, monkeypatch):
         real_env, operation_id="generic-duplicate-answer",
         parameters={"sync": True, "task_input": "create a task"})
     data = response.json()["data"]
-    first_answer = _wait_answer(real_env, data["job_id"], "Unique title")
+    correlation_id = data["wait_receipt"]["correlation_id"]
+    first_answer = _wait_answer(
+        real_env, data["job_id"], "Unique title",
+        correlation_id=correlation_id)
     assert first_answer.status_code == 200, first_answer.text
     calls_after_first = len(calls)
 
-    replay = _wait_answer(real_env, data["job_id"], "Unique title")
+    replay = _wait_answer(
+        real_env, data["job_id"], "Unique title",
+        correlation_id=correlation_id)
     assert replay.status_code == 200, replay.text
     assert replay.json()["data"].get("already_resumed") is True
     assert len(calls) == calls_after_first
@@ -274,7 +285,9 @@ def test_answer_after_cancellation_cannot_revive_the_job(
         job.status = "cancelled"
         db.commit()
 
-    late = _wait_answer(real_env, data["job_id"], "CODE-9")
+    late = _wait_answer(
+        real_env, data["job_id"], "CODE-9",
+        correlation_id=data["wait_receipt"]["correlation_id"])
     assert late.status_code == 409, late.text
     assert len(calls) == 1
     job, payload = _assert_same_execution(
@@ -397,7 +410,9 @@ def test_second_missing_fact_waits_again_then_completes(
     first_wait = first_data["wait_receipt"]
 
     # The first answer is useful retained work, not completion.
-    answer1 = _wait_answer(real_env, first_job_id, "First answer")
+    answer1 = _wait_answer(
+        real_env, first_job_id, "First answer",
+        correlation_id=first_wait["correlation_id"])
     assert answer1.status_code == 202, answer1.text
     second_data = answer1.json()["data"]
     assert second_data["job_status"] == "waiting"
@@ -426,3 +441,237 @@ def test_second_missing_fact_waits_again_then_completes(
         assert len(waits) == 2
         assert {row.status for row in waits} == {"approved"}
     assert len(calls) == 4
+
+
+def test_answer_without_wait_identity_is_refused_before_acceptance(
+    real_env, monkeypatch,
+):
+    """A job id alone never selects whichever wait happens to be current."""
+    _seed_board(real_env)
+
+    def first(task_input, history, context):
+        return ReActStep(
+            thought="Need the title.",
+            information_wait=InformationWaitRequest(
+                question="Which title?", missing_fact="title"))
+
+    calls = _install_model(monkeypatch, [first])
+    start = _run(
+        real_env, operation_id="generic-unbound-answer",
+        parameters={"sync": True, "task_input": "create a task"})
+    assert start.status_code == 202, start.text
+    data = start.json()["data"]
+    job_id = data["job_id"]
+    first_wait = data["wait_receipt"]
+
+    # No correlation_id at all: the new route refuses instead of guessing.
+    unbound = _wait_answer(real_env, job_id, "Unbound title")
+    assert unbound.status_code == 422, unbound.text
+    job, _payload = _assert_same_execution(
+        real_env, job_id, data["execution_id"])
+    assert job.status == "waiting"
+    with real_env.SessionLocal() as db:
+        row = db.get(HITLAction, first_wait["hitl_action_id"])
+        assert row.status == "pending"
+    assert len(calls) == 1
+
+    # The exact server-owned identity still answers the original wait.
+    bound = _wait_answer(
+        real_env, job_id, "Bound title",
+        correlation_id=first_wait["correlation_id"])
+    assert bound.status_code == 200, bound.text
+    assert bound.json()["data"]["job_status"] == "success"
+
+
+def test_old_answer_cannot_settle_the_next_wait(real_env, monkeypatch):
+    """Repeated byte-identical delivery cannot answer a later prerequisite."""
+    board_id, column_id = _seed_board(real_env)
+
+    def title(task_input, history, context):
+        return ReActStep(
+            thought="Need the title.",
+            information_wait=InformationWaitRequest(
+                question="What title?", missing_fact="title"))
+
+    def priority(task_input, history, context):
+        assert context["information_answer"] == "Closing task"
+        return ReActStep(
+            thought="Now the priority is missing.",
+            information_wait=InformationWaitRequest(
+                question="What priority?", missing_fact="priority"))
+
+    def create(task_input, history, context):
+        return ReActStep(
+            thought="Both facts are authorized; create the task.",
+            action=ToolCall(
+                tool="tasks.create",
+                params={
+                    "board_id": board_id,
+                    "column_id": column_id,
+                    "title": "Closing task",
+                    "priority": context["information_answer"],
+                }))
+
+    def finished(task_input, history, context):
+        return ReActStep(thought="done", final_answer="created")
+
+    calls = _install_model(monkeypatch, [title, priority, create, finished])
+    start = _run(
+        real_env, operation_id="generic-repeated-prerequisite",
+        parameters={
+            "sync": True,
+            "task_input": "Create a task after obtaining its title and priority",
+        })
+    assert start.status_code == 202, start.text
+    data = start.json()["data"]
+    job_id = data["job_id"]
+    execution_id = data["execution_id"]
+    first_wait = data["wait_receipt"]
+
+    first = _wait_answer(
+        real_env, job_id, "Closing task",
+        correlation_id=first_wait["correlation_id"])
+    assert first.status_code == 202, first.text
+    second_wait = first.json()["data"]["wait_receipt"]
+    assert second_wait["hitl_action_id"] != first_wait["hitl_action_id"]
+    assert second_wait["question"] == "What priority?"
+    calls_after_second_wait = len(calls)
+
+    # The exact old event is replayed byte-for-byte (same answer body and the
+    # correlation from the FIRST receipt). It must refuse, not settle the new
+    # priority wait or invoke the model again.
+    replay = _wait_answer(
+        real_env, job_id, "Closing task",
+        correlation_id=first_wait["correlation_id"])
+    assert replay.status_code == 409, replay.text
+    # A body with no identity is refused too: it cannot mean "current wait".
+    unbound = _wait_answer(real_env, job_id, "Closing task")
+    assert unbound.status_code == 422, unbound.text
+    assert len(calls) == calls_after_second_wait
+    with real_env.SessionLocal() as db:
+        row = db.get(HITLAction, second_wait["hitl_action_id"])
+        assert row.status == "pending"
+        original = db.get(HITLAction, first_wait["hitl_action_id"])
+        assert original.status == "approved"
+        assert original.user_feedback == "Closing task"
+        assert db.query(BoardTask).filter(
+            BoardTask.board_id == board_id).count() == 0
+
+    # The NEW wait is answered only with its own server-owned correlation.
+    second = _wait_answer(
+        real_env, job_id, "high",
+        correlation_id=second_wait["correlation_id"])
+    assert second.status_code == 200, second.text
+    assert second.json()["data"]["job_status"] == "success"
+    job, _payload = _assert_same_execution(real_env, job_id, execution_id)
+    assert job.status == "success"
+    with real_env.SessionLocal() as db:
+        tasks = db.query(BoardTask).filter(
+            BoardTask.board_id == board_id).all()
+        assert len(tasks) == 1
+        assert tasks[0].title == "Closing task"
+        assert tasks[0].priority == "high"
+    assert len(calls) == calls_after_second_wait + 2
+
+
+def test_real_react_step_consumer_answers_wait_and_verifies_effect(
+    real_env, monkeypatch,
+):
+    """Qualify the real ``_react_step`` schema/prompt consumer, not a double.
+
+    Transport is controlled at the ``LLMService.generate_structured``
+    boundary: the production method still builds the ReAct prompt, the real
+    ``response_model`` validates the scripted step, and the resumed execution
+    history carries the authorized answer into that prompt. No live
+    inference/provider is used, and the server-owned wait identity/authority
+    is never placed in the model request.
+    """
+    board_id, column_id = _seed_board(real_env)
+    monkeypatch.setattr(
+        real_generic.GenericAgent, "_react_step", _PRODUCTION_REACT_STEP)
+
+    scripted = [
+        {
+            "thought": "The task title is missing.",
+            "information_wait": {
+                "question": "What title should the closing task have?",
+                "missing_fact": "title",
+            },
+        },
+        {
+            "thought": "The authorized title is available; create the task.",
+            "action": {
+                "tool": "tasks.create",
+                "params": {
+                    "board_id": board_id,
+                    "column_id": column_id,
+                    "title": "Quarterly close checklist",
+                    "status": "backlog",
+                },
+            },
+        },
+        {
+            "thought": "The registered action result was verified.",
+            "final_answer": "Created the task from the authorized title.",
+        },
+    ]
+    transport = []
+
+    async def controlled_structured(
+        self, prompt, response_model, system_instruction="", **kwargs
+    ):
+        # Same production schema/validation path the real service uses.
+        payload = scripted.pop(0)
+        transport.append({
+            "prompt": prompt,
+            "system_instruction": system_instruction,
+            "response_model": response_model,
+            "kwargs": dict(kwargs),
+        })
+        return response_model.model_validate(payload)
+
+    monkeypatch.setattr(
+        real_generic.LLMService, "generate_structured", controlled_structured)
+
+    start = _run(
+        real_env, operation_id="generic-real-react-consumer",
+        parameters={"sync": True, "task_input": "Create the closing task"})
+    assert start.status_code == 202, start.text
+    data = start.json()["data"]
+    receipt = data["wait_receipt"]
+    assert receipt["kind"] == "information_request"
+    assert len(transport) == 1
+    assert transport[0]["response_model"] is ReActStep
+    assert "AVAILABLE TOOLS:" in transport[0]["system_instruction"]
+    assert "information_wait" in transport[0]["system_instruction"]
+    # The server-owned wait identity/authority is not taught to the model.
+    assert receipt["correlation_id"] not in transport[0]["prompt"]
+    assert receipt["correlation_id"] not in transport[0]["system_instruction"]
+    assert receipt["hitl_action_id"] not in transport[0]["prompt"]
+    assert data["job_status"] == "waiting"
+
+    answer = _wait_answer(
+        real_env, data["job_id"], "Quarterly close checklist",
+        correlation_id=receipt["correlation_id"])
+    assert answer.status_code == 200, answer.text
+    body = answer.json()["data"]
+    assert body["job_status"] == "success"
+    assert body["execution_id"] == data["execution_id"]
+    assert len(transport) == 3
+    # The real consumer received the answer through the same execution
+    # history it builds for an ordinary ReAct step.
+    resumed_prompt = transport[1]["prompt"]
+    assert "AUTHORIZED INFORMATION ANSWER" in resumed_prompt
+    assert "Quarterly close checklist" in resumed_prompt
+    assert "What title should the closing task have?" in resumed_prompt
+
+    task_steps = [
+        step for step in body["result"].get("steps") or []
+        if (step.get("action") or {}).get("tool") == "tasks.create"
+    ]
+    assert task_steps
+    assert task_steps[0]["output"].get("oracle_verified") is True
+    with real_env.SessionLocal() as db:
+        task = db.query(BoardTask).filter(
+            BoardTask.board_id == board_id).one()
+        assert task.title == "Quarterly close checklist"
