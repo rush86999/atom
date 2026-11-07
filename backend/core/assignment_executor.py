@@ -2288,6 +2288,64 @@ class AssignmentExecutor:
                 return step, exc.gap
         return None
 
+    def _revalidate_waiting_sources(
+        self,
+        run_id: str,
+        assignment: Dict[str, Any],
+    ) -> Tuple[Dict[str, Any], bool]:
+        """Clear a durable source gap when the same accepted version returns.
+
+        A previously applied source step is marked waiting with open gap_ids
+        when its authority/bytes/version became unavailable. On a later normal
+        retry (source route or advance), probe the same accepted pin again; if
+        the source is permanently present and still the accepted version,
+        restore the applied status and resolve only that step's gap questions.
+        """
+        source_adapters = (
+            "workbook.read", "document.read", "document.text", "dataset.read")
+        waiting = [
+            step for step in assignment.get("steps") or []
+            if str(step.get("status") or "") == "waiting"
+            and step.get("gap_ids")
+            and str(step.get("adapter") or "") in source_adapters
+        ]
+        if not waiting:
+            return assignment, False
+        changed = False
+        restored_ids = []
+        for step in waiting:
+            probe = copy.deepcopy(assignment)
+            target = step_by_id(probe, step["step_id"])
+            if target is None:
+                continue
+            target["status"] = "applied"
+            problem = self._source_consumption_gap(probe, {})
+            if problem is not None:
+                # A different/current source may still be blocked; do not
+                # clear this gap unless this source itself is valid.
+                continue
+            assignment = self._mark_step(assignment, step["step_id"], {
+                "status": "applied",
+                "gap_ids": [],
+                "waiting": None,
+                "updated_at": _utc_now_iso(),
+            })
+            restored_ids.extend(str(q) for q in step.get("gap_ids") or [])
+            changed = True
+        if not changed:
+            return assignment, False
+        if restored_ids:
+            from core.task_lifecycle import resolve_unresolved_questions
+            resolve_unresolved_questions(
+                self.lifecycle, run_id,
+                question_ids=restored_ids,
+                resolution=(
+                    "authorized source restored at the same accepted "
+                    "version; dependent work may resume"))
+        self._persist_assignment(
+            run_id, assignment, "applied source restored at accepted version")
+        return assignment, True
+
     async def _record_applied_source_gap(
         self,
         run_id: str,
@@ -2411,6 +2469,10 @@ class AssignmentExecutor:
             expected_task_revision = None
 
             assignment = self._sync_assignment(record, assignment)
+            assignment, source_restored = self._revalidate_waiting_sources(
+                run_id, assignment)
+            if source_restored:
+                record = self.lifecycle.get_task(run_id) or record
             source_problem = self._source_consumption_gap(assignment, record)
             if source_problem:
                 source_step, source_gap = source_problem

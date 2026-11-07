@@ -59,7 +59,7 @@ def test_source_change_after_acceptance_is_revalidated_before_consumption(
         first[0]["question_id"]], accepted.json()
 
     # The accepted/read invoice changes before dependent consumption.
-    invoice.write_text(json.dumps(_invoice("4", "50.00", "10.00")))
+    invoice.write_text(json.dumps(_invoice("3", "50.00", "10.00")))
 
     second = _questions(lifecycle, run_id)
     assert len(second) == 1, second
@@ -82,7 +82,7 @@ def test_source_change_after_acceptance_is_revalidated_before_consumption(
     if final["status"] == "completed":
         assert reconciliations, (
             "completion must be backed by a reconciliation", final)
-        assert str(reconciliations[0]["result"]["value"]) == "210.00", (
+        assert str(reconciliations[0]["result"]["value"]) == "160.00", (
             "completion must use the current source value",
             reconciliations[0]["result"])
     else:
@@ -118,7 +118,7 @@ def test_explicitly_authorized_newer_version_replaces_cached_result(
     assert accepted.json()["resolved_question_ids"] == [
         first[0]["question_id"]], accepted.json()
 
-    invoice.write_text(json.dumps(_invoice("4", "50.00", "10.00")))
+    invoice.write_text(json.dumps(_invoice("3", "50.00", "10.00")))
     replaced = client.post(
         f"/api/assignments/{run_id}/sources",
         json={"source": {"path": str(invoice)},
@@ -140,8 +140,54 @@ def test_explicitly_authorized_newer_version_replaces_cached_result(
         final["status"], reconciliations,
         lifecycle.get_task(run_id).get("task_revision", {}).get("unresolved"))
     assert len(reconciliations) == 1, reconciliations
-    assert str(reconciliations[0]["result"]["value"]) == "210.00", (
+    assert str(reconciliations[0]["result"]["value"]) == "160.00", (
         reconciliations[0]["result"])
     assert not [
         step for step in reconciliations
         if str((step.get("result") or {}).get("value") or "") == "130.00"]
+
+
+def test_restored_same_version_source_resumes_same_job(
+        route_env, tmp_path, monkeypatch):
+    """A durable source gap clears on a normal retry of the same version."""
+    monkeypatch.setenv(
+        "ATOM_ASSIGNMENT_OUTPUT_DIR", str(tmp_path / "artifacts"))
+    po, invoice, receiving = _fixtures(tmp_path)
+    original = invoice.read_bytes()
+    _install_transport(monkeypatch)
+    client = route_env["client"]
+    lifecycle = route_env["lifecycle"]
+
+    run_id = _start(client, po)
+    first = _questions(lifecycle, run_id)
+    accepted = client.post(
+        f"/api/assignments/{run_id}/sources",
+        json={"source": {"path": str(invoice)},
+              "reason": "authorized invoice accepted before receiving"})
+    assert accepted.status_code == 200, accepted.text
+    assert accepted.json()["resolved_question_ids"] == [
+        first[0]["question_id"]], accepted.json()
+
+    invoice.unlink()
+    blocked = client.post(
+        f"/api/assignments/{run_id}/sources",
+        json={"source": {"path": str(receiving)},
+              "reason": "authorized receiving record while invoice is gone"})
+    assert blocked.status_code == 200, blocked.text
+    blocked_state = lifecycle.get_assignment(run_id)
+    assert blocked_state["status"] != "completed", blocked_state["status"]
+    assert _reconciliations(blocked_state) == []
+
+    invoice.write_bytes(original)
+    retried = client.post(
+        f"/api/assignments/{run_id}/sources",
+        json={"source": {"path": str(receiving)},
+              "reason": "retry after restoring the accepted source version"})
+    assert retried.status_code == 200, retried.text
+    final = lifecycle.get_assignment(run_id)
+    assert final["status"] == "completed", (
+        final["status"], _reconciliations(final),
+        lifecycle.get_task(run_id).get("task_revision", {}).get("unresolved"))
+    reconciliations = _reconciliations(final)
+    assert len(reconciliations) == 1, reconciliations
+    assert str(reconciliations[0]["result"]["value"]) == "130.00"
