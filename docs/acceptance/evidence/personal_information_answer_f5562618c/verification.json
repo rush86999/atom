@@ -1,0 +1,19 @@
+{
+  "executed_bytes_source": "f5562618cb29c1cfc70ce812c8cf77462d8604ad",
+  "tree_clean_at_run": false,
+  "source_py_bytes_match_commit": true,
+  "negative": {
+    "runtime": "0eb28c47c",
+    "test_source": "af10c531e",
+    "failed": 1,
+    "passed": 1,
+    "actual_exit": 1,
+    "observed": "null-workspace bootstrap-shaped actor gets404 on own information answer"
+  },
+  "fixed": {
+    "passed": 33,
+    "actual_exit": 0
+  },
+  "scope": "public TestClient/shared resume; high-level reasoning/auth controlled; no browser/liveprovider",
+  "cache_cleanup": "unrelated missing tracked bytecode left unstaged, not part of repair"
+}
