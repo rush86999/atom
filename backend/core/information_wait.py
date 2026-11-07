@@ -212,13 +212,135 @@ def _matches_tenant(left: Any, right: Any) -> bool:
     return str(left) == str(right)
 
 
+def actor_authority_reason(
+    actor: Any, *, workspace_id: Any, tenant_id: Any,
+) -> str:
+    """Return why an already-loaded actor may not continue a frozen scope.
+
+    This is the shared current-authority contract for information waits: the
+    accepted answer/admission receipt is *not* perpetual authority. It reuses
+    the existing User status/role, RBAC ``AGENT_RUN`` permission and
+    personal-scope workspace semantics. An empty string means the actor still
+    matches the originally admitted target.
+
+    Tenant/workspace absence keeps the supported legacy/personal behavior:
+    a missing tenant wildcard-matches (``_matches_tenant``) and a missing
+    workspace resolves through ``resolve_workspace_id`` to the Personal
+    Edition default. That keeps the null/default bootstrap twin valid while
+    still refusing a *moved* actor whose current workspace differs from the
+    admitted target in another real workspace.
+    """
+    if actor is None:
+        return "actor_unavailable"
+    if (
+        not bool(getattr(actor, "is_active", False))
+        or str(getattr(actor, "status", "")) != "active"
+    ):
+        return "actor_unavailable"
+
+    actor_tenant = getattr(actor, "tenant_id", None)
+    if (
+        actor_tenant is not None
+        and tenant_id is not None
+        and str(actor_tenant) != str(tenant_id)
+    ):
+        return "actor_tenant_mismatch"
+
+    target_workspace = str(workspace_id or "").strip()
+    if target_workspace:
+        from core.personal_scope import resolve_workspace_id
+
+        if str(resolve_workspace_id(actor)) != target_workspace:
+            return "actor_workspace_mismatch"
+
+    from core.rbac_service import Permission, RBACService
+
+    if not RBACService.check_permission(actor, Permission.AGENT_RUN):
+        return "actor_permission_revoked"
+    return ""
+
+
+def current_actor_authority(
+    session, *, actor_id: Any, workspace_id: Any, tenant_id: Any,
+) -> tuple:
+    """Re-read the actor in ``session`` and return ``(actor, reason)``.
+
+    ``populate_existing`` is deliberate: a cached identity-map User can be
+    older than a move/deactivation committed by another writer.
+    """
+    actor_id = str(actor_id or "")
+    if not actor_id:
+        # Legacy waits predate the actor field; do not invent authority.
+        return None, ""
+    from core.models import User
+
+    actor = (
+        session.query(User)
+        .filter(User.id == actor_id)
+        .populate_existing()
+        .first()
+    )
+    return actor, actor_authority_reason(
+        actor, workspace_id=workspace_id, tenant_id=tenant_id)
+
+
+def actor_authority_conditions(
+    *, actor_id: Any, workspace_id: Any, tenant_id: Any,
+) -> list:
+    """SQL conditions binding the same current-authority contract.
+
+    Callers add these to the *same* conditional UPDATE that claims the waiting
+    job, so a move/deactivation committed before that claim is observed by the
+    write statement itself instead of a preceding read.
+    """
+    from sqlalchemy import or_
+
+    from core.models import User, UserRole
+    from core.personal_scope import PERSONAL_WORKSPACE_ID
+    from core.rbac_service import Permission, get_role_permissions
+
+    actor_id = str(actor_id or "")
+    if not actor_id:
+        return []
+    conditions = [
+        User.id == actor_id,
+        User.status == "active",
+        User.is_active.is_(True),
+    ]
+    if tenant_id is not None:
+        conditions.append(or_(
+            User.tenant_id == str(tenant_id),
+            User.tenant_id.is_(None),
+        ))
+
+    allowed_roles = {
+        role.value
+        for role, permissions in get_role_permissions().items()
+        if Permission.AGENT_RUN in permissions
+    }
+    # SUPER_ADMIN is implicitly granted every permission by check_permission.
+    allowed_roles.add(UserRole.SUPER_ADMIN.value)
+    conditions.append(User.role.in_(sorted(allowed_roles)))
+
+    target_workspace = str(workspace_id or "").strip()
+    if target_workspace:
+        if target_workspace == PERSONAL_WORKSPACE_ID:
+            conditions.append(or_(
+                User.workspace_id == target_workspace,
+                User.workspace_id.is_(None),
+            ))
+        else:
+            conditions.append(User.workspace_id == target_workspace)
+    return conditions
+
+
 def _validate_recovery_target(session, action, binding) -> tuple:
     """Return ``(job, execution, reason)`` after checking exact server facts.
 
     A malformed, foreign, settled or unrelated action must never reach the
     resume consumer. ``reason`` is empty only for a valid target.
     """
-    from core.models import AgentExecution, AgentJob, AgentRegistry, User
+    from core.models import AgentExecution, AgentJob, AgentRegistry
 
     job = session.get(AgentJob, binding["job_id"])
     if job is None:
@@ -233,15 +355,6 @@ def _validate_recovery_target(session, action, binding) -> tuple:
     agent = session.get(AgentRegistry, binding["agent_id"])
     if agent is None:
         return None, None, "agent_not_found"
-    actor_id = binding.get("actor_id")
-    if actor_id:
-        actor = session.get(User, actor_id)
-        if (
-            actor is None
-            or not bool(getattr(actor, "is_active", False))
-            or str(getattr(actor, "status", "")) != "active"
-        ):
-            return None, None, "actor_unavailable"
     if getattr(action, "agent_id", None) not in (None, binding["agent_id"]):
         return None, None, "action_agent_mismatch"
     for entity in (agent, execution):
@@ -258,6 +371,19 @@ def _validate_recovery_target(session, action, binding) -> tuple:
         if not _matches_tenant(
                 getattr(entity, "tenant_id", None), binding["tenant_id"]):
             return None, None, "tenant_mismatch"
+
+    # The admitted actor must still hold the current authority for the frozen
+    # target scope. The accepted answer row is history, not a perpetual grant.
+    actor_id = binding.get("actor_id")
+    if actor_id:
+        _actor, authority_reason = current_actor_authority(
+            session,
+            actor_id=actor_id,
+            workspace_id=binding["workspace_id"],
+            tenant_id=binding.get("tenant_id"),
+        )
+        if authority_reason:
+            return None, None, authority_reason
 
     payload = _json_object(getattr(job, "result_summary", None))
     job_execution = str(
