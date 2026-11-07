@@ -10,24 +10,45 @@ Primary practice used here:
 - The destination must be a separate connection; we never byte-copy a live
   database or its WAL/SHM:
   https://www.sqlite.org/c3ref/backup_finish.html
-- Staging + ``os.replace`` and explicit copy/symlink checks follow Python's
-  documented ``shutil``/``os`` semantics:
+- Staging + no-replace publication and explicit copy/symlink checks follow
+  Python's documented ``shutil``/``os`` semantics:
   https://docs.python.org/3.14/library/shutil.html
   https://docs.python.org/3/library/os.html
+
+The restore is intentionally conservative:
+
+* The manifest is validated once, and the database copy is bound to the exact
+  bytes that were validated.  We freeze those already-checkpointed backup bytes
+  through a ``O_NOFOLLOW`` file descriptor into a private staging directory,
+  verify size/hash/file identity again, and only then run the SQLite backup API
+  on the frozen image.  A peer changing the backup file after validation cannot
+  be published.
+* Historical audit material is immutable.  Current writable projections may be
+  rebased, and a new restore-owned ``CanvasAudit`` event is appended with its
+  own id and provenance.  Original audit ids, actors, timestamps, material and
+  operation identities are never rewritten.
 """
 from __future__ import annotations
 
+import contextvars
+import ctypes
+import errno
 import hashlib
 import json
 import os
 import posixpath
+import re
 import shutil
 import sqlite3
+import stat as stat_module
+import sys
 import tempfile
 import unicodedata
 import uuid
+from datetime import datetime, timedelta, timezone
 from pathlib import Path, PurePosixPath
-from typing import Any, Dict, Iterable, List, Mapping, Optional, Sequence, Tuple
+from typing import Any, Callable, Dict, List, Mapping, Optional, Sequence, Tuple
+from urllib.parse import quote
 
 SCHEMA = "atom-assignment-release-backup-1"
 DB_NAME = "atom.db"
@@ -39,6 +60,22 @@ KNOWN_TOP_LEVEL = {
 }
 CREDENTIAL_PREFIXES = ("byok_",)
 ALLOWED_MEMORY_SCHEMES = ("", "file")
+_ROW_COUNT_TABLE_RE = re.compile(r"^[A-Za-z_][A-Za-z0-9_]{0,62}$")
+_RESTORE_ACTION = "restore"
+
+# The real flow sets this before calling ``_copy_database``.  It is a
+# contextvar (not a global) so concurrent restores in one process cannot bind
+# each other to the wrong manifest.  ``_copy_database`` also accepts an
+# explicit ``expected`` keyword; the contextvar exists so test wrappers that
+# call the original three-argument function still get the manifest binding.
+_ACTIVE_DB_BINDING: contextvars.ContextVar[Optional[Dict[str, Any]]] = (
+    contextvars.ContextVar("atom_restore_active_db_binding", default=None)
+)
+
+# Test-only seams.  Production never sets these; they let tests force a source
+# change during a read or a peer creation immediately before publication.
+_READ_HOOK: Optional[Callable[[Path, int], None]] = None
+_PUBLISH_HOOK: Optional[Callable[[Path], None]] = None
 
 
 class BackupConfigError(RuntimeError):
@@ -53,6 +90,17 @@ class RestoreUncertain(RuntimeError):
     """The target was published but could not be independently re-verified."""
 
 
+def sqlite_uri(path: Path, mode: str = "ro") -> str:
+    """Return a safe SQLite URI for a local path.
+
+    Paths are percent-encoded so a filename containing ``?`` or ``#`` cannot
+    change the URI parameters (which would otherwise select a different mode or
+    database).
+    """
+    encoded = quote(str(Path(path).expanduser().resolve()), safe="/")
+    return f"file:{encoded}?mode={mode}"
+
+
 def sha256_file(path: Path) -> str:
     digest = hashlib.sha256()
     with path.open("rb") as handle:
@@ -61,17 +109,120 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
-def _stat_signature(path: Path) -> Tuple[int, int, int]:
-    stat = path.stat()
-    return stat.st_size, stat.st_mtime_ns, stat.st_ino
+def _stat_signature(st: os.stat_result) -> Dict[str, int]:
+    return {
+        "dev": int(st.st_dev),
+        "ino": int(st.st_ino),
+        "size": int(st.st_size),
+        "mtime_ns": int(st.st_mtime_ns),
+        "ctime_ns": int(st.st_ctime_ns),
+        "nlink": int(st.st_nlink),
+        "mode": int(st.st_mode),
+    }
 
 
-def _is_within(path: Path, root: Path) -> bool:
+def _stat_signature_path(path: Path) -> Dict[str, int]:
+    return _stat_signature(os.lstat(path))
+
+
+def _check_expected_file(
+    st: os.stat_result, expected_stat: Mapping[str, Any], *,
+    expected_size: Optional[int] = None, label: str,
+) -> None:
+    if not stat_module.S_ISREG(st.st_mode):
+        raise RestoreRefused(f"{label} is not a regular file")
+    if int(st.st_nlink) != 1:
+        raise RestoreRefused(f"{label} is a hardlink")
+    current = _stat_signature(st)
+    for key in ("dev", "ino", "size", "mtime_ns", "ctime_ns", "mode"):
+        if key in expected_stat and int(expected_stat[key]) != current[key]:
+            raise RestoreRefused(f"{label} changed or was replaced before copy")
+    if expected_size is not None and int(st.st_size) != int(expected_size):
+        raise RestoreRefused(f"{label} byte count changed before copy")
+
+
+def _open_nofollow(path: Path, *, label: str) -> int:
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
     try:
-        path.resolve().relative_to(root.resolve())
-        return True
-    except ValueError:
-        return False
+        fd = os.open(str(path), flags)
+    except OSError as exc:
+        if exc.errno == errno.ELOOP:
+            raise RestoreRefused(f"{label} is a symlink") from exc
+        raise
+    try:
+        st = os.fstat(fd)
+        if not stat_module.S_ISREG(st.st_mode):
+            raise RestoreRefused(f"{label} is not a regular file")
+    except Exception:
+        os.close(fd)
+        raise
+    return fd
+
+
+def _open_relative_nofollow(root: Path, relative_name: str, *, label: str) -> int:
+    """Open a manifest path by walking directory descriptors with NOFOLLOW.
+
+    ``O_NOFOLLOW`` only protects the final path component.  Walking each
+    component relative to an already-open directory descriptor prevents an
+    intermediate directory from being replaced by a symlink between validation
+    and use.
+    """
+    parts = PurePosixPath(relative_name).parts
+    if not parts:
+        raise RestoreRefused(f"{label} has an empty path")
+    dir_flags = os.O_RDONLY | getattr(os, "O_DIRECTORY", 0) | getattr(os, "O_NOFOLLOW", 0)
+    try:
+        dir_fd = os.open(str(root), dir_flags)
+    except OSError as exc:
+        if exc.errno == errno.ELOOP:
+            raise RestoreRefused(f"{label} traverses a symlink") from exc
+        raise RestoreRefused(f"{label} cannot be opened safely: {exc.strerror}") from exc
+    try:
+        for part in parts[:-1]:
+            try:
+                next_fd = os.open(part, dir_flags, dir_fd=dir_fd)
+            except OSError as exc:
+                if exc.errno == errno.ELOOP:
+                    raise RestoreRefused(f"{label} traverses a symlink") from exc
+                raise RestoreRefused(
+                    f"{label} cannot be opened safely: {exc.strerror}") from exc
+            os.close(dir_fd)
+            dir_fd = next_fd
+        try:
+            fd = os.open(
+                parts[-1],
+                os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0),
+                dir_fd=dir_fd,
+            )
+        except OSError as exc:
+            if exc.errno == errno.ELOOP:
+                raise RestoreRefused(f"{label} is a symlink") from exc
+            raise RestoreRefused(f"{label} cannot be opened safely: {exc.strerror}") from exc
+    finally:
+        os.close(dir_fd)
+    try:
+        st = os.fstat(fd)
+        if not stat_module.S_ISREG(st.st_mode):
+            os.close(fd)
+            raise RestoreRefused(f"{label} is not a regular file")
+    except Exception:
+        try:
+            os.close(fd)
+        except OSError:
+            pass
+        raise
+    return fd
+
+
+def _hash_fd(fd: int) -> str:
+    os.lseek(fd, 0, os.SEEK_SET)
+    digest = hashlib.sha256()
+    while True:
+        chunk = os.read(fd, 1024 * 1024)
+        if not chunk:
+            break
+        digest.update(chunk)
+    return digest.hexdigest()
 
 
 def _sqlite_path_from_url(url: str) -> Optional[Path]:
@@ -105,7 +256,8 @@ def _explicit_root(env: Mapping[str, str], name: str) -> Optional[Path]:
     return candidate.resolve()
 
 
-def _memory_root(env: Mapping[str, str], data_root: Path, include_memory: bool) -> Tuple[Path, bool]:
+def _memory_root(env: Mapping[str, str], data_root: Path,
+                 include_memory: bool) -> Tuple[Path, bool]:
     raw = str(env.get("LANCEDB_URI") or env.get("LANCEDB_URI_BASE") or "").strip()
     if not raw:
         return (data_root / "atom_memory").resolve(), True
@@ -123,7 +275,8 @@ def _memory_root(env: Mapping[str, str], data_root: Path, include_memory: bool) 
     return candidate.resolve(), True
 
 
-def resolve_backup_sources(env: Mapping[str, str], include_memory: bool) -> Dict[str, Any]:
+def resolve_backup_sources(env: Mapping[str, str],
+                           include_memory: bool) -> Dict[str, Any]:
     """Resolve the configured DB and managed store roots before backup.
 
     The release kit previously assumed ``ATOM_DATA_DIR/atom.db`` and
@@ -191,7 +344,24 @@ def _reject_duplicate_keys(pairs: Sequence[Tuple[str, Any]]) -> Dict[str, Any]:
     return out
 
 
-def _load_manifest(backup_arg: Path) -> Tuple[Path, Path, Dict[str, Any]]:
+def _validate_row_counts(row_counts: Any) -> Dict[str, Optional[int]]:
+    if not isinstance(row_counts, dict) or not row_counts:
+        raise RestoreRefused("backup manifest has no non-empty row_counts map")
+    out: Dict[str, Optional[int]] = {}
+    for key, value in row_counts.items():
+        if not isinstance(key, str) or not _ROW_COUNT_TABLE_RE.match(key):
+            raise RestoreRefused(f"manifest row_counts key is not a safe table name: {key!r}")
+        if isinstance(value, bool):
+            raise RestoreRefused(f"manifest row_counts value is boolean, not a count: {key!r}")
+        if value is not None:
+            if not isinstance(value, int) or value < 0:
+                raise RestoreRefused(
+                    f"manifest row_counts value is not a non-negative integer: {key!r}")
+        out[key] = value
+    return out
+
+
+def _load_manifest(backup_arg: Path) -> Tuple[Path, Path, Dict[str, Any], str]:
     source = backup_arg.expanduser()
     if source.is_dir():
         backup_dir = source.resolve()
@@ -201,15 +371,31 @@ def _load_manifest(backup_arg: Path) -> Tuple[Path, Path, Dict[str, Any]]:
         backup_dir = manifest_path.parent
     if not manifest_path.is_file():
         raise RestoreRefused(f"backup manifest is missing: {manifest_path}")
+    if manifest_path.is_symlink():
+        raise RestoreRefused("backup manifest is a symlink")
+    fd = _open_nofollow(manifest_path, label="backup manifest")
     try:
-        manifest = json.loads(
-            manifest_path.read_text(),
-            object_pairs_hook=_reject_duplicate_keys,
-        )
-    except RestoreRefused:
-        raise
-    except Exception as exc:  # noqa: BLE001
-        raise RestoreRefused(f"backup manifest is unreadable: {type(exc).__name__}") from exc
+        st = os.fstat(fd)
+        if int(st.st_nlink) != 1:
+            raise RestoreRefused("backup manifest is a hardlink")
+        os.lseek(fd, 0, os.SEEK_SET)
+        raw = b""
+        while True:
+            chunk = os.read(fd, 1024 * 1024)
+            if not chunk:
+                break
+            raw += chunk
+        manifest_sha256 = hashlib.sha256(raw).hexdigest()
+        try:
+            manifest = json.loads(
+                raw.decode("utf-8"), object_pairs_hook=_reject_duplicate_keys)
+        except RestoreRefused:
+            raise
+        except Exception as exc:  # noqa: BLE001
+            raise RestoreRefused(
+                f"backup manifest is unreadable: {type(exc).__name__}") from exc
+    finally:
+        os.close(fd)
     if not isinstance(manifest, dict):
         raise RestoreRefused("backup manifest must be a JSON object")
     if manifest.get("schema") != SCHEMA:
@@ -218,8 +404,7 @@ def _load_manifest(backup_arg: Path) -> Tuple[Path, Path, Dict[str, Any]]:
     files = manifest.get("files")
     if not isinstance(files, dict) or not files:
         raise RestoreRefused("backup manifest has no files map")
-    if not isinstance(manifest.get("row_counts"), dict):
-        raise RestoreRefused("backup manifest has no row_counts map")
+    manifest["row_counts"] = _validate_row_counts(manifest.get("row_counts"))
     if not isinstance(manifest.get("source_data_dir"), str):
         raise RestoreRefused("backup manifest has no source_data_dir provenance")
     if manifest.get("sqlite_backup_api") is not True:
@@ -228,7 +413,7 @@ def _load_manifest(backup_arg: Path) -> Tuple[Path, Path, Dict[str, Any]]:
         raise RestoreRefused("backup manifest does not declare SQLite integrity")
     if not isinstance(manifest.get("memory_included"), bool):
         raise RestoreRefused("backup manifest has no boolean memory_included")
-    return backup_dir, manifest_path, manifest
+    return backup_dir, manifest_path, manifest, manifest_sha256
 
 
 def _safe_relative_path(name: Any) -> str:
@@ -245,6 +430,19 @@ def _safe_relative_path(name: Any) -> str:
     if normalized != name:
         raise RestoreRefused(f"manifest path is not normalized: {name!r}")
     return name
+
+
+def _assert_no_db_sidecars(backup_dir: Path, manifest_files: Mapping[str, Any]) -> None:
+    for suffix in ("-wal", "-shm", "-journal"):
+        name = DB_NAME + suffix
+        if name in manifest_files:
+            raise RestoreRefused(
+                "backup manifest lists a database sidecar; only a self-contained "
+                f"checkpointed database is supported: {name}")
+        if os.path.lexists(backup_dir / name):
+            raise RestoreRefused(
+                "backup contains a database sidecar; only a self-contained "
+                f"checkpointed database is supported: {name}")
 
 
 def _validate_manifest_files(
@@ -264,15 +462,13 @@ def _validate_manifest_files(
             raise RestoreRefused(f"manifest metadata is not an object: {name!r}")
         expected_sha = str(raw_meta.get("sha256") or "")
         expected_bytes = raw_meta.get("bytes")
-        if len(expected_sha) != 64 or any(c not in "0123456789abcdef" for c in expected_sha.lower()):
+        if len(expected_sha) != 64 or any(
+                c not in "0123456789abcdef" for c in expected_sha.lower()):
             raise RestoreRefused(f"manifest sha256 is invalid: {name!r}")
-        if not isinstance(expected_bytes, int) or expected_bytes < 0:
+        if isinstance(expected_bytes, bool) or not isinstance(expected_bytes, int) \
+                or expected_bytes < 0:
             raise RestoreRefused(f"manifest byte count is invalid: {name!r}")
         candidate = backup_dir / name
-        try:
-            candidate.resolve().relative_to(backup_dir.resolve())
-        except ValueError as exc:
-            raise RestoreRefused(f"manifest path escapes the backup: {name!r}") from exc
         cursor = backup_dir
         for part in PurePosixPath(name).parts:
             cursor = cursor / part
@@ -280,20 +476,27 @@ def _validate_manifest_files(
                 raise RestoreRefused(f"manifest path traverses a symlink: {name!r}")
         if not candidate.is_file():
             raise RestoreRefused(f"manifest file is missing: {name!r}")
-        stat = candidate.stat()
-        if stat.st_nlink > 1:
-            raise RestoreRefused(f"manifest file is a hardlink: {name!r}")
-        if stat.st_size != expected_bytes:
-            raise RestoreRefused(f"manifest byte count mismatch: {name!r}")
-        if sha256_file(candidate) != expected_sha.lower():
+        fd = _open_relative_nofollow(
+            backup_dir, name, label=f"manifest file {name!r}")
+        try:
+            st = os.fstat(fd)
+            if stat_module.S_ISREG(st.st_mode) and int(st.st_nlink) != 1:
+                raise RestoreRefused(f"manifest file is a hardlink: {name!r}")
+            if int(st.st_size) != int(expected_bytes):
+                raise RestoreRefused(f"manifest byte count mismatch: {name!r}")
+            actual_sha = _hash_fd(fd)
+        finally:
+            os.close(fd)
+        if actual_sha != expected_sha.lower():
             raise RestoreRefused(f"manifest sha256 mismatch: {name!r}")
         validated[name] = {
             "sha256": expected_sha.lower(),
-            "bytes": expected_bytes,
-            "stat": _stat_signature(candidate),
+            "bytes": int(expected_bytes),
+            "stat": _stat_signature(st),
         }
     if DB_NAME not in validated:
         raise RestoreRefused("backup manifest does not include atom.db")
+    _assert_no_db_sidecars(backup_dir, validated)
     memory_files = [name for name in validated if name.startswith("atom_memory/")]
     if manifest["memory_included"] and not memory_files:
         raise RestoreRefused("memory_included is true but atom_memory is empty")
@@ -302,24 +505,48 @@ def _validate_manifest_files(
     return validated, memory_files
 
 
-def _verify_database(path: Path, row_counts: Mapping[str, Any]) -> Dict[str, int]:
-    con = sqlite3.connect(f"file:{path}?mode=ro", uri=True)
+def _verify_database(path: Path, row_counts: Mapping[str, Any]) -> Dict[str, Any]:
+    """Verify integrity plus manifest row-count semantics.
+
+    Semantics:
+    * A non-negative integer means the table MUST exist and contain at least
+      that many rows.  ``0`` is exact: a missing table is never silently read
+      as zero.
+    * ``None`` means the table did not exist in the backup source and MUST NOT
+      exist now.
+    * Keys must be simple SQL identifiers.  They are validated before quoting,
+      so an untrusted manifest cannot inject SQL.
+    """
+    counts = _validate_row_counts(dict(row_counts))
+    con = sqlite3.connect(sqlite_uri(path, "ro"), uri=True)
     try:
         row = con.execute("PRAGMA integrity_check").fetchone()
         if not row or row[0] != "ok":
             raise RestoreRefused("SQLite integrity_check failed")
-        got: Dict[str, int] = {}
-        for table, expected in row_counts.items():
+        tables = {r[0] for r in con.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'")}
+        got: Dict[str, Any] = {}
+        for table, expected in counts.items():
+            if not _ROW_COUNT_TABLE_RE.match(table):
+                raise RestoreRefused(f"invalid row-count table name: {table!r}")
             if expected is None:
+                if table in tables:
+                    raise RestoreRefused(
+                        f"row_counts declares {table} absent but it exists")
+                got[table] = None
                 continue
-            try:
-                got[table] = con.execute(
-                    f'SELECT COUNT(*) FROM "{table}"').fetchone()[0]
-            except sqlite3.Error:
-                got[table] = 0
-            if got[table] < int(expected):
+            if table not in tables:
                 raise RestoreRefused(
-                    f"SQLite row count for {table} is {got[table]}, expected at least {expected}")
+                    f"row-count table is missing (never treated as zero): {table}")
+            actual = con.execute(
+                f'SELECT COUNT(*) FROM "{table}"').fetchone()[0]
+            got[table] = int(actual)
+            if actual < expected:
+                raise RestoreRefused(
+                    f"SQLite row count for {table} is {actual}, expected at least {expected}")
+            if expected == 0 and actual != 0:
+                raise RestoreRefused(
+                    f"SQLite row count for {table} is {actual}, expected exactly zero")
         return got
     finally:
         con.close()
@@ -346,15 +573,20 @@ def _live_roots(env: Mapping[str, str]) -> List[Path]:
     return roots
 
 
+def _assert_no_symlink_components(path: Path, *, label: str) -> None:
+    current = path
+    while True:
+        if current.is_symlink():
+            raise RestoreRefused(f"{label} traverses a symlink: {current}")
+        if current.parent == current:
+            break
+        current = current.parent
+
+
 def _check_target(target: Path, source_data_dir: str, env: Mapping[str, str]) -> None:
-    if target.is_symlink():
-        raise RestoreRefused("target path is a symlink")
-    if target.exists() and not target.is_dir():
-        raise RestoreRefused("target exists and is not a directory")
-    if target.exists() and any(target.iterdir()):
-        raise RestoreRefused("target exists and is not empty")
-    if target.exists() and (target / DB_NAME).exists():
-        raise RestoreRefused("target already contains atom.db")
+    if os.path.lexists(target):
+        raise RestoreRefused(
+            "target already exists; restore requires an explicit non-existent target")
     try:
         source = Path(source_data_dir).expanduser().resolve()
         if target == source or source in target.parents or target in source.parents:
@@ -366,32 +598,208 @@ def _check_target(target: Path, source_data_dir: str, env: Mapping[str, str]) ->
             raise RestoreRefused("target overlaps a live configured data/store root")
 
 
-def _copy_database(source_db: Path, stage_db: Path, row_counts: Mapping[str, Any]) -> Dict[str, int]:
-    before = _stat_signature(source_db)
-    src = sqlite3.connect(f"file:{source_db}?mode=ro", uri=True)
-    dst = sqlite3.connect(stage_db)
+def _safe_provenance_root(value: Any, field: str) -> Path:
+    if not isinstance(value, str) or not value.strip():
+        raise RestoreRefused(f"manifest {field} is missing")
+    candidate = Path(value).expanduser()
+    if not candidate.is_absolute():
+        raise RestoreRefused(f"manifest {field} must be an absolute path")
+    resolved = candidate.resolve()
+    if resolved == Path("/"):
+        raise RestoreRefused(f"manifest {field} must not be the filesystem root")
+    return resolved
+
+
+def _make_self_contained(db_path: Path) -> None:
+    con = sqlite3.connect(str(db_path))
     try:
-        src.backup(dst)
+        try:
+            con.execute("PRAGMA wal_checkpoint(TRUNCATE)")
+        except sqlite3.Error:
+            pass
+        con.execute("PRAGMA journal_mode=DELETE")
+        con.commit()
     finally:
-        dst.close()
-        src.close()
-    after = _stat_signature(source_db)
-    if before != after:
-        raise RestoreRefused("backup database changed while it was being restored")
-    return _verify_database(stage_db, row_counts)
+        con.close()
+    for suffix in ("-wal", "-shm", "-journal"):
+        sidecar = db_path.parent / (db_path.name + suffix)
+        try:
+            sidecar.unlink()
+        except FileNotFoundError:
+            pass
 
 
-def _copy_one_file(source: Path, destination: Path, meta: Mapping[str, Any]) -> None:
-    before = _stat_signature(source)
-    destination.parent.mkdir(parents=True, exist_ok=True)
-    shutil.copyfile(source, destination)
-    after = _stat_signature(source)
-    if before != after:
-        raise RestoreRefused("backup file changed while it was being restored")
-    if destination.stat().st_size != meta["bytes"]:
-        raise RestoreRefused("copied file byte count mismatch")
-    if sha256_file(destination) != meta["sha256"]:
-        raise RestoreRefused("copied file sha256 mismatch")
+def _freeze_database(
+    source_db: Path, binding: Mapping[str, Any], freeze_dir: Path,
+) -> Path:
+    expected_sha = str(binding["sha256"]).lower()
+    expected_bytes = int(binding["bytes"])
+    expected_stat = binding["stat"]
+    _assert_no_db_sidecars(source_db.parent, {source_db.name: binding})
+    src_fd = _open_relative_nofollow(
+        source_db.parent, source_db.name, label="backup database")
+    frozen = freeze_dir / "frozen-atom.db"
+    dst_fd: Optional[int] = None
+    try:
+        before = os.fstat(src_fd)
+        _check_expected_file(
+            before, expected_stat, expected_size=expected_bytes,
+            label="backup database")
+        dst_fd = os.open(
+            str(frozen),
+            os.O_CREAT | os.O_EXCL | os.O_WRONLY | getattr(os, "O_NOFOLLOW", 0),
+            0o600,
+        )
+        digest = hashlib.sha256()
+        total = 0
+        hook_called = False
+        while True:
+            chunk = os.read(src_fd, 1024 * 1024)
+            if not chunk:
+                break
+            total += len(chunk)
+            if total > expected_bytes:
+                raise RestoreRefused("backup database grew while it was being frozen")
+            digest.update(chunk)
+            os.write(dst_fd, chunk)
+            if not hook_called:
+                hook_called = True
+                hook = _READ_HOOK
+                if hook is not None:
+                    hook(source_db, total)
+        os.fsync(dst_fd)
+        after = os.fstat(src_fd)
+        _check_expected_file(
+            after, _stat_signature(before), expected_size=expected_bytes,
+            label="backup database")
+        if total != expected_bytes:
+            raise RestoreRefused("backup database byte count changed while freezing")
+        if digest.hexdigest() != expected_sha:
+            raise RestoreRefused(
+                "backup database differs from the validated manifest bytes")
+    finally:
+        if dst_fd is not None:
+            os.close(dst_fd)
+        os.close(src_fd)
+    _assert_no_db_sidecars(source_db.parent, {source_db.name: binding})
+    # Verify the frozen image itself from a nofollow descriptor before use.
+    fd = _open_nofollow(frozen, label="frozen backup database")
+    try:
+        st = os.fstat(fd)
+        if int(st.st_size) != expected_bytes or int(st.st_nlink) != 1:
+            raise RestoreRefused("frozen backup database size/identity changed")
+        if _hash_fd(fd) != expected_sha:
+            raise RestoreRefused("frozen backup database hash changed")
+    finally:
+        os.close(fd)
+    return frozen
+
+
+def _copy_database(
+    source_db: Path,
+    stage_db: Path,
+    row_counts: Mapping[str, Any],
+    *,
+    expected: Optional[Mapping[str, Any]] = None,
+    freeze_dir: Optional[Path] = None,
+) -> Dict[str, Any]:
+    """Copy from the exact manifest-validated DB bytes, never a later stat.
+
+    The validated backup database is frozen through a nofollow descriptor into
+    a private directory, re-hashed, and only then opened by the SQLite backup
+    API.  A peer changing the backup path, inode, WAL/SHM sidecars, or file
+    contents after validation cannot become the restored database.
+    """
+    binding = expected or _ACTIVE_DB_BINDING.get()
+    if not isinstance(binding, Mapping):
+        raise RestoreRefused(
+            "database copy requires the validated manifest database binding")
+    for key in ("sha256", "bytes", "stat"):
+        if key not in binding:
+            raise RestoreRefused("validated manifest database binding is incomplete")
+    parent = Path(freeze_dir) if freeze_dir is not None else stage_db.parent
+    freeze_root = Path(tempfile.mkdtemp(prefix=".restore-freeze-", dir=str(parent)))
+    os.chmod(freeze_root, 0o700)
+    try:
+        frozen = _freeze_database(Path(source_db), binding, freeze_root)
+        # Integrity/row counts on the frozen image (read-only; may create
+        # sidecars in the private freeze directory, never in the backup).
+        _verify_database(frozen, row_counts)
+        # A read-only SQLite open must not have modified the frozen main file.
+        if sha256_file(frozen) != str(binding["sha256"]).lower():
+            raise RestoreRefused("frozen backup database changed while being opened")
+        src = sqlite3.connect(sqlite_uri(frozen, "ro"), uri=True)
+        dst = sqlite3.connect(str(stage_db))
+        try:
+            src.backup(dst)
+        finally:
+            dst.close()
+            src.close()
+        _make_self_contained(stage_db)
+        return _verify_database(stage_db, row_counts)
+    finally:
+        shutil.rmtree(freeze_root, ignore_errors=True)
+
+
+def _copy_one_file(
+    backup_dir: Path, name: str, destination: Path, meta: Mapping[str, Any],
+) -> None:
+    source = backup_dir / name
+    src_fd = _open_relative_nofollow(
+        backup_dir, name, label=f"backup file {name!r}")
+    dst_fd: Optional[int] = None
+    try:
+        before = os.fstat(src_fd)
+        _check_expected_file(
+            before, meta["stat"], expected_size=int(meta["bytes"]),
+            label=f"backup file {source.name!r}")
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        dst_fd = os.open(
+            str(destination),
+            os.O_CREAT | os.O_EXCL | os.O_WRONLY | getattr(os, "O_NOFOLLOW", 0),
+            0o600,
+        )
+        digest = hashlib.sha256()
+        total = 0
+        hook_called = False
+        while True:
+            chunk = os.read(src_fd, 1024 * 1024)
+            if not chunk:
+                break
+            total += len(chunk)
+            digest.update(chunk)
+            os.write(dst_fd, chunk)
+            if not hook_called:
+                hook_called = True
+                hook = _READ_HOOK
+                if hook is not None:
+                    hook(source, total)
+        os.fsync(dst_fd)
+        after = os.fstat(src_fd)
+        _check_expected_file(
+            after, _stat_signature(before), expected_size=int(meta["bytes"]),
+            label=f"backup file {source.name!r}")
+        if total != int(meta["bytes"]) or digest.hexdigest() != str(meta["sha256"]).lower():
+            raise RestoreRefused(f"copied file changed or hash mismatch: {source.name!r}")
+    except Exception:
+        try:
+            destination.unlink()
+        except OSError:
+            pass
+        raise
+    finally:
+        if dst_fd is not None:
+            os.close(dst_fd)
+        os.close(src_fd)
+    os.chmod(destination, 0o600 if _is_credential(name) else 0o644)
+    # Re-read from a nofollow descriptor so the published staged bytes are the
+    # same bytes the source descriptor produced.
+    fd = _open_nofollow(destination, label=f"staged file {destination.name!r}")
+    try:
+        if int(os.fstat(fd).st_size) != int(meta["bytes"]) or _hash_fd(fd) != str(meta["sha256"]).lower():
+            raise RestoreRefused(f"staged file hash mismatch: {source.name!r}")
+    finally:
+        os.close(fd)
 
 
 def _is_credential(name: str) -> bool:
@@ -416,59 +824,167 @@ def _rebase_path(value: Any, mappings: Sequence[Tuple[Path, Path]]) -> Tuple[Any
     return value, False
 
 
-def _mapping_list(source_data_dir: str, target_data: Path, store_roots: Mapping[str, Any]) -> List[Tuple[Path, Path]]:
+def _mapping_list(source_data_dir: str, target_data: Path,
+                  store_roots: Mapping[str, Any]) -> List[Tuple[Path, Path]]:
     mappings: List[Tuple[Path, Path]] = []
-    try:
-        source_data = Path(source_data_dir).expanduser().resolve()
-    except (OSError, ValueError):
-        source_data = None
-    if source_data is not None:
-        mappings.append((source_data, target_data))
+    source_data = _safe_provenance_root(source_data_dir, "source_data_dir")
+    mappings.append((source_data, target_data))
     for name, default in (
         ("office", target_data / "office"),
         ("sheet_datasets", target_data / "sheet_datasets"),
         ("email_attachments", target_data / "email_attachments"),
         ("atom_memory", target_data / "atom_memory"),
     ):
-        raw = (store_roots.get(name) or {}).get("source") if isinstance(store_roots, Mapping) else None
-        if not raw and source_data is not None:
+        raw = None
+        included = True
+        if isinstance(store_roots, Mapping):
+            entry = store_roots.get(name)
+            if isinstance(entry, Mapping):
+                raw = entry.get("source")
+                included = bool(entry.get("included", True))
+        # A memory store that was explicitly excluded may be an object-store
+        # URI (s3://...); it has no local files to rebase and must not block a
+        # truthful memory_included=false restore.
+        if name == "atom_memory" and not included:
+            continue
+        if not raw:
             raw = str(source_data / name)
-        if raw:
-            try:
-                source = Path(raw).expanduser().resolve()
-                mappings.append((source, default))
-            except (OSError, ValueError):
-                continue
+        candidate = Path(str(raw)).expanduser()
+        if not candidate.is_absolute():
+            if included:
+                raise RestoreRefused(
+                    f"manifest store_roots.{name}.source is not an absolute path")
+            continue
+        source = candidate.resolve()
+        if source == Path("/"):
+            raise RestoreRefused(
+                f"manifest store_roots.{name}.source must not be the filesystem root")
+        mappings.append((source, default))
     return mappings
+
+
+def _parse_db_datetime(value: Any) -> Optional[datetime]:
+    if isinstance(value, datetime):
+        dt = value
+    elif value:
+        text = str(value).strip()
+        if text.endswith("Z"):
+            text = text[:-1] + "+00:00"
+        try:
+            dt = datetime.fromisoformat(text)
+        except ValueError:
+            dt = None
+            for fmt in ("%Y-%m-%d %H:%M:%S.%f", "%Y-%m-%d %H:%M:%S"):
+                try:
+                    dt = datetime.strptime(text, fmt)
+                    break
+                except ValueError:
+                    continue
+            if dt is None:
+                return None
+    else:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt
+
+
+def _next_created_at(previous: Any) -> str:
+    now = datetime.now(timezone.utc)
+    prev = _parse_db_datetime(previous)
+    if prev is not None and prev >= now:
+        now = prev + timedelta(microseconds=1)
+    return now.strftime("%Y-%m-%d %H:%M:%S.%f")
+
+
+def _json_object(text: Any) -> Optional[Dict[str, Any]]:
+    if text is None:
+        return None
+    if isinstance(text, dict):
+        return dict(text)
+    try:
+        data = json.loads(text)
+    except (TypeError, ValueError):
+        return None
+    return data if isinstance(data, dict) else None
+
+
+def _table_columns(con: sqlite3.Connection, table: str) -> List[str]:
+    try:
+        return [row[1] for row in con.execute(f'PRAGMA table_info("{table}")')]
+    except sqlite3.Error:
+        return []
+
+
+def _content_row(
+    con: sqlite3.Connection, canvas_id: str,
+) -> Tuple[Optional[sqlite3.Row], Optional[Dict[str, Any]], Optional[str], Optional[sqlite3.Row]]:
+    columns = set(_table_columns(con, "canvas_audit"))
+    def col(name: str, default: str = "NULL") -> str:
+        return f'"{name}"' if name in columns else f'{default} AS "{name}"'
+    select = ", ".join((
+        col("id"), col("details_json"), col("created_at"), col("action_type"),
+        col("canvas_type"), col("tenant_id"),
+    ))
+    rows = con.execute(
+        f"SELECT {select} FROM canvas_audit WHERE canvas_id=? "
+        "ORDER BY created_at DESC, id DESC LIMIT 11",
+        (canvas_id,),
+    ).fetchall()
+    if not rows:
+        return None, None, None, None
+    latest = rows[0]
+    if str(latest["action_type"] or "") == "delete":
+        return None, None, "deleted", latest
+    for row in rows:
+        details = _json_object(row["details_json"])
+        if details is not None and ("content" in details or "data" in details):
+            return row, details, None, latest
+    return None, None, None, latest
+
+
+def _rebase_office_payload(
+    payload: Dict[str, Any], mapping: Tuple[Path, Path], *,
+    office_scope: bool,
+) -> Tuple[int, int]:
+    changed = 0
+    unresolved = 0
+    source_office, target_office = mapping
+    for key in ("office_file", "file_path"):
+        if key not in payload:
+            continue
+        new, did = _rebase_path(payload.get(key), [(source_office, target_office)])
+        if did:
+            payload[key] = new
+            changed += 1
+        elif office_scope and str(payload.get(key) or "").startswith("/"):
+            unresolved += 1
+    return changed, unresolved
 
 
 def _rewrite_managed_paths(
     db_path: Path, source_data_dir: str, target_data: Path,
-    store_roots: Mapping[str, Any],
+    store_roots: Mapping[str, Any], manifest_sha256: str = "",
 ) -> Dict[str, Any]:
-    """Rewrite only current managed path columns/bindings, not history.
+    """Rebase only current managed path projections, never history.
 
-    This follows the existing ``prepare_production_data.py`` known-path rule:
-    dataset parquet paths, optional document file paths, and assignment
-    operational paths are rewritten.  In addition, the current Canvas.content
-    office binding and the latest content-bearing CanvasAudit office binding
-    are rebased so ``read_canvas`` does not keep borrowing the old source root.
-    Historical audit rows, receipts, provenance and operation bindings are not
-    rewritten.
+    Historical ``CanvasAudit`` rows are byte-for-byte immutable.  When the
+    current content-bearing audit row carries a managed office binding, the
+    restore appends a NEW restore-owned audit event with its own id, exact
+    canvas/tenant scope, original-audit + manifest provenance, and the target
+    binding.  ``read_canvas`` then serves the target binding without pretending
+    the old operation was replayed unchanged.
     """
     mappings = _mapping_list(source_data_dir, target_data, store_roots)
     rewritten: Dict[str, int] = {}
     unresolved: Dict[str, int] = {}
+    restore_events: List[Dict[str, Any]] = []
 
-    def _table_columns(con: sqlite3.Connection, table: str) -> List[str]:
-        try:
-            return [row[1] for row in con.execute(f'PRAGMA table_info("{table}")')]
-        except sqlite3.Error:
-            return []
-
-    con = sqlite3.connect(db_path)
+    con = sqlite3.connect(str(db_path))
     con.row_factory = sqlite3.Row
     try:
+        table_names = {row[0] for row in con.execute(
+            "SELECT name FROM sqlite_master WHERE type='table'")}
         columns = _table_columns(con, "dataset_entries")
         if "parquet_path" in columns:
             count = 0
@@ -495,112 +1011,315 @@ def _rewrite_managed_paths(
                     count += 1
             rewritten[f"{table}.file_path"] = count
 
-        if "goal_runs" in {row[0] for row in con.execute(
-                "SELECT name FROM sqlite_master WHERE type='table'")}:
+        if "goal_runs" in table_names:
             try:
                 from prepare_production_data import rewrite_assignment_operational
-            except Exception:
-                rewrite_assignment_operational = None
-            if rewrite_assignment_operational is not None:
-                count = 0
-                for row in con.execute("SELECT rowid, parameters FROM goal_runs"):
-                    try:
-                        data = json.loads(row["parameters"] or "{}")
-                    except (TypeError, ValueError):
-                        continue
-                    assignment = ((data.get("task_lifecycle") or {}).get("assignment")
-                                  if isinstance(data, dict) else None)
-                    if not isinstance(assignment, dict):
-                        continue
-                    changed = 0
-                    for source, target in mappings:
-                        changed += rewrite_assignment_operational(
-                            assignment, str(source), str(target))
-                    if changed:
-                        data["task_lifecycle"]["assignment"] = assignment
-                        con.execute("UPDATE goal_runs SET parameters=? WHERE rowid=?",
-                                    (json.dumps(data), row["rowid"]))
-                        count += 1
-                rewritten["goal_runs.parameters.assignment"] = count
+            except Exception as exc:  # noqa: BLE001
+                raise RestoreRefused(
+                    "goal_runs exists but the kit's assignment path rewriter is "
+                    f"unavailable: {type(exc).__name__}") from exc
+            count = 0
+            for row in con.execute("SELECT rowid, parameters FROM goal_runs"):
+                data = _json_object(row["parameters"])
+                if data is None:
+                    continue
+                assignment = ((data.get("task_lifecycle") or {}).get("assignment")
+                              if isinstance(data, dict) else None)
+                if not isinstance(assignment, dict):
+                    continue
+                changed = 0
+                for source, target in mappings:
+                    changed += rewrite_assignment_operational(
+                        assignment, str(source), str(target))
+                if changed:
+                    data["task_lifecycle"]["assignment"] = assignment
+                    con.execute("UPDATE goal_runs SET parameters=? WHERE rowid=?",
+                                (json.dumps(data), row["rowid"]))
+                    count += 1
+            rewritten["goal_runs.parameters.assignment"] = count
 
-        # Current Canvas.content office bindings (and only the latest
-        # content-bearing audit row, which read_canvas treats as current state).
-        table_names = {row[0] for row in con.execute(
-            "SELECT name FROM sqlite_master WHERE type='table'")}
         office_mapping = next((pair for pair in mappings
                                if pair[1] == target_data / "office"), None)
         canvas_count = 0
-        audit_count = 0
+        event_count = 0
+        deleted_skipped = 0
         if office_mapping is not None and "canvases" in table_names:
-            source_office, target_office = office_mapping
+            canvas_columns = _table_columns(con, "canvases")
+            select = ["id", "content"]
+            for optional in ("canvas_type", "tenant_id"):
+                if optional in canvas_columns:
+                    select.append(optional)
             canvases = con.execute(
-                "SELECT id, content, canvas_type FROM canvases").fetchall()
+                f'SELECT {", ".join(select)} FROM canvases').fetchall()
+            audit_columns = _table_columns(con, "canvas_audit")
+            can_append_event = "canvas_audit" in table_names
             for canvas in canvases:
-                try:
-                    content = json.loads(canvas["content"] or "{}")
-                except (TypeError, ValueError):
+                canvas_id = str(canvas["id"])
+                canvas_type = (canvas["canvas_type"]
+                               if "canvas_type" in canvas.keys() else None)
+                canvas_tenant = (canvas["tenant_id"]
+                                 if "tenant_id" in canvas.keys() else None)
+                canvas_payload = _json_object(canvas["content"]) or {}
+                office_scope = bool(
+                    "office_file" in canvas_payload
+                    or str(canvas_type or "").startswith("office_"))
+                if canvas_payload and ("office_file" in canvas_payload
+                                       or "file_path" in canvas_payload):
+                    changed, unresolved_count = _rebase_office_payload(
+                        canvas_payload, office_mapping, office_scope=office_scope)
+                    if unresolved_count:
+                        unresolved["canvases.content.office_binding"] = (
+                            unresolved.get("canvases.content.office_binding", 0)
+                            + unresolved_count)
+                    if changed:
+                        con.execute("UPDATE canvases SET content=? WHERE id=?",
+                                    (json.dumps(canvas_payload), canvas_id))
+                        canvas_count += 1
+
+                if not can_append_event:
                     continue
-                if not isinstance(content, dict):
+                row, details, state, latest_row = _content_row(con, canvas_id)
+                if state == "deleted":
+                    deleted_skipped += 1
                     continue
-                if ("office_file" not in content
-                        and not str(canvas["canvas_type"] or "").startswith("office_")):
+                if row is None or details is None:
                     continue
-                changed = False
-                for key in ("office_file", "file_path"):
-                    new, did = _rebase_path(content.get(key), [(source_office, target_office)])
-                    if did:
-                        content[key] = new
-                        changed = True
-                    elif str(content.get(key) or "").startswith("/"):
-                        unresolved[f"canvases.content.{key}"] = unresolved.get(
-                            f"canvases.content.{key}", 0) + 1
-                if changed:
-                    con.execute("UPDATE canvases SET content=? WHERE id=?",
-                                (json.dumps(content), canvas["id"]))
-                    canvas_count += 1
-                if "canvas_audit" not in table_names:
+                payload_key = ("content" if isinstance(details.get("content"), dict)
+                               else "data" if isinstance(details.get("data"), dict)
+                               else None)
+                if payload_key is None:
                     continue
-                latest = con.execute(
-                    "SELECT id, details_json FROM canvas_audit "
-                    "WHERE canvas_id=? AND details_json IS NOT NULL "
-                    "ORDER BY created_at DESC, id DESC LIMIT 20",
-                    (canvas["id"],)).fetchall()
-                for row in latest:
-                    try:
-                        details = json.loads(row["details_json"] or "{}")
-                    except (TypeError, ValueError):
-                        continue
-                    payload = details.get("content")
-                    if not isinstance(payload, dict):
-                        payload = details.get("data")
-                    if not isinstance(payload, dict) or "office_file" not in payload:
-                        continue
-                    audit_changed = False
-                    for key in ("office_file", "file_path"):
-                        new, did = _rebase_path(payload.get(key), [(source_office, target_office)])
-                        if did:
-                            payload[key] = new
-                            audit_changed = True
-                        elif str(payload.get(key) or "").startswith("/"):
-                            unresolved[f"canvas_audit.latest_content.{key}"] = unresolved.get(
-                                f"canvas_audit.latest_content.{key}", 0) + 1
-                    if audit_changed:
-                        if "content" in details and isinstance(details.get("content"), dict):
-                            details["content"] = payload
-                        elif "data" in details and isinstance(details.get("data"), dict):
-                            details["data"] = payload
-                        con.execute("UPDATE canvas_audit SET details_json=? WHERE id=?",
-                                    (json.dumps(details), row["id"]))
-                        audit_count += 1
-                    break
+                payload = dict(details[payload_key])
+                content_office_scope = bool(
+                    "office_file" in payload
+                    or (office_scope and "file_path" in payload))
+                changed, unresolved_count = _rebase_office_payload(
+                    payload, office_mapping, office_scope=content_office_scope)
+                if unresolved_count:
+                    unresolved["canvas_audit.current_content.office_binding"] = (
+                        unresolved.get("canvas_audit.current_content.office_binding", 0)
+                        + unresolved_count)
+                if not changed:
+                    continue
+                if not can_append_event:
+                    raise RestoreRefused(
+                        "a current canvas audit binding needs rebasing but "
+                        "canvas_audit is unavailable")
+                required = {"id", "canvas_id", "tenant_id", "action_type",
+                            "details_json", "created_at"}
+                missing = required.difference(audit_columns)
+                if missing:
+                    raise RestoreRefused(
+                        "canvas_audit schema cannot accept a restore event: "
+                        + ",".join(sorted(missing)))
+                tenant = str(canvas_tenant or row["tenant_id"] or "")
+                if not tenant:
+                    raise RestoreRefused(
+                        f"cannot append restore event for canvas {canvas_id}: "
+                        "no authoritative tenant")
+                new_details = dict(details)
+                new_details[payload_key] = payload
+                for key in ("operation_id", "evidence_refs", "postconditions",
+                            "review_status"):
+                    new_details.pop(key, None)
+                new_details["restored_from"] = {
+                    "audit_id": str(row["id"]),
+                    "created_at": row["created_at"],
+                    "action_type": row["action_type"],
+                    "original_details_sha256": hashlib.sha256(
+                        str(row["details_json"]).encode("utf-8")).hexdigest(),
+                    "manifest_sha256": manifest_sha256,
+                    "source_data_dir": source_data_dir,
+                    "target_data_dir": str(target_data),
+                    "binding": "rebased_to_target",
+                    "note": (
+                        "Restore-appended event. The original audit row, actor, "
+                        "operation identity and material are unchanged; this "
+                        "event certifies the current target binding only."
+                    ),
+                }
+                new_id = str(uuid.uuid4())
+                created_at = _next_created_at(
+                    latest_row["created_at"] if latest_row is not None
+                    else row["created_at"])
+                values: Dict[str, Any] = {
+                    "id": new_id,
+                    "canvas_id": canvas_id,
+                    "tenant_id": tenant,
+                    "session_id": None,
+                    "action_type": _RESTORE_ACTION,
+                    "user_id": None,
+                    "agent_id": None,
+                    "episode_id": None,
+                    "canvas_type": (row["canvas_type"] or canvas_type or "generic"),
+                    "details_json": json.dumps(new_details),
+                    "created_at": created_at,
+                }
+                insert_columns = [name for name in values if name in audit_columns]
+                placeholders = ", ".join("?" for _ in insert_columns)
+                quoted = ", ".join(f'"{name}"' for name in insert_columns)
+                con.execute(
+                    f"INSERT INTO canvas_audit ({quoted}) VALUES ({placeholders})",
+                    [values[name] for name in insert_columns],
+                )
+                event_count += 1
+                restore_events.append({
+                    "canvas_id": canvas_id,
+                    "audit_id": new_id,
+                    "action_type": _RESTORE_ACTION,
+                    "created_at": created_at,
+                    "original_audit_id": str(row["id"]),
+                    "manifest_sha256": manifest_sha256,
+                })
         rewritten["canvases.content.office_binding"] = canvas_count
-        rewritten["canvas_audit.latest_content.office_binding"] = audit_count
+        rewritten["canvas_audit.restore_events_appended"] = event_count
+        rewritten["canvas_audit.restore_events_skipped_deleted"] = deleted_skipped
         con.commit()
     finally:
         con.close()
-    return {"rewritten": rewritten, "unresolved": unresolved, "mappings": [
-        {"source": str(source), "target": str(target)} for source, target in mappings
-    ]}
+    return {
+        "rewritten": rewritten,
+        "unresolved": unresolved,
+        "restore_events": restore_events,
+        "mappings": [
+            {"source": str(source), "target": str(target)}
+            for source, target in mappings
+        ],
+    }
+
+
+def _rename_noreplace(old: Path, new: Path) -> bool:
+    """Best-effort atomic no-replace directory rename.
+
+    Returns True when the platform performed the operation.  Raises
+    ``RestoreRefused`` if the target already exists.  Returns False only when
+    the platform/filesystem does not support the flag (caller falls back).
+    """
+    libc = ctypes.CDLL(None, use_errno=True)
+    old_b = os.fsencode(str(old))
+    new_b = os.fsencode(str(new))
+    if sys.platform == "darwin" and hasattr(libc, "renamex_np"):
+        fn = libc.renamex_np
+        fn.argtypes = [ctypes.c_char_p, ctypes.c_char_p, ctypes.c_uint]
+        fn.restype = ctypes.c_int
+        res = fn(old_b, new_b, 0x00000004)  # RENAME_EXCL
+    elif sys.platform.startswith("linux") and hasattr(libc, "renameat2"):
+        fn = libc.renameat2
+        fn.argtypes = [ctypes.c_int, ctypes.c_char_p, ctypes.c_int,
+                       ctypes.c_char_p, ctypes.c_uint]
+        fn.restype = ctypes.c_int
+        at_fdcwd = -100
+        res = fn(at_fdcwd, old_b, at_fdcwd, new_b, 0x1)  # RENAME_NOREPLACE
+    else:
+        return False
+    if res == 0:
+        return True
+    err = ctypes.get_errno()
+    if err in (errno.EEXIST, errno.ENOTEMPTY):
+        raise RestoreRefused("target was created concurrently")
+    if err in (errno.ENOSYS, errno.ENOTSUP, errno.EINVAL):
+        return False
+    raise OSError(err, os.strerror(err), str(new))
+
+
+def _publish_no_replace(stage: Path, target: Path) -> None:
+    if os.path.lexists(target):
+        raise RestoreRefused("target was created concurrently")
+    hook = _PUBLISH_HOOK
+    if hook is not None:
+        hook(target)
+    if _rename_noreplace(stage, target):
+        return
+    # Portable fallback: atomically create the target directory first, then
+    # move each child.  Never rename over a peer path.
+    try:
+        os.mkdir(target, 0o700)
+    except FileExistsError as exc:
+        raise RestoreRefused("target was created concurrently") from exc
+    placeholder = os.lstat(target)
+    try:
+        for child in sorted(stage.iterdir()):
+            current = os.lstat(target)
+            if (current.st_dev, current.st_ino) != (
+                    placeholder.st_dev, placeholder.st_ino):
+                raise RestoreRefused("target was replaced concurrently")
+            os.replace(child, target / child.name)
+        stage.rmdir()
+    except Exception:
+        # The target is ours and may be partially populated.  Do not delete a
+        # peer path if it was replaced; leave the partial target for the
+        # committed_unverified report.
+        current = os.lstat(target)
+        if (current.st_dev, current.st_ino) == (
+                placeholder.st_dev, placeholder.st_ino):
+            shutil.rmtree(target, ignore_errors=True)
+        raise
+
+
+def _create_claim(parent: Path, target: Path) -> Tuple[Path, int, Dict[str, int], str]:
+    claim = parent / f".{target.name}.restore.claim"
+    flags = (os.O_CREAT | os.O_EXCL | os.O_WRONLY
+             | getattr(os, "O_NOFOLLOW", 0))
+    try:
+        fd = os.open(str(claim), flags, 0o600)
+    except FileExistsError as exc:
+        raise RestoreRefused("another restore/claim already owns this target") from exc
+    except OSError as exc:
+        if exc.errno == errno.ELOOP:
+            raise RestoreRefused("target claim path is a symlink") from exc
+        raise
+    try:
+        token = str(uuid.uuid4())
+        payload = json.dumps({
+            "token": token, "pid": os.getpid(), "target": str(target),
+        }).encode("utf-8")
+        os.write(fd, payload)
+        os.fsync(fd)
+        st = os.fstat(fd)
+    except Exception:
+        os.close(fd)
+        try:
+            claim.unlink()
+        except OSError:
+            pass
+        raise
+    return claim, fd, _stat_signature(st), token
+
+
+def _release_claim(claim: Path, fd: Optional[int],
+                   signature: Optional[Mapping[str, int]],
+                   token: Optional[str]) -> None:
+    if fd is None:
+        return
+    try:
+        try:
+            current = os.lstat(claim)
+        except FileNotFoundError:
+            current = None
+        held = os.fstat(fd)
+        owns = (current is not None
+                and signature is not None
+                and token is not None
+                and (int(current.st_dev), int(current.st_ino))
+                == (int(held.st_dev), int(held.st_ino))
+                == (int(signature["dev"]), int(signature["ino"])))
+        if owns:
+            # The path may still be our inode but have been overwritten in
+            # place by a peer.  Only remove a claim whose exact token is ours.
+            try:
+                os.lseek(fd, 0, os.SEEK_SET)
+                raw = os.read(fd, 1024 * 1024)
+                parsed = json.loads(raw.decode("utf-8"))
+                owns = isinstance(parsed, dict) and parsed.get("token") == token
+            except (OSError, ValueError):
+                owns = False
+        if owns:
+            try:
+                os.unlink(claim)
+            except FileNotFoundError:
+                pass
+    finally:
+        os.close(fd)
 
 
 def restore_backup(
@@ -610,53 +1329,56 @@ def restore_backup(
     env: Mapping[str, str],
 ) -> Dict[str, Any]:
     """Verify and restore one manifest-bound local backup into a fresh root."""
-    backup_dir, manifest_path, manifest = _load_manifest(Path(backup_arg))
+    backup_dir, manifest_path, manifest, manifest_sha256 = _load_manifest(
+        Path(backup_arg))
     files, _memory_files = _validate_manifest_files(backup_dir, manifest)
-    source_data_dir = str(manifest.get("source_data_dir") or "")
+    source_data_dir = _safe_provenance_root(
+        manifest.get("source_data_dir"), "source_data_dir")
     raw_target = Path(target_arg).expanduser()
     if not raw_target.is_absolute():
         raise RestoreRefused("target-data-dir must be an absolute path")
-    if raw_target.is_symlink():
-        raise RestoreRefused("target path is a symlink")
+    _assert_no_symlink_components(raw_target, label="target path")
     target = raw_target.resolve()
-    _check_target(target, source_data_dir, env)
+    _check_target(target, str(source_data_dir), env)
     parent = target.parent
     if not parent.is_dir():
         raise RestoreRefused("target parent directory does not exist")
     if parent.is_symlink():
         raise RestoreRefused("target parent is a symlink")
 
-    claim = parent / f".{target.name}.restore.claim"
-    try:
-        fd = os.open(str(claim), os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o600)
-        os.close(fd)
-    except FileExistsError as exc:
-        raise RestoreRefused("another restore/claim already owns this target") from exc
-
+    claim: Optional[Path] = None
+    claim_fd: Optional[int] = None
+    claim_signature: Optional[Dict[str, int]] = None
+    claim_token: Optional[str] = None
     stage: Optional[Path] = None
     published = False
+    binding_token = None
     try:
+        claim, claim_fd, claim_signature, claim_token = _create_claim(parent, target)
+        binding = {
+            "sha256": files[DB_NAME]["sha256"],
+            "bytes": files[DB_NAME]["bytes"],
+            "stat": files[DB_NAME]["stat"],
+            "manifest_sha256": manifest_sha256,
+        }
+        binding_token = _ACTIVE_DB_BINDING.set(binding)
         stage = Path(tempfile.mkdtemp(
             prefix=f".{target.name}.restore-", dir=str(parent)))
         os.chmod(stage, 0o700)
         stage_db = stage / DB_NAME
         row_counts = _copy_database(
-            backup_dir / DB_NAME, stage_db, manifest["row_counts"])
+            backup_dir / DB_NAME, stage_db, manifest["row_counts"],
+            expected=binding, freeze_dir=stage)
         copied = 0
         for name, meta in files.items():
             if name == DB_NAME or name in DB_SIDECARS:
-                # The DB is produced by the SQLite backup API and verified by
-                # integrity/row counts; its bytes need not equal the source
-                # backup file (and are intentionally changed by path rewrite).
-                # Source WAL/SHM files are never published independently.
+                # The DB is produced from the frozen validated image by the
+                # SQLite backup API; source WAL/SHM files are never published.
                 continue
             source = backup_dir / name
             destination = stage / name
-            _copy_one_file(source, destination, meta)
-            if _is_credential(name):
-                os.chmod(destination, 0o600)
+            _copy_one_file(backup_dir, name, destination, meta)
             copied += 1
-        _verify_database(stage_db, manifest["row_counts"])
         for name, meta in files.items():
             if name == DB_NAME or name in DB_SIDECARS:
                 continue
@@ -666,58 +1388,77 @@ def restore_backup(
             if sha256_file(destination) != meta["sha256"]:
                 raise RestoreRefused("staged file sha256 mismatch")
         portability = _rewrite_managed_paths(
-            stage_db, source_data_dir, target,
+            stage_db, str(source_data_dir), target,
             manifest.get("store_roots") if isinstance(manifest.get("store_roots"), dict) else {},
+            manifest_sha256=manifest_sha256,
         )
         if portability.get("unresolved"):
             raise RestoreRefused(
                 "managed path portability is unresolved; refusing to publish "
                 "a partially rebased world: "
                 + json.dumps(portability["unresolved"], sort_keys=True))
-        _verify_database(stage_db, manifest["row_counts"])
+        _make_self_contained(stage_db)
+        for suffix in ("-wal", "-shm", "-journal"):
+            if os.path.lexists(stage_db.parent / (stage_db.name + suffix)):
+                raise RestoreRefused(
+                    f"staged database has an ambiguous sidecar: atom.db{suffix}")
+        row_counts = _verify_database(stage_db, manifest["row_counts"])
+        staged_db_sha256 = sha256_file(stage_db)
 
-        if target.exists():
-            if target.is_symlink() or any(target.iterdir()):
-                raise RestoreRefused("target was created concurrently")
-            target.rmdir()
-        if target.exists():
-            raise RestoreRefused("target was created concurrently")
-        os.replace(stage, target)
+        _publish_no_replace(stage, target)
         published = True
         stage = None
 
         # Post-publish readback. A failure here is committed_unverified, not a
         # safe refusal and not a reason to repeat blindly.
         try:
-            _verify_database(target / DB_NAME, manifest["row_counts"])
+            if os.path.islink(target):
+                raise RestoreUncertain("published target is a symlink")
+            for suffix in ("-wal", "-shm", "-journal"):
+                if os.path.lexists(target / (DB_NAME + suffix)):
+                    raise RestoreUncertain(
+                        f"published database has an ambiguous sidecar: atom.db{suffix}")
+            row_counts = _verify_database(target / DB_NAME, manifest["row_counts"])
             for name, meta in files.items():
                 if name == DB_NAME or name in DB_SIDECARS:
                     continue
                 destination = target / name
-                if destination.stat().st_size != meta["bytes"]:
-                    raise RestoreUncertain("published file byte count mismatch")
-                if sha256_file(destination) != meta["sha256"]:
-                    raise RestoreUncertain("published file sha256 mismatch")
+                fd = _open_nofollow(destination, label=f"published file {name!r}")
+                try:
+                    if int(os.fstat(fd).st_size) != meta["bytes"]:
+                        raise RestoreUncertain("published file byte count mismatch")
+                    if _hash_fd(fd) != meta["sha256"]:
+                        raise RestoreUncertain("published file sha256 mismatch")
+                finally:
+                    os.close(fd)
         except Exception as exc:  # noqa: BLE001
             return {
                 "ok": False, "status": "committed_unverified", "error": str(exc),
                 "backup": str(backup_dir), "manifest": str(manifest_path),
-                "manifest_sha256": sha256_file(manifest_path),
-                "target": str(target), "source_data_dir": source_data_dir,
+                "manifest_sha256": manifest_sha256,
+                "target": str(target), "source_data_dir": str(source_data_dir),
                 "row_counts": row_counts, "files_verified": copied,
                 "memory_included": bool(manifest.get("memory_included")),
                 "memory_restored": bool(manifest.get("memory_included")),
+                "memory_files_verified": (
+                    len(_memory_files) if manifest.get("memory_included") else 0),
                 "portability": portability,
+                "staged_db_sha256": staged_db_sha256,
+                "manifest_db_sha256": files[DB_NAME]["sha256"],
             }
         return {
             "ok": True, "status": "verified",
             "backup": str(backup_dir), "manifest": str(manifest_path),
-            "manifest_sha256": sha256_file(manifest_path),
-            "target": str(target), "source_data_dir": source_data_dir,
+            "manifest_sha256": manifest_sha256,
+            "target": str(target), "source_data_dir": str(source_data_dir),
             "row_counts": row_counts, "files_verified": copied,
             "memory_included": bool(manifest.get("memory_included")),
             "memory_restored": bool(manifest.get("memory_included")),
+            "memory_files_verified": (
+                len(_memory_files) if manifest.get("memory_included") else 0),
             "portability": portability,
+            "staged_db_sha256": staged_db_sha256,
+            "manifest_db_sha256": files[DB_NAME]["sha256"],
         }
     except RestoreRefused:
         if stage is not None:
@@ -731,8 +1472,8 @@ def restore_backup(
                 "ok": False, "status": "committed_unverified",
                 "error": f"{type(exc).__name__}: {exc}",
                 "backup": str(backup_dir), "manifest": str(manifest_path),
-                "manifest_sha256": sha256_file(manifest_path),
-                "target": str(target), "source_data_dir": source_data_dir,
+                "manifest_sha256": manifest_sha256,
+                "target": str(target), "source_data_dir": str(source_data_dir),
                 "row_counts": {}, "files_verified": 0,
                 "memory_included": bool(manifest.get("memory_included")),
                 "memory_restored": bool(manifest.get("memory_included")),
@@ -740,7 +1481,7 @@ def restore_backup(
             }
         raise RestoreRefused(f"{type(exc).__name__}: {exc}") from exc
     finally:
-        try:
-            claim.unlink(missing_ok=True)
-        except OSError:
-            pass
+        if binding_token is not None:
+            _ACTIVE_DB_BINDING.reset(binding_token)
+        if claim is not None:
+            _release_claim(claim, claim_fd, claim_signature, claim_token)

@@ -298,7 +298,9 @@ declared managed store.
 
 The SQLite copy uses the SQLite backup API (consistent, includes committed WAL)
 and verifies integrity plus row counts. Source WAL/SHM files are never copied
-as the restore authority.
+as the restore authority, and the produced backup is left checkpointed and
+sidecar-free. Managed-store copies reject symlinks and hardlinks rather than
+silently following bytes from outside the declared root.
 
 ### Restore
 
@@ -308,27 +310,60 @@ python .../release_tool.py --root <release-root> restore \
   --target-data-dir <explicit-empty-target>
 ```
 
+> **Correction (2026-11-07).** The predecessor candidate claimed it preserved
+> audit history while rewriting the latest content-bearing `CanvasAudit` row.
+> That claim was wrong: the latest content-bearing row is still historical
+> audit material. The predecessor evidence packet remains frozen, unmodified,
+> as evidence of the wrong claim. The contract below is append-only and does
+> not relabel the predecessor.
+
 `restore` requires both arguments and refuses:
 
 - the live configured data/store root, `source == target`, or overlapping paths;
-- an existing/non-empty target, an existing target `atom.db`, or a target
-  symlink;
+- an existing target path of any kind (including an empty directory or
+  symlink) and any target path whose components traverse a symlink;
 - an unknown manifest schema, missing/duplicate/colliding/escaping paths,
   symlink/hardlink entries, byte/SHA-256 mismatch, or a corrupt/truncated
   database;
+- an added/changed/unmanifested `atom.db-wal`, `atom.db-shm` or
+  `atom.db-journal`; only a self-contained checkpointed database is accepted;
 - a manifest that declares memory included but contains no memory files, or
   declares it excluded but includes memory files.
 
-It verifies every manifest entry before copying, restores the DB through the
-SQLite backup API into an owned staging directory, verifies copied bytes and
-DB integrity/row counts again, rewrites only current managed path bindings
-(dataset parquet paths, optional document file paths, assignment operational
-paths, current Canvas office bindings and the latest content-bearing
-CanvasAudit row) from the manifest's source provenance to the target, then
-publishes with an atomic rename. Concurrent target creation is refused by an
-exclusive claim file and a final target check. Failure before publish leaves
-the target untouched; failure after publish returns `committed_unverified` and
-is never blindly repeated.
+It verifies every manifest entry through nofollow directory descriptors before
+copying. The database copy is bound to the **exact bytes validated against the
+manifest**, not to a later stat: the already-checkpointed backup file is opened
+through a nofollow descriptor, frozen into a private staging directory, and
+re-checked for size, SHA-256, device/inode identity and unchanged stat before
+the SQLite backup API is allowed to read it. In-place updates, path/inode
+swaps, symlink swaps and sidecar changes after validation are refused. The DB
+is restored through the SQLite backup API into an owned staging directory, and
+copied bytes, integrity and row counts are verified again.
+
+Row-count semantics are explicit: keys must be simple SQL identifiers; a
+non-negative integer requires an existing table with at least that many rows
+(`0` is exact); `None` requires the table to be absent. A missing table is
+never silently counted as zero.
+
+Only current managed projections are rebased from the manifest's source
+provenance to the target: dataset parquet paths, optional document file paths,
+assignment operational paths, and the current `Canvas.content` office binding.
+Historical `CanvasAudit` rows, receipts, operation identities, actors,
+timestamps and material are byte-for-byte immutable. When the current
+content-bearing audit row carries an office binding that must change, restore
+**appends** a new restore-owned `CanvasAudit` event with a new id, the exact
+canvas/tenant scope, the original audit id and manifest SHA-256 as provenance,
+and the target binding. It does not reuse the old operation id, evidence refs,
+postconditions or review status, so `read_canvas` serves the target without
+pretending the old operation was replayed unchanged.
+
+Publication is an atomic no-replace rename where the platform supports it
+(`renamex_np`/`RENAME_EXCL` on macOS, `renameat2`/`RENAME_NOREPLACE` on Linux).
+The claim file contains a per-restore token and is removed only when its inode
+and token still match this restore; a peer claim or peer target/symlink is
+never deleted or overwritten after the last check. Failure before publish
+leaves the target absent; failure after publish returns `committed_unverified`
+and is never blindly repeated.
 
 `memory_included: false` means no search/recall claim; the result reports
 `memory_restored: false`. When memory is included, the backup/restore copies
