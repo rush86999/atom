@@ -1,0 +1,18 @@
+{
+  "source": "ece76e18b894e7677e5d47f8e706b389d82fc95e",
+  "scratch": "/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-shopify-blog-authorized-qu9oe4l5",
+  "command": [
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "tests/test_oracle_shopify_blog_create.py",
+    "tests/test_lead_shopify_authorized_material.py",
+    "tests/test_oracle_shopify_product_authorized_material.py",
+    "tests/test_oracle_shopify_product_replay.py",
+    "-q",
+    "--tb=short",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/root-shopify-blog-authorized-qu9oe4l5/pytest"
+  ]
+}
