@@ -8,6 +8,47 @@ Agent 3 supports integration and independent verification under [its separate wo
 
 Agent 4 supports ordinary-user journey and usability verification under [its separate work order](AGENT4_PRODUCT_JOURNEY_GUIDANCE_2026_11_06.md). It first examines the fresh-browser account-return/session-recovery gap, after checking matching evidence. Agent 3 retains code-contract/integration review; neither support role transfers the lead's engineering/product or final acceptance authority.
 
+## Owner clarification: single-tenant delivery and worker costs
+
+This clarification supersedes conflicting scope or worker-model instructions below.
+The product target is **single tenant**. Complete the supported application and
+ordinary business journeys in that deployment. Multi-tenant SaaS provisioning,
+foreign-tenant campaigns and tenant billing breadth are not completion gates
+unless the owner separately requests them. Existing tenant columns and guards
+do not expand the product target. Preserve the user, ownership, role, workspace
+and approval boundaries actually supported inside the single tenant. Do not
+remove existing safeguards or invent global authority from missing scope.
+
+Reassess tenant-only findings against a reachable supported user flow before
+calling them release blockers. Test valid personal/single-tenant behavior along
+with unauthorized-user negatives. Keep old evidence and historical scores at
+their original scope; this clarification neither changes the 111/123 result nor
+turns incomplete single-tenant functionality into accepted work. Resolve current
+PR heads and ownership before following the historical status rows below.
+
+For Agent 1 and Agent 2, prefer configured free DeepSeek Flash and GLM Flash
+routes through OpenCode, then authorized OpenCode Go subscription allowance.
+Use ZCode GLM as the fallback once that CLI completes a real account-backed
+request. ZCode Start-plan free credits may be used when native account state
+confirms entitlement and availability; prefer them before its paid allowance.
+A catalogue listing, successful login or running process alone proves neither
+usable credits nor successful model execution. Never manufacture entitlement.
+
+On confirmed credit exhaustion or rate limiting, preserve a coherent checkpoint
+and record the exact route, observed error and provider-reported reset time.
+Unknown reset times remain unknown. Model-unavailable, authentication, registry,
+schema and semantic failures must not be mislabeled as exhausted credits. If
+both services are unavailable, use an eligible configured lighter free model
+for bounded work with independent verification; never enable paid overages,
+new API-key providers or purchases. Avoid busy-polling and repeated failed calls.
+Do not interrupt healthy work merely to change models. Record each model change
+and retain branch, source, tests and pending requirements across the handoff.
+
+The lead remains verifier, senior engineer and product manager. Worker output
+requires evidence-based review. A paused or unqualified dispatcher must never
+be described as a working autonomous loop. Implementers can continue independent
+authorized work after pushing while a separate lane observes exact-head CI.
+
 ## 1. Mandate and finish line
 
 Continue each authorized goal through diagnosis, implementation, meaningful regression, the required user boundary, evidence, remote push and review handoff. A phase checkpoint is an intermediate result. Do not stop after a plan, a small green test set, a packaging correction or a statement that you are ready for the next phase.
