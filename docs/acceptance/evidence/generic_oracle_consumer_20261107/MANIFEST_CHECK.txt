@@ -1,6 +1,6 @@
 MANIFEST_CHECK for docs/acceptance/evidence/generic_oracle_consumer_20261107
 
-Checked at evidence manifest commit f5319e9bb (HEAD of
+Checked at evidence update commit 5d3bdcfe4 (HEAD of
 codex/generic-oracle-consumer-20261107 at check time).
 
 Command:
@@ -9,16 +9,16 @@ Command:
 Result: every path reported its MANIFEST.json blob id.
 
   backend/core/generic_agent.py
-    852249a11d67bce9178ba3bf93236c47f09f5201
+    7252b140d9d101dcd0d13b3187d5af92e537b1aa
   backend/core/outbound_operation_claim.py
-    911d3c35719ea18191b23961544db93a123f9ae1
+    c82fdc656364129e42fddc08b821f0c67ef07b10
   backend/tests/test_generic_oracle_mutation_contract.py
     7e1c66bda64bcc60a289d9f913408d3ea400f31e
   docs/acceptance/evidence/generic_oracle_consumer_20261107/README.md
-    34a3143b2959bbd3da8792563a4313f5432b176b
+    63c24e20dca265ee46719c2beed04ced551cd9e3
   docs/acceptance/evidence/generic_oracle_consumer_20261107/verification.txt
-    93dceb61f650120d4712587f733773d19850d218
+    958dfa40a96b046c91d514a788058ce476dcd389
   docs/acceptance/evidence/generic_oracle_consumer_20261107/baseline-unrelated-failures.txt
-    1ff5d0555d48b8fcfa45f28241e785b64e8fdc2b
+    71e75a148db4dd740abd0d56f856a6b8641cb575
 
 MANIFEST.json itself is excluded from the manifest by design.
