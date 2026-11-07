@@ -589,8 +589,8 @@ def _run_request_identity(request: Any) -> Dict[str, Any]:
         path = D3._path_of(url)
         origin = D3._origin(url)
         key = hashlib.sha256(json.dumps(
-            [request.method, origin, _normalized_run_path(path), body_sha,
-             operation_id], separators=(",", ":")).encode("utf-8")).hexdigest()
+            [request.method, origin, path, body_sha, operation_id],
+            separators=(",", ":")).encode("utf-8")).hexdigest()
         return {
             "method": request.method,
             "origin": origin,
@@ -637,13 +637,18 @@ def _classify_run_admissions(
         if isinstance(item, dict)
         and _normalized_run_path(item.get("path")).endswith("/run")
     ]
+    def _node_id(item: Dict[str, Any]) -> Optional[str]:
+        return item.get("request_id") or item.get("request_key")
+
     responses: Dict[str, Dict[str, Any]] = {}
     for item in (run_responses or []):
-        if isinstance(item, dict) and item.get("request_key"):
-            responses[str(item["request_key"])] = item
+        if isinstance(item, dict):
+            node = _node_id(item)
+            if node:
+                responses[str(node)] = item
     by_key = {
-        str(item["request_key"]): item for item in posts
-        if item.get("request_key")
+        str(_node_id(item)): item for item in posts
+        if _node_id(item)
     }
     invalid_edges: List[Dict[str, Any]] = []
     edges: List[Dict[str, Any]] = []
@@ -666,7 +671,8 @@ def _classify_run_admissions(
         )
 
     for child in posts:
-        parent_key = child.get("redirected_from_key")
+        parent_key = (child.get("redirected_from_id")
+                      or child.get("redirected_from_key"))
         if not parent_key:
             continue
         parent = by_key.get(str(parent_key))
@@ -677,7 +683,7 @@ def _classify_run_admissions(
                 "parent_key": parent_key,
             })
             continue
-        response = responses.get(str(parent_key)) or {}
+        response = responses.get(str(_node_id(parent))) or {}
         status = response.get("status")
         if status not in _RUN_REDIRECT_STATUSES:
             invalid_edges.append({
@@ -741,11 +747,19 @@ def _classify_run_admissions(
             "operation_id": child.get("operation_id"),
         })
 
-    roots = [item for item in posts if not item.get("redirected_from_key")]
-    terminals = [item for item in posts if not item.get("redirected_to_key")]
+    roots = [
+        item for item in posts
+        if not (item.get("redirected_from_id")
+                or item.get("redirected_from_key"))
+    ]
+    terminals = [
+        item for item in posts
+        if not (item.get("redirected_to_id")
+                or item.get("redirected_to_key"))
+    ]
     terminal_success: List[Dict[str, Any]] = []
     for terminal in terminals:
-        response = responses.get(str(terminal.get("request_key"))) or {}
+        response = responses.get(str(_node_id(terminal))) or {}
         try:
             status = int(response.get("status") or 0)
         except (TypeError, ValueError):
@@ -753,10 +767,10 @@ def _classify_run_admissions(
         if 200 <= status < 300:
             terminal_success.append(terminal)
     success = successful_run or {}
-    success_key = success.get("request_key")
+    success_key = _node_id(success)
     success_matches = bool(
         success_key
-        and any(item.get("request_key") == success_key
+        and any(_node_id(item) == success_key
                 for item in terminal_success))
     try:
         success_status = int(success.get("status") or 0)
@@ -784,7 +798,7 @@ def _classify_run_admissions(
         "successful_admission": {
             key: success.get(key) for key in (
                 "status", "path", "origin", "method", "operation_id",
-                "job_id", "execution_id")
+                "request_id", "request_key", "job_id", "execution_id")
         },
         "reason": (
             "ok" if ok else
@@ -1109,6 +1123,8 @@ def _run_scenario(args: argparse.Namespace) -> int:
     answer_posts: List[Dict[str, Any]] = []
     run_posts: List[Dict[str, Any]] = []
     run_responses: List[Dict[str, Any]] = []
+    run_request_ids: Dict[int, str] = {}
+    run_request_seq = [0]
     advance_paths: List[str] = []
     requests_seen: List[Dict[str, Any]] = []
     cleanups: List[Tuple[str, Any]] = []
@@ -1317,17 +1333,21 @@ def _run_scenario(args: argparse.Namespace) -> int:
                     if (_normalized_run_path(path).endswith("/run")
                             and request.method == "POST"):
                         identity = _run_request_identity(request)
+                        request_id = f"run-{run_request_seq[0]}"
+                        run_request_seq[0] += 1
+                        run_request_ids[id(request)] = request_id
                         run_posts.append({
                             "path": path,
+                            "request_id": request_id,
                             "method": identity.get("method"),
                             "origin": identity.get("origin"),
                             "operation_id": identity.get("operation_id"),
                             "body_sha256": identity.get("body_sha256"),
                             "request_key": identity.get("request_key"),
-                            "redirected_from_key": _key_for_request(
-                                getattr(request, "redirected_from", None)),
-                            "redirected_to_key": _key_for_request(
-                                getattr(request, "redirected_to", None)),
+                            "redirected_from_id": run_request_ids.get(
+                                id(getattr(request, "redirected_from", None))),
+                            "redirected_to_id": run_request_ids.get(
+                                id(getattr(request, "redirected_to", None))),
                             "controlled_objective": _controlled_objective(
                                 request.post_data or ""),
                         })
@@ -1363,6 +1383,7 @@ def _run_scenario(args: argparse.Namespace) -> int:
                             "origin": D3._origin(response.url),
                             "location": location,
                             "request_key": identity.get("request_key"),
+                            "request_id": run_request_ids.get(id(request)),
                         })
                     except Exception as exc:  # noqa: BLE001 - reported
                         run_responses.append({
@@ -1457,6 +1478,8 @@ def _run_scenario(args: argparse.Namespace) -> int:
                         run_response.request).get("operation_id"),
                     "request_key": _run_request_identity(
                         run_response.request).get("request_key"),
+                    "request_id": run_request_ids.get(
+                        id(run_response.request)),
                     "job_id": job_id,
                     "execution_id": str(
                         run_data.get("execution_id") or ""),
