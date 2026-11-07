@@ -41,7 +41,7 @@ six owned files is empty; blob hashes identical, see `EXECUTED_SOURCE.json`).
 | file | what it is |
 | --- | --- |
 | `baseline_neighborhood.sanitized.log` | baseline neighborhood run at `248a23296`: 23 failed / 345 passed |
-| `candidate_corrected.sanitized.log` | neighborhood run at `f0efc7caa` after seam retargeting: 23 failed / 347 passed |
+| `candidate_corrected.sanitized.log` | intermediate run with runtime `f0efc7caa` and uncommitted seam-retarget controls later committed in `eb8b4578c`: 23 failed / 347 passed |
 | `candidate_preretarget.sanitized.log` | intermediate run at `f0efc7caa` before seam retargeting: 25 failed / 343 passed — the 2 extra failures are exactly the stale-seam tests, removed by `eb8b4578c` |
 | `candidate_mergehead.sanitized.log` | neighborhood re-run at merge head `cf2964720`: 23 failed / 347 passed |
 | `focused_mergehead.sanitized.log` | focused suites at merge head: 13 failed / 43 passed — failures are all the pre-existing baseline stale-symbol subset; both MEM-07 focused suites and every seam control pass |
@@ -105,3 +105,9 @@ scratch SQLite — never the live dev DB.
   directory contains only this session's own sanitized logs.
 - Bootstrap scratch files (`.mem07_pr_body.md`, `CLI_WORK_ORDER.md`,
   `opencode.jsonc`) stay untracked.
+
+## Provenance precision added by the lead
+
+The intermediate corrected run was **not a clean-tree run**: runtime files matched `f0efc7caa`, while seam-retarget test controls were uncommitted and subsequently recorded in `eb8b4578c`. The 347-pass intermediate result must not be attributed to the complete committed tree at `f0efc7caa`. The final neighborhood and focused runs are bound to the complete source/test checkpoint `cf2964720`; original log bytes are preserved.
+
+The failure-first demonstration used a **single-file substitution**: `reflection_engine.py` matched `54cd12bf2` exactly, while the corrected harness/tests and capability helper remained present. It was not a full checkout or whole-runtime replay at `54cd12bf2`. The file was restored before the final commit. This qualification changes attribution only; no test output was regenerated.

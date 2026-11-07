@@ -32,8 +32,8 @@
     "verified_from_git_objects": "sha256 of `git cat-file blob` outputs cross-checked against worktree files; mismatches: []"
   },
   "artifacts": {
-    "README.md": "74620abbf04a93b9900de97041f776217b253a1598ee31aaf6f07de1646048d9",
-    "EXECUTED_SOURCE.json": "6ed6af828bd2b01cea39efc671a6ce34e971088f23f60cdc6415acc277afe480",
+    "README.md": "c108c418e9e7adec1258850914c1d22ba294196219f2ade19c6cd8e31c8d5532",
+    "EXECUTED_SOURCE.json": "ddfaa8d5728952ca01a79d2f25ea76d6858d690c6bf4740960c41625c831fbad",
     "failure_id_comparison.json": "f55120e3e949f9ea4ddd91cf461043ad670059ab0860acaacb8b345b678ca157",
     "baseline_neighborhood.sanitized.log": "70e2d2c1aea7c79a449420238ac3958a2b9b6d4c7dc0fc5040ab4a6fcfc0a238",
     "candidate_preretarget.sanitized.log": "b0030bcfbfa67a053eb114b943133cd3d20adc940a062f8a4afff6c35dc693f6",
@@ -44,15 +44,15 @@
   },
   "checks": {
     "baseline_248a23296": "23 failed, 345 passed",
-    "candidate_corrected_f0efc7caa": "23 failed, 347 passed",
+    "candidate_corrected_f0efc7caa": "23 failed, 347 passed; intermediate runtime f0efc7caa plus uncommitted seam-retarget test controls subsequently committed eb8b4578c; tree_clean_at_run=false",
     "candidate_mergehead_cf2964720": "23 failed, 347 passed",
     "failure_id_sets_identical_baseline_vs_corrected": true,
     "failure_id_sets_identical_baseline_vs_mergehead": true,
     "preretarget_intermediate": "25 failed / 343 passed; the 2 extra IDs are exactly the stale seam tests, removed by eb8b4578c retargeting",
-    "focused_mergehead": "13 failed, 43 passed — fails are the inherited baseline stale-symbol subset; both focused MEM-07 suites and all seam controls pass",
+    "focused_mergehead": "13 failed, 43 passed \u2014 fails are the inherited baseline stale-symbol subset; both focused MEM-07 suites and all seam controls pass",
     "skips_waits_deletions": 0,
     "candidate_added_failures": 0,
-    "failure_first_twins_at_pre_fix_source": "5 failed / 5 run at byte-exact 54cd12bf2 (empty git diff --stat proof); directions captured incl. wrongly-allowed triggers for agent-orphan/agent-cross/agent-twin and NoResultFound instead of fail-closed refusal",
+    "failure_first_twins_at_pre_fix_source": "5 failed / 5 run with only reflection_engine.py substituted byte-exactly from54cd12bf2 inside the corrected harness; not a full old-source checkout",
     "worktree_restored_after_failure_first": true,
     "sha256_audited_dependencies_no_mismatches": true,
     "pii_residues_scan": "all seven sanitized artifacts scanned: rushiparikh and /Users/<home> absent; raw originals kept private and never uploaded",
@@ -66,5 +66,6 @@
     "remaining failure IDs are inherited pre-existing baseline failures; not waived, skipped, or deleted",
     "no merge, accept, approval, or self-review; PR #709 submitted for independent exact-head checks",
     "bootstrap scratch files (.mem07_pr_body.md, CLI_WORK_ORDER.md, opencode.jsonc) stay untracked"
-  ]
+  ],
+  "provenance_precision": "README and EXECUTED_SOURCE identify intermediate dirty test controls and single-file failure-first substitution; final committed-source checkpoint cf2964720 remains authoritative; captured logs unchanged"
 }

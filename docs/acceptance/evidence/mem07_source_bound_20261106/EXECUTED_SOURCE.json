@@ -40,6 +40,15 @@
     "reverted_to": "54cd12bf2",
     "equality_proof": "git diff --stat 54cd12bf2 -- backend/core/auto_dev/reflection_engine.py produced empty output (byte-identical) before the twins run",
     "restored_afterwards": "edit-tool byte-exact restore; git status --porcelain clean vs merge head",
-    "log": "failure_first.sanitized.log"
+    "log": "failure_first.sanitized.log",
+    "scope": "single-file substitution inside corrected harness; not a complete old-source checkout",
+    "substituted_file": "backend/core/auto_dev/reflection_engine.py",
+    "harness_checkpoint": "cf2964720e171de09b4dfe2f2db0beb2f4a1793e"
+  },
+  "intermediate_corrected_run": {
+    "tree_clean_at_run": false,
+    "runtime_source": "f0efc7caadc205a5d6e4591852b285d9d7c6dfa6",
+    "test_controls_successor": "eb8b4578cac6b9b0819eb5c3af6be2e63ddbea78",
+    "authoritative_final_checkpoint": "cf2964720e171de09b4dfe2f2db0beb2f4a1793e"
   }
 }
