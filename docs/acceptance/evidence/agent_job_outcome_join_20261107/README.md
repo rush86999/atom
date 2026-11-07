@@ -26,6 +26,13 @@ No new engine, table, operation store or schema.
   statuses. Uncertain/failed/blocked/cancelled/contradictory/empty/invalid
   results preserve the exact outcome, reason and next action and never
   complete the job. Result presence is not success.
+- The actual HITL producer was fixed at its existing neighborhood:
+  `GenericAgent` constructs the governance service with the run
+  workspace/tenant and `AgentGovernanceService.request_approval` persists the
+  already-trusted job/execution/actor context in the existing
+  `context_snapshot` field (business params untouched). Older callers that
+  pass no context keep their previous shape; their legacy rows stay readable
+  but cannot certify a new scoped task.
 - A bare model/body `"waiting"` string is not a durable wait. A returned
   reference becomes a non-terminal `waiting` job only when it resolves to an
   existing **pending** `HITLAction` row bound to this exact agent and the
@@ -97,9 +104,9 @@ child under `/private/tmp/atom-job-join-gate-20261107-agent2/`.
 | Gate | Command / scope | Result |
 |---|---|---|
 | Supplied five-cell probe | `/private/tmp/test_lead_agent_job_outcome_join.py` (in `final-focused.log`) | **5 passed, exit 0** |
-| New candidate contracts | `test_agent_run_outcome_join_contract.py` + `test_agent_run_admission_contract.py` | **41 passed, exit 0** |
-| Supplied lead probes | `LEAD_PROBES/test_lead_agent_job_claim_race.py` + `..._draft_bindings.py` + `test_lead_job_wait_authority.py` | **15 passed, exit 0** |
-| Combined focused gate | 56 tests, `final-focused.log` | **exit 0** |
+| New candidate contracts | `test_agent_run_outcome_join_contract.py` + `test_agent_run_admission_contract.py` | **42 passed, exit 0** |
+| Supplied lead probes | claim race + draft bindings + all three wait files in `LEAD_PROBES/` | **17 passed, exit 0** |
+| Combined focused gate | 64 tests, `final-focused.log` | **exit 0** |
 | Actual affected gate | 13 files, `final-affected.log` | **exit 1; 36 failure IDs** |
 | Failure identity | `final-failure-identity.json` | **36/36 exactly the root actual baseline; zero new IDs** |
 | Generic consumer follow-through | `test_generic_agent.py`, `test_agent_action_audit.py`, `test_generic_oracle_mutation_contract.py`, `test_objective_loop_termination.py` | **passed** |
