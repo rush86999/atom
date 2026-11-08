@@ -1,5 +1,19 @@
 # App completion state — 2026-11-07
 
+## Owner-authorized merge checkpoint — 2026-11-08 UTC
+
+This is the current operational queue. The earlier evidence cuts and numerical claim inventory remain historical, not reassigned runs.
+
+- Main is `054fa1f08`: PR #758 merged `57087159c`, #759 `f21bcecf1`, #760 `6a5d75961`, #757 `8a8581254`, and #762 `054fa1f08`. All eight checks were green at each exact reviewed head. Every actual merge tree matched its independently inspected prospective tree. Existing GitHub connection handled workflow-file merges; no credential or repository-setting change.
+- The owner explicitly authorized administrator bypass of the separate-account review requirement after the configured account was confirmed to be the PR author. This exception applies only to independently verified exact heads with all checks green and inspected conflict-free integration. It does not waive CI, scanner findings, merge conflicts, product authority or deployment restrictions. Never fabricate a separate-account approval. The earlier rejected attempt was not executed; no bypass happened before clarification.
+- PR #753 is closed as superseded by merged #759. Its exact head is an ancestor of the reviewed #759 head; historical failed frontend checks remain failed, not relabeled. Preserve its branch/evidence. PR #755 stays open until its unique guidance is proven present in merged #761; do not merge stale guidance blindly.
+- PR #763 is submitted: canvas runtime `ccaa92ba3`, permanent-test successor `19bd74ade`, evidence `0ece7f651`. Root 52 focused and eight pre-write actor interleavings passed; final permanent modules passed 54; affected selection has 175 passed and the same two baseline failures. Original 8e4/a981 negatives are retained. Its current-head CI remains a merge gate.
+- BPE Phase 1 delivery `941df5199` is withheld: the focused selection had 14 failures/two passes, mostly registry-reset fixture failures needing honest isolation repair. A separate real current-user/workspace contradiction failed one negative with a valid twin passed. Follow-up coding continues; Oracle note honesty and durable harness-state receipts remain separate open work.
+- Export browser remains unqualified. `bf3` stopped before browser at process-safety checks; `e659` source-only runtime proof falsely passed inert-source twins; shared-launcher `49ca` fixes actual exec flags. Root `075` pricing-metadata correction still has one stale test-field assertion, and a separate ordering negative proves dotenv guards must precede frozen-world schema imports/seed, not just Popen. No operator secret read or new browser pass is claimed.
+- Post-merge CI on exact main `054fa1f08` is observed by a bounded model-free worker. Do not inherit branch-green status or claim main CI complete until actual terminal results and relevant numeric logs are read. Full app, TASK-WAIT-01, general judgment, all mutation families, live breadth and broad PostgreSQL/soak remain open. Historical 111/123 and the other scorecards are unchanged.
+
+Cold evidence archives are on the UUID-verified Seagate volume with a canonical symlink and complete byte/restore records; the active three-hour monitor checks that identity before archive operations. Never replace a missing-drive symlink with an empty local directory. Keep heavy test serialization and resource floors; do not restart quiet live workers.
+
 ## Root verification checkpoint — 2026-11-08 UTC
 
 This operational checkpoint supersedes older assignment paragraphs below, without changing historical evidence identities or scores. Main remains `8ded00232`. Full-app completion is not achieved.

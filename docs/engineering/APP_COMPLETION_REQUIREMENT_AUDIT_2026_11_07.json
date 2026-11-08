@@ -5262,6 +5262,28 @@
       "bpe": "mountedRPC cross-workspace1fail1pass; separate controlled Generic step2fail5pass5skip, full episode unproved; principal-scope repair active",
       "merge_gate": "759 and760 all8green need codeowner review; auto-merge disabled; do not bypass",
       "disk": "cold archives moved with complete byte verification to UUID-verified Seagate; canonical symlink and restore record retained; three-hour disk automation active"
+    },
+    "owner_merge_checkpoint_20261108": {
+      "main": "054fa1f087b8425f0fe898d617e8259e08d98581",
+      "merged_prs": {
+        "758": "57087159c",
+        "759": "f21bcecf1",
+        "760": "6a5d75961",
+        "757": "8a8581254",
+        "762": "054fa1f08"
+      },
+      "all_actual_merge_trees_verified": true,
+      "owner_explicitly_authorized_narrow_review_override": true,
+      "protection_settings_changed": false,
+      "ci_gates_not_waived": true,
+      "closed_superseded": [
+        753
+      ],
+      "pr763": "submitted; independently verified bounded scope, current CI pending",
+      "BPE": "941 withheld pending registry-isolation and real current-workspace contradiction repair",
+      "export": "ordinary browser unqualified; actual env/isolation producer fixes under verification",
+      "full_app": "OPEN",
+      "postmerge_CI": "054 exact-head observer active, not yet certified"
     }
   }
 }
