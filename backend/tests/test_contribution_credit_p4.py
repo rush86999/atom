@@ -257,6 +257,8 @@ def _seed_fleet(db, *, link_statuses):
             AgentRegistry(
                 id=aid,
                 name=aid,
+                tenant_id="t1",
+                workspace_id="w1",
                 category="Ops",
                 role="agent",
                 type="personal",
