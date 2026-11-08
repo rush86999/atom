@@ -161,6 +161,7 @@ def test_resolved_answer_rearms_old_one_shot_recovery(
     async def interrupted(*args, **kwargs):
         raise RuntimeError("controlled interruption after durable answer")
 
+    from api.assignment_routes import _advance_employee_work as real_advance
     monkeypatch.setattr("api.assignment_routes._advance_employee_work", interrupted)
     monkeypatch.setattr("api.assignment_routes._employee_llm", lambda *_: object())
     with pytest.raises(RuntimeError, match="controlled interruption"):
@@ -173,6 +174,30 @@ def test_resolved_answer_rearms_old_one_shot_recovery(
     recovery = fresh._evidence_recovery_plan(record)
     assert recovery is not None, record["assignment"].get("evidence_recovery")
     assert recovery["key"] != old["key"]
+
+    calls = []
+
+    async def proposal(context, observations, **kwargs):
+        assert context["resolved_obligations"][-1]["resolution_value"] == (
+            "Use the accepted price rows")
+        calls.append(run_id)
+        return {"source": "model", "technical_fallback": False, "errors": [],
+                "proposal": WorkAdaptationProposal(
+                    decision="replan", reason="resume after the accepted answer",
+                    observation_ids=[v["observation_id"] for v in observations],
+                    work_request=_quote_request()).model_dump()}
+
+    monkeypatch.setattr("api.assignment_routes._advance_employee_work", real_advance)
+    monkeypatch.setattr("api.assignment_routes.propose_adaptation", proposal)
+    monkeypatch.setattr("api.assignment_routes._employee_llm_for_scope", lambda *_: object())
+    recovered = _run(fresh._recover_accepted_evidence(run_id))
+    assert recovered["status"] == "completed", recovered
+    assert calls == [run_id]
+    assert fresh.lifecycle.get_assignment(run_id)["status"] == "completed"
+    done = fresh.lifecycle.get_task(run_id)
+    assert _run(fresh._recover_accepted_evidence(run_id)) is None
+    assert calls == [run_id]
+    assert fresh.lifecycle.get_task(run_id) == done
 
 
 @pytest.mark.parametrize("binding", ["step_id", "source_operation"])

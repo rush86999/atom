@@ -3251,6 +3251,23 @@ class AssignmentExecutor:
             return None
         key = hashlib.sha256(
             "\n".join(observation_ids).encode("utf-8")).hexdigest()[:20]
+        # A newly settled answer is material even when the retained evidence
+        # rows did not change. It must not inherit an evidence-only retain /
+        # attempted marker from before the question was answered. Preserve
+        # historical keys exactly when there are no resolved answers.
+        answers = sorted([
+            {name: question.get(name) for name in (
+                "question_id", "concept", "affected_subjects",
+                "resolution_value", "resolution", "resolved_at")}
+            for question in (record.get("task_revision") or {}).get("unresolved") or []
+            if isinstance(question, dict)
+            and question.get("status") == "resolved"
+            and (question.get("resolution_value") or question.get("resolution"))
+        ], key=lambda value: str(value.get("question_id") or ""))
+        if answers:
+            key = canonical_sha256({
+                "observation_ids": observation_ids, "resolved_answers": answers,
+            })[:20]
         return {"key": key, "observation_ids": observation_ids}
 
     def _evidence_recovery_plan(
@@ -4792,7 +4809,7 @@ class AssignmentExecutor:
         assignment_status = str(current.get("status") or "")
         question_id = str(question.get("question_id") or "")
         step = _step_for_gap_question(current, question)
-        if step is None and question.get("source_operation"):
+        if step is None and (question.get("source_operation") or question.get("step_id")):
             raise _ExternalReplyStop({
                 "status": "unmatched",
                 "message": (
