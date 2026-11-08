@@ -4810,26 +4810,11 @@ class AssignmentExecutor:
                         receipt, step, assignment_status,
                         explicit=explicit))
 
-            # Compatibility for legacy omitted-ID callers after acceptance:
-            # the wait is already settled, so a changed unkeyed response is
-            # acknowledged as the prior outcome, never as new authority and
-            # never as a second effect. While the wait is open, a changed
-            # unkeyed response remains a new event (partial -> corrected).
-            if not explicit and external:
-                legacy_resolved = next((
-                    item for item in reversed(receipts)
-                    if str(item.get("identity_kind") or "") == "legacy"
-                    and str(item.get("outcome") or "") == "resolved"
-                    and _external_reply_scope_matches(
-                        item, correlation_id=correlation_id,
-                        fact=fact, subject=subject)
-                ), None)
-                if legacy_resolved is not None:
-                    raise _ExternalReplyStop(
-                        _external_reply_replay_result(
-                            legacy_resolved, step, assignment_status,
-                            explicit=False))
-
+            # An omitted ID is still material-derived. Only the exact digest
+            # matched above can certify a replay; changed terminal input is
+            # a new event and must be refused, never credited to an older
+            # accepted reply. Legacy partial -> corrected replies while the
+            # wait is open remain separate, compatible events.
             if assignment_status in TERMINAL_ASSIGNMENT_STATES:
                 raise _ExternalReplyStop({
                     "status": "terminal",

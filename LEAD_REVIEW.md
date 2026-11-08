@@ -205,3 +205,8 @@ adding Temporal or an in-memory lock as database authority.
 ## Verification status
 
 **IMPLEMENTED-NOTRUN.** Root executes. The author makes no pass claim.
+
+
+## Root independent verification and legacy follow-through
+
+Frozen381 passed16 focused controls, including the original root public changed-explicit-ID negative. Root then tested the documented legacy terminal exception at70512246b: changed unkeyed material received HTTP200/already_applied on a completed assignment. This is not an exact replay and was misleading even though it did not create a second effect. The original failing log/spec/exit is retained at root-assignment-reply-legacy-negative. Root removed that exception: material-derived legacy identity must match the original digest just like any exact retry; changed late input reaches existing terminal refusal. Legitimate unkeyed partial->corrected answers while waiting remain allowed. No business-result, authority, artifact or source-readiness check is weakened. Retest/affected gates remain required. Direct gap/question resolution remains a separately open compatibility/integration row, not full coordination acceptance.
