@@ -100,6 +100,11 @@ jobs:
           test ! -e frontend-nextjs/node_modules
       - name: Run make setup (quickstart.sh)
         run: make setup
+      - name: Verify storage binary compatibility
+        env:
+          HF_HUB_OFFLINE: "1"
+          TRANSFORMERS_OFFLINE: "1"
+        run: backend/venv/bin/python scripts/ci/verify_quickstart_storage.py
       - name: Verify setup artifacts
         run: |
           test -d backend/venv
