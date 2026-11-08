@@ -230,6 +230,16 @@ def _row_ids(rows):
     return [str(row.id) for row in rows]
 
 
+def _row_snapshot(Session, canvas_id):
+    """All stored columns for every audit row (history immutability check)."""
+    with Session() as db:
+        return [
+            {column.name: getattr(row, column.name)
+             for column in row.__table__.columns}
+            for row in _rows(db, canvas_id)
+        ]
+
+
 # ---------------------------------------------------------------------------
 # Positive: owner, co-editor, Personal NULL/default, audit-only
 # ---------------------------------------------------------------------------
@@ -691,6 +701,101 @@ def test_scope_move_after_commit_is_committed_unverified(
     assert body.get("verification", {}).get("replay") == "do_not_repeat", body
     fresh = _fresh_rows(probe.Session, "probe-canvas")
     assert [row.action_type for row in fresh].count("delete") == 1
+
+
+# ---------------------------------------------------------------------------
+# Current-actor authority interleavings (successor blocker)
+# ---------------------------------------------------------------------------
+@pytest.mark.parametrize("operation", ["delete", "undelete"])
+@pytest.mark.parametrize("change", ["workspace", "inactive"])
+def test_actor_change_after_preflight_refuses_effect(
+        app_client, probe, monkeypatch, broadcast_spy, operation, change):
+    """A real preflight snapshot must not authorize a stale User.
+
+    The current User is changed in a separate committed session after the
+    lifecycle preflight returns. The writer must re-resolve and atomically
+    claim the active User in its append transaction, so the stale request
+    context cannot commit delete/undelete.
+    """
+    from core.models import User
+    from core import canvas_write_service as service
+
+    with probe.Session() as db:
+        owner = _seed_lifecycle(db, workspace_id="ws-owner")
+        _workspace(db, "ws-moved", "default")
+        app_client.users["current"] = owner
+
+    if operation == "undelete":
+        initial = app_client.client.delete("/api/canvas/probe-canvas")
+        assert initial.status_code == 200, initial.text
+
+    calls_before = len(broadcast_spy)
+    before = _row_snapshot(probe.Session, "probe-canvas")
+    original = service._lifecycle_preflight
+    interleaved = []
+
+    def _interleave(*args, **kwargs):
+        frozen = original(*args, **kwargs)
+        if not interleaved:
+            with probe.Session() as db:
+                current = db.get(User, owner.id)
+                if change == "workspace":
+                    current.workspace_id = "ws-moved"
+                else:
+                    current.is_active = False
+                db.commit()
+            interleaved.append(True)
+        return frozen
+
+    monkeypatch.setattr(service, "_lifecycle_preflight", _interleave)
+    response = (
+        app_client.client.delete("/api/canvas/probe-canvas")
+        if operation == "delete"
+        else app_client.client.post("/api/canvas/probe-canvas/undelete"))
+    assert interleaved
+    assert response.status_code in (403, 404, 409), response.text
+    assert _row_snapshot(probe.Session, "probe-canvas") == before
+    assert len(broadcast_spy) == calls_before
+    with probe.Session() as db:
+        current = db.get(User, owner.id)
+        if change == "workspace":
+            assert current.workspace_id == "ws-moved"
+        else:
+            assert current.is_active is False
+
+
+@pytest.mark.parametrize("operation", ["delete", "undelete"])
+def test_unchanged_active_actor_valid_twin(
+        app_client, probe, broadcast_spy, operation):
+    """The unchanged active User still produces exactly one lifecycle effect."""
+    from core.models import User
+
+    with probe.Session() as db:
+        owner = _seed_lifecycle(db, workspace_id="ws-owner")
+        app_client.users["current"] = owner
+
+    if operation == "undelete":
+        initial = app_client.client.delete("/api/canvas/probe-canvas")
+        assert initial.status_code == 200, initial.text
+
+    calls_before = len(broadcast_spy)
+    before = _row_snapshot(probe.Session, "probe-canvas")
+    response = (
+        app_client.client.delete("/api/canvas/probe-canvas")
+        if operation == "delete"
+        else app_client.client.post("/api/canvas/probe-canvas/undelete"))
+    assert response.status_code == 200, response.text
+    assert response.json().get("success") is True, response.json()
+    after = _row_snapshot(probe.Session, "probe-canvas")
+    assert len(after) == len(before) + 1
+    assert after[:-1] == before
+    assert after[-1]["action_type"] == (
+        "delete" if operation == "delete" else "restore")
+    assert len(broadcast_spy) == calls_before + 1
+    with probe.Session() as db:
+        current = db.get(User, owner.id)
+        assert current.is_active is True
+        assert current.workspace_id == "ws-owner"
 
 
 # ---------------------------------------------------------------------------

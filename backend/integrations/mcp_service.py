@@ -1719,6 +1719,17 @@ class MCPService(IntegrationService):
             context.get("tenant_id"),
             context.get("workspace_id"),
         )
+        if not scope.get("ok") or not scope.get("active"):
+            return {
+                "success": False,
+                "status": "refused",
+                "http_status": int(scope.get("http_status") or 403),
+                "error": (
+                    scope.get("error")
+                    or "Trusted actor is not active"),
+                "verification": {
+                    "status": "not_attempted", "effect": "none"},
+            }
         operation_id = (
             args.get("operation_id") or context.get("operation_id"))
 

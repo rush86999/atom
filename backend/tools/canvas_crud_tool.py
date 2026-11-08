@@ -378,6 +378,131 @@ def canvas_lifecycle_snapshot(
     }
 
 
+def canvas_lifecycle_owner_error(
+    db,
+    canvas_id: str,
+    user_id: str,
+) -> Optional[Dict[str, Any]]:
+    """Ownership/latest-only first gate for the verified lifecycle consumer.
+
+    Ownership remains the first gate, exactly as in the existing owner or
+    historical-coeditor policy: a non-owner gets 404 without learning whether
+    the User is active. Only an owner/coeditor proceeds to the active-User
+    authority checks. This keeps the legacy IDOR response and lets the
+    verified path distinguish "not yours" from "your account is inactive".
+    """
+    if not _verify_canvas_owner(db, canvas_id, user_id):
+        return {"http_status": 404, "error": f"Canvas {canvas_id} not found"}
+    if _latest_canvas_audit(db, canvas_id) is None:
+        return {"http_status": 404, "error": f"Canvas {canvas_id} not found"}
+    return None
+
+
+def _raw_exact(column, value: Any):
+    """Exact raw-value predicate for an actor scope column.
+
+    NULL, empty string and ``default`` are distinct stored values. The
+    authorization policy treats null/empty/default as legacy, but a concurrent
+    move between any of them is still a move and must fail the claim.
+    """
+    if value is None:
+        return column.is_(None)
+    return column == str(value)
+
+
+def active_canvas_actor(db, user_id: Optional[str]) -> Dict[str, Any]:
+    """Load the authoritative current actor for a verified canvas write.
+
+    The current User row — not the request/context scope — is authority. A
+    missing, unreadable, inactive or status-changed actor is refused; there is
+    no context-scope fallback. The returned raw tenant/workspace/status/
+    is_active snapshot is frozen by the writer's guarded claim in the SAME
+    transaction as the lifecycle CAS and append.
+    """
+    from core.models import User
+
+    actor_id = str(user_id or "").strip()
+    if not actor_id:
+        return {
+            "ok": False,
+            "http_status": 403,
+            "error": "Acting user is required",
+        }
+    try:
+        user = db.query(User).filter(User.id == actor_id).first()
+    except Exception as exc:  # noqa: BLE001 - unreadable is not permission
+        logger.warning("canvas actor authority read failed: %s", exc)
+        return {
+            "ok": False,
+            "http_status": 503,
+            "error": "Acting user could not be verified",
+        }
+    if user is None:
+        return {
+            "ok": False,
+            "http_status": 403,
+            "error": "Acting user not found",
+        }
+    raw_status = getattr(user, "status", "")
+    status = str(getattr(raw_status, "value", raw_status) or "")
+    is_active = bool(getattr(user, "is_active", False))
+    if status != "active" or not is_active:
+        return {
+            "ok": False,
+            "http_status": 403,
+            "error": "Acting user is not active",
+            "user_found": True,
+            "status": status,
+            "is_active": is_active,
+        }
+    return {
+        "ok": True,
+        "user": user,
+        "user_found": True,
+        "id": str(user.id),
+        "tenant_id": getattr(user, "tenant_id", None),
+        "workspace_id": getattr(user, "workspace_id", None),
+        "status": status,
+        "is_active": is_active,
+    }
+
+
+def _claim_canvas_actor(db, actor: Dict[str, Any]) -> bool:
+    """Bind the write transaction to the exact active User snapshot.
+
+    The guarded no-op UPDATE is the actor linearization point. It matches the
+    exact raw tenant/workspace (NULL distinct from empty), the exact status
+    string, and ``is_active=True``. A move/deactivation committed before the
+    claim makes it match zero rows; a change after the claim waits for this
+    transaction (PostgreSQL row lock / SQLite write reservation). The caller
+    rolls back on failure, preserving the winning User change.
+    """
+    from sqlalchemy import update
+
+    from core.models import User
+
+    statement = (
+        update(User)
+        .where(
+            User.id == str(actor["id"]),
+            User.is_active.is_(True),
+            User.status == str(actor["status"]),
+            _raw_exact(User.tenant_id, actor.get("tenant_id")),
+            _raw_exact(User.workspace_id, actor.get("workspace_id")),
+        )
+        .values(updated_at=User.updated_at)
+    )
+    with db.no_autoflush:
+        try:
+            result = db.execute(statement)
+        except Exception as exc:  # noqa: BLE001 - unreadable claim is refusal
+            logger.warning("canvas actor authority claim failed: %s", exc)
+            return False
+        if result.rowcount != 1:
+            return False
+    return True
+
+
 def _audit_scope_claim_cas(
     db,
     canvas_id: str,
@@ -1587,6 +1712,8 @@ async def delete_canvas(
     expected_prior_audit_id: Optional[str] = None,
     tenant_id: Optional[str] = None,
     workspace_id: Optional[str] = None,
+    expected_actor_status: Optional[str] = None,
+    expected_actor_is_active: Optional[bool] = None,
     scope_required: bool = False,
 ) -> Dict[str, Any]:
     """Delete (close) a specific canvas by ID.
@@ -1595,11 +1722,18 @@ async def delete_canvas(
     The audit trail is preserved (append-only), so the history is recoverable.
 
     ``scope_required`` is the verified consumer contract (HTTP route and the
-    registered-tool service). It authorizes the acting principal's CURRENT
-    tenant/workspace against the authoritative Canvas row — or, for an
-    audit-only canvas, against the newest audit tenant. A historical
-    co-editor whose scope has since moved is refused before effect. Direct
-    tool callers that omit it keep the legacy owner/co-editor ownership gate.
+    registered-tool service). It resolves the CURRENT active User row and
+    authorizes that row's raw tenant/workspace against the authoritative
+    Canvas row — or, for an audit-only canvas, against the newest audit tenant.
+    The request ``tenant_id``/``workspace_id`` arguments are retained for
+    caller compatibility and are NOT authority. A historical co-editor whose
+    scope has since moved, or a User that is missing/inactive/status-changed,
+    is refused before effect. The exact active User snapshot is claimed in the
+    same transaction as the lifecycle CAS/append. Verified callers pass the
+    preflight-frozen ``tenant_id``/``workspace_id``/``expected_actor_status``/
+    ``expected_actor_is_active``; any mismatch (including a move between NULL,
+    empty and ``default``) refuses before effect. Direct tool callers that omit
+    ``scope_required`` keep the legacy owner/co-editor ownership gate.
 
     ``operation_id`` is the server-owned identity of one LOGICAL delete. The
     same id with the same target/prior state replays the original tombstone
@@ -1630,7 +1764,58 @@ async def delete_canvas(
                 str(getattr(canvas_row, "workspace_id", None) or "")
                 if canvas_row is not None else "")
 
+            actor = None
             if scope_required:
+                # Ownership is the first gate: a non-owner gets the legacy
+                # 404 without learning whether the account is active.
+                owner_error = canvas_lifecycle_owner_error(
+                    db, canvas_id, user_id)
+                if owner_error:
+                    return {
+                        "success": False,
+                        "write_outcome": write_outcome,
+                        **owner_error,
+                    }
+                # The request/context scope is NOT authority. The current
+                # active User row is resolved and frozen here; the same
+                # snapshot is claimed in the append transaction below.
+                actor = active_canvas_actor(db, user_id)
+                if not actor.get("ok"):
+                    return {
+                        "success": False,
+                        "write_outcome": write_outcome,
+                        "http_status": int(
+                            actor.get("http_status") or 403),
+                        "error": (
+                            actor.get("error")
+                            or "Acting user is not active"),
+                    }
+                if (expected_actor_status is None
+                        or expected_actor_is_active is None):
+                    return {
+                        "success": False,
+                        "write_outcome": write_outcome,
+                        "http_status": 503,
+                        "error": (
+                            "actor authority snapshot is required"),
+                    }
+                if (actor.get("tenant_id") != tenant_id
+                        or actor.get("workspace_id") != workspace_id
+                        or str(actor.get("status") or "")
+                        != str(expected_actor_status)
+                        or bool(actor.get("is_active"))
+                        != bool(expected_actor_is_active)):
+                    db.rollback()
+                    return {
+                        "success": False,
+                        "conflict": True,
+                        "write_outcome": WRITE_NOT_ATTEMPTED,
+                        "http_status": 409,
+                        "operation_id": operation_id,
+                        "error": (
+                            "acting user changed after authorization; "
+                            "delete refused"),
+                    }
                 # Authoritative scope gate in the SAME transaction as the
                 # append. The guarded write below is the linearization point.
                 scope_error = canvas_lifecycle_scope_error(
@@ -1804,6 +1989,24 @@ async def delete_canvas(
                 created_at=max(_dt.now(_tz.utc), _prev_ts + _td(microseconds=1)),
                 details_json=details,
             )
+            if scope_required:
+                # Claim the exact active User snapshot in the SAME transaction
+                # as the lifecycle CAS/append. A move/deactivation committed
+                # after the scope read but before this claim matches zero rows;
+                # roll back so the winning User state and all canvas history
+                # survive with no broadcast.
+                if not _claim_canvas_actor(db, actor):
+                    db.rollback()
+                    return {
+                        "success": False,
+                        "conflict": True,
+                        "write_outcome": WRITE_NOT_ATTEMPTED,
+                        "http_status": 409,
+                        "operation_id": operation_id,
+                        "error": (
+                            "acting user changed after authorization; "
+                            "delete refused"),
+                    }
             db.add(delete_audit)
 
             if scope_required:
@@ -1993,6 +2196,8 @@ async def restore_deleted_canvas(
     expected_source_audit_id: Optional[str] = None,
     tenant_id: Optional[str] = None,
     workspace_id: Optional[str] = None,
+    expected_actor_status: Optional[str] = None,
+    expected_actor_is_active: Optional[bool] = None,
     scope_required: bool = False,
 ) -> Dict[str, Any]:
     """Un-delete a tombstoned canvas.
@@ -2005,10 +2210,17 @@ async def restore_deleted_canvas(
     accepts writes.
 
     ``scope_required`` is the verified consumer contract (HTTP route and the
-    registered-tool service). It authorizes the acting principal's CURRENT
-    tenant/workspace against the authoritative Canvas row — or, for an
-    audit-only canvas, against the newest audit tenant. A historical
-    co-editor whose scope has since moved is refused before effect.
+    registered-tool service). It resolves the CURRENT active User row and
+    authorizes that row's raw tenant/workspace against the authoritative
+    Canvas row — or, for an audit-only canvas, against the newest audit tenant.
+    The request ``tenant_id``/``workspace_id`` arguments are retained for
+    caller compatibility and are NOT authority. A historical co-editor whose
+    scope has since moved, or a User that is missing/inactive/status-changed,
+    is refused before effect. The exact active User snapshot is claimed in the
+    same transaction as the lifecycle CAS/append. Verified callers pass the
+    preflight-frozen ``tenant_id``/``workspace_id``/``expected_actor_status``/
+    ``expected_actor_is_active``; any mismatch (including a move between NULL,
+    empty and ``default``) refuses before effect.
 
     ``operation_id`` is the server-owned identity of one LOGICAL undelete.
     The same id replays the original restore row with no second row or
@@ -2039,7 +2251,58 @@ async def restore_deleted_canvas(
                 str(getattr(canvas_row, "workspace_id", None) or "")
                 if canvas_row is not None else "")
 
+            actor = None
             if scope_required:
+                # Ownership is the first gate: a non-owner gets the legacy
+                # 404 without learning whether the account is active.
+                owner_error = canvas_lifecycle_owner_error(
+                    db, canvas_id, user_id)
+                if owner_error:
+                    return {
+                        "success": False,
+                        "write_outcome": write_outcome,
+                        **owner_error,
+                    }
+                # The request/context scope is NOT authority. The current
+                # active User row is resolved here; the same snapshot is
+                # claimed in the append transaction below.
+                actor = active_canvas_actor(db, user_id)
+                if not actor.get("ok"):
+                    return {
+                        "success": False,
+                        "write_outcome": write_outcome,
+                        "http_status": int(
+                            actor.get("http_status") or 403),
+                        "error": (
+                            actor.get("error")
+                            or "Acting user is not active"),
+                    }
+                if (expected_actor_status is None
+                        or expected_actor_is_active is None):
+                    return {
+                        "success": False,
+                        "write_outcome": write_outcome,
+                        "http_status": 503,
+                        "error": (
+                            "actor authority snapshot is required"),
+                    }
+                if (actor.get("tenant_id") != tenant_id
+                        or actor.get("workspace_id") != workspace_id
+                        or str(actor.get("status") or "")
+                        != str(expected_actor_status)
+                        or bool(actor.get("is_active"))
+                        != bool(expected_actor_is_active)):
+                    db.rollback()
+                    return {
+                        "success": False,
+                        "conflict": True,
+                        "write_outcome": WRITE_NOT_ATTEMPTED,
+                        "http_status": 409,
+                        "operation_id": operation_id,
+                        "error": (
+                            "acting user changed after authorization; "
+                            "undelete refused"),
+                    }
                 scope_error = canvas_lifecycle_scope_error(
                     db, canvas_id, user_id, tenant_id, workspace_id,
                     lock=True)
@@ -2212,6 +2475,24 @@ async def restore_deleted_canvas(
                 created_at=max(_dt.now(_tz.utc), _prev_ts2 + _td(microseconds=1)),
                 details_json=details,
             )
+            if scope_required:
+                # Claim the exact active User snapshot in the SAME transaction
+                # as the lifecycle CAS/append. A move/deactivation committed
+                # after the scope read but before this claim matches zero rows;
+                # roll back so the winning User state and all canvas history
+                # survive with no broadcast.
+                if not _claim_canvas_actor(db, actor):
+                    db.rollback()
+                    return {
+                        "success": False,
+                        "conflict": True,
+                        "write_outcome": WRITE_NOT_ATTEMPTED,
+                        "http_status": 409,
+                        "operation_id": operation_id,
+                        "error": (
+                            "acting user changed after authorization; "
+                            "undelete refused"),
+                    }
             db.add(restore_audit)
 
             if scope_required:

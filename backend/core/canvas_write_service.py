@@ -24,7 +24,9 @@ from core.oracle.postcondition_verifiers import canvas_content_digest
 from tools import canvas_crud_tool as _canvas_crud
 from tools.canvas_crud_tool import (
     WRITE_UNKNOWN,
+    active_canvas_actor,
     canonical_update_content,
+    canvas_lifecycle_owner_error,
     canvas_lifecycle_snapshot,
     canvas_write_scope_error,
     find_operation_audit,
@@ -445,36 +447,55 @@ def resolve_actor_scope(
     tenant_id: Optional[str] = None,
     workspace_id: Optional[str] = None,
 ) -> Dict[str, Any]:
-    """Resolve the missing half of a trusted dispatch identity.
+    """Resolve the authoritative current actor for a trusted dispatch.
 
-    The registered-tool path receives the actor from trusted context. When
-    the caller could not supply that actor's current scope, the active User
-    row is the next authority — never a model-supplied ``user_id`` argument.
+    ``tenant_id``/``workspace_id`` are accepted for caller compatibility but
+    are **not** authority: the current active User row is. A missing,
+    unreadable, inactive or status-changed User returns ``ok=False``; there is
+    no context-scope fallback.
     """
-    resolved = {
-        "tenant_id": tenant_id,
-        "workspace_id": workspace_id,
+    resolved: Dict[str, Any] = {
+        "ok": False,
+        "active": False,
         "user_found": False,
+        "tenant_id": None,
+        "workspace_id": None,
+        "status": None,
+        "is_active": False,
+        "http_status": None,
+        "error": None,
     }
-    if tenant_id is not None and workspace_id is not None:
-        return resolved
     try:
         from core.database import get_db_session
-        from core.models import User
 
         with get_db_session() as db:
-            user = (
-                db.query(User).filter(User.id == str(user_id)).first()
-            )
-            if user is not None:
-                resolved["user_found"] = True
-                if resolved["tenant_id"] is None:
-                    resolved["tenant_id"] = getattr(user, "tenant_id", None)
-                if resolved["workspace_id"] is None:
-                    resolved["workspace_id"] = getattr(
-                        user, "workspace_id", None)
+            actor = active_canvas_actor(db, user_id)
     except Exception as exc:  # noqa: BLE001 - unreadable is not permission
-        logger.warning("canvas lifecycle actor scope lookup failed: %s", exc)
+        logger.warning(
+            "canvas lifecycle actor authority lookup failed: %s", exc)
+        resolved.update(
+            http_status=503,
+            error="Acting user could not be verified",
+        )
+        return resolved
+    if not actor.get("ok"):
+        resolved.update(
+            user_found=bool(actor.get("user_found", False)),
+            status=actor.get("status"),
+            is_active=bool(actor.get("is_active", False)),
+            http_status=int(actor.get("http_status") or 403),
+            error=actor.get("error") or "Acting user is not active",
+        )
+        return resolved
+    resolved.update(
+        ok=True,
+        active=True,
+        user_found=True,
+        tenant_id=actor.get("tenant_id"),
+        workspace_id=actor.get("workspace_id"),
+        status=actor.get("status"),
+        is_active=bool(actor.get("is_active", False)),
+    )
     return resolved
 
 
@@ -484,13 +505,54 @@ def _lifecycle_preflight(
     tenant_id: Optional[str],
     workspace_id: Optional[str],
 ) -> Dict[str, Any]:
-    """Read-only authorization + frozen identity snapshot before dispatch."""
+    """Read-only active-actor + canvas snapshot before dispatch.
+
+    The raw current User row is authority and is resolved here before the
+    canvas snapshot. ``tenant_id``/``workspace_id`` are retained only for
+    caller compatibility; they are never used as a scope grant. The writer
+    repeats and atomically claims the same actor snapshot in its transaction.
+    """
     try:
         from core.database import get_db_session
 
         with get_db_session() as db:
-            return canvas_lifecycle_snapshot(
-                db, canvas_id, user_id, tenant_id, workspace_id)
+            actor = active_canvas_actor(db, user_id)
+            owner_error = canvas_lifecycle_owner_error(
+                db, canvas_id, user_id)
+            if owner_error:
+                # Preserve the legacy 404 for a non-owner regardless of the
+                # account status. Attach the actor snapshot so the service can
+                # dispatch to the ownership-first writer, which also returns
+                # 404; a non-owner never becomes an active-status oracle.
+                snapshot = dict(owner_error)
+                snapshot["actor_tenant_id"] = actor.get("tenant_id")
+                snapshot["actor_workspace_id"] = actor.get("workspace_id")
+                snapshot["actor_status"] = actor.get("status")
+                snapshot["actor_is_active"] = bool(
+                    actor.get("is_active", False))
+                return snapshot
+            if not actor.get("ok"):
+                return {
+                    "http_status": int(actor.get("http_status") or 403),
+                    "error": (
+                        actor.get("error")
+                        or "Acting user is not active"),
+                }
+            snapshot = canvas_lifecycle_snapshot(
+                db, canvas_id, user_id,
+                actor.get("tenant_id"), actor.get("workspace_id"))
+            if not isinstance(snapshot, dict):
+                return {
+                    "http_status": 503,
+                    "error": (
+                        "Canvas lifecycle scope could not be verified"),
+                }
+            snapshot["actor_tenant_id"] = actor.get("tenant_id")
+            snapshot["actor_workspace_id"] = actor.get("workspace_id")
+            snapshot["actor_status"] = actor.get("status")
+            snapshot["actor_is_active"] = bool(
+                actor.get("is_active", False))
+            return snapshot
     except Exception as exc:  # noqa: BLE001 - unreadable scope is not permission
         logger.warning("canvas lifecycle scope preflight failed: %s", exc)
         return {
@@ -692,6 +754,17 @@ async def delete_canvas_verified(
             source_audit_id=snapshot.get("source_audit_id"),
             content_sha256=snapshot.get("content_sha256"),
         )
+    if ("actor_tenant_id" not in snapshot
+            or "actor_workspace_id" not in snapshot):
+        return _refusal(
+            canvas_id,
+            "actor authority could not be verified",
+            503,
+            operation_id=supplied_operation_id or None,
+            action_type="delete",
+        )
+    authority_tenant = snapshot.get("actor_tenant_id")
+    authority_workspace = snapshot.get("actor_workspace_id")
     snapshot_available = status != 404
 
     existing = None
@@ -777,8 +850,8 @@ async def delete_canvas_verified(
             result=result,
             canvas_id=canvas_id,
             operation_id=operation_id,
-            tenant_id=tenant_id,
-            workspace_id=workspace_id,
+            tenant_id=authority_tenant,
+            workspace_id=authority_workspace,
             actor_id=user_id,
             expected_operation_id=operation_id,
             expected_prior_audit_id=existing_prior,
@@ -829,8 +902,10 @@ async def delete_canvas_verified(
         canvas_id=canvas_id,
         operation_id=operation_id,
         expected_prior_audit_id=writer_prior,
-        tenant_id=tenant_id,
-        workspace_id=workspace_id,
+        tenant_id=authority_tenant,
+        workspace_id=authority_workspace,
+        expected_actor_status=snapshot.get("actor_status"),
+        expected_actor_is_active=snapshot.get("actor_is_active"),
         scope_required=True,
     )
     if result.get("already_applied") and not result.get("replayed"):
@@ -851,8 +926,8 @@ async def delete_canvas_verified(
         result=result,
         canvas_id=canvas_id,
         operation_id=operation_id,
-        tenant_id=tenant_id,
-        workspace_id=workspace_id,
+        tenant_id=authority_tenant,
+        workspace_id=authority_workspace,
         actor_id=user_id,
         expected_operation_id=expected_operation,
         operation_optional=operation_optional,
@@ -889,6 +964,17 @@ async def restore_deleted_canvas_verified(
             source_audit_id=snapshot.get("source_audit_id"),
             content_sha256=snapshot.get("content_sha256"),
         )
+    if ("actor_tenant_id" not in snapshot
+            or "actor_workspace_id" not in snapshot):
+        return _refusal(
+            canvas_id,
+            "actor authority could not be verified",
+            503,
+            operation_id=supplied_operation_id or None,
+            action_type="restore",
+        )
+    authority_tenant = snapshot.get("actor_tenant_id")
+    authority_workspace = snapshot.get("actor_workspace_id")
     snapshot_available = status != 404
 
     existing = None
@@ -972,8 +1058,8 @@ async def restore_deleted_canvas_verified(
             result=result,
             canvas_id=canvas_id,
             operation_id=operation_id,
-            tenant_id=tenant_id,
-            workspace_id=workspace_id,
+            tenant_id=authority_tenant,
+            workspace_id=authority_workspace,
             actor_id=user_id,
             expected_operation_id=operation_id,
             expected_tombstone_audit_id=existing_tombstone,
@@ -1039,8 +1125,10 @@ async def restore_deleted_canvas_verified(
         expected_tombstone_audit_id=(
             expected_tombstone or None),
         expected_source_audit_id=(expected_source or None),
-        tenant_id=tenant_id,
-        workspace_id=workspace_id,
+        tenant_id=authority_tenant,
+        workspace_id=authority_workspace,
+        expected_actor_status=snapshot.get("actor_status"),
+        expected_actor_is_active=snapshot.get("actor_is_active"),
         scope_required=True,
     )
 
@@ -1049,8 +1137,8 @@ async def restore_deleted_canvas_verified(
         result=result,
         canvas_id=canvas_id,
         operation_id=operation_id,
-        tenant_id=tenant_id,
-        workspace_id=workspace_id,
+        tenant_id=authority_tenant,
+        workspace_id=authority_workspace,
         actor_id=user_id,
         expected_operation_id=operation_id,
         expected_tombstone_audit_id=expected_tombstone,
