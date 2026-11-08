@@ -1087,3 +1087,45 @@ def test_api_packet_requires_committed_known_ref(driver, api_git_packet, ref):
 def test_api_packet_runtime_ref_is_not_assumed_to_contain_later_packet(driver, api_git_packet):
     *_, source = api_git_packet
     assert driver._retained_evidence_probe(evidence_ref=source)["ok"] is False
+
+
+@pytest.mark.parametrize("restart", [False, True], ids=["fresh-run", "same-run-restart"])
+def test_launcher_binds_mutable_office_paths_to_its_run(driver, tmp_path, monkeypatch, restart):
+    """Inspect the real launch consumer before any subprocess can dispatch."""
+    import httpx
+    world = tmp_path / "world"
+    (world / "backend_root").mkdir(parents=True)
+    reused = world / "runs" / "retained-run" if restart else None
+    if reused:
+        (reused / "data").mkdir(parents=True)
+    seeded = []
+
+    def seed(_world, run):
+        (run / "data").mkdir(parents=True)
+        seeded.append(run)
+
+    def unserved(*args, **kwargs):
+        raise httpx.ConnectError("controlled unused test port")
+
+    class StoppedBeforeDispatch(Exception):
+        pass
+
+    def inspect_dispatch(*args, **kwargs):
+        env = kwargs["env"]
+        data = Path(env["ATOM_DATA_DIR"])
+        assert data == driver.R.launch_server.last_run_dir / "data"
+        assert Path(env["ATOM_OFFICE_DIR"]) == data / "office"
+        assert Path(env["ATOM_ASSIGNMENT_OUTPUT_DIR"]) == data / "office" / "assignments"
+        assert Path(env["ATOM_OFFICE_DIR"]).is_absolute()
+        assert Path(env["ATOM_ASSIGNMENT_OUTPUT_DIR"]).is_absolute()
+        assert len(seeded) == (0 if restart else 1)
+        raise StoppedBeforeDispatch()
+
+    monkeypatch.setenv("ATOM_OFFICE_DIR", str(tmp_path / "foreign-office"))
+    monkeypatch.setenv("ATOM_ASSIGNMENT_OUTPUT_DIR", str(tmp_path / "foreign-output"))
+    monkeypatch.setattr(driver.R, "_seed_run_data", seed)
+    monkeypatch.setattr(driver.R, "_sandbox_profile", lambda *a, **k: "controlled test profile")
+    monkeypatch.setattr(httpx, "get", unserved)
+    monkeypatch.setattr(driver.R.subprocess, "Popen", inspect_dispatch)
+    with pytest.raises(StoppedBeforeDispatch):
+        driver.R.launch_server(8057, world, provider_shim=False, reuse_run_dir=reused)
