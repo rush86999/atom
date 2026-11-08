@@ -75,3 +75,33 @@ def test_allocated_artifact_and_download_use_same_owned_root(
     assert response.status_code == expected, response.text
     if expected == 200:
         assert response.content == contents
+
+
+def test_blank_storage_roots_do_not_authorize_the_launch_directory(tmp_path, monkeypatch):
+    monkeypatch.setenv("ATOM_OFFICE_DIR", "")
+    monkeypatch.setenv("ATOM_ASSIGNMENT_OUTPUT_DIR", "")
+    monkeypatch.chdir(tmp_path)
+    with pytest.raises(ValueError, match="outside"):
+        _validate_office_path(str(tmp_path / "unowned.docx"))
+
+
+def test_relative_artifact_allocation_keeps_one_owned_directory(tmp_path, monkeypatch):
+    from types import SimpleNamespace
+    from core.assignment_resources import allocate_output_path
+    import core.local_paths as paths
+
+    backend = tmp_path / "backend-root"
+    backend.mkdir()
+    monkeypatch.setattr(paths, "_BACKEND_ROOT", backend)
+    monkeypatch.setenv("ATOM_ASSIGNMENT_OUTPUT_DIR", "data/office/assignments")
+    user = SimpleNamespace(id="owner-exact", workspace_id="workspace-exact")
+    allocated = []
+    for name in ("launch-one", "launch-two"):
+        launch = tmp_path / name
+        launch.mkdir()
+        monkeypatch.chdir(launch)
+        allocated.append(Path(allocate_output_path(
+            user, kind="document", title="Report", assignment_id="assignment-exact")))
+    expected = backend / "data/office/assignments/workspace-exact/owner-exact/assignment-exact"
+    assert allocated[0].parent == allocated[1].parent == expected
+    assert allocated[0] != allocated[1], "separate artifact requests retain distinct names"

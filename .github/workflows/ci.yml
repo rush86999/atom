@@ -171,7 +171,7 @@ jobs:
           SECRET_KEY: "ci-test-secret-key"
           ENVIRONMENT: "development"
         run: |
-          python -m pytest tests/test_document_upload_persistence_outcome.py tests/test_document_export.py tests/test_lead_document_export_authority.py tests/test_lead_document_export_nullable_scope.py tests/test_document_extraction_refusal_contract.py tests/test_document_content_namespace_identity.py tests/test_root_document_parse_honesty.py tests/test_root_document_workspace_identity.py tests/test_root_document_error_hygiene.py -q --tb=short --timeout=300 --timeout-method=thread
+          python -m pytest tests/test_office_path_launch_anchor.py tests/test_round53_office_sync_path_containment.py tests/core/services/test_office_service.py tests/test_document_upload_persistence_outcome.py tests/test_document_export.py tests/test_lead_document_export_authority.py tests/test_lead_document_export_nullable_scope.py tests/test_document_extraction_refusal_contract.py tests/test_document_content_namespace_identity.py tests/test_root_document_parse_honesty.py tests/test_root_document_workspace_identity.py tests/test_root_document_error_hygiene.py -q --tb=short --timeout=300 --timeout-method=thread
       - name: Run goal-write authority regression controls
         env:
           TESTING: "1"
