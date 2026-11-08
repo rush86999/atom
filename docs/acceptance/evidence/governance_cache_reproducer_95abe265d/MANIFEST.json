@@ -1,0 +1,19 @@
+{
+  "executed_source": "95abe265d5efee562ce363407bb2f69034cb397c",
+  "source_files": {
+    "scripts/benchmark_governance.py": "sha256:caab0effbbbd673052484789b1c2275afaaf1d7a523f8688cbd3ef6f7dac762b",
+    "backend/tests/test_governance_cache_benchmark_cli.py": "sha256:30902e483e046facbd7a101741d0880c172bf0d3ad842f4438957ed1dd03a5d3",
+    "backend/core/governance_cache.py": "sha256:fcc2ae94eb31974e49e16b59718a1390797443d14e1620af80740501354e810a",
+    "backend/core/asyncio_compat.py": "sha256:86e26e92cdb3f70addd5e8f71489efbe43f627112aae8c67050898fbe00eb59a"
+  },
+  "artifacts": {
+    "README.md": "sha256:7c38c69d01479b4e0835c8f5e4b01637f092cc2c3752f9722055a40ccfbb421f",
+    "missing-command-baseline.json": "sha256:e1fbf1bd8424586e3c32f4a305a8be637f3cb6857ae79c4bdfbf04c8fef4677d",
+    "missing-command-baseline.log": "sha256:8a69b7b000336d1cc7e2d463097ca5b81ef95dc7c3ae753e89c631d5a070f101",
+    "py311-measurement.json": "sha256:535b5c787c982e8972ee82df29a0fdc31bd1b5591a41be237256f3267722bb43",
+    "py311-tests.log": "sha256:b55198b19d908a173fffa07ac9e172882dd07000484374bd21b0aa46e92fd1f0",
+    "py314-measurement.json": "sha256:caaf2414ca99a8e30ba245942a3e13aca66371c6ef7a23749ce2c3aa3e400bca",
+    "py314-tests.log": "sha256:0ccc43e480b382e757c54c3f4cea4ec7ddb303392a3b23b2c96cd06691ca5a6f",
+    "verification.json": "sha256:023d6218df3e33bb1165c288dbf12380606877fe0999ae4068212ad480647fc1"
+  }
+}

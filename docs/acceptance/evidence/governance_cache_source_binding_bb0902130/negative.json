@@ -1,0 +1,12 @@
+{
+  "actual_exit": 1,
+  "script_source": "3eb3c35fb",
+  "result": {
+    "executed_marker": "old",
+    "expected_marker": "new",
+    "reported_disk_sha256": "84adfde3bd491c6320471d75131b8f6db6544ce3656cca05b222e79ad61a0d34",
+    "loaded_sha256": null,
+    "script_sha256": "caab0effbbbd673052484789b1c2275afaaf1d7a523f8688cbd3ef6f7dac762b",
+    "scope": "actual cache copy plus appended marker; loader integrity only, no performance result"
+  }
+}

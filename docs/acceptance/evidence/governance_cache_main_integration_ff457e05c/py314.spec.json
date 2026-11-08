@@ -1,0 +1,33 @@
+{
+  "source": "ff457e05caff260db38d605e359a097ba2ccfbfe",
+  "source_tree": "8e641f0fb467c72c28044302812289cd5fc2f707",
+  "command": [
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-governance-cache-reproducer-20261108",
+    "--profile",
+    "bounded",
+    "--",
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "--noconftest",
+    "-p",
+    "no:cacheprovider",
+    "backend/tests/test_governance_cache_benchmark_cli.py",
+    "backend/tests/test_ci_backend_lane_contract.py",
+    "backend/tests/test_quickstart_matrix_contract.py",
+    "backend/tests/test_quickstart_python_guard.py",
+    "-q",
+    "--basetemp=/private/tmp/root-benchmark-integration-__cqrqhu/pytest"
+  ],
+  "source_files": {
+    ".github/workflows/ci.yml": "46842257ceaf487bf7942ee1db123ff43e6e138116c9db6db1b74c56101a299d",
+    "scripts/benchmark_governance.py": "d639fb0013e96cb35b403fd2afe5740134816765b4310d8afc826ff3d8720293",
+    "backend/tests/test_governance_cache_benchmark_cli.py": "82ffdc7ae5d8086ce9edb18200a5da1d6599525c12541422807443ae7a326f64",
+    "backend/tests/test_ci_backend_lane_contract.py": "5698275023be3820b4827415beffa463dd0f0c28116502f7625736ffc657b434",
+    "backend/tests/test_quickstart_matrix_contract.py": "0397014e499a6d7a21c21720c4b2c19230e4388633fdccdb7d6ad38217977b53",
+    "backend/tests/test_quickstart_python_guard.py": "e54a38b72fbb2996579c085ee41c7daf728c5bb34f616d9820a1dd59f480a791"
+  },
+  "scratch": "/private/tmp/root-benchmark-integration-__cqrqhu"
+}

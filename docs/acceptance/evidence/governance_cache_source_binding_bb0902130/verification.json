@@ -1,0 +1,11 @@
+{
+  "executed_source": "bb0902130443c0e202dfb37cde9c8e0d8384f471",
+  "contracts_per_runtime": 64,
+  "benchmark_contracts": 37,
+  "ci_preservation_contracts": 27,
+  "stale_bytecode_negative_exit": 1,
+  "fixed_positive_exit": 0,
+  "original_script_matches_git": "3eb3c35fb1d0d8c21d321839a5dbec0b17b75ad9",
+  "measurement_scope": "warmed synchronous cache hits and empty-cache misses only",
+  "full_governance_qualification": false
+}

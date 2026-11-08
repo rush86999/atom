@@ -1,0 +1,43 @@
+
+backend/tests/test_governance_cache_benchmark_cli.py::test_help_documents_scope_and_command_example PASSED [  3%]
+backend/tests/test_governance_cache_benchmark_cli.py::test_smoke_scope_schema_counts_and_raw_measurements PASSED [  6%]
+backend/tests/test_governance_cache_benchmark_cli.py::test_default_repo_is_independent_of_working_directory PASSED [  9%]
+backend/tests/test_governance_cache_benchmark_cli.py::test_explicit_repo_reports_actual_imported_file_hash PASSED [ 12%]
+backend/tests/test_governance_cache_benchmark_cli.py::test_existing_output_is_refused_and_preserved PASSED [ 15%]
+backend/tests/test_governance_cache_benchmark_cli.py::test_output_is_written_when_absent PASSED [ 18%]
+backend/tests/test_governance_cache_benchmark_cli.py::test_missing_repo_source_fails_cleanly PASSED [ 21%]
+backend/tests/test_governance_cache_benchmark_cli.py::test_invalid_arguments_fail[invalid0] PASSED [ 24%]
+backend/tests/test_governance_cache_benchmark_cli.py::test_invalid_arguments_fail[invalid1] PASSED [ 27%]
+backend/tests/test_governance_cache_benchmark_cli.py::test_invalid_arguments_fail[invalid2] PASSED [ 30%]
+backend/tests/test_governance_cache_benchmark_cli.py::test_invalid_arguments_fail[invalid3] PASSED [ 33%]
+backend/tests/test_governance_cache_benchmark_cli.py::test_invalid_arguments_fail[invalid4] PASSED [ 36%]
+backend/tests/test_governance_cache_benchmark_cli.py::test_invalid_arguments_fail[invalid5] PASSED [ 39%]
+backend/tests/test_governance_cache_benchmark_cli.py::test_invalid_arguments_fail[invalid6] PASSED [ 42%]
+backend/tests/test_governance_cache_benchmark_cli.py::test_invalid_arguments_fail[invalid7] PASSED [ 45%]
+backend/tests/test_governance_cache_benchmark_cli.py::test_invalid_arguments_fail[invalid8] PASSED [ 48%]
+backend/tests/test_governance_cache_benchmark_cli.py::test_invalid_arguments_fail[invalid9] PASSED [ 51%]
+backend/tests/test_governance_cache_benchmark_cli.py::test_invalid_arguments_fail[invalid10] PASSED [ 54%]
+backend/tests/test_governance_cache_benchmark_cli.py::test_invalid_arguments_fail[invalid11] PASSED [ 57%]
+backend/tests/test_governance_cache_benchmark_cli.py::test_invalid_arguments_fail[invalid12] PASSED [ 60%]
+backend/tests/test_governance_cache_benchmark_cli.py::test_invalid_arguments_fail[invalid13] PASSED [ 63%]
+backend/tests/test_governance_cache_benchmark_cli.py::test_invalid_arguments_fail[invalid14] PASSED [ 66%]
+backend/tests/test_governance_cache_benchmark_cli.py::test_invalid_arguments_fail[invalid15] PASSED [ 69%]
+backend/tests/test_governance_cache_benchmark_cli.py::test_invalid_arguments_fail[invalid16] PASSED [ 72%]
+backend/tests/test_governance_cache_benchmark_cli.py::test_invalid_arguments_fail[invalid17] PASSED [ 75%]
+backend/tests/test_governance_cache_benchmark_cli.py::test_invalid_arguments_fail[invalid18] PASSED [ 78%]
+backend/tests/test_governance_cache_benchmark_cli.py::test_invalid_arguments_fail[invalid19] PASSED [ 81%]
+backend/tests/test_governance_cache_benchmark_cli.py::test_invalid_arguments_fail[invalid20] PASSED [ 84%]
+backend/tests/test_governance_cache_benchmark_cli.py::test_invalid_arguments_fail[invalid21] PASSED [ 87%]
+backend/tests/test_governance_cache_benchmark_cli.py::test_invalid_arguments_fail[invalid22] PASSED [ 90%]
+backend/tests/test_governance_cache_benchmark_cli.py::test_invalid_arguments_fail[invalid23] PASSED [ 93%]
+backend/tests/test_governance_cache_benchmark_cli.py::test_invalid_arguments_fail[invalid24] PASSED [ 96%]
+backend/tests/test_governance_cache_benchmark_cli.py::test_inherited_database_url_sentinel_is_not_read_or_written PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:1464
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:1464: PytestConfigWarning: Unknown config option: asyncio_mode
+  
+    self._warn_or_fail_if_strict(f"Unknown config option: {key}\n")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 33 passed, 1 warning in 2.94s =========================
