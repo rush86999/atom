@@ -1,0 +1,20 @@
+{
+  "executed_source": "c329f295ced2f04b86bf9298108a12fdc616439d",
+  "source_files": {
+    "backend/core/assignment_executor.py": "79bb904b591721742e6fa2582909b2757bf8bbcde893481a7133fcaa61da0ac5",
+    "backend/tests/test_employee_two_domain_campaign.py": "b7152811c26d2f84ebc701dff69a5d8704233078bfa988cafb1ce88df45b05c8",
+    ".github/workflows/ci.yml": "8337e5b99787c83edb5524544778b128ba1b4db6dbe83eb25c9db71a7a738a3f"
+  },
+  "artifacts": {
+    "root-assignment-two-domain-after-py311.spec.json": "23ceb3ec07bcedcb57377ba6fa8a6ca14710eb29ca2f547e895874d845673cf8",
+    "root-assignment-two-domain-after-py311.exit.json": "f3159ac950ab3a403d5dacf1779f76147ef319dcb32c72b6a3d80aee78b0d6d7",
+    "root-assignment-two-domain-after-py311.log": "0396c49450b79c0eda0296d6be3023af4d92b8d29ed41bd2756cb61fc1c4ca04",
+    "root-assignment-two-domain-before.exit.json": "978f68d73d8824c7eaacc04608f8859323dd6441c64a679e3ae66616ba173f59",
+    "root-assignment-two-domain-before.spec.json": "aacb5b0df43b32e04ce120a1979558417bef6a0870cd9f6332452bab5dcb3744",
+    "README.md": "5ef2d433fa6a6838e5c3ec4961248d252de567c1db000aba9191c021439a5dd0",
+    "root-assignment-two-domain-after.spec.json": "a25c582e885083004e121b5305154efe5c966c52aa63dadd78d3f68d298c791c",
+    "root-assignment-two-domain-after.exit.json": "7b9da5af1812603281f36e24f711861bba0a4c180307d4f7ecd700934bfa1fa4",
+    "root-assignment-two-domain-after.log": "6bc34700a7231b749bdcbf14ce0b4577627b0f54de6fcf88d1593b68f4bea3d2",
+    "root-assignment-two-domain-before.log": "ec6610a88d942e65325a29bfb5d77d54c2649ac5b132b18ea5d037bb38ef4e1f"
+  }
+}

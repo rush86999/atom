@@ -1,0 +1,33 @@
+{
+  "source": "fa6a047f67ad762b5c04e97ea3a8124ea323a004",
+  "root": "/private/tmp/root-feedback-sqlite-cnje1a1a",
+  "command": [
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-assignment-reply-identity-20261108/backend",
+    "--profile",
+    "heavy",
+    "--",
+    "/usr/local/opt/python@3.11/bin/python3.11",
+    "-m",
+    "pytest",
+    "tests/test_assignment_executor.py",
+    "tests/test_assignment_routes.py",
+    "tests/test_employee_durable_wait_g5.py",
+    "tests/test_task_wait_source_continuation_regressions.py",
+    "tests/test_assignment_external_reply_identity.py",
+    "tests/test_root_assignment_reply_material_probe.py",
+    "tests/test_goal_run_events.py",
+    "-q",
+    "--tb=short",
+    "-p",
+    "no:cacheprovider",
+    "-p",
+    "pytest_freezegun",
+    "-p",
+    "no:randomly",
+    "--timeout=120",
+    "--timeout-method=thread",
+    "--basetemp=/private/tmp/root-feedback-sqlite-cnje1a1a/pytest"
+  ]
+}
