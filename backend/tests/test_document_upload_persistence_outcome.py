@@ -40,6 +40,8 @@ import contextlib
 import json
 import uuid
 
+import pytest
+
 import api.document_routes as routes
 import core.database as database_module
 from core.models import IngestedDocument
@@ -291,3 +293,58 @@ def test_sql_mirror_commit_failure_is_not_acknowledged_as_success(
     # durable-state evidence is collected even while the bug is present.
     _assert_prior_rows_preserved(exported, sql_before, vector_before)
     _assert_not_false_success(exported, response, expected_id, text)
+
+
+@pytest.mark.parametrize("commit_first", [False, True], ids=["before-commit", "lost-confirmation"])
+def test_uncertain_mirror_has_truthful_state_and_safe_error(
+        exported, monkeypatch, tmp_path, caplog, commit_first):
+    """A lost confirmation must not invite a second upload or expose SQL detail."""
+    monkeypatch.setenv("ATOM_OFFICE_DIR", str(tmp_path))
+    _seed_peer(exported)
+    sql_before = _sql_state(exported.session)
+    vector_before = _vector_state(exported.handler)
+    private_detail = "PRIVATE_DATABASE_DETAIL_FOR_FAULT_CONTROL"
+    counter = {"commits": 0}
+    real_get = database_module.get_db_session
+
+    class FaultSession:
+        def __init__(self, session):
+            self.session = session
+
+        def __getattr__(self, name):
+            return getattr(self.session, name)
+
+        def commit(self):
+            counter["commits"] += 1
+            if commit_first:
+                self.session.commit()
+            raise RuntimeError(private_detail)
+
+    @contextlib.contextmanager
+    def fault_session():
+        with real_get() as session:
+            yield FaultSession(session)
+
+    text = f"uncertain upload {uuid.uuid4().hex}\n"
+    doc_id = routes._content_doc_key(text, exported.workspace, exported.user.tenant_id)
+    with monkeypatch.context() as scoped:
+        scoped.setattr(database_module, "get_db_session", fault_session)
+        response = _post_upload(exported, text, "uncertain.txt")
+
+    assert response.status_code == 503, response.text
+    assert counter["commits"] == 1, "uncertainty must not cause an internal resend"
+    detail = response.json()["detail"]["error"]
+    assert detail["code"] == "DOCUMENT_MIRROR_UNVERIFIED"
+    assert detail["details"]["verification"] == {
+        "status": "unverified", "effect": "unknown", "replay": "do_not_repeat"}
+    assert private_detail not in response.text
+    assert private_detail not in caplog.text
+    assert "RuntimeError" in caplog.text
+    with real_get() as fresh:
+        row = fresh.get(IngestedDocument, doc_id)
+        assert (row is not None) is commit_first
+        if row is not None:
+            assert row.workspace_id == exported.workspace
+            assert row.tenant_id == exported.user.tenant_id
+    assert doc_id in _vector_state(exported.handler)
+    _assert_prior_rows_preserved(exported, sql_before, vector_before)
