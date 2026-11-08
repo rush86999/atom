@@ -13,7 +13,9 @@ This checker reads both sides from Git:
   evidence bundles that call their frozen source ``runtime_source`` are also
   supported;
 * ``artifacts`` are compared against the evidence ref (default ``HEAD``);
-* ``--strict`` also rejects tracked evidence files that the manifest omits.
+* ``--strict`` also rejects tracked evidence files that the manifest omits;
+* ``--candidate-ref`` additionally checks the delivered commit source bytes.
+  Without it, a valid historical packet does not certify a later candidate.
 
 Use ``--evidence-ref :0`` to check the index before committing.
 
@@ -86,7 +88,8 @@ def _matches_sha256(data: bytes, expected: object) -> bool:
             and _sha(data) == encoded)
 
 
-def verify(repo: Path, evidence: Path, evidence_ref: str, strict: bool) -> Dict:
+def verify(repo: Path, evidence: Path, evidence_ref: str, strict: bool,
+           candidate_ref: Optional[str] = None) -> Dict:
     result: Dict = {
         "evidence": str(evidence),
         "evidence_ref": evidence_ref,
@@ -112,6 +115,18 @@ def verify(repo: Path, evidence: Path, evidence_ref: str, strict: bool) -> Dict:
         return result
     if evidence_ref not in INDEX_REFS:
         result["evidence_ref_commit"] = selected_ref
+    candidate_commit = None
+    if candidate_ref is not None:
+        result["candidate_ref"] = candidate_ref
+        candidate_commit = (selected_ref if candidate_ref == evidence_ref
+                            and evidence_ref not in INDEX_REFS
+                            else _resolve_commit(repo, candidate_ref))
+        if not candidate_commit:
+            result["failures"].append(
+                f"candidate ref does not resolve to a commit: {candidate_ref!r}")
+            return result
+        result["candidate_ref_commit"] = candidate_commit
+        result["candidate_ok"] = 0
     manifest_rel = f"{evidence_rel}/MANIFEST.json"
     try:
         manifest_bytes = _blob(repo, selected_ref, manifest_rel)
@@ -155,6 +170,20 @@ def verify(repo: Path, evidence: Path, evidence_ref: str, strict: bool) -> Dict:
                     f"expected {expected} got {_sha(data)}")
             else:
                 result["source_ok"] += 1
+
+    if candidate_commit:
+        if not source_files:
+            result["failures"].append("candidate comparison requires source_files")
+        for path, expected in sorted(source_files.items()):
+            data = _blob(repo, candidate_commit, path)
+            if data is None:
+                result["failures"].append(
+                    f"candidate source missing at {candidate_commit[:12]}: {path}")
+            elif not _matches_sha256(data, expected):
+                result["failures"].append(
+                    f"candidate source hash mismatch at {candidate_commit[:12]}: {path}")
+            else:
+                result["candidate_ok"] += 1
 
     artifacts = manifest.get("artifacts") or {}
     result["artifact_total"] = len(artifacts)
@@ -202,6 +231,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     parser.add_argument(
         "--strict", action="store_true",
         help="also fail when a tracked evidence file is missing from the manifest")
+    parser.add_argument(
+        "--candidate-ref", default=None,
+        help="also require declared source bytes in this delivered commit/ref")
     parser.add_argument("--json", action="store_true", help="emit JSON")
     args = parser.parse_args(argv)
 
@@ -209,7 +241,7 @@ def main(argv: Optional[List[str]] = None) -> int:
     evidence = Path(args.evidence)
     if not evidence.is_absolute():
         evidence = (repo / evidence).resolve()
-    result = verify(repo, evidence, args.evidence_ref, args.strict)
+    result = verify(repo, evidence, args.evidence_ref, args.strict, args.candidate_ref)
 
     if args.json:
         print(json.dumps(result, indent=1, sort_keys=True))
