@@ -1,0 +1,116 @@
+{
+  "status": "submitted_for_independent_review_not_self_accepted",
+  "executed_source": "0bbf1a00cc21ddafedffe9a0bc2044b2f6c4f5d8",
+  "pr": 787,
+  "scope": "controlled SQLite receipt-backed fleet credit, epoch safety, replay, current-scope atomicity and caller transaction integrity",
+  "runs": [
+    {
+      "label": "original-race-311",
+      "executed_source": "4184e14260b11f89dd1fa8e910bba5338d356eea",
+      "actual_exit": 1,
+      "summary": "1 failed, 2 warnings in 2.55s",
+      "artifact": "runs/original-race-311.log"
+    },
+    {
+      "label": "original-race-314",
+      "executed_source": "ac59e00f3a1f6858813f4c5b5ccef644aa3adf11",
+      "actual_exit": 1,
+      "summary": "1 failed, 3 warnings in 1.60s",
+      "artifact": "runs/original-race-314.log"
+    },
+    {
+      "label": "first-proposal",
+      "executed_source": "cb39643e7eb42626171a2e0c6cdf9d61fc8c1ba9",
+      "actual_exit": 1,
+      "summary": "================== 1 failed, 36 passed, 82 warnings in 35.22s ==================",
+      "artifact": "runs/first-proposal.log"
+    },
+    {
+      "label": "revision-fixture-negatives",
+      "executed_source": "68005e8178c481f6b422daf94f9dce9fdb3acec0",
+      "actual_exit": 1,
+      "summary": "================== 2 failed, 41 passed, 94 warnings in 42.09s ==================",
+      "artifact": "runs/revision-fixture-negatives.log"
+    },
+    {
+      "label": "original-scope-negative",
+      "executed_source": "93335621e78507b4226707566db16beff0db87d0",
+      "actual_exit": 1,
+      "summary": "3 failed, 6 warnings in 5.69s",
+      "artifact": "runs/original-scope-negative.log"
+    },
+    {
+      "label": "scoped-positive-fixture-negative",
+      "executed_source": "1f554f4dd3e60db4016e8db43160498a18c9b0b5",
+      "actual_exit": 1,
+      "summary": "================= 1 failed, 47 passed, 104 warnings in 43.56s ==================",
+      "artifact": "runs/scoped-positive-fixture-negative.log"
+    },
+    {
+      "label": "focused-311",
+      "executed_source": "114a9d216f15b73a9547a1c997accbd7e45ee5c1",
+      "actual_exit": 0,
+      "summary": "====================== 48 passed, 104 warnings in 45.43s =======================",
+      "artifact": "runs/focused-311.log"
+    },
+    {
+      "label": "focused-314",
+      "executed_source": "114a9d216f15b73a9547a1c997accbd7e45ee5c1",
+      "actual_exit": 0,
+      "summary": "====================== 48 passed, 118 warnings in 31.12s =======================",
+      "artifact": "runs/focused-314.log"
+    },
+    {
+      "label": "affected-311",
+      "executed_source": "0bbf1a00cc21ddafedffe9a0bc2044b2f6c4f5d8",
+      "actual_exit": 1,
+      "summary": "=========== 2 failed, 229 passed, 481 warnings in 131.41s (0:02:11) ============",
+      "artifact": "runs/affected-311.log"
+    },
+    {
+      "label": "affected-314",
+      "executed_source": "0bbf1a00cc21ddafedffe9a0bc2044b2f6c4f5d8",
+      "actual_exit": 1,
+      "summary": "============ 2 failed, 229 passed, 587 warnings in 94.29s (0:01:34) ============",
+      "artifact": "runs/affected-314.log"
+    },
+    {
+      "label": "earlier-baseline-311",
+      "executed_source": "56da05345dbff31a804f6f8473693be44f466bd3",
+      "actual_exit": 1,
+      "summary": "================= 2 failed, 84 passed, 191 warnings in 42.64s ==================",
+      "artifact": "runs/earlier-baseline-311.log"
+    },
+    {
+      "label": "earlier-baseline-314",
+      "executed_source": "56da05345dbff31a804f6f8473693be44f466bd3",
+      "actual_exit": 1,
+      "summary": "================= 2 failed, 84 passed, 192 warnings in 28.11s ==================",
+      "artifact": "runs/earlier-baseline-314.log"
+    }
+  ],
+  "known_failure_ids": [
+    "tests/test_final_audit_fixes.py::TestFreshInstallSchemaCreation::test_startup_calls_create_all",
+    "tests/test_outcome_verification.py::TestDeriveOutcome::test_all_succeeded"
+  ],
+  "baseline_comparison": "Failure IDs match an earlier retained narrower affected baseline; this is not an exact full-selection main baseline. No whole-app pass claimed.",
+  "producer_scope": "Real FleetAdmiral dispatch, GenericAgent public execute wrapper/mutation claim/execution recorder, real scratch SQL effect and independent Oracle readback; deterministic decision driver and preapproved tool governance. One effect and one credit under replay.",
+  "negative_history": "Original race and scope negatives, unqualified first proposal, and corrected fixture interleavings remain separate at actual sources.",
+  "native_authoring": "OpenCode Go DeepSeek V4.1 Flash authored isolated public-source copies; root independently refuted, integrated, repaired scope and qualified. No live application-model inference used.",
+  "limits": [
+    "Feature remains off by default",
+    "General candidate judgment and universal employee autonomy unqualified",
+    "PostgreSQL runtime, multi-worker concurrency and soak unqualified",
+    "Legacy missing full-output receipts remain unresolved without redispatch",
+    "Active caller write locks can defer credit to later recovery; caller-owned work is not committed or discarded",
+    "No new table, store, router or approval lifecycle",
+    "No live account/provider/business effect, credential change, spend or deployment"
+  ],
+  "historical_metrics_unchanged": {
+    "historical": "111/123",
+    "planner": "5/5",
+    "goal_router": "1/2",
+    "alignment_gap": 3.0
+  },
+  "full_app_goal": "open"
+}

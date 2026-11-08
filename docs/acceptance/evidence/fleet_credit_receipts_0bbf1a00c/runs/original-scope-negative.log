@@ -1,0 +1,33 @@
+FFF                                                                      [100%]
+=================================== FAILURES ===================================
+________ test_credit_refuses_changed_authoritative_scope[agent_tenant] _________
+../../root_credit_scope_boundary_probe_20261108.py:26: in test_credit_refuses_changed_authoritative_scope
+    assert _credit(db) is False
+E   assert True is False
+E    +  where True = _credit(<sqlalchemy.orm.session.Session object at 0x146eae190>)
+_______ test_credit_refuses_changed_authoritative_scope[agent_workspace] _______
+../../root_credit_scope_boundary_probe_20261108.py:26: in test_credit_refuses_changed_authoritative_scope
+    assert _credit(db) is False
+E   assert True is False
+E    +  where True = _credit(<sqlalchemy.orm.session.Session object at 0x146dd5350>)
+______ test_credit_refuses_changed_authoritative_scope[operation_tenant] _______
+../../root_credit_scope_boundary_probe_20261108.py:26: in test_credit_refuses_changed_authoritative_scope
+    assert _credit(db) is False
+E   assert True is False
+E    +  where True = _credit(<sqlalchemy.orm.session.Session object at 0x139cabed0>)
+=============================== warnings summary ===============================
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+  /private/tmp/root-py311-plugins/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED ../../root_credit_scope_boundary_probe_20261108.py::test_credit_refuses_changed_authoritative_scope[agent_tenant]
+FAILED ../../root_credit_scope_boundary_probe_20261108.py::test_credit_refuses_changed_authoritative_scope[agent_workspace]
+FAILED ../../root_credit_scope_boundary_probe_20261108.py::test_credit_refuses_changed_authoritative_scope[operation_tenant]
+3 failed, 6 warnings in 5.69s
