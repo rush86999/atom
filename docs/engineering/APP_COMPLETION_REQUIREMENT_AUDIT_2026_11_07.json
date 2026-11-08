@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "title": "App completion requirement audit — all 143 claims — 2026-11-07",
+  "title": "App completion requirement audit \u2014 all 143 claims \u2014 2026-11-07",
   "generated_at": "2026-11-07",
   "scope": "Read-only requirement/evidence audit. No runtime, test, browser, server, model, installer, dependency download, live DB, account, credential, send, spend, deploy, merge or review-comment action.",
   "historical_invariant": {
@@ -553,11 +553,31 @@
           "kind": "current-reproduced-boundary-and-pending-repair",
           "ref": "https://github.com/rush86999/atom/pull/782",
           "scope": "Original readiness-await negatives at b569f951d runtime; lost-confirmation public negative at f816e1682 runtime with a newly added independent test. Earlier46 controls retain distinct working-candidate3.14/exactf8163.11 attribution. New40ff outcome controls unqualified; raw scratch records remain private."
+        },
+        {
+          "kind": "merge-bounded-extension",
+          "ref": "https://github.com/rush86999/atom/pull/782",
+          "scope": "Reviewed head 36174220d merged 56da05345. Current supervisor/target CAS, durable promotion receipt/replay and honest uncertain HTTP outcomes;98 affected controls on each Python version,110 frontend/client controls at reviewed head. Actual merge tree/parent matched. No general candidate-judgment claim."
+        },
+        {
+          "kind": "merge-bounded-audit-privacy",
+          "ref": "https://github.com/rush86999/atom/pull/783",
+          "scope": "Reviewed head 131f9e7ee merged b718a6f3f. Target and audit evidence share existing server-resolved Personal/workspace scope; 43 local integration controls per Python runtime, hosted 126 governance controls and 110 frontend/client controls. All 10 checks successful; actual merge tree/parent matched."
+        },
+        {
+          "kind": "pending-extension",
+          "ref": "https://github.com/rush86999/atom/pull/784",
+          "scope": "Head5be597bd2 resolves squash-history CI conflicts and has the exact same complete tree as qualified05ba5555d. Runtime1d8a2cee5 full138 governance/exam controls pass on Python3.11/3.14; old05ba all10 hosted checks succeeded. New-head checks remain mandatory. Historical trace safety review is not candidate qualification."
+        },
+        {
+          "kind": "pending-extension",
+          "ref": "https://github.com/rush86999/atom/pull/785",
+          "scope": "Combined head513ddcb46 includes pending PR784 and accepted mainb718. Entire exam/epoch/governance plus CI-preservation union183 passed on each Python runtime. Broader95pass/2fail matches main84pass/the identical2IDs on both. The autonomy family has its own preserved CI step; no tests/flags removed. Hosted integration remains pending; no multi-writer, unique-outcome or held-out competence claim."
         }
       ],
-      "gap": "Historical maturity-based action gating remains verified at its original source. The graduation-to-autonomy extension has current contrary evidence: readiness-await interleavings admitted changed agent scope/status and a disabled supervisor; a separate public-route probe committed promotion but returned HTTP200 promoted=false after lost confirmation. Draft PR782 source40ff1653a repairs through shared authority/target CAS and AuditLog/replay, but its new outcome controls are pending hosted qualification. This does not refute the historical tier gate or certify general judgment.",
-      "owner": "root — graduation boundary verification",
-      "next_work_order": "PR782: qualify current authority, exact reviewed target, durable receipt/replay and honest uncertain HTTP outcome without weakening readiness or manual-promotion semantics."
+      "gap": "Historical tier-based action gating stays verified at its original source. The separately reproduced current-authority, target-material, receipt/replay and audit-scope defects are repaired and accepted at the bounded PR782/783 sources. Historical-exam truth/scope (PR784) and post-regression fresh-credit reentry (PR785) remain pending current-head integration. Held-out capability calibration, unique verified-outcome credit, broader agent judgment and multi-writer qualification are not established by tier labels, episode counts, historical trace review or these repair tests.",
+      "owner": "root \u2014 graduation boundary verification",
+      "next_work_order": "Finish exact-head hosted/integration review for PR784 and PR785, preserving every accepted module. Then trace unique-outcome contribution-credit replay through the existing finalizer and freeze a scratch negative/valid twin before editing; preserve the existing store/flag/receipt machinery. Held-out candidate qualification stays separate and requires its actual consumer/evidence."
     },
     {
       "id": "GOV-02",
@@ -4861,19 +4881,19 @@
       "disposition": "Historical snapshot; superseded by this audit. Do not reuse its queue rows as current assignments."
     },
     {
-      "item": "GOAL_COMPLETION_DELTA §3.10",
+      "item": "GOAL_COMPLETION_DELTA \u00a73.10",
       "assertion": "GOAL-02 utility is only a maturity prompt delta; no two-outcome ranking/persisted target.",
       "current": "PR #707 (4c1bd507d) and PR #754 (8ded00232) contain persisted utility target, deterministic ranking, scoped reads and component UI; see goal02_utility_target_20261106 and goal_utility_surface_20261107.",
       "disposition": "Stale relative to current main; GOAL-02 is accepted-bounded at service/API+component scope, not a historical rescore. Ordinary Goal UI browser still unrun."
     },
     {
-      "item": "GOAL_COMPLETION_DELTA §3.7 / MINI-04 inventory",
+      "item": "GOAL_COMPLETION_DELTA \u00a73.7 / MINI-04 inventory",
       "assertion": "Per-instance record leg requires Firecracker/KVM.",
       "current": "Host-mediated record/install/restart/isolation leg qualified at d84e46a4a/8a577f14a; older assumption contradicted for that leg. Firecracker dev-run/install and MINI-05 remain environment-limited.",
       "disposition": "Assertion narrowed/corrected for the record leg; MINI-05 not promoted."
     },
     {
-      "item": "GOAL_COMPLETION_DELTA §1/§3 and APP_COMPLETION_STATE line 51",
+      "item": "GOAL_COMPLETION_DELTA \u00a71/\u00a73 and APP_COMPLETION_STATE line 51",
       "assertion": "12 open functional claims and historical 111/123.",
       "current": "111/123 historical score and denominator unchanged; several former gaps now have accepted-bounded or submitted evidence, but none is silently promoted to full verification.",
       "disposition": "Preserve the score; use the overlay, not a new denominator."
@@ -5301,6 +5321,27 @@
       "scope": "Focused graduation extension gap; other143-claim evidence is not recertified by this overlay. Historical statuses, tier-gating evidence and denominator unchanged.",
       "pending_pr": 782,
       "pending_source": "40ff1653a10766735a2a034e2e520231a002e65c"
+    },
+    {
+      "date": "2026-11-08",
+      "main": "b718a6f3f15c",
+      "claim_ids": [
+        "GOV-01"
+      ],
+      "scope": "Current bounded promotion/audit acceptance, ancestry-only exam conflict resolution and combined183-control pending successor. Other142 claim records, historical statuses and denominator remain unchanged; earlier focused entries are historical snapshots.",
+      "accepted_prs": [
+        782,
+        783
+      ],
+      "pending_prs": [
+        784,
+        785
+      ],
+      "pending_sources": [
+        "5be597bd2",
+        "513ddcb46"
+      ],
+      "historical_scores_unchanged": true
     }
   ]
 }
