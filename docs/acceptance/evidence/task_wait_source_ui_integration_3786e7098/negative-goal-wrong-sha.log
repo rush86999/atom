@@ -1,0 +1,7 @@
+rc=2
+head=3786e7098fa04dc26d8ba78c3847b5327ec215bd
+cmd=["/private/tmp/atom-goal-utility-surface-20261107/backend/venv314/bin/python", "scripts/acceptance/browser_goal_utility_ui.py", "--preflight", "--out", "/private/tmp/atom-ui-preflight-neg-thzzfx1i/out/goal-wrong", "--expect-source-sha", "0000000000000000000000000000000000000000", "--world", "goal_utility_ui_preflight_neg"]
+
+
+--- stderr ---
+[preflight] REFUSED: HEAD 3786e7098fa04dc26d8ba78c3847b5327ec215bd does not match --expect-source-sha 0000000000000000000000000000000000000000

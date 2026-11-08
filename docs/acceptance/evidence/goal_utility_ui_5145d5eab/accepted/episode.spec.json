@@ -1,0 +1,28 @@
+{
+  "source": "5145d5eab76c3e4f5d374d39942fe2376b32cc43",
+  "root": "/private/tmp/root-goal-ui-episode-z755_q29",
+  "command": [
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-goal-utility-surface-20261107",
+    "--profile",
+    "heavy",
+    "--",
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "scripts/acceptance/browser_goal_utility_ui.py",
+    "--execute",
+    "--expect-source-sha",
+    "5145d5eab76c3e4f5d374d39942fe2376b32cc43",
+    "--world",
+    "goal_utility_ui_5145_onboarding_20261107",
+    "--backend-port",
+    "18801",
+    "--frontend-port",
+    "18802",
+    "--out",
+    "/private/tmp/root-goal-ui-episode-z755_q29/capture",
+    "--provision-admin-password"
+  ],
+  "fixture": "explicit synthetic analytics history; no model decisions",
+  "scope": "normal login/UI/API set-clear-ranking; not model work"
+}

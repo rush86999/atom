@@ -1,0 +1,67 @@
+{
+  "task": "NEXT-02 local backup / isolated restore / rollback-adjacent implementation",
+  "executed_source": "d4b313992",
+  "parent_main": "8ded00232",
+  "branch": "codex/operations-isolated-restore-20261107",
+  "implementation_files": [
+    "scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/restore_support.py",
+    "scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/release_tool.py",
+    "scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/tests/test_release_restore.py",
+    "docs/deployment/assignment_successor_2026-10-30_fda4f2dc9/DEPLOYMENT_RUNBOOK.md",
+    ".github/workflows/ci.yml"
+  ],
+  "official_practice": {
+    "sqlite_backup": "https://www.sqlite.org/backup.html",
+    "sqlite_backup_finish": "https://www.sqlite.org/c3ref/backup_finish.html",
+    "python_shutil": "https://docs.python.org/3.14/library/shutil.html",
+    "python_os": "https://docs.python.org/3/library/os.html"
+  },
+  "controls": {
+    "failure_first": {
+      "log": "failure-first-restore.log",
+      "exit_code": 2,
+      "result": "argparse invalid choice: restore; no target effect"
+    },
+    "final_gate": {
+      "log": "final-gate.log",
+      "exit_code": 0,
+      "result": "62 passed",
+      "breakdown": "19 restore + 43 existing db_safety/kit contract",
+      "profile": "bounded",
+      "environment": "TESTING=1; unique scratch DB/data/Lance/output/basetemp; synthetic SECRET_KEY"
+    }
+  },
+  "restore_matrix": {
+    "wal_committed_row": "covered",
+    "external_configured_office_store": "covered and recorded in store_roots",
+    "memory_included_content_readback": "covered; LanceDB table read after source unavailable",
+    "memory_excluded_truthfulness": "covered; memory_restored false, no search claim",
+    "missing_corrupt_truncated_hash_db": "covered",
+    "manifest_path_escape_absolute_collision_symlink_hardlink": "covered",
+    "existing_live_target": "covered",
+    "concurrent_target_claim": "covered",
+    "source_changed_copy": "covered",
+    "postpublish_uncertainty": "covered; committed_unverified",
+    "source_absent_portability": "covered; read_canvas + document/dataset/goal rows after source and external office rename"
+  },
+  "child_backend": {
+    "status": "not_run",
+    "reason": "free space below required 4 GiB floor; no process/world launched",
+    "free_bytes": 4158459904,
+    "minimum_bytes": 4294967296,
+    "file": "child-backend-not-run.json"
+  },
+  "rollback": {
+    "database_restored": false,
+    "user_data_preserved": true,
+    "run": false
+  },
+  "boundaries": [
+    "local SQLite only",
+    "no PostgreSQL/KVM/multiworker/soak/live provider/account/send/spend/deploy",
+    "no live DB",
+    "no real backup/restore/maintenance/restart/lock outside scratch tests",
+    "no acceptance-world relocation"
+  ],
+  "root_owns": "independent review, normal PR/CI acceptance and merge"
+}

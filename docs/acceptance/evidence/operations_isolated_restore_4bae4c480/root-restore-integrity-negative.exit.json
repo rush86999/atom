@@ -1,0 +1,19 @@
+{
+  "external_diagnostic_probe": true,
+  "source_bytes_before": {
+    "scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/release_tool.py": "d42770507df71534818023607a6fff23316aaf6ca869340cf6f8279ad6572aa1",
+    "scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/restore_support.py": "90fedf75db04a86b4e9cf5d207afdd060bfd04a536c0331ea6c8202b023a6ab2",
+    "scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/tests/test_release_restore.py": "8bf46e028c5487655a216000ebfa9744a8c58f57213eff3de3a0b87223f36930"
+  },
+  "source_bytes_after": {
+    "scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/release_tool.py": "d42770507df71534818023607a6fff23316aaf6ca869340cf6f8279ad6572aa1",
+    "scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/restore_support.py": "90fedf75db04a86b4e9cf5d207afdd060bfd04a536c0331ea6c8202b023a6ab2",
+    "scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/tests/test_release_restore.py": "8bf46e028c5487655a216000ebfa9744a8c58f57213eff3de3a0b87223f36930"
+  },
+  "source": "a4b56af592b7b2382af67b7c54825684a4d0c467",
+  "head_after": "a4b56af592b7b2382af67b7c54825684a4d0c467",
+  "runtime_or_test_diff": [],
+  "actual_exit": 1,
+  "scratch": "/private/tmp/root-wait-source-final-review-3mhj0355",
+  "finished": 1794086984.513116
+}

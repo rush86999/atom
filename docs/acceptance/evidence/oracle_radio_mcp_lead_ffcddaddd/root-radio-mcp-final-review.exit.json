@@ -1,0 +1,19 @@
+{
+  "external_diagnostic_probe": true,
+  "source_bytes_before": {
+    "backend/core/agent_radio/radio_thread_mutations.py": "bcdcc1719a972c4e31399885f3b17fb165dabd172f347bd84efbcd6fac37d714",
+    "backend/core/agent_radio/radio_actions.py": "956cb76f5367e90c7b9218d47ffed693786de3b7477701f301506cbcd99ec333",
+    "backend/tests/test_oracle_radio_thread_replay.py": "147c36bb37433fb734c76772461056e0bf98a7c51d3775361fed2f014d203c62"
+  },
+  "source_bytes_after": {
+    "backend/core/agent_radio/radio_thread_mutations.py": "bcdcc1719a972c4e31399885f3b17fb165dabd172f347bd84efbcd6fac37d714",
+    "backend/core/agent_radio/radio_actions.py": "956cb76f5367e90c7b9218d47ffed693786de3b7477701f301506cbcd99ec333",
+    "backend/tests/test_oracle_radio_thread_replay.py": "147c36bb37433fb734c76772461056e0bf98a7c51d3775361fed2f014d203c62"
+  },
+  "source": "ffcddaddd210adcc5c78503c229aae2491716931",
+  "head_after": "ffcddaddd210adcc5c78503c229aae2491716931",
+  "runtime_or_test_diff": [],
+  "actual_exit": 0,
+  "scratch": "/private/tmp/root-wait-source-final-review-ndnb73cu",
+  "finished": 1794084516.380067
+}

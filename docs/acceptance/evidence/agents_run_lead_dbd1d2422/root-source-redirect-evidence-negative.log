@@ -1,0 +1,31 @@
+F.F                                                                      [100%]
+=================================== FAILURES ===================================
+__________ test_redirect_location_binds_actual_response_node[-False] ___________
+../../test_lead_source_redirect_evidence.py:17: in test_redirect_location_binds_actual_response_node
+    assert result['ok'] is expected,(location,result)
+E   AssertionError: ('', {'ok': True, 'logical_admissions': 1, 'root_count': 1, 'terminal_count': 1, ...})
+E   assert True is False
+_ test_redirect_location_binds_actual_response_node[https://foreign.example/api/agents/a/run-False] _
+../../test_lead_source_redirect_evidence.py:17: in test_redirect_location_binds_actual_response_node
+    assert result['ok'] is expected,(location,result)
+E   AssertionError: ('https://foreign.example/api/agents/a/run', {'ok': True, 'logical_admissions': 1, 'root_count': 1, 'terminal_count': 1, ...})
+E   assert True is False
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED ../../test_lead_source_redirect_evidence.py::test_redirect_location_binds_actual_response_node[-False]
+FAILED ../../test_lead_source_redirect_evidence.py::test_redirect_location_binds_actual_response_node[https://foreign.example/api/agents/a/run-False]
+2 failed, 1 passed, 7 warnings in 0.32s

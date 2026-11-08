@@ -1,0 +1,379 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-07 14:12:19 [    INFO] MCP Service initialized
+2026-11-07 14:12:19 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+
+tests/test_lead_generic_source_answer_material.py::test_same_source_different_accepted_answer_cannot_resume 
+-------------------------------- live log setup --------------------------------
+2026-11-07 14:12:19 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-07 14:12:19 [    INFO] EscalationManager initialized
+2026-11-07 14:12:19 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 14:12:19 [    INFO] EscalationManager initialized
+2026-11-07 14:12:19 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 14:12:19 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 14:12:19 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:12:20 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 14:12:20 [    INFO] EscalationManager initialized
+2026-11-07 14:12:20 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 14:12:20 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 14:12:20 [    INFO] EscalationManager initialized
+2026-11-07 14:12:20 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 14:12:20 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 14:12:20 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Create a task from the answered information.
+2026-11-07 14:12:20 [    INFO] Agent Agent One (a1) starting task: Create a task from the answered information.
+2026-11-07 14:12:20 [    INFO] EscalationManager initialized
+2026-11-07 14:12:20 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 14:12:20 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 14:12:20 [    INFO] LanceDBHandler initialized. ID: 5043169040. LANCEDB_AVAILABLE: True
+2026-11-07 14:12:20 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 14:12:20 [    INFO] Connecting to LanceDB at /private/tmp/atom-gate-final-clean2-lzg7up23/lance with storage_options=None
+2026-11-07 14:12:20 [    INFO] LanceDB connected successfully
+2026-11-07 14:12:20 [    INFO] EscalationManager initialized
+2026-11-07 14:12:20 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 14:12:20 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-07 14:12:20 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 1}
+2026-11-07 14:12:20 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=lead-source-answer-material "HTTP/1.1 202 Accepted"
+2026-11-07 14:12:20 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/jobs/7939b3c8-3bb3-4a1b-ad20-7156466a311d/answer "HTTP/1.1 409 Conflict"
+2026-11-07 14:12:20 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/jobs/7939b3c8-3bb3-4a1b-ad20-7156466a311d/answer "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  5%]
+tests/test_lead_generic_source_snapshot_cas.py::test_source_claim_preserves_peer_wait_material 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:12:21 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 14:12:21 [    INFO] EscalationManager initialized
+2026-11-07 14:12:21 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 14:12:21 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 14:12:21 [    INFO] EscalationManager initialized
+2026-11-07 14:12:21 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 14:12:21 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 14:12:21 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Create a task when source arrives.
+2026-11-07 14:12:21 [    INFO] Agent Agent One (a1) starting task: Create a task when source arrives.
+2026-11-07 14:12:21 [    INFO] EscalationManager initialized
+2026-11-07 14:12:21 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 14:12:21 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 14:12:21 [    INFO] LanceDBHandler initialized. ID: 5071491856. LANCEDB_AVAILABLE: True
+2026-11-07 14:12:21 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 14:12:21 [    INFO] Connecting to LanceDB at /private/tmp/atom-gate-final-clean2-lzg7up23/lance with storage_options=None
+2026-11-07 14:12:21 [    INFO] LanceDB connected successfully
+2026-11-07 14:12:21 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-07 14:12:21 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 2}
+2026-11-07 14:12:21 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=lead-source-snapshot-cas "HTTP/1.1 202 Accepted"
+2026-11-07 14:12:21 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/jobs/a2b55d93-7f51-461e-813f-c3038cf2d017/answer "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 10%]
+tests/test_generic_source_answer_contract.py::test_source_only_answer_resumes_same_job_with_verified_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:12:22 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 14:12:22 [    INFO] EscalationManager initialized
+2026-11-07 14:12:22 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 14:12:22 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 14:12:22 [    INFO] EscalationManager initialized
+2026-11-07 14:12:22 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 14:12:22 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 14:12:22 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Create a source-backed task
+2026-11-07 14:12:22 [    INFO] Agent Agent One (a1) starting task: Create a source-backed task
+2026-11-07 14:12:22 [    INFO] EscalationManager initialized
+2026-11-07 14:12:22 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 14:12:22 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 14:12:22 [    INFO] LanceDBHandler initialized. ID: 4898879824. LANCEDB_AVAILABLE: True
+2026-11-07 14:12:22 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 14:12:22 [    INFO] Connecting to LanceDB at /private/tmp/atom-gate-final-clean2-lzg7up23/lance with storage_options=None
+2026-11-07 14:12:22 [    INFO] LanceDB connected successfully
+2026-11-07 14:12:22 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-07 14:12:22 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 3}
+2026-11-07 14:12:22 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=generic-source-answer "HTTP/1.1 202 Accepted"
+2026-11-07 14:12:22 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 14:12:22 [    INFO] EscalationManager initialized
+2026-11-07 14:12:22 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 14:12:22 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 14:12:22 [    INFO] EscalationManager initialized
+2026-11-07 14:12:22 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 14:12:22 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 14:12:22 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Create a source-backed task
+2026-11-07 14:12:22 [    INFO] Agent Agent One (a1) starting task: Create a source-backed task
+2026-11-07 14:12:22 [    INFO] EscalationManager initialized
+2026-11-07 14:12:22 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 14:12:22 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 14:12:22 [    INFO] LanceDBHandler initialized. ID: 4898874352. LANCEDB_AVAILABLE: True
+2026-11-07 14:12:22 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 14:12:22 [    INFO] Connecting to LanceDB at /private/tmp/atom-gate-final-clean2-lzg7up23/lance with storage_options=None
+2026-11-07 14:12:22 [    INFO] LanceDB connected successfully
+2026-11-07 14:12:22 [    INFO] Recorded outcome for a1: success
+2026-11-07 14:12:22 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-07 14:12:22 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 4}
+2026-11-07 14:12:22 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/jobs/2d260ff8-24ac-4fcf-9518-74d9d32dc3ea/answer "HTTP/1.1 200 OK"
+PASSED                                                                   [ 15%]
+tests/test_generic_source_answer_contract.py::test_source_answer_wrong_correlation_does_not_wake_or_read 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:12:23 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 14:12:23 [    INFO] EscalationManager initialized
+2026-11-07 14:12:23 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 14:12:23 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 14:12:23 [    INFO] EscalationManager initialized
+2026-11-07 14:12:23 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 14:12:23 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 14:12:23 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Create a task
+2026-11-07 14:12:23 [    INFO] Agent Agent One (a1) starting task: Create a task
+2026-11-07 14:12:23 [    INFO] EscalationManager initialized
+2026-11-07 14:12:23 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 14:12:23 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 14:12:23 [    INFO] LanceDBHandler initialized. ID: 5079352528. LANCEDB_AVAILABLE: True
+2026-11-07 14:12:23 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 14:12:23 [    INFO] Connecting to LanceDB at /private/tmp/atom-gate-final-clean2-lzg7up23/lance with storage_options=None
+2026-11-07 14:12:23 [    INFO] LanceDB connected successfully
+2026-11-07 14:12:23 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-07 14:12:23 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 5}
+2026-11-07 14:12:23 [ WARNING] turn_fact circuit breaker OPENED after 5 consecutive failures (cooldown=120s) — extraction skipped
+2026-11-07 14:12:23 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=generic-source-wrong-corr "HTTP/1.1 202 Accepted"
+2026-11-07 14:12:23 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/jobs/adcac086-2156-449a-8406-d27ea893eb97/answer "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 20%]
+tests/test_generic_source_answer_contract.py::test_duplicate_exact_source_is_idempotent_and_changed_material_refuses 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:12:24 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 14:12:24 [    INFO] EscalationManager initialized
+2026-11-07 14:12:24 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 14:12:24 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 14:12:24 [    INFO] EscalationManager initialized
+2026-11-07 14:12:24 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 14:12:24 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 14:12:24 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Create once
+2026-11-07 14:12:24 [    INFO] Agent Agent One (a1) starting task: Create once
+2026-11-07 14:12:24 [    INFO] EscalationManager initialized
+2026-11-07 14:12:24 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 14:12:24 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 14:12:24 [    INFO] LanceDBHandler initialized. ID: 5079476128. LANCEDB_AVAILABLE: True
+2026-11-07 14:12:24 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 14:12:24 [    INFO] Connecting to LanceDB at /private/tmp/atom-gate-final-clean2-lzg7up23/lance with storage_options=None
+2026-11-07 14:12:24 [    INFO] LanceDB connected successfully
+2026-11-07 14:12:24 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=generic-source-duplicate "HTTP/1.1 202 Accepted"
+2026-11-07 14:12:24 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 14:12:24 [    INFO] EscalationManager initialized
+2026-11-07 14:12:24 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 14:12:24 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 14:12:24 [    INFO] EscalationManager initialized
+2026-11-07 14:12:24 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 14:12:24 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 14:12:24 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Create once
+2026-11-07 14:12:24 [    INFO] Agent Agent One (a1) starting task: Create once
+2026-11-07 14:12:24 [    INFO] EscalationManager initialized
+2026-11-07 14:12:24 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 14:12:24 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 14:12:24 [    INFO] LanceDBHandler initialized. ID: 5077534384. LANCEDB_AVAILABLE: True
+2026-11-07 14:12:24 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 14:12:24 [    INFO] Connecting to LanceDB at /private/tmp/atom-gate-final-clean2-lzg7up23/lance with storage_options=None
+2026-11-07 14:12:24 [    INFO] LanceDB connected successfully
+2026-11-07 14:12:24 [    INFO] Recorded outcome for a1: success
+2026-11-07 14:12:24 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/jobs/7aef583f-bdef-4b6e-920c-aee765ab84a1/answer "HTTP/1.1 200 OK"
+2026-11-07 14:12:24 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/jobs/7aef583f-bdef-4b6e-920c-aee765ab84a1/answer "HTTP/1.1 200 OK"
+2026-11-07 14:12:24 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/jobs/7aef583f-bdef-4b6e-920c-aee765ab84a1/answer "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 25%]
+tests/test_generic_source_answer_contract.py::test_source_authority_failures_do_not_wake_or_effect[missing] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:12:25 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 14:12:25 [    INFO] EscalationManager initialized
+2026-11-07 14:12:25 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 14:12:25 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 14:12:25 [    INFO] EscalationManager initialized
+2026-11-07 14:12:25 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 14:12:25 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 14:12:25 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Create a task
+2026-11-07 14:12:25 [    INFO] Agent Agent One (a1) starting task: Create a task
+2026-11-07 14:12:25 [    INFO] EscalationManager initialized
+2026-11-07 14:12:25 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 14:12:25 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 14:12:25 [    INFO] LanceDBHandler initialized. ID: 5075728464. LANCEDB_AVAILABLE: True
+2026-11-07 14:12:25 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 14:12:25 [    INFO] Connecting to LanceDB at /private/tmp/atom-gate-final-clean2-lzg7up23/lance with storage_options=None
+2026-11-07 14:12:25 [    INFO] LanceDB connected successfully
+2026-11-07 14:12:25 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=generic-source-missing "HTTP/1.1 202 Accepted"
+2026-11-07 14:12:25 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/jobs/fdf56453-9cf8-44af-b506-e5846684fa88/answer "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 30%]
+tests/test_generic_source_answer_contract.py::test_source_authority_failures_do_not_wake_or_effect[foreign] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:12:26 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 14:12:26 [    INFO] EscalationManager initialized
+2026-11-07 14:12:26 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 14:12:26 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 14:12:26 [    INFO] EscalationManager initialized
+2026-11-07 14:12:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 14:12:26 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 14:12:26 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Create a task
+2026-11-07 14:12:26 [    INFO] Agent Agent One (a1) starting task: Create a task
+2026-11-07 14:12:26 [    INFO] EscalationManager initialized
+2026-11-07 14:12:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 14:12:26 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 14:12:26 [    INFO] LanceDBHandler initialized. ID: 5077109840. LANCEDB_AVAILABLE: True
+2026-11-07 14:12:26 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 14:12:26 [    INFO] Connecting to LanceDB at /private/tmp/atom-gate-final-clean2-lzg7up23/lance with storage_options=None
+2026-11-07 14:12:26 [    INFO] LanceDB connected successfully
+2026-11-07 14:12:26 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=generic-source-foreign "HTTP/1.1 202 Accepted"
+2026-11-07 14:12:26 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/jobs/06e4df8d-b359-4520-b3a5-3897a474e2b6/answer "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 35%]
+tests/test_generic_source_answer_contract.py::test_source_authority_failures_do_not_wake_or_effect[stale] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:12:26 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 14:12:26 [    INFO] EscalationManager initialized
+2026-11-07 14:12:26 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 14:12:26 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 14:12:26 [    INFO] EscalationManager initialized
+2026-11-07 14:12:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 14:12:26 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 14:12:26 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Create a task
+2026-11-07 14:12:26 [    INFO] Agent Agent One (a1) starting task: Create a task
+2026-11-07 14:12:26 [    INFO] EscalationManager initialized
+2026-11-07 14:12:26 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 14:12:26 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 14:12:26 [    INFO] LanceDBHandler initialized. ID: 5092307456. LANCEDB_AVAILABLE: True
+2026-11-07 14:12:26 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 14:12:26 [    INFO] Connecting to LanceDB at /private/tmp/atom-gate-final-clean2-lzg7up23/lance with storage_options=None
+2026-11-07 14:12:26 [    INFO] LanceDB connected successfully
+2026-11-07 14:12:26 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=generic-source-stale "HTTP/1.1 202 Accepted"
+2026-11-07 14:12:26 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/jobs/b0ece1d9-a881-43fe-ae23-c5fe2674ab5f/answer "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 40%]
+tests/test_generic_source_answer_contract.py::test_source_authority_failures_do_not_wake_or_effect[revoked] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:12:27 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 14:12:27 [    INFO] EscalationManager initialized
+2026-11-07 14:12:27 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 14:12:27 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 14:12:27 [    INFO] EscalationManager initialized
+2026-11-07 14:12:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 14:12:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 14:12:27 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Create a task
+2026-11-07 14:12:27 [    INFO] Agent Agent One (a1) starting task: Create a task
+2026-11-07 14:12:27 [    INFO] EscalationManager initialized
+2026-11-07 14:12:27 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 14:12:27 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 14:12:27 [    INFO] LanceDBHandler initialized. ID: 5093351472. LANCEDB_AVAILABLE: True
+2026-11-07 14:12:27 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 14:12:27 [    INFO] Connecting to LanceDB at /private/tmp/atom-gate-final-clean2-lzg7up23/lance with storage_options=None
+2026-11-07 14:12:27 [    INFO] LanceDB connected successfully
+2026-11-07 14:12:27 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=generic-source-revoked "HTTP/1.1 202 Accepted"
+2026-11-07 14:12:27 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/jobs/cd7d4d7f-290a-4b94-8f24-39b5df1637f7/answer "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 45%]
+tests/test_generic_source_answer_contract.py::test_dataset_source_answer_resumes_same_job_with_verified_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:12:28 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 14:12:28 [    INFO] EscalationManager initialized
+2026-11-07 14:12:28 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 14:12:28 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 14:12:28 [    INFO] EscalationManager initialized
+2026-11-07 14:12:28 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 14:12:28 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 14:12:28 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Create a dataset-backed task
+2026-11-07 14:12:28 [    INFO] Agent Agent One (a1) starting task: Create a dataset-backed task
+2026-11-07 14:12:28 [    INFO] EscalationManager initialized
+2026-11-07 14:12:28 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 14:12:28 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 14:12:28 [    INFO] LanceDBHandler initialized. ID: 5097375568. LANCEDB_AVAILABLE: True
+2026-11-07 14:12:28 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 14:12:28 [    INFO] Connecting to LanceDB at /private/tmp/atom-gate-final-clean2-lzg7up23/lance with storage_options=None
+2026-11-07 14:12:28 [    INFO] LanceDB connected successfully
+2026-11-07 14:12:28 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=generic-dataset-source "HTTP/1.1 202 Accepted"
+2026-11-07 14:12:29 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 14:12:29 [    INFO] EscalationManager initialized
+2026-11-07 14:12:29 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 14:12:29 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 14:12:29 [    INFO] EscalationManager initialized
+2026-11-07 14:12:29 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 14:12:29 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 14:12:29 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Create a dataset-backed task
+2026-11-07 14:12:29 [    INFO] Agent Agent One (a1) starting task: Create a dataset-backed task
+2026-11-07 14:12:29 [    INFO] EscalationManager initialized
+2026-11-07 14:12:29 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 14:12:29 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 14:12:29 [    INFO] LanceDBHandler initialized. ID: 5098012752. LANCEDB_AVAILABLE: True
+2026-11-07 14:12:29 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 14:12:29 [    INFO] Connecting to LanceDB at /private/tmp/atom-gate-final-clean2-lzg7up23/lance with storage_options=None
+2026-11-07 14:12:29 [    INFO] LanceDB connected successfully
+2026-11-07 14:12:29 [    INFO] Recorded outcome for a1: success
+2026-11-07 14:12:29 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/jobs/7df4f68f-7732-4772-9c94-df77f978a507/answer "HTTP/1.1 200 OK"
+PASSED                                                                   [ 50%]
+tests/test_generic_source_answer_contract.py::test_offline_actor_authority_change_refuses_source_replay 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:12:30 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 14:12:30 [    INFO] EscalationManager initialized
+2026-11-07 14:12:30 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 14:12:30 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 14:12:30 [    INFO] EscalationManager initialized
+2026-11-07 14:12:30 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 14:12:30 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 14:12:30 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Create a task
+2026-11-07 14:12:30 [    INFO] Agent Agent One (a1) starting task: Create a task
+2026-11-07 14:12:30 [    INFO] EscalationManager initialized
+2026-11-07 14:12:30 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 14:12:30 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 14:12:30 [    INFO] LanceDBHandler initialized. ID: 5080725392. LANCEDB_AVAILABLE: True
+2026-11-07 14:12:30 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 14:12:30 [    INFO] Connecting to LanceDB at /private/tmp/atom-gate-final-clean2-lzg7up23/lance with storage_options=None
+2026-11-07 14:12:30 [    INFO] LanceDB connected successfully
+2026-11-07 14:12:30 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=generic-source-offline-authority "HTTP/1.1 202 Accepted"
+2026-11-07 14:12:30 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/jobs/342552b1-28a4-4aa4-a908-4c55fb96cd3c/answer "HTTP/1.1 409 Conflict"
+2026-11-07 14:12:30 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/jobs/342552b1-28a4-4aa4-a908-4c55fb96cd3c/answer "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 55%]
+tests/test_agent_generic_information_wait_process.py::test_actual_process_wait_restart_answers_same_job_with_verified_effect PASSED [ 60%]
+tests/test_agent_generic_information_wait_process.py::test_actual_process_startup_resumes_accepted_answer_after_crash_before_claim PASSED [ 65%]
+tests/test_agent_generic_information_wait_process.py::test_actual_process_concurrent_startup_wakes_accepted_answer_once PASSED [ 70%]
+tests/test_agent_generic_information_wait_process.py::test_actual_process_recovery_selects_new_wait_behind_completed_history PASSED [ 75%]
+tests/test_agent_generic_information_wait_process.py::test_actual_process_interrupted_resume_claim_is_not_resent PASSED [ 80%]
+tests/test_agent_generic_information_wait_process.py::test_recovery_driver_is_a_bounded_async_startup_pass PASSED [ 85%]
+tests/test_agent_generic_information_wait_process.py::test_actual_process_source_answer_after_restart_wakes_same_job PASSED [ 90%]
+tests/test_agent_generic_information_wait_process.py::test_actual_process_accepted_source_crash_before_claim_recovers_once PASSED [ 95%]
+tests/test_agent_generic_information_wait_process.py::test_actual_process_source_upload_alone_does_not_settle_wait PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 40 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_lead_generic_source_answer_material.py: 1 warning
+tests/test_lead_generic_source_snapshot_cas.py: 1 warning
+tests/test_generic_source_answer_contract.py: 12 warnings
+  /private/tmp/atom-task-wait-01-reconciliation-20261107/backend/core/lancedb_handler.py:407: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    names = set(self.db.table_names())
+
+tests/test_lead_generic_source_answer_material.py: 2 warnings
+tests/test_lead_generic_source_snapshot_cas.py: 2 warnings
+tests/test_generic_source_answer_contract.py: 24 warnings
+  /Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/asyncio/events.py:94: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    self._context.run(self._callback, *self._args)
+
+tests/test_lead_generic_source_answer_material.py: 1 warning
+tests/test_lead_generic_source_snapshot_cas.py: 1 warning
+tests/test_generic_source_answer_contract.py: 12 warnings
+  /private/tmp/atom-task-wait-01-reconciliation-20261107/backend/core/lancedb_handler.py:620: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    if table_name in self.db.table_names():
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================= 20 passed, 103 warnings in 91.72s (0:01:31) ==================

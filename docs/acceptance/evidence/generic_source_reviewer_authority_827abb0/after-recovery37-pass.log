@@ -1,0 +1,205 @@
+executed_source=827abb049a261d8f32040c13b3f0e37ee9fa1271
+worktree_status=## codex/generic-source-scope-cas-20261107...origin/codex/generic-source-scope-cas-20261107 [ahead 2]
+elapsed=38.6s
+scratch=/private/tmp/ci753-reviewer-recovery37-a_ktbjsi
+cmd=["/private/tmp/atom-agent-cli/run_bounded_test_gate.py", "--cwd", "/private/tmp/atom-source-ci753-followup/backend", "--profile", "bounded", "--", "/Users/rushiparikh/projects/atom/backend/venv314/bin/python", "-m", "pytest", "tests/test_generic_information_wait_recovery.py", "tests/test_generic_information_wait_recovery_authority.py", "tests/test_lead_recovery_personal_authority.py", "-q", "--tb=short", "-p", "no:cacheprovider", "--basetemp=/private/tmp/ci753-reviewer-recovery37-a_ktbjsi/basetemp"]
+rc=0
+
+
+----------------------------- live log collection ------------------------------
+2026-11-07 15:51:01 [    INFO] MCP Service initialized
+
+tests/test_generic_information_wait_recovery.py::test_recovery_refuses_unbound_unapproved_or_foreign_waits 
+-------------------------------- live log setup --------------------------------
+2026-11-07 15:51:01 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-07 15:51:01 [    INFO] EscalationManager initialized
+2026-11-07 15:51:01 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:51:01 [    INFO] EscalationManager initialized
+2026-11-07 15:51:01 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:51:01 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 15:51:01 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  2%]
+tests/test_generic_information_wait_recovery.py::test_recovery_refuses_an_old_wait_that_is_not_the_current_receipt PASSED [  5%]
+tests/test_generic_information_wait_recovery.py::test_recovery_does_not_rebuild_missing_scope_from_the_action_row PASSED [  8%]
+tests/test_generic_information_wait_recovery.py::test_recovery_refuses_an_unavailable_actor PASSED [ 10%]
+tests/test_generic_information_wait_recovery.py::test_recovery_skips_an_already_terminal_job PASSED [ 13%]
+tests/test_generic_information_wait_recovery.py::test_recovery_selects_a_new_wait_behind_twenty_terminal_waits 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:51:05 [ WARNING] Accepted information wait recovery: resumed=1 uncertain=0 skipped=0 refused=0
+PASSED                                                                   [ 16%]
+tests/test_generic_information_wait_recovery.py::test_startup_drain_processes_all_ready_facts_in_one_boot 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:51:06 [ WARNING] Accepted information wait drain: resumed=21 uncertain=0 skipped=0 refused=0 pages=2 complete=True
+PASSED                                                                   [ 18%]
+tests/test_generic_information_wait_recovery.py::test_startup_drain_finds_ready_fact_behind_unanswered_history 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:51:07 [ WARNING] Accepted information wait drain: resumed=1 uncertain=0 skipped=0 refused=0 pages=6 complete=True
+PASSED                                                                   [ 21%]
+tests/test_generic_information_wait_recovery.py::test_recovery_marks_dead_claimed_resume_uncertain_without_resend 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:51:07 [ WARNING] Accepted information wait recovery: resumed=0 uncertain=1 skipped=0 refused=0
+PASSED                                                                   [ 24%]
+tests/test_generic_information_wait_recovery.py::test_recovery_leaves_a_live_concurrent_claim_owner_alone PASSED [ 27%]
+tests/test_generic_information_wait_recovery.py::test_recovery_leaves_live_or_unknown_claimed_owner_alone[live-live_owner] PASSED [ 29%]
+tests/test_generic_information_wait_recovery.py::test_recovery_leaves_live_or_unknown_claimed_owner_alone[unknown-unknown_owner] PASSED [ 32%]
+tests/test_generic_information_wait_recovery_authority.py::test_actor_moved_to_another_workspace_does_not_resume PASSED [ 35%]
+tests/test_generic_information_wait_recovery_authority.py::test_actor_demoted_out_of_agent_run_permission_does_not_resume PASSED [ 37%]
+tests/test_generic_information_wait_recovery_authority.py::test_actor_moved_to_another_tenant_does_not_resume PASSED [ 40%]
+tests/test_generic_information_wait_recovery_authority.py::test_deactivated_actor_does_not_resume PASSED [ 43%]
+tests/test_generic_information_wait_recovery_authority.py::test_unchanged_scoped_authority_still_resumes 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:51:12 [ WARNING] Accepted information wait recovery: resumed=1 uncertain=0 skipped=0 refused=0
+PASSED                                                                   [ 45%]
+tests/test_generic_information_wait_recovery_authority.py::test_tenant_absence_remains_compatible_with_a_matching_workspace 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:51:13 [ WARNING] Accepted information wait recovery: resumed=1 uncertain=0 skipped=0 refused=0
+PASSED                                                                   [ 48%]
+tests/test_generic_information_wait_recovery_authority.py::test_personal_null_bootstrap_still_resumes_its_default_workspace 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:51:13 [ WARNING] Accepted information wait recovery: resumed=1 uncertain=0 skipped=0 refused=0
+PASSED                                                                   [ 51%]
+tests/test_generic_information_wait_recovery_authority.py::test_normal_answer_path_refuses_moved_actor_before_dispatch PASSED [ 54%]
+tests/test_generic_information_wait_recovery_authority.py::test_admin_answerer_cannot_replace_the_moved_admitted_actor PASSED [ 56%]
+tests/test_generic_information_wait_recovery_authority.py::test_move_committed_after_precheck_still_loses_the_claim PASSED [ 59%]
+tests/test_generic_information_wait_recovery_authority.py::test_real_generic_registered_effect_respects_current_actor_workspace[False] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:51:15 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 15:51:15 [    INFO] EscalationManager initialized
+2026-11-07 15:51:15 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 15:51:15 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 15:51:15 [    INFO] EscalationManager initialized
+2026-11-07 15:51:15 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:51:15 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 15:51:15 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Create the closing task
+2026-11-07 15:51:16 [    INFO] Agent Agent One (a1) starting task: Create the closing task
+2026-11-07 15:51:16 [    INFO] EscalationManager initialized
+2026-11-07 15:51:16 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:51:16 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 15:51:16 [    INFO] LanceDBHandler initialized. ID: 5107112272. LANCEDB_AVAILABLE: True
+2026-11-07 15:51:16 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 15:51:16 [    INFO] Connecting to LanceDB at /private/tmp/ci753-reviewer-recovery37-a_ktbjsi/lance with storage_options=None
+2026-11-07 15:51:16 [    INFO] LanceDB connected successfully
+2026-11-07 15:51:16 [    INFO] EscalationManager initialized
+2026-11-07 15:51:16 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 15:51:16 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-07 15:51:16 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 1}
+2026-11-07 15:51:16 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=authority-real-False "HTTP/1.1 202 Accepted"
+2026-11-07 15:51:16 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 15:51:16 [    INFO] EscalationManager initialized
+2026-11-07 15:51:16 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 15:51:16 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 15:51:16 [    INFO] EscalationManager initialized
+2026-11-07 15:51:16 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:51:16 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 15:51:16 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Create the closing task
+2026-11-07 15:51:16 [    INFO] Agent Agent One (a1) starting task: Create the closing task
+2026-11-07 15:51:16 [    INFO] EscalationManager initialized
+2026-11-07 15:51:16 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:51:16 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 15:51:16 [    INFO] LanceDBHandler initialized. ID: 5115575696. LANCEDB_AVAILABLE: True
+2026-11-07 15:51:16 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 15:51:16 [    INFO] Connecting to LanceDB at /private/tmp/ci753-reviewer-recovery37-a_ktbjsi/lance with storage_options=None
+2026-11-07 15:51:16 [    INFO] LanceDB connected successfully
+2026-11-07 15:51:16 [    INFO] Recorded outcome for a1: success
+2026-11-07 15:51:16 [ WARNING] Accepted information wait recovery: resumed=1 uncertain=0 skipped=0 refused=0
+2026-11-07 15:51:16 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-07 15:51:16 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 2}
+PASSED                                                                   [ 62%]
+tests/test_generic_information_wait_recovery_authority.py::test_real_generic_registered_effect_respects_current_actor_workspace[True] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:51:16 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 15:51:16 [    INFO] EscalationManager initialized
+2026-11-07 15:51:16 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 15:51:16 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 15:51:16 [    INFO] EscalationManager initialized
+2026-11-07 15:51:16 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:51:16 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 15:51:16 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Create the closing task
+2026-11-07 15:51:16 [    INFO] Agent Agent One (a1) starting task: Create the closing task
+2026-11-07 15:51:16 [    INFO] EscalationManager initialized
+2026-11-07 15:51:16 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:51:16 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 15:51:16 [    INFO] LanceDBHandler initialized. ID: 5118266416. LANCEDB_AVAILABLE: True
+2026-11-07 15:51:16 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 15:51:16 [    INFO] Connecting to LanceDB at /private/tmp/ci753-reviewer-recovery37-a_ktbjsi/lance with storage_options=None
+2026-11-07 15:51:16 [    INFO] LanceDB connected successfully
+2026-11-07 15:51:16 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-07 15:51:16 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 3}
+2026-11-07 15:51:16 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=authority-real-True "HTTP/1.1 202 Accepted"
+PASSED                                                                   [ 64%]
+tests/test_lead_recovery_personal_authority.py::test_personal_actor_current_scope_matches_resolver_at_resume_claim[None] PASSED [ 67%]
+tests/test_lead_recovery_personal_authority.py::test_personal_actor_current_scope_matches_resolver_at_resume_claim[] PASSED [ 70%]
+tests/test_lead_recovery_personal_authority.py::test_personal_actor_current_scope_matches_resolver_at_resume_claim[default] PASSED [ 72%]
+tests/test_lead_recovery_personal_authority.py::test_personal_actor_moved_to_a_foreign_workspace_is_refused PASSED [ 75%]
+tests/test_lead_recovery_personal_authority.py::test_empty_workspace_is_not_an_alias_for_a_real_workspace PASSED [ 78%]
+tests/test_lead_recovery_personal_authority.py::test_missing_or_corrupt_actor_cannot_resume_from_an_answerer[-actor_missing] PASSED [ 81%]
+tests/test_lead_recovery_personal_authority.py::test_missing_or_corrupt_actor_cannot_resume_from_an_answerer[None-actor_missing] PASSED [ 83%]
+tests/test_lead_recovery_personal_authority.py::test_missing_or_corrupt_actor_cannot_resume_from_an_answerer[ghost-actor-actor_unavailable] PASSED [ 86%]
+tests/test_lead_recovery_personal_authority.py::test_claim_update_fails_closed_without_an_actor PASSED [ 89%]
+tests/test_lead_recovery_personal_authority.py::test_missing_or_corrupt_actor_is_refused_on_startup[-actor_missing] PASSED [ 91%]
+tests/test_lead_recovery_personal_authority.py::test_missing_or_corrupt_actor_is_refused_on_startup[None-actor_missing] PASSED [ 94%]
+tests/test_lead_recovery_personal_authority.py::test_missing_or_corrupt_actor_is_refused_on_startup[ghost-actor-actor_unavailable] PASSED [ 97%]
+tests/test_lead_recovery_personal_authority.py::test_missing_original_actor_is_not_replaced_by_answerer PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 74 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_generic_information_wait_recovery_authority.py::test_real_generic_registered_effect_respects_current_actor_workspace[False]
+tests/test_generic_information_wait_recovery_authority.py::test_real_generic_registered_effect_respects_current_actor_workspace[False]
+tests/test_generic_information_wait_recovery_authority.py::test_real_generic_registered_effect_respects_current_actor_workspace[True]
+  /private/tmp/atom-source-ci753-followup/backend/core/lancedb_handler.py:407: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    names = set(self.db.table_names())
+
+tests/test_generic_information_wait_recovery_authority.py::test_real_generic_registered_effect_respects_current_actor_workspace[False]
+tests/test_generic_information_wait_recovery_authority.py::test_real_generic_registered_effect_respects_current_actor_workspace[False]
+tests/test_generic_information_wait_recovery_authority.py::test_real_generic_registered_effect_respects_current_actor_workspace[False]
+tests/test_generic_information_wait_recovery_authority.py::test_real_generic_registered_effect_respects_current_actor_workspace[False]
+tests/test_generic_information_wait_recovery_authority.py::test_real_generic_registered_effect_respects_current_actor_workspace[True]
+tests/test_generic_information_wait_recovery_authority.py::test_real_generic_registered_effect_respects_current_actor_workspace[True]
+  /Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/asyncio/events.py:94: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    self._context.run(self._callback, *self._args)
+
+tests/test_generic_information_wait_recovery_authority.py::test_real_generic_registered_effect_respects_current_actor_workspace[False]
+tests/test_generic_information_wait_recovery_authority.py::test_real_generic_registered_effect_respects_current_actor_workspace[False]
+tests/test_generic_information_wait_recovery_authority.py::test_real_generic_registered_effect_respects_current_actor_workspace[True]
+  /private/tmp/atom-source-ci753-followup/backend/core/lancedb_handler.py:620: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    if table_name in self.db.table_names():
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 37 passed, 93 warnings in 34.14s =======================
+
+--- stderr ---

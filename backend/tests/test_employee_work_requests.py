@@ -28,7 +28,20 @@ from core.employee_work_requests import (
     QuoteColumns,
     TaxTerm,
 )
+from tests.source_authority_fixtures import (
+    bind_applied_read,
+    install_source_authority,
+)
 from tests.test_assignment_executor import _run, env  # noqa: F401
+
+
+@pytest.fixture()
+def source_authority(tmp_path, monkeypatch):
+    """A real controlled source plus the active reader the runtime checks."""
+    return install_source_authority(
+        monkeypatch, tmp_path,
+        user_id="employee-1", workspace_id="ws_assign",
+        tenant_id="tenant_assign")
 
 
 def _quote_evidence():
@@ -85,8 +98,10 @@ def _quote_request():
         reason="compute the exact quote from accepted rows and terms")
 
 
-def test_quote_request_compiles_and_executes_from_full_evidence(env):
-    read = _verified_quote_evidence()
+def test_quote_request_compiles_and_executes_from_full_evidence(
+        env, source_authority):
+    read = bind_applied_read(
+        _verified_quote_evidence(), source_authority, "heldout-prices.json")
     plan = new_assignment(
         objective="Quote the held-out request",
         employee_id="employee-1", workspace_id="ws_assign",
@@ -209,21 +224,7 @@ def _invoice_evidence():
     return po, invoice, receiving
 
 
-def _verified_invoice_evidence():
-    po, invoice, receiving = _invoice_evidence()
-    for step, resource, version in (
-            (po, "po-1", "po-v1"),
-            (invoice, "invoice-1", "inv-v1"),
-            (receiving, "receiving-1", "rec-v1")):
-        step["result"]["resource_id"] = resource
-        step["result"]["verification"] = {
-            "status": "verified", "resource_id": resource,
-            "version": version,
-            "coverage": {"complete": True, "truncated": False}}
-    return po, invoice, receiving
-
-
-def _verified_invoice_evidence():
+def _verified_invoice_evidence(sources=None):
     po, invoice, receiving = _invoice_evidence()
     for step, resource_id, version in (
             (po, "po-1", "po-v1"),
@@ -238,6 +239,10 @@ def _verified_invoice_evidence():
                 "status": "verified", "resource_id": resource_id,
                 "version": version, "coverage": {"complete": True}},
         })
+    for step in (po, invoice, receiving):
+        source = (sources or {}).get(step["step_id"])
+        if source is not None:
+            bind_applied_read(step, *source)
     return po, invoice, receiving
 
 
@@ -250,8 +255,13 @@ def _invoice_request():
         reason="reconcile the corrected invoice against receiving")
 
 
-def test_invoice_request_compiles_and_reconciles_full_evidence(env):
-    po, invoice, receiving = _verified_invoice_evidence()
+def test_invoice_request_compiles_and_reconciles_full_evidence(
+        env, source_authority):
+    po, invoice, receiving = _verified_invoice_evidence(sources={
+        "po": (source_authority, "po.json"),
+        "invoice": (source_authority, "invoice.json"),
+        "receiving": (source_authority, "receiving.json"),
+    })
     plan = new_assignment(
         objective="Prepare the supported bill",
         employee_id="employee-1", workspace_id="ws_assign",
@@ -454,7 +464,8 @@ def test_work_request_rejects_unverified_or_skipped_evidence():
             _invoice_request(), invoice_assignment, context={})
 
 
-def test_invoice_request_can_compile_one_approved_bill_action(env):
+def test_invoice_request_can_compile_one_approved_bill_action(
+        env, source_authority):
     from core.action_registry import action_registry
     from core.oracle import OracleResult, register_postcondition
 
@@ -482,7 +493,11 @@ def test_invoice_request_can_compile_one_approved_bill_action(env):
         "books.create_bill", create_bill,
         effects=[{"effect": "create", "object": "bill"}])
     register_postcondition("books.create_bill")(verify_bill)
-    po, invoice, receiving = _verified_invoice_evidence()
+    po, invoice, receiving = _verified_invoice_evidence(sources={
+        "po": (source_authority, "po.json"),
+        "invoice": (source_authority, "invoice.json"),
+        "receiving": (source_authority, "receiving.json"),
+    })
     teaching = new_teaching_snapshot(revision="invoice-terms-1")
     plan = new_assignment(
         objective="Prepare the supported bill",
@@ -669,12 +684,16 @@ def test_quote_missing_currency_column_inherits_only_explicit_job_default():
     assert patch["add_steps"][0]["inputs"]["defaults"]["currency"] == "USD"
 
 
-def test_executor_refuses_currency_changed_after_compilation(env):
+def test_executor_refuses_currency_changed_after_compilation(
+        env, source_authority):
     import asyncio
 
     from core.employee_adaptation import AdaptationProposal, adopt_adaptation
 
-    assignment = _quote_assignment(_terms_teaching())
+    read = bind_applied_read(
+        _verified_quote_evidence(), source_authority,
+        "heldout-prices-usd.json")
+    assignment = _quote_assignment(_terms_teaching(), read=read)
     record = env["executor"].create_assignment(
         "conv-currency-change", assignment["objective"],
         assignment=assignment)
@@ -720,7 +739,7 @@ def test_mapped_unit_cannot_be_defaulted_over_empty_source_value():
             context={})
 
 
-def test_valid_cad_twin_executes_without_relabelling(env):
+def test_valid_cad_twin_executes_without_relabelling(env, source_authority):
     import asyncio
 
     from core.employee_adaptation import AdaptationProposal, adopt_adaptation
@@ -728,6 +747,7 @@ def test_valid_cad_twin_executes_without_relabelling(env):
     read = _verified_quote_evidence()
     for row in read["result"]["rows"]:
         row["Currency"] = "CAD"
+    bind_applied_read(read, source_authority, "heldout-prices-cad.json")
     teaching = _terms_teaching()
     teaching["terms"]["currency"] = "CAD"
     assignment = _quote_assignment(teaching, read=read)

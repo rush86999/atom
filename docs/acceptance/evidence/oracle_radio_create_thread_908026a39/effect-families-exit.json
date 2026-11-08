@@ -1,0 +1,7 @@
+{
+  "nodes": [
+    "tests/test_generic_oracle_mutation_contract.py",
+    "tests/test_oracle_effect_families.py"
+  ],
+  "exit_code": 0
+}

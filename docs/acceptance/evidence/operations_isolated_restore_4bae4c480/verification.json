@@ -1,0 +1,167 @@
+{
+  "schema": "atom-ops-isolated-restore-verification-1",
+  "executed_source": "4bae4c480024bf2346117e7c661b2c87aca4a969",
+  "executed_source_short": "4bae4c480",
+  "parent_source": "924f5f191f084a2c3aa55566e28bbef08d7d813c",
+  "predecessor_candidate": "a4b56af592b7b2382af67b7c54825684a4d0c467",
+  "predecessor_implementation": "d4b313992338a373d46189e47ab45159b7f94f23",
+  "branch": "codex/operations-isolated-restore-20261107",
+  "remote_branch": "origin/codex/operations-isolated-restore-20261107",
+  "pushed_code_commit": true,
+  "final_gate": {
+    "argv": [
+      "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+      "--cwd",
+      "/private/tmp/atom-oracle-refresh-20261107/backend",
+      "--profile",
+      "bounded",
+      "--",
+      "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+      "-m",
+      "pytest",
+      "/private/tmp/atom-oracle-refresh-20261107/scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/tests/test_lead_restore_integrity.py",
+      "/private/tmp/atom-oracle-refresh-20261107/scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/tests/test_release_restore.py",
+      "tests/test_db_safety.py",
+      "tests/test_db_safety_atomicity.py",
+      "tests/core/test_db_snapshot_protection.py",
+      "../scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/tests/test_deploy_release_contract.py",
+      "-q",
+      "--tb=short",
+      "-p",
+      "no:cacheprovider",
+      "--basetemp=/private/tmp/ops-restore-corrected/final-gate-4bae4c480/pytest"
+    ],
+    "cwd": "/private/tmp/atom-oracle-refresh-20261107/backend",
+    "profile": "bounded",
+    "exit_code": 0,
+    "result": "====================== 80 passed, 166 warnings in 43.29s =======================",
+    "counts": {
+      "root_permanent": 3,
+      "native_restore": 34,
+      "existing_db_safety_and_kit": 43,
+      "total": 80
+    },
+    "environment": {
+      "TESTING": "1",
+      "ENVIRONMENT": "test",
+      "SECRET_KEY": "synthetic-corrected-final-4bae4c480",
+      "scratch": "unique DB/data/Lance/office/output/basetemp under /private/tmp/ops-restore-corrected/final-gate-4bae4c480",
+      "python": "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+      "gate": "/private/tmp/atom-agent-cli/run_bounded_test_gate.py"
+    },
+    "log": "final-gate.log",
+    "exit_file": "final-gate-exit.json",
+    "command_file": "final-gate-command.json",
+    "free_bytes_after_run": 3633995776
+  },
+  "failure_first": {
+    "executed_source": "4bae4c480",
+    "file": "failure-first-4bae4c480.json",
+    "cases": [
+      {
+        "label": "missing-required-target",
+        "argv": [
+          "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+          "/private/tmp/atom-oracle-refresh-20261107/scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/release_tool.py",
+          "--root",
+          "/private/tmp/ops-restore-corrected/failure-first/synthetic-release-root",
+          "restore",
+          "--backup",
+          "/private/tmp/ops-restore-corrected/failure-first/missing-backup"
+        ],
+        "cwd": "/private/tmp/ops-restore-corrected/failure-first/synthetic-release-root",
+        "exit_code": 2,
+        "stdout": "",
+        "stderr": "usage: release_tool.py restore [-h] --backup BACKUP\n                               --target-data-dir TARGET_DATA_DIR\nrelease_tool.py restore: error: the following arguments are required: --target-data-dir\n",
+        "target_exists": false
+      },
+      {
+        "label": "missing-manifest",
+        "argv": [
+          "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+          "/private/tmp/atom-oracle-refresh-20261107/scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/release_tool.py",
+          "--root",
+          "/private/tmp/ops-restore-corrected/failure-first/synthetic-release-root",
+          "restore",
+          "--backup",
+          "/private/tmp/ops-restore-corrected/failure-first/missing-backup",
+          "--target-data-dir",
+          "/private/tmp/ops-restore-corrected/failure-first/target"
+        ],
+        "cwd": "/private/tmp/ops-restore-corrected/failure-first/synthetic-release-root",
+        "exit_code": 2,
+        "stdout": "{\n  \"ok\": false,\n  \"status\": \"refused\",\n  \"error\": \"backup manifest is missing: /private/tmp/ops-restore-corrected/failure-first/missing-backup\"\n}\n",
+        "stderr": "",
+        "target_exists": false
+      }
+    ],
+    "target_effect": "none; synthetic release root had no config/data/DB and no target was created",
+    "note": "These are exact executed argv/stdout/stderr/exit records, not placeholders."
+  },
+  "root_negative_predecessor_evidence": {
+    "source": "a4b56af592b7b2382af67b7c54825684a4d0c467",
+    "files": [
+      "root-restore-integrity-negative.log",
+      "root-restore-integrity-negative.spec.json",
+      "root-restore-integrity-negative.exit.json"
+    ],
+    "result": "2 failed, 1 passed at a4b56af59",
+    "failures": [
+      "test_restore_preserves_every_original_canvas_audit_byte: audit-1 details_json was rewritten to the restored target office path",
+      "test_backup_database_swap_after_validation_refuses_before_publication: peer users.first_name=PEER-UNREVIEWED was published with status=verified"
+    ],
+    "preservation": "raw root files are included unchanged; the predecessor evidence packet operations_isolated_restore_d4b313992 is not rewritten or relabelled"
+  },
+  "correction": {
+    "A_history": "CanvasAudit is append-only. Every original audit/receipt/operation row is byte-for-byte immutable. Current writable projections may be rebased. When read_canvas needs a current content-bearing row, restore appends a new restore-owned CanvasAudit event with a new id, exact canvas/tenant scope, original audit id + created_at + original details hash + manifest SHA-256 provenance, and the target binding. It removes old operation_id, evidence_refs, postconditions and review_status; user_id/agent_id stay NULL.",
+    "B_binding": "The database copy is bound to the exact bytes validated against the manifest. The already-checkpointed backup file is opened through a nofollow directory-descriptor walk, frozen into private staging, re-verified for size/SHA-256/device/inode/stat identity, and only then read by the SQLite backup API. In-place updates, path/inode swaps, symlink swaps, sidecar changes and changes during read are refused. No live DB or unmanifested WAL is read.",
+    "runbook_corrected": true
+  },
+  "hardening": {
+    "row_counts": "keys must be simple SQL identifiers; values are non-negative int or None; missing tables are never silently zero; 0 is exact; None requires absence",
+    "target": "target must not exist; target/ancestor symlinks refused; claim token+inode ownership checked before cleanup; renamex_np/RENAME_EXCL or renameat2/RENAME_NOREPLACE prevents peer target overwrite",
+    "producer": "backup leaves a self-contained checkpointed sidecar-free DB and rejects symlinks/hardlinks in managed stores"
+  },
+  "child_backend": {
+    "status": "not_run",
+    "previous_status": "OPEN",
+    "reason": "No child backend/world was launched. The measured free space was 4413313024 bytes, only 118345728 bytes above the literal 4 GiB floor. The preceding 80-test bounded gate consumed more than 700 MB of scratch space; a full-app child needs a scratch source world, restore target, DB/LanceDB files and logs, so launching it would not maintain the required >=4 GiB working margin. The exact workorder and harness are frozen below for root to run after cleanup.",
+    "free_bytes_at_decision": 4413313024,
+    "minimum_bytes": 4294967296,
+    "headroom_bytes": 118345728,
+    "workorder": "CHILD_RESTORE_SMOKE_WORKORDER.md",
+    "harness": [
+      "child_restore_seed.py",
+      "child_restore_readback.py"
+    ],
+    "no_process_or_world_launched": true,
+    "http_acceptance_claimed": false,
+    "required_before_full_restore_claim": [
+      ">=4 GiB free before launch and maintained while the child runs",
+      "scratch source world seeded only through ordinary product models/fixtures",
+      "backup -> restore into a fresh target -> original source renamed/unavailable",
+      "isolated uvicorn child with target DATABASE_URL/ATOM_DATA_DIR/ATOM_OFFICE_DIR/ATOM_EMAIL_ATTACHMENT_DIR/LANCEDB_URI",
+      "normal /api/auth/login; /api/auth/me; /api/canvas/{id}; /api/goals/{id}",
+      "ingested_documents row and target office artifact readable after source absence",
+      "stop and start again; same reads and restart agreement",
+      "no model/provider/account/send/spend/deploy; no live DB/world"
+    ]
+  },
+  "source_hashes_at_executed_commit": {
+    "scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/restore_support.py": "3308fc2cb88ec54203acd083368d183121cf1d3b41943c8051eccbc8a7fc6751",
+    "scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/release_tool.py": "2a13399fbd44621660f171df3b3e1d3bb0f2ab95d21ed36577acb5292115bb9c",
+    "scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/tests/test_release_restore.py": "09f0b950e6ed0736bbd42822cd339e20986ae4c288c4619ae68e7a2080e64b59",
+    "scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/tests/test_lead_restore_integrity.py": "bed8b67eeab15630f650c0867fca859a7266512431156a05719bef67a6e14c27",
+    "docs/deployment/assignment_successor_2026-10-30_fda4f2dc9/DEPLOYMENT_RUNBOOK.md": "2d5c7280b76c7cb92d93f1da779df9c7545b4d105a5a7e54564a3ebc73cf4c47"
+  },
+  "boundaries": [
+    "local SQLite only; no PostgreSQL/KVM/multiworker/soak",
+    "no live DB, live world, provider, account, credential, send, spend, install, deploy",
+    "no acceptance-world deletion, relocation or bypass",
+    "no new backup engine/store/router/authority lifecycle",
+    "code rollback remains code-only: database_restored=false, user_data_preserved=true; not run",
+    "child HTTP backend/login/public-read/restart proof remains OPEN; harness/workorder frozen below",
+    "full-app ORACLE and claim scores remain open/unchanged",
+    "root owns independent review, normal PR/CI acceptance and merge"
+  ]
+}

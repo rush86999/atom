@@ -1,0 +1,44 @@
+{
+  "kind": "task_wait_01_source_authority",
+  "executed_source": "d6cb06ff71f3ead5baa996d9b6a183871ba4a134",
+  "source_tree_clean_at_compile": true,
+  "runtime_files_changed": [
+    "backend/core/assignment_executor.py",
+    "backend/core/assignment_resources.py",
+    "backend/api/assignment_routes.py"
+  ],
+  "tests_changed": [
+    "backend/tests/test_task_wait_source_version_after_acceptance.py",
+    "backend/tests/test_lead_wait_source_disappears.py"
+  ],
+  "root_negatives": {
+    "source_unavailable": {
+      "log": "root-source-unavailable-negative.log",
+      "failed": 2,
+      "exit": 1
+    },
+    "upload_removed": {
+      "log": "root-upload-removed-negative.log",
+      "failed": 1,
+      "exit": 1
+    }
+  },
+  "post_fix_gate": {
+    "status": "permission_denied",
+    "exit": 126,
+    "dispatched": false,
+    "log": "gate-permission-denied.log"
+  },
+  "post_fix_static_compile": {
+    "exit": 0,
+    "log": "compile.log"
+  },
+  "post_fix_pytest_pass_claimed": false,
+  "g5_g6": "accepted limitations per root; not blockers",
+  "g1": "trace + controlled-clock test retained",
+  "g4": "symmetric Generic two-job test retained",
+  "g3": "trace/proposal retained; no broad UI",
+  "task_wait_01": "open",
+  "claim_denominator": 143,
+  "live_actions": false
+}

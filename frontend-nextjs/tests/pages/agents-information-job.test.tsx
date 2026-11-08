@@ -136,7 +136,15 @@ describe("Agents page information-question wiring", () => {
     toast.mockReset();
     fetchMock.mockImplementation((url: string, init: any = {}) => {
       const method = (init.method || "GET").toUpperCase();
-      if (method === "POST" && String(url).includes("/run/")) {
+      const isCanonicalRun = () => {
+        try {
+          return new URL(String(url), "http://localhost").pathname ===
+            "/api/agents/agent-1/run";
+        } catch {
+          return false;
+        }
+      };
+      if (method === "POST" && isCanonicalRun()) {
         return json({ job_id: "job-new", job_status: "running" });
       }
       if (String(url).includes("/jobs/job-new")) {
@@ -198,9 +206,34 @@ describe("Agents page information-question wiring", () => {
     const user = userEvent.setup();
     render(<AgentsDashboard />);
 
+    const objective = "Close the books";
     await screen.findByTestId("agent-card");
     await user.click(screen.getByRole("button", { name: "Run" }));
+    await user.type(
+      screen.getByPlaceholderText(/e.g. Reconcile inventory/),
+      objective,
+    );
     await user.click(screen.getByRole("button", { name: "Run Agent" }));
+
+    const runCall = fetchMock.mock.calls.find(([url, init]: any[]) => {
+      const method = (init?.method || "GET").toUpperCase();
+      try {
+        return method === "POST" &&
+          new URL(String(url), "http://localhost").pathname ===
+            "/api/agents/agent-1/run";
+      } catch {
+        return false;
+      }
+    });
+    expect(runCall).toBeDefined();
+    const [runUrl, runInit] = runCall as any[];
+    expect(String(runUrl)).not.toContain("/run/");
+    expect(runInit.method).toBe("POST");
+    expect(runInit.headers["Content-Type"]).toBe("application/json");
+    expect(runInit.headers.Authorization).toBe("Bearer test-token");
+    expect(JSON.parse(runInit.body)).toEqual({
+      parameters: { task_input: objective },
+    });
 
     expect(
       await screen.findByText("What does job-new need?"),

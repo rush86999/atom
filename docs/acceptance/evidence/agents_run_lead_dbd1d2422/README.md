@@ -1,0 +1,9 @@
+# Canonical run UI and strict admission evidence — root review
+
+Final tested sourcedbd1d24225fa858be51e7f024475a7586191a26f:17 pure preparation/verifier tests and38 Agents UI controls pass. Backend/reviewer/source/Goal runtime is unchanged from the already-reviewed integration; the product UI changes one URL from /run/ to canonical /run. Native11/38 proof remains atfcf91bdd5; its captured0bb episode stays overallFAIL at its original identity.
+
+Root independently found2fail/1pass in the predecessor426e redirect classifier: missing Location and a foreign Location on a response with a distinct request-node id could pass. The final classifier uses the actual node id, requires recorded Location and validates origin/path/exact optional operation query. Six root twins cover missing/foreign and valid relative/absolute locations. Original11 controls remain. The old access log proves307 and the later POST, but does not record Location; retrospective derived header inference is not strict response-header evidence. Old derived artifacts are preserved as predecessor claims, not silently regenerated.
+
+The controlled uploaded text closing_task field now agrees with the authored task-title response. This is a disclosed simulated decision fixture, not served-model semantic extraction. The original0bb source text/title mismatch is preserved and limits that episode to source activation/runtime proof. No original capture or model output is changed.
+
+Frontend review exit metadata compares the entire integrated candidate with main8ded and therefore lists the previously reviewed Generic/source additions; it is not a claim those changed during this test. Both test commands/source bindings remain exact. Ordinary browser rerun is still required on this frozen successor to reach final UI/replay controls; no full browser/app acceptance follows from this packet.

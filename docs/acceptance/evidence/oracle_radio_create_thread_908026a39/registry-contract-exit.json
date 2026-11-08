@@ -1,0 +1,7 @@
+{
+  "nodes": [
+    "tests/test_oracle_registry_verification_gap.py",
+    "tests/test_generic_request_expectations.py"
+  ],
+  "exit_code": 0
+}

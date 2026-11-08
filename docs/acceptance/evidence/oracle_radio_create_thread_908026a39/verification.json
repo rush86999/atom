@@ -1,0 +1,143 @@
+{
+  "task": "radio.create_thread exact-row / current-authority Oracle implementation",
+  "executed_source": "908026a39",
+  "base_main": "4590560d7",
+  "merge_commit": "86f666d00",
+  "branch": "codex/oracle-refresh-20261107",
+  "implementation_files": [
+    "backend/core/agent_radio/radio_thread_mutations.py",
+    "backend/core/agent_radio/radio_actions.py",
+    "backend/core/oracle/request_expectations.py",
+    "backend/core/oracle/postcondition_verifiers.py",
+    "backend/tests/test_oracle_radio_create_thread.py"
+  ],
+  "authority_semantics": {
+    "deployment": "single tenant",
+    "scope_rule": "AgentRegistry NULL and \"default\" are the same personal workspace/tenant; concrete ids require exact equality",
+    "creator": "must exist, not explicitly disabled, not paused/stopped/deprecated/deleted, at existing INTERN+ persisted maturity floor",
+    "members": "must exist, not explicitly disabled, in the same compatible personal/workspace/tenant scope; no INTERN+ requirement",
+    "not_added": [
+      "SaaS role/plan/seat gates",
+      "new approval lifecycle",
+      "new engine/router/store"
+    ]
+  },
+  "controls": {
+    "focused-oracle": {
+      "nodes": [
+        "tests/test_oracle_radio_create_thread.py"
+      ],
+      "exit_code": 0,
+      "result": "29 passed"
+    },
+    "original-probe-successor": {
+      "nodes": [
+        "probe_radio_create_thread_gap.py"
+      ],
+      "exit_code": 0,
+      "result": "2 passed"
+    },
+    "affected-units": {
+      "nodes": [
+        "tests/unit/agents/test_radio_actions.py",
+        "tests/unit/agents/test_agent_radio_tool.py",
+        "tests/test_covpush_w80a_radio.py::TestRadioCreateThread"
+      ],
+      "exit_code": 0,
+      "result": "24 passed"
+    },
+    "registry-contract": {
+      "nodes": [
+        "tests/test_oracle_registry_verification_gap.py",
+        "tests/test_generic_request_expectations.py"
+      ],
+      "exit_code": 0,
+      "result": "59 passed"
+    },
+    "service-adapter-server": {
+      "nodes": [
+        "tests/unit/agents/test_radio_service.py",
+        "tests/unit/agents/test_radio_adapter.py",
+        "tests/unit/agents/test_radio_server.py"
+      ],
+      "exit_code": 0,
+      "result": "29 passed"
+    },
+    "effect-families": {
+      "nodes": [
+        "tests/test_generic_oracle_mutation_contract.py",
+        "tests/test_oracle_effect_families.py"
+      ],
+      "exit_code": 0,
+      "result": "46 passed"
+    }
+  },
+  "heavy_not_dispatched": {
+    "nodes": [
+      "tests/test_covpush_w80a_radio.py"
+    ],
+    "profile": "heavy",
+    "exit_code": 75,
+    "result": "not_dispatched_disk_headroom",
+    "free_bytes": 2658635776,
+    "minimum_bytes": 4294967296,
+    "interpretation": "shared gate refused dispatch; not a test failure and not split to evade",
+    "gate_command": [
+      "/usr/local/opt/python@3.14/bin/python3.14",
+      "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+      "--profile",
+      "heavy",
+      "--cwd",
+      "/private/tmp/atom-oracle-refresh-20261107/backend",
+      "--",
+      "/usr/local/opt/python@3.14/bin/python3.14",
+      "-m",
+      "pytest",
+      "tests/test_covpush_w80a_radio.py",
+      "-q",
+      "--disable-warnings",
+      "-p",
+      "no:cacheprovider"
+    ]
+  },
+  "original_negative": {
+    "path": "../oracle_radio_create_thread_trace_20261107/probe-failure-first.log",
+    "exit_code": 1,
+    "result": "2 failed on predecessor 36fa4ce39; preserved unchanged"
+  },
+  "registry_map": {
+    "packet": "../oracle_registry_refresh_20261107/inventory.json",
+    "executed_source": "908026a39",
+    "registered_actions": 98,
+    "declared_mutations": 30,
+    "covered_mutations": 25,
+    "uncovered_mutations": [
+      "mini_app_run",
+      "radio.send_message",
+      "shopify_create_fulfillment",
+      "workspace.commit",
+      "workspace.note"
+    ]
+  },
+  "controlled_seams": [
+    "real action registry and radio handler",
+    "real radio_service persistence and scratch SQLite models",
+    "real GenericAgent mutation claim/Oracle consumer"
+  ],
+  "not_used": [
+    "live app",
+    "live model",
+    "provider",
+    "account",
+    "credential",
+    "send",
+    "spend",
+    "install",
+    "deploy",
+    "KVM",
+    "PostgreSQL",
+    "guest/sandbox execution",
+    "all-827 sweep"
+  ],
+  "root_owns": "independent review, PR, CI and merge"
+}

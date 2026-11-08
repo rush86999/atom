@@ -6,6 +6,8 @@ dispatch through — so capability (P2) and sandbox (P9) gating apply
 automatically. Maturity floors are enforced inside the handlers.
 """
 
+from contextlib import contextmanager
+
 import pytest
 from unittest.mock import patch
 
@@ -16,6 +18,31 @@ from tools.agent_radio_tool import (
     radio_read_inbox,
     radio_send_message,
 )
+
+
+def _session_cm(db_session):
+    """Yield the shared test session without closing it between handler calls."""
+    @contextmanager
+    def _cm():
+        yield db_session
+    return _cm
+
+
+def _seed_radio_agents(db_session):
+    """Persist the real AgentRegistry rows the create-thread authority gate reads."""
+    from core.models import AgentRegistry
+
+    db_session.add_all([
+        AgentRegistry(
+            id="agent_a", name="Agent A", category="operations",
+            module_path="x.a", class_name="A", status="intern",
+            enabled=True, tenant_id=None, workspace_id=None),
+        AgentRegistry(
+            id="agent_b", name="Agent B", category="operations",
+            module_path="x.b", class_name="B", status="intern",
+            enabled=True, tenant_id=None, workspace_id=None),
+    ])
+    db_session.commit()
 
 
 class TestRegistrySurface:
@@ -48,7 +75,7 @@ class TestTierGates:
         assert result["success"] is False
 
     async def test_read_inbox_student_allowed(self, db_session, monkeypatch):
-        monkeypatch.setattr("core.database.get_db_session", lambda: db_session)
+        monkeypatch.setattr("core.database.get_db_session", _session_cm(db_session))
         result = await radio_read_inbox(
             {"thread_id": "missing"}, {"tier": "student", "agent_id": "agent_a"})
         assert result["success"] is True
@@ -70,7 +97,8 @@ class TestToolHandlers:
     async def test_create_send_read_round_trip(self, db_session, monkeypatch):
         from core.agent_radio import radio_service
 
-        monkeypatch.setattr("core.database.get_db_session", lambda: db_session)
+        monkeypatch.setattr("core.database.get_db_session", _session_cm(db_session))
+        _seed_radio_agents(db_session)
 
         created = await radio_create_thread(
             {"name": "algo", "member_agent_ids": ["agent_b"]},
@@ -90,7 +118,8 @@ class TestToolHandlers:
     async def test_broadcast_rejected_via_tool(self, db_session, monkeypatch):
         from core.agent_radio.radio_server import get_radio_server
 
-        monkeypatch.setattr("core.database.get_db_session", lambda: db_session)
+        monkeypatch.setattr("core.database.get_db_session", _session_cm(db_session))
+        _seed_radio_agents(db_session)
         created = await radio_create_thread(
             {"name": "t", "member_agent_ids": ["agent_b"]},
             {"tier": "intern", "agent_id": "agent_a"})

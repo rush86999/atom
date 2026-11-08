@@ -1,0 +1,22 @@
+{
+  "source": "dbd1d24225fa858be51e7f024475a7586191a26f",
+  "scratch": "/private/tmp/root-wait-source-final-review-rdcjlvds",
+  "command": [
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-goal-utility-surface-20261107/backend",
+    "--profile",
+    "bounded",
+    "--",
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "../scripts/tests/test_browser_agent_source_answer_preflight.py",
+    "../scripts/tests/test_lead_source_redirect_evidence.py",
+    "-q",
+    "--tb=short",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=/private/tmp/root-wait-source-final-review-rdcjlvds/pytest"
+  ]
+}

@@ -1,0 +1,5 @@
+{
+  "ok": false,
+  "status": "failed",
+  "error": "first readback failed rc=1: {\n  \"business_completion_claimed\": false,\n  \"checks\": {\n    \"readback_completed\": false\n  },\n  \"error\": \"NameError: name 'non_restore_new_rows' is not defined\",\n  \"failed_checks\": [\n    \"readback_completed\"\n  ],\n  \"memory\": {\n    \"included\": false,\n    \"lancedb_search_claimed\": false,\n    \"public_document_search_claimed\": false\n  },\n  \"model_dispatched\": false,\n  \"ok\": false,\n  \"schema\": \"atom-child-restore-readback-2\",\n  \"timestamp\": \"2026-11-07T23:24:36.974744+00:00\"\n}"
+}

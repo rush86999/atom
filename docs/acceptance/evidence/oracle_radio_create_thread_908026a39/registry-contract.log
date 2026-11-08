@@ -1,0 +1,95 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-07 14:11:49 [    INFO] MCP Service initialized
+
+tests/test_oracle_registry_verification_gap.py::test_declared_mutation_without_verifier_is_uncertain_and_not_reapplied 
+-------------------------------- live log setup --------------------------------
+2026-11-07 14:11:49 [    INFO] EscalationManager initialized
+2026-11-07 14:11:49 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 14:11:49 [    INFO] EscalationManager initialized
+2026-11-07 14:11:49 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 14:11:49 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 14:11:49 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:11:50 [    INFO] runtime identity: source_id=908026a397c9-dirty.eff51ea0eb58 revision=908026a397c9 dirty=True (0 modified, 2 untracked)
+PASSED                                                                   [  1%]
+tests/test_oracle_registry_verification_gap.py::test_unusable_verifier_is_uncertain_with_receipt[none] PASSED [  3%]
+tests/test_oracle_registry_verification_gap.py::test_unusable_verifier_is_uncertain_with_receipt[raise] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:11:50 [ WARNING] [Oracle] postcondition check for test.gap.raise.a7b02d3a failed: readback store unavailable
+PASSED                                                                   [  5%]
+tests/test_oracle_registry_verification_gap.py::test_unusable_verifier_is_uncertain_with_receipt[refute] PASSED [  6%]
+tests/test_oracle_registry_verification_gap.py::test_positive_independent_verdict_applies_with_receipt PASSED [  8%]
+tests/test_oracle_registry_verification_gap.py::test_read_action_without_verifier_still_applies PASSED [ 10%]
+tests/test_oracle_registry_verification_gap.py::test_full_executor_real_task_create_is_independently_verified[True] PASSED [ 11%]
+tests/test_oracle_registry_verification_gap.py::test_full_executor_real_task_create_is_independently_verified[False] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:11:50 [   ERROR] tasks.create failed: 404: Board not found
+PASSED                                                                   [ 13%]
+tests/test_oracle_registry_verification_gap.py::test_full_executor_real_read_action_still_applies PASSED [ 15%]
+tests/test_oracle_registry_verification_gap.py::test_plan_output_is_not_treated_as_a_mutation PASSED [ 16%]
+tests/test_oracle_registry_verification_gap.py::test_changed_request_is_refuted_against_the_frozen_authorized_request PASSED [ 18%]
+tests/test_oracle_registry_verification_gap.py::test_disabled_oracle_never_certifies_applied PASSED [ 20%]
+tests/test_oracle_registry_verification_gap.py::test_lead_probe_declared_write_without_verifier_cannot_claim_applied PASSED [ 22%]
+tests/test_oracle_registry_verification_gap.py::test_readonly_twin_without_verifier_still_applies PASSED [ 23%]
+tests/test_oracle_registry_verification_gap.py::test_unqualified_effect_metadata_is_not_an_implicit_read[effects0] PASSED [ 25%]
+tests/test_oracle_registry_verification_gap.py::test_unqualified_effect_metadata_is_not_an_implicit_read[effects1] PASSED [ 27%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_effect_metadata_cannot_certify_write[read-missing-entry] PASSED [ 28%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_effect_metadata_cannot_certify_write[plan-missing-entry] PASSED [ 30%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_effect_metadata_cannot_certify_write[read-non-mapping-entry] PASSED [ 32%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_effect_metadata_cannot_certify_write[read-blank-name] PASSED [ 33%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_effect_metadata_cannot_certify_write[read-null-name] PASSED [ 35%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_effect_metadata_cannot_certify_write[read-non-string-name] PASSED [ 37%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_effect_metadata_cannot_certify_write[read-unknown-name] PASSED [ 38%]
+tests/test_oracle_registry_verification_gap.py::test_clean_non_mutating_metadata_still_applies[read] PASSED [ 40%]
+tests/test_oracle_registry_verification_gap.py::test_clean_non_mutating_metadata_still_applies[read-only] PASSED [ 42%]
+tests/test_oracle_registry_verification_gap.py::test_clean_non_mutating_metadata_still_applies[plan] PASSED [ 44%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_declaration_is_never_a_read_or_plan_exemption[missing-entry] PASSED [ 45%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_declaration_is_never_a_read_or_plan_exemption[blank-name] PASSED [ 47%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_declaration_is_never_a_read_or_plan_exemption[non-string-name] PASSED [ 49%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_declaration_is_never_a_read_or_plan_exemption[non-mapping-entry] PASSED [ 50%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_declaration_is_never_a_read_or_plan_exemption[plan-missing-entry] PASSED [ 52%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_declaration_is_never_a_read_or_plan_exemption[unknown-name] PASSED [ 54%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_declaration_is_never_a_read_or_plan_exemption[string-container] PASSED [ 55%]
+tests/test_oracle_registry_verification_gap.py::test_malformed_declaration_is_never_a_read_or_plan_exemption[mapping-container] PASSED [ 57%]
+tests/test_oracle_registry_verification_gap.py::test_valid_declaration_semantics_remain_bounded PASSED [ 59%]
+tests/test_oracle_registry_verification_gap.py::test_registry_declares_effects_and_keeps_uncovered_explicit PASSED [ 61%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_manifest_cas_binds_exact_prior_value PASSED [ 62%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_manifest_cas_peer_change_preserves_peer_state PASSED [ 64%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_set_tests_conflict_is_truthful_no_effect PASSED [ 66%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_manifest_cas_scope_change_preserves_peer_state[tenant_id] PASSED [ 67%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_manifest_cas_scope_change_preserves_peer_state[workspace_id] PASSED [ 69%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_manifest_cas_scope_change_preserves_peer_state[created_by] PASSED [ 71%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_set_tests_authoritative_scope_contradiction_refutes[workspace_id] PASSED [ 72%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_set_tests_authoritative_scope_contradiction_refutes[tenant_id] PASSED [ 74%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_set_tests_authoritative_scope_contradiction_refutes[created_by] PASSED [ 76%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_set_tests_authoritative_scope_contradiction_refutes[audit_tenant] PASSED [ 77%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_set_tests_authoritative_scope_contradiction_refutes[audit_actor] PASSED [ 79%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_set_tests_fresh_read_refutes_dirty_request_object PASSED [ 81%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_set_tests_fresh_read_accepts_committed_valid_state PASSED [ 83%]
+tests/test_oracle_registry_verification_gap.py::test_mini_app_set_tests_verifier_binds_exact_tests_and_operation PASSED [ 84%]
+tests/test_generic_request_expectations.py::test_builder_freezes_business_args_and_ignores_model_expected_fields PASSED [ 86%]
+tests/test_generic_request_expectations.py::test_plain_args_generic_and_assignment_produce_the_same_verified_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:11:51 [    INFO] Canvas type 'mini_app' auto-registered (generic defaults)
+PASSED                                                                   [ 88%]
+tests/test_generic_request_expectations.py::test_plain_args_non_miniapp_presentation_is_verified 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:11:52 [    INFO] Presented markdown content to user user-1
+PASSED                                                                   [ 89%]
+tests/test_generic_request_expectations.py::test_model_forged_expected_metadata_is_stripped_before_dispatch PASSED [ 91%]
+tests/test_generic_request_expectations.py::test_handler_result_cannot_overwrite_frozen_expectations PASSED [ 93%]
+tests/test_generic_request_expectations.py::test_model_forged_expected_metadata_cannot_rescue_wrong_server_scope PASSED [ 94%]
+tests/test_generic_request_expectations.py::test_uncertain_operation_reconciles_from_frozen_material_without_resend PASSED [ 96%]
+tests/test_generic_request_expectations.py::test_peer_claim_is_not_dispatched_or_stolen PASSED [ 98%]
+tests/test_generic_request_expectations.py::test_distinct_sequential_authorized_mutations_still_run PASSED [100%]
+
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+======================= 59 passed, 7 warnings in 25.10s ========================
+
+STDERR

@@ -1,0 +1,50 @@
+{
+  "kind": "task_wait_01_missing_revision_manifest",
+  "executed_source": "40f57791a059186c9b988d24e387e4a54609b759",
+  "root_negative_source": "72a27e540ad452f356678cd354037b1142760025",
+  "source_tree_clean_at_focused_run": true,
+  "root_negative": {
+    "failed": 2,
+    "exit": 1
+  },
+  "focused": {
+    "passed": 13,
+    "exit": 0
+  },
+  "prior_clean_11pass": {
+    "passed": 11,
+    "source": "5fb98e929"
+  },
+  "earlier_negatives": {
+    "progress_extraction_failed": 3,
+    "source_unavailable_failed": 2,
+    "upload_removed_failed": 1
+  },
+  "no_new_validator_or_store": true,
+  "no_broad_dispatch": true,
+  "no_live_actions": true,
+  "g3_implementation": "deferred",
+  "task_wait_01": "open",
+  "claim_denominator": 143,
+  "source_files": {
+    "backend/core/assignment_executor.py": "0e8212f7932a0f3100409cde7e6f3264a57e5a1bd05bf2f81413fcae836001a2",
+    "backend/tests/test_lead_wait_missing_authoritative_revision.py": "1db1eea8687d6bdb404a254b25c153ed2c41967806fcc5fefc165da1c8552e78",
+    "backend/tests/test_lead_wait_source_progress_and_extraction.py": "61b13fc1c0dede10e670f67b347ed5fd2bc4a3e3d64245ff86560166e7d288b3",
+    "backend/tests/test_lead_wait_source_disappears.py": "b08d90fc3bdf65c4e43186cff5bb60b2647b45421768199645722c89f4c3449c",
+    "backend/tests/test_task_wait_source_version_after_acceptance.py": "03e789789dbeeb5c501ef6ddad9074608e9e3c590588c3433bd60fcf31446199",
+    ".github/workflows/ci.yml": "3ab5e397e3cb279e60a59da99dd57439328cb6cb0acb6bfab981f07baeab657c"
+  },
+  "artifacts": {
+    "HANDOFF.md": "79227362ea529cb716ef9e8f933f6ee42afe5240e43812e73070351548673424",
+    "README.md": "425e81a3effd46938c6646ad481cc68bf15edac204c97fb6f8f1fcb2cdee7b9d",
+    "focused-missing-revision-13.log": "884cefe2c8f9ec064c5e398d0d0200a9b30ecbfa21ac9fbdf4346bba320a65b5",
+    "prior-focused-root-and-recovery-11.log": "17cd6e4ffc0600931fe761c9b3ee6e221fe24c3d190e3d648bef562004205953",
+    "root-missing-revision-negative.exit.json": "fa44233992d1e14663c1a3efffe06eff90b40eee8578597cea2de0a2c47e1eb5",
+    "root-missing-revision-negative.log": "ab3c67f41d839ddfbfa5b2e248033b756a9fe992e8c0d8465e6d6946d8615997",
+    "root-progress-extraction-final-negative.log": "d7a4db953e9070be021f53999b71a61f1e1f05d7133c46468c07ccf33d1ddbfc",
+    "root-source-unavailable-negative.log": "689397775b76dcc8114596e8b073fb0810d91c576f9dbd2d9d8d6ad1d27b4e49",
+    "root-upload-removed-negative.log": "cdeecd5f5650ab62dab90136eeb60153a31fe4482b5bdc4e38bc1e9f7e59829d",
+    "source-change.patch": "fa832470f9639728d434b708da24bc2fa6e5b672cd799dee3a0b99d0e9b95459",
+    "verification.json": "be2bb75ad253c1ef24d06dcd92064af6c2559be7a272e0e1565357243ef106b2"
+  }
+}

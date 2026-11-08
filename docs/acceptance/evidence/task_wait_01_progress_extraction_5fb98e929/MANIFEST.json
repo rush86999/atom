@@ -1,0 +1,46 @@
+{
+  "kind": "task_wait_01_progress_extraction_manifest",
+  "executed_source": "5fb98e929a5d81c819c25ecaac4643bb2e2b81d9",
+  "ci_only_successor": "e20219b36b657793fc44971b5260ff173cd8f781",
+  "source_tree_clean_at_focused_runs": true,
+  "focused_results": {
+    "root_and_recovery": 11,
+    "neighborhood": 25,
+    "resource_authority": 34,
+    "total": 70,
+    "exit": 0
+  },
+  "root_progress_negative": {
+    "failed": 3,
+    "exit": 1,
+    "log": "root-progress-extraction-final-negative.log"
+  },
+  "earlier_negatives": {
+    "source_unavailable_failed": 2,
+    "upload_removed_failed": 1
+  },
+  "no_broad_dispatch": true,
+  "no_live_actions": true,
+  "g1_g4_g3_retained": true,
+  "task_wait_01": "open",
+  "claim_denominator": 143,
+  "source_files": {
+    "backend/core/assignment_executor.py": "6c0fc7b3e8bbed3d7b9b66c694518cd7692d940308a92fcef3de82bf7d747cff",
+    "backend/api/assignment_routes.py": "7cf3091d48a23952c9c56f945bf79cb04171ce6f7b166337af1da544b722902d",
+    "backend/tests/test_task_wait_source_version_after_acceptance.py": "03e789789dbeeb5c501ef6ddad9074608e9e3c590588c3433bd60fcf31446199",
+    "backend/tests/test_lead_wait_source_progress_and_extraction.py": "61b13fc1c0dede10e670f67b347ed5fd2bc4a3e3d64245ff86560166e7d288b3",
+    "backend/tests/test_lead_wait_source_disappears.py": "b08d90fc3bdf65c4e43186cff5bb60b2647b45421768199645722c89f4c3449c"
+  },
+  "artifacts": {
+    "HANDOFF.md": "5c97c2f734c6f6536b93e9636fe75b37d19649ef8f0c2d51a0900f5773b7486f",
+    "README.md": "b0fb1b96446664f0cdfe930262a457593d90d044cc3f21c942e97590f477a409",
+    "focused-neighborhood-25.log": "65c3b445851909b4392f6428f4720351b22d3048cfc89e190d6f5b8bd1ba5f04",
+    "focused-resource-authority-34.log": "db80c4f2e9b5edda33b9a2892dca7fee3478e0f89d0f26fcee3d62ec425259ec",
+    "focused-root-and-recovery-11.log": "17cd6e4ffc0600931fe761c9b3ee6e221fe24c3d190e3d648bef562004205953",
+    "root-progress-extraction-final-negative.log": "d7a4db953e9070be021f53999b71a61f1e1f05d7133c46468c07ccf33d1ddbfc",
+    "root-source-unavailable-negative.log": "689397775b76dcc8114596e8b073fb0810d91c576f9dbd2d9d8d6ad1d27b4e49",
+    "root-upload-removed-negative.log": "cdeecd5f5650ab62dab90136eeb60153a31fe4482b5bdc4e38bc1e9f7e59829d",
+    "source-change.patch": "d00f401e0e4061669c67e93876d7cc6560cd01a2ee82907e430dbc8bf3ada081",
+    "verification.json": "931c8174c36762222272c0e4b7225e8975e4a2219e30ce62703308a8f7c33603"
+  }
+}

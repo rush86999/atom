@@ -1,0 +1,325 @@
+{
+  "current_main": "2d251acdfddae2aca27c6b43dc3f0de97654a9cb",
+  "key_source_files": {
+    "backend/api/agent_routes.py": "c412ca44e7dc99097e99688342b67ab9eb07251fcaf5275b7dfe5cf92d06a297",
+    "backend/api/assignment_routes.py": "cd89d63992ca9753d67c7e1fdcf8be7789a7adcdfeec0f1c50438ebc1494a788",
+    "backend/core/information_wait.py": "42d0baf59a90f8fe19fb99acefecf1d2a8f39f58e19695f8eb7db80626ef17a8",
+    "backend/core/assignment_executor.py": "cc55b12a4fab8444997f75f5a6b132cef0505702caf7cf11a2aef99d84451fa7",
+    "backend/core/generic_agent.py": "432904f89608b6c98b05834957c79023ed82f2ec1162056e3640f8da728f7191",
+    "backend/core/task_lifecycle.py": "4e6e67384ec759f691d084f4781d0567add04fd7dfead4a47c36a82d9a68ba61",
+    "backend/core/execution_recovery.py": "10ebd794047e729fd2e222ebb8066570a9ba5980c9dc6d53856add8e45f65a76",
+    "backend/main_api_app.py": "323d75e9699edb49a6cae48e1fd613ae7fd31e6d114113e343d6fcaa59c515fe",
+    "backend/tests/test_task_wait_source_trigger_contract.py": "278ffe95f8a3f2433d75528585d815b9b3d595709fb4a0578ee912e66863bfd7",
+    "backend/tests/test_task_wait_two_fact_events.py": "70b52996e14fa06a50a4fc19e41c9edf57f5449964d7d2411b39d0a19bb997d9",
+    "backend/tests/test_task_wait_two_job_isolation.py": "3f1520203c1786fa900d942372582d8248ee948a4573feb13ea6c674de3085da",
+    "backend/tests/test_task_wait_source_revocation.py": "7f385bd4461785f6a80dd1ca19a39a6b77cb8df6899c390d7a02dbf32172b454",
+    "backend/tests/test_task_wait_source_continuation_regressions.py": "486cd74543e6b5a79fe11836933fed385c5d0b72698e2b65ac0e072aac942d74",
+    "backend/tests/test_task_wait_process_recovery.py": "2514bf41ce951e7fa9af140d7160ddf55d8d2bc8b42fb6a1fb084d45f8d80a67",
+    "backend/tests/test_agent_generic_information_wait.py": "30dea4516cdf332bf211c19c591c8e6716664a481329880c34d58abc4b4e0102",
+    "backend/tests/test_agent_generic_information_wait_process.py": "977db076f348ed3fad4219f73f5f45d44032f55024b850bf1728855629accfeb",
+    "backend/tests/test_generic_information_exact_event_contract.py": "afed948c3b3af40847b14ee201eb3fc2381170a70d487ed9f04f8bd11b9af155",
+    "backend/tests/test_generic_information_resume_namespace_contract.py": "c898ac7c8a0295f423a908fceb1e9232830a960d0a452929a6898528db1accc4",
+    "backend/tests/test_generic_information_wait_recovery.py": "ac4e9fa89a5d6da7084e3849384f517b8773e9cade052c1e0974548676f5107e",
+    "backend/tests/test_generic_information_wait_recovery_authority.py": "e08401c57872c6950c303b1d36eda096cba4aab93a9a1792804f7ed240f5f477",
+    "backend/tests/test_information_wait_maturity_neutral.py": "1d0ea562827624238ded45f0f1ec534c86eb67804be5ddbdb7d115140efec12f"
+  },
+  "browser_episode": {
+    "declared_source": "d3f58d81d8ec8c728f331d5511b8710853ef4fe3",
+    "packet_path": "docs/acceptance/evidence/generic_information_browser_d3f58d81d (PR744 branch 1f6018fd7)",
+    "runtime_health_source_id": "ec69e24f4385-dirty.d48cacd2123b",
+    "runtime_health_git_commit": "ec69e24f4385",
+    "declared_source_files_equal_current_main": 8,
+    "declared_source_files_total": 11,
+    "missing_on_main": [
+      "scripts/acceptance/browser_agent_job_wait.py",
+      "scripts/acceptance/fixtures/browser_agent_job_wait_shim.json",
+      "scripts/tests/test_browser_agent_job_wait_identity.py"
+    ],
+    "per_file_git_blob_binding": "scenario step initial_backend_source_bound: git_blob_files_checked=7730, git_blob_mismatches=[]; README says export/per-file proof binds episode to d3f58d81d",
+    "provenance_caveat": "The running backend health badge reported ec69e24f4385-dirty, not d3f58d81d; step same_wait_after_restart only asserts same_source_id before/after restart, not equality to the declared frozen SHA. The episode is not accepted from the health badge alone."
+  },
+  "crosswalk": [
+    {
+      "packet": "generic_information_wait_1f9649ac2",
+      "executed_source": "1f9649ac290150ba13bffd6dae803176bc4f7a6e",
+      "source_file_count": 9,
+      "source_files_equal_current_main": 5,
+      "source_files_diff_current_main": 4,
+      "source_files_missing_current_main": 0,
+      "all_source_files_equal_current_main": false,
+      "diff_paths": [
+        ".github/workflows/ci.yml",
+        "backend/api/agent_routes.py",
+        "backend/core/generic_agent.py",
+        "backend/core/information_wait.py"
+      ],
+      "missing_paths": [],
+      "artifact_count": 20
+    },
+    {
+      "packet": "generic_information_wait_actual_process_e1ffc9743",
+      "executed_source": "e1ffc9743f9085d7cd1f965216107f5d2f5e0ae7",
+      "source_file_count": 10,
+      "source_files_equal_current_main": 5,
+      "source_files_diff_current_main": 5,
+      "source_files_missing_current_main": 0,
+      "all_source_files_equal_current_main": false,
+      "diff_paths": [
+        "backend/api/agent_routes.py",
+        "backend/core/generic_agent.py",
+        "backend/core/information_wait.py",
+        "backend/tests/process_support/generic_information_wait_process_worker.py",
+        "backend/tests/test_agent_generic_information_wait_process.py"
+      ],
+      "missing_paths": [],
+      "artifact_count": 16
+    },
+    {
+      "packet": "generic_information_recovery_integrated_e08482e81",
+      "executed_source": "e08482e81d623d538eb9185d19f5a37ffa54b382",
+      "source_file_count": 10,
+      "source_files_equal_current_main": 7,
+      "source_files_diff_current_main": 3,
+      "source_files_missing_current_main": 0,
+      "all_source_files_equal_current_main": false,
+      "diff_paths": [
+        ".github/workflows/ci.yml",
+        "backend/api/agent_routes.py",
+        "backend/core/information_wait.py"
+      ],
+      "missing_paths": [],
+      "artifact_count": 10
+    },
+    {
+      "packet": "generic_information_authority_9067ee922",
+      "executed_source": "9067ee9224e819e054992bc7bc5453ad9b1dbfb0",
+      "source_file_count": 6,
+      "source_files_equal_current_main": 5,
+      "source_files_diff_current_main": 1,
+      "source_files_missing_current_main": 0,
+      "all_source_files_equal_current_main": false,
+      "diff_paths": [
+        "backend/api/agent_routes.py"
+      ],
+      "missing_paths": [],
+      "artifact_count": 9
+    },
+    {
+      "packet": "generic_information_readback_scope_8202c0173",
+      "executed_source": "8202c017328d67c9e87bd45dfcb1cbe798957e9b",
+      "source_file_count": 6,
+      "source_files_equal_current_main": 5,
+      "source_files_diff_current_main": 1,
+      "source_files_missing_current_main": 0,
+      "all_source_files_equal_current_main": false,
+      "diff_paths": [
+        "backend/api/agent_routes.py"
+      ],
+      "missing_paths": [],
+      "artifact_count": 10
+    },
+    {
+      "packet": "information_wait_maturity_neutral_e0ad2336c",
+      "executed_source": "e0ad2336c8769ff98f9d0dabcb96053c2e7fd4d9",
+      "source_file_count": 3,
+      "source_files_equal_current_main": 1,
+      "source_files_diff_current_main": 2,
+      "source_files_missing_current_main": 0,
+      "all_source_files_equal_current_main": false,
+      "diff_paths": [
+        "backend/core/generic_agent.py",
+        ".github/workflows/ci.yml"
+      ],
+      "missing_paths": [],
+      "artifact_count": 5
+    },
+    {
+      "packet": "agent_job_outcome_join_20261107",
+      "executed_source": "80b17a4898272d44ec0a7c510b1ef0f930ec6dc2",
+      "source_file_count": 8,
+      "source_files_equal_current_main": 4,
+      "source_files_diff_current_main": 4,
+      "source_files_missing_current_main": 0,
+      "all_source_files_equal_current_main": false,
+      "diff_paths": [
+        "backend/api/agent_routes.py",
+        "backend/core/agent_governance_service.py",
+        "backend/core/generic_agent.py",
+        "backend/tests/test_agent_routes_coverage.py"
+      ],
+      "missing_paths": [],
+      "artifact_count": 28
+    },
+    {
+      "packet": "task_wait_source_trigger_baseline_bc4970f97",
+      "executed_source": "bc4970f979be66d91b7bf84e88af7e1959455ada",
+      "source_file_count": 5,
+      "source_files_equal_current_main": 3,
+      "source_files_diff_current_main": 2,
+      "source_files_missing_current_main": 0,
+      "all_source_files_equal_current_main": false,
+      "diff_paths": [
+        "backend/api/assignment_routes.py",
+        "backend/core/assignment_executor.py"
+      ],
+      "missing_paths": [],
+      "artifact_count": 3
+    },
+    {
+      "packet": "task_wait_source_continuation_6d08b1c4b",
+      "executed_source": "6d08b1c4baa9645876c7a964c45aa120ec39809e",
+      "source_file_count": 8,
+      "source_files_equal_current_main": 3,
+      "source_files_diff_current_main": 5,
+      "source_files_missing_current_main": 0,
+      "all_source_files_equal_current_main": false,
+      "diff_paths": [
+        "backend/api/assignment_routes.py",
+        "backend/tests/test_task_wait_source_continuation_regressions.py",
+        "backend/core/assignment_executor.py",
+        "backend/core/employee_job_runner.py",
+        "backend/core/employee_adaptation.py"
+      ],
+      "missing_paths": [],
+      "artifact_count": 3
+    },
+    {
+      "packet": "task_wait_recovery_integrated_227579321",
+      "executed_source": "227579321b2c56873df072962eae06f4d0add674",
+      "source_file_count": 9,
+      "source_files_equal_current_main": 3,
+      "source_files_diff_current_main": 6,
+      "source_files_missing_current_main": 0,
+      "all_source_files_equal_current_main": false,
+      "diff_paths": [
+        ".github/workflows/ci.yml",
+        "backend/api/assignment_routes.py",
+        "backend/core/assignment_executor.py",
+        "backend/main_api_app.py",
+        "backend/tests/test_boot_recovery_not_gated_by_scheduler.py",
+        "backend/tests/test_task_wait_source_continuation_regressions.py"
+      ],
+      "missing_paths": [],
+      "artifact_count": 18
+    },
+    {
+      "packet": "task_wait_idle_budget_419ab9f44",
+      "executed_source": "419ab9f4497240515f5db046ebc0900c24c0073f",
+      "source_file_count": 12,
+      "source_files_equal_current_main": 7,
+      "source_files_diff_current_main": 5,
+      "source_files_missing_current_main": 0,
+      "all_source_files_equal_current_main": false,
+      "diff_paths": [
+        ".github/workflows/ci.yml",
+        "backend/api/assignment_routes.py",
+        "backend/core/assignment_executor.py",
+        "backend/main_api_app.py",
+        "backend/tests/test_boot_recovery_not_gated_by_scheduler.py"
+      ],
+      "missing_paths": [],
+      "artifact_count": 15
+    },
+    {
+      "packet": "task_wait_output_guard_2e23b37cf",
+      "executed_source": "2e23b37cf581b80f99ad3788c3a2629d90310d06",
+      "source_file_count": 18,
+      "source_files_equal_current_main": 12,
+      "source_files_diff_current_main": 6,
+      "source_files_missing_current_main": 0,
+      "all_source_files_equal_current_main": false,
+      "diff_paths": [
+        ".github/workflows/ci.yml",
+        "backend/api/assignment_routes.py",
+        "backend/core/assignment_executor.py",
+        "backend/core/employee_adaptation.py",
+        "backend/main_api_app.py",
+        "backend/tests/test_boot_recovery_not_gated_by_scheduler.py"
+      ],
+      "missing_paths": [],
+      "artifact_count": 21
+    },
+    {
+      "packet": "task_wait_source_revocation_ebe4cbd9b",
+      "executed_source": "ebe4cbd9b5f4767b14d21d0280a8ae277e39c767",
+      "source_file_count": 9,
+      "source_files_equal_current_main": 9,
+      "source_files_diff_current_main": 0,
+      "source_files_missing_current_main": 0,
+      "all_source_files_equal_current_main": true,
+      "diff_paths": [],
+      "missing_paths": [],
+      "artifact_count": 6
+    },
+    {
+      "packet": "task_wait_two_job_isolation_cb13bee87",
+      "executed_source": "cb13bee875ee5561e36a491ad871b675d454812d",
+      "source_file_count": 8,
+      "source_files_equal_current_main": 8,
+      "source_files_diff_current_main": 0,
+      "source_files_missing_current_main": 0,
+      "all_source_files_equal_current_main": true,
+      "diff_paths": [],
+      "missing_paths": [],
+      "artifact_count": 6
+    },
+    {
+      "packet": "sequential_information_integrated_5d7609d8f",
+      "executed_source": "5d7609d8f9d888cd1c22f6a9c2a9a762c151446a",
+      "source_file_count": 8,
+      "source_files_equal_current_main": 7,
+      "source_files_diff_current_main": 1,
+      "source_files_missing_current_main": 0,
+      "all_source_files_equal_current_main": false,
+      "diff_paths": [
+        ".github/workflows/ci.yml"
+      ],
+      "missing_paths": [],
+      "artifact_count": 15
+    },
+    {
+      "packet": "sequential_isolation_integrated_b5fdea5ac",
+      "executed_source": "b5fdea5acbfb5d4effaf35729448bed2db8496e7",
+      "source_file_count": 9,
+      "source_files_equal_current_main": 8,
+      "source_files_diff_current_main": 1,
+      "source_files_missing_current_main": 0,
+      "all_source_files_equal_current_main": false,
+      "diff_paths": [
+        ".github/workflows/ci.yml"
+      ],
+      "missing_paths": [],
+      "artifact_count": 7
+    },
+    {
+      "packet": "source_revocation_main_a8cb0cba6",
+      "executed_source": "a8cb0cba608a81c9b21afc70588ebd056a721ad7",
+      "source_file_count": 9,
+      "source_files_equal_current_main": 8,
+      "source_files_diff_current_main": 1,
+      "source_files_missing_current_main": 0,
+      "all_source_files_equal_current_main": false,
+      "diff_paths": [
+        ".github/workflows/ci.yml"
+      ],
+      "missing_paths": [],
+      "artifact_count": 7
+    },
+    {
+      "packet": "generic_information_browser_d3f58d81d (PR744 worktree; not on main)",
+      "executed_source": "d3f58d81d8ec8c728f331d5511b8710853ef4fe3",
+      "source_file_count": 11,
+      "source_files_equal_current_main": 8,
+      "source_files_diff_current_main": 0,
+      "source_files_missing_current_main": 3,
+      "all_source_files_equal_current_main": false,
+      "diff_paths": [],
+      "missing_paths": [
+        "scripts/acceptance/browser_agent_job_wait.py",
+        "scripts/acceptance/fixtures/browser_agent_job_wait_shim.json",
+        "scripts/tests/test_browser_agent_job_wait_identity.py"
+      ],
+      "artifact_count": 18
+    }
+  ]
+}

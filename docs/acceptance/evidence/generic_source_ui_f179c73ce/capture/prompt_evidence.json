@@ -1,0 +1,9 @@
+{
+  "source_marker_present": true,
+  "source_block_present": true,
+  "untrusted_label_present": true,
+  "correlation_absent": true,
+  "hitl_id_absent": true,
+  "capture_has_full_messages": true,
+  "react_calls": 3
+}

@@ -1,0 +1,85 @@
+{
+  "kind": "generic_source_reviewer_authority_verification",
+  "branch": "codex/generic-source-scope-cas-20261107",
+  "executed_source": "827abb049a261d8f32040c13b3f0e37ee9fa1271",
+  "root_negative_source": "20d2f1e77752200cebcc358a12d8bcb937f1c6ce",
+  "root_negative": {
+    "result": "3 failed, 1 passed",
+    "failed_cases": [
+      "demoted",
+      "disabled",
+      "moved"
+    ],
+    "passed_case": "unchanged",
+    "raw_log": "root-generic-source-reviewer-authority-permitted.log",
+    "raw_spec": "root-generic-source-reviewer-authority-permitted.spec.json",
+    "raw_exit": "root-generic-source-reviewer-authority-permitted.exit.json"
+  },
+  "permanent_probe": {
+    "result": "7 passed, 57 warnings in 14.36s",
+    "cases": [
+      "unchanged",
+      "demoted",
+      "disabled",
+      "moved",
+      "tenant",
+      "deleted",
+      "approved_replay_after_demotion"
+    ],
+    "log": "after-reviewer7-pass.log"
+  },
+  "existing_source_answer_family": {
+    "result": "52 passed, 343 warnings in 114.74s (0:01:54)",
+    "selection": [
+      "tests/test_generic_source_answer_contract.py",
+      "tests/test_lead_generic_source_answer_material.py",
+      "tests/test_lead_generic_source_snapshot_cas.py",
+      "tests/test_generic_information_resume_namespace_contract.py",
+      "tests/test_lead_generic_source_scope_cas.py",
+      "tests/test_agent_generic_information_wait.py",
+      "tests/test_agent_generic_information_wait_process.py",
+      "tests/test_lead_personal_information_answer.py",
+      "tests/test_agent_job_readback.py",
+      "tests/test_generic_information_exact_event_contract.py"
+    ],
+    "log": "after-final52-pass.log"
+  },
+  "existing_recovery_personal_family": {
+    "result": "37 passed, 93 warnings in 34.14s",
+    "selection": [
+      "tests/test_generic_information_wait_recovery.py",
+      "tests/test_generic_information_wait_recovery_authority.py",
+      "tests/test_lead_recovery_personal_authority.py"
+    ],
+    "log": "after-recovery37-pass.log"
+  },
+  "repair": {
+    "reviewer_freeze": "populate_existing SQL User: raw status, is_active, role, tenant_id, workspace_id",
+    "same_update": "full wait material + admitted-owner authority + frozen proxy reviewer predicates",
+    "replay": "approved replay and zero-CAS recheck the current proxy reviewer",
+    "same_actor": "ordinary member and Personal NULL/default keep established actor-authority semantics (409)",
+    "proxy_rules": "answer route retains admin role; shared HITL callers retain AGENT_MANAGE",
+    "new_roles_gates_stores_engines": false
+  },
+  "environment": {
+    "gate": "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "profile": "bounded",
+    "interpreter": "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "python": "3.14.7",
+    "testing": "1",
+    "scratch": "unique DB/data/office/Lance/output/basetemp per run",
+    "secret_key": "synthetic per-run"
+  },
+  "bounds": {
+    "selected_tests_per_run": "<=100",
+    "free_space_at_start_GiB": ">2"
+  },
+  "no_live_actions": {
+    "worlds": false,
+    "live_database": false,
+    "install": false,
+    "model_provider": false,
+    "browser": false,
+    "deployment": false
+  }
+}

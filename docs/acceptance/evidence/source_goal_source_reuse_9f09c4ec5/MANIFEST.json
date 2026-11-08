@@ -1,0 +1,17 @@
+{
+  "executed_source": "9f09c4ec5b4c60726d3c02475cfdc5760ebc88cf",
+  "scope": "static relevant-source equivalence, no runtime replay",
+  "source_files": {
+    "backend/api/agent_routes.py": "11fa2a877571c76bba573d9b51b0187e74d7ccbe25a931ccccc5ecda64f34790",
+    "backend/api/goal_routes.py": "a1cff29eb4d1c4cc2c841bf3bd3f3081c9b40ab526432aaf130841dab178c2b1",
+    "frontend-nextjs/pages/agents/index.tsx": "7ae1b3d8619b642a2669c96601fe3b8f601fcefe8ecf37ec95a2c428ed538103",
+    "frontend-nextjs/components/Agents/AgentJobWaitPanel.tsx": "30c6055f0af72e2a5108e0fb9aa1ccbc9c56ba14b4e938462f44c724f2fa6301",
+    "frontend-nextjs/pages/goal-runs/[id].tsx": "a5463416d1a36e677b8990f0457ab7ab6a1ccce6a09621c38b3c9c74037aa7f9",
+    "scripts/acceptance/browser_agent_source_answer.py": "300e7c9284167a55645f892e1e33e13ea18c02c5282fbafe21f165c0caca9bc9",
+    "scripts/acceptance/browser_goal_utility_ui.py": "8a1ca21a46923800b5e56a39f89a5932eb9aafde1838cfc3b63a9f046f0589d7"
+  },
+  "artifacts": {
+    "README.md": "3c76d5db4b1e5513436624ec2fe6ce32a9abd7a8c10c4ff05bd379acb1195cc2",
+    "reuse.json": "540585c499136386d9c5650591ec75493d3dbedb7aa57b884d011ad575a02263"
+  }
+}

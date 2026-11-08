@@ -1,0 +1,7 @@
+{
+  "nodes": [
+    "tests/test_covpush_w80a_radio.py"
+  ],
+  "exit_code": 75,
+  "interpretation": "75 = not dispatched by shared gate (disk headroom), not a test failure"
+}

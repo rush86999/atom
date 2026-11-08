@@ -288,6 +288,77 @@ def current_actor_authority(
         actor, workspace_id=workspace_id, tenant_id=tenant_id)
 
 
+def current_reviewer_authority(
+    session, *, reviewer_id: Any, admitted_actor_id: Any,
+    workspace_id: Any, tenant_id: Any,
+    proxy_role: Any = None, proxy_permission: Any = None,
+) -> tuple:
+    """Re-read the actual reviewer and freeze its raw authority fields.
+
+    The admitted owner remains the execution authority. This helper binds the
+    *reviewer* (which may be an admin proxy) to the same current SQL row:
+    status, is_active, role, tenant and raw workspace are captured for the
+    caller's CAS. A proxy (reviewer != admitted owner) must still hold the
+    existing admin role; the admitted owner may remain an ordinary member.
+    """
+    reviewer_id = str(reviewer_id or "").strip()
+    if not reviewer_id:
+        return None, "reviewer_missing"
+    actor, reason = current_actor_authority(
+        session,
+        actor_id=reviewer_id,
+        workspace_id=workspace_id,
+        tenant_id=tenant_id,
+    )
+    if actor is None:
+        return None, reason or "reviewer_missing"
+    if reason:
+        return None, reason
+    admitted = str(admitted_actor_id or "").strip()
+    if admitted and reviewer_id != admitted:
+        allowed = True
+        if proxy_role is not None:
+            from core.security.rbac import user_meets_role
+
+            allowed = user_meets_role(actor, proxy_role)
+        elif proxy_permission is not None:
+            from core.rbac_service import RBACService
+
+            allowed = RBACService.check_permission(actor, proxy_permission)
+        if not allowed:
+            return None, "reviewer_permission_revoked"
+    return {
+        "id": str(actor.id),
+        "status": getattr(actor, "status", None),
+        "is_active": getattr(actor, "is_active", None),
+        "role": getattr(actor, "role", None),
+        "tenant_id": getattr(actor, "tenant_id", None),
+        "workspace_id": getattr(actor, "workspace_id", None),
+    }, ""
+
+
+def reviewer_authority_conditions(state: Optional[Dict[str, Any]]) -> list:
+    """Exact SQL conditions for one frozen reviewer authority snapshot."""
+    from sqlalchemy import false
+
+    from core.models import User
+
+    if not isinstance(state, dict) or not str(state.get("id") or ""):
+        return [false()]
+    conditions = [User.id == str(state["id"])]
+    for key, column in (
+        ("status", User.status),
+        ("is_active", User.is_active),
+        ("role", User.role),
+        ("tenant_id", User.tenant_id),
+        ("workspace_id", User.workspace_id),
+    ):
+        value = state.get(key)
+        conditions.append(
+            column.is_(None) if value is None else column == value)
+    return conditions
+
+
 def actor_authority_conditions(
     *, actor_id: Any, workspace_id: Any, tenant_id: Any,
 ) -> list:

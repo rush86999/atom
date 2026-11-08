@@ -1,0 +1,60 @@
+
+tests/unit/agents/test_radio_actions.py::TestRegistration::test_all_three_actions_registered 
+-------------------------------- live log setup --------------------------------
+2026-11-07 14:09:58 [    INFO] EscalationManager initialized
+2026-11-07 14:09:58 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 14:09:58 [    INFO] EscalationManager initialized
+2026-11-07 14:09:58 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 14:09:58 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 14:09:58 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  4%]
+tests/unit/agents/test_radio_actions.py::TestTierFloors::test_student_cannot_create_thread PASSED [  8%]
+tests/unit/agents/test_radio_actions.py::TestTierFloors::test_student_cannot_send PASSED [ 12%]
+tests/unit/agents/test_radio_actions.py::TestTierFloors::test_student_can_wait PASSED [ 16%]
+tests/unit/agents/test_radio_actions.py::TestKillSwitch::test_disabled_returns_graceful_note PASSED [ 20%]
+tests/unit/agents/test_radio_actions.py::TestHappyPath::test_create_send_wait 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:09:59 [    INFO] radio: thread b58384b7-81cd-41a7-952c-fac2641836fa created by agent_a
+2026-11-07 14:09:59 [    INFO] radio: agent_b -> ['agent_a'] on b58384b7-81cd-41a7-952c-fac2641836fa
+PASSED                                                                   [ 25%]
+tests/unit/agents/test_radio_actions.py::TestHappyPath::test_send_without_mention_is_policy_error 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:09:59 [    INFO] radio: thread ea26adb2-caa0-4427-804e-bab9eb9828fd created by agent_a
+PASSED                                                                   [ 29%]
+tests/unit/agents/test_radio_actions.py::TestHappyPath::test_missing_agent_context_rejected PASSED [ 33%]
+tests/unit/agents/test_agent_radio_tool.py::TestRegistrySurface::test_all_radio_actions_registered PASSED [ 37%]
+tests/unit/agents/test_agent_radio_tool.py::TestRegistrySurface::test_rpc_params_schemas PASSED [ 41%]
+tests/unit/agents/test_agent_radio_tool.py::TestTierGates::test_create_thread_student_denied PASSED [ 45%]
+tests/unit/agents/test_agent_radio_tool.py::TestTierGates::test_send_message_student_denied PASSED [ 50%]
+tests/unit/agents/test_agent_radio_tool.py::TestTierGates::test_read_inbox_student_allowed PASSED [ 54%]
+tests/unit/agents/test_agent_radio_tool.py::TestExplicitDisabled::test_tools_degrade_when_flag_off PASSED [ 58%]
+tests/unit/agents/test_agent_radio_tool.py::TestToolHandlers::test_create_send_read_round_trip 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:09:59 [    INFO] radio: thread 28d6f8c0-5356-4d3d-b17c-6737989aba3f created by agent_a
+2026-11-07 14:09:59 [    INFO] radio: agent_a -> ['agent_b'] on 28d6f8c0-5356-4d3d-b17c-6737989aba3f
+PASSED                                                                   [ 62%]
+tests/unit/agents/test_agent_radio_tool.py::TestToolHandlers::test_broadcast_rejected_via_tool 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:09:59 [    INFO] radio: thread 071d133e-6cb0-4592-84f6-62d9b8fe1d84 created by agent_a
+PASSED                                                                   [ 66%]
+tests/test_covpush_w80a_radio.py::TestRadioCreateThread::test_disabled PASSED [ 70%]
+tests/test_covpush_w80a_radio.py::TestRadioCreateThread::test_tier_denied PASSED [ 75%]
+tests/test_covpush_w80a_radio.py::TestRadioCreateThread::test_no_agent_id PASSED [ 79%]
+tests/test_covpush_w80a_radio.py::TestRadioCreateThread::test_name_required PASSED [ 83%]
+tests/test_covpush_w80a_radio.py::TestRadioCreateThread::test_members_required PASSED [ 87%]
+tests/test_covpush_w80a_radio.py::TestRadioCreateThread::test_success 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:09:59 [    INFO] radio: thread 0424208b-a14d-4dea-a01f-0d9134de7e26 created by agent-a
+PASSED                                                                   [ 91%]
+tests/test_covpush_w80a_radio.py::TestRadioCreateThread::test_radio_error PASSED [ 95%]
+tests/test_covpush_w80a_radio.py::TestRadioCreateThread::test_internal_error PASSED [100%]
+
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+======================= 24 passed, 17 warnings in 19.44s =======================
+
+STDERR

@@ -1,0 +1,287 @@
+{
+  "schema": "task_wait_source_ui_integration_union_1",
+  "merged_source": "3786e7098fa04dc26d8ba78c3847b5327ec215bd",
+  "sources": {
+    "main": "8ded00232c30961a990e675e06ec672ef6a43910",
+    "reviewed_generic": "2ef5c120cb33c71a27016326929f2aa004a7d271",
+    "source_executor": "bd209add6716d056422752b411da7dc103790810",
+    "prepared_source_ui": "b493abb30143894a982d6285ad4f3a93ccca4cb0",
+    "goal_prep": "353c639d2b3a409964c7cd2168e92cbba75cda7b"
+  },
+  "merge_order": [
+    "main 8ded00232",
+    "reviewed generic 2ef5c120c",
+    "source/executor 753 bd209add6",
+    "prepared source UI b493abb30"
+  ],
+  "merge_method": "four 3-way merges into 353c; each completed without conflict markers, no force/ours strategy was used, and no evidence path was deleted",
+  "runtime_vs_main": {
+    "changed_count": 30,
+    "files": [
+      {
+        "status": "M",
+        "path": "backend/api/agent_routes.py",
+        "origin": "reviewed_generic"
+      },
+      {
+        "status": "M",
+        "path": "backend/api/assignment_routes.py",
+        "origin": "reviewed_generic"
+      },
+      {
+        "status": "M",
+        "path": "backend/core/assignment_executor.py",
+        "origin": "reviewed_generic"
+      },
+      {
+        "status": "M",
+        "path": "backend/core/assignment_resources.py",
+        "origin": "reviewed_generic"
+      },
+      {
+        "status": "M",
+        "path": "backend/core/generic_agent.py",
+        "origin": "reviewed_generic"
+      },
+      {
+        "status": "M",
+        "path": "backend/core/information_wait.py",
+        "origin": "reviewed_generic"
+      },
+      {
+        "status": "M",
+        "path": "backend/tests/process_support/generic_information_wait_process_worker.py",
+        "origin": "reviewed_generic"
+      },
+      {
+        "status": "A",
+        "path": "backend/tests/source_authority_fixtures.py",
+        "origin": "source_executor"
+      },
+      {
+        "status": "M",
+        "path": "backend/tests/test_agent_generic_information_wait_process.py",
+        "origin": "reviewed_generic"
+      },
+      {
+        "status": "M",
+        "path": "backend/tests/test_assignment_executor.py",
+        "origin": "source_executor"
+      },
+      {
+        "status": "M",
+        "path": "backend/tests/test_assignment_routes.py",
+        "origin": "reviewed_generic"
+      },
+      {
+        "status": "M",
+        "path": "backend/tests/test_employee_work_request_matrix.py",
+        "origin": "reviewed_generic"
+      },
+      {
+        "status": "M",
+        "path": "backend/tests/test_employee_work_requests.py",
+        "origin": "reviewed_generic"
+      },
+      {
+        "status": "A",
+        "path": "backend/tests/test_generic_information_idle_contract.py",
+        "origin": "reviewed_generic"
+      },
+      {
+        "status": "A",
+        "path": "backend/tests/test_generic_information_two_job_isolation.py",
+        "origin": "reviewed_generic"
+      },
+      {
+        "status": "A",
+        "path": "backend/tests/test_generic_source_answer_contract.py",
+        "origin": "reviewed_generic"
+      },
+      {
+        "status": "A",
+        "path": "backend/tests/test_lead_generic_source_answer_material.py",
+        "origin": "reviewed_generic"
+      },
+      {
+        "status": "A",
+        "path": "backend/tests/test_lead_generic_source_reviewer_authority.py",
+        "origin": "reviewed_generic"
+      },
+      {
+        "status": "A",
+        "path": "backend/tests/test_lead_generic_source_scope_cas.py",
+        "origin": "reviewed_generic"
+      },
+      {
+        "status": "A",
+        "path": "backend/tests/test_lead_generic_source_snapshot_cas.py",
+        "origin": "reviewed_generic"
+      },
+      {
+        "status": "A",
+        "path": "backend/tests/test_lead_wait_missing_authoritative_revision.py",
+        "origin": "reviewed_generic"
+      },
+      {
+        "status": "A",
+        "path": "backend/tests/test_lead_wait_source_disappears.py",
+        "origin": "reviewed_generic"
+      },
+      {
+        "status": "A",
+        "path": "backend/tests/test_lead_wait_source_progress_and_extraction.py",
+        "origin": "reviewed_generic"
+      },
+      {
+        "status": "A",
+        "path": "backend/tests/test_task_wait_source_version_after_acceptance.py",
+        "origin": "reviewed_generic"
+      },
+      {
+        "status": "M",
+        "path": "frontend-nextjs/components/Agents/AgentJobWaitPanel.tsx",
+        "origin": "reviewed_generic"
+      },
+      {
+        "status": "M",
+        "path": "frontend-nextjs/components/Agents/__tests__/AgentJobWaitPanel.test.tsx",
+        "origin": "reviewed_generic"
+      },
+      {
+        "status": "A",
+        "path": "scripts/acceptance/browser_agent_source_answer.py",
+        "origin": "merged_multi_parent"
+      },
+      {
+        "status": "A",
+        "path": "scripts/acceptance/browser_goal_utility_ui.py",
+        "origin": "merged_multi_parent"
+      },
+      {
+        "status": "A",
+        "path": "scripts/acceptance/fixtures/browser_agent_source_answer_shim.json",
+        "origin": "prepared_source_ui"
+      },
+      {
+        "status": "A",
+        "path": "scripts/tests/test_browser_agent_source_answer_preflight.py",
+        "origin": "prepared_source_ui"
+      }
+    ]
+  },
+  "runtime_vs_reviewed_generic": {
+    "changed_count": 12,
+    "files": [
+      {
+        "status": "M",
+        "path": "backend/core/goals/goal_service.py"
+      },
+      {
+        "status": "M",
+        "path": "backend/tests/source_authority_fixtures.py"
+      },
+      {
+        "status": "M",
+        "path": "backend/tests/test_assignment_executor.py"
+      },
+      {
+        "status": "M",
+        "path": "backend/tests/test_goal_utility_target.py"
+      },
+      {
+        "status": "A",
+        "path": "backend/tests/test_lead_goal_reads_workspace_scope.py"
+      },
+      {
+        "status": "M",
+        "path": "frontend-nextjs/lib/goal-run-api.ts"
+      },
+      {
+        "status": "M",
+        "path": "frontend-nextjs/pages/goal-runs/[id].tsx"
+      },
+      {
+        "status": "M",
+        "path": "frontend-nextjs/tests/pages/goal-runs/detail.test.tsx"
+      },
+      {
+        "status": "A",
+        "path": "scripts/acceptance/browser_agent_source_answer.py"
+      },
+      {
+        "status": "A",
+        "path": "scripts/acceptance/browser_goal_utility_ui.py"
+      },
+      {
+        "status": "A",
+        "path": "scripts/acceptance/fixtures/browser_agent_source_answer_shim.json"
+      },
+      {
+        "status": "A",
+        "path": "scripts/tests/test_browser_agent_source_answer_preflight.py"
+      }
+    ],
+    "reviewed_anchor_files": {
+      "backend/api/agent_routes.py": {
+        "identical_to_reviewed_generic": true,
+        "identical_to_main": false
+      },
+      "backend/core/information_wait.py": {
+        "identical_to_reviewed_generic": true,
+        "identical_to_main": false
+      },
+      "backend/core/generic_agent.py": {
+        "identical_to_reviewed_generic": true,
+        "identical_to_main": false
+      },
+      "backend/tests/process_support/generic_information_wait_process_worker.py": {
+        "identical_to_reviewed_generic": true,
+        "identical_to_main": false
+      },
+      "backend/tests/test_generic_source_answer_contract.py": {
+        "identical_to_reviewed_generic": true,
+        "identical_to_main": false
+      },
+      "backend/tests/test_lead_generic_source_reviewer_authority.py": {
+        "identical_to_reviewed_generic": true,
+        "identical_to_main": false
+      },
+      "backend/tests/test_lead_generic_source_scope_cas.py": {
+        "identical_to_reviewed_generic": true,
+        "identical_to_main": false
+      },
+      "backend/tests/test_lead_generic_source_snapshot_cas.py": {
+        "identical_to_reviewed_generic": true,
+        "identical_to_main": false
+      }
+    },
+    "note": "the reviewed CAS/proxy-reviewer/Personal/extraction runtime and its permanent probes are byte-identical to 2ef5; the only Generic-side delta is Goal/executor/UI-prep material"
+  },
+  "evidence_added_count": 145,
+  "evidence_added_by_dir": {
+    "generic_source_answer_fb231c996": 7,
+    "generic_source_answer_repair_32bb1e8cc": 10,
+    "generic_source_answer_ui_prepared_929979f4a": 11,
+    "generic_source_reviewer_authority_827abb0": 10,
+    "generic_source_reviewer_lead_b7105bf2e": 5,
+    "generic_source_scope_cas_20261107": 10,
+    "goal_utility_ui_prep_20261107": 13,
+    "task_wait_01_g2_g4_3ebee2da5": 10,
+    "task_wait_01_missing_revision_40f57791a": 12,
+    "task_wait_01_progress_extraction_5fb98e929": 11,
+    "task_wait_01_reconciliation_2d251acdf": 14,
+    "task_wait_01_source_authority_d6cb06ff7": 9,
+    "task_wait_executor_ci753_2080a008f": 8,
+    "task_wait_executor_lead_4aeddd99f": 5,
+    "task_wait_source_ci_lead_a5af36d31": 5,
+    "task_wait_source_lead_eeb3e3e2d": 5
+  },
+  "evidence_deleted": [],
+  "exact_union": {
+    "goal_prep_and_main_goal_feature": "353c goal Personal NULL/default fix plus main 8ded goal feature (content-identical goal files)",
+    "reviewed_generic": "agent_routes, information_wait, generic_agent, process worker and source-answer/reviewer/CAS probes",
+    "source_executor": "assignment runtime, authorized-source fixture successor (183 lines), executor tests and independent executor evidence",
+    "prepared_source_ui": "ordinary UI source-answer driver, shim fixture, preflight test, wait-panel, work order and evidence"
+  }
+}

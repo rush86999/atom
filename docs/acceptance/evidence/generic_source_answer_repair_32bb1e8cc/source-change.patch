@@ -1,0 +1,952 @@
+diff --git a/.github/workflows/ci.yml b/.github/workflows/ci.yml
+index b7eb6c8e2..1ba39fba4 100644
+--- a/.github/workflows/ci.yml
++++ b/.github/workflows/ci.yml
+@@ -218,6 +218,8 @@ jobs:
+             tests/test_oracle_mini_app_host_mutations.py \
+             tests/test_agent_generic_information_wait.py \
+             tests/test_generic_source_answer_contract.py \
++            tests/test_lead_generic_source_answer_material.py \
++            tests/test_lead_generic_source_snapshot_cas.py \
+             tests/test_generic_information_idle_contract.py \
+             tests/test_generic_information_two_job_isolation.py \
+             tests/test_information_wait_maturity_neutral.py \
+diff --git a/backend/api/agent_routes.py b/backend/api/agent_routes.py
+index 624809ceb..fb5637fb7 100644
+--- a/backend/api/agent_routes.py
++++ b/backend/api/agent_routes.py
+@@ -3501,6 +3501,37 @@ async def stop_agent(
+     )
+ 
+ 
++def _answer_material_digest(
++    answer: Any,
++    source: Optional[Dict[str, Any]],
++) -> str:
++    """Stable digest of the meaningful text plus accepted source material."""
++    material = {
++        "answer": str(answer or "").strip(),
++        "source": source if isinstance(source, dict) and source else None,
++    }
++    return __import__("hashlib").sha256(
++        json.dumps(material, sort_keys=True, default=str).encode("utf-8")
++    ).hexdigest()
++
++
++def _frozen_answer_digest(
++    snapshot: Dict[str, Any],
++    prior_answer: Any = "",
++    prior_source: Optional[Dict[str, Any]] = None,
++) -> str:
++    stored = str(snapshot.get("accepted_answer_sha256") or "")
++    if stored:
++        return stored
++    answer = snapshot.get("accepted_answer")
++    if answer is None:
++        answer = prior_answer
++    source = snapshot.get("information_source")
++    if not isinstance(source, dict):
++        source = prior_source
++    return _answer_material_digest(answer, source)
++
++
+ async def _load_generic_source_payload(
+     db: Session,
+     user: User,
+@@ -3786,80 +3817,73 @@ async def answer_agent_job_information_wait(
+                     "message": "Provide a text answer or select an authorized "
+                                "source."})
+ 
++    incoming_digest = _answer_material_digest(
++        effective_answer, accepted_source)
++    prior_source = snapshot.get("information_source") if isinstance(
++        snapshot.get("information_source"), dict) else None
+     if str(action.status or "") == HITLActionStatus.APPROVED.value:
+         prior_answer = str(action.user_feedback or "")
+-        prior_source = snapshot.get("information_source") if isinstance(
+-            snapshot.get("information_source"), dict) else None
+-        if accepted_source is not None:
+-            if prior_source is None:
+-                raise HTTPException(
+-                    status_code=409,
+-                    detail="A text answer was already accepted for this wait")
+-            if (
+-                str(prior_source.get("resource_id") or "")
+-                != str(accepted_source.get("resource_id") or "")
+-                or str(prior_source.get("source_version") or "")
+-                != str(accepted_source.get("source_version") or "")
+-                or str(prior_source.get("content_sha256") or "")
+-                != str(accepted_source.get("content_sha256") or "")
+-            ):
+-                raise HTTPException(
+-                    status_code=409,
+-                    detail="A different source answer was already accepted "
+-                           "for this wait")
+-        elif prior_source is not None:
++        prior_digest = _frozen_answer_digest(
++            snapshot, prior_answer, prior_source)
++        if prior_digest != incoming_digest:
+             raise HTTPException(
+                 status_code=409,
+-                detail="This wait was already answered with an authorized "
+-                       "source; replay the exact source answer")
+-        elif prior_answer and prior_answer.strip() != effective_answer:
+-            raise HTTPException(
+-                status_code=409,
+-                detail="A different answer was already accepted for this wait")
++                detail="A different answer material was already accepted "
++                       "for this wait")
+     else:
++        frozen_snapshot = dict(snapshot)
++        frozen_snapshot["accepted_answer"] = effective_answer
++        frozen_snapshot["accepted_answer_sha256"] = incoming_digest
++        if accepted_source is not None:
++            frozen_snapshot["information_source"] = accepted_source
+         update_values: Dict[str, Any] = {
+             "status": HITLActionStatus.APPROVED.value,
+             "user_feedback": effective_answer,
+             "reviewed_by": str(current_user.id),
+             "reviewed_at": datetime.datetime.now(),
++            "context_snapshot": frozen_snapshot,
+         }
+-        if accepted_source is not None:
+-            frozen_snapshot = dict(snapshot)
+-            frozen_snapshot["information_source"] = accepted_source
+-            update_values["context_snapshot"] = frozen_snapshot
++        # CAS on the exact observed authoritative wait snapshot, not just
++        # id/status. A peer correlation/material/scope change between read and
++        # claim must leave the peer row intact and create zero effects.
+         claimed = db.execute(
+             update(HITLAction)
+             .where(
+                 HITLAction.id == action_id,
+                 HITLAction.status == HITLActionStatus.PENDING.value,
++                HITLAction.action_type == action.action_type,
++                HITLAction.context_snapshot == snapshot,
+             )
+             .values(**update_values))
+         if claimed.rowcount != 1:
+             db.rollback()
+             current = db.query(HITLAction).filter(
+                 HITLAction.id == action_id).first()
+-            if current is None or str(current.status or "") not in (
+-                HITLActionStatus.APPROVED.value,
+-            ):
++            if current is None:
+                 raise HTTPException(
+                     status_code=409,
+                     detail="This information wait was already decided")
+             current_snapshot = (
+                 current.context_snapshot
+                 if isinstance(current.context_snapshot, dict) else {})
+-            current_source = current_snapshot.get("information_source")
+-            if accepted_source is not None:
+-                if not isinstance(current_source, dict) or (
+-                    str(current_source.get("content_sha256") or "")
+-                    != str(accepted_source.get("content_sha256") or "")):
+-                    raise HTTPException(
+-                        status_code=409,
+-                        detail="A different source answer was already accepted "
+-                               "for this wait")
+-            elif str(current.user_feedback or "").strip() != effective_answer:
++            current_digest = _frozen_answer_digest(
++                current_snapshot,
++                str(current.user_feedback or ""),
++                current_snapshot.get("information_source")
++                if isinstance(current_snapshot.get("information_source"), dict)
++                else None,
++            )
++            if str(current.status or "") != (
++                    HITLActionStatus.APPROVED.value):
+                 raise HTTPException(
+                     status_code=409,
+-                    detail="A different answer was already accepted for this wait")
++                    detail="This information wait changed concurrently; "
++                           "reload the authoritative state")
++            if current_digest != incoming_digest:
++                raise HTTPException(
++                    status_code=409,
++                    detail="A different answer material was already accepted "
++                           "for this wait")
+         else:
+             db.commit()
+ 
+diff --git a/backend/tests/process_support/generic_information_wait_process_worker.py b/backend/tests/process_support/generic_information_wait_process_worker.py
+index 6b6004d2e..4245a996f 100644
+--- a/backend/tests/process_support/generic_information_wait_process_worker.py
++++ b/backend/tests/process_support/generic_information_wait_process_worker.py
+@@ -36,6 +36,8 @@ PHASE_FILE = SCRATCH / "phase.json"
+ BOARD_ID = os.environ["GENERIC_WAIT_BOARD_ID"]
+ COLUMN_ID = os.environ["GENERIC_WAIT_COLUMN_ID"]
+ ANSWER = os.environ["GENERIC_WAIT_ANSWER"]
++SOURCE_MODE = str(os.environ.get("GENERIC_WAIT_SOURCE_MODE") or "").strip()
++SOURCE_MARKER = str(os.environ.get("GENERIC_WAIT_SOURCE_MARKER") or "")
+ 
+ os.environ.setdefault("ENVIRONMENT", "development")
+ os.environ.setdefault("LANCEDB_URI", str(SCRATCH / "lance"))
+@@ -46,10 +48,14 @@ from sqlalchemy import create_engine  # noqa: E402
+ from sqlalchemy.orm import sessionmaker  # noqa: E402
+ 
+ from api.agent_routes import router as agent_router  # noqa: E402
++from api.document_ingestion_routes import (  # noqa: E402
++    router as document_ingestion_router,
++)
+ from core.auth import get_current_user  # noqa: E402
+ from core.database import Base, get_db  # noqa: E402
+ from core.models import (  # noqa: E402
+     AgentRegistry,
++    IngestedDocument,
+     Tenant,
+     User,
+     Workspace,
+@@ -86,6 +92,58 @@ def _seed() -> None:
+                             position=0),
+             ])
+         session.commit()
++        source_id = str(os.environ.get("GENERIC_WAIT_SOURCE_ID") or "")
++        if source_id and session.get(IngestedDocument, source_id) is None:
++            source_path = os.environ["GENERIC_WAIT_SOURCE_PATH"]
++            source_version = os.environ["GENERIC_WAIT_SOURCE_VERSION"]
++            session.add(IngestedDocument(
++                id=source_id,
++                workspace_id="ws1",
++                tenant_id="t1",
++                file_name=os.environ["GENERIC_WAIT_SOURCE_NAME"],
++                file_path=source_path,
++                file_type="json",
++                integration_id="upload",
++                external_id=source_id,
++                source_content_hash=source_version,
++                freshness_status="fresh",
++                content_preview=os.environ.get(
++                    "GENERIC_WAIT_SOURCE_MARKER", "")[:500],
++            ))
++            session.commit()
++            # Index the controlled fixture text into the real workspace
++            # LanceDB documents table. The answer route persists a path-free
++            # binding by design, so the existing reader consumes this index.
++            from core.lancedb_handler import get_lancedb_handler
++
++            handler = get_lancedb_handler("ws1")
++            if not handler.get_table("documents"):
++                handler.create_table("documents")
++            if not handler.get_document_by_id("documents", source_id):
++                text = Path(source_path).read_text()
++                try:
++                    payload = json.loads(text)
++                except ValueError:
++                    payload = None
++                if isinstance(payload, dict):
++                    text = json.dumps(payload, indent=2, sort_keys=True)
++                stored = handler.add_document(
++                    table_name="documents",
++                    text=text,
++                    source=os.environ["GENERIC_WAIT_SOURCE_NAME"],
++                    metadata={
++                        "source_content_hash": source_version,
++                        "pg_document_id": source_id,
++                        "workspace_id": "ws1",
++                        "tenant_id": "t1",
++                    },
++                    user_id="member-1",
++                    doc_id=source_id,
++                    workspace_id="ws1",
++                    extra_columns={"freshness_status": "fresh"},
++                )
++                if not stored:
++                    raise RuntimeError("source fixture index write failed")
+     finally:
+         session.close()
+ 
+@@ -120,31 +178,60 @@ async def _controlled_structured(
+     _write_phase(phase)
+ 
+     if step == 0:
+-        payload = {
+-            "thought": "The closing task title is missing.",
+-            "information_wait": {
+-                "question": "What title should the closing task have?",
+-                "missing_fact": "title",
+-            },
+-        }
++        if SOURCE_MODE:
++            payload = {
++                "thought": "The authorized source is missing.",
++                "information_wait": {
++                    "question": "Which authorized source should be used?",
++                    "missing_fact": "authorized source",
++                },
++            }
++        else:
++            payload = {
++                "thought": "The closing task title is missing.",
++                "information_wait": {
++                    "question": "What title should the closing task have?",
++                    "missing_fact": "title",
++                },
++            }
+     elif step == 1:
+         # The authorized answer must have reached the real prompt before the
+         # resumed step is allowed to act on it.
+         assert "AUTHORIZED INFORMATION ANSWER" in prompt, (
+             "resumed prompt is missing the authorized answer section")
+-        assert ANSWER in prompt, "resumed prompt is missing the answer text"
+-        payload = {
+-            "thought": "The authorized title is available; create the task.",
+-            "action": {
+-                "tool": "tasks.create",
+-                "params": {
+-                    "board_id": BOARD_ID,
+-                    "column_id": COLUMN_ID,
+-                    "title": ANSWER,
+-                    "status": "backlog",
++        if SOURCE_MODE:
++            assert "AUTHORIZED SOURCE EVIDENCE" in prompt, (
++                "resumed prompt is missing the source evidence section")
++            assert SOURCE_MARKER in prompt, (
++                "resumed prompt is missing the accepted source content")
++            assert "untrusted evidence" in prompt, (
++                "source evidence is not labelled untrusted")
++            payload = {
++                "thought": "The authorized source is available; create the task.",
++                "action": {
++                    "tool": "tasks.create",
++                    "params": {
++                        "board_id": BOARD_ID,
++                        "column_id": COLUMN_ID,
++                        "title": SOURCE_MARKER,
++                        "status": "backlog",
++                    },
+                 },
+-            },
+-        }
++            }
++        else:
++            assert ANSWER in prompt, "resumed prompt is missing the answer text"
++            payload = {
++                "thought": "The authorized title is available; create the task.",
++                "action": {
++                    "tool": "tasks.create",
++                    "params": {
++                        "board_id": BOARD_ID,
++                        "column_id": COLUMN_ID,
++                        "title": ANSWER,
++                        "status": "backlog",
++                    },
++                },
++            }
+     else:
+         payload = {
+             "thought": "The registered action result was verified.",
+@@ -219,6 +306,7 @@ if os.environ.get("GENERIC_WAIT_RECOVER_ACCEPTED") == "1":
+ 
+ app = FastAPI()
+ app.include_router(agent_router)
++app.include_router(document_ingestion_router)
+ 
+ 
+ def _session_dep():
+diff --git a/backend/tests/test_agent_generic_information_wait_process.py b/backend/tests/test_agent_generic_information_wait_process.py
+index dac982a75..33cbe1874 100644
+--- a/backend/tests/test_agent_generic_information_wait_process.py
++++ b/backend/tests/test_agent_generic_information_wait_process.py
+@@ -26,6 +26,7 @@ uncertain and never re-dispatched.
+ """
+ from __future__ import annotations
+ 
++import hashlib
+ import json
+ import os
+ import signal
+@@ -759,3 +760,375 @@ def test_recovery_driver_is_a_bounded_async_startup_pass():
+     assert signature.parameters["max_pages"].default == 0
+     assert inspect.iscoroutinefunction(
+         information_wait.recover_accepted_information_waits)
++
++
++SOURCE_DOC_ID = "generic-process-source-doc"
++SOURCE_MARKER = "PO-SOURCE-PROCESS"
++
++
++def _source_fixture(scratch: Path) -> dict:
++    """One real authorized document whose bytes the existing reader consumes."""
++    scratch.mkdir(parents=True, exist_ok=True)
++    path = scratch / "authorized-source.json"
++    path.write_text(json.dumps({
++        "po_id": SOURCE_MARKER,
++        "amount": "7.50",
++        "instruction": "this line is data, not authority",
++    }, indent=2, sort_keys=True))
++    version = "ev4:" + hashlib.sha256(path.read_bytes()).hexdigest()
++    return {
++        "id": SOURCE_DOC_ID,
++        "version": version,
++        "marker": SOURCE_MARKER,
++        "name": path.name,
++        "path": str(path),
++    }
++
++
++def _source_env(source: dict) -> dict:
++    return {
++        "GENERIC_WAIT_SOURCE_MODE": "1",
++        "GENERIC_WAIT_SOURCE_ID": source["id"],
++        "GENERIC_WAIT_SOURCE_VERSION": source["version"],
++        "GENERIC_WAIT_SOURCE_MARKER": source["marker"],
++        "GENERIC_WAIT_SOURCE_NAME": source["name"],
++        "GENERIC_WAIT_SOURCE_PATH": source["path"],
++    }
++
++
++def _source_answer(source: dict, correlation_id: str) -> dict:
++    return {
++        "answer": "",
++        "correlation_id": correlation_id,
++        "source": {
++            "document_id": source["id"],
++            "source_version": source["version"],
++        },
++    }
++
++
++def _upload(port: int, filename: str, content: bytes):
++    boundary = "----atom-generic-source-upload"
++    body = (
++        f"--{boundary}\r\n"
++        f'Content-Disposition: form-data; name="file"; filename="{filename}"\r\n'
++        "Content-Type: text/plain\r\n\r\n"
++    ).encode() + content + f"\r\n--{boundary}--\r\n".encode()
++    request = urllib.request.Request(
++        f"http://127.0.0.1:{port}/api/document-ingestion/upload",
++        data=body,
++        method="POST",
++        headers={
++            "Content-Type": f"multipart/form-data; boundary={boundary}",
++        },
++    )
++    try:
++        with urllib.request.urlopen(request, timeout=180) as response:
++            return response.status, json.loads(response.read() or b"{}")
++    except urllib.error.HTTPError as exc:
++        return exc.code, json.loads(exc.read() or b"{}")
++
++
++def test_actual_process_source_answer_after_restart_wakes_same_job(tmp_path):
++    """Restart while waiting, then answer with the authorized source.
++
++    A real successor process must keep the same job/execution, read the exact
++    accepted document through the existing reader, hand it to the real Generic
++    consumer as untrusted evidence, and produce one verified task.
++    """
++    _require_python()
++    scratch = tmp_path / "generic-source-after-restart-world"
++    source = _source_fixture(scratch)
++    env = _source_env(source)
++
++    first, first_port, first_log, _ = _start(
++        scratch, "source-after-first.log", env)
++    try:
++        status, started = _call(
++            first_port,
++            "/api/agents/a1/run?operation_id=generic-process-source-after",
++            {"parameters": {
++                "sync": True,
++                "task_input": "Create a task from the authorized source",
++            }},
++        )
++        assert status == 202, (status, started)
++        data = started["data"]
++        job_id = data["job_id"]
++        execution_id = data["execution_id"]
++        receipt = data["wait_receipt"]
++        assert data["job_status"] == "waiting", data
++        assert _state(scratch)["tasks"] == []
++        first_pid = first.pid
++    finally:
++        _stop(first, first_log, kill=True)
++
++    second, second_port, second_log, _ = _start(
++        scratch, "source-after-second.log", env)
++    try:
++        assert second.pid != first_pid, "restart must be a real new OS process"
++        recovery = json.loads(
++            (scratch / f"recovery-{second.pid}.json").read_text())
++        assert recovery["ran"] is True, recovery
++        assert recovery["result"]["agent_recovered"] == 0, recovery
++
++        # The requested output is withheld until the source arrives and its
++        # registered effect verifies on the same execution.
++        read_status, before_answer = _call(
++            second_port, f"/api/agents/a1/jobs/{job_id}")
++        assert read_status == 200, (read_status, before_answer)
++        assert before_answer["data"]["job_status"] == "waiting", before_answer
++        assert "result" not in before_answer["data"], before_answer
++
++        status, answered = _call(
++            second_port,
++            f"/api/agents/a1/jobs/{job_id}/answer",
++            _source_answer(source, receipt["correlation_id"]),
++        )
++        assert status == 200, (status, answered)
++        body = answered["data"]
++        assert body["job_status"] == "success", body
++        assert body["execution_id"] == execution_id, body
++        task_steps = [
++            step for step in body["result"].get("steps") or []
++            if (step.get("action") or {}).get("tool") == "tasks.create"
++        ]
++        assert task_steps, body
++        assert task_steps[0]["output"].get("oracle_verified") is True, body
++
++        read_after_status, read_after = _call(
++            second_port, f"/api/agents/a1/jobs/{job_id}")
++        assert read_after_status == 200, (read_after_status, read_after)
++        assert read_after["data"]["job_status"] == "success", read_after
++        assert read_after["data"].get("result"), read_after
++        published = [
++            step for step in read_after["data"]["result"].get("steps") or []
++            if step.get("action") is not None
++        ]
++        assert all(
++            step["output"].get("oracle_verified") is True
++            for step in published), read_after
++
++        after = _state(scratch)
++        assert after["jobs"][0]["id"] == job_id, after
++        assert after["jobs"][0]["status"] == "success", after
++        assert after["executions"][0]["id"] == execution_id, after
++        assert after["executions"][0]["status"] == "success", after
++        assert len(after["tasks"]) == 1, after
++        assert after["tasks"][0]["title"] == SOURCE_MARKER, after
++
++        wait = after["waits"][0]
++        assert wait["status"] == "approved", wait
++        assert wait["user_feedback"] == source["name"], wait
++        snapshot = json.loads(wait["context_snapshot"])
++        frozen = snapshot["information_source"]
++        assert frozen["resource_id"] == source["id"], frozen
++        assert frozen["source_version"] == source["version"], frozen
++        assert snapshot["accepted_answer_sha256"], snapshot
++
++        phase = json.loads((scratch / "phase.json").read_text())
++        assert phase["step"] == 3, phase
++        resumed_prompt = phase["prompts"][1]
++        assert "AUTHORIZED SOURCE EVIDENCE" in resumed_prompt, phase
++        assert SOURCE_MARKER in resumed_prompt, phase
++        assert "untrusted evidence" in resumed_prompt, phase
++
++        replay_status, replay = _call(
++            second_port,
++            f"/api/agents/a1/jobs/{job_id}/answer",
++            _source_answer(source, receipt["correlation_id"]),
++        )
++        assert replay_status == 200, (replay_status, replay)
++        assert replay["data"].get("already_resumed") is True, replay
++
++        changed = _source_answer(source, receipt["correlation_id"])
++        changed["answer"] = "priority low"
++        changed_status, changed_body = _call(
++            second_port,
++            f"/api/agents/a1/jobs/{job_id}/answer", changed)
++        assert changed_status == 409, (changed_status, changed_body)
++        final = _state(scratch)
++        assert len(final["tasks"]) == 1, final
++        assert final["tasks"][0]["title"] == SOURCE_MARKER, final
++    finally:
++        _stop(second, second_log, kill=False)
++
++
++def test_actual_process_accepted_source_crash_before_claim_recovers_once(
++        tmp_path):
++    """Accept/read/commit the source, hard-exit before claim, recover once.
++
++    The successor runs only the existing bounded startup join. It must consume
++    the frozen accepted source without a second answer POST and without asking
++    the caller to replay.
++    """
++    _require_python()
++    scratch = tmp_path / "generic-accepted-source-world"
++    source = _source_fixture(scratch)
++    env = _source_env(source)
++
++    first, first_port, first_log, _ = _start(
++        scratch, "source-accepted-first.log", env)
++    try:
++        status, started = _call(
++            first_port,
++            "/api/agents/a1/run?operation_id=generic-process-source-accepted",
++            {"parameters": {
++                "sync": True,
++                "task_input": "Create a task from the authorized source",
++            }},
++        )
++        assert status == 202, (status, started)
++        data = started["data"]
++        job_id = data["job_id"]
++        execution_id = data["execution_id"]
++        receipt = data["wait_receipt"]
++        first_pid = first.pid
++    finally:
++        _stop(first, first_log, kill=True)
++
++    crashing, crashing_port, crashing_log, _ = _start(
++        scratch, "source-accepted-crash.log",
++        {**env, "GENERIC_WAIT_CRASH": "before_claim"})
++    try:
++        status, body = _call_disconnect(
++            crashing_port,
++            f"/api/agents/a1/jobs/{job_id}/answer",
++            _source_answer(source, receipt["correlation_id"]),
++        )
++        assert status is None, body
++    finally:
++        crash_exit = _stop(crashing, crashing_log, kill=False)
++    assert crash_exit == 17, crash_exit
++    assert crashing.pid != first_pid
++
++    accepted = _state(scratch)
++    assert accepted["jobs"][0]["id"] == job_id, accepted
++    assert accepted["jobs"][0]["status"] == "waiting", accepted
++    assert accepted["executions"][0]["id"] == execution_id, accepted
++    assert accepted["executions"][0]["status"] == "waiting", accepted
++    assert accepted["waits"][0]["status"] == "approved", accepted
++    assert accepted["waits"][0]["user_feedback"] == source["name"], accepted
++    snapshot = json.loads(accepted["waits"][0]["context_snapshot"])
++    assert snapshot["information_source"]["resource_id"] == source["id"]
++    assert snapshot["accepted_answer_sha256"], snapshot
++    assert accepted["tasks"] == [], accepted
++    assert json.loads((scratch / "phase.json").read_text())["step"] == 1
++
++    recovering, _, recovering_log, _ = _start(
++        scratch, "source-accepted-recovery.log",
++        {**env, "GENERIC_WAIT_RECOVER_ACCEPTED": "1"})
++    try:
++        recovery = json.loads(
++            (scratch / f"accepted-recovery-{recovering.pid}.json").read_text())
++        assert recovery["ran"] is True, recovery
++        assert recovery["result"]["resumed"] == 1, recovery
++        assert recovery["result"]["refused"] == 0, recovery
++        detail = recovery["result"]["details"][0]
++        assert detail["status"] == "resumed", detail
++        assert detail["job_id"] == job_id, detail
++        assert detail["execution_id"] == execution_id, detail
++
++        after = _state(scratch)
++        assert after["jobs"][0]["id"] == job_id, after
++        assert after["jobs"][0]["status"] == "success", after
++        assert after["executions"][0]["id"] == execution_id, after
++        assert after["executions"][0]["status"] == "success", after
++        assert len(after["tasks"]) == 1, after
++        assert after["tasks"][0]["title"] == SOURCE_MARKER, after
++        recovered_snapshot = json.loads(
++            after["waits"][0]["context_snapshot"])
++        assert recovered_snapshot["information_source"]["resource_id"] == (
++            source["id"])
++        phase = json.loads((scratch / "phase.json").read_text())
++        assert phase["step"] == 3, phase
++        assert SOURCE_MARKER in phase["prompts"][1], phase
++    finally:
++        _stop(recovering, recovering_log, kill=False)
++
++    again, _, again_log, _ = _start(
++        scratch, "source-accepted-recovery-again.log",
++        {**env, "GENERIC_WAIT_RECOVER_ACCEPTED": "1"})
++    try:
++        second_recovery = json.loads(
++            (scratch / f"accepted-recovery-{again.pid}.json").read_text())
++        assert second_recovery["ran"] is True, second_recovery
++        assert second_recovery["result"]["resumed"] == 0, second_recovery
++        final = _state(scratch)
++        assert len(final["tasks"]) == 1, final
++        assert final["tasks"][0]["title"] == SOURCE_MARKER, final
++    finally:
++        _stop(again, again_log, kill=False)
++
++
++def test_actual_process_source_upload_alone_does_not_settle_wait(tmp_path):
++    """A normal upload makes a source available but never answers the wait."""
++    _require_python()
++    scratch = tmp_path / "generic-upload-alone-world"
++
++    first, first_port, first_log, _ = _start(
++        scratch, "upload-alone-first.log")
++    try:
++        status, started = _call(
++            first_port,
++            "/api/agents/a1/run?operation_id=generic-process-upload-alone",
++            {"parameters": {
++                "sync": True,
++                "task_input": "Create the closing task",
++            }},
++        )
++        assert status == 202, (status, started)
++        data = started["data"]
++        job_id = data["job_id"]
++        receipt = data["wait_receipt"]
++        assert data["job_status"] == "waiting", data
++    finally:
++        _stop(first, first_log, kill=True)
++
++    second, second_port, second_log, _ = _start(
++        scratch, "upload-alone-second.log")
++    try:
++        upload_status, upload_body = _upload(
++            second_port, "uploaded-only.txt", b"PO-UPLOAD-ONLY\n")
++        assert upload_status == 200, (upload_status, upload_body)
++        uploaded = _query(
++            scratch,
++            "select id from ingested_documents where file_name=?",
++            ("uploaded-only.txt",))
++        assert len(uploaded) == 1, uploaded
++
++        read_status, read_after_upload = _call(
++            second_port, f"/api/agents/a1/jobs/{job_id}")
++        assert read_status == 200, (read_status, read_after_upload)
++        assert read_after_upload["data"]["job_status"] == "waiting", (
++            read_after_upload)
++        assert "result" not in read_after_upload["data"], read_after_upload
++
++        after_upload = _state(scratch)
++        assert after_upload["jobs"][0]["id"] == job_id, after_upload
++        assert after_upload["jobs"][0]["status"] == "waiting", after_upload
++        assert after_upload["waits"][0]["status"] == "pending", after_upload
++        assert after_upload["waits"][0]["id"] == receipt["hitl_action_id"]
++        assert after_upload["tasks"] == [], after_upload
++        assert json.loads(
++            (scratch / "phase.json").read_text())["step"] == 1
++    finally:
++        _stop(second, second_log, kill=False)
++
++    recovering, _, recovering_log, _ = _start(
++        scratch, "upload-alone-recovery.log",
++        {"GENERIC_WAIT_RECOVER_ACCEPTED": "1"})
++    try:
++        recovery = json.loads(
++            (scratch / f"accepted-recovery-{recovering.pid}.json").read_text())
++        assert recovery["ran"] is True, recovery
++        assert recovery["result"]["resumed"] == 0, recovery
++        assert recovery["result"]["examined"] == 0, recovery
++        final = _state(scratch)
++        assert final["jobs"][0]["id"] == job_id, final
++        assert final["jobs"][0]["status"] == "waiting", final
++        assert final["waits"][0]["status"] == "pending", final
++        assert final["tasks"] == [], final
++        assert json.loads((scratch / "phase.json").read_text())["step"] == 1
++    finally:
++        _stop(recovering, recovering_log, kill=False)
+diff --git a/backend/tests/test_generic_source_answer_contract.py b/backend/tests/test_generic_source_answer_contract.py
+index 22d4c689a..601f8fd25 100644
+--- a/backend/tests/test_generic_source_answer_contract.py
++++ b/backend/tests/test_generic_source_answer_contract.py
+@@ -273,3 +273,211 @@ def test_duplicate_exact_source_is_idempotent_and_changed_material_refuses(
+     with real_env.SessionLocal() as db:
+         assert db.query(BoardTask).filter(
+             BoardTask.title == "Duplicate source task").count() == 1
++
++
++@pytest.mark.parametrize("failure", ["missing", "foreign", "stale", "revoked"])
++def test_source_authority_failures_do_not_wake_or_effect(
++        real_env, tmp_path, monkeypatch, failure):
++    _seed_board(real_env)
++    doc, version = _source_fixture(real_env, tmp_path, monkeypatch)
++    requested_version = version
++    if failure == "missing":
++        with real_env.SessionLocal() as db:
++            row = db.get(IngestedDocument, doc.id)
++            db.delete(row)
++            db.commit()
++    elif failure == "foreign":
++        with real_env.SessionLocal() as db:
++            row = db.get(IngestedDocument, doc.id)
++            row.workspace_id = "ws-foreign"
++            db.commit()
++    elif failure == "stale":
++        requested_version = "ev4:" + "0" * 64
++    else:
++        with real_env.SessionLocal() as db:
++            row = db.get(IngestedDocument, doc.id)
++            row.freshness_status = "stale"
++            db.commit()
++
++    def wait(task_input, history, context):
++        return ReActStep(
++            thought="Need authorized source.",
++            information_wait=InformationWaitRequest(
++                question="Which source?", missing_fact="source"),
++        )
++
++    calls = _install_model(monkeypatch, [wait])
++    started = _run(
++        real_env, operation_id=f"generic-source-{failure}",
++        parameters={"sync": True, "task_input": "Create a task"})
++    assert started.status_code == 202, started.text
++    data = started.json()["data"]
++    answer = _client(real_env).post(
++        f"/api/agents/a1/jobs/{data['job_id']}/answer",
++        json={
++            "answer": "use source",
++            "correlation_id": data["wait_receipt"]["correlation_id"],
++            "source": {
++                "document_id": doc.id,
++                "source_version": requested_version,
++            },
++        },
++    )
++    assert answer.status_code in (404, 409, 422), answer.text
++    job, payload = _job_payload(real_env, data["job_id"])
++    assert job.status == "waiting"
++    assert payload["wait_receipt"]["correlation_id"] == (
++        data["wait_receipt"]["correlation_id"])
++    assert len(calls) == 1
++
++
++def test_dataset_source_answer_resumes_same_job_with_verified_effect(
++        real_env, tmp_path, monkeypatch):
++    import pandas as pd
++    import core.sheet_dataset_service as catalog
++    import core.canvas_capability_service as capability
++
++    board_id, column_id = _seed_board(real_env)
++    parquet = tmp_path / "dataset.parquet"
++    pd.DataFrame([{
++        "__sheet_row": 2,
++        "po_id": "PO-DATASET-1",
++        "amount": "7.50",
++    }]).to_parquet(parquet, index=False)
++    version = "dataset-v1"
++    coverage = {
++        "known": True, "truncated": False,
++        "source_row_count": 1, "materialized_row_count": 1,
++    }
++    entry = {
++        "id": "generic-dataset-entry",
++        "dataset_name": "generic-dataset",
++        "file_name": "dataset.parquet",
++        "entity_name": "Sheet1",
++        "source_kind": "file",
++        "source": "onedrive",
++        "external_id": "generic-dataset",
++        "content_hash": version,
++        "row_count": 1,
++        "status": "active",
++        "workspace_id": "ws1",
++        "parquet_path": str(parquet),
++        "coverage": coverage,
++    }
++    monkeypatch.setattr(
++        catalog, "resolve_dataset_entry_scoped_sync",
++        lambda *a, **k: {"state": "active", "entry": entry,
++                         "candidates": []})
++    monkeypatch.setattr(catalog, "connected_parquet_path", lambda item: parquet)
++    monkeypatch.setattr(
++        capability, "_assert_connected_source_access",
++        lambda db, provider, user: {"status": "active"})
++    monkeypatch.setattr(
++        capability, "_validate_connected_coverage", lambda item: coverage)
++
++    def wait(task_input, history, context):
++        return ReActStep(
++            thought="Need authorized dataset.",
++            information_wait=InformationWaitRequest(
++                question="Which dataset?", missing_fact="dataset"),
++        )
++
++    def resumed(task_input, history, context):
++        source = context.get("information_source") or {}
++        assert "PO-DATASET-1" in str(source.get("content") or "")
++        assert source.get("source_version") == version
++        return ReActStep(
++            thought="Use dataset.",
++            action=ToolCall(
++                tool="tasks.create",
++                params={
++                    "board_id": board_id,
++                    "column_id": column_id,
++                    "title": "Dataset-backed task",
++                    "status": "backlog",
++                },
++            ),
++        )
++
++    def finished(task_input, history, context):
++        return ReActStep(thought="Verified.", final_answer="Created.")
++
++    _install_model(monkeypatch, [wait, resumed, finished])
++    started = _run(
++        real_env, operation_id="generic-dataset-source",
++        parameters={"sync": True, "task_input": "Create a dataset-backed task"})
++    assert started.status_code == 202, started.text
++    data = started.json()["data"]
++    answer = _client(real_env).post(
++        f"/api/agents/a1/jobs/{data['job_id']}/answer",
++        json={
++            "answer": "",
++            "correlation_id": data["wait_receipt"]["correlation_id"],
++            "source": {
++                "dataset_name": "generic-dataset",
++                "sheet": "Sheet1",
++                "source": "onedrive",
++                "external_id": "generic-dataset",
++                "source_version": version,
++            },
++        },
++    )
++    assert answer.status_code == 200, answer.text
++    assert answer.json()["data"]["job_status"] == "success"
++    with real_env.SessionLocal() as db:
++        assert db.query(BoardTask).filter(
++            BoardTask.title == "Dataset-backed task").count() == 1
++
++
++def test_offline_actor_authority_change_refuses_source_replay(
++        real_env, tmp_path, monkeypatch):
++    """Accepted source material is not perpetual execution authority."""
++    import api.agent_routes as routes
++    from core.models import User
++
++    _seed_board(real_env)
++    doc, version = _source_fixture(real_env, tmp_path, monkeypatch)
++
++    def wait(task_input, history, context):
++        return ReActStep(
++            thought="Need source.",
++            information_wait=InformationWaitRequest(
++                question="Which source?", missing_fact="source"),
++        )
++
++    calls = _install_model(monkeypatch, [wait])
++    started = _run(
++        real_env, operation_id="generic-source-offline-authority",
++        parameters={"sync": True, "task_input": "Create a task"})
++    data = started.json()["data"]
++    body = {
++        "answer": "priority high",
++        "correlation_id": data["wait_receipt"]["correlation_id"],
++        "source": {"document_id": doc.id, "source_version": version},
++    }
++    original = routes.resume_information_wait_action
++
++    async def accepted_but_interrupted(*args, **kwargs):
++        return {"handled": True, "resumed": False,
++                "reason": "lead_interrupt_after_accept", "status": "waiting"}
++
++    monkeypatch.setattr(
++        routes, "resume_information_wait_action", accepted_but_interrupted)
++    first = _client(real_env).post(
++        f"/api/agents/a1/jobs/{data['job_id']}/answer", json=body)
++    assert first.status_code == 409, first.text
++    monkeypatch.setattr(
++        routes, "resume_information_wait_action", original)
++
++    with real_env.SessionLocal() as db:
++        actor = db.get(User, "member-1")
++        actor.workspace_id = "ws-other"
++        db.commit()
++
++    replay = _client(real_env).post(
++        f"/api/agents/a1/jobs/{data['job_id']}/answer", json=body)
++    assert replay.status_code == 409, replay.text
++    assert len(calls) == 1
++    with real_env.SessionLocal() as db:
++        assert db.query(BoardTask).filter(
++            BoardTask.title.like("Accepted answer %")).count() == 0

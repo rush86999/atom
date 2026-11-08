@@ -1,0 +1,201 @@
+{
+  "audit": {
+    "columns": [
+      "id",
+      "canvas_id",
+      "tenant_id",
+      "session_id",
+      "action_type",
+      "user_id",
+      "agent_id",
+      "episode_id",
+      "canvas_type",
+      "details_json",
+      "created_at"
+    ],
+    "original_audit_id": "audit-child-smoke",
+    "original_details_sha256": "43dc9f2117ce65a5949ad5466c5022daa33d07e91f4a7fda54b10b57c7c91461",
+    "original_ids": [
+      "audit-child-smoke"
+    ],
+    "original_rows_sha256": "0a412e68abed46e8c57e13e3580d8e02884af909fb469c23a716561bcfeaed13",
+    "rows": [
+      {
+        "action_type": "update",
+        "agent_id": null,
+        "canvas_id": "canvas-child-smoke",
+        "canvas_type": "office_word",
+        "created_at": "2026-11-07 23:27:26.383974",
+        "details_json": "{\"content\": {\"office_file\": \"/private/tmp/root-restore-child-bb60-20261107/source/office/restored-office.docx\", \"file_path\": \"/private/tmp/root-restore-child-bb60-20261107/source/office/restored-office.docx\", \"format\": \"docx\"}, \"canvas_type\": \"office_word\", \"component\": \"office\", \"component_type\": \"rich_editor\", \"component_name\": \"Office Word\", \"title\": \"Child restore smoke office\", \"type_pinned\": true, \"draft\": {\"draft_id\": \"fixture-draft\", \"to_emails\": [\"fixture@example.invalid\"], \"body\": \"fixture draft body\", \"approved_by\": \"synthetic-old-approver\"}, \"operation_id\": \"synthetic-seed-operation\", \"review_status\": \"accepted\", \"evidence_refs\": [\"synthetic-receipt\"], \"postconditions\": [\"synthetic-postcondition\"], \"success\": true, \"verification\": {\"status\": \"verified\", \"verifier\": \"synthetic-old-verifier\"}, \"approval\": {\"approved_by\": \"synthetic-old-approver\", \"status\": \"approved\"}, \"reviewer\": \"synthetic-old-reviewer\", \"receipt\": {\"receipt_id\": \"synthetic-receipt\"}, \"operation\": {\"operation_id\": \"synthetic-seed-operation\", \"status\": \"succeeded\"}}",
+        "episode_id": null,
+        "id": "audit-child-smoke",
+        "session_id": null,
+        "tenant_id": "tenant-child-smoke",
+        "user_id": "user-child-smoke"
+      }
+    ]
+  },
+  "business_completion_claimed": false,
+  "canvas": {
+    "canvas_type": "office_word",
+    "content": "{\"office_file\": \"/private/tmp/root-restore-child-bb60-20261107/source/office/restored-office.docx\", \"file_path\": \"/private/tmp/root-restore-child-bb60-20261107/source/office/restored-office.docx\", \"format\": \"docx\"}",
+    "created_by": "user-child-smoke",
+    "id": "canvas-child-smoke",
+    "name": "Child restore smoke office",
+    "status": "active",
+    "tenant_id": "tenant-child-smoke",
+    "workspace_id": "ws-child-smoke"
+  },
+  "captured_at": "2026-11-07T23:27:26.999282+00:00",
+  "dataset": {
+    "column_count": 1,
+    "file_name": "sheet.parquet",
+    "id": "dataset-child-smoke",
+    "parquet_path": "/private/tmp/root-restore-child-bb60-20261107/source/sheet_datasets/default/ds-1/sheet.parquet",
+    "row_count": 2,
+    "status": "active",
+    "tenant_id": "tenant-child-smoke",
+    "workspace_id": "ws-child-smoke"
+  },
+  "document": {
+    "file_name": "restored-document.txt",
+    "file_path": "/private/tmp/root-restore-child-bb60-20261107/source/office/uploads/restored-document.txt",
+    "file_size_bytes": 34,
+    "id": "document-child-smoke",
+    "tenant_id": "tenant-child-smoke",
+    "workspace_id": "ws-child-smoke"
+  },
+  "expected_target_paths": {
+    "document": "/private/tmp/root-restore-child-bb60-20261107/target/office/uploads/restored-document.txt",
+    "office_artifact": "/private/tmp/root-restore-child-bb60-20261107/target/office/restored-office.docx",
+    "parquet": "/private/tmp/root-restore-child-bb60-20261107/target/sheet_datasets/default/ds-1/sheet.parquet"
+  },
+  "fixture_class": "PRODUCT_MODEL_READBACK_FIXTURE",
+  "goal": {
+    "description": "Synthetic readback fixture only; not business completion.",
+    "id": "goal-child-smoke",
+    "owner_id": "user-child-smoke",
+    "source": "api",
+    "status": "active",
+    "tenant_id": "tenant-child-smoke",
+    "title": "Child restore smoke goal",
+    "workspace_id": "ws-child-smoke"
+  },
+  "ids": {
+    "audit_details_sha256": "43dc9f2117ce65a5949ad5466c5022daa33d07e91f4a7fda54b10b57c7c91461",
+    "audit_id": "audit-child-smoke",
+    "business_completion_claimed": false,
+    "canvas_id": "canvas-child-smoke",
+    "canvas_title": "Child restore smoke office",
+    "canvas_type": "office_word",
+    "created_at": "2026-11-07T23:27:26.390927+00:00",
+    "dataset_id": "dataset-child-smoke",
+    "document_file_path": "/private/tmp/root-restore-child-bb60-20261107/source/office/uploads/restored-document.txt",
+    "document_id": "document-child-smoke",
+    "document_sha256": "ecafb4a392dc1b2869b02d64b2d9ec50a9d31ec648a1b077fd521203014cdd41",
+    "document_text": "child restore smoke document text\n",
+    "email": "child-restore-smoke@example.invalid",
+    "fixture_class": "PRODUCT_MODEL_READBACK_FIXTURE",
+    "forbidden_authority_keys": [
+      "operation_id",
+      "review_status",
+      "evidence_refs",
+      "postconditions",
+      "success",
+      "verification",
+      "approval",
+      "reviewer",
+      "receipt",
+      "operation"
+    ],
+    "forbidden_markers": [
+      "synthetic-seed-operation",
+      "synthetic-old-approver",
+      "synthetic-old-verifier",
+      "synthetic-old-reviewer",
+      "synthetic-receipt",
+      "synthetic-receipt-id"
+    ],
+    "goal_id": "goal-child-smoke",
+    "memory": {
+      "included": false,
+      "lancedb_search_claimed": false,
+      "public_document_search_claimed": false
+    },
+    "office_artifact_path": "/private/tmp/root-restore-child-bb60-20261107/source/office/restored-office.docx",
+    "office_artifact_sha256": "9ea00749eae17a2ba166c8d5cd7ce31e84f33094b49ceb94423bb65808a9787a",
+    "office_artifact_text": "child restore smoke office artifact\nsecond disclosure line",
+    "parquet_columns": [
+      "value"
+    ],
+    "parquet_path": "/private/tmp/root-restore-child-bb60-20261107/source/sheet_datasets/default/ds-1/sheet.parquet",
+    "parquet_rows": [
+      [
+        1
+      ],
+      [
+        2
+      ]
+    ],
+    "parquet_sha256": "c783478057d5ff2c9eae674c66b01ff75c7c98e06d8d5b5a3356b956f1e2b4f7",
+    "public_routes": {
+      "canvas": "GET /api/canvas/{canvas_id}",
+      "goal": "GET /api/goals/{goal_id}",
+      "login": "POST /api/auth/login",
+      "me": "GET /api/auth/me",
+      "office_download": "GET /api/v1/office/download"
+    },
+    "real_agent_or_business_work": false,
+    "role_source": "core.models.UserRole.MEMBER.value",
+    "schema": "atom-child-restore-ids-2",
+    "seeded_role": "member",
+    "source_office_root": "/private/tmp/root-restore-child-bb60-20261107/source/office",
+    "source_root": "/private/tmp/root-restore-child-bb60-20261107/source",
+    "tenant_id": "tenant-child-smoke",
+    "user_id": "user-child-smoke",
+    "workspace_id": "ws-child-smoke"
+  },
+  "login_audit_count_before": 0,
+  "memory": {
+    "included": false,
+    "lancedb_search_claimed": false,
+    "public_document_search_claimed": false
+  },
+  "preserved_source_root": "/private/tmp/root-restore-child-bb60-20261107/source-unavailable",
+  "real_agent_or_business_work": false,
+  "restore": {
+    "attempts": 1,
+    "manifest_sha256": "a2d20cd0e145195116042317d02631420c36c7237873f3159d40d8f2a27bae42",
+    "memory_included": false,
+    "memory_restored": false,
+    "source_data_dir": "/private/tmp/root-restore-child-bb60-20261107/source",
+    "status": "verified",
+    "target_data_dir": "/private/tmp/root-restore-child-bb60-20261107/target"
+  },
+  "schema": "atom-child-restore-baseline-2",
+  "source_root": "/private/tmp/root-restore-child-bb60-20261107/source",
+  "target_db": "/private/tmp/root-restore-child-bb60-20261107/target/atom.db",
+  "target_root": "/private/tmp/root-restore-child-bb60-20261107/target",
+  "tenant": {
+    "edition": "personal",
+    "id": "tenant-child-smoke",
+    "is_active": 1,
+    "name": "Child Restore Smoke Tenant",
+    "subdomain": "child-restore-smoke"
+  },
+  "user": {
+    "email": "child-restore-smoke@example.invalid",
+    "id": "user-child-smoke",
+    "last_login": null,
+    "role": "member",
+    "status": "active",
+    "tenant_id": "tenant-child-smoke",
+    "workspace_id": "ws-child-smoke"
+  },
+  "workspace": {
+    "id": "ws-child-smoke",
+    "name": "Child Restore Smoke Workspace",
+    "status": "active",
+    "tenant_id": "tenant-child-smoke"
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "argv": [
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-oracle-refresh-20261107/backend",
+    "--profile",
+    "bounded",
+    "--",
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "/private/tmp/atom-oracle-refresh-20261107/scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/tests/test_lead_restore_integrity.py",
+    "/private/tmp/atom-oracle-refresh-20261107/scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/tests/test_release_restore.py",
+    "tests/test_db_safety.py",
+    "tests/test_db_safety_atomicity.py",
+    "tests/core/test_db_snapshot_protection.py",
+    "../scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/tests/test_deploy_release_contract.py",
+    "-q",
+    "--tb=short",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=/private/tmp/ops-restore-corrected/final-gate-4bae4c480/pytest"
+  ],
+  "cwd": "/private/tmp/atom-oracle-refresh-20261107/backend",
+  "profile": "bounded"
+}

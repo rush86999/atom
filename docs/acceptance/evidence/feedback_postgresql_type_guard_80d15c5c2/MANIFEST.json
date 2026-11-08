@@ -1,0 +1,34 @@
+{
+  "executed_source": "80d15c5c287be3e7c7047206e0ef2ced8715cc47",
+  "negative_source": "54dafd9885ab1e2874e0891859e5a0cdcf6abd52",
+  "scope": "real private PostgreSQL business feedback exact JSON material types; mixed control counts disclosed",
+  "source_files": {
+    "backend/core/learning_llm_router.py": "b756d72b73eae099dfa1d083e7095cf275ddc3427c14184cea54930a003c0627",
+    "backend/core/employee_routing_feedback.py": "d3fb8d92d996cb9750290cb93c8b7fce6c0a15c325a1b2b17148029139759d77",
+    "backend/core/models.py": "9aec60c9155da8af8652b3209839c658d78896837b1a30d38763007b44e14b59",
+    "backend/core/models_registration.py": "87e51e95544b656e4ff18fd525f87d0100bd106b7e30ab7626945540ac95e323",
+    "backend/core/database.py": "fd3736e7f679b9b30e242597e25a27565d3ab93fc8c0efd3ea0b1cef76e9b16e",
+    "backend/tests/test_employee_business_feedback.py": "70a4d1d367a76d1e2d1ce680cf8861019f2559b95e648062c387254d2a444603",
+    "backend/tests/test_employee_feedback_interleaving.py": "68768d369f198a80f77f739cbf052d4a49da4f4640fca337fbeba579b3af1915",
+    "backend/tests/test_feedback_cas_dialect_contract.py": "444c11209d07503b5dec46263895853e496b5a9f6307ec39adac7dd4a6c83121"
+  },
+  "artifacts": {
+    "README.md": "e28867af9154a591dc1174bcc257caf083b37bbf8782d7b9037f8d64f067f491",
+    "independent-json-type-probe.py": "e2e6a013deb8f1f8c44f1d99c95bead70809d9a22c3da7d2eba7f23a2226f0a0",
+    "negative-pg-result.json": "76f3a3ff512dea0e5bf3142db84bebf48523f8bf5e0eafe30c4e58c6b7d3a991",
+    "negative-pg-tests.log": "c90924aebb009dfa578d92440573676a07ef2c136546aeeb90483e9f065d1b78",
+    "original-sqlite-type-twins.exit.json": "add326c6ddf9097e4a8fea9d6a027f0bcc9f4e8589e8d0571cdf504eb2ec8698",
+    "original-sqlite-type-twins.log": "2e06e5e63794fdeba85b493db54b755353329929cd56ac35b7f368a91b66c1aa",
+    "original-sqlite-type-twins.spec.json": "9cfbb84ff3bf58d4d9518b7e62d694047660097c4bed71c4f8195f7a7acaf56b",
+    "positive-pg-result.json": "29302c4bc28692bf9735daa81e609d040cc5b109f0625a9f573c4c63b26f6a71",
+    "positive-pg-tests.log": "2459f30c7d02dad0db6b79f17e437863c3aa75d4ffe0a284c6b20b3f2a80ba43",
+    "postgresql-fixture-and-tests.py": "659c130b6d6133ccf9d33d14ca2dfe2bad18eaf6963f5a33547fcd5c57f19021",
+    "postgresql-original-fixture.py": "1aa788f1e49f3298c5e8e2bbf05afc9fb372aec020986ec7fc75f85ddf0d9424",
+    "private-pg-runner.py": "94651481cb8cdba736792fa0261a1f7b70d7dcbad94568a27372d5969d76cc57",
+    "sqlite-runner.py": "15a1a7958f1e3b265499d9ae9bb13b604ea6bf11d469b89d7de8199cefaa699e",
+    "sqlite-tests.log": "174bb33ad418bb0f68510cab431ac84acfc155af9dcbbd2cb796818881a1bd7f",
+    "sqlite.exit.json": "a009dbac2924de45c99c9018ea06b9c400c23d55dfafb5aebac7b1c75f53b53f",
+    "sqlite.spec.json": "204866720b0343f2e70976d978f2f4c0868cd8ae4cf2676251f3db064c7cc43b"
+  },
+  "qualification": "bounded independent repair evidence; not full app, migration, crash durability or self approval"
+}

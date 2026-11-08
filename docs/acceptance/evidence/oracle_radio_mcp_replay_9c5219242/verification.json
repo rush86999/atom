@@ -1,0 +1,106 @@
+{
+  "task": "radio.create_thread normal-MCP replay-class repair",
+  "executed_source": "9c5219242",
+  "parent_root_test": "5d7ca586f",
+  "main_merged": "cf5e98191",
+  "root_original_negative": {
+    "source": "f010c7174",
+    "result": "4 failed, 3 passed, actual exit 1",
+    "files": "root-originals/root-radio-mcp-replay-negative.log/.exit.json/-binding.json",
+    "binding_note": "runner template diagnostic flag is metadata; listed bytes match frozen Git commit"
+  },
+  "controls": {
+    "focused": {
+      "nodes": [
+        "tests/test_oracle_radio_create_thread.py",
+        "tests/test_lead_radio_thread_authority_linearization.py",
+        "tests/test_lead_radio_mcp_replay.py",
+        "tests/test_oracle_radio_thread_replay.py"
+      ],
+      "exit_code": 0,
+      "result": "47 passed"
+    },
+    "root-frozen-first-dml": {
+      "nodes": [
+        "/private/tmp/lead_radio_thread_authority_first_dml_frozen.py"
+      ],
+      "exit_code": 0,
+      "result": "3 passed"
+    },
+    "merged-send-registry-request": {
+      "nodes": [
+        "tests/test_oracle_radio_send.py",
+        "tests/test_lead_radio_readback_identity.py",
+        "tests/test_generic_request_expectations.py",
+        "tests/test_oracle_registry_verification_gap.py"
+      ],
+      "exit_code": 0,
+      "result": "85 passed"
+    },
+    "radio-units": {
+      "nodes": [
+        "tests/unit/agents/test_radio_actions.py",
+        "tests/unit/agents/test_agent_radio_tool.py",
+        "tests/unit/agents/test_radio_service.py",
+        "tests/unit/agents/test_radio_adapter.py",
+        "tests/unit/agents/test_radio_server.py"
+      ],
+      "exit_code": 0,
+      "result": "45 passed"
+    },
+    "heavy-full-radio": {
+      "nodes": [
+        "tests/test_covpush_w80a_radio.py"
+      ],
+      "profile": "heavy",
+      "exit_code": 0,
+      "result": "219 passed"
+    }
+  },
+  "replay_contract": {
+    "lookup": "exact creator + exact metadata operation_id, after authority CAS and before INSERT",
+    "one_match": "replay original thread id/material/read receipt, no second insert",
+    "changed_material": "typed proven_not_applied operation_conflict, original retained, no new write",
+    "ambiguous": "multiple historical rows fail closed, no selection/merge/new write",
+    "authority_loss": "pre-effect refusal with original committed_unverified identity",
+    "readback_uncertainty": "known thread/op id retained; same-op retry reconciles without resend",
+    "missing_operation": "server-owned exact id minted, persisted in metadata, echoed",
+    "caller_arg_identity": "ignored; trusted context only",
+    "concurrency": "existing authority CAS + SQLite write serialization; one winner in actual interleavings"
+  },
+  "caller_paths": {
+    "generic": "existing Generic claim + producer replay; tested",
+    "assignment": "assignment adapter same-op replay; tested",
+    "mcp": "normal MCPService path; root 4 cases tested",
+    "registry_rpc": "action registry/MCP path; RPC lacks agent context and refuses pre-effect",
+    "service_fleet": "radio_service/fleet adapter retained parallel trusted writer; not qualified for MCP replay"
+  },
+  "registry": {
+    "registered_actions": 98,
+    "declared_mutations": 30,
+    "covered_mutations": 27,
+    "uncovered_mutations": [
+      "mini_app_run",
+      "workspace.commit",
+      "workspace.note"
+    ],
+    "note": "unchanged from 7e91a3c91 map"
+  },
+  "not_used": [
+    "live app",
+    "model",
+    "provider",
+    "account",
+    "credential",
+    "send",
+    "spend",
+    "install",
+    "deploy",
+    "KVM",
+    "PostgreSQL",
+    "multiworker",
+    "soak",
+    "all-827 sweep"
+  ],
+  "root_owns": "independent review, PR, CI and merge"
+}
