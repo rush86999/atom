@@ -1,0 +1,334 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-07 12:30:05 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+2026-11-07 12:30:06 [    INFO] MCP Service initialized
+
+tests/test_task_wait_source_version_after_acceptance.py::test_source_change_after_acceptance_is_revalidated_before_consumption 
+-------------------------------- live log setup --------------------------------
+2026-11-07 12:30:06 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-07 12:30:06 [    INFO] EscalationManager initialized
+2026-11-07 12:30:06 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:30:06 [    INFO] EscalationManager initialized
+2026-11-07 12:30:06 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:30:06 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 12:30:06 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:30:07 [    INFO] runtime identity: source_id=3ebee2da55f0 revision=3ebee2da55f0 dirty=False (0 modified, 0 untracked)
+2026-11-07 12:30:07 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 12:30:07 [    INFO] HTTP Request: POST http://testserver/api/assignments/95afef83-0ea3-4229-ae45-61f71bf5c632/sources "HTTP/1.1 200 OK"
+2026-11-07 12:30:07 [    INFO] HTTP Request: POST http://testserver/api/assignments/95afef83-0ea3-4229-ae45-61f71bf5c632/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [  3%]
+tests/test_task_wait_two_fact_events.py::test_two_missing_facts_settle_sequentially_and_complete 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:30:08 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 12:30:08 [    INFO] HTTP Request: POST http://testserver/api/assignments/e41b302d-edb2-425b-ae31-a6b4f45af180/sources "HTTP/1.1 200 OK"
+2026-11-07 12:30:08 [    INFO] HTTP Request: POST http://testserver/api/assignments/e41b302d-edb2-425b-ae31-a6b4f45af180/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [  6%]
+tests/test_task_wait_two_fact_events.py::test_wrong_subject_invoice_does_not_settle_the_invoice_question 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:30:09 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 12:30:09 [    INFO] HTTP Request: POST http://testserver/api/assignments/2bbc616a-d02b-4ac9-8f02-36249811f6e9/sources "HTTP/1.1 200 OK"
+2026-11-07 12:30:09 [    INFO] HTTP Request: POST http://testserver/api/assignments/2bbc616a-d02b-4ac9-8f02-36249811f6e9/sources "HTTP/1.1 200 OK"
+2026-11-07 12:30:09 [    INFO] HTTP Request: POST http://testserver/api/assignments/2bbc616a-d02b-4ac9-8f02-36249811f6e9/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [ 10%]
+tests/test_task_wait_source_continuation_regressions.py::test_source_acceptance_survives_interruption_and_replay_recovers 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:30:10 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 12:30:10 [    INFO] HTTP Request: POST http://testserver/api/assignments/2c9589df-1379-4cba-92df-d9155841ab78/sources "HTTP/1.1 200 OK"
+2026-11-07 12:30:10 [    INFO] HTTP Request: POST http://testserver/api/assignments/2c9589df-1379-4cba-92df-d9155841ab78/sources "HTTP/1.1 200 OK"
+2026-11-07 12:30:10 [    INFO] HTTP Request: POST http://testserver/api/assignments/2c9589df-1379-4cba-92df-d9155841ab78/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [ 13%]
+tests/test_task_wait_source_continuation_regressions.py::test_model_retain_after_relevant_source_does_not_fake_completion 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:30:11 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 12:30:11 [    INFO] HTTP Request: POST http://testserver/api/assignments/98a1080b-d351-4007-ad52-99bb18b44cff/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [ 16%]
+tests/test_task_wait_source_continuation_regressions.py::test_irrelevant_source_answer_stays_unresolved[wrong_subject] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:30:12 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 12:30:12 [    INFO] HTTP Request: POST http://testserver/api/assignments/b8b1315f-7dd6-4221-bf0b-9afd4bcc4250/sources "HTTP/1.1 200 OK"
+2026-11-07 12:30:12 [    INFO] HTTP Request: POST http://testserver/api/assignments/b8b1315f-7dd6-4221-bf0b-9afd4bcc4250/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [ 20%]
+tests/test_task_wait_source_continuation_regressions.py::test_irrelevant_source_answer_stays_unresolved[partial] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:30:13 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 12:30:13 [    INFO] HTTP Request: POST http://testserver/api/assignments/bb269892-08cc-4e37-b7e5-decaf6a6db0a/sources "HTTP/1.1 200 OK"
+2026-11-07 12:30:13 [    INFO] HTTP Request: POST http://testserver/api/assignments/bb269892-08cc-4e37-b7e5-decaf6a6db0a/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [ 23%]
+tests/test_task_wait_source_continuation_regressions.py::test_irrelevant_source_answer_stays_unresolved[unrelated] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:30:14 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 12:30:14 [    INFO] HTTP Request: POST http://testserver/api/assignments/49971663-56f5-4f99-aeb7-44a10b4d70cb/sources "HTTP/1.1 200 OK"
+2026-11-07 12:30:14 [    INFO] HTTP Request: POST http://testserver/api/assignments/49971663-56f5-4f99-aeb7-44a10b4d70cb/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [ 26%]
+tests/test_task_wait_source_continuation_regressions.py::test_explicit_use_model_false_does_not_adapt_after_source_answer 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:30:14 [    INFO] HTTP Request: POST http://testserver/api/assignments/84b112e0-616c-4fcd-8433-9dbc41d67de8/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [ 30%]
+tests/test_task_wait_source_continuation_regressions.py::test_cancelled_task_refuses_source_arrival_without_resurrection 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:30:15 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 12:30:15 [    INFO] HTTP Request: POST http://testserver/api/assignments/e57bc969-d792-4c23-bf6f-1120b3268279/cancel "HTTP/1.1 200 OK"
+2026-11-07 12:30:15 [    INFO] HTTP Request: POST http://testserver/api/assignments/e57bc969-d792-4c23-bf6f-1120b3268279/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [ 33%]
+tests/test_task_wait_source_continuation_regressions.py::test_absolute_deadline_is_not_extended_by_source_arrival 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:30:16 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 12:30:16 [    INFO] HTTP Request: POST http://testserver/api/assignments/c1b45e82-a77d-410b-b689-bd5817b10baa/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [ 36%]
+tests/test_task_wait_source_continuation_regressions.py::test_prolonged_information_wait_does_not_consume_active_wall_budget 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:30:17 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 12:30:17 [    INFO] HTTP Request: POST http://testserver/api/assignments/a5639607-5748-4c16-ad6d-717cbee46015/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [ 40%]
+tests/test_task_wait_source_continuation_regressions.py::test_restart_owner_does_not_poll_a_missing_or_unsuitable_obligation 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:30:18 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+PASSED                                                                   [ 43%]
+tests/test_task_wait_source_continuation_regressions.py::test_recovery_claim_makes_second_successor_and_repeat_inert 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:30:18 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 12:30:18 [    INFO] HTTP Request: POST http://testserver/api/assignments/6c33c936-97e0-4950-a0f0-ad0f8393f059/sources "HTTP/1.1 200 OK"
+2026-11-07 12:30:19 [    INFO] EscalationManager initialized
+2026-11-07 12:30:19 [    INFO] CognitiveTierService initialized for workspace: ws-1
+PASSED                                                                   [ 46%]
+tests/test_task_wait_source_continuation_regressions.py::test_concurrent_recovery_successors_adapt_accepted_evidence_once 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:30:19 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 12:30:19 [    INFO] HTTP Request: POST http://testserver/api/assignments/df421590-c432-41bb-b5ce-99de888935fc/sources "HTTP/1.1 200 OK"
+2026-11-07 12:30:19 [    INFO] EscalationManager initialized
+2026-11-07 12:30:19 [    INFO] CognitiveTierService initialized for workspace: ws-1
+PASSED                                                                   [ 50%]
+tests/test_task_wait_source_continuation_regressions.py::test_open_second_prerequisite_blocks_recovery_until_it_is_resolved 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:30:20 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 12:30:21 [    INFO] HTTP Request: POST http://testserver/api/assignments/36e95df0-28f1-489f-a3b2-1fad3d44a241/sources "HTTP/1.1 200 OK"
+2026-11-07 12:30:21 [    INFO] EscalationManager initialized
+2026-11-07 12:30:21 [    INFO] CognitiveTierService initialized for workspace: ws-1
+PASSED                                                                   [ 53%]
+tests/test_task_wait_source_continuation_regressions.py::test_restart_owner_does_not_revive_expired_or_cancelled_work 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:30:21 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 12:30:22 [    INFO] HTTP Request: POST http://testserver/api/assignments/1c0d1c7e-af92-4afd-86db-4b7ffc968155/sources "HTTP/1.1 200 OK"
+2026-11-07 12:30:22 [    INFO] HTTP Request: POST http://testserver/api/assignments/1c0d1c7e-af92-4afd-86db-4b7ffc968155/cancel "HTTP/1.1 200 OK"
+PASSED                                                                   [ 56%]
+tests/test_task_wait_source_continuation_regressions.py::test_recovery_finish_is_bound_to_the_claim_generation[False] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:30:22 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 12:30:23 [    INFO] HTTP Request: POST http://testserver/api/assignments/bb4c0e8b-61ff-4592-91e1-47cfbf4002a1/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [ 60%]
+tests/test_task_wait_source_continuation_regressions.py::test_recovery_finish_is_bound_to_the_claim_generation[True] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:30:24 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 12:30:24 [    INFO] HTTP Request: POST http://testserver/api/assignments/c69f3a05-eafc-4936-b0ca-781fa540d87b/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [ 63%]
+tests/test_task_wait_source_continuation_regressions.py::test_recovery_finish_and_retain_require_the_claim_token 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:30:25 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 12:30:25 [    INFO] HTTP Request: POST http://testserver/api/assignments/24e56e57-713f-4cff-86f9-b7d4f7628a03/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [ 66%]
+tests/test_task_wait_source_continuation_regressions.py::test_live_owner_survives_lease_expiry_and_late_cleanup_is_generation_bound 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:30:26 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 12:30:26 [    INFO] HTTP Request: POST http://testserver/api/assignments/7f002d6d-73b2-4ea0-9675-8e03ae4288d4/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [ 70%]
+tests/test_task_wait_process_recovery.py::test_actual_process_restart_does_not_model_poll_a_missing_prerequisite PASSED [ 73%]
+tests/test_task_wait_process_recovery.py::test_actual_process_restart_recovers_accepted_source_without_replay PASSED [ 76%]
+tests/test_task_wait_process_recovery.py::test_actual_process_successor_crash_after_recovery_claim_wakes_at_lease PASSED [ 80%]
+tests/test_task_wait_independent_work.py::test_independent_work_does_not_release_a_premature_final_artifact 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:31:03 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 12:31:03 [    INFO] HTTP Request: POST http://testserver/api/assignments/14bf4d5e-a5fe-465b-b85f-9e955faeeb33/advance "HTTP/1.1 200 OK"
+2026-11-07 12:31:03 [    INFO] HTTP Request: POST http://testserver/api/assignments/14bf4d5e-a5fe-465b-b85f-9e955faeeb33/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [ 83%]
+tests/test_task_wait_artifact_content_contract.py::test_wait_holds_physical_output_then_publishes_current_verified_results 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:31:04 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 12:31:05 [    INFO] HTTP Request: POST http://testserver/api/assignments/95c38f95-4cce-466a-98c4-33d1028b6ca7/advance "HTTP/1.1 200 OK"
+2026-11-07 12:31:05 [    INFO] HTTP Request: POST http://testserver/api/assignments/95c38f95-4cce-466a-98c4-33d1028b6ca7/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [ 86%]
+tests/test_task_wait_source_revocation.py::test_revoked_local_grant_refuses_source_answer_then_valid_twin_completes 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:31:06 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 12:31:06 [    INFO] HTTP Request: POST http://testserver/api/assignments/b4e4ed60-6b29-4036-b4af-00021aaf3fb6/sources "HTTP/1.1 403 Forbidden"
+2026-11-07 12:31:06 [    INFO] HTTP Request: POST http://testserver/api/assignments/b4e4ed60-6b29-4036-b4af-00021aaf3fb6/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [ 90%]
+tests/test_task_wait_two_job_isolation.py::test_two_same_workspace_jobs_keep_questions_and_receipts_isolated 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:31:07 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 12:31:07 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 12:31:07 [    INFO] HTTP Request: POST http://testserver/api/assignments/2614a1f6-582c-46f0-b7fd-b0ef6cba4c78/sources "HTTP/1.1 200 OK"
+2026-11-07 12:31:07 [    INFO] HTTP Request: POST http://testserver/api/assignments/7151531c-0af5-414c-ad17-09e705230fbe/sources "HTTP/1.1 200 OK"
+2026-11-07 12:31:07 [    INFO] HTTP Request: POST http://testserver/api/assignments/2614a1f6-582c-46f0-b7fd-b0ef6cba4c78/sources "HTTP/1.1 200 OK"
+2026-11-07 12:31:07 [    INFO] HTTP Request: POST http://testserver/api/assignments/7151531c-0af5-414c-ad17-09e705230fbe/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [ 93%]
+tests/test_generic_information_two_job_isolation.py::test_two_generic_jobs_keep_waits_and_answers_isolated 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:31:08 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 12:31:08 [    INFO] EscalationManager initialized
+2026-11-07 12:31:08 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 12:31:08 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 12:31:08 [    INFO] EscalationManager initialized
+2026-11-07 12:31:08 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:31:08 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 12:31:08 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Create task A
+2026-11-07 12:31:08 [    INFO] Agent Agent One (a1) starting task: Create task A
+2026-11-07 12:31:08 [    INFO] EscalationManager initialized
+2026-11-07 12:31:08 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:31:08 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 12:31:08 [    INFO] LanceDBHandler initialized. ID: 5139418640. LANCEDB_AVAILABLE: True
+2026-11-07 12:31:08 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 12:31:08 [    INFO] Connecting to LanceDB at /private/tmp/atom-clean-affected-xi8p83k6/lancedb with storage_options=None
+2026-11-07 12:31:08 [    INFO] LanceDB connected successfully
+2026-11-07 12:31:08 [    INFO] EscalationManager initialized
+2026-11-07 12:31:08 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 12:31:08 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-07 12:31:08 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 1}
+2026-11-07 12:31:08 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=generic-two-job-a "HTTP/1.1 202 Accepted"
+2026-11-07 12:31:08 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 12:31:08 [    INFO] EscalationManager initialized
+2026-11-07 12:31:08 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 12:31:08 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 12:31:08 [    INFO] EscalationManager initialized
+2026-11-07 12:31:08 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:31:08 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 12:31:08 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Create task B
+2026-11-07 12:31:08 [    INFO] Agent Agent One (a1) starting task: Create task B
+2026-11-07 12:31:08 [    INFO] EscalationManager initialized
+2026-11-07 12:31:08 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:31:08 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 12:31:08 [    INFO] LanceDBHandler initialized. ID: 5143293904. LANCEDB_AVAILABLE: True
+2026-11-07 12:31:08 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 12:31:08 [    INFO] Connecting to LanceDB at /private/tmp/atom-clean-affected-xi8p83k6/lancedb with storage_options=None
+2026-11-07 12:31:08 [    INFO] LanceDB connected successfully
+2026-11-07 12:31:08 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-07 12:31:08 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 2}
+2026-11-07 12:31:08 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=generic-two-job-b "HTTP/1.1 202 Accepted"
+2026-11-07 12:31:08 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 12:31:08 [    INFO] EscalationManager initialized
+2026-11-07 12:31:08 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 12:31:08 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 12:31:08 [    INFO] EscalationManager initialized
+2026-11-07 12:31:08 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:31:08 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 12:31:08 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Create task A
+2026-11-07 12:31:08 [    INFO] Agent Agent One (a1) starting task: Create task A
+2026-11-07 12:31:08 [    INFO] EscalationManager initialized
+2026-11-07 12:31:08 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:31:08 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 12:31:08 [    INFO] LanceDBHandler initialized. ID: 5143026896. LANCEDB_AVAILABLE: True
+2026-11-07 12:31:08 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 12:31:08 [    INFO] Connecting to LanceDB at /private/tmp/atom-clean-affected-xi8p83k6/lancedb with storage_options=None
+2026-11-07 12:31:08 [    INFO] LanceDB connected successfully
+2026-11-07 12:31:09 [    INFO] Recorded outcome for a1: success
+2026-11-07 12:31:09 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-07 12:31:09 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 3}
+2026-11-07 12:31:09 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/jobs/0050ef2d-ac5b-43e1-a6ac-5894210c1a96/answer "HTTP/1.1 200 OK"
+2026-11-07 12:31:09 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/jobs/4da9354f-43f6-469d-8057-e2c31a0f3be7/answer "HTTP/1.1 409 Conflict"
+2026-11-07 12:31:09 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 12:31:09 [    INFO] EscalationManager initialized
+2026-11-07 12:31:09 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 12:31:09 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 12:31:09 [    INFO] EscalationManager initialized
+2026-11-07 12:31:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:31:09 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 12:31:09 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Create task B
+2026-11-07 12:31:09 [    INFO] Agent Agent One (a1) starting task: Create task B
+2026-11-07 12:31:09 [    INFO] EscalationManager initialized
+2026-11-07 12:31:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:31:09 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 12:31:09 [    INFO] LanceDBHandler initialized. ID: 5144956560. LANCEDB_AVAILABLE: True
+2026-11-07 12:31:09 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 12:31:09 [    INFO] Connecting to LanceDB at /private/tmp/atom-clean-affected-xi8p83k6/lancedb with storage_options=None
+2026-11-07 12:31:09 [    INFO] LanceDB connected successfully
+2026-11-07 12:31:09 [    INFO] Recorded outcome for a1: success
+2026-11-07 12:31:09 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-07 12:31:09 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 4}
+2026-11-07 12:31:09 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/jobs/4da9354f-43f6-469d-8057-e2c31a0f3be7/answer "HTTP/1.1 200 OK"
+PASSED                                                                   [ 96%]
+tests/test_generic_information_idle_contract.py::test_prolonged_generic_wait_retains_receipt_without_model_poll 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:31:10 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 12:31:10 [    INFO] EscalationManager initialized
+2026-11-07 12:31:10 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 12:31:10 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 12:31:10 [    INFO] EscalationManager initialized
+2026-11-07 12:31:10 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:31:10 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 12:31:10 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Create the idle task
+2026-11-07 12:31:10 [    INFO] Agent Agent One (a1) starting task: Create the idle task
+2026-11-07 12:31:10 [    INFO] EscalationManager initialized
+2026-11-07 12:31:10 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:31:10 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 12:31:10 [    INFO] LanceDBHandler initialized. ID: 5160559984. LANCEDB_AVAILABLE: True
+2026-11-07 12:31:10 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 12:31:10 [    INFO] Connecting to LanceDB at /private/tmp/atom-clean-affected-xi8p83k6/lancedb with storage_options=None
+2026-11-07 12:31:10 [    INFO] LanceDB connected successfully
+2026-11-07 12:31:10 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-07 12:31:10 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 5}
+2026-11-07 12:31:10 [ WARNING] turn_fact circuit breaker OPENED after 5 consecutive failures (cooldown=120s) — extraction skipped
+2026-11-07 12:31:10 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=generic-idle-wait "HTTP/1.1 202 Accepted"
+2026-11-07 14:31:10 [    INFO] HTTP Request: GET http://testserver/api/agents/a1/jobs/dfb8fc05-cb2c-479a-ab3d-681d6eadb582 "HTTP/1.1 200 OK"
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 60 warnings
+tests/test_generic_information_idle_contract.py: 2 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_generic_information_two_job_isolation.py::test_two_generic_jobs_keep_waits_and_answers_isolated
+tests/test_generic_information_two_job_isolation.py::test_two_generic_jobs_keep_waits_and_answers_isolated
+tests/test_generic_information_two_job_isolation.py::test_two_generic_jobs_keep_waits_and_answers_isolated
+tests/test_generic_information_two_job_isolation.py::test_two_generic_jobs_keep_waits_and_answers_isolated
+tests/test_generic_information_idle_contract.py::test_prolonged_generic_wait_retains_receipt_without_model_poll
+  /private/tmp/atom-task-wait-01-reconciliation-20261107/backend/core/lancedb_handler.py:407: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    names = set(self.db.table_names())
+
+tests/test_generic_information_two_job_isolation.py: 8 warnings
+tests/test_generic_information_idle_contract.py: 2 warnings
+  /Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/asyncio/events.py:94: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    self._context.run(self._callback, *self._args)
+
+tests/test_generic_information_two_job_isolation.py::test_two_generic_jobs_keep_waits_and_answers_isolated
+tests/test_generic_information_two_job_isolation.py::test_two_generic_jobs_keep_waits_and_answers_isolated
+tests/test_generic_information_two_job_isolation.py::test_two_generic_jobs_keep_waits_and_answers_isolated
+tests/test_generic_information_two_job_isolation.py::test_two_generic_jobs_keep_waits_and_answers_isolated
+tests/test_generic_information_idle_contract.py::test_prolonged_generic_wait_retains_receipt_without_model_poll
+  /private/tmp/atom-task-wait-01-reconciliation-20261107/backend/core/lancedb_handler.py:620: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    if table_name in self.db.table_names():
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================== 30 passed, 89 warnings in 79.84s (0:01:19) ==================

@@ -1,0 +1,39 @@
+{
+  "command": [
+    "/usr/local/opt/python@3.14/bin/python3.14",
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-oracle-refresh-20261107/backend",
+    "--",
+    "/usr/local/opt/python@3.14/bin/python3.14",
+    "-m",
+    "pytest",
+    "/private/tmp/atom-oracle-refresh-20261107/docs/acceptance/evidence/oracle_radio_create_thread_trace_20261107/probe_radio_create_thread_gap.py",
+    "-q",
+    "--disable-warnings",
+    "-p",
+    "no:cacheprovider"
+  ],
+  "cwd": "/private/tmp/atom-oracle-refresh-20261107/backend",
+  "exit_code": 1,
+  "result": "2 failed in 3.67s",
+  "gate_dispatched": true,
+  "free_before_bytes": 5121454080,
+  "minimum_bytes": 4294967296,
+  "interpretation": "failure-first: the desired end state is not implemented; not a test-infrastructure failure",
+  "environment": {
+    "TESTING": "1",
+    "SECRET_KEY": "synthetic-oracle-refresh-probe",
+    "DATABASE_URL": "sqlite:////private/tmp/atom-oracle-refresh-evidence/probe2/atom.db",
+    "ATOM_DATA_DIR": "/private/tmp/atom-oracle-refresh-evidence/probe2/data",
+    "LANCEDB_URI": "/private/tmp/atom-oracle-refresh-evidence/probe2/lancedb",
+    "ATOM_OUTPUT_DIR": "/private/tmp/atom-oracle-refresh-evidence/probe2/output",
+    "TMPDIR": "/private/tmp/atom-oracle-refresh-evidence/probe2/basetemp",
+    "ATOM_RADIO_ENABLED": "true"
+  },
+  "controlled_seams": [
+    "real action_registry + real radio_actions + real radio_service",
+    "real GenericAgent._step_act_unaudited mutation claim/oracle consumer",
+    "real scratch SQLite models; no model/provider/network/account"
+  ]
+}

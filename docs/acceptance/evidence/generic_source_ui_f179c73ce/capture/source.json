@@ -1,0 +1,20 @@
+{
+  "repo": "/private/tmp/atom-goal-utility-surface-20261107",
+  "head": "f179c73ce2bc6feae38c3641c5a11d4a8db52386",
+  "expected_sha": "f179c73ce2bc6feae38c3641c5a11d4a8db52386",
+  "matches_expected": true,
+  "tracked_dirty": [],
+  "tracked_dirty_count": 0,
+  "backend_dirty": [],
+  "backend_dirty_count": 0,
+  "driver_sha256": "66431e44bc36ce28adace7409b72a291e5fd626ecf1d472364aa33b53333850e",
+  "driver_path": "/private/tmp/atom-goal-utility-surface-20261107/scripts/acceptance/browser_agent_job_wait.py",
+  "runtime_identity": {
+    "source_id": "f179c73ce2bc",
+    "revision": "f179c73ce2bc6feae38c3641c5a11d4a8db52386",
+    "dirty": false,
+    "dirty_paths_count": 0,
+    "untracked_paths_count": 0,
+    "error": null
+  }
+}

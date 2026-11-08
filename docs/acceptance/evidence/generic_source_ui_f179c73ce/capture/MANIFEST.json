@@ -1,0 +1,93 @@
+{
+  "kind": "browser_agent_source_answer_evidence_manifest",
+  "generated_at": "2026-11-07T16:48:22-0500",
+  "source_commit": "f179c73ce2bc6feae38c3641c5a11d4a8db52386",
+  "labels": {
+    "model_decisions": "SIMULATED MODEL DECISIONS: authored provider completions served by the existing loopback provider shim. Not served-model output.",
+    "transport": "CONTROLLED TRANSPORT: only the provider response is substituted; routing, execution, persistence, wait/resume, the ordinary upload route, tasks.create and the default oracle run in production code.",
+    "not_claimed": [
+      "served model or provider quality",
+      "general model judgment or prompt quality",
+      "any live provider, account, credential, send, spend or download",
+      "a second job, a synthetic completed row, or a manual objective/advance",
+      "full TASK-WAIT-01 or full application acceptance"
+    ]
+  },
+  "files": [
+    {
+      "path": "capture/requests.jsonl",
+      "sha256": "d5dc13868b2b3de4e48e6080b727d83747b0da600a8e13a2bddd853909735770",
+      "bytes": 42786
+    },
+    {
+      "path": "durable.json",
+      "sha256": "94dced8895cb20446854ac506a8c39c3b8dafcfc4d6f199f99a4bd2c7d6cbb77",
+      "bytes": 1523
+    },
+    {
+      "path": "prompt_evidence.json",
+      "sha256": "f093bd02ea3d96d701cb04bdbbd07ff935fd09ba30b80831cc41c61cf351d986",
+      "bytes": 216
+    },
+    {
+      "path": "scenario.json",
+      "sha256": "4eb23a310bbdac4c53b7c29256f689d33e94b182ac7d0a149d3353d739c3d6aa",
+      "bytes": 69618
+    },
+    {
+      "path": "screenshots/00_login.png",
+      "sha256": "4207aaecf19c9667aeb46667143f144622b891b49300df67310e53e02b10161d",
+      "bytes": 150384
+    },
+    {
+      "path": "screenshots/00_onboarding_completed.png",
+      "sha256": "8990a32da97a1e15eb0bb36586ffc1cbc7743d2a832913485ea3c728d63dff61",
+      "bytes": 151499
+    },
+    {
+      "path": "screenshots/01_first_source_question.png",
+      "sha256": "97684f21b82c2206f2cb3ef4e9da8bb100c6a1506a2deeb706780c62e2b94a01",
+      "bytes": 172099
+    },
+    {
+      "path": "screenshots/02_uploaded_source_only.png",
+      "sha256": "4c514a46225131aee8db0352932880a41fa7ba3dc3d3c8dc094fd6380ec7835b",
+      "bytes": 116542
+    },
+    {
+      "path": "screenshots/03_source_selected.png",
+      "sha256": "1af4d6163772286f8d3d91cd37ef73f5220c44f5c78a07def52683d1c1bfb2fa",
+      "bytes": 109278
+    },
+    {
+      "path": "screenshots/04_after_restart_source_ready.png",
+      "sha256": "29f2d28b6b7efea6f0a77be737fabd2adbb15dc6c41f6d9d8d7444fe424510be",
+      "bytes": 109781
+    },
+    {
+      "path": "screenshots/05_verified_source_result.png",
+      "sha256": "f90b24d982bf4b4cd93cf476bbe9cc256eebe6b24fc002ce9a8c11b98a561e00",
+      "bytes": 111327
+    },
+    {
+      "path": "shim_capture.jsonl",
+      "sha256": "a8e753a59090e440742702eadb5f15d9f4458c75188a40de68f7f72cd2177e84",
+      "bytes": 22515
+    },
+    {
+      "path": "source.json",
+      "sha256": "eb7714c5e6971c46f695caceac81bded439cbc25dd036af492894bcd5dcff775",
+      "bytes": 730
+    },
+    {
+      "path": "source_catalog.json",
+      "sha256": "185dc182c2656f3bd6df1ec5d6ec61565b12a65976e03ae2a3aaf5adf9607d77",
+      "bytes": 383
+    },
+    {
+      "path": "stack.json",
+      "sha256": "b573610598aedd8ce7f074881049597db9bb7584365fad2054d82e7274a69429",
+      "bytes": 40682
+    }
+  ]
+}

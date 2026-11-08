@@ -1,0 +1,120 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-07 15:08:05 [    INFO] MCP Service initialized
+
+::test_mcp_same_operation_reuses_exact_thread 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:08:05 [    INFO] radio: thread 18b89821-cde8-4646-8def-88cf10369a04 created by agent-a
+2026-11-07 15:08:05 [    INFO] radio: thread 090e62a6-f95b-430f-997c-675009d91324 created by agent-a
+FAILED                                                                   [ 14%]
+::test_mcp_same_operation_changed_material_has_zero_new_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:08:06 [    INFO] radio: thread fa6496f9-48b9-443f-8b9d-be5ce00f682b created by agent-a
+2026-11-07 15:08:06 [    INFO] radio: thread a8a0a9f7-9a4d-4319-8bcc-1cea843c596d created by agent-a
+FAILED                                                                   [ 28%]
+::test_mcp_created_thread_always_carries_operation_identity 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:08:07 [    INFO] radio: thread 6dafa1ad-afd7-4c67-bef7-f46bda25d188 created by agent-a
+FAILED                                                                   [ 42%]
+::test_mcp_readback_uncertainty_reconciles_without_resend 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:08:07 [    INFO] radio: thread 99309407-e8d7-4209-b97e-588dee9459ef created by agent-a
+2026-11-07 15:08:07 [    INFO] radio: thread 5f59673b-0ce4-4702-ba10-7c933a4aac57 created by agent-a
+FAILED                                                                   [ 57%]
+tests/test_lead_radio_thread_authority_linearization.py::test_authority_change_before_thread_write_has_zero_effect[agent-a] 
+-------------------------------- live log setup --------------------------------
+2026-11-07 15:08:08 [    INFO] EscalationManager initialized
+2026-11-07 15:08:08 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:08:08 [    INFO] EscalationManager initialized
+2026-11-07 15:08:08 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:08:08 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 15:08:08 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [ 71%]
+tests/test_lead_radio_thread_authority_linearization.py::test_authority_change_before_thread_write_has_zero_effect[agent-b] PASSED [ 85%]
+tests/test_lead_radio_thread_authority_linearization.py::test_current_authority_thread_valid_twin 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:08:10 [    INFO] radio: thread b98bc71c-93e3-4767-9644-15dd07bbaa55 created by agent-a
+PASSED                                                                   [100%]
+
+=================================== FAILURES ===================================
+_________________ test_mcp_same_operation_reuses_exact_thread __________________
+../../test_lead_radio_mcp_replay.py:20: in test_mcp_same_operation_reuses_exact_thread
+    assert len(_threads(env))==1,('MCP replay created a second thread',first,second)
+E   AssertionError: ('MCP replay created a second thread', {'success': True, 'status': 'success', 'action_result': 'applied', 'provider': 'agent_radio', ...}, {'success': True, 'status': 'success', 'action_result': 'applied', 'provider': 'agent_radio', ...})
+E   assert 2 == 1
+E    +  where 2 = len([<core.models.AgentThread object at 0x12b025f30>, <core.models.AgentThread object at 0x12b0a1250>])
+E    +    where [<core.models.AgentThread object at 0x12b025f30>, <core.models.AgentThread object at 0x12b0a1250>] = _threads({'path': '/private/tmp/root-wait-source-final-review-q_7kvnbr/pytest/test_mcp_same_operation_reuses0/radio_thread.db', 'Session': sessionmaker(class_='Session', bind=Engine(sqlite:////private/tmp/root-wait-source-final-review-q_7kvnbr/pytest/test_mcp_same_operation_reuses0/radio_thread.db), autoflush=True, expire_on_commit=False)})
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_radio.radio_service:radio_service.py:87 radio: thread 18b89821-cde8-4646-8def-88cf10369a04 created by agent-a
+INFO     core.agent_radio.radio_service:radio_service.py:87 radio: thread 090e62a6-f95b-430f-997c-675009d91324 created by agent-a
+_________ test_mcp_same_operation_changed_material_has_zero_new_effect _________
+../../test_lead_radio_mcp_replay.py:27: in test_mcp_same_operation_changed_material_has_zero_new_effect
+    assert len(_threads(env))==1,('same operation changed material created another thread',second)
+E   AssertionError: ('same operation changed material created another thread', {'success': True, 'status': 'success', 'action_result': 'applied', 'provider': 'agent_radio', ...})
+E   assert 2 == 1
+E    +  where 2 = len([<core.models.AgentThread object at 0x12b0bf200>, <core.models.AgentThread object at 0x12b0bf110>])
+E    +    where [<core.models.AgentThread object at 0x12b0bf200>, <core.models.AgentThread object at 0x12b0bf110>] = _threads({'path': '/private/tmp/root-wait-source-final-review-q_7kvnbr/pytest/test_mcp_same_operation_change0/radio_thread.db', 'Session': sessionmaker(class_='Session', bind=Engine(sqlite:////private/tmp/root-wait-source-final-review-q_7kvnbr/pytest/test_mcp_same_operation_change0/radio_thread.db), autoflush=True, expire_on_commit=False)})
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_radio.radio_service:radio_service.py:87 radio: thread fa6496f9-48b9-443f-8b9d-be5ce00f682b created by agent-a
+INFO     core.agent_radio.radio_service:radio_service.py:87 radio: thread a8a0a9f7-9a4d-4319-8bcc-1cea843c596d created by agent-a
+__________ test_mcp_created_thread_always_carries_operation_identity ___________
+../../test_lead_radio_mcp_replay.py:35: in test_mcp_created_thread_always_carries_operation_identity
+    assert operation and (rows[0].metadata_json or {}).get('operation_id')==operation,('committed thread has no durable operation identity',result)
+E   AssertionError: ('committed thread has no durable operation identity', {'success': True, 'status': 'success', 'action_result': 'applied', 'provider': 'agent_radio', ...})
+E   assert ('')
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_radio.radio_service:radio_service.py:87 radio: thread 6dafa1ad-afd7-4c67-bef7-f46bda25d188 created by agent-a
+___________ test_mcp_readback_uncertainty_reconciles_without_resend ____________
+../../test_lead_radio_mcp_replay.py:49: in test_mcp_readback_uncertainty_reconciles_without_resend
+    assert len(_threads(env))==1,('uncertainty recovery resent the original operation',first,second)
+E   AssertionError: ('uncertainty recovery resent the original operation', {'success': False, 'status': 'uncertain', 'action_result': 'uncertain', 'business_success': False, ...}, {'success': True, 'status': 'success', 'action_result': 'applied', 'provider': 'agent_radio', ...})
+E   assert 2 == 1
+E    +  where 2 = len([<core.models.AgentThread object at 0x12b2c0050>, <core.models.AgentThread object at 0x12b2ddd10>])
+E    +    where [<core.models.AgentThread object at 0x12b2c0050>, <core.models.AgentThread object at 0x12b2ddd10>] = _threads({'path': '/private/tmp/root-wait-source-final-review-q_7kvnbr/pytest/test_mcp_readback_uncertainty_0/radio_thread.db', 'Session': sessionmaker(class_='Session', bind=Engine(sqlite:////private/tmp/root-wait-source-final-review-q_7kvnbr/pytest/test_mcp_readback_uncertainty_0/radio_thread.db), autoflush=True, expire_on_commit=False)})
+------------------------------ Captured log call -------------------------------
+INFO     core.agent_radio.radio_service:radio_service.py:87 radio: thread 99309407-e8d7-4209-b97e-588dee9459ef created by agent-a
+INFO     core.agent_radio.radio_service:radio_service.py:87 radio: thread 5f59673b-0ce4-4702-ba10-7c933a4aac57 created by agent-a
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 14 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_lead_radio_thread_authority_linearization.py::test_authority_change_before_thread_write_has_zero_effect[agent-a]
+  /private/tmp/atom-oracle-refresh-20261107/backend/core/graphrag_engine.py:203: SyntaxWarning: "\%" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\%"? A raw string is also an option.
+    Escaped pattern where % and _ are escaped to \%
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED ::test_mcp_same_operation_reuses_exact_thread - AssertionError: ('MCP ...
+FAILED ::test_mcp_same_operation_changed_material_has_zero_new_effect - Asser...
+FAILED ::test_mcp_created_thread_always_carries_operation_identity - Assertio...
+FAILED ::test_mcp_readback_uncertainty_reconciles_without_resend - AssertionE...
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================== 4 failed, 3 passed, 21 warnings in 13.97s ===================

@@ -1,0 +1,15 @@
+{
+  "source": "0bb9318313bf5dbae8753c3a20e82bd46c30929c",
+  "status_307_observed": true,
+  "status_307_path": "/api/agents/189fb255-47a8-4022-ab88-d2392f3cf0ee/run/",
+  "post_after_redirect_status": 200,
+  "redirect_target_observed": "/api/agents/189fb255-47a8-4022-ab88-d2392f3cf0ee/run",
+  "location_header_logged": false,
+  "location_note": "The access log does not print response headers. The redirected POST to /run and the Playwright run_posts prove the Location target; no arbitrary/foreign origin was observed.",
+  "raw_run_posts": [
+    "/api/agents/189fb255-47a8-4022-ab88-d2392f3cf0ee/run/",
+    "/api/agents/189fb255-47a8-4022-ab88-d2392f3cf0ee/run"
+  ],
+  "server_excerpt_artifact": "root-negative-server-307-excerpt.log",
+  "old_capture_regenerated": false
+}

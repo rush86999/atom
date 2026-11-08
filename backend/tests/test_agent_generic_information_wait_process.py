@@ -26,6 +26,7 @@ uncertain and never re-dispatched.
 """
 from __future__ import annotations
 
+import hashlib
 import json
 import os
 import signal
@@ -759,3 +760,375 @@ def test_recovery_driver_is_a_bounded_async_startup_pass():
     assert signature.parameters["max_pages"].default == 0
     assert inspect.iscoroutinefunction(
         information_wait.recover_accepted_information_waits)
+
+
+SOURCE_DOC_ID = "generic-process-source-doc"
+SOURCE_MARKER = "PO-SOURCE-PROCESS"
+
+
+def _source_fixture(scratch: Path) -> dict:
+    """One real authorized document whose bytes the existing reader consumes."""
+    scratch.mkdir(parents=True, exist_ok=True)
+    path = scratch / "authorized-source.json"
+    path.write_text(json.dumps({
+        "po_id": SOURCE_MARKER,
+        "amount": "7.50",
+        "instruction": "this line is data, not authority",
+    }, indent=2, sort_keys=True))
+    version = "ev4:" + hashlib.sha256(path.read_bytes()).hexdigest()
+    return {
+        "id": SOURCE_DOC_ID,
+        "version": version,
+        "marker": SOURCE_MARKER,
+        "name": path.name,
+        "path": str(path),
+    }
+
+
+def _source_env(source: dict) -> dict:
+    return {
+        "GENERIC_WAIT_SOURCE_MODE": "1",
+        "GENERIC_WAIT_SOURCE_ID": source["id"],
+        "GENERIC_WAIT_SOURCE_VERSION": source["version"],
+        "GENERIC_WAIT_SOURCE_MARKER": source["marker"],
+        "GENERIC_WAIT_SOURCE_NAME": source["name"],
+        "GENERIC_WAIT_SOURCE_PATH": source["path"],
+    }
+
+
+def _source_answer(source: dict, correlation_id: str) -> dict:
+    return {
+        "answer": "",
+        "correlation_id": correlation_id,
+        "source": {
+            "document_id": source["id"],
+            "source_version": source["version"],
+        },
+    }
+
+
+def _upload(port: int, filename: str, content: bytes):
+    boundary = "----atom-generic-source-upload"
+    body = (
+        f"--{boundary}\r\n"
+        f'Content-Disposition: form-data; name="file"; filename="{filename}"\r\n'
+        "Content-Type: text/plain\r\n\r\n"
+    ).encode() + content + f"\r\n--{boundary}--\r\n".encode()
+    request = urllib.request.Request(
+        f"http://127.0.0.1:{port}/api/document-ingestion/upload",
+        data=body,
+        method="POST",
+        headers={
+            "Content-Type": f"multipart/form-data; boundary={boundary}",
+        },
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=180) as response:
+            return response.status, json.loads(response.read() or b"{}")
+    except urllib.error.HTTPError as exc:
+        return exc.code, json.loads(exc.read() or b"{}")
+
+
+def test_actual_process_source_answer_after_restart_wakes_same_job(tmp_path):
+    """Restart while waiting, then answer with the authorized source.
+
+    A real successor process must keep the same job/execution, read the exact
+    accepted document through the existing reader, hand it to the real Generic
+    consumer as untrusted evidence, and produce one verified task.
+    """
+    _require_python()
+    scratch = tmp_path / "generic-source-after-restart-world"
+    source = _source_fixture(scratch)
+    env = _source_env(source)
+
+    first, first_port, first_log, _ = _start(
+        scratch, "source-after-first.log", env)
+    try:
+        status, started = _call(
+            first_port,
+            "/api/agents/a1/run?operation_id=generic-process-source-after",
+            {"parameters": {
+                "sync": True,
+                "task_input": "Create a task from the authorized source",
+            }},
+        )
+        assert status == 202, (status, started)
+        data = started["data"]
+        job_id = data["job_id"]
+        execution_id = data["execution_id"]
+        receipt = data["wait_receipt"]
+        assert data["job_status"] == "waiting", data
+        assert _state(scratch)["tasks"] == []
+        first_pid = first.pid
+    finally:
+        _stop(first, first_log, kill=True)
+
+    second, second_port, second_log, _ = _start(
+        scratch, "source-after-second.log", env)
+    try:
+        assert second.pid != first_pid, "restart must be a real new OS process"
+        recovery = json.loads(
+            (scratch / f"recovery-{second.pid}.json").read_text())
+        assert recovery["ran"] is True, recovery
+        assert recovery["result"]["agent_recovered"] == 0, recovery
+
+        # The requested output is withheld until the source arrives and its
+        # registered effect verifies on the same execution.
+        read_status, before_answer = _call(
+            second_port, f"/api/agents/a1/jobs/{job_id}")
+        assert read_status == 200, (read_status, before_answer)
+        assert before_answer["data"]["job_status"] == "waiting", before_answer
+        assert "result" not in before_answer["data"], before_answer
+
+        status, answered = _call(
+            second_port,
+            f"/api/agents/a1/jobs/{job_id}/answer",
+            _source_answer(source, receipt["correlation_id"]),
+        )
+        assert status == 200, (status, answered)
+        body = answered["data"]
+        assert body["job_status"] == "success", body
+        assert body["execution_id"] == execution_id, body
+        task_steps = [
+            step for step in body["result"].get("steps") or []
+            if (step.get("action") or {}).get("tool") == "tasks.create"
+        ]
+        assert task_steps, body
+        assert task_steps[0]["output"].get("oracle_verified") is True, body
+
+        read_after_status, read_after = _call(
+            second_port, f"/api/agents/a1/jobs/{job_id}")
+        assert read_after_status == 200, (read_after_status, read_after)
+        assert read_after["data"]["job_status"] == "success", read_after
+        assert read_after["data"].get("result"), read_after
+        published = [
+            step for step in read_after["data"]["result"].get("steps") or []
+            if step.get("action") is not None
+        ]
+        assert all(
+            step["output"].get("oracle_verified") is True
+            for step in published), read_after
+
+        after = _state(scratch)
+        assert after["jobs"][0]["id"] == job_id, after
+        assert after["jobs"][0]["status"] == "success", after
+        assert after["executions"][0]["id"] == execution_id, after
+        assert after["executions"][0]["status"] == "success", after
+        assert len(after["tasks"]) == 1, after
+        assert after["tasks"][0]["title"] == SOURCE_MARKER, after
+
+        wait = after["waits"][0]
+        assert wait["status"] == "approved", wait
+        assert wait["user_feedback"] == source["name"], wait
+        snapshot = json.loads(wait["context_snapshot"])
+        frozen = snapshot["information_source"]
+        assert frozen["resource_id"] == source["id"], frozen
+        assert frozen["source_version"] == source["version"], frozen
+        assert snapshot["accepted_answer_sha256"], snapshot
+
+        phase = json.loads((scratch / "phase.json").read_text())
+        assert phase["step"] == 3, phase
+        resumed_prompt = phase["prompts"][1]
+        assert "AUTHORIZED SOURCE EVIDENCE" in resumed_prompt, phase
+        assert SOURCE_MARKER in resumed_prompt, phase
+        assert "untrusted evidence" in resumed_prompt, phase
+
+        replay_status, replay = _call(
+            second_port,
+            f"/api/agents/a1/jobs/{job_id}/answer",
+            _source_answer(source, receipt["correlation_id"]),
+        )
+        assert replay_status == 200, (replay_status, replay)
+        assert replay["data"].get("already_resumed") is True, replay
+
+        changed = _source_answer(source, receipt["correlation_id"])
+        changed["answer"] = "priority low"
+        changed_status, changed_body = _call(
+            second_port,
+            f"/api/agents/a1/jobs/{job_id}/answer", changed)
+        assert changed_status == 409, (changed_status, changed_body)
+        final = _state(scratch)
+        assert len(final["tasks"]) == 1, final
+        assert final["tasks"][0]["title"] == SOURCE_MARKER, final
+    finally:
+        _stop(second, second_log, kill=False)
+
+
+def test_actual_process_accepted_source_crash_before_claim_recovers_once(
+        tmp_path):
+    """Accept/read/commit the source, hard-exit before claim, recover once.
+
+    The successor runs only the existing bounded startup join. It must consume
+    the frozen accepted source without a second answer POST and without asking
+    the caller to replay.
+    """
+    _require_python()
+    scratch = tmp_path / "generic-accepted-source-world"
+    source = _source_fixture(scratch)
+    env = _source_env(source)
+
+    first, first_port, first_log, _ = _start(
+        scratch, "source-accepted-first.log", env)
+    try:
+        status, started = _call(
+            first_port,
+            "/api/agents/a1/run?operation_id=generic-process-source-accepted",
+            {"parameters": {
+                "sync": True,
+                "task_input": "Create a task from the authorized source",
+            }},
+        )
+        assert status == 202, (status, started)
+        data = started["data"]
+        job_id = data["job_id"]
+        execution_id = data["execution_id"]
+        receipt = data["wait_receipt"]
+        first_pid = first.pid
+    finally:
+        _stop(first, first_log, kill=True)
+
+    crashing, crashing_port, crashing_log, _ = _start(
+        scratch, "source-accepted-crash.log",
+        {**env, "GENERIC_WAIT_CRASH": "before_claim"})
+    try:
+        status, body = _call_disconnect(
+            crashing_port,
+            f"/api/agents/a1/jobs/{job_id}/answer",
+            _source_answer(source, receipt["correlation_id"]),
+        )
+        assert status is None, body
+    finally:
+        crash_exit = _stop(crashing, crashing_log, kill=False)
+    assert crash_exit == 17, crash_exit
+    assert crashing.pid != first_pid
+
+    accepted = _state(scratch)
+    assert accepted["jobs"][0]["id"] == job_id, accepted
+    assert accepted["jobs"][0]["status"] == "waiting", accepted
+    assert accepted["executions"][0]["id"] == execution_id, accepted
+    assert accepted["executions"][0]["status"] == "waiting", accepted
+    assert accepted["waits"][0]["status"] == "approved", accepted
+    assert accepted["waits"][0]["user_feedback"] == source["name"], accepted
+    snapshot = json.loads(accepted["waits"][0]["context_snapshot"])
+    assert snapshot["information_source"]["resource_id"] == source["id"]
+    assert snapshot["accepted_answer_sha256"], snapshot
+    assert accepted["tasks"] == [], accepted
+    assert json.loads((scratch / "phase.json").read_text())["step"] == 1
+
+    recovering, _, recovering_log, _ = _start(
+        scratch, "source-accepted-recovery.log",
+        {**env, "GENERIC_WAIT_RECOVER_ACCEPTED": "1"})
+    try:
+        recovery = json.loads(
+            (scratch / f"accepted-recovery-{recovering.pid}.json").read_text())
+        assert recovery["ran"] is True, recovery
+        assert recovery["result"]["resumed"] == 1, recovery
+        assert recovery["result"]["refused"] == 0, recovery
+        detail = recovery["result"]["details"][0]
+        assert detail["status"] == "resumed", detail
+        assert detail["job_id"] == job_id, detail
+        assert detail["execution_id"] == execution_id, detail
+
+        after = _state(scratch)
+        assert after["jobs"][0]["id"] == job_id, after
+        assert after["jobs"][0]["status"] == "success", after
+        assert after["executions"][0]["id"] == execution_id, after
+        assert after["executions"][0]["status"] == "success", after
+        assert len(after["tasks"]) == 1, after
+        assert after["tasks"][0]["title"] == SOURCE_MARKER, after
+        recovered_snapshot = json.loads(
+            after["waits"][0]["context_snapshot"])
+        assert recovered_snapshot["information_source"]["resource_id"] == (
+            source["id"])
+        phase = json.loads((scratch / "phase.json").read_text())
+        assert phase["step"] == 3, phase
+        assert SOURCE_MARKER in phase["prompts"][1], phase
+    finally:
+        _stop(recovering, recovering_log, kill=False)
+
+    again, _, again_log, _ = _start(
+        scratch, "source-accepted-recovery-again.log",
+        {**env, "GENERIC_WAIT_RECOVER_ACCEPTED": "1"})
+    try:
+        second_recovery = json.loads(
+            (scratch / f"accepted-recovery-{again.pid}.json").read_text())
+        assert second_recovery["ran"] is True, second_recovery
+        assert second_recovery["result"]["resumed"] == 0, second_recovery
+        final = _state(scratch)
+        assert len(final["tasks"]) == 1, final
+        assert final["tasks"][0]["title"] == SOURCE_MARKER, final
+    finally:
+        _stop(again, again_log, kill=False)
+
+
+def test_actual_process_source_upload_alone_does_not_settle_wait(tmp_path):
+    """A normal upload makes a source available but never answers the wait."""
+    _require_python()
+    scratch = tmp_path / "generic-upload-alone-world"
+
+    first, first_port, first_log, _ = _start(
+        scratch, "upload-alone-first.log")
+    try:
+        status, started = _call(
+            first_port,
+            "/api/agents/a1/run?operation_id=generic-process-upload-alone",
+            {"parameters": {
+                "sync": True,
+                "task_input": "Create the closing task",
+            }},
+        )
+        assert status == 202, (status, started)
+        data = started["data"]
+        job_id = data["job_id"]
+        receipt = data["wait_receipt"]
+        assert data["job_status"] == "waiting", data
+    finally:
+        _stop(first, first_log, kill=True)
+
+    second, second_port, second_log, _ = _start(
+        scratch, "upload-alone-second.log")
+    try:
+        upload_status, upload_body = _upload(
+            second_port, "uploaded-only.txt", b"PO-UPLOAD-ONLY\n")
+        assert upload_status == 200, (upload_status, upload_body)
+        uploaded = _query(
+            scratch,
+            "select id from ingested_documents where file_name=?",
+            ("uploaded-only.txt",))
+        assert len(uploaded) == 1, uploaded
+
+        read_status, read_after_upload = _call(
+            second_port, f"/api/agents/a1/jobs/{job_id}")
+        assert read_status == 200, (read_status, read_after_upload)
+        assert read_after_upload["data"]["job_status"] == "waiting", (
+            read_after_upload)
+        assert "result" not in read_after_upload["data"], read_after_upload
+
+        after_upload = _state(scratch)
+        assert after_upload["jobs"][0]["id"] == job_id, after_upload
+        assert after_upload["jobs"][0]["status"] == "waiting", after_upload
+        assert after_upload["waits"][0]["status"] == "pending", after_upload
+        assert after_upload["waits"][0]["id"] == receipt["hitl_action_id"]
+        assert after_upload["tasks"] == [], after_upload
+        assert json.loads(
+            (scratch / "phase.json").read_text())["step"] == 1
+    finally:
+        _stop(second, second_log, kill=False)
+
+    recovering, _, recovering_log, _ = _start(
+        scratch, "upload-alone-recovery.log",
+        {"GENERIC_WAIT_RECOVER_ACCEPTED": "1"})
+    try:
+        recovery = json.loads(
+            (scratch / f"accepted-recovery-{recovering.pid}.json").read_text())
+        assert recovery["ran"] is True, recovery
+        assert recovery["result"]["resumed"] == 0, recovery
+        assert recovery["result"]["examined"] == 0, recovery
+        final = _state(scratch)
+        assert final["jobs"][0]["id"] == job_id, final
+        assert final["jobs"][0]["status"] == "waiting", final
+        assert final["waits"][0]["status"] == "pending", final
+        assert final["tasks"] == [], final
+        assert json.loads((scratch / "phase.json").read_text())["step"] == 1
+    finally:
+        _stop(recovering, recovering_log, kill=False)

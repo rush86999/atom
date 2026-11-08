@@ -1,0 +1,14 @@
+{
+  "source": "0bb9318313bf5dbae8753c3a20e82bd46c30929c",
+  "provider_calls": 3,
+  "models": [
+    "o4-mini",
+    "gpt-6-astra",
+    "gpt-6-astra"
+  ],
+  "correlation_id_present": false,
+  "hitl_action_id_present": false,
+  "authorization_header_present": false,
+  "prompts_or_messages_committed": false,
+  "note": "Count verified from the retained shim_capture.jsonl; only model labels are retained."
+}

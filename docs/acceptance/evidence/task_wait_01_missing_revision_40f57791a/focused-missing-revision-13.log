@@ -1,0 +1,115 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-07 13:36:23 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+
+tests/test_lead_wait_missing_authoritative_revision.py::test_current_authority_loses_revision_after_accepted_read[None] 
+-------------------------------- live log setup --------------------------------
+2026-11-07 13:36:24 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-07 13:36:24 [    INFO] EscalationManager initialized
+2026-11-07 13:36:24 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 13:36:24 [    INFO] EscalationManager initialized
+2026-11-07 13:36:24 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 13:36:24 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 13:36:24 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  7%]
+tests/test_lead_wait_missing_authoritative_revision.py::test_current_authority_loses_revision_after_accepted_read[] PASSED [ 15%]
+tests/test_lead_wait_source_progress_and_extraction.py::test_source_gap_returns_instead_of_syncing_applied_receipt_forever 
+-------------------------------- live log call ---------------------------------
+2026-11-07 13:36:26 [    INFO] runtime identity: source_id=40f57791a059 revision=40f57791a059 dirty=False (0 modified, 0 untracked)
+2026-11-07 13:36:26 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 13:36:26 [    INFO] HTTP Request: POST http://testserver/api/assignments/06f8f3de-4bb6-4f19-867a-13c967fc329d/sources "HTTP/1.1 200 OK"
+2026-11-07 13:36:26 [    INFO] HTTP Request: POST http://testserver/api/assignments/06f8f3de-4bb6-4f19-867a-13c967fc329d/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [ 23%]
+tests/test_lead_wait_source_progress_and_extraction.py::test_valid_indexed_source_version_is_not_a_binary_file_digest[ev4] PASSED [ 30%]
+tests/test_lead_wait_source_progress_and_extraction.py::test_valid_indexed_source_version_is_not_a_binary_file_digest[manual_opaque] PASSED [ 38%]
+tests/test_lead_wait_source_disappears.py::test_accepted_invoice_unavailable_before_consumption_stays_unresolved[removed] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 13:36:28 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 13:36:28 [    INFO] HTTP Request: POST http://testserver/api/assignments/6207e5b8-b374-4446-8a1c-34159a506fcd/sources "HTTP/1.1 200 OK"
+2026-11-07 13:36:28 [    INFO] HTTP Request: POST http://testserver/api/assignments/6207e5b8-b374-4446-8a1c-34159a506fcd/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [ 46%]
+tests/test_lead_wait_source_disappears.py::test_accepted_invoice_unavailable_before_consumption_stays_unresolved[unreadable] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 13:36:28 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 13:36:28 [    INFO] HTTP Request: POST http://testserver/api/assignments/85d47a6e-edd6-4c06-a5aa-85a1bd6ffc35/sources "HTTP/1.1 200 OK"
+2026-11-07 13:36:28 [    INFO] HTTP Request: POST http://testserver/api/assignments/85d47a6e-edd6-4c06-a5aa-85a1bd6ffc35/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [ 53%]
+tests/test_lead_wait_source_disappears.py::test_removed_authoritative_upload_cannot_use_cached_invoice 
+-------------------------------- live log call ---------------------------------
+2026-11-07 13:36:29 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 13:36:29 [    INFO] HTTP Request: POST http://testserver/api/assignments/74e8dfcf-cb56-4f72-917c-f4039e83dcc0/sources "HTTP/1.1 200 OK"
+2026-11-07 13:36:29 [    INFO] HTTP Request: POST http://testserver/api/assignments/74e8dfcf-cb56-4f72-917c-f4039e83dcc0/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [ 61%]
+tests/test_task_wait_source_version_after_acceptance.py::test_source_change_after_acceptance_is_revalidated_before_consumption 
+-------------------------------- live log call ---------------------------------
+2026-11-07 13:36:30 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 13:36:30 [    INFO] HTTP Request: POST http://testserver/api/assignments/78eb15dd-2076-42f4-8a39-bcc2d4b9a627/sources "HTTP/1.1 200 OK"
+2026-11-07 13:36:30 [    INFO] HTTP Request: POST http://testserver/api/assignments/78eb15dd-2076-42f4-8a39-bcc2d4b9a627/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [ 69%]
+tests/test_task_wait_source_version_after_acceptance.py::test_explicitly_authorized_newer_version_replaces_cached_result 
+-------------------------------- live log call ---------------------------------
+2026-11-07 13:36:30 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 13:36:30 [    INFO] HTTP Request: POST http://testserver/api/assignments/1476bbc6-77a6-4c58-9b0a-bb4f5a875d1e/sources "HTTP/1.1 200 OK"
+2026-11-07 13:36:30 [    INFO] HTTP Request: POST http://testserver/api/assignments/1476bbc6-77a6-4c58-9b0a-bb4f5a875d1e/sources "HTTP/1.1 200 OK"
+2026-11-07 13:36:31 [    INFO] HTTP Request: POST http://testserver/api/assignments/1476bbc6-77a6-4c58-9b0a-bb4f5a875d1e/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [ 76%]
+tests/test_task_wait_source_version_after_acceptance.py::test_restored_same_version_source_resumes_same_job 
+-------------------------------- live log call ---------------------------------
+2026-11-07 13:36:31 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 13:36:31 [    INFO] HTTP Request: POST http://testserver/api/assignments/0becb37d-d55e-4a1b-80d9-d0c8f6b03bf5/sources "HTTP/1.1 200 OK"
+2026-11-07 13:36:31 [    INFO] HTTP Request: POST http://testserver/api/assignments/0becb37d-d55e-4a1b-80d9-d0c8f6b03bf5/sources "HTTP/1.1 200 OK"
+2026-11-07 13:36:31 [    INFO] HTTP Request: POST http://testserver/api/assignments/0becb37d-d55e-4a1b-80d9-d0c8f6b03bf5/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [ 84%]
+tests/test_task_wait_two_fact_events.py::test_two_missing_facts_settle_sequentially_and_complete 
+-------------------------------- live log call ---------------------------------
+2026-11-07 13:36:32 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 13:36:32 [    INFO] HTTP Request: POST http://testserver/api/assignments/b3778214-efdc-439a-afe3-793f00aaaed5/sources "HTTP/1.1 200 OK"
+2026-11-07 13:36:32 [    INFO] HTTP Request: POST http://testserver/api/assignments/b3778214-efdc-439a-afe3-793f00aaaed5/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [ 92%]
+tests/test_task_wait_two_fact_events.py::test_wrong_subject_invoice_does_not_settle_the_invoice_question 
+-------------------------------- live log call ---------------------------------
+2026-11-07 13:36:33 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 13:36:33 [    INFO] HTTP Request: POST http://testserver/api/assignments/b759b3fd-07cd-4f88-882d-064ebcf77ceb/sources "HTTP/1.1 200 OK"
+2026-11-07 13:36:33 [    INFO] HTTP Request: POST http://testserver/api/assignments/b759b3fd-07cd-4f88-882d-064ebcf77ceb/sources "HTTP/1.1 200 OK"
+2026-11-07 13:36:33 [    INFO] HTTP Request: POST http://testserver/api/assignments/b759b3fd-07cd-4f88-882d-064ebcf77ceb/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 26 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 13 passed, 33 warnings in 20.43s =======================

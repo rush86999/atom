@@ -1,0 +1,17 @@
+{
+  "raw_result_record": "/private/tmp/root-radio-mcp-replay-negative.exit.json",
+  "executed_head": "f010c7174de10a9d5564e32eac3f4ef809f1b56d",
+  "actual_exit": 1,
+  "result": "4 failed,3 passed",
+  "tracked_runtime_test_diff": [],
+  "listed_source_bytes_match_git": {
+    "backend/core/agent_radio/radio_thread_mutations.py": true,
+    "backend/core/agent_radio/radio_actions.py": true,
+    "backend/core/oracle/postcondition_verifiers.py": true,
+    "backend/core/oracle/request_expectations.py": true,
+    "backend/tests/test_oracle_radio_create_thread.py": true,
+    "backend/integrations/mcp_service.py": true
+  },
+  "external_probe_sha256": "f79c5ebcdd59dfd8e575c447c178abe3944da514b436b6e23e71d9485aabc00f",
+  "note": "raw diagnostic_uncommitted_candidate=true was inherited runner-template metadata; do not interpret it as actual dirty-runtime attribution. Listed loaded production/helper bytes match frozen commit; untracked root CLI config is not claimed as clean whole tree."
+}

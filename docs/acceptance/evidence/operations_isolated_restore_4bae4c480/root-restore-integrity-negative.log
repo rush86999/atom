@@ -1,0 +1,37 @@
+F.F                                                                      [100%]
+=================================== FAILURES ===================================
+___________ test_restore_preserves_every_original_canvas_audit_byte ____________
+../../test_lead_restore_integrity.py:22: in test_restore_preserves_every_original_canvas_audit_byte
+    assert row is not None and row[0]==details,('restore rewrote original audit',identity,details,row)
+E   AssertionError: ('restore rewrote original audit', 'audit-1', '{"content": {"office_file": "/private/tmp/root-wait-source-final-review...rce-final-review-3mhj0355/pytest/test_restore_preserves_every_o0/restored/office/restored.docx", "format": "docx"}}',))
+E   assert (('{"content": {"office_file": "/private/tmp/root-wait-source-final-review-3mhj0355/pytest/test_restore_preserves_every...urce-final-review-3mhj0355/pytest/test_restore_preserves_every_o0/restored/office/restored.docx", "format": "docx"}}',) is not None and '{"content": ...at": "docx"}}' == '{"content": ...at": "docx"}}'
+E     
+E     Skipping 110 identical leading characters in diff, use -v to show
+E     - _every_o0/source/office/restored.docx", "file_path": "/private/tmp/root-wait-source-final-review-3mhj0355/pytest/test_restore_preserves_every_o0/source/office/restored.docx", "format": "docx"}}
+E     ?             - -                                                                                                                                    - -
+E     + _every_o0/restored/office/restored.docx", "file_path": "/private/tmp/root-wait-source-final-review-3mhj0355/pytest/test_restore_preserves_every_o0/restored/office...
+E     
+E     ...Full output truncated (2 lines hidden), use '-vv' to show)
+____ test_backup_database_swap_after_validation_refuses_before_publication _____
+../../test_lead_restore_integrity.py:39: in test_backup_database_swap_after_validation_refuses_before_publication
+    pytest.fail('unmanifested database published: '+repr((result['status'],observed)))
+E   Failed: unmanifested database published: ('verified', [('PEER-UNREVIEWED',)])
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED ../../test_lead_restore_integrity.py::test_restore_preserves_every_original_canvas_audit_byte
+FAILED ../../test_lead_restore_integrity.py::test_backup_database_swap_after_validation_refuses_before_publication
+2 failed, 1 passed, 7 warnings in 3.28s

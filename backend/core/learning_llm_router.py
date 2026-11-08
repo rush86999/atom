@@ -1755,21 +1755,28 @@ class LearningBasedRouter:
         if not feedback.tenant_id or str(row.tenant_id or "") != str(
                 feedback.tenant_id):
             return "tenant"
-        workspace = str(stored.get("workspace_id") or "").strip()
-        if not feedback.workspace_id or workspace != str(
-                feedback.workspace_id):
+        # Every JSON binding is a STRING in the stored payload. ``str()`` here
+        # would make JSON number 123 compare equal to the opaque string "123"
+        # and let a wrong-typed row become routing authority. Refuse the type
+        # itself; only string values are eligible for an exact comparison.
+        workspace = stored.get("workspace_id")
+        if (not isinstance(workspace, str) or not feedback.workspace_id
+                or workspace.strip() != str(feedback.workspace_id)):
             return "workspace"
-        provider = str(stored.get("route_provider") or "").strip()
-        if not feedback.provider_id or provider != str(feedback.provider_id):
+        provider = stored.get("route_provider")
+        if (not isinstance(provider, str) or not feedback.provider_id
+                or provider.strip() != str(feedback.provider_id)):
             return "provider"
         if str(row.model_id or "") != str(feedback.model_id or ""):
             return "model"
-        profile = str(stored.get("capability_profile") or "").strip()
-        if not feedback.capability_profile or profile != str(
-                feedback.capability_profile):
+        profile = stored.get("capability_profile")
+        if (not isinstance(profile, str) or not feedback.capability_profile
+                or profile.strip() != str(feedback.capability_profile)):
             return "profile"
-        version = str(stored.get("profile_version") or "").strip()
-        if str(feedback.capability_profile_version or "") != version:
+        version = stored.get("profile_version")
+        if (not isinstance(version, str)
+                or str(feedback.capability_profile_version or "")
+                != version.strip()):
             return "profile_version"
         return ""
 
@@ -1792,7 +1799,8 @@ class LearningBasedRouter:
         binding; legacy grounding/fabrication writes keep their established
         generation+model binding and only compare the observed snapshot
         (tenant/model/quality/revision). SQLite and PostgreSQL have the JSON
-        comparison; other dialects fail closed.
+        comparison; PostgreSQL business writes additionally pin each stored
+        binding to the JSON string type. Other dialects fail closed.
         """
         predicates = [
             LLMRoutingFeedback.id == row.id,
@@ -1838,12 +1846,19 @@ class LearningBasedRouter:
         if dialect == "postgresql":
             if business_binding:
                 for key, expected in binding:
+                    bound = LLMRoutingFeedback.prompt_features[key]
+                    # ``->>`` is type-blind: JSON number 123 and JSON string
+                    # "123" both render as "123". Require the stored JSON type
+                    # to be a string in the SAME atomic predicate set, so a
+                    # concurrent type change after the Python precheck cannot
+                    # be str-coerced into authority even at an unchanged
+                    # evaluation revision.
+                    predicates.append(func.jsonb_typeof(bound) == "string")
                     predicates.append(
-                        LLMRoutingFeedback.prompt_features[key].astext
-                        == str(expected or ""))
+                        bound.as_string() == str(expected or ""))
             predicates.append(func.coalesce(
                 LLMRoutingFeedback.prompt_features[
-                    "evaluation_revision"].astext.cast(Integer), 0)
+                    "evaluation_revision"].as_string().cast(Integer), 0)
                 == LearningBasedRouter._evaluation_revision(stored))
             return predicates
         return None

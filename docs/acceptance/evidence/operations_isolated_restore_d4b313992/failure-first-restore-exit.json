@@ -1,0 +1,18 @@
+{
+  "source": "8ded00232 (pre-implementation)",
+  "command": [
+    "<venv314-python>",
+    "scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/release_tool.py",
+    "--root",
+    "<synthetic-release-root>",
+    "restore",
+    "--backup",
+    "<missing>",
+    "--target-data-dir",
+    "<target>"
+  ],
+  "exit_code": 2,
+  "result": "argparse invalid choice: restore (pre-implementation)",
+  "target_effect": "none; no DB or write target touched",
+  "note": "The literal command executed is in failure-first-restore.log; angle brackets here identify the synthetic paths, not a substitute exact argv."
+}

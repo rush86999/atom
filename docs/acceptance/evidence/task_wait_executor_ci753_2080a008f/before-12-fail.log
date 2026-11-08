@@ -1,0 +1,180 @@
+
+tests/test_assignment_executor.py::test_two_materially_different_assignments_same_executor 
+-------------------------------- live log setup --------------------------------
+2026-11-07 15:23:52 [    INFO] EscalationManager initialized
+2026-11-07 15:23:52 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:23:52 [    INFO] EscalationManager initialized
+2026-11-07 15:23:52 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:23:52 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 15:23:52 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:23:52 [    INFO] runtime identity: source_id=20946867e241 revision=20946867e241 dirty=False (0 modified, 0 untracked)
+FAILED                                                                   [  8%]
+tests/test_assignment_executor.py::test_changed_artifact_invalidates_approval FAILED [ 16%]
+tests/test_assignment_executor.py::test_provider_accepted_then_worker_lost_is_reconciled_not_resent FAILED [ 25%]
+tests/test_assignment_executor.py::test_cancellation_prevents_unstarted_effect FAILED [ 33%]
+tests/test_assignment_executor.py::test_restart_after_artifact_creation_does_not_recreate_work FAILED [ 41%]
+tests/test_assignment_executor.py::test_bounded_standing_authority_covers_two_sends_without_approval FAILED [ 50%]
+tests/test_assignment_executor.py::test_standing_authority_bound_falls_back_to_approval FAILED [ 58%]
+tests/test_assignment_executor.py::test_recipient_outside_the_grant_requires_approval FAILED [ 66%]
+tests/test_assignment_executor.py::test_expired_standing_authority_requires_approval FAILED [ 75%]
+tests/test_assignment_executor.py::test_evidence_backed_quote_plan_end_to_end FAILED [ 83%]
+tests/test_assignment_executor.py::test_service_line_plan_uses_the_same_executor FAILED [ 91%]
+tests/test_assignment_executor.py::test_non_sales_policy_plan_uses_the_same_executor FAILED [100%]
+
+=================================== FAILURES ===================================
+___________ test_two_materially_different_assignments_same_executor ____________
+tests/test_assignment_executor.py:469: in test_two_materially_different_assignments_same_executor
+    assert step_by_id(
+E   AssertionError: {'run_id': '7e4bc93e-1fe3-407a-bc05-6aa9668d7a73', 'assignment': {'assignment_id': 'asg-8d282a2b42cf4d01', 'objective': 'Prepare the commercial response', 'employee_id': 'user-1', 'workspace_id': 'ws_assign', ...}, 'open_gaps': [{'question_id': '43610e9e-261e-4b41-bef4-4d38f5a39897', 'item': 'Read eligible records', 'question': 'The accepted source is no longer authorized for this task. Reauthorize it, then retry the dependent work.', 'kind': 'missing_evidence', ...}], 'operations': [{'operation_id': '1b7c0af6-9ed6-43bb-a796-88099e68c2da', 'step_id': 'read', 'type': 'retrieve', 'status': 'applied', ...}]}
+E   assert 'pending' == 'applied'
+E     
+E     - applied
+E     + pending
+------------------------------ Captured log setup ------------------------------
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.embedding_service:embedding_service.py:131 Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+INFO     core.agent_task_registry:agent_task_registry.py:64 AgentTaskRegistry initialized
+------------------------------ Captured log call -------------------------------
+INFO     core.runtime_identity:runtime_identity.py:199 runtime identity: source_id=20946867e241 revision=20946867e241 dirty=False (0 modified, 0 untracked)
+__________________ test_changed_artifact_invalidates_approval __________________
+tests/test_assignment_executor.py:551: in test_changed_artifact_invalidates_approval
+    executor.approve_step(run_id, "send", approved_by="owner")
+core/assignment_executor.py:3360: in approve_step
+    raise AssignmentError("step has no prepared operation to approve")
+E   core.assignment_executor.AssignmentError: step has no prepared operation to approve
+_______ test_provider_accepted_then_worker_lost_is_reconciled_not_resent _______
+tests/test_assignment_executor.py:589: in test_provider_accepted_then_worker_lost_is_reconciled_not_resent
+    executor.approve_step(run_id, "send", approved_by="owner")
+core/assignment_executor.py:3360: in approve_step
+    raise AssignmentError("step has no prepared operation to approve")
+E   core.assignment_executor.AssignmentError: step has no prepared operation to approve
+_________________ test_cancellation_prevents_unstarted_effect __________________
+tests/test_assignment_executor.py:618: in test_cancellation_prevents_unstarted_effect
+    executor.approve_step(run_id, "send", approved_by="owner")
+core/assignment_executor.py:3360: in approve_step
+    raise AssignmentError("step has no prepared operation to approve")
+E   core.assignment_executor.AssignmentError: step has no prepared operation to approve
+_________ test_restart_after_artifact_creation_does_not_recreate_work __________
+tests/test_assignment_executor.py:1006: in test_restart_after_artifact_creation_does_not_recreate_work
+    assert doc_step["status"] == "applied"
+E   AssertionError: assert 'pending' == 'applied'
+E     
+E     - applied
+E     + pending
+______ test_bounded_standing_authority_covers_two_sends_without_approval _______
+tests/test_assignment_executor.py:1890: in test_bounded_standing_authority_covers_two_sends_without_approval
+    effects = [json.loads(line) for line in outbox.read_text().splitlines()]
+                                            ^^^^^^^^^^^^^^^^^^
+/Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/pathlib/__init__.py:787: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors, newline=newline) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/pathlib/__init__.py:771: in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   FileNotFoundError: [Errno 2] No such file or directory: '/private/tmp/ci753-executor-before-1794082985/basetemp/test_bounded_standing_authorit0/standing-outbox.jsonl'
+_____________ test_standing_authority_bound_falls_back_to_approval _____________
+tests/test_assignment_executor.py:1925: in test_standing_authority_bound_falls_back_to_approval
+    effects = [json.loads(line) for line in outbox.read_text().splitlines()]
+                                            ^^^^^^^^^^^^^^^^^^
+/Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/pathlib/__init__.py:787: in read_text
+    with self.open(mode='r', encoding=encoding, errors=errors, newline=newline) as f:
+         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/pathlib/__init__.py:771: in open
+    return io.open(self, mode, buffering, encoding, errors, newline)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   FileNotFoundError: [Errno 2] No such file or directory: '/private/tmp/ci753-executor-before-1794082985/basetemp/test_standing_authority_bound_0/standing-bound.jsonl'
+______________ test_recipient_outside_the_grant_requires_approval ______________
+tests/test_assignment_executor.py:1954: in test_recipient_outside_the_grant_requires_approval
+    assert step_by_id(assignment, "send-1")["status"] == "awaiting_approval"
+E   AssertionError: assert 'pending' == 'awaiting_approval'
+E     
+E     - awaiting_approval
+E     + pending
+______________ test_expired_standing_authority_requires_approval _______________
+tests/test_assignment_executor.py:1978: in test_expired_standing_authority_requires_approval
+    assert step_by_id(assignment, "send-1")["status"] == "awaiting_approval"
+E   AssertionError: assert 'pending' == 'awaiting_approval'
+E     
+E     - awaiting_approval
+E     + pending
+__________________ test_evidence_backed_quote_plan_end_to_end __________________
+tests/test_assignment_executor.py:3053: in test_evidence_backed_quote_plan_end_to_end
+    assert result["assignment"]["status"] == "completed", result
+E   AssertionError: {'run_id': 'a0337efc-b626-4269-aee3-f352b4871a1f', 'assignment': {'assignment_id': 'asg-72aa9a4cf6044bae', 'objective': 'Prepare a customer quote', 'employee_id': 'user-1', 'workspace_id': 'ws_assign', ...}, 'open_gaps': [{'question_id': 'd6607ea4-2ad4-4fba-9176-190b54ef43f2', 'item': 'Read quote-workbook', 'question': 'Who is authorized to read this resource?', 'kind': 'business_decision', ...}], 'operations': [{'operation_id': 'd06d3817-5b3a-420d-b301-c95abd59ddf8', 'step_id': 'read-customer', 'type': 'retrieve', 'status': 'applied', ...}, {'operation_id': 'd56f94b3-c36b-4323-a7bc-792e25111936', 'step_id': 'source-1', 'type': 'retrieve', 'status': 'applied', ...}]}
+E   assert 'waiting' == 'completed'
+E     
+E     - completed
+E     + waiting
+________________ test_service_line_plan_uses_the_same_executor _________________
+tests/test_assignment_executor.py:3120: in test_service_line_plan_uses_the_same_executor
+    assert result["assignment"]["status"] == "completed", result
+E   AssertionError: {'run_id': 'daba03b0-9151-4ce3-8ee2-81eea4ebfdfc', 'assignment': {'assignment_id': 'asg-1ce6480d8b554267', 'objective': 'Prepare a service proposal', 'employee_id': 'user-1', 'workspace_id': 'ws_assign', ...}, 'open_gaps': [{'question_id': 'd0f0625d-4c70-4c17-8437-51fa4c58463a', 'item': 'Read service-scope', 'question': 'Who is authorized to read this resource?', 'kind': 'business_decision', ...}], 'operations': [{'operation_id': 'c7b14969-c9a1-4e6a-b531-9c65d716df2b', 'step_id': 'source-1', 'type': 'retrieve', 'status': 'applied', ...}]}
+E   assert 'waiting' == 'completed'
+E     
+E     - completed
+E     + waiting
+______________ test_non_sales_policy_plan_uses_the_same_executor _______________
+tests/test_assignment_executor.py:3164: in test_non_sales_policy_plan_uses_the_same_executor
+    assert result["assignment"]["status"] == "completed", result
+E   AssertionError: {'run_id': '16da9408-0feb-4dcc-8566-0c2d763f013e', 'assignment': {'assignment_id': 'asg-3618a6fffd134392', 'objective': 'Assess the expense claim against policy', 'employee_id': 'user-1', 'workspace_id': 'ws_assign', ...}, 'open_gaps': [{'question_id': 'db5d5eda-5e2a-4784-9285-9c878b5bead1', 'item': 'Read expense-policy', 'question': 'Who is authorized to read this resource?', 'kind': 'business_decision', ...}], 'operations': [{'operation_id': '86147c57-4772-4139-a586-6d6e346ee5c1', 'step_id': 'source-1', 'type': 'retrieve', 'status': 'applied', ...}]}
+E   assert 'waiting' == 'completed'
+E     
+E     - completed
+E     + waiting
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 24 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_assignment_executor.py::test_two_materially_different_assignments_same_executor
+  /private/tmp/atom-source-executor-ci753-20261107/backend/core/graphrag_engine.py:203: SyntaxWarning: "\%" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\%"? A raw string is also an option.
+    Escaped pattern where % and _ are escaped to \%
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_assignment_executor.py::test_two_materially_different_assignments_same_executor
+FAILED tests/test_assignment_executor.py::test_changed_artifact_invalidates_approval
+FAILED tests/test_assignment_executor.py::test_provider_accepted_then_worker_lost_is_reconciled_not_resent
+FAILED tests/test_assignment_executor.py::test_cancellation_prevents_unstarted_effect
+FAILED tests/test_assignment_executor.py::test_restart_after_artifact_creation_does_not_recreate_work
+FAILED tests/test_assignment_executor.py::test_bounded_standing_authority_covers_two_sends_without_approval
+FAILED tests/test_assignment_executor.py::test_standing_authority_bound_falls_back_to_approval
+FAILED tests/test_assignment_executor.py::test_recipient_outside_the_grant_requires_approval
+FAILED tests/test_assignment_executor.py::test_expired_standing_authority_requires_approval
+FAILED tests/test_assignment_executor.py::test_evidence_backed_quote_plan_end_to_end
+FAILED tests/test_assignment_executor.py::test_service_line_plan_uses_the_same_executor
+FAILED tests/test_assignment_executor.py::test_non_sales_policy_plan_uses_the_same_executor
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 12 failed, 31 warnings in 11.30s =======================
+WRAPPER_EXIT=1

@@ -1,0 +1,126 @@
+scratch /private/tmp/atom-task-wait-deep-72w56szg
+rc 0
+4675bab-3c87-4107-aad9-b7902007f508/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [ 19%]
+tests/test_task_wait_source_continuation_regressions.py::test_irrelevant_source_answer_stays_unresolved[unrelated] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:13:15 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 12:13:15 [    INFO] HTTP Request: POST http://testserver/api/assignments/27509a4d-84a9-46f5-ad0c-b836a7fa133d/sources "HTTP/1.1 200 OK"
+2026-11-07 12:13:15 [    INFO] HTTP Request: POST http://testserver/api/assignments/27509a4d-84a9-46f5-ad0c-b836a7fa133d/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [ 23%]
+tests/test_task_wait_source_continuation_regressions.py::test_explicit_use_model_false_does_not_adapt_after_source_answer 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:13:16 [    INFO] HTTP Request: POST http://testserver/api/assignments/a5e09de3-f385-4361-bf32-46d790f017ce/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [ 28%]
+tests/test_task_wait_source_continuation_regressions.py::test_cancelled_task_refuses_source_arrival_without_resurrection 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:13:17 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 12:13:17 [    INFO] HTTP Request: POST http://testserver/api/assignments/afaeaff7-b5a0-4818-b312-8f770a9142ee/cancel "HTTP/1.1 200 OK"
+2026-11-07 12:13:17 [    INFO] HTTP Request: POST http://testserver/api/assignments/afaeaff7-b5a0-4818-b312-8f770a9142ee/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [ 33%]
+tests/test_task_wait_source_continuation_regressions.py::test_absolute_deadline_is_not_extended_by_source_arrival 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:13:18 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 12:13:18 [    INFO] HTTP Request: POST http://testserver/api/assignments/a4218fa7-de61-43ef-baaf-9104f09f78d5/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [ 38%]
+tests/test_task_wait_source_continuation_regressions.py::test_prolonged_information_wait_does_not_consume_active_wall_budget 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:13:18 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 12:13:18 [    INFO] HTTP Request: POST http://testserver/api/assignments/df2f98ca-7915-4570-b830-75c24880f2c5/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [ 42%]
+tests/test_task_wait_source_continuation_regressions.py::test_restart_owner_does_not_poll_a_missing_or_unsuitable_obligation 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:13:19 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+PASSED                                                                   [ 47%]
+tests/test_task_wait_source_continuation_regressions.py::test_recovery_claim_makes_second_successor_and_repeat_inert 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:13:20 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 12:13:20 [    INFO] HTTP Request: POST http://testserver/api/assignments/c4d53011-a532-45d3-bea5-c430642539b7/sources "HTTP/1.1 200 OK"
+2026-11-07 12:13:20 [    INFO] EscalationManager initialized
+2026-11-07 12:13:20 [    INFO] CognitiveTierService initialized for workspace: ws-1
+PASSED                                                                   [ 52%]
+tests/test_task_wait_source_continuation_regressions.py::test_concurrent_recovery_successors_adapt_accepted_evidence_once 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:13:21 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 12:13:21 [    INFO] HTTP Request: POST http://testserver/api/assignments/68ab5c83-25e3-4934-9c0a-2066e07c3338/sources "HTTP/1.1 200 OK"
+2026-11-07 12:13:21 [    INFO] EscalationManager initialized
+2026-11-07 12:13:21 [    INFO] CognitiveTierService initialized for workspace: ws-1
+PASSED                                                                   [ 57%]
+tests/test_task_wait_source_continuation_regressions.py::test_open_second_prerequisite_blocks_recovery_until_it_is_resolved 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:13:22 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 12:13:22 [    INFO] HTTP Request: POST http://testserver/api/assignments/84547110-c69e-4454-935c-736782637448/sources "HTTP/1.1 200 OK"
+2026-11-07 12:13:22 [    INFO] EscalationManager initialized
+2026-11-07 12:13:22 [    INFO] CognitiveTierService initialized for workspace: ws-1
+PASSED                                                                   [ 61%]
+tests/test_task_wait_source_continuation_regressions.py::test_restart_owner_does_not_revive_expired_or_cancelled_work 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:13:23 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 12:13:23 [    INFO] HTTP Request: POST http://testserver/api/assignments/ae2dd328-3676-47b1-9fc8-8532827f1668/sources "HTTP/1.1 200 OK"
+2026-11-07 12:13:23 [    INFO] HTTP Request: POST http://testserver/api/assignments/ae2dd328-3676-47b1-9fc8-8532827f1668/cancel "HTTP/1.1 200 OK"
+PASSED                                                                   [ 66%]
+tests/test_task_wait_source_continuation_regressions.py::test_recovery_finish_is_bound_to_the_claim_generation[False] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:13:24 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 12:13:24 [    INFO] HTTP Request: POST http://testserver/api/assignments/63c5f28e-e4a4-468d-ac69-cf8a70351196/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [ 71%]
+tests/test_task_wait_source_continuation_regressions.py::test_recovery_finish_is_bound_to_the_claim_generation[True] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:13:25 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 12:13:25 [    INFO] HTTP Request: POST http://testserver/api/assignments/68878ffe-e0a0-45df-b0e5-9bbd13c05297/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [ 76%]
+tests/test_task_wait_source_continuation_regressions.py::test_recovery_finish_and_retain_require_the_claim_token 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:13:26 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 12:13:26 [    INFO] HTTP Request: POST http://testserver/api/assignments/27f32345-6ad7-4d9f-98a4-73bc7f277f77/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [ 80%]
+tests/test_task_wait_source_continuation_regressions.py::test_live_owner_survives_lease_expiry_and_late_cleanup_is_generation_bound 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:13:27 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 12:13:27 [    INFO] HTTP Request: POST http://testserver/api/assignments/3bf621e5-71ae-44a0-8fd7-9c7790e8bce5/sources "HTTP/1.1 200 OK"
+PASSED                                                                   [ 85%]
+tests/test_task_wait_process_recovery.py::test_actual_process_restart_does_not_model_poll_a_missing_prerequisite PASSED [ 90%]
+tests/test_task_wait_process_recovery.py::test_actual_process_restart_recovers_accepted_source_without_replay PASSED [ 95%]
+tests/test_task_wait_process_recovery.py::test_actual_process_successor_crash_after_recovery_claim_wakes_at_lease PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 42 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================== 21 passed, 49 warnings in 63.58s (0:01:03) ==================
+
+

@@ -1,0 +1,1081 @@
+﻿2026-11-07T20:30:50.1350092Z Current runner version: '2.338.2'
+2026-11-07T20:30:50.1371774Z ##[group]Runner Image Provisioner
+2026-11-07T20:30:50.1372543Z Hosted Compute Agent
+2026-11-07T20:30:50.1373136Z Version: 20261028.624
+2026-11-07T20:30:50.1373684Z Commit: 54898b74c23fde5556c9b3c3a2290865feef0dfe
+2026-11-07T20:30:50.1374320Z Build Date: 2026-10-28T21:51:42Z
+2026-11-07T20:30:50.1374956Z Worker ID: {f86dde7d-c3f4-494c-981b-dfe84e063026}
+2026-11-07T20:30:50.1375576Z Region: westus2
+2026-11-07T20:30:50.1376091Z Cloud: Azure
+2026-11-07T20:30:50.1376568Z ##[endgroup]
+2026-11-07T20:30:50.1377718Z ##[group]Operating System
+2026-11-07T20:30:50.1378396Z Ubuntu
+2026-11-07T20:30:50.1378855Z 24.04.5
+2026-11-07T20:30:50.1379573Z LTS
+2026-11-07T20:30:50.1380031Z ##[endgroup]
+2026-11-07T20:30:50.1380506Z ##[group]Runner Image
+2026-11-07T20:30:50.1381117Z Image: ubuntu-24.04
+2026-11-07T20:30:50.1381612Z Version: 20261101.360.1
+2026-11-07T20:30:50.1382758Z Included Software: https://github.com/actions/runner-images/blob/ubuntu24/20261101.360/images/ubuntu/Ubuntu2404-Readme.md
+2026-11-07T20:30:50.1383999Z Image Release: https://github.com/actions/runner-images/releases/tag/ubuntu24%2F20261101.360
+2026-11-07T20:30:50.1384890Z ##[endgroup]
+2026-11-07T20:30:50.1385906Z ##[group]GITHUB_TOKEN Permissions
+2026-11-07T20:30:50.1387534Z Contents: read
+2026-11-07T20:30:50.1388049Z Metadata: read
+2026-11-07T20:30:50.1388629Z Packages: read
+2026-11-07T20:30:50.1389467Z ##[endgroup]
+2026-11-07T20:30:50.1391250Z Secret source: Actions
+2026-11-07T20:30:50.1392116Z Cache mode: write
+2026-11-07T20:30:50.1392723Z Prepare workflow directory
+2026-11-07T20:30:50.1707666Z Prepare all required actions
+2026-11-07T20:30:50.1746074Z Getting action download info
+2026-11-07T20:30:50.5005807Z Download action repository 'actions/checkout@v4' (SHA:11d5960a326750d5838078e36cf38b85af677262)
+2026-11-07T20:30:50.6406991Z Download action repository 'actions/setup-node@v4' (SHA:49933ea5288caeca8642d1e84afbd3f7d6820020)
+2026-11-07T20:30:50.8583764Z Complete job name: frontend-typecheck
+2026-11-07T20:30:50.9280501Z ##[group]Run actions/checkout@v4
+2026-11-07T20:30:50.9281161Z with:
+2026-11-07T20:30:50.9281528Z   repository: rush86999/atom
+2026-11-07T20:30:50.9284601Z   token: ***
+2026-11-07T20:30:50.9284968Z   ssh-strict: true
+2026-11-07T20:30:50.9285337Z   ssh-user: git
+2026-11-07T20:30:50.9285709Z   persist-credentials: true
+2026-11-07T20:30:50.9286168Z   clean: true
+2026-11-07T20:30:50.9286543Z   sparse-checkout-cone-mode: true
+2026-11-07T20:30:50.9286963Z   fetch-depth: 1
+2026-11-07T20:30:50.9287322Z   fetch-tags: false
+2026-11-07T20:30:50.9287698Z   show-progress: true
+2026-11-07T20:30:50.9288068Z   lfs: false
+2026-11-07T20:30:50.9288409Z   submodules: false
+2026-11-07T20:30:50.9288778Z   set-safe-directory: true
+2026-11-07T20:30:50.9289317Z   allow-unsafe-pr-checkout: false
+2026-11-07T20:30:50.9289919Z ##[endgroup]
+2026-11-07T20:30:51.1442407Z Syncing repository: rush86999/atom
+2026-11-07T20:30:51.1443915Z ##[group]Getting Git version info
+2026-11-07T20:30:51.1444590Z Working directory is '/home/runner/work/atom/atom'
+2026-11-07T20:30:51.1445492Z [command]/usr/bin/git version
+2026-11-07T20:30:51.1712461Z git version 2.56.0
+2026-11-07T20:30:51.1728619Z ##[endgroup]
+2026-11-07T20:30:51.1742086Z Temporarily overriding HOME='/home/runner/work/_temp/6255749b-74ea-417e-9124-aadae18d13d5' before making global git config changes
+2026-11-07T20:30:51.1744073Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-07T20:30:51.1746094Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/atom/atom
+2026-11-07T20:30:51.1791868Z Deleting the contents of '/home/runner/work/atom/atom'
+2026-11-07T20:30:51.1796266Z ##[group]Initializing the repository
+2026-11-07T20:30:51.1799486Z [command]/usr/bin/git init /home/runner/work/atom/atom
+2026-11-07T20:30:51.1875488Z hint: Using 'master' as the name for the initial branch. This default branch name
+2026-11-07T20:30:51.1876795Z hint: will change to "main" in Git 3.0. To configure the initial branch name
+2026-11-07T20:30:51.1878405Z hint: to use in all of your new repositories, which will suppress this warning,
+2026-11-07T20:30:51.1879615Z hint: call:
+2026-11-07T20:30:51.1880286Z hint:
+2026-11-07T20:30:51.1890684Z hint: 	git config --global init.defaultBranch <name>
+2026-11-07T20:30:51.1899477Z hint:
+2026-11-07T20:30:51.1900638Z hint: Names commonly chosen instead of 'master' are 'main', 'trunk' and
+2026-11-07T20:30:51.1902009Z hint: 'development'. The just-created branch can be renamed via this command:
+2026-11-07T20:30:51.1903215Z hint:
+2026-11-07T20:30:51.1903936Z hint: 	git branch -m <name>
+2026-11-07T20:30:51.1904827Z hint:
+2026-11-07T20:30:51.1905902Z hint: Disable this message with "git config set advice.defaultBranchName false"
+2026-11-07T20:30:51.1910770Z Initialized empty Git repository in /home/runner/work/atom/atom/.git/
+2026-11-07T20:30:51.1913562Z [command]/usr/bin/git remote add origin https://github.com/rush86999/atom
+2026-11-07T20:30:51.1941671Z ##[endgroup]
+2026-11-07T20:30:51.1942453Z ##[group]Disabling automatic garbage collection
+2026-11-07T20:30:51.1943113Z [command]/usr/bin/git config --local gc.auto 0
+2026-11-07T20:30:51.1988862Z ##[endgroup]
+2026-11-07T20:30:51.1990411Z ##[group]Setting up auth
+2026-11-07T20:30:51.1991537Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-07T20:30:51.2017574Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-07T20:30:51.2352344Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-07T20:30:51.2392321Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-07T20:30:51.2607019Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-07T20:30:51.2642223Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-07T20:30:51.2844476Z [command]/usr/bin/git config --local http.https://github.com/.extraheader AUTHORIZATION: basic ***
+2026-11-07T20:30:51.2886286Z ##[endgroup]
+2026-11-07T20:30:51.2887141Z ##[group]Fetching the repository
+2026-11-07T20:30:51.2895720Z [command]/usr/bin/git -c protocol.version=2 fetch --no-tags --prune --no-recurse-submodules --depth=1 origin +5fba491f2885ea7def937252c0579f64f2d5c6fd:refs/remotes/pull/755/merge
+2026-11-07T20:31:05.9296780Z From https://github.com/rush86999/atom
+2026-11-07T20:31:05.9297532Z  * [new ref]           5fba491f2885ea7def937252c0579f64f2d5c6fd -> pull/755/merge
+2026-11-07T20:31:05.9301296Z ##[endgroup]
+2026-11-07T20:31:05.9301881Z ##[group]Determining the checkout info
+2026-11-07T20:31:05.9302857Z ##[endgroup]
+2026-11-07T20:31:05.9307993Z [command]/usr/bin/git sparse-checkout disable
+2026-11-07T20:31:05.9609557Z [command]/usr/bin/git config --local --unset-all extensions.worktreeConfig
+2026-11-07T20:31:05.9882547Z ##[group]Checking out the ref
+2026-11-07T20:31:05.9885845Z [command]/usr/bin/git checkout --progress --force refs/remotes/pull/755/merge
+2026-11-07T20:31:07.0173204Z Updating files:  64% (10369/16152)
+2026-11-07T20:31:07.0266750Z Updating files:  65% (10499/16152)
+2026-11-07T20:31:07.0396405Z Updating files:  66% (10661/16152)
+2026-11-07T20:31:07.0535220Z Updating files:  67% (10822/16152)
+2026-11-07T20:31:07.0614344Z Updating files:  68% (10984/16152)
+2026-11-07T20:31:07.0753164Z Updating files:  69% (11145/16152)
+2026-11-07T20:31:07.0851762Z Updating files:  70% (11307/16152)
+2026-11-07T20:31:07.0968930Z Updating files:  71% (11468/16152)
+2026-11-07T20:31:07.1037500Z Updating files:  72% (11630/16152)
+2026-11-07T20:31:07.1117684Z Updating files:  73% (11791/16152)
+2026-11-07T20:31:07.1248679Z Updating files:  74% (11953/16152)
+2026-11-07T20:31:07.1367294Z Updating files:  75% (12114/16152)
+2026-11-07T20:31:07.1607473Z Updating files:  76% (12276/16152)
+2026-11-07T20:31:07.1725923Z Updating files:  77% (12438/16152)
+2026-11-07T20:31:07.2078485Z Updating files:  78% (12599/16152)
+2026-11-07T20:31:07.2458392Z Updating files:  79% (12761/16152)
+2026-11-07T20:31:07.2839287Z Updating files:  80% (12922/16152)
+2026-11-07T20:31:07.3166269Z Updating files:  81% (13084/16152)
+2026-11-07T20:31:07.3297180Z Updating files:  82% (13245/16152)
+2026-11-07T20:31:07.3403367Z Updating files:  83% (13407/16152)
+2026-11-07T20:31:07.3566762Z Updating files:  84% (13568/16152)
+2026-11-07T20:31:07.3681250Z Updating files:  85% (13730/16152)
+2026-11-07T20:31:07.3778843Z Updating files:  86% (13891/16152)
+2026-11-07T20:31:07.3874710Z Updating files:  87% (14053/16152)
+2026-11-07T20:31:07.4005614Z Updating files:  88% (14214/16152)
+2026-11-07T20:31:07.4101334Z Updating files:  89% (14376/16152)
+2026-11-07T20:31:07.4192818Z Updating files:  90% (14537/16152)
+2026-11-07T20:31:07.4245977Z Updating files:  91% (14699/16152)
+2026-11-07T20:31:07.4321971Z Updating files:  92% (14860/16152)
+2026-11-07T20:31:07.4535740Z Updating files:  93% (15022/16152)
+2026-11-07T20:31:07.4709783Z Updating files:  94% (15183/16152)
+2026-11-07T20:31:07.4784713Z Updating files:  95% (15345/16152)
+2026-11-07T20:31:07.4864633Z Updating files:  96% (15506/16152)
+2026-11-07T20:31:07.5074301Z Updating files:  97% (15668/16152)
+2026-11-07T20:31:07.5184303Z Updating files:  98% (15829/16152)
+2026-11-07T20:31:07.5301393Z Updating files:  99% (15991/16152)
+2026-11-07T20:31:07.5301907Z Updating files: 100% (16152/16152)
+2026-11-07T20:31:07.5302571Z Updating files: 100% (16152/16152), done.
+2026-11-07T20:31:07.5429534Z Note: switching to 'refs/remotes/pull/755/merge'.
+2026-11-07T20:31:07.5429976Z 
+2026-11-07T20:31:07.5430261Z You are in 'detached HEAD' state. You can look around, make experimental
+2026-11-07T20:31:07.5430888Z changes and commit them, and you can discard any commits you make in this
+2026-11-07T20:31:07.5431855Z state without impacting any branches by switching back to a branch.
+2026-11-07T20:31:07.5432288Z 
+2026-11-07T20:31:07.5432535Z If you want to create a new branch to retain commits you create, you may
+2026-11-07T20:31:07.5433110Z do so (now or later) by using -c with the switch command. Example:
+2026-11-07T20:31:07.5433447Z 
+2026-11-07T20:31:07.5433576Z   git switch -c <new-branch-name>
+2026-11-07T20:31:07.5433800Z 
+2026-11-07T20:31:07.5433920Z Or undo this operation with:
+2026-11-07T20:31:07.5434144Z 
+2026-11-07T20:31:07.5434249Z   git switch -
+2026-11-07T20:31:07.5434404Z 
+2026-11-07T20:31:07.5434672Z Turn off this advice by setting config variable advice.detachedHead to false
+2026-11-07T20:31:07.5435116Z 
+2026-11-07T20:31:07.5435576Z HEAD is now at 5fba491f Merge e081b6555c9e49be8f6fd264e89fee2f0d22e7ab into 8ded00232c30961a990e675e06ec672ef6a43910
+2026-11-07T20:31:07.5514413Z ##[endgroup]
+2026-11-07T20:31:07.5565596Z [command]/usr/bin/git log -1 --format=%H
+2026-11-07T20:31:07.5597053Z 5fba491f2885ea7def937252c0579f64f2d5c6fd
+2026-11-07T20:31:07.5874099Z ##[group]Run actions/setup-node@v4
+2026-11-07T20:31:07.5874322Z with:
+2026-11-07T20:31:07.5874486Z   node-version: 20
+2026-11-07T20:31:07.5874656Z   cache: npm
+2026-11-07T20:31:07.5874898Z   cache-dependency-path: frontend-nextjs/package-lock.json
+2026-11-07T20:31:07.5875163Z   always-auth: false
+2026-11-07T20:31:07.5875343Z   check-latest: false
+2026-11-07T20:31:07.5877212Z   token: ***
+2026-11-07T20:31:07.5877388Z ##[endgroup]
+2026-11-07T20:31:07.7035078Z Attempting to download 20...
+2026-11-07T20:31:07.7145409Z (node:2134) [DEP0040] DeprecationWarning: The `punycode` module is deprecated. Please use a userland alternative instead.
+2026-11-07T20:31:07.7146149Z (Use `node --trace-deprecation ...` to show where the warning was created)
+2026-11-07T20:31:08.1854606Z Acquiring 20.20.2 - x64 from https://github.com/actions/node-versions/releases/download/20.20.2-23521894959/node-20.20.2-linux-x64.tar.gz
+2026-11-07T20:31:08.6004180Z Extracting ...
+2026-11-07T20:31:08.6108513Z [command]/usr/bin/tar xz --strip 1 --warning=no-unknown-keyword --overwrite -C /home/runner/work/_temp/df3c925d-eb78-4842-aac1-5bb0fbfe28b3 -f /home/runner/work/_temp/ae8d8d34-9e7e-4aa6-8088-977d486aa815
+2026-11-07T20:31:09.4941873Z Adding to the cache ...
+2026-11-07T20:31:14.6258190Z ##[group]Environment details
+2026-11-07T20:31:14.8432800Z node: v20.20.2
+2026-11-07T20:31:14.8433061Z npm: 10.8.2
+2026-11-07T20:31:14.8433225Z yarn: 1.22.22
+2026-11-07T20:31:14.8433653Z ##[endgroup]
+2026-11-07T20:31:14.8447737Z [command]/opt/hostedtoolcache/node/20.20.2/x64/bin/npm config get cache
+2026-11-07T20:31:14.9276708Z /home/runner/.npm
+2026-11-07T20:31:15.1947560Z Cache hit for: node-cache-Linux-x64-npm-91834163e96c37295236881d5c955a0d28c352151a9470ec983a048be1bb5705
+2026-11-07T20:31:15.2015847Z (node:2134) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+2026-11-07T20:31:16.4880716Z Received 16777216 of 499220334 (3.4%), 16.0 MBs/sec
+2026-11-07T20:31:17.4888458Z Received 134217728 of 499220334 (26.9%), 64.0 MBs/sec
+2026-11-07T20:31:18.4890945Z Received 281018368 of 499220334 (56.3%), 89.3 MBs/sec
+2026-11-07T20:31:19.4895189Z Received 436207616 of 499220334 (87.4%), 103.9 MBs/sec
+2026-11-07T20:31:19.8094209Z Received 499220334 of 499220334 (100.0%), 110.2 MBs/sec
+2026-11-07T20:31:19.8096810Z Cache Size: ~476 MB (499220334 B)
+2026-11-07T20:31:19.8191942Z [command]/usr/bin/tar -xf /home/runner/work/_temp/9e180192-70a5-4fbd-88fb-d22dead3dc41/cache.tzst -P -C /home/runner/work/atom/atom --use-compress-program unzstd
+2026-11-07T20:31:22.8631920Z Cache restored successfully
+2026-11-07T20:31:22.8834949Z Cache restored from key: node-cache-Linux-x64-npm-91834163e96c37295236881d5c955a0d28c352151a9470ec983a048be1bb5705
+2026-11-07T20:31:23.0342379Z ##[group]Run npm install --legacy-peer-deps
+2026-11-07T20:31:23.0342721Z [36;1mnpm install --legacy-peer-deps[0m
+2026-11-07T20:31:23.0365208Z shell: /usr/bin/bash -e {0}
+2026-11-07T20:31:23.0365453Z ##[endgroup]
+2026-11-07T20:31:35.8450047Z npm warn deprecated @types/commons-validator-js@1.0.1269: This is a stub types definition. commons-validator-js provides its own type definitions, so you do not need this installed.
+2026-11-07T20:31:35.9222480Z npm warn deprecated inflight@1.0.6: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
+2026-11-07T20:31:36.0950636Z npm warn deprecated @babel/plugin-proposal-numeric-separator@7.18.6: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-numeric-separator instead.
+2026-11-07T20:31:36.0954050Z npm warn deprecated @babel/plugin-proposal-export-namespace-from@7.18.9: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-export-namespace-from instead.
+2026-11-07T20:31:36.0956545Z npm warn deprecated @babel/plugin-proposal-nullish-coalescing-operator@7.18.6: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-nullish-coalescing-operator instead.
+2026-11-07T20:31:36.0958918Z npm warn deprecated @babel/plugin-proposal-class-properties@7.18.6: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-class-properties instead.
+2026-11-07T20:31:36.0983134Z npm warn deprecated @babel/plugin-proposal-optional-catch-binding@7.18.6: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-optional-catch-binding instead.
+2026-11-07T20:31:36.2910596Z npm warn deprecated rimraf@2.7.1: Rimraf versions prior to v4 are no longer supported
+2026-11-07T20:31:36.2933637Z npm warn deprecated rimraf@2.6.3: Rimraf versions prior to v4 are no longer supported
+2026-11-07T20:31:36.3057379Z npm warn deprecated whatwg-encoding@3.1.1: Use @exodus/bytes instead for a more spec-conformant and faster implementation
+2026-11-07T20:31:36.3982904Z npm warn deprecated rimraf@3.0.2: Rimraf versions prior to v4 are no longer supported
+2026-11-07T20:31:36.4534040Z npm warn deprecated @babel/plugin-proposal-optional-chaining@7.21.0: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-optional-chaining instead.
+2026-11-07T20:31:36.4540217Z npm warn deprecated @babel/plugin-proposal-async-generator-functions@7.20.7: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-async-generator-functions instead.
+2026-11-07T20:31:36.5441892Z npm warn deprecated acorn-import-assertions@1.9.0: package has been renamed to acorn-import-attributes
+2026-11-07T20:31:36.8741137Z npm warn deprecated glob@7.2.3: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+2026-11-07T20:31:36.8742194Z npm warn deprecated rimraf@2.2.8: Rimraf versions prior to v4 are no longer supported
+2026-11-07T20:31:36.8743511Z npm warn deprecated glob@7.2.3: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+2026-11-07T20:31:36.8745262Z npm warn deprecated glob@7.2.3: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+2026-11-07T20:31:36.8752350Z npm warn deprecated glob@8.1.0: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+2026-11-07T20:31:36.8761064Z npm warn deprecated glob@7.2.3: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+2026-11-07T20:31:36.8814186Z npm warn deprecated glob@7.2.3: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+2026-11-07T20:31:36.8815965Z npm warn deprecated glob@7.2.3: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+2026-11-07T20:31:36.8817624Z npm warn deprecated glob@7.2.3: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+2026-11-07T20:31:36.8882108Z npm warn deprecated sudo-prompt@9.2.1: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+2026-11-07T20:31:36.9340352Z npm warn deprecated @babel/plugin-proposal-object-rest-spread@7.20.7: This proposal has been merged to the ECMAScript standard and thus this plugin is no longer maintained. Please use @babel/plugin-transform-object-rest-spread instead.
+2026-11-07T20:31:36.9647731Z npm warn deprecated metro-react-native-babel-preset@0.76.9: Use @react-native/babel-preset instead
+2026-11-07T20:31:37.0143760Z npm warn deprecated metro-react-native-babel-preset@0.73.10: Use @react-native/babel-preset instead
+2026-11-07T20:31:37.0153624Z npm warn deprecated metro-react-native-babel-preset@0.73.10: Use @react-native/babel-preset instead
+2026-11-07T20:31:37.2908680Z npm warn deprecated prebuild-install@7.1.3: No longer maintained. Please contact the author of the relevant native addon; alternatives are available.
+2026-11-07T20:31:37.2986298Z npm warn deprecated google-p12-pem@4.0.1: Package is no longer maintained
+2026-11-07T20:31:40.7708949Z npm warn deprecated uglify-es@3.3.10: support for ECMAScript is superseded by `uglify-js` as of v3.13.0
+2026-11-07T20:31:41.5241412Z npm warn deprecated glob@9.3.5: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+2026-11-07T20:31:41.6354260Z npm warn deprecated glob@10.5.0: Old versions of glob are not supported, and contain widely publicized security vulnerabilities, which have been fixed in the current version. Please update. Support for old versions may be purchased (at exorbitant rates) by contacting i@izs.me
+2026-11-07T20:31:45.5207727Z npm warn deprecated react-beautiful-dnd@13.1.1: react-beautiful-dnd is now deprecated. Context and options: https://github.com/atlassian/react-beautiful-dnd/issues/2672
+2026-11-07T20:31:46.2238171Z npm warn deprecated react-native-vector-icons@9.2.0: react-native-vector-icons package has moved to a new model of per-icon-family packages. See the https://github.com/oblador/react-native-vector-icons/blob/master/MIGRATION.md on how to migrate
+2026-11-07T20:31:46.3019128Z npm warn deprecated @opentelemetry/otlp-proto-exporter-base@0.48.0: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+2026-11-07T20:31:46.3026989Z npm warn deprecated @opentelemetry/otlp-proto-exporter-base@0.46.0: Package no longer supported. Contact Support at https://www.npmjs.com/support for more info.
+2026-11-07T20:31:47.4830474Z npm warn deprecated eslint@9.39.1: This version is no longer supported. Please see https://eslint.org/version-support for other options.
+2026-11-07T20:31:48.1320506Z npm warn deprecated react-flow-renderer@10.3.17: react-flow-renderer has been renamed to reactflow, please use this package from now on https://reactflow.dev/docs/guides/migrate-to-v11/
+2026-11-07T20:32:46.6306456Z 
+2026-11-07T20:32:46.6307129Z > atomic-app@0.1.0-alpha.4 postinstall
+2026-11-07T20:32:46.6309300Z > patch-package
+2026-11-07T20:32:46.6309469Z 
+2026-11-07T20:32:46.7883876Z patch-package 6.5.1
+2026-11-07T20:32:46.7886648Z Applying patches...
+2026-11-07T20:32:46.7889724Z No patch files found
+2026-11-07T20:32:46.8227563Z 
+2026-11-07T20:32:46.8228288Z added 3288 packages, and audited 3289 packages in 1m
+2026-11-07T20:32:46.8228623Z 
+2026-11-07T20:32:46.8228819Z 490 packages are looking for funding
+2026-11-07T20:32:46.8229281Z   run `npm fund` for details
+2026-11-07T20:32:47.4670403Z 
+2026-11-07T20:32:47.4671178Z 172 vulnerabilities (15 low, 88 moderate, 63 high, 6 critical)
+2026-11-07T20:32:47.4671544Z 
+2026-11-07T20:32:47.4671818Z To address issues that do not require attention, run:
+2026-11-07T20:32:47.4672215Z   npm audit fix
+2026-11-07T20:32:47.4672372Z 
+2026-11-07T20:32:47.4672688Z To address all issues possible (including breaking changes), run:
+2026-11-07T20:32:47.4673148Z   npm audit fix --force
+2026-11-07T20:32:47.4673343Z 
+2026-11-07T20:32:47.4673569Z Some issues need review, and may require choosing
+2026-11-07T20:32:47.4673983Z a different dependency.
+2026-11-07T20:32:47.4674117Z 
+2026-11-07T20:32:47.4674221Z Run `npm audit` for details.
+2026-11-07T20:32:47.6899360Z ##[group]Run npx tsc --noEmit --skipLibCheck
+2026-11-07T20:32:47.6899673Z [36;1mnpx tsc --noEmit --skipLibCheck[0m
+2026-11-07T20:32:47.6925574Z shell: /usr/bin/bash -e {0}
+2026-11-07T20:32:47.6925804Z ##[endgroup]
+2026-11-07T20:33:15.5752533Z ##[group]Run npx jest tests/middleware.test.ts tests/lib/auth-headers.test.ts tests/pages/__tests__/login.test.tsx tests/auth/test-signin.test.tsx --runInBand --no-coverage
+2026-11-07T20:33:15.5753473Z [36;1mnpx jest tests/middleware.test.ts tests/lib/auth-headers.test.ts tests/pages/__tests__/login.test.tsx tests/auth/test-signin.test.tsx --runInBand --no-coverage[0m
+2026-11-07T20:33:15.5771946Z shell: /usr/bin/bash -e {0}
+2026-11-07T20:33:15.5772163Z ##[endgroup]
+2026-11-07T20:33:19.6360772Z PASS tests/auth/test-signin.test.tsx
+2026-11-07T20:33:19.6446792Z   ● Console
+2026-11-07T20:33:19.6446911Z 
+2026-11-07T20:33:19.6447016Z     console.log
+2026-11-07T20:33:19.6447308Z       MSW server detected - fetch will be intercepted by MSW
+2026-11-07T20:33:19.6447513Z 
+2026-11-07T20:33:19.6447675Z       at Object.<anonymous> (tests/setup.ts:92:13)
+2026-11-07T20:33:19.6447856Z 
+2026-11-07T20:33:20.3140222Z PASS tests/pages/__tests__/login.test.tsx
+2026-11-07T20:33:20.3151574Z   ● Console
+2026-11-07T20:33:20.3151752Z 
+2026-11-07T20:33:20.3151869Z     console.log
+2026-11-07T20:33:20.3152244Z       MSW server detected - fetch will be intercepted by MSW
+2026-11-07T20:33:20.3152528Z 
+2026-11-07T20:33:20.3152711Z       at Object.<anonymous> (tests/setup.ts:92:13)
+2026-11-07T20:33:20.3152966Z 
+2026-11-07T20:33:20.6340168Z PASS tests/middleware.test.ts
+2026-11-07T20:33:20.6341217Z   ● Console
+2026-11-07T20:33:20.6341544Z 
+2026-11-07T20:33:20.6341747Z     console.log
+2026-11-07T20:33:20.6342207Z       MSW server detected - fetch will be intercepted by MSW
+2026-11-07T20:33:20.6342540Z 
+2026-11-07T20:33:20.6342755Z       at Object.<anonymous> (tests/setup.ts:92:13)
+2026-11-07T20:33:20.6343048Z 
+2026-11-07T20:33:20.9196688Z PASS tests/lib/auth-headers.test.ts
+2026-11-07T20:33:20.9201578Z   ● Console
+2026-11-07T20:33:20.9201894Z 
+2026-11-07T20:33:20.9202197Z     console.log
+2026-11-07T20:33:20.9202691Z       MSW server detected - fetch will be intercepted by MSW
+2026-11-07T20:33:20.9203009Z 
+2026-11-07T20:33:20.9203293Z       at Object.<anonymous> (tests/setup.ts:92:13)
+2026-11-07T20:33:20.9221714Z 
+2026-11-07T20:33:20.9221726Z 
+2026-11-07T20:33:20.9239734Z Test Suites: 4 passed, 4 total
+2026-11-07T20:33:20.9240192Z Tests:       59 passed, 59 total
+2026-11-07T20:33:20.9240554Z Snapshots:   0 total
+2026-11-07T20:33:20.9240850Z Time:        4.668 s
+2026-11-07T20:33:20.9241484Z Ran all test suites matching tests/middleware.test.ts|tests/lib/auth-headers.test.ts|tests/pages/__tests__/login.test.tsx|tests/auth/test-signin.test.tsx.
+2026-11-07T20:33:21.0682640Z ##[group]Run npx jest components/Agents/__tests__/AgentJobWaitPanel.test.tsx lib/__tests__/agent-job-ref.test.ts tests/pages/agents-index.test.tsx tests/pages/agents-information-job.test.tsx --runInBand --no-coverage
+2026-11-07T20:33:21.0683832Z [36;1mnpx jest components/Agents/__tests__/AgentJobWaitPanel.test.tsx lib/__tests__/agent-job-ref.test.ts tests/pages/agents-index.test.tsx tests/pages/agents-information-job.test.tsx --runInBand --no-coverage[0m
+2026-11-07T20:33:21.0702574Z shell: /usr/bin/bash -e {0}
+2026-11-07T20:33:21.0702792Z ##[endgroup]
+2026-11-07T20:33:24.9372647Z PASS tests/pages/agents-index.test.tsx
+2026-11-07T20:33:25.0153388Z   ● Console
+2026-11-07T20:33:25.0153606Z 
+2026-11-07T20:33:25.0153727Z     console.log
+2026-11-07T20:33:25.0154201Z       MSW server detected - fetch will be intercepted by MSW
+2026-11-07T20:33:25.0154488Z 
+2026-11-07T20:33:25.0154693Z       at Object.<anonymous> (tests/setup.ts:92:13)
+2026-11-07T20:33:25.0154951Z 
+2026-11-07T20:33:25.0155198Z     console.error
+2026-11-07T20:33:25.0155708Z       Warning: An update to AgentLaunchGuide inside a test was not wrapped in act(...).
+2026-11-07T20:33:25.0156200Z       
+2026-11-07T20:33:25.0156695Z       When testing, code that causes React state updates should be wrapped into act(...):
+2026-11-07T20:33:25.0157156Z       
+2026-11-07T20:33:25.0157394Z       act(() => {
+2026-11-07T20:33:25.0157721Z         /* fire events that update state */
+2026-11-07T20:33:25.0158067Z       });
+2026-11-07T20:33:25.0158783Z       /* assert on the output */
+2026-11-07T20:33:25.0159214Z       
+2026-11-07T20:33:25.0159959Z       This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+2026-11-07T20:33:25.0160816Z           at AgentLaunchGuide (/home/runner/work/atom/atom/frontend-nextjs/components/Agents/AgentLaunchGuide.tsx:227:42)
+2026-11-07T20:33:25.0161235Z           at div
+2026-11-07T20:33:25.0161409Z           at div
+2026-11-07T20:33:25.0161780Z           at AgentsDashboard (/home/runner/work/atom/atom/frontend-nextjs/pages/agents/index.tsx:74:45)
+2026-11-07T20:33:25.0162076Z 
+2026-11-07T20:33:25.0162550Z     [0m [90m 321 |[39m                 [36mconst[39m ids [33m=[39m data[33m.[39mmap((i[33m:[39m any) [33m=>[39m i[33m.[39mid)[33m;[39m
+2026-11-07T20:33:25.0163148Z      [90m 322 |[39m                 registryIdsRef[33m.[39mcurrent [33m=[39m ids[33m;[39m
+2026-11-07T20:33:25.0163630Z     [31m[1m>[22m[39m[90m 323 |[39m                 setRegistryIdsState(ids)[33m;[39m
+2026-11-07T20:33:25.0164063Z      [90m     |[39m                 [31m[1m^[22m[39m
+2026-11-07T20:33:25.0164354Z      [90m 324 |[39m             }
+2026-11-07T20:33:25.0164633Z      [90m 325 |[39m         } [36mcatch[39m {
+2026-11-07T20:33:25.0165165Z      [90m 326 |[39m             setRegistryIdsState([36mnull[39m)[33m;[39m [90m// fall back to preference defaults[39m[0m
+2026-11-07T20:33:25.0165473Z 
+2026-11-07T20:33:25.0165694Z       at printWarning (node_modules/react-dom/cjs/react-dom.development.js:86:30)
+2026-11-07T20:33:25.0166118Z       at error (node_modules/react-dom/cjs/react-dom.development.js:60:7)
+2026-11-07T20:33:25.0166678Z       at warnIfUpdatesNotWrappedWithActDEV (node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+2026-11-07T20:33:25.0167242Z       at scheduleUpdateOnFiber (node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+2026-11-07T20:33:25.0167732Z       at dispatchSetState (node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+2026-11-07T20:33:25.0168120Z       at components/Agents/AgentLaunchGuide.tsx:323:17
+2026-11-07T20:33:25.0168449Z       at step (components/Agents/AgentLaunchGuide.tsx:77:23)
+2026-11-07T20:33:25.0168904Z       at Object.next (components/Agents/AgentLaunchGuide.tsx:58:53)
+2026-11-07T20:33:25.0169425Z       at fulfilled (components/Agents/AgentLaunchGuide.tsx:49:58)
+2026-11-07T20:33:25.0169626Z 
+2026-11-07T20:33:25.0169707Z     console.error
+2026-11-07T20:33:25.0170254Z       Warning: An update to AgentLaunchGuide inside a test was not wrapped in act(...).
+2026-11-07T20:33:25.0170584Z       
+2026-11-07T20:33:25.0170902Z       When testing, code that causes React state updates should be wrapped into act(...):
+2026-11-07T20:33:25.0171224Z       
+2026-11-07T20:33:25.0171384Z       act(() => {
+2026-11-07T20:33:25.0171594Z         /* fire events that update state */
+2026-11-07T20:33:25.0171825Z       });
+2026-11-07T20:33:25.0172009Z       /* assert on the output */
+2026-11-07T20:33:25.0172211Z       
+2026-11-07T20:33:25.0172689Z       This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+2026-11-07T20:33:25.0173395Z           at AgentLaunchGuide (/home/runner/work/atom/atom/frontend-nextjs/components/Agents/AgentLaunchGuide.tsx:227:42)
+2026-11-07T20:33:25.0173826Z           at div
+2026-11-07T20:33:25.0174000Z           at div
+2026-11-07T20:33:25.0174359Z           at AgentsDashboard (/home/runner/work/atom/atom/frontend-nextjs/pages/agents/index.tsx:74:45)
+2026-11-07T20:33:25.0174644Z 
+2026-11-07T20:33:25.0174807Z     [0m [90m 331 |[39m         [36mtry[39m {
+2026-11-07T20:33:25.0175307Z      [90m 332 |[39m             [36mconst[39m proposals [33m=[39m [36mawait[39m listTrainingProposals()[33m;[39m
+2026-11-07T20:33:25.0176162Z     [31m[1m>[22m[39m[90m 333 |[39m             setPendingTraining([33mArray[39m[33m.[39misArray(proposals) [33m?[39m proposals[33m.[39mlength [33m:[39m [35m0[39m)[33m;[39m
+2026-11-07T20:33:25.0176888Z      [90m     |[39m             [31m[1m^[22m[39m
+2026-11-07T20:33:25.0177190Z      [90m 334 |[39m         } [36mcatch[39m {
+2026-11-07T20:33:25.0177557Z      [90m 335 |[39m             setPendingTraining([36mnull[39m)[33m;[39m
+2026-11-07T20:33:25.0177887Z      [90m 336 |[39m         }[0m
+2026-11-07T20:33:25.0178025Z 
+2026-11-07T20:33:25.0178239Z       at printWarning (node_modules/react-dom/cjs/react-dom.development.js:86:30)
+2026-11-07T20:33:25.0178652Z       at error (node_modules/react-dom/cjs/react-dom.development.js:60:7)
+2026-11-07T20:33:25.0179471Z       at warnIfUpdatesNotWrappedWithActDEV (node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+2026-11-07T20:33:25.0180033Z       at scheduleUpdateOnFiber (node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+2026-11-07T20:33:25.0180517Z       at dispatchSetState (node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+2026-11-07T20:33:25.0180914Z       at components/Agents/AgentLaunchGuide.tsx:333:13
+2026-11-07T20:33:25.0181231Z       at step (components/Agents/AgentLaunchGuide.tsx:77:23)
+2026-11-07T20:33:25.0181575Z       at Object.next (components/Agents/AgentLaunchGuide.tsx:58:53)
+2026-11-07T20:33:25.0181980Z       at fulfilled (components/Agents/AgentLaunchGuide.tsx:49:58)
+2026-11-07T20:33:25.0182183Z 
+2026-11-07T20:33:25.0182269Z     console.error
+2026-11-07T20:33:25.0182591Z       Warning: An update to AgentLaunchGuide inside a test was not wrapped in act(...).
+2026-11-07T20:33:25.0182918Z       
+2026-11-07T20:33:25.0183221Z       When testing, code that causes React state updates should be wrapped into act(...):
+2026-11-07T20:33:25.0183549Z       
+2026-11-07T20:33:25.0183710Z       act(() => {
+2026-11-07T20:33:25.0183914Z         /* fire events that update state */
+2026-11-07T20:33:25.0184136Z       });
+2026-11-07T20:33:25.0184324Z       /* assert on the output */
+2026-11-07T20:33:25.0184534Z       
+2026-11-07T20:33:25.0185001Z       This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+2026-11-07T20:33:25.0185710Z           at AgentLaunchGuide (/home/runner/work/atom/atom/frontend-nextjs/components/Agents/AgentLaunchGuide.tsx:227:42)
+2026-11-07T20:33:25.0186123Z           at div
+2026-11-07T20:33:25.0186293Z           at div
+2026-11-07T20:33:25.0186649Z           at AgentsDashboard (/home/runner/work/atom/atom/frontend-nextjs/pages/agents/index.tsx:74:45)
+2026-11-07T20:33:25.0187075Z 
+2026-11-07T20:33:25.0187494Z     [0m [90m 304 |[39m                     [36mif[39m ([33m![39m(id [36min[39m next)) next[id] [33m=[39m active[33m.[39mhas(id)[33m;[39m
+2026-11-07T20:33:25.0187951Z      [90m 305 |[39m                 })[33m;[39m
+2026-11-07T20:33:25.0188352Z     [31m[1m>[22m[39m[90m 306 |[39m                 setConnections(next)[33m;[39m
+2026-11-07T20:33:25.0188721Z      [90m     |[39m                 [31m[1m^[22m[39m
+2026-11-07T20:33:25.0189161Z      [90m 307 |[39m             }
+2026-11-07T20:33:25.0189606Z      [90m 308 |[39m             [36mif[39m (configRes[33m.[39mstatus [33m===[39m [32m'fulfilled'[39m) {
+2026-11-07T20:33:25.0190255Z      [90m 309 |[39m                 setServerConfigured(configRes[33m.[39mvalue[33m?[39m[33m.[39mdata [33m||[39m {})[33m;[39m[0m
+2026-11-07T20:33:25.0190583Z 
+2026-11-07T20:33:25.0190802Z       at printWarning (node_modules/react-dom/cjs/react-dom.development.js:86:30)
+2026-11-07T20:33:25.0191222Z       at error (node_modules/react-dom/cjs/react-dom.development.js:60:7)
+2026-11-07T20:33:25.0191712Z       at warnIfUpdatesNotWrappedWithActDEV (node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+2026-11-07T20:33:25.0192258Z       at scheduleUpdateOnFiber (node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+2026-11-07T20:33:25.0192738Z       at dispatchSetState (node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+2026-11-07T20:33:25.0193118Z       at components/Agents/AgentLaunchGuide.tsx:306:17
+2026-11-07T20:33:25.0193550Z       at step (components/Agents/AgentLaunchGuide.tsx:77:23)
+2026-11-07T20:33:25.0193895Z       at Object.next (components/Agents/AgentLaunchGuide.tsx:58:53)
+2026-11-07T20:33:25.0194296Z       at fulfilled (components/Agents/AgentLaunchGuide.tsx:49:58)
+2026-11-07T20:33:25.0194492Z 
+2026-11-07T20:33:25.0194577Z     console.error
+2026-11-07T20:33:25.0194895Z       Warning: An update to AgentLaunchGuide inside a test was not wrapped in act(...).
+2026-11-07T20:33:25.0195215Z       
+2026-11-07T20:33:25.0195519Z       When testing, code that causes React state updates should be wrapped into act(...):
+2026-11-07T20:33:25.0195830Z       
+2026-11-07T20:33:25.0195985Z       act(() => {
+2026-11-07T20:33:25.0196199Z         /* fire events that update state */
+2026-11-07T20:33:25.0196422Z       });
+2026-11-07T20:33:25.0196607Z       /* assert on the output */
+2026-11-07T20:33:25.0196811Z       
+2026-11-07T20:33:25.0197263Z       This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+2026-11-07T20:33:25.0197964Z           at AgentLaunchGuide (/home/runner/work/atom/atom/frontend-nextjs/components/Agents/AgentLaunchGuide.tsx:227:42)
+2026-11-07T20:33:25.0198379Z           at div
+2026-11-07T20:33:25.0198543Z           at div
+2026-11-07T20:33:25.0198889Z           at AgentsDashboard (/home/runner/work/atom/atom/frontend-nextjs/pages/agents/index.tsx:74:45)
+2026-11-07T20:33:25.0199411Z 
+2026-11-07T20:33:25.0199550Z     [0m [90m 307 |[39m             }
+2026-11-07T20:33:25.0199992Z      [90m 308 |[39m             [36mif[39m (configRes[33m.[39mstatus [33m===[39m [32m'fulfilled'[39m) {
+2026-11-07T20:33:25.0200676Z     [31m[1m>[22m[39m[90m 309 |[39m                 setServerConfigured(configRes[33m.[39mvalue[33m?[39m[33m.[39mdata [33m||[39m {})[33m;[39m
+2026-11-07T20:33:25.0201184Z      [90m     |[39m                 [31m[1m^[22m[39m
+2026-11-07T20:33:25.0201463Z      [90m 310 |[39m             }
+2026-11-07T20:33:25.0201742Z      [90m 311 |[39m         } [36mcatch[39m {
+2026-11-07T20:33:25.0202167Z      [90m 312 |[39m             [90m// Leave steps unchecked rather than blocking the page.[39m[0m
+2026-11-07T20:33:25.0202423Z 
+2026-11-07T20:33:25.0202622Z       at printWarning (node_modules/react-dom/cjs/react-dom.development.js:86:30)
+2026-11-07T20:33:25.0203041Z       at error (node_modules/react-dom/cjs/react-dom.development.js:60:7)
+2026-11-07T20:33:25.0203648Z       at warnIfUpdatesNotWrappedWithActDEV (node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+2026-11-07T20:33:25.0204187Z       at scheduleUpdateOnFiber (node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+2026-11-07T20:33:25.0204670Z       at dispatchSetState (node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+2026-11-07T20:33:25.0205054Z       at components/Agents/AgentLaunchGuide.tsx:309:17
+2026-11-07T20:33:25.0205369Z       at step (components/Agents/AgentLaunchGuide.tsx:77:23)
+2026-11-07T20:33:25.0205722Z       at Object.next (components/Agents/AgentLaunchGuide.tsx:58:53)
+2026-11-07T20:33:25.0206079Z       at fulfilled (components/Agents/AgentLaunchGuide.tsx:49:58)
+2026-11-07T20:33:25.0206280Z 
+2026-11-07T20:33:25.0206362Z     console.error
+2026-11-07T20:33:25.0206673Z       Warning: An update to AgentsDashboard inside a test was not wrapped in act(...).
+2026-11-07T20:33:25.0206980Z       
+2026-11-07T20:33:25.0207284Z       When testing, code that causes React state updates should be wrapped into act(...):
+2026-11-07T20:33:25.0207602Z       
+2026-11-07T20:33:25.0207794Z       act(() => {
+2026-11-07T20:33:25.0208000Z         /* fire events that update state */
+2026-11-07T20:33:25.0208222Z       });
+2026-11-07T20:33:25.0208408Z       /* assert on the output */
+2026-11-07T20:33:25.0208612Z       
+2026-11-07T20:33:25.0209258Z       This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+2026-11-07T20:33:25.0210031Z           at AgentsDashboard (/home/runner/work/atom/atom/frontend-nextjs/pages/agents/index.tsx:74:45)
+2026-11-07T20:33:25.0210327Z 
+2026-11-07T20:33:25.0210651Z     [0m [90m 184 |[39m                 [90m// Accept either the wrapped shape or a bare array for safety.[39m
+2026-11-07T20:33:25.0211456Z      [90m 185 |[39m                 [36mconst[39m data [33m=[39m [33mArray[39m[33m.[39misArray(json) [33m?[39m json [33m:[39m (json[33m.[39mdata [33m?[39m[33m?[39m [])[33m;[39m
+2026-11-07T20:33:25.0212190Z     [31m[1m>[22m[39m[90m 186 |[39m                 setAgents(data[33m.[39mmap(normalizeAgent))[33m;[39m
+2026-11-07T20:33:25.0212610Z      [90m     |[39m                 [31m[1m^[22m[39m
+2026-11-07T20:33:25.0213234Z      [90m 187 |[39m             } [36melse[39m [36mif[39m (res[33m.[39mstatus [33m===[39m [35m401[39m [33m||[39m res[33m.[39mstatus [33m===[39m [35m403[39m) {
+2026-11-07T20:33:25.0213899Z      [90m 188 |[39m                 [90m// Token no longer valid (expired/revoked) — clear it and go[39m
+2026-11-07T20:33:25.0214427Z      [90m 189 |[39m                 [90m// to login, same behavior as the axios 401 interceptor.[39m[0m
+2026-11-07T20:33:25.0214671Z 
+2026-11-07T20:33:25.0214883Z       at printWarning (node_modules/react-dom/cjs/react-dom.development.js:86:30)
+2026-11-07T20:33:25.0215294Z       at error (node_modules/react-dom/cjs/react-dom.development.js:60:7)
+2026-11-07T20:33:25.0215793Z       at warnIfUpdatesNotWrappedWithActDEV (node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+2026-11-07T20:33:25.0216345Z       at scheduleUpdateOnFiber (node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+2026-11-07T20:33:25.0216825Z       at dispatchSetState (node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+2026-11-07T20:33:25.0217182Z       at pages/agents/index.tsx:186:17
+2026-11-07T20:33:25.0217447Z       at step (pages/agents/index.tsx:77:23)
+2026-11-07T20:33:25.0217731Z       at Object.next (pages/agents/index.tsx:58:53)
+2026-11-07T20:33:25.0218013Z       at fulfilled (pages/agents/index.tsx:49:58)
+2026-11-07T20:33:25.0218178Z 
+2026-11-07T20:33:25.0218261Z     console.error
+2026-11-07T20:33:25.0218569Z       Warning: An update to AgentsDashboard inside a test was not wrapped in act(...).
+2026-11-07T20:33:25.0218877Z       
+2026-11-07T20:33:25.0219377Z       When testing, code that causes React state updates should be wrapped into act(...):
+2026-11-07T20:33:25.0219890Z       
+2026-11-07T20:33:25.0220048Z       act(() => {
+2026-11-07T20:33:25.0220255Z         /* fire events that update state */
+2026-11-07T20:33:25.0220479Z       });
+2026-11-07T20:33:25.0220665Z       /* assert on the output */
+2026-11-07T20:33:25.0220857Z       
+2026-11-07T20:33:25.0221317Z       This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+2026-11-07T20:33:25.0221959Z           at AgentsDashboard (/home/runner/work/atom/atom/frontend-nextjs/pages/agents/index.tsx:74:45)
+2026-11-07T20:33:25.0222255Z 
+2026-11-07T20:33:25.0222692Z     [0m [90m 212 |[39m             setError([32m`Failed to load agents: ${err.message || String(err)}. Check console for details.`[39m)[33m;[39m
+2026-11-07T20:33:25.0223190Z      [90m 213 |[39m         } [36mfinally[39m {
+2026-11-07T20:33:25.0223790Z     [31m[1m>[22m[39m[90m 214 |[39m             [36mif[39m (seq [33m===[39m agentsFetchSeq[33m.[39mcurrent) setIsLoading([36mfalse[39m)[33m;[39m
+2026-11-07T20:33:25.0224352Z      [90m     |[39m                                                 [31m[1m^[22m[39m
+2026-11-07T20:33:25.0224662Z      [90m 215 |[39m         }
+2026-11-07T20:33:25.0224953Z      [90m 216 |[39m     }[33m,[39m [routerPush])[33m;[39m
+2026-11-07T20:33:25.0225235Z      [90m 217 |[39m[0m
+2026-11-07T20:33:25.0225351Z 
+2026-11-07T20:33:25.0225563Z       at printWarning (node_modules/react-dom/cjs/react-dom.development.js:86:30)
+2026-11-07T20:33:25.0226081Z       at error (node_modules/react-dom/cjs/react-dom.development.js:60:7)
+2026-11-07T20:33:25.0226582Z       at warnIfUpdatesNotWrappedWithActDEV (node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+2026-11-07T20:33:25.0227123Z       at scheduleUpdateOnFiber (node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+2026-11-07T20:33:25.0227607Z       at dispatchSetState (node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+2026-11-07T20:33:25.0227968Z       at pages/agents/index.tsx:214:49
+2026-11-07T20:33:25.0228227Z       at step (pages/agents/index.tsx:77:23)
+2026-11-07T20:33:25.0228505Z       at Object.next (pages/agents/index.tsx:58:53)
+2026-11-07T20:33:25.0228787Z       at fulfilled (pages/agents/index.tsx:49:58)
+2026-11-07T20:33:25.0228953Z 
+2026-11-07T20:33:25.0229180Z     console.error
+2026-11-07T20:33:25.0229434Z       Agents fetch error: Error: network down
+2026-11-07T20:33:25.0229843Z           at /home/runner/work/atom/atom/frontend-nextjs/tests/pages/agents-index.test.tsx:259:31
+2026-11-07T20:33:25.0230375Z           at /home/runner/work/atom/atom/frontend-nextjs/node_modules/jest-mock/build/index.js:305:39
+2026-11-07T20:33:25.0230904Z           at /home/runner/work/atom/atom/frontend-nextjs/node_modules/jest-mock/build/index.js:312:13
+2026-11-07T20:33:25.0231481Z           at mockConstructor (/home/runner/work/atom/atom/frontend-nextjs/node_modules/jest-mock/build/index.js:57:19)
+2026-11-07T20:33:25.0232007Z           at /home/runner/work/atom/atom/frontend-nextjs/pages/agents/index.tsx:171:31
+2026-11-07T20:33:25.0232460Z           at step (/home/runner/work/atom/atom/frontend-nextjs/pages/agents/index.tsx:77:23)
+2026-11-07T20:33:25.0232945Z           at Object.next (/home/runner/work/atom/atom/frontend-nextjs/pages/agents/index.tsx:58:53)
+2026-11-07T20:33:25.0233405Z           at /home/runner/work/atom/atom/frontend-nextjs/pages/agents/index.tsx:52:71
+2026-11-07T20:33:25.0233744Z           at new Promise (<anonymous>)
+2026-11-07T20:33:25.0234115Z           at __awaiter (/home/runner/work/atom/atom/frontend-nextjs/pages/agents/index.tsx:48:12)
+2026-11-07T20:33:25.0234576Z           at /home/runner/work/atom/atom/frontend-nextjs/pages/agents/index.tsx:158:37
+2026-11-07T20:33:25.0235003Z           at /home/runner/work/atom/atom/frontend-nextjs/pages/agents/index.tsx:253:9
+2026-11-07T20:33:25.0235622Z           at commitHookEffectListMount (/home/runner/work/atom/atom/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:23189:26)
+2026-11-07T20:33:25.0236534Z           at commitPassiveMountOnFiber (/home/runner/work/atom/atom/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:24970:11)
+2026-11-07T20:33:25.0237340Z           at commitPassiveMountEffects_complete (/home/runner/work/atom/atom/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:24930:9)
+2026-11-07T20:33:25.0238154Z           at commitPassiveMountEffects_begin (/home/runner/work/atom/atom/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:24917:7)
+2026-11-07T20:33:25.0238933Z           at commitPassiveMountEffects (/home/runner/work/atom/atom/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:24905:3)
+2026-11-07T20:33:25.0239919Z           at flushPassiveEffectsImpl (/home/runner/work/atom/atom/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:27078:3)
+2026-11-07T20:33:25.0240682Z           at flushPassiveEffects (/home/runner/work/atom/atom/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:27023:14)
+2026-11-07T20:33:25.0241347Z           at /home/runner/work/atom/atom/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:26808:9
+2026-11-07T20:33:25.0241985Z           at flushActQueue (/home/runner/work/atom/atom/frontend-nextjs/node_modules/react/cjs/react.development.js:2667:24)
+2026-11-07T20:33:25.0242603Z           at act (/home/runner/work/atom/atom/frontend-nextjs/node_modules/react/cjs/react.development.js:2582:11)
+2026-11-07T20:33:25.0243197Z           at /home/runner/work/atom/atom/frontend-nextjs/node_modules/@testing-library/react/dist/act-compat.js:46:25
+2026-11-07T20:33:25.0243951Z           at renderRoot (/home/runner/work/atom/atom/frontend-nextjs/node_modules/@testing-library/react/dist/pure.js:189:26)
+2026-11-07T20:33:25.0244586Z           at render (/home/runner/work/atom/atom/frontend-nextjs/node_modules/@testing-library/react/dist/pure.js:291:10)
+2026-11-07T20:33:25.0245194Z           at renderAgents (/home/runner/work/atom/atom/frontend-nextjs/tests/pages/agents-index.test.tsx:45:23)
+2026-11-07T20:33:25.0245734Z           at /home/runner/work/atom/atom/frontend-nextjs/tests/pages/agents-index.test.tsx:275:25
+2026-11-07T20:33:25.0246248Z           at step (/home/runner/work/atom/atom/frontend-nextjs/tests/pages/agents-index.test.tsx:40:23)
+2026-11-07T20:33:25.0246799Z           at Object.next (/home/runner/work/atom/atom/frontend-nextjs/tests/pages/agents-index.test.tsx:21:53)
+2026-11-07T20:33:25.0247325Z           at /home/runner/work/atom/atom/frontend-nextjs/tests/pages/agents-index.test.tsx:15:71
+2026-11-07T20:33:25.0247694Z           at new Promise (<anonymous>)
+2026-11-07T20:33:25.0248130Z           at __awaiter (/home/runner/work/atom/atom/frontend-nextjs/tests/pages/agents-index.test.tsx:11:12)
+2026-11-07T20:33:25.0248728Z           at Object.<anonymous> (/home/runner/work/atom/atom/frontend-nextjs/tests/pages/agents-index.test.tsx:273:40)
+2026-11-07T20:33:25.0249616Z           at Promise.finally.completed (/home/runner/work/atom/atom/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:1557:28)
+2026-11-07T20:33:25.0250107Z           at new Promise (<anonymous>)
+2026-11-07T20:33:25.0250591Z           at callAsyncCircusFn (/home/runner/work/atom/atom/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:1497:10)
+2026-11-07T20:33:25.0251289Z           at _callCircusTest (/home/runner/work/atom/atom/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:1007:40)
+2026-11-07T20:33:25.0251947Z           at _runTest (/home/runner/work/atom/atom/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:947:3)
+2026-11-07T20:33:25.0252575Z           at /home/runner/work/atom/atom/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:849:7
+2026-11-07T20:33:25.0253244Z           at _runTestsForDescribeBlock (/home/runner/work/atom/atom/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:862:11)
+2026-11-07T20:33:25.0254095Z           at _runTestsForDescribeBlock (/home/runner/work/atom/atom/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:857:11)
+2026-11-07T20:33:25.0254768Z           at run (/home/runner/work/atom/atom/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:761:3)
+2026-11-07T20:33:25.0255494Z           at runAndTransformResultsToJestFormat (/home/runner/work/atom/atom/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:1918:21)
+2026-11-07T20:33:25.0256207Z           at jestAdapter (/home/runner/work/atom/atom/frontend-nextjs/node_modules/jest-circus/build/runner.js:101:19)
+2026-11-07T20:33:25.0256832Z           at runTestInternal (/home/runner/work/atom/atom/frontend-nextjs/node_modules/jest-runner/build/index.js:275:16)
+2026-11-07T20:33:25.0257437Z           at runTest (/home/runner/work/atom/atom/frontend-nextjs/node_modules/jest-runner/build/index.js:343:7)
+2026-11-07T20:33:25.0257743Z 
+2026-11-07T20:33:25.0257973Z     [0m [90m 209 |[39m         } [36mcatch[39m (err[33m:[39m any) {
+2026-11-07T20:33:25.0258520Z      [90m 210 |[39m             [36mif[39m (seq [33m!==[39m agentsFetchSeq[33m.[39mcurrent) [36mreturn[39m[33m;[39m
+2026-11-07T20:33:25.0259254Z     [31m[1m>[22m[39m[90m 211 |[39m             console[33m.[39merror([32m"Agents fetch error:"[39m[33m,[39m err)[33m;[39m
+2026-11-07T20:33:25.0259722Z      [90m     |[39m                     [31m[1m^[22m[39m
+2026-11-07T20:33:25.0260310Z      [90m 212 |[39m             setError([32m`Failed to load agents: ${err.message || String(err)}. Check console for details.`[39m)[33m;[39m
+2026-11-07T20:33:25.0260939Z      [90m 213 |[39m         } [36mfinally[39m {
+2026-11-07T20:33:25.0261492Z      [90m 214 |[39m             [36mif[39m (seq [33m===[39m agentsFetchSeq[33m.[39mcurrent) setIsLoading([36mfalse[39m)[33m;[39m[0m
+2026-11-07T20:33:25.0261810Z 
+2026-11-07T20:33:25.0261925Z       at pages/agents/index.tsx:211:21
+2026-11-07T20:33:25.0262184Z       at step (pages/agents/index.tsx:77:23)
+2026-11-07T20:33:25.0262474Z       at Object.throw (pages/agents/index.tsx:58:53)
+2026-11-07T20:33:25.0262756Z       at rejected (pages/agents/index.tsx:50:65)
+2026-11-07T20:33:25.0262918Z 
+2026-11-07T20:33:25.0262995Z     console.error
+2026-11-07T20:33:25.0263222Z       Agents fetch error: Error: network down
+2026-11-07T20:33:25.0263627Z           at /home/runner/work/atom/atom/frontend-nextjs/tests/pages/agents-index.test.tsx:291:35
+2026-11-07T20:33:25.0264146Z           at /home/runner/work/atom/atom/frontend-nextjs/node_modules/jest-mock/build/index.js:305:39
+2026-11-07T20:33:25.0264667Z           at /home/runner/work/atom/atom/frontend-nextjs/node_modules/jest-mock/build/index.js:312:13
+2026-11-07T20:33:25.0265230Z           at mockConstructor (/home/runner/work/atom/atom/frontend-nextjs/node_modules/jest-mock/build/index.js:57:19)
+2026-11-07T20:33:25.0265753Z           at /home/runner/work/atom/atom/frontend-nextjs/pages/agents/index.tsx:171:31
+2026-11-07T20:33:25.0266216Z           at step (/home/runner/work/atom/atom/frontend-nextjs/pages/agents/index.tsx:77:23)
+2026-11-07T20:33:25.0266701Z           at Object.next (/home/runner/work/atom/atom/frontend-nextjs/pages/agents/index.tsx:58:53)
+2026-11-07T20:33:25.0267165Z           at /home/runner/work/atom/atom/frontend-nextjs/pages/agents/index.tsx:52:71
+2026-11-07T20:33:25.0267497Z           at new Promise (<anonymous>)
+2026-11-07T20:33:25.0267868Z           at __awaiter (/home/runner/work/atom/atom/frontend-nextjs/pages/agents/index.tsx:48:12)
+2026-11-07T20:33:25.0268325Z           at /home/runner/work/atom/atom/frontend-nextjs/pages/agents/index.tsx:158:37
+2026-11-07T20:33:25.0268754Z           at /home/runner/work/atom/atom/frontend-nextjs/pages/agents/index.tsx:253:9
+2026-11-07T20:33:25.0269566Z           at commitHookEffectListMount (/home/runner/work/atom/atom/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:23189:26)
+2026-11-07T20:33:25.0270349Z           at commitPassiveMountOnFiber (/home/runner/work/atom/atom/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:24970:11)
+2026-11-07T20:33:25.0271260Z           at commitPassiveMountEffects_complete (/home/runner/work/atom/atom/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:24930:9)
+2026-11-07T20:33:25.0272092Z           at commitPassiveMountEffects_begin (/home/runner/work/atom/atom/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:24917:7)
+2026-11-07T20:33:25.0272881Z           at commitPassiveMountEffects (/home/runner/work/atom/atom/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:24905:3)
+2026-11-07T20:33:25.0273644Z           at flushPassiveEffectsImpl (/home/runner/work/atom/atom/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:27078:3)
+2026-11-07T20:33:25.0274409Z           at flushPassiveEffects (/home/runner/work/atom/atom/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:27023:14)
+2026-11-07T20:33:25.0275071Z           at /home/runner/work/atom/atom/frontend-nextjs/node_modules/react-dom/cjs/react-dom.development.js:26808:9
+2026-11-07T20:33:25.0275710Z           at flushActQueue (/home/runner/work/atom/atom/frontend-nextjs/node_modules/react/cjs/react.development.js:2667:24)
+2026-11-07T20:33:25.0276324Z           at act (/home/runner/work/atom/atom/frontend-nextjs/node_modules/react/cjs/react.development.js:2582:11)
+2026-11-07T20:33:25.0276918Z           at /home/runner/work/atom/atom/frontend-nextjs/node_modules/@testing-library/react/dist/act-compat.js:46:25
+2026-11-07T20:33:25.0277548Z           at renderRoot (/home/runner/work/atom/atom/frontend-nextjs/node_modules/@testing-library/react/dist/pure.js:189:26)
+2026-11-07T20:33:25.0278285Z           at render (/home/runner/work/atom/atom/frontend-nextjs/node_modules/@testing-library/react/dist/pure.js:291:10)
+2026-11-07T20:33:25.0278888Z           at renderAgents (/home/runner/work/atom/atom/frontend-nextjs/tests/pages/agents-index.test.tsx:45:23)
+2026-11-07T20:33:25.0279526Z           at /home/runner/work/atom/atom/frontend-nextjs/tests/pages/agents-index.test.tsx:305:7
+2026-11-07T20:33:25.0280046Z           at step (/home/runner/work/atom/atom/frontend-nextjs/tests/pages/agents-index.test.tsx:40:23)
+2026-11-07T20:33:25.0280609Z           at Object.next (/home/runner/work/atom/atom/frontend-nextjs/tests/pages/agents-index.test.tsx:21:53)
+2026-11-07T20:33:25.0281149Z           at /home/runner/work/atom/atom/frontend-nextjs/tests/pages/agents-index.test.tsx:15:71
+2026-11-07T20:33:25.0281525Z           at new Promise (<anonymous>)
+2026-11-07T20:33:25.0281936Z           at __awaiter (/home/runner/work/atom/atom/frontend-nextjs/tests/pages/agents-index.test.tsx:11:12)
+2026-11-07T20:33:25.0282526Z           at Object.<anonymous> (/home/runner/work/atom/atom/frontend-nextjs/tests/pages/agents-index.test.tsx:282:56)
+2026-11-07T20:33:25.0283220Z           at Promise.finally.completed (/home/runner/work/atom/atom/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:1557:28)
+2026-11-07T20:33:25.0283701Z           at new Promise (<anonymous>)
+2026-11-07T20:33:25.0284191Z           at callAsyncCircusFn (/home/runner/work/atom/atom/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:1497:10)
+2026-11-07T20:33:25.0284890Z           at _callCircusTest (/home/runner/work/atom/atom/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:1007:40)
+2026-11-07T20:33:25.0285551Z           at _runTest (/home/runner/work/atom/atom/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:947:3)
+2026-11-07T20:33:25.0286165Z           at /home/runner/work/atom/atom/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:849:7
+2026-11-07T20:33:25.0286835Z           at _runTestsForDescribeBlock (/home/runner/work/atom/atom/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:862:11)
+2026-11-07T20:33:25.0287570Z           at _runTestsForDescribeBlock (/home/runner/work/atom/atom/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:857:11)
+2026-11-07T20:33:25.0288359Z           at run (/home/runner/work/atom/atom/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:761:3)
+2026-11-07T20:33:25.0289172Z           at runAndTransformResultsToJestFormat (/home/runner/work/atom/atom/frontend-nextjs/node_modules/jest-circus/build/jestAdapterInit.js:1918:21)
+2026-11-07T20:33:25.0289902Z           at jestAdapter (/home/runner/work/atom/atom/frontend-nextjs/node_modules/jest-circus/build/runner.js:101:19)
+2026-11-07T20:33:25.0290526Z           at runTestInternal (/home/runner/work/atom/atom/frontend-nextjs/node_modules/jest-runner/build/index.js:275:16)
+2026-11-07T20:33:25.0291129Z           at runTest (/home/runner/work/atom/atom/frontend-nextjs/node_modules/jest-runner/build/index.js:343:7)
+2026-11-07T20:33:25.0291435Z 
+2026-11-07T20:33:25.0291663Z     [0m [90m 209 |[39m         } [36mcatch[39m (err[33m:[39m any) {
+2026-11-07T20:33:25.0292191Z      [90m 210 |[39m             [36mif[39m (seq [33m!==[39m agentsFetchSeq[33m.[39mcurrent) [36mreturn[39m[33m;[39m
+2026-11-07T20:33:25.0292843Z     [31m[1m>[22m[39m[90m 211 |[39m             console[33m.[39merror([32m"Agents fetch error:"[39m[33m,[39m err)[33m;[39m
+2026-11-07T20:33:25.0293317Z      [90m     |[39m                     [31m[1m^[22m[39m
+2026-11-07T20:33:25.0293886Z      [90m 212 |[39m             setError([32m`Failed to load agents: ${err.message || String(err)}. Check console for details.`[39m)[33m;[39m
+2026-11-07T20:33:25.0294380Z      [90m 213 |[39m         } [36mfinally[39m {
+2026-11-07T20:33:25.0294920Z      [90m 214 |[39m             [36mif[39m (seq [33m===[39m agentsFetchSeq[33m.[39mcurrent) setIsLoading([36mfalse[39m)[33m;[39m[0m
+2026-11-07T20:33:25.0295353Z 
+2026-11-07T20:33:25.0295465Z       at pages/agents/index.tsx:211:21
+2026-11-07T20:33:25.0295725Z       at step (pages/agents/index.tsx:77:23)
+2026-11-07T20:33:25.0296003Z       at Object.throw (pages/agents/index.tsx:58:53)
+2026-11-07T20:33:25.0296295Z       at rejected (pages/agents/index.tsx:50:65)
+2026-11-07T20:33:25.0296454Z 
+2026-11-07T20:33:25.0296536Z     console.error
+2026-11-07T20:33:25.0296855Z       Warning: An update to AgentLaunchGuide inside a test was not wrapped in act(...).
+2026-11-07T20:33:25.0297184Z       
+2026-11-07T20:33:25.0297489Z       When testing, code that causes React state updates should be wrapped into act(...):
+2026-11-07T20:33:25.0297805Z       
+2026-11-07T20:33:25.0297958Z       act(() => {
+2026-11-07T20:33:25.0298168Z         /* fire events that update state */
+2026-11-07T20:33:25.0298390Z       });
+2026-11-07T20:33:25.0298580Z       /* assert on the output */
+2026-11-07T20:33:25.0298789Z       
+2026-11-07T20:33:25.0299347Z       This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+2026-11-07T20:33:25.0300065Z           at AgentLaunchGuide (/home/runner/work/atom/atom/frontend-nextjs/components/Agents/AgentLaunchGuide.tsx:227:42)
+2026-11-07T20:33:25.0300479Z           at div
+2026-11-07T20:33:25.0300646Z           at div
+2026-11-07T20:33:25.0301003Z           at AgentsDashboard (/home/runner/work/atom/atom/frontend-nextjs/pages/agents/index.tsx:74:45)
+2026-11-07T20:33:25.0301291Z 
+2026-11-07T20:33:25.0301697Z     [0m [90m 321 |[39m                 [36mconst[39m ids [33m=[39m data[33m.[39mmap((i[33m:[39m any) [33m=>[39m i[33m.[39mid)[33m;[39m
+2026-11-07T20:33:25.0302273Z      [90m 322 |[39m                 registryIdsRef[33m.[39mcurrent [33m=[39m ids[33m;[39m
+2026-11-07T20:33:25.0302750Z     [31m[1m>[22m[39m[90m 323 |[39m                 setRegistryIdsState(ids)[33m;[39m
+2026-11-07T20:33:25.0303141Z      [90m     |[39m                 [31m[1m^[22m[39m
+2026-11-07T20:33:25.0303424Z      [90m 324 |[39m             }
+2026-11-07T20:33:25.0303696Z      [90m 325 |[39m         } [36mcatch[39m {
+2026-11-07T20:33:25.0304218Z      [90m 326 |[39m             setRegistryIdsState([36mnull[39m)[33m;[39m [90m// fall back to preference defaults[39m[0m
+2026-11-07T20:33:25.0304532Z 
+2026-11-07T20:33:25.0304869Z       at printWarning (node_modules/react-dom/cjs/react-dom.development.js:86:30)
+2026-11-07T20:33:25.0305292Z       at error (node_modules/react-dom/cjs/react-dom.development.js:60:7)
+2026-11-07T20:33:25.0305789Z       at warnIfUpdatesNotWrappedWithActDEV (node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+2026-11-07T20:33:25.0306323Z       at scheduleUpdateOnFiber (node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+2026-11-07T20:33:25.0306809Z       at dispatchSetState (node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+2026-11-07T20:33:25.0307195Z       at components/Agents/AgentLaunchGuide.tsx:323:17
+2026-11-07T20:33:25.0307507Z       at step (components/Agents/AgentLaunchGuide.tsx:77:23)
+2026-11-07T20:33:25.0307883Z       at Object.next (components/Agents/AgentLaunchGuide.tsx:58:53)
+2026-11-07T20:33:25.0308244Z       at fulfilled (components/Agents/AgentLaunchGuide.tsx:49:58)
+2026-11-07T20:33:25.0308445Z 
+2026-11-07T20:33:25.0308522Z     console.error
+2026-11-07T20:33:25.0308839Z       Warning: An update to AgentLaunchGuide inside a test was not wrapped in act(...).
+2026-11-07T20:33:25.0309322Z       
+2026-11-07T20:33:25.0309624Z       When testing, code that causes React state updates should be wrapped into act(...):
+2026-11-07T20:33:25.0309941Z       
+2026-11-07T20:33:25.0310096Z       act(() => {
+2026-11-07T20:33:25.0310300Z         /* fire events that update state */
+2026-11-07T20:33:25.0310526Z       });
+2026-11-07T20:33:25.0310710Z       /* assert on the output */
+2026-11-07T20:33:25.0311014Z       
+2026-11-07T20:33:25.0311463Z       This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+2026-11-07T20:33:25.0312159Z           at AgentLaunchGuide (/home/runner/work/atom/atom/frontend-nextjs/components/Agents/AgentLaunchGuide.tsx:227:42)
+2026-11-07T20:33:25.0312560Z           at div
+2026-11-07T20:33:25.0312727Z           at div
+2026-11-07T20:33:25.0313089Z           at AgentsDashboard (/home/runner/work/atom/atom/frontend-nextjs/pages/agents/index.tsx:74:45)
+2026-11-07T20:33:25.0313374Z 
+2026-11-07T20:33:25.0313532Z     [0m [90m 331 |[39m         [36mtry[39m {
+2026-11-07T20:33:25.0314031Z      [90m 332 |[39m             [36mconst[39m proposals [33m=[39m [36mawait[39m listTrainingProposals()[33m;[39m
+2026-11-07T20:33:25.0314862Z     [31m[1m>[22m[39m[90m 333 |[39m             setPendingTraining([33mArray[39m[33m.[39misArray(proposals) [33m?[39m proposals[33m.[39mlength [33m:[39m [35m0[39m)[33m;[39m
+2026-11-07T20:33:25.0315458Z      [90m     |[39m             [31m[1m^[22m[39m
+2026-11-07T20:33:25.0315764Z      [90m 334 |[39m         } [36mcatch[39m {
+2026-11-07T20:33:25.0316125Z      [90m 335 |[39m             setPendingTraining([36mnull[39m)[33m;[39m
+2026-11-07T20:33:25.0316442Z      [90m 336 |[39m         }[0m
+2026-11-07T20:33:25.0316584Z 
+2026-11-07T20:33:25.0316800Z       at printWarning (node_modules/react-dom/cjs/react-dom.development.js:86:30)
+2026-11-07T20:33:25.0317214Z       at error (node_modules/react-dom/cjs/react-dom.development.js:60:7)
+2026-11-07T20:33:25.0317719Z       at warnIfUpdatesNotWrappedWithActDEV (node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+2026-11-07T20:33:25.0318263Z       at scheduleUpdateOnFiber (node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+2026-11-07T20:33:25.0318741Z       at dispatchSetState (node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+2026-11-07T20:33:25.0319378Z       at components/Agents/AgentLaunchGuide.tsx:333:13
+2026-11-07T20:33:25.0319700Z       at step (components/Agents/AgentLaunchGuide.tsx:77:23)
+2026-11-07T20:33:25.0320037Z       at Object.next (components/Agents/AgentLaunchGuide.tsx:58:53)
+2026-11-07T20:33:25.0320401Z       at fulfilled (components/Agents/AgentLaunchGuide.tsx:49:58)
+2026-11-07T20:33:25.0320590Z 
+2026-11-07T20:33:25.0320671Z     console.error
+2026-11-07T20:33:25.0320977Z       Warning: An update to AgentLaunchGuide inside a test was not wrapped in act(...).
+2026-11-07T20:33:25.0321398Z       
+2026-11-07T20:33:25.0321699Z       When testing, code that causes React state updates should be wrapped into act(...):
+2026-11-07T20:33:25.0322005Z       
+2026-11-07T20:33:25.0322163Z       act(() => {
+2026-11-07T20:33:25.0322374Z         /* fire events that update state */
+2026-11-07T20:33:25.0322589Z       });
+2026-11-07T20:33:25.0322773Z       /* assert on the output */
+2026-11-07T20:33:25.0322978Z       
+2026-11-07T20:33:25.0323429Z       This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+2026-11-07T20:33:25.0324126Z           at AgentLaunchGuide (/home/runner/work/atom/atom/frontend-nextjs/components/Agents/AgentLaunchGuide.tsx:227:42)
+2026-11-07T20:33:25.0324539Z           at div
+2026-11-07T20:33:25.0324708Z           at div
+2026-11-07T20:33:25.0325059Z           at AgentsDashboard (/home/runner/work/atom/atom/frontend-nextjs/pages/agents/index.tsx:74:45)
+2026-11-07T20:33:25.0325347Z 
+2026-11-07T20:33:25.0325750Z     [0m [90m 304 |[39m                     [36mif[39m ([33m![39m(id [36min[39m next)) next[id] [33m=[39m active[33m.[39mhas(id)[33m;[39m
+2026-11-07T20:33:25.0326206Z      [90m 305 |[39m                 })[33m;[39m
+2026-11-07T20:33:25.0326600Z     [31m[1m>[22m[39m[90m 306 |[39m                 setConnections(next)[33m;[39m
+2026-11-07T20:33:25.0326971Z      [90m     |[39m                 [31m[1m^[22m[39m
+2026-11-07T20:33:25.0327252Z      [90m 307 |[39m             }
+2026-11-07T20:33:25.0327796Z      [90m 308 |[39m             [36mif[39m (configRes[33m.[39mstatus [33m===[39m [32m'fulfilled'[39m) {
+2026-11-07T20:33:25.0328449Z      [90m 309 |[39m                 setServerConfigured(configRes[33m.[39mvalue[33m?[39m[33m.[39mdata [33m||[39m {})[33m;[39m[0m
+2026-11-07T20:33:25.0328776Z 
+2026-11-07T20:33:25.0329059Z       at printWarning (node_modules/react-dom/cjs/react-dom.development.js:86:30)
+2026-11-07T20:33:25.0329558Z       at error (node_modules/react-dom/cjs/react-dom.development.js:60:7)
+2026-11-07T20:33:25.0330362Z       at warnIfUpdatesNotWrappedWithActDEV (node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+2026-11-07T20:33:25.0331317Z       at scheduleUpdateOnFiber (node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+2026-11-07T20:33:25.0332131Z       at dispatchSetState (node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+2026-11-07T20:33:25.0332781Z       at components/Agents/AgentLaunchGuide.tsx:306:17
+2026-11-07T20:33:25.0333322Z       at step (components/Agents/AgentLaunchGuide.tsx:77:23)
+2026-11-07T20:33:25.0333910Z       at Object.next (components/Agents/AgentLaunchGuide.tsx:58:53)
+2026-11-07T20:33:25.0334513Z       at fulfilled (components/Agents/AgentLaunchGuide.tsx:49:58)
+2026-11-07T20:33:25.0334854Z 
+2026-11-07T20:33:25.0334972Z     console.error
+2026-11-07T20:33:25.0335477Z       Warning: An update to AgentLaunchGuide inside a test was not wrapped in act(...).
+2026-11-07T20:33:25.0336009Z       
+2026-11-07T20:33:25.0336516Z       When testing, code that causes React state updates should be wrapped into act(...):
+2026-11-07T20:33:25.0337024Z       
+2026-11-07T20:33:25.0337258Z       act(() => {
+2026-11-07T20:33:25.0337589Z         /* fire events that update state */
+2026-11-07T20:33:25.0337945Z       });
+2026-11-07T20:33:25.0338234Z       /* assert on the output */
+2026-11-07T20:33:25.0338535Z       
+2026-11-07T20:33:25.0339463Z       This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+2026-11-07T20:33:25.0340710Z           at AgentLaunchGuide (/home/runner/work/atom/atom/frontend-nextjs/components/Agents/AgentLaunchGuide.tsx:227:42)
+2026-11-07T20:33:25.0341421Z           at div
+2026-11-07T20:33:25.0341687Z           at div
+2026-11-07T20:33:25.0342283Z           at AgentsDashboard (/home/runner/work/atom/atom/frontend-nextjs/pages/agents/index.tsx:74:45)
+2026-11-07T20:33:25.0342788Z 
+2026-11-07T20:33:25.0343215Z     [0m [90m 307 |[39m             }
+2026-11-07T20:33:25.0343984Z      [90m 308 |[39m             [36mif[39m (configRes[33m.[39mstatus [33m===[39m [32m'fulfilled'[39m) {
+2026-11-07T20:33:25.0345194Z     [31m[1m>[22m[39m[90m 309 |[39m                 setServerConfigured(configRes[33m.[39mvalue[33m?[39m[33m.[39mdata [33m||[39m {})[33m;[39m
+2026-11-07T20:33:25.0346082Z      [90m     |[39m                 [31m[1m^[22m[39m
+2026-11-07T20:33:25.0346538Z      [90m 310 |[39m             }
+2026-11-07T20:33:25.0346982Z      [90m 311 |[39m         } [36mcatch[39m {
+2026-11-07T20:33:25.0347738Z      [90m 312 |[39m             [90m// Leave steps unchecked rather than blocking the page.[39m[0m
+2026-11-07T20:33:25.0348165Z 
+2026-11-07T20:33:25.0348524Z       at printWarning (node_modules/react-dom/cjs/react-dom.development.js:86:30)
+2026-11-07T20:33:25.0349363Z       at error (node_modules/react-dom/cjs/react-dom.development.js:60:7)
+2026-11-07T20:33:25.0350232Z       at warnIfUpdatesNotWrappedWithActDEV (node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+2026-11-07T20:33:25.0351171Z       at scheduleUpdateOnFiber (node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+2026-11-07T20:33:25.0351993Z       at dispatchSetState (node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+2026-11-07T20:33:25.0352644Z       at components/Agents/AgentLaunchGuide.tsx:309:17
+2026-11-07T20:33:25.0353159Z       at step (components/Agents/AgentLaunchGuide.tsx:77:23)
+2026-11-07T20:33:25.0353888Z       at Object.next (components/Agents/AgentLaunchGuide.tsx:58:53)
+2026-11-07T20:33:25.0354491Z       at fulfilled (components/Agents/AgentLaunchGuide.tsx:49:58)
+2026-11-07T20:33:25.0354811Z 
+2026-11-07T20:33:25.0354928Z     console.error
+2026-11-07T20:33:25.0355424Z       Warning: An update to AgentsDashboard inside a test was not wrapped in act(...).
+2026-11-07T20:33:25.0355936Z       
+2026-11-07T20:33:25.0356427Z       When testing, code that causes React state updates should be wrapped into act(...):
+2026-11-07T20:33:25.0356942Z       
+2026-11-07T20:33:25.0357173Z       act(() => {
+2026-11-07T20:33:25.0357483Z         /* fire events that update state */
+2026-11-07T20:33:25.0357821Z       });
+2026-11-07T20:33:25.0358099Z       /* assert on the output */
+2026-11-07T20:33:25.0358401Z       
+2026-11-07T20:33:25.0359289Z       This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+2026-11-07T20:33:25.0360419Z           at AgentsDashboard (/home/runner/work/atom/atom/frontend-nextjs/pages/agents/index.tsx:74:45)
+2026-11-07T20:33:25.0360909Z 
+2026-11-07T20:33:25.0361451Z     [0m [90m 184 |[39m                 [90m// Accept either the wrapped shape or a bare array for safety.[39m
+2026-11-07T20:33:25.0362803Z      [90m 185 |[39m                 [36mconst[39m data [33m=[39m [33mArray[39m[33m.[39misArray(json) [33m?[39m json [33m:[39m (json[33m.[39mdata [33m?[39m[33m?[39m [])[33m;[39m
+2026-11-07T20:33:25.0364009Z     [31m[1m>[22m[39m[90m 186 |[39m                 setAgents(data[33m.[39mmap(normalizeAgent))[33m;[39m
+2026-11-07T20:33:25.0364685Z      [90m     |[39m                 [31m[1m^[22m[39m
+2026-11-07T20:33:25.0365736Z      [90m 187 |[39m             } [36melse[39m [36mif[39m (res[33m.[39mstatus [33m===[39m [35m401[39m [33m||[39m res[33m.[39mstatus [33m===[39m [35m403[39m) {
+2026-11-07T20:33:25.0366835Z      [90m 188 |[39m                 [90m// Token no longer valid (expired/revoked) — clear it and go[39m
+2026-11-07T20:33:25.0367727Z      [90m 189 |[39m                 [90m// to login, same behavior as the axios 401 interceptor.[39m[0m
+2026-11-07T20:33:25.0368146Z 
+2026-11-07T20:33:25.0368657Z       at printWarning (node_modules/react-dom/cjs/react-dom.development.js:86:30)
+2026-11-07T20:33:25.0369583Z       at error (node_modules/react-dom/cjs/react-dom.development.js:60:7)
+2026-11-07T20:33:25.0370707Z       at warnIfUpdatesNotWrappedWithActDEV (node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+2026-11-07T20:33:25.0371905Z       at scheduleUpdateOnFiber (node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+2026-11-07T20:33:25.0372962Z       at dispatchSetState (node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+2026-11-07T20:33:25.0373734Z       at pages/agents/index.tsx:186:17
+2026-11-07T20:33:25.0374274Z       at step (pages/agents/index.tsx:77:23)
+2026-11-07T20:33:25.0374925Z       at Object.next (pages/agents/index.tsx:58:53)
+2026-11-07T20:33:25.0375547Z       at fulfilled (pages/agents/index.tsx:49:58)
+2026-11-07T20:33:25.0375907Z 
+2026-11-07T20:33:25.0376131Z     console.error
+2026-11-07T20:33:25.0391549Z       Warning: An update to AgentsDashboard inside a test was not wrapped in act(...).
+2026-11-07T20:33:25.0392144Z       
+2026-11-07T20:33:25.0392674Z       When testing, code that causes React state updates should be wrapped into act(...):
+2026-11-07T20:33:25.0393199Z       
+2026-11-07T20:33:25.0393447Z       act(() => {
+2026-11-07T20:33:25.0393783Z         /* fire events that update state */
+2026-11-07T20:33:25.0394122Z       });
+2026-11-07T20:33:25.0394388Z       /* assert on the output */
+2026-11-07T20:33:25.0394688Z       
+2026-11-07T20:33:25.0395466Z       This ensures that you're testing the behavior the user would see in the browser. Learn more at https://reactjs.org/link/wrap-tests-with-act
+2026-11-07T20:33:25.0396568Z           at AgentsDashboard (/home/runner/work/atom/atom/frontend-nextjs/pages/agents/index.tsx:74:45)
+2026-11-07T20:33:25.0397265Z 
+2026-11-07T20:33:25.0398045Z     [0m [90m 212 |[39m             setError([32m`Failed to load agents: ${err.message || String(err)}. Check console for details.`[39m)[33m;[39m
+2026-11-07T20:33:25.0398869Z      [90m 213 |[39m         } [36mfinally[39m {
+2026-11-07T20:33:25.0400028Z     [31m[1m>[22m[39m[90m 214 |[39m             [36mif[39m (seq [33m===[39m agentsFetchSeq[33m.[39mcurrent) setIsLoading([36mfalse[39m)[33m;[39m
+2026-11-07T20:33:25.0400974Z      [90m     |[39m                                                 [31m[1m^[22m[39m
+2026-11-07T20:33:25.0401469Z      [90m 215 |[39m         }
+2026-11-07T20:33:25.0401926Z      [90m 216 |[39m     }[33m,[39m [routerPush])[33m;[39m
+2026-11-07T20:33:25.0402349Z      [90m 217 |[39m[0m
+2026-11-07T20:33:25.0402523Z 
+2026-11-07T20:33:25.0402870Z       at printWarning (node_modules/react-dom/cjs/react-dom.development.js:86:30)
+2026-11-07T20:33:25.0403555Z       at error (node_modules/react-dom/cjs/react-dom.development.js:60:7)
+2026-11-07T20:33:25.0404397Z       at warnIfUpdatesNotWrappedWithActDEV (node_modules/react-dom/cjs/react-dom.development.js:27628:9)
+2026-11-07T20:33:25.0405317Z       at scheduleUpdateOnFiber (node_modules/react-dom/cjs/react-dom.development.js:25547:5)
+2026-11-07T20:33:25.0406137Z       at dispatchSetState (node_modules/react-dom/cjs/react-dom.development.js:16708:7)
+2026-11-07T20:33:25.0406719Z       at pages/agents/index.tsx:214:49
+2026-11-07T20:33:25.0407128Z       at step (pages/agents/index.tsx:77:23)
+2026-11-07T20:33:25.0407611Z       at Object.next (pages/agents/index.tsx:58:53)
+2026-11-07T20:33:25.0408117Z       at fulfilled (pages/agents/index.tsx:49:58)
+2026-11-07T20:33:25.0408386Z 
+2026-11-07T20:33:25.8480763Z PASS components/Agents/__tests__/AgentJobWaitPanel.test.tsx
+2026-11-07T20:33:25.8490202Z   ● Console
+2026-11-07T20:33:25.8490383Z 
+2026-11-07T20:33:25.8490502Z     console.log
+2026-11-07T20:33:25.8490898Z       MSW server detected - fetch will be intercepted by MSW
+2026-11-07T20:33:25.8491157Z 
+2026-11-07T20:33:25.8491300Z       at Object.<anonymous> (tests/setup.ts:92:13)
+2026-11-07T20:33:25.8491486Z 
+2026-11-07T20:33:26.3558577Z PASS tests/pages/agents-information-job.test.tsx
+2026-11-07T20:33:26.3564001Z   ● Console
+2026-11-07T20:33:26.3564283Z 
+2026-11-07T20:33:26.3564532Z     console.log
+2026-11-07T20:33:26.3564862Z       MSW server detected - fetch will be intercepted by MSW
+2026-11-07T20:33:26.3565068Z 
+2026-11-07T20:33:26.3565935Z       at Object.<anonymous> (tests/setup.ts:92:13)
+2026-11-07T20:33:26.3566129Z 
+2026-11-07T20:33:26.6305155Z PASS lib/__tests__/agent-job-ref.test.ts
+2026-11-07T20:33:26.6308178Z   ● Console
+2026-11-07T20:33:26.6308327Z 
+2026-11-07T20:33:26.6308442Z     console.log
+2026-11-07T20:33:26.6308814Z       MSW server detected - fetch will be intercepted by MSW
+2026-11-07T20:33:26.6309207Z 
+2026-11-07T20:33:26.6309347Z       at Object.<anonymous> (tests/setup.ts:92:13)
+2026-11-07T20:33:26.6309559Z 
+2026-11-07T20:33:26.6324478Z 
+2026-11-07T20:33:26.6331226Z Test Suites: 4 passed, 4 total
+2026-11-07T20:33:26.6331692Z Tests:       53 passed, 53 total
+2026-11-07T20:33:26.6332211Z Snapshots:   0 total
+2026-11-07T20:33:26.6332520Z Time:        4.994 s
+2026-11-07T20:33:26.6333828Z Ran all test suites matching components/Agents/__tests__/AgentJobWaitPanel.test.tsx|lib/__tests__/agent-job-ref.test.ts|tests/pages/agents-index.test.tsx|tests/pages/agents-information-job.test.tsx.
+2026-11-07T20:33:26.7753502Z ##[group]Run npx jest tests/pages/goal-runs/detail.test.tsx --runInBand --no-coverage
+2026-11-07T20:33:26.7754011Z [36;1mnpx jest tests/pages/goal-runs/detail.test.tsx --runInBand --no-coverage[0m
+2026-11-07T20:33:26.7772052Z shell: /usr/bin/bash -e {0}
+2026-11-07T20:33:26.7772273Z ##[endgroup]
+2026-11-07T20:33:28.1400269Z   console.log
+2026-11-07T20:33:28.1400797Z     MSW server detected - fetch will be intercepted by MSW
+2026-11-07T20:33:28.1401124Z 
+2026-11-07T20:33:28.1401322Z       at Object.<anonymous> (tests/setup.ts:92:13)
+2026-11-07T20:33:28.1402334Z 
+2026-11-07T20:33:29.4542343Z FAIL tests/pages/goal-runs/detail.test.tsx
+2026-11-07T20:33:29.4543599Z   GoalRunDetailPage role gating
+2026-11-07T20:33:29.4546215Z     ✓ member: read-only banner, no coaching actions, no mode switcher (87 ms)
+2026-11-07T20:33:29.4547110Z     ✓ supervisor: mode switcher, coaching actions and promotion evidence (57 ms)
+2026-11-07T20:33:29.4547977Z     ✓ unknown role stays fail-open (backend enforces) (17 ms)
+2026-11-07T20:33:29.4548713Z     ✓ member still sees a held decision's rationale (record, not action) (15 ms)
+2026-11-07T20:33:29.4549497Z   GoalRunDetailPage journey finish-line (2026-09-10)
+2026-11-07T20:33:29.4550158Z     ✓ leads with the goal's title instead of a bare UUID (16 ms)
+2026-11-07T20:33:29.4550857Z     ✓ active run names its current step in the guidance banner (20 ms)
+2026-11-07T20:33:29.4551593Z     ✓ achieved run: no Advance/Cancel/mode — Distill is the next act (22 ms)
+2026-11-07T20:33:29.4552406Z     ✓ failed/cancelled runs can still be distilled (learn from the path taken) (18 ms)
+2026-11-07T20:33:29.4553061Z   GoalRunDetailPage role-based access (any business)
+2026-11-07T20:33:29.4553791Z     ✓ the run's OWNER works and approves it, but gets no supervisor powers (28 ms)
+2026-11-07T20:33:29.4554503Z     ✓ a DIFFERENT member is read-only on someone else's run (15 ms)
+2026-11-07T20:33:29.4555133Z     ✓ a supervisor can act on ANY run they do not own (26 ms)
+2026-11-07T20:33:29.4555634Z   GoalRun detail — coaching
+2026-11-07T20:33:29.4556057Z     ✓ links to the run agent's chat (15 ms)
+2026-11-07T20:33:29.4556678Z     ✓ teaches THIS goal by default and confirms where it landed (35 ms)
+2026-11-07T20:33:29.4557396Z     ✓ teaches all of the agent's work when the scope is switched (30 ms)
+2026-11-07T20:33:29.4558016Z     ✓ surfaces a failed teach instead of claiming success (30 ms)
+2026-11-07T20:33:29.4558566Z     ✓ shows what the agent learned, badged by scope (21 ms)
+2026-11-07T20:33:29.4559389Z     ✓ refreshes to the newer decision after a stale approval conflict (35 ms)
+2026-11-07T20:33:29.4560115Z     ✓ sends the override's lesson scope with the resume call (26 ms)
+2026-11-07T20:33:29.4560634Z   GoalRunDetailPage assignment projection ownership
+2026-11-07T20:33:29.4561309Z     ✓ shows the assignment plan read-only and sends no native advance (29 ms)
+2026-11-07T20:33:29.4562093Z     ✓ a caller-shaped marker without the trusted creation log stays native (24 ms)
+2026-11-07T20:33:29.4562647Z   Goal utility target (GOAL-02)
+2026-11-07T20:33:29.4563213Z     ✓ member sees the target and truthful ranking but cannot mutate it (15 ms)
+2026-11-07T20:33:29.4564012Z     ✕ supervisor sets the existing target and sees the ranking after reload (17 ms)
+2026-11-07T20:33:29.4564685Z     ✓ clears the target and removes the ranking (24 ms)
+2026-11-07T20:33:29.4565328Z     ✓ shows an unknown/no-eligible state without inventing a winner (20 ms)
+2026-11-07T20:33:29.4566012Z     ✓ surfaces a load error and retries without claiming a target (26 ms)
+2026-11-07T20:33:29.4566379Z 
+2026-11-07T20:33:29.4566923Z   ● Goal utility target (GOAL-02) › supervisor sets the existing target and sees the ranking after reload
+2026-11-07T20:33:29.4567409Z 
+2026-11-07T20:33:29.4567880Z     TestingLibraryElementError: Unable to find an element by: [data-testid="goal-utility-metric"]
+2026-11-07T20:33:29.4568397Z 
+2026-11-07T20:33:29.4568572Z     Ignored nodes: comments, script, style
+2026-11-07T20:33:29.4569694Z     [36m<body>[39m
+2026-11-07T20:33:29.4570007Z       [36m<div>[39m
+2026-11-07T20:33:29.4570298Z         [36m<div[39m
+2026-11-07T20:33:29.4570775Z           [33mclass[39m=[32m"container mx-auto py-8 max-w-4xl"[39m
+2026-11-07T20:33:29.4571353Z           [33mdata-testid[39m=[32m"goal-run-detail"[39m
+2026-11-07T20:33:29.4571769Z         [36m>[39m
+2026-11-07T20:33:29.4572079Z           [36m<title>[39m
+2026-11-07T20:33:29.4572554Z             [0mGoal run — Prepare a quote for the Acme lead[0m
+2026-11-07T20:33:29.4573010Z           [36m</title>[39m
+2026-11-07T20:33:29.4573582Z           [36m<button[39m
+2026-11-07T20:33:29.4575748Z             [33mclass[39m=[32m"inline-flex items-center justify-center text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background hover:bg-accent hover:text-accent-foreground h-9 px-3 rounded-md mb-4"[39m
+2026-11-07T20:33:29.4577573Z           [36m>[39m
+2026-11-07T20:33:29.4577886Z             [36m<svg[39m
+2026-11-07T20:33:29.4578327Z               [33maria-hidden[39m=[32m"true"[39m
+2026-11-07T20:33:29.4578931Z               [33mclass[39m=[32m"lucide lucide-arrow-left h-4 w-4"[39m
+2026-11-07T20:33:29.4579624Z               [33mfill[39m=[32m"none"[39m
+2026-11-07T20:33:29.4580094Z               [33mheight[39m=[32m"24"[39m
+2026-11-07T20:33:29.4580587Z               [33mstroke[39m=[32m"currentColor"[39m
+2026-11-07T20:33:29.4581126Z               [33mstroke-linecap[39m=[32m"round"[39m
+2026-11-07T20:33:29.4581678Z               [33mstroke-linejoin[39m=[32m"round"[39m
+2026-11-07T20:33:29.4582167Z               [33mstroke-width[39m=[32m"2"[39m
+2026-11-07T20:33:29.4582613Z               [33mviewBox[39m=[32m"0 0 24 24"[39m
+2026-11-07T20:33:29.4583051Z               [33mwidth[39m=[32m"24"[39m
+2026-11-07T20:33:29.4583567Z               [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+2026-11-07T20:33:29.4584020Z             [36m>[39m
+2026-11-07T20:33:29.4584358Z               [36m<path[39m
+2026-11-07T20:33:29.4584811Z                 [33md[39m=[32m"m12 19-7-7 7-7"[39m
+2026-11-07T20:33:29.4585212Z               [36m/>[39m
+2026-11-07T20:33:29.4585541Z               [36m<path[39m
+2026-11-07T20:33:29.4585954Z                 [33md[39m=[32m"M19 12H5"[39m
+2026-11-07T20:33:29.4586334Z               [36m/>[39m
+2026-11-07T20:33:29.4586665Z             [36m</svg>[39m
+2026-11-07T20:33:29.4587013Z             [0m All runs[0m
+2026-11-07T20:33:29.4587331Z           [36m</button>[39m
+2026-11-07T20:33:29.4587633Z           [36m<div[39m
+2026-11-07T20:33:29.4588194Z             [33mclass[39m=[32m"flex items-start justify-between gap-4 mb-6 flex-wrap"[39m
+2026-11-07T20:33:29.4588675Z           [36m>[39m
+2026-11-07T20:33:29.4588955Z             [36m<div>[39m
+2026-11-07T20:33:29.4589419Z               [36m<h1[39m
+2026-11-07T20:33:29.4589873Z                 [33mclass[39m=[32m"text-2xl font-semibold flex items-center gap-2 flex-wrap"[39m
+2026-11-07T20:33:29.4590534Z                 [33mdata-testid[39m=[32m"run-goal-heading"[39m
+2026-11-07T20:33:29.4590973Z               [36m>[39m
+2026-11-07T20:33:29.4591398Z                 [0mPrepare a quote for the Acme lead[0m
+2026-11-07T20:33:29.4591862Z                 [36m<div[39m
+2026-11-07T20:33:29.4593261Z                   [33mclass[39m=[32m"inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 text-foreground"[39m
+2026-11-07T20:33:29.4594418Z                 [36m>[39m
+2026-11-07T20:33:29.4594783Z                   [0mactive[0m
+2026-11-07T20:33:29.4595152Z                 [36m</div>[39m
+2026-11-07T20:33:29.4595395Z                 [36m<div[39m
+2026-11-07T20:33:29.4596477Z                   [33mclass[39m=[32m"inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 text-foreground"[39m
+2026-11-07T20:33:29.4597185Z                 [36m>[39m
+2026-11-07T20:33:29.4597426Z                   [0mshadow[0m
+2026-11-07T20:33:29.4597665Z                 [36m</div>[39m
+2026-11-07T20:33:29.4597904Z                 [36m<div[39m
+2026-11-07T20:33:29.4598710Z                   [33mclass[39m=[32m"inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 text-foreground"[39m
+2026-11-07T20:33:29.4599796Z                 [36m>[39m
+2026-11-07T20:33:29.4600042Z                   [0msales[0m
+2026-11-07T20:33:29.4600281Z                 [36m</div>[39m
+2026-11-07T20:33:29.4600511Z               [36m</h1>[39m
+2026-11-07T20:33:29.4600743Z               [36m<p[39m
+2026-11-07T20:33:29.4601081Z                 [33mclass[39m=[32m"text-sm text-muted-foreground mt-1"[39m
+2026-11-07T20:33:29.4601393Z               [36m>[39m
+2026-11-07T20:33:29.4601606Z                 [0m1[0m
+2026-11-07T20:33:29.4601854Z                 [0m steps · [0m
+2026-11-07T20:33:29.4602079Z                 [0m0[0m
+2026-11-07T20:33:29.4602315Z                 [0m replans ·[0m
+2026-11-07T20:33:29.4602544Z                 [0m [0m
+2026-11-07T20:33:29.4602748Z                 [0m0[0m
+2026-11-07T20:33:29.4602994Z                 [0m human interventions[0m
+2026-11-07T20:33:29.4603310Z                 [0m · multi-touch sales process[0m
+2026-11-07T20:33:29.4603582Z               [36m</p>[39m
+2026-11-07T20:33:29.4603801Z             [36m</div>[39m
+2026-11-07T20:33:29.4604014Z             [36m<div[39m
+2026-11-07T20:33:29.4604339Z               [33mclass[39m=[32m"flex gap-2 flex-wrap items-center"[39m
+2026-11-07T20:33:29.4604636Z             [36m>[39m
+2026-11-07T20:33:29.4604851Z               [36m<div[39m
+2026-11-07T20:33:29.4605167Z                 [33mclass[39m=[32m"flex items-center gap-1 mr-1"[39m
+2026-11-07T20:33:29.4605544Z                 [33mdata-testid[39m=[32m"mode-switcher"[39m
+2026-11-07T20:33:29.4605825Z               [36m>[39m
+2026-11-07T20:33:29.4606057Z                 [36m<button[39m
+2026-11-07T20:33:29.4607377Z                   [33mclass[39m=[32m"inline-flex items-center justify-center text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background hover:bg-accent hover:text-accent-foreground h-9 px-3 rounded-md"[39m
+2026-11-07T20:33:29.4608556Z                   [33mtitle[39m=[32m"every decision waits for approval"[39m
+2026-11-07T20:33:29.4608862Z                 [36m>[39m
+2026-11-07T20:33:29.4609232Z                   [0mtraining[0m
+2026-11-07T20:33:29.4609494Z                 [36m</button>[39m
+2026-11-07T20:33:29.4609748Z                 [36m<button[39m
+2026-11-07T20:33:29.4611058Z                   [33mclass[39m=[32m"inline-flex items-center justify-center text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background bg-primary-600 text-white hover:bg-primary-700 h-9 px-3 rounded-md"[39m
+2026-11-07T20:33:29.4612137Z                   [33mdisabled[39m=[32m""[39m
+2026-11-07T20:33:29.4612548Z                   [33mtitle[39m=[32m"decisions execute; guardrails pause for you"[39m
+2026-11-07T20:33:29.4612892Z                 [36m>[39m
+2026-11-07T20:33:29.4613144Z                   [0mshadow[0m
+2026-11-07T20:33:29.4613398Z                 [36m</button>[39m
+2026-11-07T20:33:29.4613645Z                 [36m<button[39m
+2026-11-07T20:33:29.4615086Z                   [33mclass[39m=[32m"inline-flex items-center justify-center text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background hover:bg-accent hover:text-accent-foreground h-9 px-3 rounded-md"[39m
+2026-11-07T20:33:29.4616280Z                   [33mtitle[39m=[32m"runs alone; checkpoints still notify you"[39m
+2026-11-07T20:33:29.4616606Z                 [36m>[39m
+2026-11-07T20:33:29.4616850Z                   [0mautonomous[0m
+2026-11-07T20:33:29.4617104Z                 [36m</button>[39m
+2026-11-07T20:33:29.4617349Z               [36m</div>[39m
+2026-11-07T20:33:29.4617596Z               [36m<button[39m
+2026-11-07T20:33:29.4619152Z                 [33mclass[39m=[32m"inline-flex items-center justify-center text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:opacity-50 disabled:pointer-events-none ring-offset-background border border-input hover:bg-accent hover:text-accent-foreground h-9 px-3 rounded-md"[39m
+2026-11-07T20:33:29.4620244Z               [36m>[39m
+2026-11-07T20:33:29.4620476Z                 [36m<svg[39m
+2026-11-07T20:33:29.4620756Z                   [33maria-hidden[39m=[32m"true"[39m
+2026-11-07T20:33:29.4621111Z                   [33mclass[39m=[32m"lucide lucide-play h-4 w-4"[39m
+2026-11-07T20:33:29.4621447Z                   [33mfill[39m=[32m"none"[39m
+2026-11-07T20:33:29.4621740Z                   [33mheight[39m=[32m"24"[39m
+2026-11-07T20:33:29.4622048Z                   [33mstroke[39m=[32m"currentColor"[39m
+2026-11-07T20:33:29.4622389Z                   [33mstroke-linecap[39m=[32m"round"[39m
+2026-11-07T20:33:29.4622724Z                   [33mstroke-linejoin[39m=[32m"round"[39m
+2026-11-07T20:33:29.4623041Z                   [33mstroke-width[39m=[32m"2"[39m
+2026-11-07T20:33:29.4623356Z                   [33mviewBox[39m=[32m"0 0 24 24"[39m
+2026-11-07T20:33:29.4623652Z                   [33mwidth[39m=[32m"24"[39m
+2026-11-07T20:33:29.4623994Z                   [33mxmlns[39m=[32m"http://www.w3.org/2000/svg"[39m
+2026-11-07T20:33:29.4624285Z                 [36m>[39m
+2026-11-07T20:33:29.4624519Z                   [36m<path[39m
+2026-11-07T20:33:29.4624990Z                     [33md[39m=[32m"M5 5a2 2 0 0 1 3.008-1.728l11.997 6.998a2 2 0 0 1 .003 3.458l-12 7A2 2 0 0 1 5 19z"[39m
+2026-11-07T20:33:29.4625387Z                   [36m/>[39m
+2026-11-07T20:33:29.4625624Z                 [36m</svg>[39m
+2026-11-07T20:33:29.4625863Z                 [0m Advance[0m
+2026-11-07T20:33:29.4626105Z               [36m</button>[39m
+2026-11-07T20:33:29.4626346Z               [36m<button[39m
+2026-11-07T20:33:29.4626988Z                 [33mclass[39m=[32m"inline-flex items-center justify-center text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 f...
+2026-11-07T20:33:29.4627420Z 
+2026-11-07T20:33:29.4627558Z     [0m [90m 573 |[39m
+2026-11-07T20:33:29.4628089Z      [90m 574 |[39m     [36mawait[39m waitFor(() [33m=>[39m screen[33m.[39mgetByTestId([32m"goal-utility-no-target"[39m))[33m;[39m
+2026-11-07T20:33:29.4628852Z     [31m[1m>[22m[39m[90m 575 |[39m     fireEvent[33m.[39mchange(screen[33m.[39mgetByTestId([32m"goal-utility-metric"[39m)[33m,[39m {
+2026-11-07T20:33:29.4629476Z      [90m     |[39m                             [31m[1m^[22m[39m
+2026-11-07T20:33:29.4629954Z      [90m 576 |[39m       target[33m:[39m { value[33m:[39m [32m"human_interventions"[39m }[33m,[39m
+2026-11-07T20:33:29.4630345Z      [90m 577 |[39m     })[33m;[39m
+2026-11-07T20:33:29.4630879Z      [90m 578 |[39m     fireEvent[33m.[39mchange(screen[33m.[39mgetByTestId([32m"goal-utility-direction"[39m)[33m,[39m {[0m
+2026-11-07T20:33:29.4631226Z 
+2026-11-07T20:33:29.4631456Z       at Object.getElementError (node_modules/@testing-library/dom/dist/config.js:37:19)
+2026-11-07T20:33:29.4631897Z       at node_modules/@testing-library/dom/dist/query-helpers.js:76:38
+2026-11-07T20:33:29.4632270Z       at node_modules/@testing-library/dom/dist/query-helpers.js:52:17
+2026-11-07T20:33:29.4632771Z       at node_modules/@testing-library/dom/dist/query-helpers.js:95:19
+2026-11-07T20:33:29.4633105Z       at tests/pages/goal-runs/detail.test.tsx:575:29
+2026-11-07T20:33:29.4633420Z       at step (tests/pages/goal-runs/detail.test.tsx:77:23)
+2026-11-07T20:33:29.4633764Z       at Object.next (tests/pages/goal-runs/detail.test.tsx:58:53)
+2026-11-07T20:33:29.4634110Z       at fulfilled (tests/pages/goal-runs/detail.test.tsx:49:58)
+2026-11-07T20:33:29.4634306Z 
+2026-11-07T20:33:29.4634454Z Test Suites: 1 failed, 1 total
+2026-11-07T20:33:29.4634828Z Tests:       1 failed, 24 passed, 25 total
+2026-11-07T20:33:29.4635068Z Snapshots:   0 total
+2026-11-07T20:33:29.4635259Z Time:        2.138 s
+2026-11-07T20:33:29.4635565Z Ran all test suites matching tests/pages/goal-runs/detail.test.tsx.
+2026-11-07T20:33:29.5907011Z ##[error]Process completed with exit code 1.
+2026-11-07T20:33:29.6037430Z Post job cleanup.
+2026-11-07T20:33:29.6746436Z [command]/usr/bin/git version
+2026-11-07T20:33:29.6814746Z git version 2.56.0
+2026-11-07T20:33:29.6847826Z Temporarily overriding HOME='/home/runner/work/_temp/a3b257e2-9536-4aec-b0aa-0e1ed6abc123' before making global git config changes
+2026-11-07T20:33:29.6848956Z Adding repository directory to the temporary git global config as a safe directory
+2026-11-07T20:33:29.6852919Z [command]/usr/bin/git config --global --add safe.directory /home/runner/work/atom/atom
+2026-11-07T20:33:29.6887616Z [command]/usr/bin/git config --local --name-only --get-regexp core\.sshCommand
+2026-11-07T20:33:29.6928148Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'core\.sshCommand' && git config --local --unset-all 'core.sshCommand' || :"
+2026-11-07T20:33:29.7171119Z [command]/usr/bin/git config --local --name-only --get-regexp http\.https\:\/\/github\.com\/\.extraheader
+2026-11-07T20:33:29.7194384Z http.https://github.com/.extraheader
+2026-11-07T20:33:29.7204026Z [command]/usr/bin/git config --local --unset-all http.https://github.com/.extraheader
+2026-11-07T20:33:29.7243448Z [command]/usr/bin/git submodule foreach --recursive sh -c "git config --local --name-only --get-regexp 'http\.https\:\/\/github\.com\/\.extraheader' && git config --local --unset-all 'http.https://github.com/.extraheader' || :"
+2026-11-07T20:33:29.7484787Z [command]/usr/bin/git config --local --name-only --get-regexp ^includeIf\.gitdir:
+2026-11-07T20:33:29.7529128Z [command]/usr/bin/git submodule foreach --recursive git config --local --show-origin --name-only --get-regexp remote.origin.url
+2026-11-07T20:33:29.7888438Z Cleaning up orphan processes
+2026-11-07T20:33:29.8195758Z ##[warning]Node.js 20 is deprecated. The following actions target Node.js 20 but are being forced to run on Node.js 24: actions/checkout@v4, actions/setup-node@v4. For more information see: https://github.blog/changelog/2025-09-19-deprecation-of-node-20-on-github-actions-runners/

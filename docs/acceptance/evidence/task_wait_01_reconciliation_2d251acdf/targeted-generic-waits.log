@@ -1,0 +1,166 @@
+scratch /private/tmp/atom-task-wait-generic-sc7e_lk8
+rc 0
+osing task
+2026-11-07 12:15:43 [    INFO] Agent Agent One (a1) starting task: Create the closing task
+2026-11-07 12:15:43 [    INFO] EscalationManager initialized
+2026-11-07 12:15:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:15:43 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 12:15:43 [    INFO] LanceDBHandler initialized. ID: 5244589296. LANCEDB_AVAILABLE: True
+2026-11-07 12:15:43 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 12:15:43 [    INFO] Connecting to LanceDB at /private/tmp/atom-task-wait-generic-sc7e_lk8/lancedb with storage_options=None
+2026-11-07 12:15:43 [    INFO] LanceDB connected successfully
+2026-11-07 12:15:43 [    INFO] Recorded outcome for a1: success
+2026-11-07 12:15:43 [ WARNING] Accepted information wait recovery: resumed=1 uncertain=0 skipped=0 refused=0
+PASSED                                                                   [ 76%]
+tests/test_generic_information_wait_recovery_authority.py::test_real_generic_registered_effect_respects_current_actor_workspace[True] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:15:44 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 12:15:44 [    INFO] EscalationManager initialized
+2026-11-07 12:15:44 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 12:15:44 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 12:15:44 [    INFO] EscalationManager initialized
+2026-11-07 12:15:44 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:15:44 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 12:15:44 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Create the closing task
+2026-11-07 12:15:44 [    INFO] Agent Agent One (a1) starting task: Create the closing task
+2026-11-07 12:15:44 [    INFO] EscalationManager initialized
+2026-11-07 12:15:44 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:15:44 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 12:15:44 [    INFO] LanceDBHandler initialized. ID: 5246431664. LANCEDB_AVAILABLE: True
+2026-11-07 12:15:44 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 12:15:44 [    INFO] Connecting to LanceDB at /private/tmp/atom-task-wait-generic-sc7e_lk8/lancedb with storage_options=None
+2026-11-07 12:15:44 [    INFO] LanceDB connected successfully
+2026-11-07 12:15:44 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=authority-real-True "HTTP/1.1 202 Accepted"
+PASSED                                                                   [ 78%]
+tests/test_information_wait_maturity_neutral.py::test_repeated_waits_preserve_maturity_and_same_durable_execution PASSED [ 80%]
+tests/test_information_wait_maturity_neutral.py::test_terminal_success_and_failure_still_update_maturity 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:15:45 [    INFO] Recorded outcome for terminal-success: success
+2026-11-07 12:15:45 [    INFO] Initialized global governance cache
+2026-11-07 12:15:45 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+2026-11-07 12:15:45 [    INFO] Recorded outcome for terminal-failed: failure
+2026-11-07 12:15:45 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='maturity_update'
+PASSED                                                                   [ 81%]
+tests/test_agent_job_wait_execution_contract.py::test_pending_wait_is_bound_to_exact_execution[missing] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:15:46 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 12:15:46 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+2026-11-07 12:15:46 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=wait-binding-op "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 83%]
+tests/test_agent_job_wait_execution_contract.py::test_pending_wait_is_bound_to_exact_execution[foreign] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:15:47 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 12:15:47 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+2026-11-07 12:15:47 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=wait-binding-op "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 85%]
+tests/test_agent_job_wait_execution_contract.py::test_pending_wait_is_bound_to_exact_execution[exact] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:15:48 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 12:15:48 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+2026-11-07 12:15:48 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=wait-binding-op "HTTP/1.1 202 Accepted"
+PASSED                                                                   [ 87%]
+tests/test_agent_job_wait_namespace_contract.py::test_action_parameters_do_not_authorize_a_task_wait[exact] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:15:49 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 12:15:49 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+2026-11-07 12:15:49 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=wait-shadow "HTTP/1.1 202 Accepted"
+PASSED                                                                   [ 89%]
+tests/test_agent_job_wait_namespace_contract.py::test_action_parameters_do_not_authorize_a_task_wait[foreign_snapshot_shadowed] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:15:49 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 12:15:49 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+2026-11-07 12:15:49 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=wait-shadow "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 90%]
+tests/test_agent_job_wait_namespace_contract.py::test_action_parameters_do_not_authorize_a_task_wait[missing_snapshot_from_params] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:15:50 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 12:15:50 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+2026-11-07 12:15:50 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=wait-shadow "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 92%]
+tests/test_agent_job_wait_scope_contract.py::test_scoped_wait_needs_exact_authoritative_scope[ws1-t1] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:15:51 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 12:15:51 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+2026-11-07 12:15:51 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=scope-wait "HTTP/1.1 202 Accepted"
+PASSED                                                                   [ 94%]
+tests/test_agent_job_wait_scope_contract.py::test_scoped_wait_needs_exact_authoritative_scope[default-t1] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:15:52 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 12:15:52 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+2026-11-07 12:15:52 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=scope-wait "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 96%]
+tests/test_agent_job_wait_scope_contract.py::test_scoped_wait_needs_exact_authoritative_scope[None-t1] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:15:53 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 12:15:53 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+2026-11-07 12:15:53 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=scope-wait "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 98%]
+tests/test_agent_job_wait_scope_contract.py::test_scoped_wait_needs_exact_authoritative_scope[ws1-None] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:15:53 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 12:15:53 [    INFO] Executing Agent Agent One with ReAct Loop. Input: work
+2026-11-07 12:15:53 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=scope-wait "HTTP/1.1 409 Conflict"
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 110 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_agent_generic_information_wait.py: 18 warnings
+tests/test_generic_information_exact_event_contract.py: 3 warnings
+tests/test_generic_information_resume_namespace_contract.py: 2 warnings
+tests/test_generic_information_wait_recovery_authority.py: 3 warnings
+  /private/tmp/atom-task-wait-01-reconciliation-20261107/backend/core/lancedb_handler.py:407: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    names = set(self.db.table_names())
+
+tests/test_agent_generic_information_wait.py: 36 warnings
+tests/test_generic_information_exact_event_contract.py: 6 warnings
+tests/test_generic_information_resume_namespace_contract.py: 4 warnings
+tests/test_generic_information_wait_recovery_authority.py: 6 warnings
+  /Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/asyncio/events.py:94: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    self._context.run(self._callback, *self._args)
+
+tests/test_agent_generic_information_wait.py: 18 warnings
+tests/test_generic_information_exact_event_contract.py: 3 warnings
+tests/test_generic_information_resume_namespace_contract.py: 2 warnings
+tests/test_generic_information_wait_recovery_authority.py: 3 warnings
+  /private/tmp/atom-task-wait-01-reconciliation-20261107/backend/core/lancedb_handler.py:620: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    if table_name in self.db.table_names():
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================= 55 passed, 221 warnings in 102.14s (0:01:42) =================
+
+

@@ -1,0 +1,9 @@
+# Independent applied-source consumption review
+
+Executed source: `eeb3e3e2df2443ac7eef2373321312cf98f3a3c4`, reconciled with main `4590560d7`. Exact focused real-consumer/resource gate: **47 passed**, actual exit 0. Runtime and tests were unchanged throughout. Fresh scratch SQLite/data/Lance; provider/model proposals and indexed-text leaves remain controlled. This is not browser, live provider, general judgment or full TASK-WAIT-01 qualification.
+
+Preserved negatives: removed/unreadable source, deleted authoritative upload, repeated source-gap loop, valid indexed-version false refusals, and SQL current revision None/empty. The latter produced two failures at `72a27e540`; its original raw capture is retained in the predecessor packet/private source. The first root review setup exited 3 because the installed pytest plugin could not bind localhost under restricted execution; it is not a product test verdict. The independently permitted 13-case gate passed at `40f57791a`; this 47-case current-main gate additionally covers the existing resource-authority consumers.
+
+Immutable successful operation history remains durable, while an unavailable current source blocks dependent completion and output. Repeated advances yield; same-version authorized restoration and explicitly authorized newer-version recomputation recover the same job. Binary file hashes, exact extractor revisions, opaque manual revisions and extracted-text hashes remain separate. Current document revisions use the existing strict matcher. Normal CI retains every permanent negative, including missing-current-revision probes.
+
+Generic typed source answers are the next separate implementation. No historical episode was replayed or reattributed; no live account/provider/model/send/spend/install/deploy action occurred. Full app and TASK-WAIT-01 remain open.

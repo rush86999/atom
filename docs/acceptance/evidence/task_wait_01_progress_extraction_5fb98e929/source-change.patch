@@ -1,0 +1,254 @@
+diff --git a/backend/api/assignment_routes.py b/backend/api/assignment_routes.py
+index 6e6bfb9a2..1a03af58f 100644
+--- a/backend/api/assignment_routes.py
++++ b/backend/api/assignment_routes.py
+@@ -2227,8 +2227,8 @@ async def add_assignment_source(
+                         indexes.append(int(step_id.split("-", 1)[1]))
+                     except ValueError:
+                         pass
+-                raw_step = _source_step(
+-                    resolved, (max(indexes) if indexes else 0) + 1)
++            raw_step = _source_step(
++                resolved, (max(indexes) if indexes else 0) + 1)
+             step = {
+                 key: raw_step.get(key) for key in (
+                     "step_id", "title", "operation_type", "adapter", "depends_on",
+diff --git a/backend/core/assignment_executor.py b/backend/core/assignment_executor.py
+index b5343fe5b..2b639748b 100644
+--- a/backend/core/assignment_executor.py
++++ b/backend/core/assignment_executor.py
+@@ -2221,8 +2221,16 @@ class AssignmentExecutor:
+                             return step, self._source_gap(
+                                 binding, step, code="source_unreadable",
+                                 detail="the uploaded document file is unreadable")
+-                        pinned_sha = accepted_sha or expected
+-                        if pinned_sha and current != pinned_sha:
++                        # Binary file bytes and indexed revisions are
++                        # distinct namespaces. Compare a binary accepted
++                        # sha256 only with file bytes; ev4:/manual opaque
++                        # revisions are validated against the authoritative
++                        # IngestedDocument row above, never hashed as bytes.
++                        binary_pin = (
++                            accepted_sha
++                            if re.fullmatch(r"[0-9a-fA-F]{64}", accepted_sha)
++                            else "")
++                        if binary_pin and current != binary_pin:
+                             return step, self._source_gap(
+                                 binding, step, code="stale_source_version",
+                                 detail="the uploaded document bytes changed after acceptance",
+@@ -2243,8 +2251,12 @@ class AssignmentExecutor:
+                         return step, self._source_gap(
+                             binding, step, code="source_unreadable",
+                             detail="the accepted controlled source is unreadable")
+-                    pinned_sha = accepted_sha or expected
+-                    if pinned_sha and current != pinned_sha:
++                    binary_pin = (
++                        accepted_sha
++                        if re.fullmatch(r"[0-9a-fA-F]{64}", accepted_sha)
++                        else (expected if re.fullmatch(
++                            r"[0-9a-fA-F]{64}", expected) else ""))
++                    if binary_pin and current != binary_pin:
+                         return step, self._source_gap(
+                             binding, step, code="stale_source_version",
+                             detail="the accepted controlled source bytes changed",
+@@ -2276,6 +2288,64 @@ class AssignmentExecutor:
+                 return step, exc.gap
+         return None
+ 
++    def _revalidate_waiting_sources(
++        self,
++        run_id: str,
++        assignment: Dict[str, Any],
++    ) -> Tuple[Dict[str, Any], bool]:
++        """Clear a durable source gap when the same accepted version returns.
++
++        A previously applied source step is marked waiting with open gap_ids
++        when its authority/bytes/version became unavailable. On a later normal
++        retry (source route or advance), probe the same accepted pin again; if
++        the source is permanently present and still the accepted version,
++        restore the applied status and resolve only that step's gap questions.
++        """
++        source_adapters = (
++            "workbook.read", "document.read", "document.text", "dataset.read")
++        waiting = [
++            step for step in assignment.get("steps") or []
++            if str(step.get("status") or "") == "waiting"
++            and step.get("gap_ids")
++            and str(step.get("adapter") or "") in source_adapters
++        ]
++        if not waiting:
++            return assignment, False
++        changed = False
++        restored_ids = []
++        for step in waiting:
++            probe = copy.deepcopy(assignment)
++            target = step_by_id(probe, step["step_id"])
++            if target is None:
++                continue
++            target["status"] = "applied"
++            problem = self._source_consumption_gap(probe, {})
++            if problem is not None:
++                # A different/current source may still be blocked; do not
++                # clear this gap unless this source itself is valid.
++                continue
++            assignment = self._mark_step(assignment, step["step_id"], {
++                "status": "applied",
++                "gap_ids": [],
++                "waiting": None,
++                "updated_at": _utc_now_iso(),
++            })
++            restored_ids.extend(str(q) for q in step.get("gap_ids") or [])
++            changed = True
++        if not changed:
++            return assignment, False
++        if restored_ids:
++            from core.task_lifecycle import resolve_unresolved_questions
++            resolve_unresolved_questions(
++                self.lifecycle, run_id,
++                question_ids=restored_ids,
++                resolution=(
++                    "authorized source restored at the same accepted "
++                    "version; dependent work may resume"))
++        self._persist_assignment(
++            run_id, assignment, "applied source restored at accepted version")
++        return assignment, True
++
+     async def _record_applied_source_gap(
+         self,
+         run_id: str,
+@@ -2382,6 +2452,7 @@ class AssignmentExecutor:
+         """
+         limit = max(1, min(int(max_steps or 50), 200))
+         steps_run = 0
++        source_retry_checked = False
+         while steps_run < limit:
+             record = self.lifecycle.get_task(run_id)
+             if record is None:
+@@ -2399,6 +2470,16 @@ class AssignmentExecutor:
+             expected_task_revision = None
+ 
+             assignment = self._sync_assignment(record, assignment)
++            if not source_retry_checked:
++                # A restoration retry is checked once per external advance,
++                # not repeatedly inside one execution loop. This clears a
++                # durable gap only when the same accepted version is valid
++                # again, while an unavailable source yields immediately.
++                assignment, source_restored = self._revalidate_waiting_sources(
++                    run_id, assignment)
++                source_retry_checked = True
++                if source_restored:
++                    record = self.lifecycle.get_task(run_id) or record
+             source_problem = self._source_consumption_gap(assignment, record)
+             if source_problem:
+                 source_step, source_gap = source_problem
+@@ -5288,10 +5369,19 @@ class AssignmentExecutor:
+             }
+             target = mapping.get(status)
+             if target and step.get("status") != target:
+-                # Never downgrade an applied step to awaiting because an
+-                # older operation row was re-read.
+-                if not (step.get("status") == "applied"
+-                        and target != "applied"):
++                # A current source gap is a live wait, not an older applied
++                # receipt. Keep the immutable operation result for audit but
++                # do not let _sync_assignment overwrite the waiting state on
++                # the next execute loop (that caused a busy loop and stale
++                # completion). A normal applied step still maps to applied.
++                current_source_gap = (
++                    step.get("status") == "waiting"
++                    and bool(step.get("gap_ids"))
++                    and target == "applied")
++                if current_source_gap:
++                    pass
++                elif not (step.get("status") == "applied"
++                          and target != "applied"):
+                     step["status"] = target
+                     changed = True
+             if status == "applied":
+diff --git a/backend/tests/test_task_wait_source_version_after_acceptance.py b/backend/tests/test_task_wait_source_version_after_acceptance.py
+index 660c94e92..10f862b3b 100644
+--- a/backend/tests/test_task_wait_source_version_after_acceptance.py
++++ b/backend/tests/test_task_wait_source_version_after_acceptance.py
+@@ -59,7 +59,7 @@ def test_source_change_after_acceptance_is_revalidated_before_consumption(
+         first[0]["question_id"]], accepted.json()
+ 
+     # The accepted/read invoice changes before dependent consumption.
+-    invoice.write_text(json.dumps(_invoice("4", "50.00", "10.00")))
++    invoice.write_text(json.dumps(_invoice("3", "50.00", "10.00")))
+ 
+     second = _questions(lifecycle, run_id)
+     assert len(second) == 1, second
+@@ -82,7 +82,7 @@ def test_source_change_after_acceptance_is_revalidated_before_consumption(
+     if final["status"] == "completed":
+         assert reconciliations, (
+             "completion must be backed by a reconciliation", final)
+-        assert str(reconciliations[0]["result"]["value"]) == "210.00", (
++        assert str(reconciliations[0]["result"]["value"]) == "160.00", (
+             "completion must use the current source value",
+             reconciliations[0]["result"])
+     else:
+@@ -118,7 +118,7 @@ def test_explicitly_authorized_newer_version_replaces_cached_result(
+     assert accepted.json()["resolved_question_ids"] == [
+         first[0]["question_id"]], accepted.json()
+ 
+-    invoice.write_text(json.dumps(_invoice("4", "50.00", "10.00")))
++    invoice.write_text(json.dumps(_invoice("3", "50.00", "10.00")))
+     replaced = client.post(
+         f"/api/assignments/{run_id}/sources",
+         json={"source": {"path": str(invoice)},
+@@ -140,8 +140,54 @@ def test_explicitly_authorized_newer_version_replaces_cached_result(
+         final["status"], reconciliations,
+         lifecycle.get_task(run_id).get("task_revision", {}).get("unresolved"))
+     assert len(reconciliations) == 1, reconciliations
+-    assert str(reconciliations[0]["result"]["value"]) == "210.00", (
++    assert str(reconciliations[0]["result"]["value"]) == "160.00", (
+         reconciliations[0]["result"])
+     assert not [
+         step for step in reconciliations
+         if str((step.get("result") or {}).get("value") or "") == "130.00"]
++
++
++def test_restored_same_version_source_resumes_same_job(
++        route_env, tmp_path, monkeypatch):
++    """A durable source gap clears on a normal retry of the same version."""
++    monkeypatch.setenv(
++        "ATOM_ASSIGNMENT_OUTPUT_DIR", str(tmp_path / "artifacts"))
++    po, invoice, receiving = _fixtures(tmp_path)
++    original = invoice.read_bytes()
++    _install_transport(monkeypatch)
++    client = route_env["client"]
++    lifecycle = route_env["lifecycle"]
++
++    run_id = _start(client, po)
++    first = _questions(lifecycle, run_id)
++    accepted = client.post(
++        f"/api/assignments/{run_id}/sources",
++        json={"source": {"path": str(invoice)},
++              "reason": "authorized invoice accepted before receiving"})
++    assert accepted.status_code == 200, accepted.text
++    assert accepted.json()["resolved_question_ids"] == [
++        first[0]["question_id"]], accepted.json()
++
++    invoice.unlink()
++    blocked = client.post(
++        f"/api/assignments/{run_id}/sources",
++        json={"source": {"path": str(receiving)},
++              "reason": "authorized receiving record while invoice is gone"})
++    assert blocked.status_code == 200, blocked.text
++    blocked_state = lifecycle.get_assignment(run_id)
++    assert blocked_state["status"] != "completed", blocked_state["status"]
++    assert _reconciliations(blocked_state) == []
++
++    invoice.write_bytes(original)
++    retried = client.post(
++        f"/api/assignments/{run_id}/sources",
++        json={"source": {"path": str(receiving)},
++              "reason": "retry after restoring the accepted source version"})
++    assert retried.status_code == 200, retried.text
++    final = lifecycle.get_assignment(run_id)
++    assert final["status"] == "completed", (
++        final["status"], _reconciliations(final),
++        lifecycle.get_task(run_id).get("task_revision", {}).get("unresolved"))
++    reconciliations = _reconciliations(final)
++    assert len(reconciliations) == 1, reconciliations
++    assert str(reconciliations[0]["result"]["value"]) == "130.00"

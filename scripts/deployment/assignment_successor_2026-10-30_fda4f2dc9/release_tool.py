@@ -19,6 +19,7 @@ import shlex
 import shutil
 import signal
 import sqlite3
+import stat
 import subprocess
 import sys
 import time
@@ -40,6 +41,13 @@ from release_identity import (  # noqa: E402
     product_tree_sha256,
     sha256_file,
     sha256_tree,
+)
+from restore_support import (  # noqa: E402
+    BackupConfigError,
+    RestoreRefused,
+    resolve_backup_sources,
+    restore_backup,
+    sqlite_uri,
 )
 
 
@@ -408,84 +416,201 @@ def cmd_approval_check(args) -> int:
     return 0 if result["ok"] else 2
 
 
+def _safe_copy_file(src: Path, dst: Path, *, mode: int = 0o600) -> None:
+    """Copy one regular, single-link file without following symlinks."""
+    try:
+        st = os.lstat(src)
+    except FileNotFoundError as exc:
+        raise SystemExit(f"REFUSED: managed file disappeared: {src}") from exc
+    if stat.S_ISLNK(st.st_mode):
+        raise SystemExit(f"REFUSED: managed store contains a symlink: {src}")
+    if not stat.S_ISREG(st.st_mode):
+        raise SystemExit(f"REFUSED: managed store entry is not regular: {src}")
+    if int(st.st_nlink) != 1:
+        raise SystemExit(f"REFUSED: managed store contains a hardlink: {src}")
+    flags = os.O_RDONLY | getattr(os, "O_NOFOLLOW", 0)
+    src_fd = os.open(str(src), flags)
+    dst_fd = None
+    try:
+        dst_fd = os.open(
+            str(dst),
+            os.O_CREAT | os.O_EXCL | os.O_WRONLY | getattr(os, "O_NOFOLLOW", 0),
+            mode,
+        )
+        while True:
+            chunk = os.read(src_fd, 1024 * 1024)
+            if not chunk:
+                break
+            os.write(dst_fd, chunk)
+        os.fsync(dst_fd)
+    finally:
+        if dst_fd is not None:
+            os.close(dst_fd)
+        os.close(src_fd)
+    os.chmod(dst, mode)
+
+
+def _safe_copytree(src: Path, dst: Path) -> None:
+    """Copy a managed store while rejecting symlinks and hardlinks.
+
+    The restore consumer rejects symlinks/hardlinks; the producer must not
+    silently follow them into bytes from outside the declared managed root.
+    """
+    if os.path.islink(src):
+        raise SystemExit(f"REFUSED: managed store root is a symlink: {src}")
+    if not src.is_dir():
+        raise SystemExit(f"REFUSED: managed store root is not a directory: {src}")
+    dst.mkdir(parents=True, exist_ok=False)
+    os.chmod(dst, 0o700)
+    for root, dirs, files in os.walk(src, followlinks=False):
+        root_path = Path(root)
+        rel = root_path.relative_to(src)
+        target_dir = dst / rel
+        target_dir.mkdir(parents=True, exist_ok=True)
+        os.chmod(target_dir, 0o700)
+        for name in dirs:
+            candidate = root_path / name
+            if candidate.is_symlink():
+                raise SystemExit(
+                    f"REFUSED: managed store contains a symlink: {candidate}")
+        for name in files:
+            _safe_copy_file(root_path / name, target_dir / name)
+
+
 def cmd_backup(args) -> int:
     root = Path(args.root).resolve()
     env = runtime_env(root)
-    data = Path(env["ATOM_DATA_DIR"])
+    try:
+        resolved = resolve_backup_sources(env, bool(args.include_memory))
+    except BackupConfigError as exc:
+        raise SystemExit(f"REFUSED: {exc}")
+    data = Path(resolved["data_root"])
+    roots = resolved["roots"]
+    db_src = Path(resolved["database"])
     out_root = Path(args.out_dir) if args.out_dir else root / "backups"
     label = args.label or "release"
     out = out_root / f"{label}-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
     out.mkdir(parents=True, exist_ok=False)
-    db_src = data / "atom.db"
-    if not db_src.is_file():
-        raise SystemExit(f"REFUSED: missing {db_src}")
-    src = sqlite3.connect(f"file:{db_src}?mode=ro", uri=True)
-    dst = sqlite3.connect(out / "atom.db")
     try:
-        src.backup(dst)
-        dst.execute("pragma wal_checkpoint(full)")
-    finally:
-        dst.close()
-        src.close()
-    integrity = sqlite3.connect(f"file:{out / 'atom.db'}?mode=ro", uri=True)
-    try:
-        integrity_ok = integrity.execute("pragma integrity_check").fetchone()[0] == "ok"
-        counts = {}
-        for table in ("users", "dataset_entries", "goal_runs", "hitl_interventions"):
+        src = sqlite3.connect(sqlite_uri(db_src, "ro"), uri=True)
+        dst = sqlite3.connect(str(out / "atom.db"))
+        try:
+            src.backup(dst)
+            dst.execute("pragma wal_checkpoint(truncate)")
+            dst.execute("pragma journal_mode=delete")
+        finally:
+            dst.close()
+            src.close()
+        # A backup is a self-contained checkpointed database; never leave a
+        # WAL/SHM sidecar that a later consumer could interpret ambiguously.
+        for suffix in ("-wal", "-shm", "-journal"):
+            sidecar = out / ("atom.db" + suffix)
             try:
-                counts[table] = integrity.execute(
-                    f"select count(*) from {table}").fetchone()[0]
-            except sqlite3.Error:
-                counts[table] = None
-    finally:
-        integrity.close()
-    if not integrity_ok:
-        raise SystemExit("REFUSED: backup sqlite integrity_check failed")
-    for name in ("office", "sheet_datasets", "email_attachments"):
-        src_dir = data / name
-        if src_dir.is_dir():
-            shutil.copytree(src_dir, out / name, symlinks=False)
-    if args.include_memory:
-        src_dir = data / "atom_memory"
-        if src_dir.is_dir():
-            shutil.copytree(src_dir, out / "atom_memory", symlinks=False)
-    for name in ("byok_config.json", "byok_keys.json", "byok_encryption_key"):
-        src_file = data / name
-        if src_file.is_file():
-            shutil.copy2(src_file, out / name)
-            os.chmod(out / name, 0o600)
-    cfg = out / "config"
-    cfg.mkdir()
-    for name in ("env.release", "secrets.env", "RELEASE_IDENTITY.json"):
-        src_file = root / "config" / name if name != "RELEASE_IDENTITY.json" else root / name
-        if src_file.is_file():
-            shutil.copy2(src_file, cfg / name)
-            os.chmod(cfg / name, 0o600)
-    files = {}
-    for path in sorted(out.rglob("*")):
-        if path.is_file() and path.name != "BACKUP_MANIFEST.json":
+                sidecar.unlink()
+            except FileNotFoundError:
+                pass
+        integrity = sqlite3.connect(sqlite_uri(out / "atom.db", "ro"), uri=True)
+        try:
+            integrity_ok = integrity.execute(
+                "pragma integrity_check").fetchone()[0] == "ok"
+            counts = {}
+            for table in (
+                "users", "dataset_entries", "goal_runs", "canvases",
+                "canvas_audit", "ingested_documents", "hitl_interventions",
+            ):
+                try:
+                    counts[table] = integrity.execute(
+                        f"select count(*) from {table}").fetchone()[0]
+                except sqlite3.Error:
+                    counts[table] = None
+        finally:
+            integrity.close()
+        if not integrity_ok:
+            raise SystemExit("REFUSED: backup sqlite integrity_check failed")
+        for name in ("office", "sheet_datasets", "email_attachments"):
+            info = roots[name]
+            src_dir = Path(info["source"])
+            if info.get("included") and src_dir.is_dir():
+                _safe_copytree(src_dir, out / name)
+        if args.include_memory:
+            info = roots["atom_memory"]
+            src_dir = Path(info["source"])
+            if not info.get("included") or not src_dir.is_dir():
+                raise SystemExit(
+                    "REFUSED: --include-memory requested but the resolved memory "
+                    "store is missing or unsupported")
+            _safe_copytree(src_dir, out / "atom_memory")
+        for name in ("byok_config.json", "byok_keys.json", "byok_encryption_key"):
+            src_file = data / name
+            if src_file.is_file():
+                _safe_copy_file(src_file, out / name, mode=0o600)
+        cfg = out / "config"
+        cfg.mkdir(mode=0o700)
+        for name in ("env.release", "secrets.env", "RELEASE_IDENTITY.json"):
+            src_file = root / "config" / name if name != "RELEASE_IDENTITY.json" else root / name
+            if src_file.is_file():
+                _safe_copy_file(src_file, cfg / name, mode=0o600)
+        files = {}
+        for path in sorted(out.rglob("*")):
+            if not path.is_file() or path.is_symlink():
+                continue
+            if path.name == "BACKUP_MANIFEST.json":
+                continue
             files[str(path.relative_to(out))] = {
                 "sha256": sha256_file(path), "bytes": path.stat().st_size}
-    manifest = {
-        "schema": "atom-assignment-release-backup-1",
-        "created_at": now(),
-        "source_data_dir": str(data),
-        "label": label,
-        "sqlite_backup_api": True,
-        "sqlite_integrity_check": integrity_ok,
-        "row_counts": counts,
-        "config_copied_mode_600": True,
-        "memory_included": bool(args.include_memory),
-        "memory_note": (
-            "atom_memory excluded by default because it is large; pass "
-            "--include-memory when a full vector-store snapshot is required"
-        ),
-        "files": files,
-        "newer_user_data_preserved": True,
-    }
-    atomic_write_json(out / "BACKUP_MANIFEST.json", manifest)
+        manifest = {
+            "schema": "atom-assignment-release-backup-1",
+            "created_at": now(),
+            "source_data_dir": str(data),
+            "label": label,
+            "sqlite_backup_api": True,
+            "sqlite_integrity_check": integrity_ok,
+            "row_counts": counts,
+            "config_copied_mode_600": True,
+            "memory_included": bool(args.include_memory),
+            "memory_note": (
+                "atom_memory excluded by default because it is large; pass "
+                "--include-memory when a full vector-store snapshot is required"
+            ),
+            "database": roots["database"],
+            "store_roots": roots,
+            "files": files,
+            "newer_user_data_preserved": True,
+        }
+        atomic_write_json(out / "BACKUP_MANIFEST.json", manifest)
+    except BaseException:
+        shutil.rmtree(out, ignore_errors=True)
+        raise
     print(json.dumps({"ok": True, "backup": str(out), "manifest": manifest}, indent=2))
     return 0
+
+
+def cmd_restore(args) -> int:
+    root = Path(args.root).resolve()
+    env = runtime_env(root)
+    try:
+        result = restore_backup(
+            backup_arg=args.backup,
+            target_arg=args.target_data_dir,
+            env=env,
+        )
+    except RestoreRefused as exc:
+        print(json.dumps({
+            "ok": False, "status": "refused", "error": str(exc),
+        }, indent=2))
+        return 2
+    except Exception as exc:  # noqa: BLE001
+        print(json.dumps({
+            "ok": False, "status": "refused",
+            "error": f"{type(exc).__name__}: {exc}",
+        }, indent=2))
+        return 2
+    print(json.dumps(result, indent=2))
+    if result.get("status") == "verified":
+        return 0
+    if result.get("status") == "committed_unverified":
+        return 3
+    return 2
 
 
 def wait_health(base: str, expected_commit: str, timeout: float = 120.0) -> dict:
@@ -797,6 +922,12 @@ def main() -> None:
     p.add_argument("--label")
     p.add_argument("--include-memory", action="store_true")
     p.set_defaults(func=cmd_backup)
+    p = sub.add_parser("restore")
+    p.add_argument("--backup", required=True,
+                   help="backup directory or BACKUP_MANIFEST.json")
+    p.add_argument("--target-data-dir", required=True,
+                   help="explicit empty target data directory")
+    p.set_defaults(func=cmd_restore)
     p = sub.add_parser("status")
     p.set_defaults(func=cmd_status)
     p = sub.add_parser("rollback")

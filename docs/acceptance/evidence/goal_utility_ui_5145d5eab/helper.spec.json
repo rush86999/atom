@@ -1,0 +1,25 @@
+{
+  "source": "5145d5eab76c3e4f5d374d39942fe2376b32cc43",
+  "command": [
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-goal-utility-surface-20261107",
+    "--profile",
+    "bounded",
+    "--",
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "scripts/tests/test_goal_ui_onboarding_contract.py",
+    "-q",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=/private/tmp/root-goal-onboarding-test-zkib9hxg/pytest"
+  ],
+  "scratch": "/private/tmp/root-goal-onboarding-test-zkib9hxg",
+  "before": {
+    "scripts/acceptance/browser_goal_utility_ui.py": "8a1ca21a46923800b5e56a39f89a5932eb9aafde1838cfc3b63a9f046f0589d7",
+    "scripts/tests/test_goal_ui_onboarding_contract.py": "c40e41b7c7bd64e46c4d64d18316b60af33f68adb000271c7913dcd25e332599"
+  },
+  "scope": "acceptance helper controlled UI observations, not product change"
+}

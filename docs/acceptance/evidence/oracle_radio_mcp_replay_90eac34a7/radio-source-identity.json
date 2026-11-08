@@ -1,0 +1,36 @@
+{
+  "from": "9c5219242",
+  "to": "90eac34a7",
+  "changed_radio_related_paths": [],
+  "identical": true,
+  "file_hashes": {
+    "backend/core/agent_radio/radio_thread_mutations.py": {
+      "9c5219242": "bcdcc1719a972c4e31399885f3b17fb165dabd172f347bd84efbcd6fac37d714",
+      "90eac34a7": "bcdcc1719a972c4e31399885f3b17fb165dabd172f347bd84efbcd6fac37d714"
+    },
+    "backend/core/agent_radio/radio_actions.py": {
+      "9c5219242": "956cb76f5367e90c7b9218d47ffed693786de3b7477701f301506cbcd99ec333",
+      "90eac34a7": "956cb76f5367e90c7b9218d47ffed693786de3b7477701f301506cbcd99ec333"
+    },
+    "backend/core/oracle/postcondition_verifiers.py": {
+      "9c5219242": "f313d0ac4300e940f7093afa711c85e1d0a0e59ce39fc77e40c2161d8cedcf03",
+      "90eac34a7": "f313d0ac4300e940f7093afa711c85e1d0a0e59ce39fc77e40c2161d8cedcf03"
+    },
+    "backend/core/oracle/request_expectations.py": {
+      "9c5219242": "e6bcc5c9bbbc1684a8aa750d4657e95ccaeb0d1d7fb68ba8c75927eda3788381",
+      "90eac34a7": "e6bcc5c9bbbc1684a8aa750d4657e95ccaeb0d1d7fb68ba8c75927eda3788381"
+    },
+    "backend/integrations/mcp_service.py": {
+      "9c5219242": "235c89f416b862c217284d73f9d4f2d8b20ae752b8cbf7ce60a47ddb5527dc10",
+      "90eac34a7": "235c89f416b862c217284d73f9d4f2d8b20ae752b8cbf7ce60a47ddb5527dc10"
+    },
+    "backend/tests/test_lead_radio_mcp_replay.py": {
+      "9c5219242": "f79c5ebcdd59dfd8e575c447c178abe3944da514b436b6e23e71d9485aabc00f",
+      "90eac34a7": "f79c5ebcdd59dfd8e575c447c178abe3944da514b436b6e23e71d9485aabc00f"
+    },
+    "backend/tests/test_oracle_radio_thread_replay.py": {
+      "9c5219242": "147c36bb37433fb734c76772461056e0bf98a7c51d3775361fed2f014d203c62",
+      "90eac34a7": "147c36bb37433fb734c76772461056e0bf98a7c51d3775361fed2f014d203c62"
+    }
+  }
+}

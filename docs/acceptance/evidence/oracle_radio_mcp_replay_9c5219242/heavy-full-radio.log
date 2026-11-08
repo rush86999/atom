@@ -1,0 +1,335 @@
+
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_empty_task 
+-------------------------------- live log setup --------------------------------
+2026-11-07 15:34:01 [    INFO] EscalationManager initialized
+2026-11-07 15:34:01 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:34:01 [    INFO] EscalationManager initialized
+2026-11-07 15:34:01 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:34:01 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 15:34:01 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  0%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_whitespace_task PASSED [  0%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_none_task PASSED [  1%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_bounded_patterns_never_trigger[just one-file change] PASSED [  1%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_bounded_patterns_never_trigger[write some boilerplate] PASSED [  2%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_bounded_patterns_never_trigger[rename a variable] PASSED [  2%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_bounded_patterns_never_trigger[add a comment here] PASSED [  3%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_bounded_patterns_never_trigger[fix typo in doc] PASSED [  3%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_bounded_patterns_never_trigger[small change to css] PASSED [  4%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_bounded_overrides_breakpoint_keywords PASSED [  4%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_breakpoint_patterns_detected[this is legacy code-legacy] PASSED [  5%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_breakpoint_patterns_detected[totally unfamiliar stack-unfamiliar] PASSED [  5%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_breakpoint_patterns_detected[a data migration-migration] PASSED [  5%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_breakpoint_patterns_detected[multi module refactor is needed-multi[- ]module] PASSED [  6%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_breakpoint_patterns_detected[a cross service call-cross[- ]service] PASSED [  6%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_breakpoint_patterns_detected[production incident-incident] PASSED [  7%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_breakpoint_patterns_detected[root cause analysis-root[- ]cause] PASSED [  7%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_breakpoint_patterns_detected[do a security audit-security (audit|review|analysis)] PASSED [  8%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_breakpoint_patterns_detected[security review please-security (audit|review|analysis)] PASSED [  8%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_breakpoint_patterns_detected[security analysis-security (audit|review|analysis)] PASSED [  9%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_breakpoint_patterns_detected[refactor the payment flow-refactor] PASSED [  9%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_breakpoint_patterns_detected[write an integration test-integration] PASSED [ 10%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_breakpoint_patterns_detected[api integration work-api integration] PASSED [ 10%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_breakpoint_patterns_detected[coordination between teams-coordinat] PASSED [ 10%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_breakpoint_patterns_detected[dependency upgrade-dependenc] PASSED [ 11%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_single_signal_not_enough PASSED [ 11%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_two_signals_trigger PASSED [ 12%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_three_signals_score PASSED [ 12%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_api_integration_deduped_with_integration PASSED [ 13%]
+tests/test_covpush_w80a_radio.py::TestClassifyBreakpoints::test_compact_keyword_variants PASSED [ 13%]
+tests/test_covpush_w80a_radio.py::TestShouldAttachThread::test_gate_disabled_returns_false PASSED [ 14%]
+tests/test_covpush_w80a_radio.py::TestShouldAttachThread::test_gate_enabled_delegates_to_classifier PASSED [ 14%]
+tests/test_covpush_w80a_radio.py::TestShouldAttachThread::test_gate_enabled_bounded_task PASSED [ 15%]
+tests/test_covpush_w80a_radio.py::TestShouldAttachThread::test_verdict_dataclass_defaults PASSED [ 15%]
+tests/test_covpush_w80a_radio.py::TestAttachThreadForChain::test_disabled_returns_none PASSED [ 15%]
+tests/test_covpush_w80a_radio.py::TestAttachThreadForChain::test_no_breakpoint_returns_none PASSED [ 16%]
+tests/test_covpush_w80a_radio.py::TestAttachThreadForChain::test_creates_thread_without_execution 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:34:01 [    INFO] radio: fleet thread th-abc12345 attached to chain chain-1234567890
+PASSED                                                                   [ 16%]
+tests/test_covpush_w80a_radio.py::TestAttachThreadForChain::test_execution_id_attaches_thread 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:34:01 [    INFO] radio: fleet thread th-xyz attached to chain c1
+PASSED                                                                   [ 17%]
+tests/test_covpush_w80a_radio.py::TestAttachThreadForChain::test_execution_not_found_skips_attach 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:34:01 [    INFO] radio: fleet thread th-xyz attached to chain c1
+PASSED                                                                   [ 17%]
+tests/test_covpush_w80a_radio.py::TestAttachThreadForChain::test_creator_default_and_tenant_passthrough 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:34:01 [    INFO] radio: fleet thread th-1 attached to chain c1
+PASSED                                                                   [ 18%]
+tests/test_covpush_w80a_radio.py::TestExecutionThreadId::test_returns_thread_id_when_found PASSED [ 18%]
+tests/test_covpush_w80a_radio.py::TestExecutionThreadId::test_returns_none_when_missing PASSED [ 19%]
+tests/test_covpush_w80a_radio.py::TestExecutionThreadId::test_returns_none_on_db_error PASSED [ 19%]
+tests/test_covpush_w80a_radio.py::TestRadioServerSingleton::test_get_returns_singleton PASSED [ 20%]
+tests/test_covpush_w80a_radio.py::TestRadioServerSingleton::test_reset_creates_new_instance PASSED [ 20%]
+tests/test_covpush_w80a_radio.py::TestPublish::test_publish_wakes_registered_listener PASSED [ 21%]
+tests/test_covpush_w80a_radio.py::TestPublish::test_publish_unmentioned_agent_not_woken PASSED [ 21%]
+tests/test_covpush_w80a_radio.py::TestPublish::test_publish_empty_mentions PASSED [ 21%]
+tests/test_covpush_w80a_radio.py::TestPublish::test_publish_never_raises PASSED [ 22%]
+tests/test_covpush_w80a_radio.py::TestRegisterListener::test_creates_queue_and_event PASSED [ 22%]
+tests/test_covpush_w80a_radio.py::TestRegisterListener::test_reuse_existing_queue_and_event PASSED [ 23%]
+tests/test_covpush_w80a_radio.py::TestWaitForMention::test_timeout_returns_none PASSED [ 23%]
+tests/test_covpush_w80a_radio.py::TestWaitForMention::test_timeout_capped_by_config PASSED [ 24%]
+tests/test_covpush_w80a_radio.py::TestWaitForMention::test_explicit_timeout_honored PASSED [ 24%]
+tests/test_covpush_w80a_radio.py::TestWaitForMention::test_returns_pending_db_message_immediately PASSED [ 25%]
+tests/test_covpush_w80a_radio.py::TestWaitForMention::test_drains_queued_token_then_checks_db PASSED [ 25%]
+tests/test_covpush_w80a_radio.py::TestWaitForMention::test_event_set_returns_db_message PASSED [ 26%]
+tests/test_covpush_w80a_radio.py::TestWaitForMention::test_event_set_without_db_returns_none PASSED [ 26%]
+tests/test_covpush_w80a_radio.py::TestWaitForMention::test_db_error_returns_none PASSED [ 26%]
+tests/test_covpush_w80a_radio.py::TestWaitForMention::test_get_nowait_exception_swallowed PASSED [ 27%]
+tests/test_covpush_w80a_radio.py::TestActionHelpers::test_context_tier_defaults_to_student PASSED [ 27%]
+tests/test_covpush_w80a_radio.py::TestActionHelpers::test_context_tier_normalized PASSED [ 28%]
+tests/test_covpush_w80a_radio.py::TestActionHelpers::test_require_tier_ok PASSED [ 28%]
+tests/test_covpush_w80a_radio.py::TestActionHelpers::test_require_tier_denied PASSED [ 29%]
+tests/test_covpush_w80a_radio.py::TestActionHelpers::test_require_tier_unknown_tier_denied PASSED [ 29%]
+tests/test_covpush_w80a_radio.py::TestActionHelpers::test_require_tier_missing_tier_denied PASSED [ 30%]
+tests/test_covpush_w80a_radio.py::TestActionHelpers::test_context_agent_id PASSED [ 30%]
+tests/test_covpush_w80a_radio.py::TestActionHelpers::test_disabled_note PASSED [ 31%]
+tests/test_covpush_w80a_radio.py::TestRadioCreateThread::test_disabled PASSED [ 31%]
+tests/test_covpush_w80a_radio.py::TestRadioCreateThread::test_tier_denied PASSED [ 31%]
+tests/test_covpush_w80a_radio.py::TestRadioCreateThread::test_no_agent_id PASSED [ 32%]
+tests/test_covpush_w80a_radio.py::TestRadioCreateThread::test_name_required PASSED [ 32%]
+tests/test_covpush_w80a_radio.py::TestRadioCreateThread::test_members_required PASSED [ 33%]
+tests/test_covpush_w80a_radio.py::TestRadioCreateThread::test_success 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:34:02 [    INFO] radio: thread f000fa65-bcaf-49ac-a04f-a6d0bf2604dd created by agent-a
+PASSED                                                                   [ 33%]
+tests/test_covpush_w80a_radio.py::TestRadioCreateThread::test_radio_error PASSED [ 34%]
+tests/test_covpush_w80a_radio.py::TestRadioCreateThread::test_internal_error PASSED [ 34%]
+tests/test_covpush_w80a_radio.py::TestRadioSendMessage::test_disabled PASSED [ 35%]
+tests/test_covpush_w80a_radio.py::TestRadioSendMessage::test_tier_denied PASSED [ 35%]
+tests/test_covpush_w80a_radio.py::TestRadioSendMessage::test_no_agent_id PASSED [ 36%]
+tests/test_covpush_w80a_radio.py::TestRadioSendMessage::test_thread_id_required PASSED [ 36%]
+tests/test_covpush_w80a_radio.py::TestRadioSendMessage::test_success_plain 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:34:03 [    INFO] radio: agent-a -> ['agent-b'] on th-1
+PASSED                                                                   [ 36%]
+tests/test_covpush_w80a_radio.py::TestRadioSendMessage::test_success_to_agent_and_requires_response 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:34:03 [    INFO] radio: agent-a -> ['agent-b'] on th-1
+PASSED                                                                   [ 37%]
+tests/test_covpush_w80a_radio.py::TestRadioSendMessage::test_policy_error PASSED [ 37%]
+tests/test_covpush_w80a_radio.py::TestRadioSendMessage::test_access_error PASSED [ 38%]
+tests/test_covpush_w80a_radio.py::TestRadioSendMessage::test_budget_exceeded PASSED [ 38%]
+tests/test_covpush_w80a_radio.py::TestRadioSendMessage::test_radio_error PASSED [ 39%]
+tests/test_covpush_w80a_radio.py::TestRadioSendMessage::test_internal_error PASSED [ 39%]
+tests/test_covpush_w80a_radio.py::TestRadioWaitForMention::test_disabled PASSED [ 40%]
+tests/test_covpush_w80a_radio.py::TestRadioWaitForMention::test_no_tier_passes_student_floor PASSED [ 40%]
+tests/test_covpush_w80a_radio.py::TestRadioWaitForMention::test_no_agent_id PASSED [ 41%]
+tests/test_covpush_w80a_radio.py::TestRadioWaitForMention::test_thread_id_required PASSED [ 41%]
+tests/test_covpush_w80a_radio.py::TestRadioWaitForMention::test_timed_out PASSED [ 42%]
+tests/test_covpush_w80a_radio.py::TestRadioWaitForMention::test_timeout_none_passed_through PASSED [ 42%]
+tests/test_covpush_w80a_radio.py::TestRadioWaitForMention::test_invalid_timeout_falls_back_to_none PASSED [ 42%]
+tests/test_covpush_w80a_radio.py::TestRadioWaitForMention::test_message_received PASSED [ 43%]
+tests/test_covpush_w80a_radio.py::TestRadioWaitForMention::test_message_without_created_at PASSED [ 43%]
+tests/test_covpush_w80a_radio.py::TestRadioWaitForMention::test_wait_raises_returns_error 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:34:03 [ WARNING] radio.wait_for_mention failed: boom
+PASSED                                                                   [ 44%]
+tests/test_covpush_w80a_radio.py::TestRadioReadInbox::test_disabled PASSED [ 44%]
+tests/test_covpush_w80a_radio.py::TestRadioReadInbox::test_no_tier_passes_student_floor PASSED [ 45%]
+tests/test_covpush_w80a_radio.py::TestRadioReadInbox::test_no_agent_id PASSED [ 45%]
+tests/test_covpush_w80a_radio.py::TestRadioReadInbox::test_snapshot_with_thread_id PASSED [ 46%]
+tests/test_covpush_w80a_radio.py::TestRadioReadInbox::test_inbox_without_thread_id PASSED [ 46%]
+tests/test_covpush_w80a_radio.py::TestRadioReadInbox::test_inbox_empty PASSED [ 47%]
+tests/test_covpush_w80a_radio.py::TestRadioReadInbox::test_read_error 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:34:03 [ WARNING] radio.read_inbox failed: boom
+PASSED                                                                   [ 47%]
+tests/test_covpush_w80a_radio.py::TestRegisterAll::test_register_all_actions_exist PASSED [ 47%]
+tests/test_covpush_w80a_radio.py::TestTeamModels::test_role_keys PASSED  [ 48%]
+tests/test_covpush_w80a_radio.py::TestTeamModels::test_reviewer_absent PASSED [ 48%]
+tests/test_covpush_w80a_radio.py::TestTeamModels::test_empty_team PASSED [ 49%]
+tests/test_covpush_w80a_radio.py::TestTeamModels::test_role_defaults PASSED [ 49%]
+tests/test_covpush_w80a_radio.py::TestValidate::test_not_a_dict 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:34:03 [ WARNING] radio team config: missing top-level 'team' mapping
+2026-11-07 15:34:03 [ WARNING] radio team config: missing top-level 'team' mapping
+2026-11-07 15:34:03 [ WARNING] radio team config: missing top-level 'team' mapping
+PASSED                                                                   [ 50%]
+tests/test_covpush_w80a_radio.py::TestValidate::test_missing_team_key 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:34:03 [ WARNING] radio team config: missing top-level 'team' mapping
+PASSED                                                                   [ 50%]
+tests/test_covpush_w80a_radio.py::TestValidate::test_team_not_mapping 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:34:03 [ WARNING] radio team config: missing top-level 'team' mapping
+PASSED                                                                   [ 51%]
+tests/test_covpush_w80a_radio.py::TestValidate::test_missing_name 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:34:03 [ WARNING] radio team config: team.name is required
+PASSED                                                                   [ 51%]
+tests/test_covpush_w80a_radio.py::TestValidate::test_role_missing_key_or_name_skipped 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:34:03 [ WARNING] radio team config: role missing key/name: {'name': 'NoKey'}
+2026-11-07 15:34:03 [ WARNING] radio team config: role missing key/name: {'key': 'noName'}
+PASSED                                                                   [ 52%]
+tests/test_covpush_w80a_radio.py::TestValidate::test_no_valid_roles 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:34:03 [ WARNING] radio team config: role missing key/name: {'key': 'k'}
+2026-11-07 15:34:03 [ WARNING] radio team config 'x': no valid roles
+2026-11-07 15:34:03 [ WARNING] radio team config 'x': no valid roles
+PASSED                                                                   [ 52%]
+tests/test_covpush_w80a_radio.py::TestValidate::test_valid_config_strips_and_defaults PASSED [ 52%]
+tests/test_covpush_w80a_radio.py::TestValidate::test_roles_none_means_no_roles 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:34:03 [ WARNING] radio team config 'x': no valid roles
+PASSED                                                                   [ 53%]
+tests/test_covpush_w80a_radio.py::TestValidate::test_defaults_none_becomes_empty PASSED [ 53%]
+tests/test_covpush_w80a_radio.py::TestTryImportYaml::test_yaml_available PASSED [ 54%]
+tests/test_covpush_w80a_radio.py::TestTryImportYaml::test_yaml_missing PASSED [ 54%]
+tests/test_covpush_w80a_radio.py::TestLoadTeam::test_yaml_unavailable_returns_none PASSED [ 55%]
+tests/test_covpush_w80a_radio.py::TestLoadTeam::test_no_config_for_team PASSED [ 55%]
+tests/test_covpush_w80a_radio.py::TestLoadTeam::test_loads_yaml_file PASSED [ 56%]
+tests/test_covpush_w80a_radio.py::TestLoadTeam::test_falls_back_to_yml PASSED [ 56%]
+tests/test_covpush_w80a_radio.py::TestLoadTeam::test_yaml_preferred_over_yml PASSED [ 57%]
+tests/test_covpush_w80a_radio.py::TestLoadTeam::test_invalid_yaml_returns_none 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:34:03 [ WARNING] radio team loader: failed to parse /private/tmp/atom-oracle-refresh-evidence/heavy-final-mcp/basetemp/pytest-of-rushiparikh/pytest-0/test_invalid_yaml_returns_none0/bad.yaml: while parsing a flow sequence
+  in "/private/tmp/atom-oracle-refresh-evidence/heavy-final-mcp/basetemp/pytest-of-rushiparikh/pytest-0/test_invalid_yaml_returns_none0/bad.yaml", line 1, column 7
+expected ',' or ']', but got '<stream end>'
+  in "/private/tmp/atom-oracle-refresh-evidence/heavy-final-mcp/basetemp/pytest-of-rushiparikh/pytest-0/test_invalid_yaml_returns_none0/bad.yaml", line 1, column 16
+PASSED                                                                   [ 57%]
+tests/test_covpush_w80a_radio.py::TestLoadTeam::test_invalid_structure_returns_none 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:34:03 [ WARNING] radio team config: missing top-level 'team' mapping
+PASSED                                                                   [ 57%]
+tests/test_covpush_w80a_radio.py::TestLoadTeam::test_loads_repo_coding_team PASSED [ 58%]
+tests/test_covpush_w80a_radio.py::TestListTeamNames::test_missing_dir PASSED [ 58%]
+tests/test_covpush_w80a_radio.py::TestListTeamNames::test_lists_yaml_and_yml_sorted PASSED [ 59%]
+tests/test_covpush_w80a_radio.py::TestFalsificationPrompt::test_block_content PASSED [ 59%]
+tests/test_covpush_w80a_radio.py::TestCreateThread::test_creator_prepended_and_dedup 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:34:03 [    INFO] radio: thread fake-92d7275e created by agent-a
+PASSED                                                                   [ 60%]
+tests/test_covpush_w80a_radio.py::TestCreateThread::test_creator_already_member_order_preserved 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:34:03 [    INFO] radio: thread fake-33474f9c created by agent-a
+PASSED                                                                   [ 60%]
+tests/test_covpush_w80a_radio.py::TestCreateThread::test_metadata_default_preserved 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:34:03 [    INFO] radio: thread fake-b861ed27 created by agent-a
+PASSED                                                                   [ 61%]
+tests/test_covpush_w80a_radio.py::TestCreateThread::test_empty_members 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:34:03 [    INFO] radio: thread fake-d6b458f7 created by agent-a
+PASSED                                                                   [ 61%]
+tests/test_covpush_w80a_radio.py::TestIsMember::test_empty_agent_false PASSED [ 62%]
+tests/test_covpush_w80a_radio.py::TestIsMember::test_roster_member PASSED [ 62%]
+tests/test_covpush_w80a_radio.py::TestIsMember::test_non_member_false PASSED [ 63%]
+tests/test_covpush_w80a_radio.py::TestIsMember::test_creator_counts_even_if_not_in_roster PASSED [ 63%]
+tests/test_covpush_w80a_radio.py::TestThreadBudgetUsed::test_float_metadata PASSED [ 63%]
+tests/test_covpush_w80a_radio.py::TestThreadBudgetUsed::test_int_metadata PASSED [ 64%]
+tests/test_covpush_w80a_radio.py::TestThreadBudgetUsed::test_numeric_string_metadata PASSED [ 64%]
+tests/test_covpush_w80a_radio.py::TestThreadBudgetUsed::test_missing_key_defaults_zero PASSED [ 65%]
+tests/test_covpush_w80a_radio.py::TestThreadBudgetUsed::test_corrupt_string_raises PASSED [ 65%]
+tests/test_covpush_w80a_radio.py::TestThreadBudgetUsed::test_corrupt_dict_raises PASSED [ 66%]
+tests/test_covpush_w80a_radio.py::TestThreadBudgetUsed::test_nan_raises PASSED [ 66%]
+tests/test_covpush_w80a_radio.py::TestThreadBudgetUsed::test_inf_raises PASSED [ 67%]
+tests/test_covpush_w80a_radio.py::TestThreadBudgetUsed::test_negative_raises PASSED [ 67%]
+tests/test_covpush_w80a_radio.py::TestSendMessage::test_no_mentions_raises_policy PASSED [ 68%]
+tests/test_covpush_w80a_radio.py::TestSendMessage::test_to_agent_self_not_counted PASSED [ 68%]
+tests/test_covpush_w80a_radio.py::TestSendMessage::test_to_agent_counts_as_mention 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:34:03 [    INFO] radio: agent-a -> ['agent-b'] on th-1
+PASSED                                                                   [ 68%]
+tests/test_covpush_w80a_radio.py::TestSendMessage::test_mention_dedup_with_to_agent 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:34:03 [    INFO] radio: agent-a -> ['agent-b'] on th-1
+PASSED                                                                   [ 69%]
+tests/test_covpush_w80a_radio.py::TestSendMessage::test_thread_missing_raises_access PASSED [ 69%]
+tests/test_covpush_w80a_radio.py::TestSendMessage::test_thread_closed_raises_access PASSED [ 70%]
+tests/test_covpush_w80a_radio.py::TestSendMessage::test_non_member_raises_access PASSED [ 70%]
+tests/test_covpush_w80a_radio.py::TestSendMessage::test_locked_recheck_thread_gone PASSED [ 71%]
+tests/test_covpush_w80a_radio.py::TestSendMessage::test_locked_recheck_non_member PASSED [ 71%]
+tests/test_covpush_w80a_radio.py::TestSendMessage::test_corrupted_budget_fails_closed PASSED [ 72%]
+tests/test_covpush_w80a_radio.py::TestSendMessage::test_budget_exhausted PASSED [ 72%]
+tests/test_covpush_w80a_radio.py::TestSendMessage::test_success_with_cost_updates_budget 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:34:03 [    INFO] radio: agent-a -> ['agent-b'] on th-1
+PASSED                                                                   [ 73%]
+tests/test_covpush_w80a_radio.py::TestSendMessage::test_success_zero_cost_no_budget_update 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:34:03 [    INFO] radio: agent-a -> ['agent-b'] on th-1
+PASSED                                                                   [ 73%]
+tests/test_covpush_w80a_radio.py::TestSendMessage::test_negative_cost_clamped 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:34:03 [    INFO] radio: agent-a -> ['agent-b'] on th-1
+PASSED                                                                   [ 73%]
+tests/test_covpush_w80a_radio.py::TestSendMessage::test_non_finite_cost_treated_zero 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:34:03 [    INFO] radio: agent-a -> ['agent-b'] on th-1
+2026-11-07 15:34:03 [    INFO] radio: agent-a -> ['agent-b'] on th-1
+2026-11-07 15:34:03 [    INFO] radio: agent-a -> ['agent-b'] on th-1
+PASSED                                                                   [ 74%]
+tests/test_covpush_w80a_radio.py::TestSendMessage::test_at_budget_exactly_allowed 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:34:03 [    INFO] radio: agent-a -> ['agent-b'] on th-1
+PASSED                                                                   [ 74%]
+tests/test_covpush_w80a_radio.py::TestGetThread::test_found PASSED       [ 75%]
+tests/test_covpush_w80a_radio.py::TestGetThread::test_missing PASSED     [ 75%]
+tests/test_covpush_w80a_radio.py::TestMarkRead::test_already_read_noop PASSED [ 76%]
+tests/test_covpush_w80a_radio.py::TestMarkRead::test_first_read_appends PASSED [ 76%]
+tests/test_covpush_w80a_radio.py::TestMarkRead::test_read_by_two_readers PASSED [ 77%]
+tests/test_covpush_w80a_radio.py::TestMarkRead::test_all_mentioned_read_marks_delivered PASSED [ 77%]
+tests/test_covpush_w80a_radio.py::TestMarkRead::test_message_without_metadata PASSED [ 78%]
+tests/test_covpush_w80a_radio.py::TestGetPendingMentions::test_no_agent_returns_empty PASSED [ 78%]
+tests/test_covpush_w80a_radio.py::TestGetPendingMentions::test_filters_mentions_and_read PASSED [ 78%]
+tests/test_covpush_w80a_radio.py::TestGetPendingMentions::test_limit_applied PASSED [ 79%]
+tests/test_covpush_w80a_radio.py::TestGetPendingMentions::test_limit_none_returns_all PASSED [ 79%]
+tests/test_covpush_w80a_radio.py::TestGetThreadSnapshot::test_thread_missing PASSED [ 80%]
+tests/test_covpush_w80a_radio.py::TestGetThreadSnapshot::test_full_snapshot PASSED [ 80%]
+tests/test_covpush_w80a_radio.py::TestGetThreadSnapshot::test_corrupted_budget_returns_none PASSED [ 81%]
+tests/test_covpush_w80a_radio.py::TestGetThreadSnapshot::test_message_without_mentions_not_unread PASSED [ 81%]
+tests/test_covpush_w80a_radio.py::TestCloseThread::test_missing_returns_none PASSED [ 82%]
+tests/test_covpush_w80a_radio.py::TestCloseThread::test_closes_thread PASSED [ 82%]
+tests/test_covpush_w80a_radio.py::TestInboxDrainText::test_disabled_returns_empty PASSED [ 83%]
+tests/test_covpush_w80a_radio.py::TestInboxDrainText::test_no_agent_returns_empty PASSED [ 83%]
+tests/test_covpush_w80a_radio.py::TestInboxDrainText::test_db_error_returns_empty PASSED [ 84%]
+tests/test_covpush_w80a_radio.py::TestInboxDrainText::test_no_thread_found_returns_empty PASSED [ 84%]
+tests/test_covpush_w80a_radio.py::TestInboxDrainText::test_thread_not_agent_member_returns_empty PASSED [ 84%]
+tests/test_covpush_w80a_radio.py::TestInboxDrainText::test_no_pending_returns_empty PASSED [ 85%]
+tests/test_covpush_w80a_radio.py::TestInboxDrainText::test_returns_formatted_inbox_and_marks_read PASSED [ 85%]
+tests/test_covpush_w80a_radio.py::TestInboxDrainText::test_explicit_thread_id_used PASSED [ 86%]
+tests/test_covpush_w80a_radio.py::TestInboxDrainText::test_cap_via_inbox_config PASSED [ 86%]
+tests/test_covpush_w80a_radio.py::TestRadioConfigReverify::test_env_bool_unset_default PASSED [ 87%]
+tests/test_covpush_w80a_radio.py::TestRadioConfigReverify::test_env_bool_truthy[1] PASSED [ 87%]
+tests/test_covpush_w80a_radio.py::TestRadioConfigReverify::test_env_bool_truthy[true] PASSED [ 88%]
+tests/test_covpush_w80a_radio.py::TestRadioConfigReverify::test_env_bool_truthy[yes] PASSED [ 88%]
+tests/test_covpush_w80a_radio.py::TestRadioConfigReverify::test_env_bool_truthy[on] PASSED [ 89%]
+tests/test_covpush_w80a_radio.py::TestRadioConfigReverify::test_env_bool_truthy[TRUE] PASSED [ 89%]
+tests/test_covpush_w80a_radio.py::TestRadioConfigReverify::test_env_bool_truthy[ ON ] PASSED [ 89%]
+tests/test_covpush_w80a_radio.py::TestRadioConfigReverify::test_env_bool_falsy[0] PASSED [ 90%]
+tests/test_covpush_w80a_radio.py::TestRadioConfigReverify::test_env_bool_falsy[false] PASSED [ 90%]
+tests/test_covpush_w80a_radio.py::TestRadioConfigReverify::test_env_bool_falsy[no] PASSED [ 91%]
+tests/test_covpush_w80a_radio.py::TestRadioConfigReverify::test_env_bool_falsy[off] PASSED [ 91%]
+tests/test_covpush_w80a_radio.py::TestRadioConfigReverify::test_env_bool_falsy[anything] PASSED [ 92%]
+tests/test_covpush_w80a_radio.py::TestRadioConfigReverify::test_env_bool_falsy[] PASSED [ 92%]
+tests/test_covpush_w80a_radio.py::TestRadioConfigReverify::test_master_switch PASSED [ 93%]
+tests/test_covpush_w80a_radio.py::TestRadioConfigReverify::test_knob_defaults PASSED [ 93%]
+tests/test_covpush_w80a_radio.py::TestRadioConfigReverify::test_knob_overrides PASSED [ 94%]
+tests/test_covpush_w80a_radio.py::TestRadioConfigReverify::test_env_str PASSED [ 94%]
+tests/test_covpush_w80a_radio.py::TestRadioConfigReverify::test_thread_override_chain_id PASSED [ 94%]
+tests/test_covpush_w80a_radio.py::TestRadioConfigReverify::test_constant PASSED [ 95%]
+tests/test_covpush_w80a_radio.py::TestRadioGuardReverify::test_policy_allowed_mention_and_to PASSED [ 95%]
+tests/test_covpush_w80a_radio.py::TestRadioGuardReverify::test_policy_no_recipients PASSED [ 96%]
+tests/test_covpush_w80a_radio.py::TestRadioGuardReverify::test_policy_self_mention_only PASSED [ 96%]
+tests/test_covpush_w80a_radio.py::TestRadioGuardReverify::test_policy_empty_content PASSED [ 97%]
+tests/test_covpush_w80a_radio.py::TestRadioGuardReverify::test_policy_oversized_content PASSED [ 97%]
+tests/test_covpush_w80a_radio.py::TestRadioGuardReverify::test_policy_closed_or_none_thread PASSED [ 98%]
+tests/test_covpush_w80a_radio.py::TestRadioGuardReverify::test_policy_non_member PASSED [ 98%]
+tests/test_covpush_w80a_radio.py::TestRadioGuardReverify::test_budget_allows PASSED [ 99%]
+tests/test_covpush_w80a_radio.py::TestRadioGuardReverify::test_inbox_pending PASSED [ 99%]
+tests/test_covpush_w80a_radio.py::TestRadioGuardReverify::test_interrupt_worth_it PASSED [100%]
+
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+======================= 219 passed, 6 warnings in 18.63s =======================
+
+STDERR

@@ -1,0 +1,6 @@
+{
+  "nodes": [
+    "tests/test_oracle_radio_create_thread.py"
+  ],
+  "exit_code": 0
+}

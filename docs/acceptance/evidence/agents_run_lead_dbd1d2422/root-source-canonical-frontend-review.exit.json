@@ -1,0 +1,18 @@
+{
+  "source": "dbd1d24225fa858be51e7f024475a7586191a26f",
+  "head_after": "dbd1d24225fa858be51e7f024475a7586191a26f",
+  "actual_exit": 0,
+  "scratch": "/private/tmp/root-goal-ci-sync-ant_klx7",
+  "finished": 1794087451.679103,
+  "runtime_diff": [
+    "backend/api/agent_routes.py",
+    "backend/api/assignment_routes.py",
+    "backend/core/assignment_executor.py",
+    "backend/core/assignment_resources.py",
+    "backend/core/generic_agent.py",
+    "backend/core/information_wait.py",
+    "frontend-nextjs/components/Agents/AgentJobWaitPanel.tsx",
+    "frontend-nextjs/components/Agents/__tests__/AgentJobWaitPanel.test.tsx",
+    "frontend-nextjs/pages/agents/index.tsx"
+  ]
+}

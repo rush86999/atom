@@ -1,0 +1,101 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-07 14:14:42 [    INFO] MCP Service initialized
+
+tests/test_generic_oracle_mutation_contract.py::test_committed_declared_write_without_verifier_is_not_success 
+-------------------------------- live log setup --------------------------------
+2026-11-07 14:14:43 [    INFO] EscalationManager initialized
+2026-11-07 14:14:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 14:14:43 [    INFO] EscalationManager initialized
+2026-11-07 14:14:43 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 14:14:43 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 14:14:43 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  2%]
+tests/test_generic_oracle_mutation_contract.py::test_unverified_timeout_does_not_invite_retry PASSED [  4%]
+tests/test_generic_oracle_mutation_contract.py::test_explicit_read_stays_usable PASSED [  6%]
+tests/test_generic_oracle_mutation_contract.py::test_broken_verdicts_do_not_manufacture_business_success[refuting] PASSED [  8%]
+tests/test_generic_oracle_mutation_contract.py::test_broken_verdicts_do_not_manufacture_business_success[raising] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:14:45 [ WARNING] [Oracle] postcondition check for test.generic.verdict.2ab128d357a54d81b39a167fbe0e53b7 failed: verifier transport unavailable
+PASSED                                                                   [ 10%]
+tests/test_generic_oracle_mutation_contract.py::test_broken_verdicts_do_not_manufacture_business_success[none] PASSED [ 13%]
+tests/test_generic_oracle_mutation_contract.py::test_real_effect_with_independent_readback_is_verified PASSED [ 15%]
+tests/test_generic_oracle_mutation_contract.py::test_disabled_oracle_cannot_lend_success[ATOM_ORACLE_VERIFIER_ENABLED] PASSED [ 17%]
+tests/test_generic_oracle_mutation_contract.py::test_disabled_oracle_cannot_lend_success[ATOM_ORACLE_ENFORCE] PASSED [ 19%]
+tests/test_generic_oracle_mutation_contract.py::test_registered_plan_only_output_stays_usable PASSED [ 21%]
+tests/test_generic_oracle_mutation_contract.py::test_returned_payload_cannot_overwrite_frozen_request[False] PASSED [ 23%]
+tests/test_generic_oracle_mutation_contract.py::test_returned_payload_cannot_overwrite_frozen_request[True] PASSED [ 26%]
+tests/test_generic_oracle_mutation_contract.py::test_handler_arg_mutation_does_not_rewrite_authorized_request[False] PASSED [ 28%]
+tests/test_generic_oracle_mutation_contract.py::test_handler_arg_mutation_does_not_rewrite_authorized_request[True] PASSED [ 30%]
+tests/test_generic_oracle_mutation_contract.py::test_durable_claim_replays_without_second_dispatch PASSED [ 32%]
+tests/test_generic_oracle_mutation_contract.py::test_changed_material_with_same_operation_is_refused PASSED [ 34%]
+tests/test_generic_oracle_mutation_contract.py::test_uncertain_timeout_claim_never_resends_on_restart 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:14:51 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='autodev_guidance'
+PASSED                                                                   [ 36%]
+tests/test_generic_oracle_mutation_contract.py::test_replay_with_refuted_fresh_readback_is_not_success PASSED [ 39%]
+tests/test_generic_oracle_mutation_contract.py::test_landed_effect_then_failed_selfreport_is_uncertain PASSED [ 41%]
+tests/test_generic_oracle_mutation_contract.py::test_landed_effect_then_ordinary_exception_is_uncertain PASSED [ 43%]
+tests/test_generic_oracle_mutation_contract.py::test_pre_effect_no_effect_refusal_stays_truthful PASSED [ 45%]
+tests/test_generic_oracle_mutation_contract.py::test_unqualified_registered_effect_metadata_is_conservative PASSED [ 47%]
+tests/test_generic_oracle_mutation_contract.py::test_normal_dispatch_without_operation_id_is_durable PASSED [ 50%]
+tests/test_generic_oracle_mutation_contract.py::test_server_intent_slot_is_not_reminted_by_model_material PASSED [ 52%]
+tests/test_generic_oracle_mutation_contract.py::test_cold_resume_without_explicit_operation_id_reloads_claim 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:14:58 [    INFO] Agent Scratch Agent (scratch-agent) starting task: resume the normal task
+2026-11-07 14:14:58 [    INFO] EscalationManager initialized
+2026-11-07 14:14:58 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 54%]
+tests/test_generic_oracle_mutation_contract.py::test_explicit_operation_without_workspace_is_refused_before_effect PASSED [ 56%]
+tests/test_generic_oracle_mutation_contract.py::test_handler_context_carries_server_operation_identity PASSED [ 58%]
+tests/test_generic_oracle_mutation_contract.py::test_cold_resume_with_unreadable_claim_store_stays_unresolved 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:15:01 [    INFO] Agent Scratch Agent (scratch-agent) starting task: continue original task
+PASSED                                                                   [ 60%]
+tests/test_generic_oracle_mutation_contract.py::test_zero_claim_read_only_execution_stays_success 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:15:01 [    INFO] Agent Scratch Agent (scratch-agent) starting task: answer the question
+PASSED                                                                   [ 63%]
+tests/test_generic_oracle_mutation_contract.py::test_mark_status_expected_status_is_database_cas PASSED [ 65%]
+tests/test_generic_oracle_mutation_contract.py::test_execution_finalization_blocks_unverified_mutation_but_keeps_reads 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:15:02 [    INFO] Agent Scratch Agent (scratch-agent) starting task: do the thing
+2026-11-07 14:15:03 [   ERROR] AUDIT GAP for execution 0cae02ff-a339-473f-ba65-2ab4044ec4e1: {'complete': False, 'execution_id': '0cae02ff-a339-473f-ba65-2ab4044ec4e1', 'expected_events': 5, 'actual_events': 4, 'coverage_percentage': 80.0, 'checked_at': '2026-11-07T19:15:03.765991+00:00'}
+2026-11-07 14:15:03 [    INFO] EscalationManager initialized
+2026-11-07 14:15:03 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 14:15:03 [   ERROR] Session sess-final not found
+PASSED                                                                   [ 67%]
+tests/test_generic_oracle_mutation_contract.py::test_execution_finalization_allows_verified_mutation 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:15:04 [    INFO] Agent Scratch Agent (scratch-agent) starting task: do the verified thing
+2026-11-07 14:15:04 [    INFO] EscalationManager initialized
+2026-11-07 14:15:04 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 14:15:04 [   ERROR] Session sess-final not found
+PASSED                                                                   [ 69%]
+tests/test_generic_oracle_mutation_contract.py::test_cold_resumed_execution_reloads_unresolved_claim 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:15:05 [    INFO] Agent Scratch Agent (scratch-agent) starting task: resume the task
+PASSED                                                                   [ 71%]
+tests/test_oracle_effect_families.py::test_canvas_present_family_verifies_exact_material_and_operation PASSED [ 73%]
+tests/test_oracle_effect_families.py::test_canvas_update_family_verifies_content_and_mirror PASSED [ 76%]
+tests/test_oracle_effect_families.py::test_canvas_restore_family_verifies_original_target PASSED [ 78%]
+tests/test_oracle_effect_families.py::test_goal_create_and_evaluate_families PASSED [ 80%]
+tests/test_oracle_effect_families.py::test_goal_run_and_plan_families PASSED [ 82%]
+tests/test_oracle_effect_families.py::test_tasks_create_family_accepts_nested_task_payload PASSED [ 84%]
+tests/test_oracle_effect_families.py::test_adapter_uses_shared_canvas_update_postcondition PASSED [ 86%]
+tests/test_oracle_effect_families.py::test_adapter_downgrades_wrong_local_canvas_content PASSED [ 89%]
+tests/test_oracle_effect_families.py::test_adapter_uses_shared_goal_and_task_postconditions PASSED [ 91%]
+tests/test_oracle_effect_families.py::test_adapter_presentation_positive_binds_exact_audit PASSED [ 93%]
+tests/test_oracle_effect_families.py::test_adapter_presentation_handler_mutation_is_refuted PASSED [ 95%]
+tests/test_oracle_effect_families.py::test_adapter_old_audit_cannot_certify_new_operation PASSED [ 97%]
+tests/test_oracle_effect_families.py::test_adapter_missing_presentation_material_refuses_before_dispatch PASSED [100%]
+
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+======================= 46 passed, 7 warnings in 42.03s ========================
+
+STDERR

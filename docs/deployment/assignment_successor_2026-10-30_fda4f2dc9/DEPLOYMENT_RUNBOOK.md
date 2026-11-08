@@ -272,3 +272,121 @@ Deployment is blocked only on owner authorization. The precise action is:
 
 No Zoho repair, model change, real email send, source writeback or deployment is
 performed by this package.
+
+## Local backup and isolated restore
+
+The release kit owns the local SQLite backup contract. `backup` remains the
+only producer of `BACKUP_MANIFEST.json` (schema
+`atom-assignment-release-backup-1`) and `restore` is its manifest consumer.
+
+### Backup
+
+```bash
+python .../release_tool.py --root <release-root> backup --label predeploy
+# optional full memory snapshot
+python .../release_tool.py --root <release-root> backup --label predeploy --include-memory
+```
+
+The backup resolves `DATABASE_URL`, `ATOM_DATA_DIR`, `ATOM_OFFICE_DIR`,
+`ATOM_EMAIL_ATTACHMENT_DIR` and `LANCEDB_URI` before copying. It refuses an
+ambiguous `DATABASE_URL`/`ATOM_DATA_DIR` pair, a missing explicitly configured
+store, and a non-local memory store when `--include-memory` is requested. The
+manifest records the resolved `store_roots` (source provenance) and copies
+managed office/sheet/email stores into canonical backup paths even when the
+source roots live outside `ATOM_DATA_DIR`. A backup never silently omits a
+declared managed store.
+
+The SQLite copy uses the SQLite backup API (consistent, includes committed WAL)
+and verifies integrity plus row counts. Source WAL/SHM files are never copied
+as the restore authority, and the produced backup is left checkpointed and
+sidecar-free. Managed-store copies reject symlinks and hardlinks rather than
+silently following bytes from outside the declared root.
+
+### Restore
+
+```bash
+python .../release_tool.py --root <release-root> restore \
+  --backup <backup-dir-or-BACKUP_MANIFEST.json> \
+  --target-data-dir <explicit-empty-target>
+```
+
+> **Correction (2026-11-07).** The predecessor candidate claimed it preserved
+> audit history while rewriting the latest content-bearing `CanvasAudit` row.
+> That claim was wrong: the latest content-bearing row is still historical
+> audit material. The predecessor evidence packet remains frozen, unmodified,
+> as evidence of the wrong claim. The contract below is append-only and does
+> not relabel the predecessor.
+
+`restore` requires both arguments and refuses:
+
+- the live configured data/store root, `source == target`, or overlapping paths;
+- an existing target path of any kind (including an empty directory or
+  symlink) and any target path whose components traverse a symlink;
+- an unknown manifest schema, missing/duplicate/colliding/escaping paths,
+  symlink/hardlink entries, byte/SHA-256 mismatch, or a corrupt/truncated
+  database;
+- an added/changed/unmanifested `atom.db-wal`, `atom.db-shm` or
+  `atom.db-journal`; only a self-contained checkpointed database is accepted;
+- a manifest that declares memory included but contains no memory files, or
+  declares it excluded but includes memory files.
+
+It verifies every manifest entry through nofollow directory descriptors before
+copying. The database copy is bound to the **exact bytes validated against the
+manifest**, not to a later stat: the already-checkpointed backup file is opened
+through a nofollow descriptor, frozen into a private staging directory, and
+re-checked for size, SHA-256, device/inode identity and unchanged stat before
+the SQLite backup API is allowed to read it. In-place updates, path/inode
+swaps, symlink swaps and sidecar changes after validation are refused. The DB
+is restored through the SQLite backup API into an owned staging directory, and
+copied bytes, integrity and row counts are verified again.
+
+Row-count semantics are explicit: keys must be simple SQL identifiers; a
+non-negative integer requires an existing table with at least that many rows
+(`0` is exact); `None` requires the table to be absent. A missing table is
+never silently counted as zero.
+
+Only current managed projections are rebased from the manifest's source
+provenance to the target: dataset parquet paths, optional document file paths,
+assignment operational paths, and the current `Canvas.content` office binding.
+Historical `CanvasAudit` rows, receipts, operation identities, actors,
+timestamps and material are byte-for-byte immutable. When the current
+content-bearing audit row carries an office binding that must change, restore
+**appends** a new restore-owned `CanvasAudit` event with a new id, the exact
+resolved scope, the original audit id, the original details SHA-256 and the
+manifest SHA-256 as provenance, and the target binding. The event's own id is
+recorded as `restored_from.restore_event_id`, so the new identity is
+self-describing without reusing the historical one. The event payload is
+rebuilt from the current content plus only the non-authority presentation
+fields the real `read_canvas`/office consumers use (`title`, `canvas_type`,
+`component`, `component_type`, `component_name`, `type_pinned`, the email
+`draft` shape). Historical operation ids, review status, evidence refs,
+postconditions, success/verification, approval, reviewer and receipt material
+are **not** copied into the new identity, so `read_canvas` serves the target
+without pretending the old operation or approval was replayed unchanged.
+
+Scope is resolved by the same rule as the canvas write path
+(`tools.canvas_crud_tool._scope_allows`): two present scopes must match
+exactly, and a present contradiction (for example a `tenant-1` Canvas row whose
+current content audit belongs to `foreign-tenant`) **refuses before
+publication** — a foreign audit is never re-issued under the Canvas tenant, and
+a Canvas tenant is never re-issued under a foreign audit scope. A missing
+scope (legacy NULL/empty) is not a foreign value: the other present scope is
+preserved, and only when both are absent does Personal Edition's documented
+`default` tenant fallback apply. No SaaS gate is added.
+
+Publication is an atomic no-replace rename where the platform supports it
+(`renamex_np`/`RENAME_EXCL` on macOS, `renameat2`/`RENAME_NOREPLACE` on Linux).
+The claim file contains a per-restore token and is removed only when its inode
+and token still match this restore; a peer claim or peer target/symlink is
+never deleted or overwritten after the last check. Failure before publish
+leaves the target absent; failure after publish returns `committed_unverified`
+and is never blindly repeated.
+
+`memory_included: false` means no search/recall claim; the result reports
+`memory_restored: false`. When memory is included, the backup/restore copies
+the LanceDB files and a separate app-level readback must open the restored
+store. Credential/config files are published mode 0600 and are never printed.
+
+Code rollback remains deliberately separate: `rollback` flips code symlinks and
+reports `database_restored: false`, `user_data_preserved: true`. It is not a
+data restore.

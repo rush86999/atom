@@ -1,0 +1,115 @@
+
+::test_stale_weak_annotation_cannot_erase_committed_failure[positive] 
+-------------------------------- live log setup --------------------------------
+2026-11-07 18:51:55 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-07 18:51:55 [ WARNING] business routing feedback not recorded (skipped_verdict): tenant=tenant-ctrl model=llama3.1:8b generation=interleave-stale-positive
+PASSED                                                                   [  7%]
+::test_stale_weak_annotation_cannot_erase_committed_failure[pending] 
+-------------------------------- live log setup --------------------------------
+2026-11-07 18:51:55 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-07 18:51:55 [ WARNING] business routing feedback not recorded (skipped_verdict): tenant=tenant-ctrl model=llama3.1:8b generation=interleave-stale-pending
+PASSED                                                                   [ 14%]
+::test_stronger_failure_overwrites_committed_positive 
+-------------------------------- live log setup --------------------------------
+2026-11-07 18:51:55 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 21%]
+::test_duplicate_verdict_is_idempotent_and_incident_identity_stable 
+-------------------------------- live log setup --------------------------------
+2026-11-07 18:51:55 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-07 18:51:55 [ WARNING] business routing feedback not recorded (skipped_verdict): tenant=tenant-ctrl model=llama3.1:8b generation=interleave-duplicate
+PASSED                                                                   [ 28%]
+::test_stale_failure_read_retries_after_positive_commit 
+-------------------------------- live log setup --------------------------------
+2026-11-07 18:51:55 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 35%]
+::test_pending_business_cannot_erase_committed_legacy_verdict[grounding_ok] 
+-------------------------------- live log setup --------------------------------
+2026-11-07 18:51:55 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-07 18:51:55 [ WARNING] business routing feedback not recorded (skipped_verdict): tenant=tenant-ctrl model=llama3.1:8b generation=legacy-grounding-grounding_ok
+PASSED                                                                   [ 42%]
+::test_pending_business_cannot_erase_committed_legacy_verdict[unsupported_figures] 
+-------------------------------- live log setup --------------------------------
+2026-11-07 18:51:55 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-07 18:51:55 [ WARNING] business routing feedback not recorded (skipped_verdict): tenant=tenant-ctrl model=llama3.1:8b generation=legacy-grounding-unsupported_figures
+PASSED                                                                   [ 50%]
+::test_stale_legacy_grounding_cannot_overwrite_committed_business_failure 
+-------------------------------- live log setup --------------------------------
+2026-11-07 18:51:55 [    INFO] Initialized router with 30 models
+PASSED                                                                   [ 57%]
+::test_changed_binding_during_evaluation_refuses 
+-------------------------------- live log setup --------------------------------
+2026-11-07 18:51:55 [    INFO] Initialized router with 30 models
+-------------------------------- live log call ---------------------------------
+2026-11-07 18:51:55 [ WARNING] business feedback refused after reload: workspace binding mismatch for generation interleave-binding-change
+2026-11-07 18:51:55 [ WARNING] business routing feedback not recorded (refused_workspace): tenant=tenant-ctrl model=llama3.1:8b generation=interleave-binding-change
+PASSED                                                                   [ 64%]
+tests/test_feedback_cas_dialect_contract.py::test_actual_jsoncolumn_cas_preserves_receipt_and_revision[True-postgresql] 
+-------------------------------- live log setup --------------------------------
+2026-11-07 18:51:55 [    INFO] EscalationManager initialized
+2026-11-07 18:51:55 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 18:51:55 [    INFO] EscalationManager initialized
+2026-11-07 18:51:55 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 18:51:55 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 18:51:55 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [ 71%]
+tests/test_feedback_cas_dialect_contract.py::test_actual_jsoncolumn_cas_preserves_receipt_and_revision[True-sqlite] PASSED [ 78%]
+tests/test_feedback_cas_dialect_contract.py::test_actual_jsoncolumn_cas_preserves_receipt_and_revision[False-postgresql] PASSED [ 85%]
+tests/test_feedback_cas_dialect_contract.py::test_actual_jsoncolumn_cas_preserves_receipt_and_revision[False-sqlite] PASSED [ 92%]
+tests/test_feedback_cas_dialect_contract.py::test_unknown_annotation_dialect_still_refuses PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 28 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+::test_stale_weak_annotation_cannot_erase_committed_failure[positive]
+::test_stale_weak_annotation_cannot_erase_committed_failure[pending]
+::test_stronger_failure_overwrites_committed_positive
+::test_duplicate_verdict_is_idempotent_and_incident_identity_stable
+::test_duplicate_verdict_is_idempotent_and_incident_identity_stable
+::test_pending_business_cannot_erase_committed_legacy_verdict[grounding_ok]
+::test_pending_business_cannot_erase_committed_legacy_verdict[unsupported_figures]
+::test_stale_legacy_grounding_cannot_overwrite_committed_business_failure
+::test_changed_binding_during_evaluation_refuses
+  /private/tmp/atom-feedback-postgres-20261107/backend/core/llm/capability_profiles.py:800: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    cutoff = datetime.utcnow() - timedelta(
+
+tests/test_feedback_cas_dialect_contract.py::test_actual_jsoncolumn_cas_preserves_receipt_and_revision[True-postgresql]
+  /private/tmp/atom-feedback-postgres-20261107/backend/core/graphrag_engine.py:203: SyntaxWarning: "\%" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\%"? A raw string is also an option.
+    Escaped pattern where % and _ are escaped to \%
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 14 passed, 44 warnings in 10.17s =======================

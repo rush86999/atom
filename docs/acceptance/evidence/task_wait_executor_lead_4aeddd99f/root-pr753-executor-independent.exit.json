@@ -1,0 +1,19 @@
+{
+  "external_diagnostic_probe": true,
+  "source_bytes_before": {
+    "backend/core/assignment_executor.py": "0e8212f7932a0f3100409cde7e6f3264a57e5a1bd05bf2f81413fcae836001a2",
+    "backend/tests/test_assignment_executor.py": "7183ccf90ca40aef9530fc684b7628eb98bffa2639ae43469755816e79e667c1",
+    "backend/tests/source_authority_fixtures.py": "fc84fc1d4b05bec0171bbe8c80e47e67e76dc3f1e9cd48687bba7f3faa3e2dad"
+  },
+  "source_bytes_after": {
+    "backend/core/assignment_executor.py": "0e8212f7932a0f3100409cde7e6f3264a57e5a1bd05bf2f81413fcae836001a2",
+    "backend/tests/test_assignment_executor.py": "7183ccf90ca40aef9530fc684b7628eb98bffa2639ae43469755816e79e667c1",
+    "backend/tests/source_authority_fixtures.py": "fc84fc1d4b05bec0171bbe8c80e47e67e76dc3f1e9cd48687bba7f3faa3e2dad"
+  },
+  "source": "4aeddd99fd371ec6384073c67fa3679a2d8d9613",
+  "head_after": "4aeddd99fd371ec6384073c67fa3679a2d8d9613",
+  "runtime_or_test_diff": [],
+  "actual_exit": 0,
+  "scratch": "/private/tmp/root-wait-source-final-review-p1rza45m",
+  "finished": 1794083737.387768
+}

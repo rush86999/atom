@@ -1,0 +1,304 @@
+{
+  "kind": "browser_agent_source_answer_preflight",
+  "status": "preparation-only",
+  "generated_at": "2026-11-07T16:05:20-0500",
+  "ok": true,
+  "checks": {
+    "scratch_environment": true,
+    "source_head_recorded": true,
+    "source_expected_sha_ok": true,
+    "tracked_tree_clean": true,
+    "backend_tree_clean": true,
+    "per_file_git_source_proof": true,
+    "launcher_paths_present": true,
+    "fixture_set_55_verified": true,
+    "output_parent_writable": true,
+    "worlds_root_usable": true,
+    "dependencies_present": true,
+    "fresh_world_name": true,
+    "react_schema_envelopes": true,
+    "source_action_gated_on_content": true,
+    "final_gated_on_oracle": true,
+    "provider_shim_index": true,
+    "default_labelled": true
+  },
+  "labels": {
+    "model_decisions": "SIMULATED MODEL DECISIONS: authored provider completions served by the existing loopback provider shim. Not served-model output.",
+    "transport": "CONTROLLED TRANSPORT: only the provider response is substituted; routing, execution, persistence, wait/resume, the ordinary upload route, tasks.create and the default oracle run in production code.",
+    "not_claimed": [
+      "served model or provider quality",
+      "general model judgment or prompt quality",
+      "any live provider, account, credential, send, spend or download",
+      "a second job, a synthetic completed row, or a manual objective/advance",
+      "full TASK-WAIT-01 or full application acceptance"
+    ]
+  },
+  "driver": {
+    "path": "/private/tmp/atom-goal-utility-surface-20261107/scripts/acceptance/browser_agent_source_answer.py",
+    "sha256": "5e3a00c4a0a53e58ebf7875d237d7ef1b2a4d8d16fa53977a672d2fa4d53a523"
+  },
+  "source": {
+    "repo": "/private/tmp/atom-goal-utility-surface-20261107",
+    "head": "3786e7098fa04dc26d8ba78c3847b5327ec215bd",
+    "expected_sha": "3786e7098fa04dc26d8ba78c3847b5327ec215bd",
+    "matches_expected": true,
+    "tracked_dirty": [],
+    "tracked_dirty_count": 0,
+    "backend_dirty": [],
+    "backend_dirty_count": 0,
+    "driver_sha256": "66431e44bc36ce28adace7409b72a291e5fd626ecf1d472364aa33b53333850e",
+    "driver_path": "/private/tmp/atom-goal-utility-surface-20261107/scripts/acceptance/browser_agent_job_wait.py",
+    "runtime_identity": {
+      "source_id": "3786e7098fa0",
+      "revision": "3786e7098fa04dc26d8ba78c3847b5327ec215bd",
+      "dirty": false,
+      "dirty_paths_count": 0,
+      "untracked_paths_count": 0,
+      "error": null
+    }
+  },
+  "per_file": {
+    "ok": true,
+    "files": {
+      "backend/api/agent_routes.py": {
+        "git_ok": true,
+        "git_sha256": "11fa2a877571c76bba573d9b51b0187e74d7ccbe25a931ccccc5ecda64f34790",
+        "worktree_sha256": "11fa2a877571c76bba573d9b51b0187e74d7ccbe25a931ccccc5ecda64f34790",
+        "bytes": 175736,
+        "matches": true
+      },
+      "backend/core/information_wait.py": {
+        "git_ok": true,
+        "git_sha256": "7b16e3d678c7bffa51e721c364d5d1473a36fdcaf04a6983f640d084130fdd17",
+        "worktree_sha256": "7b16e3d678c7bffa51e721c364d5d1473a36fdcaf04a6983f640d084130fdd17",
+        "bytes": 33957,
+        "matches": true
+      },
+      "backend/core/generic_agent.py": {
+        "git_ok": true,
+        "git_sha256": "2440ed15152ae6b0200831b6f2c07f8eb923e2ee34cae93dba9dbc4bef8d668a",
+        "worktree_sha256": "2440ed15152ae6b0200831b6f2c07f8eb923e2ee34cae93dba9dbc4bef8d668a",
+        "bytes": 171864,
+        "matches": true
+      },
+      "backend/tests/process_support/generic_information_wait_process_worker.py": {
+        "git_ok": true,
+        "git_sha256": "db96b6a10327f055f299ff41300144973a7f42c60687e7013aa55272025cd250",
+        "worktree_sha256": "db96b6a10327f055f299ff41300144973a7f42c60687e7013aa55272025cd250",
+        "bytes": 13195,
+        "matches": true
+      },
+      "frontend-nextjs/components/Agents/AgentJobWaitPanel.tsx": {
+        "git_ok": true,
+        "git_sha256": "30c6055f0af72e2a5108e0fb9aa1ccbc9c56ba14b4e938462f44c724f2fa6301",
+        "worktree_sha256": "30c6055f0af72e2a5108e0fb9aa1ccbc9c56ba14b4e938462f44c724f2fa6301",
+        "bytes": 21896,
+        "matches": true
+      },
+      "scripts/acceptance/browser_agent_job_wait.py": {
+        "git_ok": true,
+        "git_sha256": "66431e44bc36ce28adace7409b72a291e5fd626ecf1d472364aa33b53333850e",
+        "worktree_sha256": "66431e44bc36ce28adace7409b72a291e5fd626ecf1d472364aa33b53333850e",
+        "bytes": 114529,
+        "matches": true
+      },
+      "scripts/acceptance/browser_agent_source_answer.py": {
+        "git_ok": true,
+        "git_sha256": "5e3a00c4a0a53e58ebf7875d237d7ef1b2a4d8d16fa53977a672d2fa4d53a523",
+        "worktree_sha256": "5e3a00c4a0a53e58ebf7875d237d7ef1b2a4d8d16fa53977a672d2fa4d53a523",
+        "bytes": 86658,
+        "matches": true
+      },
+      "backend/scripts/orchestration_acceptance/run_isolated.py": {
+        "git_ok": true,
+        "git_sha256": "d0af03ae1f62aec5b2a0c8636feab35a44e324d1e51a0ce544ec2aea549d693c",
+        "worktree_sha256": "d0af03ae1f62aec5b2a0c8636feab35a44e324d1e51a0ce544ec2aea549d693c",
+        "bytes": 299764,
+        "matches": true
+      },
+      "backend/scripts/orchestration_acceptance/provider_shim.py": {
+        "git_ok": true,
+        "git_sha256": "0c95ae6cbb65d1911072cfe311ec9f45f86e70b8a3ef9c0c3a3381458dbe9102",
+        "worktree_sha256": "0c95ae6cbb65d1911072cfe311ec9f45f86e70b8a3ef9c0c3a3381458dbe9102",
+        "bytes": 23123,
+        "matches": true
+      }
+    }
+  },
+  "launcher": {
+    "ok": true,
+    "files": {
+      "backend/scripts/orchestration_acceptance/run_isolated.py": true,
+      "backend/scripts/orchestration_acceptance/provider_shim.py": true,
+      "scripts/acceptance/browser_agent_job_wait.py": true
+    },
+    "acc_dir": "/private/tmp/atom-goal-utility-surface-20261107/docs/architecture/orchestration_migration/acceptance",
+    "acc_dir_writable": true,
+    "fixtures_checksums_present": true,
+    "worlds_root": "/private/tmp/atom-goal-utility-surface-20261107/backend/data/acceptance_worlds",
+    "worlds_root_exists": true,
+    "worlds_root_is_symlink": true,
+    "worlds_root_resolves": true
+  },
+  "fixtures": {
+    "ok": true,
+    "path": "/private/tmp/atom-goal-utility-surface-20261107/docs/architecture/orchestration_migration/acceptance/fixtures/SHA256SUMS",
+    "sha256": "9c0f209f2081113e72ee9ab5460914880103f13551627e7a3744d10fb83a79d0",
+    "entry_count": 55,
+    "expected_entry_count": 55,
+    "checksum_exit": 0,
+    "stderr": ""
+  },
+  "output": {
+    "ok": true,
+    "target": "/private/tmp/atom-ui-preflight2-m1r4qedh/source-out/preflight.json",
+    "parent": "/private/tmp/atom-ui-preflight2-m1r4qedh/source-out",
+    "existing_ancestor": "/private/tmp/atom-ui-preflight2-m1r4qedh/source-out",
+    "existing_ancestor_writable": true,
+    "inside_worlds_root": false
+  },
+  "storage_readiness": {
+    "ok": true,
+    "checks": [
+      "no maintenance lock",
+      "worlds root is a symlink resolving to /Users/rushiparikh/projects/atom/backend/data/acceptance_worlds"
+    ],
+    "problems": [],
+    "worlds_root": "/private/tmp/atom-goal-utility-surface-20261107/backend/data/acceptance_worlds",
+    "worlds_root_exists": true,
+    "worlds_root_is_symlink": true,
+    "worlds_root_resolves": true,
+    "mkdir_in_preflight": false
+  },
+  "environment": {
+    "testing": "1",
+    "database_url": "sqlite:////private/tmp/atom-ui-preflight2-m1r4qedh/atom.db",
+    "database_path": "/private/tmp/atom-ui-preflight2-m1r4qedh/atom.db",
+    "database_is_live_dev_db": false,
+    "data_dir": "/private/tmp/atom-ui-preflight2-m1r4qedh/data",
+    "office_dir": "/private/tmp/atom-ui-preflight2-m1r4qedh/office",
+    "scratch_ok": true
+  },
+  "schema": {
+    "fixture": "/private/tmp/atom-goal-utility-surface-20261107/scripts/acceptance/fixtures/browser_agent_source_answer_shim.json",
+    "fixture_sha256": "a0411ef62b815cf793f768b992756283d53c7a7ce4ba40349eb713c846c259a0",
+    "tool_name": "ReActStep",
+    "response_count": 3,
+    "parsed_steps": [
+      {
+        "index": 0,
+        "match": "oracle_verified",
+        "kind": "final_answer",
+        "detail": {
+          "final_answer": "Created the closing task from the authorized source."
+        }
+      },
+      {
+        "index": 1,
+        "match": "UI-SOURCE-AUTH-7F3C",
+        "kind": "action",
+        "detail": {
+          "tool": "tasks.create",
+          "params": {
+            "board_id": "board-preflight",
+            "column_id": "column-preflight",
+            "title": "UI source-backed closing task",
+            "status": "backlog"
+          }
+        }
+      },
+      {
+        "index": 2,
+        "match": null,
+        "kind": "information_wait",
+        "detail": {
+          "question": "Which authorized source should be used?",
+          "missing_fact": "authorized source",
+          "subject": "closing task"
+        }
+      }
+    ],
+    "source_marker": "UI-SOURCE-AUTH-7F3C",
+    "source_action_gated_on_marker": true,
+    "final_gated_on_oracle": true,
+    "provider_shim_index_keys": [
+      "('ReActStep', 'oracle_verified')",
+      "('ReActStep', 'ui-source-auth-7f3c')",
+      "ReActStep"
+    ],
+    "provider_shim_bare_fallback": true,
+    "default_labelled": true,
+    "validated_against": "core.react_models.ReActStep.model_validate"
+  },
+  "protocol": {
+    "transport": "OpenAI-compatible /v1/chat/completions served only on 127.0.0.1 by backend/scripts/orchestration_acceptance/provider_shim.py",
+    "structured_consumer": "LLMService.generate_structured -> BYOKHandler.generate_structured_response -> instructor TOOLS mode",
+    "response_model": "core.react_models.ReActStep",
+    "tool_name": "ReActStep",
+    "selection_protocol": [
+      "(tool, match) exact entry, script order wins",
+      "bare tool entry (first source-wait fallback)",
+      "substring entry",
+      "labelled default text"
+    ],
+    "state_selection": "from durable prompt history: no source -> first source wait; controlled source marker/AUTHORIZED SOURCE EVIDENCE present -> tasks.create; oracle_verified observation -> final answer. No process counter and no harness-supplied result.",
+    "server_acceptance_exercised": false,
+    "server_acceptance_note": "The real shim Handler and structured consumer are not started by --preflight; root's --execute run exercises them."
+  },
+  "dependencies": {
+    "interpreter": "3.14.7",
+    "interpreter_path": "/private/tmp/atom-goal-utility-surface-20261107/backend/venv314/bin/python",
+    "modules": {
+      "pydantic": true,
+      "httpx": true,
+      "playwright": true,
+      "sqlalchemy": true,
+      "fastapi": true,
+      "uvicorn": true,
+      "instructor": true
+    },
+    "node": "/Users/rushiparikh/.nvm/versions/node/v20.19.6/bin/node",
+    "node_version": "v20.19.6",
+    "chrome_app": true,
+    "venv314_python": true,
+    "frontend_node_modules": true
+  },
+  "ports": {
+    "18041": true,
+    "13241": true,
+    "18099": true
+  },
+  "world": {
+    "name": "browser_source_3786e7098f",
+    "path": "/private/tmp/atom-goal-utility-surface-20261107/backend/data/acceptance_worlds/browser_source_3786e7098f",
+    "exists": false,
+    "under_worlds_root": true,
+    "required_fresh": true
+  },
+  "storage_guard": {
+    "guard_invoked": false,
+    "enabled": true,
+    "layout": "local",
+    "worlds_root": "/private/tmp/atom-goal-utility-surface-20261107/backend/data/acceptance_worlds",
+    "world_exists": false,
+    "execute_will_call": "core.world_storage_guard.require_storage_ready",
+    "reason_not_invoked": "preparation only; --execute calls the guard before build_world and never sets ATOM_WORLD_STORAGE_BYPASS"
+  },
+  "warnings": [],
+  "not_exercised": [
+    "world build / storage guard acceptance",
+    "backend or frontend launch",
+    "Playwright browser, login form or ordinary upload",
+    "provider shim process or structured consumer transport",
+    "durable AgentJob/AgentExecution/HITLAction/BoardTask effects",
+    "live provider, model, account, credential, send or spend"
+  ],
+  "remaining_inputs": [
+    "a frozen capture worktree with the prepared Python venv and frontend-nextjs/node_modules",
+    "a unique fresh --world name (the driver refuses an existing one)",
+    "free backend/frontend/shim ports",
+    "an admin password source: --admin-password-file (0600) or --provision-admin-password for the scratch world",
+    "root-owned execution: --execute; this preparation does not run it"
+  ],
+  "exact_preparation_command": "TESTING=1 DATABASE_URL=sqlite:///<fresh>/atom.db ATOM_DATA_DIR=<fresh>/data ATOM_OFFICE_DIR=<fresh>/office python3 scripts/acceptance/browser_agent_source_answer.py --preflight --out <report-dir>"
+}

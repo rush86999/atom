@@ -1,5 +1,6 @@
 
 import asyncio
+import copy
 import datetime
 import json
 from datetime import timezone
@@ -10,7 +11,7 @@ from advanced_workflow_orchestrator import AdvancedWorkflowOrchestrator
 from fastapi import BackgroundTasks, Depends, HTTPException, Query
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, Field, field_validator
-from sqlalchemy import and_, or_, update
+from sqlalchemy import JSON as SAJSON, and_, exists, or_, select, update
 from sqlalchemy.orm import Session
 
 from core.agent_governance_service import AgentGovernanceService
@@ -39,6 +40,7 @@ from core.models import (
     HITLActionStatus,
     NEW_AGENT_CONFIDENCE,
     User,
+    UserRole,
     UserStatus,
 )
 from core.notification_manager import notification_manager
@@ -1448,6 +1450,7 @@ _TRUSTED_CONTEXT_KEYS = (
     "resume_history",
     "resume_steps",
     "information_wait_resume",
+    "information_source",
     "reviewer_id",
 )
 
@@ -2722,6 +2725,8 @@ def _claim_waiting_job_for_resume(
     actor_id: Optional[str],
     workspace_id: Optional[str],
     tenant_id: Optional[str],
+    reviewer_id: Optional[str] = None,
+    reviewer_authority: Optional[Dict[str, Any]] = None,
 ) -> bool:
     """CAS the SAME waiting job into a resumed run slot.
 
@@ -2740,6 +2745,8 @@ def _claim_waiting_job_for_resume(
     makes the authority predicate unsatisfiable instead of acting as a
     wildcard.
     """
+    if reviewer_id and not reviewer_authority:
+        return False
     session = Session(bind=bind)
     try:
         job = session.get(AgentJob, job_id)
@@ -2796,6 +2803,12 @@ def _claim_waiting_job_for_resume(
         if authority_conditions:
             conditions.append(
                 exists(select(User.id).where(*authority_conditions)))
+        if reviewer_authority:
+            from core.information_wait import reviewer_authority_conditions
+
+            conditions.append(exists(
+                select(User.id).where(
+                    *reviewer_authority_conditions(reviewer_authority))))
         claimed = session.execute(
             update(AgentJob)
             .where(*conditions)
@@ -2913,6 +2926,7 @@ async def resume_information_wait_action(
     """
     from core.information_wait import (
         current_actor_authority,
+        current_reviewer_authority,
         is_information_wait_action,
     )
 
@@ -2984,10 +2998,37 @@ async def resume_information_wait_action(
                 "status": "refused",
             }
 
-        # The original admitted actor remains the execution authority; an
-        # authorized answerer does not replace it. Accepted input is not
-        # perpetual authority: the same current User scope/status/RBAC check
-        # that guards startup recovery also guards the normal answer path.
+        # The original admitted actor remains the execution authority; a
+        # proxy answerer does not replace it. The actual proxy reviewer is a
+        # second authority: freeze its current SQL state before any source
+        # await and bind it into the same job claim below. A same-actor answer
+        # is already bound by the admitted-owner authority condition and keeps
+        # its established refusal semantics.
+        proxy_reviewer = bool(actor_id) and bool(reviewer_id) and (
+            str(reviewer_id) != str(actor_id))
+        reviewer_state = None
+        if proxy_reviewer:
+            reviewer_state, reviewer_reason = current_reviewer_authority(
+                session,
+                reviewer_id=reviewer_id,
+                admitted_actor_id=actor_id,
+                workspace_id=target_workspace,
+                tenant_id=target_tenant,
+                proxy_permission=Permission.AGENT_MANAGE,
+            )
+            if reviewer_reason:
+                return {
+                    "handled": True,
+                    "resumed": False,
+                    "reason": reviewer_reason,
+                    "status": "refused",
+                    "job_id": job_id,
+                    "execution_id": execution_id,
+                }
+
+        # Accepted input is not perpetual authority: the same current User
+        # scope/status/RBAC check that guards startup recovery also guards the
+        # normal answer path.
         _actor, authority_reason = current_actor_authority(
             session,
             actor_id=actor_id,
@@ -3004,6 +3045,57 @@ async def resume_information_wait_action(
                 "execution_id": execution_id,
             }
 
+        source_snapshot = snapshot.get("information_source")
+        source_snapshot = (
+            dict(source_snapshot)
+            if isinstance(source_snapshot, dict) else None)
+        revalidated_source = None
+        if source_snapshot:
+            if _actor is None:
+                return {
+                    "handled": True,
+                    "resumed": False,
+                    "reason": "source_actor_unavailable",
+                    "status": "refused",
+                    "job_id": job_id,
+                    "execution_id": execution_id,
+                }
+            try:
+                revalidated_source = await _load_generic_source_payload(
+                    session,
+                    _actor,
+                    dict(source_snapshot.get("reference") or {}),
+                    target_workspace=target_workspace,
+                    target_tenant=str(target_tenant or ""),
+                )
+            except HTTPException as exc:
+                detail = exc.detail if isinstance(exc.detail, dict) else {}
+                return {
+                    "handled": True,
+                    "resumed": False,
+                    "reason": str(
+                        detail.get("code") or "source_revalidation_failed"),
+                    "status": "refused",
+                    "job_id": job_id,
+                    "execution_id": execution_id,
+                }
+            if (
+                str(revalidated_source.get("resource_id") or "")
+                != str(source_snapshot.get("resource_id") or "")
+                or str(revalidated_source.get("source_version") or "")
+                != str(source_snapshot.get("source_version") or "")
+                or str(revalidated_source.get("content_sha256") or "")
+                != str(source_snapshot.get("content_sha256") or "")
+            ):
+                return {
+                    "handled": True,
+                    "resumed": False,
+                    "reason": "source_answer_material_changed",
+                    "status": "refused",
+                    "job_id": job_id,
+                    "execution_id": execution_id,
+                }
+
         if not _claim_waiting_job_for_resume(
             job_id, bind,
             agent_id=agent_id,
@@ -3012,6 +3104,8 @@ async def resume_information_wait_action(
             actor_id=actor_id or None,
             workspace_id=target_workspace,
             tenant_id=target_tenant,
+            reviewer_id=reviewer_id if proxy_reviewer else None,
+            reviewer_authority=reviewer_state,
         ):
             # The claim itself just refused. Explain authority drift if that
             # is the cause; otherwise the job/receipt changed concurrently.
@@ -3030,6 +3124,24 @@ async def resume_information_wait_action(
                     "job_id": job_id,
                     "execution_id": execution_id,
                 }
+            if proxy_reviewer:
+                _reviewer, reviewer_reason = current_reviewer_authority(
+                    session,
+                    reviewer_id=reviewer_id,
+                    admitted_actor_id=actor_id,
+                    workspace_id=target_workspace,
+                    tenant_id=target_tenant,
+                    proxy_permission=Permission.AGENT_MANAGE,
+                )
+                if reviewer_reason:
+                    return {
+                        "handled": True,
+                        "resumed": False,
+                        "reason": reviewer_reason,
+                        "status": "refused",
+                        "job_id": job_id,
+                        "execution_id": execution_id,
+                    }
             current = _job_outcome_projection(job_id, bind)
             return {
                 "handled": True,
@@ -3094,6 +3206,20 @@ async def resume_information_wait_action(
             "information_wait_resume": True,
             "reviewer_id": None if reviewer_id is None else str(reviewer_id),
         })
+        if revalidated_source is not None:
+            trusted["information_source"] = {
+                "content": str(revalidated_source.get("content") or "")[:12000],
+                "display_label": str(
+                    revalidated_source.get("display_label") or "")[:400],
+                "resource_id": str(
+                    revalidated_source.get("resource_id") or ""),
+                "source_version": str(
+                    revalidated_source.get("source_version") or ""),
+                "content_sha256": str(
+                    revalidated_source.get("content_sha256") or ""),
+                "reader": str(revalidated_source.get("reader") or ""),
+                "receipt": revalidated_source.get("receipt") or {},
+            }
 
         result = await execute_agent_task(
             agent_id, parameters, execution_context=trusted)
@@ -3435,8 +3561,386 @@ async def stop_agent(
     )
 
 
+def _answer_material_digest(
+    answer: Any,
+    source: Optional[Dict[str, Any]],
+) -> str:
+    """Stable digest of the meaningful text plus accepted source material."""
+    material = {
+        "answer": str(answer or "").strip(),
+        "source": source if isinstance(source, dict) and source else None,
+    }
+    return __import__("hashlib").sha256(
+        json.dumps(material, sort_keys=True, default=str).encode("utf-8")
+    ).hexdigest()
+
+
+def _frozen_answer_digest(
+    snapshot: Dict[str, Any],
+    prior_answer: Any = "",
+    prior_source: Optional[Dict[str, Any]] = None,
+) -> str:
+    stored = str(snapshot.get("accepted_answer_sha256") or "")
+    if stored:
+        return stored
+    answer = snapshot.get("accepted_answer")
+    if answer is None:
+        answer = prior_answer
+    source = snapshot.get("information_source")
+    if not isinstance(source, dict):
+        source = prior_source
+    return _answer_material_digest(answer, source)
+
+
+# ------------------------------------------------ durable wait record CAS
+#
+# A wait row carries authority in more than its JSON snapshot: workspace,
+# tenant, owner, action type and params are all consumed by the answer route
+# and the resume bridge. The answer claim therefore compares the physical
+# record material, not just ``context_snapshot``. Physical SQL NULL and a
+# stored JSON null deserialize to the same Python ``None``, so the null kind
+# is selected beside the ORM row and carried into the CAS predicate (the same
+# canonical raw-JSON pattern used by the goal write service). This keeps a
+# valid Personal/default/null row claimable without treating the two null
+# kinds as interchangeable.
+
+_WAIT_SNAPSHOT_BINDING_FIELDS = (
+    "job_id",
+    "execution_id",
+    "run_id",
+    "agent_id",
+    "workspace_id",
+    "tenant_id",
+    "actor_id",
+    "user_id",
+    "correlation_id",
+    "question",
+    "subject",
+)
+
+
+def _wait_json_material(value: Any, *, sql_null: bool) -> Dict[str, Any]:
+    """Freeze one JSON column with its exact physical null kind."""
+    if sql_null:
+        return {"present": False, "null_kind": "sql_null"}
+    if value is None:
+        return {"present": False, "null_kind": "json_null"}
+    return {"present": True, "value": copy.deepcopy(value)}
+
+
+def _wait_json_condition(column, material: Dict[str, Any]):
+    """The exact prior JSON material, including both null kinds."""
+    if material.get("present"):
+        return column == material["value"]
+    if material.get("null_kind") == "sql_null":
+        return column.is_(None)
+    # A stored JSON null is JSON text, not SQL NULL. ``IS NULL`` would match
+    # zero rows and falsely report a changed wait for unchanged material.
+    return column == SAJSON.NULL
+
+
+def _wait_scalar_condition(column, value: Any):
+    return column.is_(None) if value is None else column == value
+
+
+def _load_wait_record(db: Session, action_id: str):
+    """Load the wait row and both JSON null flags in one SELECT.
+
+    The flags are selected with the row so the CAS compares one physical
+    snapshot; a second statement could observe a peer transition between the
+    value read and the flag read.
+    """
+    row = db.execute(
+        select(
+            HITLAction,
+            HITLAction.context_snapshot.is_(None).label(
+                "context_snapshot_sql_null"),
+            HITLAction.params.is_(None).label("params_sql_null"),
+        )
+        .where(HITLAction.id == str(action_id))
+        .execution_options(populate_existing=True)
+    ).first()
+    if row is None:
+        return None
+    return row[0], bool(row[1]), bool(row[2])
+
+
+def _wait_record_material(
+    action: HITLAction,
+    *,
+    context_snapshot_sql_null: bool,
+    params_sql_null: bool,
+) -> Dict[str, Any]:
+    """Every immutable field the answer route/resume consumes, frozen once."""
+    return {
+        "id": str(action.id or ""),
+        "status": str(action.status or ""),
+        "action_type": str(action.action_type or ""),
+        "agent_id": action.agent_id,
+        "workspace_id": action.workspace_id,
+        "tenant_id": action.tenant_id,
+        "user_id": action.user_id,
+        "params": _wait_json_material(
+            action.params, sql_null=params_sql_null),
+        "context_snapshot": _wait_json_material(
+            action.context_snapshot, sql_null=context_snapshot_sql_null),
+    }
+
+
+def _wait_snapshot_binding(snapshot: Any) -> Dict[str, Any]:
+    """The server-owned identity inside a wait snapshot.
+
+    Accepted-answer and information-source additions are deliberately absent:
+    they are the mutable result of answering, not part of the binding a lost
+    CAS may reuse for an idempotent replay.
+    """
+    snapshot = snapshot if isinstance(snapshot, dict) else {}
+    return {
+        field: copy.deepcopy(snapshot.get(field))
+        for field in _WAIT_SNAPSHOT_BINDING_FIELDS
+    }
+
+
+def _wait_binding_material(
+    action: HITLAction,
+    *,
+    context_snapshot_sql_null: bool,
+    params_sql_null: bool,
+) -> Dict[str, Any]:
+    """Binding-only material for a lost-CAS replay recheck.
+
+    Unlike :func:`_wait_record_material`, this ignores the accepted answer and
+    source receipt written by a concurrent exact winner, but keeps every
+    scope/owner/job/execution/correlation field an answer must still match.
+    """
+    snapshot = action.context_snapshot if isinstance(
+        action.context_snapshot, dict) else {}
+    if context_snapshot_sql_null:
+        snapshot_kind = "sql_null"
+    elif action.context_snapshot is None:
+        snapshot_kind = "json_null"
+    else:
+        snapshot_kind = "object"
+    return {
+        "action_type": str(action.action_type or ""),
+        "agent_id": action.agent_id,
+        "workspace_id": action.workspace_id,
+        "tenant_id": action.tenant_id,
+        "user_id": action.user_id,
+        "params": _wait_json_material(
+            action.params, sql_null=params_sql_null),
+        "context_snapshot_kind": snapshot_kind,
+        "snapshot_binding": _wait_snapshot_binding(snapshot),
+    }
+
+
+def _wait_record_cas_conditions(material: Dict[str, Any]) -> List[Any]:
+    """The same conditional UPDATE predicate for the full wait record."""
+    return [
+        HITLAction.id == material["id"],
+        HITLAction.status == HITLActionStatus.PENDING.value,
+        HITLAction.action_type == material["action_type"],
+        _wait_scalar_condition(HITLAction.agent_id, material["agent_id"]),
+        _wait_scalar_condition(
+            HITLAction.workspace_id, material["workspace_id"]),
+        _wait_scalar_condition(HITLAction.tenant_id, material["tenant_id"]),
+        _wait_scalar_condition(HITLAction.user_id, material["user_id"]),
+        _wait_json_condition(HITLAction.params, material["params"]),
+        _wait_json_condition(
+            HITLAction.context_snapshot, material["context_snapshot"]),
+    ]
+
+
+def _wait_actor_authority_condition(snapshot: Any):
+    """Current authority for the admitted actor, in the same UPDATE."""
+    from core.information_wait import actor_authority_conditions
+
+    snapshot = snapshot if isinstance(snapshot, dict) else {}
+    conditions = actor_authority_conditions(
+        actor_id=(
+            snapshot.get("actor_id") or snapshot.get("user_id") or ""),
+        workspace_id=snapshot.get("workspace_id") or "",
+        tenant_id=snapshot.get("tenant_id"),
+    )
+    if not conditions:
+        return None
+    return exists(select(User.id).where(*conditions))
+
+
+async def _load_generic_source_payload(
+    db: Session,
+    user: User,
+    reference: Dict[str, Any],
+    *,
+    target_workspace: str,
+    target_tenant: str,
+) -> Dict[str, Any]:
+    """Resolve and read one already-authorized generic answer source.
+
+    The caller never supplies a filesystem path. Resolution and reading reuse
+    the assignment source/authority contract and the existing document/dataset
+    readers. The returned content is bounded and provenance is frozen for the
+    durable answer snapshot; model prose is never source authority.
+    """
+    from core.assignment_executor import (
+        NeedsContext,
+        _dataset_read,
+        _document_text_read,
+    )
+    from core.assignment_resources import (
+        AssignmentResourceError,
+        resolve_assignment_source,
+        resource_binding,
+    )
+
+    allowed = {
+        "document_id", "ingested_document_id", "dataset_name", "source",
+        "external_id", "sheet", "source_version", "kind",
+    }
+    ref = {key: value for key, value in dict(reference or {}).items()
+           if key in allowed and value not in (None, "")}
+    if not ref:
+        raise HTTPException(
+            status_code=422,
+            detail={"code": "source_reference_required",
+                    "message": "Select an authorized document or dataset."})
+    try:
+        resolved = resolve_assignment_source(
+            db, user, ref, allow_internal=False)
+    except AssignmentResourceError as exc:
+        raise HTTPException(
+            status_code=int(getattr(exc, "status", 409) or 409),
+            detail={"code": str(getattr(exc, "code", "source_unavailable")),
+                    "message": str(exc)[:500]}) from exc
+
+    resolved_workspace = str(resolved.get("workspace_id") or "")
+    resolved_tenant = str(resolved.get("tenant_id") or "")
+    expected_workspace = str(target_workspace or "")
+    expected_tenant = str(target_tenant or "")
+    if (expected_workspace and resolved_workspace
+            and resolved_workspace != expected_workspace):
+        raise HTTPException(
+            status_code=403,
+            detail={"code": "source_scope_mismatch",
+                    "message": "The selected source is outside this job's "
+                               "workspace."})
+    if (expected_tenant and resolved_tenant
+            and resolved_tenant != expected_tenant):
+        raise HTTPException(
+            status_code=403,
+            detail={"code": "source_scope_mismatch",
+                    "message": "The selected source is outside this job's "
+                               "tenant scope."})
+
+    binding = resource_binding(resolved)
+    context = {
+        "workspace_id": expected_workspace or resolved_workspace,
+        "tenant_id": expected_tenant or resolved_tenant,
+        "employee_id": str(getattr(user, "id", "") or ""),
+    }
+    kind = str(resolved.get("kind") or "")
+    representation = str(resolved.get("representation") or "")
+    try:
+        if representation == "parquet_frame" or (
+                kind == "workbook" and resolved.get("dataset_name")):
+            result = await _dataset_read(
+                {"resource_binding": binding, "max_rows": 100}, context)
+            rows = result.get("rows") or []
+            if not rows:
+                raise HTTPException(
+                    status_code=422,
+                    detail={"code": "source_empty",
+                            "message": "The selected dataset has no usable rows."})
+            content = json.dumps(rows, sort_keys=True, default=str)
+            reader = "dataset.read"
+        else:
+            result = await _document_text_read(
+                {"resource_binding": binding,
+                 "source_version": str(resolved.get("source_version") or "")},
+                context)
+            content = str(result.get("text") or "")
+            if not content.strip():
+                content = json.dumps(
+                    result.get("data") or {}, sort_keys=True, default=str)
+            reader = "document.text"
+    except NeedsContext as exc:
+        gap = dict(getattr(exc, "gap", {}) or {})
+        raise HTTPException(
+            status_code=422,
+            detail={"code": str(gap.get("concept") or "source_unavailable"),
+                    "message": str(
+                        gap.get("question") or exc)[:500]}) from exc
+    except HTTPException:
+        raise
+    except Exception as exc:  # noqa: BLE001 - source read is not model work
+        raise HTTPException(
+            status_code=422,
+            detail={"code": "source_read_failed",
+                    "message": f"The selected source could not be read safely: "
+                               f"{type(exc).__name__}"}) from exc
+
+    if not content.strip():
+        raise HTTPException(
+            status_code=422,
+            detail={"code": "source_empty",
+                    "message": "The selected source has no usable content."})
+    if result.get("truncated"):
+        raise HTTPException(
+            status_code=413,
+            detail={"code": "source_too_large",
+                    "message": "The selected source is too large for one "
+                               "answer. Select a smaller document or a "
+                               "specific dataset view."})
+    if len(content) > 12000:
+        raise HTTPException(
+            status_code=413,
+            detail={"code": "source_too_large",
+                    "message": "The selected source exceeds the bounded "
+                               "answer-evidence size. Select a smaller or "
+                               "narrower source."})
+    verification = result.get("verification") or {}
+    if str(verification.get("status") or "") != "verified":
+        raise HTTPException(
+            status_code=409,
+            detail={"code": "source_unverified",
+                    "message": "The selected source did not produce a "
+                               "verified read receipt."})
+    version = str(
+        result.get("source_version") or resolved.get("source_version") or "")
+    label = str(
+        resolved.get("original_file_name") or resolved.get("file_name")
+        or resolved.get("dataset_name") or resolved.get("resource_id")
+        or "authorized source")
+    sheet = str(resolved.get("sheet") or "")
+    if sheet:
+        label = f"{label} / {sheet}"
+    content_hash = __import__("hashlib").sha256(
+        content.encode("utf-8")).hexdigest()
+    return {
+        "reference": ref,
+        "resource_id": str(resolved.get("resource_id") or ""),
+        "source_version": version,
+        "kind": kind or "document",
+        "reader": reader,
+        "display_label": label[:400],
+        "content": content[:12000],
+        "content_sha256": content_hash,
+        "receipt": {
+            "reader": reader,
+            "status": "verified",
+            "verification": verification,
+            "resource_id": str(resolved.get("resource_id") or ""),
+            "source_version": version,
+            "coverage": dict(result.get("coverage") or {}),
+        },
+    }
+
+
 class AgentInformationAnswer(BaseModel):
-    answer: str = Field(..., min_length=1)
+    answer: str = Field(default="", max_length=8000)
+    # Optional typed source answer. Public callers cannot supply paths; the
+    # route resolves this through the existing authorized source contract.
+    source: Optional[Dict[str, Any]] = None
     # Server-owned wait identity. A job id alone is not enough once a job can
     # wait more than once: an omitted correlation would otherwise answer
     # whichever prerequisite happens to be current, including a NEW one that
@@ -3461,7 +3965,11 @@ async def answer_agent_job_information_wait(
     the actor-scoped input path (members have AGENT_RUN, not AGENT_MANAGE).
     The answer is a fact, never effect approval.
     """
-    from core.information_wait import is_information_wait_action
+    from core.information_wait import (
+        current_reviewer_authority,
+        is_information_wait_action,
+        reviewer_authority_conditions,
+    )
 
     job = db.get(AgentJob, str(job_id))
     if job is None or str(job.agent_id or "") != str(agent_id):
@@ -3477,10 +3985,26 @@ async def answer_agent_job_information_wait(
         raise HTTPException(
             status_code=409,
             detail="This agent job is not waiting for information")
-    action = db.query(HITLAction).filter(
-        HITLAction.id == action_id).first()
-    if action is None or not is_information_wait_action(action.action_type):
+    loaded_wait = _load_wait_record(db, action_id)
+    if loaded_wait is None:
         raise HTTPException(status_code=404, detail="Information wait not found")
+    action, snapshot_sql_null, params_sql_null = loaded_wait
+    if not is_information_wait_action(action.action_type):
+        raise HTTPException(status_code=404, detail="Information wait not found")
+    # Freeze the complete authoritative wait record before any await/read.
+    # The answer may resolve a source (an awaited operation); a peer transition
+    # during that window must be observed by the claim below, not overwritten
+    # from this earlier read.
+    frozen_wait = _wait_record_material(
+        action,
+        context_snapshot_sql_null=snapshot_sql_null,
+        params_sql_null=params_sql_null,
+    )
+    frozen_binding = _wait_binding_material(
+        action,
+        context_snapshot_sql_null=snapshot_sql_null,
+        params_sql_null=params_sql_null,
+    )
     snapshot = action.context_snapshot if isinstance(
         action.context_snapshot, dict) else {}
     if (
@@ -3507,14 +4031,39 @@ async def answer_agent_job_information_wait(
     wait_actor = str(
         snapshot.get("actor_id") or snapshot.get("user_id")
         or action.user_id or "")
-    if wait_actor and wait_actor != str(current_user.id):
-        from core.models import UserRole
+    # A real proxy (answerer != admitted owner) must currently be an admin.
+    # The same-actor case keeps the established admitted-owner actor authority
+    # path, including its existing 409 refusal semantics.
+    proxy_reviewer = bool(wait_actor) and wait_actor != str(current_user.id)
+    if proxy_reviewer:
         from core.security.rbac import user_meets_role
 
         if not user_meets_role(current_user, UserRole.ADMIN):
             raise HTTPException(
                 status_code=403,
                 detail="Only the waiting actor or an admin may answer this wait")
+    # Re-read the ACTUAL proxy reviewer from SQL before any source await. The
+    # dependency object may be stale, and the approved answer must remain a
+    # decision by a currently authorized reviewer, not only by the admitted
+    # owner. The raw fields are frozen for the same UPDATE as the wait claim.
+    # The admitted owner is already bound by the actor-authority condition.
+    reviewer_state = None
+    if proxy_reviewer:
+        reviewer_state, reviewer_reason = current_reviewer_authority(
+            db,
+            reviewer_id=current_user.id,
+            admitted_actor_id=wait_actor,
+            workspace_id=str(snapshot.get("workspace_id") or ""),
+            tenant_id=snapshot.get("tenant_id"),
+            proxy_role=UserRole.ADMIN,
+        )
+        if reviewer_reason:
+            raise HTTPException(
+                status_code=403,
+                detail={
+                    "code": reviewer_reason,
+                    "message": "Reviewer authority is no longer valid.",
+                })
     expected_correlation = str(
         snapshot.get("correlation_id")
         or (action.params or {}).get("correlation_id") or "")
@@ -3528,46 +4077,171 @@ async def answer_agent_job_information_wait(
 
     if str(action.status or "") == HITLActionStatus.REJECTED.value:
         raise HTTPException(status_code=409, detail="This information wait was rejected")
+
+    accepted_source: Optional[Dict[str, Any]] = None
+    if body.source:
+        accepted_source = await _load_generic_source_payload(
+            db,
+            current_user,
+            dict(body.source),
+            target_workspace=str(snapshot.get("workspace_id") or ""),
+            target_tenant=str(snapshot.get("tenant_id") or ""),
+        )
+    effective_answer = body.answer.strip() or (
+        str(accepted_source.get("display_label") or "")
+        if accepted_source else "")
+    if not effective_answer:
+        raise HTTPException(
+            status_code=422,
+            detail={"code": "answer_or_source_required",
+                    "message": "Provide a text answer or select an authorized "
+                               "source."})
+
+    incoming_digest = _answer_material_digest(
+        effective_answer, accepted_source)
     if str(action.status or "") == HITLActionStatus.APPROVED.value:
-        prior_answer = str(action.user_feedback or "")
-        if prior_answer and prior_answer.strip() != body.answer.strip():
+        # An exact replay is idempotent only while the complete authoritative
+        # record is unchanged. Digest equality alone would let a foreign or
+        # retargeted wait reuse an earlier accepted review.
+        reloaded = _load_wait_record(db, action_id)
+        if reloaded is None:
             raise HTTPException(
                 status_code=409,
-                detail="A different answer was already accepted for this wait")
+                detail="This information wait was already decided")
+        current, current_snapshot_sql_null, current_params_sql_null = reloaded
+        if _wait_record_material(
+                current,
+                context_snapshot_sql_null=current_snapshot_sql_null,
+                params_sql_null=current_params_sql_null) != frozen_wait:
+            raise HTTPException(
+                status_code=409,
+                detail="This information wait changed concurrently; "
+                       "reload the authoritative state")
+        if proxy_reviewer:
+            _current_reviewer, current_reviewer_reason = (
+                current_reviewer_authority(
+                    db,
+                    reviewer_id=current_user.id,
+                    admitted_actor_id=wait_actor,
+                    workspace_id=str(snapshot.get("workspace_id") or ""),
+                    tenant_id=snapshot.get("tenant_id"),
+                    proxy_role=UserRole.ADMIN,
+                ))
+            if current_reviewer_reason:
+                raise HTTPException(
+                    status_code=403,
+                    detail={
+                        "code": current_reviewer_reason,
+                        "message": "Reviewer authority is no longer valid.",
+                    })
+        current_snapshot = (
+            current.context_snapshot
+            if isinstance(current.context_snapshot, dict) else {})
+        current_source = current_snapshot.get("information_source") if (
+            isinstance(current_snapshot.get("information_source"), dict)
+        ) else None
+        prior_digest = _frozen_answer_digest(
+            current_snapshot, str(current.user_feedback or ""), current_source)
+        if prior_digest != incoming_digest:
+            raise HTTPException(
+                status_code=409,
+                detail="A different answer material was already accepted "
+                       "for this wait")
     else:
+        frozen_snapshot = dict(snapshot)
+        frozen_snapshot["accepted_answer"] = effective_answer
+        frozen_snapshot["accepted_answer_sha256"] = incoming_digest
+        if accepted_source is not None:
+            frozen_snapshot["information_source"] = accepted_source
+        update_values: Dict[str, Any] = {
+            "status": HITLActionStatus.APPROVED.value,
+            "user_feedback": effective_answer,
+            "reviewed_by": str(current_user.id),
+            "reviewed_at": datetime.datetime.now(),
+            "context_snapshot": frozen_snapshot,
+        }
+        # CAS on the complete observed authoritative wait record, not just
+        # id/status/snapshot. A peer scope/owner/params change between the
+        # read and this claim must leave the peer row intact and create zero
+        # effects. The admitted actor's current authority is part of the same
+        # UPDATE, so a move/deactivation committed before the claim is
+        # observed by the write statement itself.
+        conditions = _wait_record_cas_conditions(frozen_wait)
+        authority_condition = _wait_actor_authority_condition(snapshot)
+        if authority_condition is not None:
+            conditions.append(authority_condition)
+        if reviewer_state is not None:
+            conditions.append(exists(
+                select(User.id).where(
+                    *reviewer_authority_conditions(reviewer_state))))
         claimed = db.execute(
             update(HITLAction)
-            .where(
-                HITLAction.id == action_id,
-                HITLAction.status == HITLActionStatus.PENDING.value,
-            )
-            .values(
-                status=HITLActionStatus.APPROVED.value,
-                user_feedback=body.answer.strip(),
-                reviewed_by=str(current_user.id),
-                reviewed_at=datetime.datetime.now(),
-            ))
+            .where(*conditions)
+            .values(**update_values))
         if claimed.rowcount != 1:
             db.rollback()
-            current = db.query(HITLAction).filter(
-                HITLAction.id == action_id).first()
-            if current is None or str(current.status or "") not in (
-                HITLActionStatus.APPROVED.value,
-            ):
+            reloaded = _load_wait_record(db, action_id)
+            if reloaded is None:
                 raise HTTPException(
                     status_code=409,
                     detail="This information wait was already decided")
-            if str(current.user_feedback or "").strip() != body.answer.strip():
+            current, current_snapshot_sql_null, current_params_sql_null = (
+                reloaded)
+            current_binding = _wait_binding_material(
+                current,
+                context_snapshot_sql_null=current_snapshot_sql_null,
+                params_sql_null=current_params_sql_null,
+            )
+            if current_binding != frozen_binding:
                 raise HTTPException(
                     status_code=409,
-                    detail="A different answer was already accepted for this wait")
+                    detail="This information wait changed concurrently; "
+                           "reload the authoritative state")
+            if proxy_reviewer:
+                _current_reviewer, current_reviewer_reason = (
+                    current_reviewer_authority(
+                        db,
+                        reviewer_id=current_user.id,
+                        admitted_actor_id=wait_actor,
+                        workspace_id=str(snapshot.get("workspace_id") or ""),
+                        tenant_id=snapshot.get("tenant_id"),
+                        proxy_role=UserRole.ADMIN,
+                    ))
+                if current_reviewer_reason:
+                    raise HTTPException(
+                        status_code=403,
+                        detail={
+                            "code": current_reviewer_reason,
+                            "message": "Reviewer authority is no longer valid.",
+                        })
+            current_snapshot = (
+                current.context_snapshot
+                if isinstance(current.context_snapshot, dict) else {})
+            current_digest = _frozen_answer_digest(
+                current_snapshot,
+                str(current.user_feedback or ""),
+                current_snapshot.get("information_source")
+                if isinstance(current_snapshot.get("information_source"), dict)
+                else None,
+            )
+            if str(current.status or "") != (
+                    HITLActionStatus.APPROVED.value):
+                raise HTTPException(
+                    status_code=409,
+                    detail="This information wait changed concurrently; "
+                           "reload the authoritative state")
+            if current_digest != incoming_digest:
+                raise HTTPException(
+                    status_code=409,
+                    detail="A different answer material was already accepted "
+                           "for this wait")
         else:
             db.commit()
 
     resume = await resume_information_wait_action(
         action_id,
         approved=True,
-        answer=body.answer,
+        answer=effective_answer,
         reviewer_id=str(current_user.id),
         bind=db.get_bind(),
         correlation_id=body.correlation_id,

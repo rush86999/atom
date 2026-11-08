@@ -1,0 +1,19 @@
+{
+  "executed_source": "827abb049a261d8f32040c13b3f0e37ee9fa1271",
+  "source_files": {
+    "backend/api/agent_routes.py": "11fa2a877571c76bba573d9b51b0187e74d7ccbe25a931ccccc5ecda64f34790",
+    "backend/core/information_wait.py": "7b16e3d678c7bffa51e721c364d5d1473a36fdcaf04a6983f640d084130fdd17",
+    "backend/tests/test_lead_generic_source_reviewer_authority.py": "b218cb451b3b2d9106ca52c4e5ec1bad6acfe445cd9e03830813433ebc4aa4b1"
+  },
+  "artifacts": {
+    "README.md": "2e52a94ab16410e948f794aafe23cf5f82ec43a453bff420d434daeadaa00c47",
+    "after-final52-pass.log": "7d620a1a814658f1b14e14592ddcd78db1c103f554644c303f1e8e4e1024c8d3",
+    "after-recovery37-pass.log": "c18116ec486acc0882a8edc703beb8e6511a2951be3ca32c3937fe0d8c793b58",
+    "after-reviewer7-pass.log": "253c2d9daeec4abf9622d5381320d4890e796db8f6b1bd1bd96fd0831fe25665",
+    "root-generic-source-reviewer-authority-permitted.exit.json": "bdbf45367e6e57699de46face9a16617b53beffcff96842dd755144204fd79f9",
+    "root-generic-source-reviewer-authority-permitted.log": "6f7742803efeef3f39fbf7046c7dfc1825bd2cadec96c1cf5b149c3c7d32231c",
+    "root-generic-source-reviewer-authority-permitted.spec.json": "1c1258193350fb512ff6169ea20395ac9ec0d4bb41fd880bae4972e98166f17a",
+    "source-change.patch": "996fd46b2f5e3041061a1f7d76cf36c55785c47d6b0777f722be2f35b29b86d6",
+    "verification.json": "a099b088d22491373b821d2bfe42dbfa6679e949bc609c007523815d989603b3"
+  }
+}

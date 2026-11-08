@@ -46,6 +46,7 @@ from core.goals.goal_service import GoalService
 from core.models import GoalObjective, GoalRun, TaskOperationRecord
 from core.task_lifecycle import TaskLifecycle
 from core.task_outcome_contract import build_task_outcome
+from tests.source_authority_fixtures import install_source_authority
 
 
 @pytest.fixture()
@@ -277,6 +278,9 @@ def _commercial_assignment(env, tmp_path, monkeypatch):
         monkeypatch.setenv("ATOM_OFFICE_DIR", str(root))
     outbox = tmp_path / "outbox.jsonl"
     _install_controlled_adapters(env, monkeypatch, outbox)
+    authority = install_source_authority(
+        monkeypatch, tmp_path, user_id="user-1",
+        workspace_id="ws_assign", tenant_id="tenant_assign")
     workbook = _make_workbook(tmp_path / "records.xlsx")
     artifact = tmp_path / "commercial.docx"
     teaching = _teaching(
@@ -361,6 +365,8 @@ def _commercial_assignment(env, tmp_path, monkeypatch):
             approval_purpose="Send the prepared commercial response",
         ),
     ]
+    authority.bind_path(
+        next(step for step in steps if step["step_id"] == "read"), workbook)
     deliverables = [
         new_deliverable(
             deliverable_id="del-doc", kind="document",
@@ -394,6 +400,9 @@ def _eligibility_assignment(env, tmp_path, monkeypatch):
         monkeypatch.setenv("ATOM_OFFICE_DIR", str(root))
     outbox = tmp_path / "outbox-eligibility.jsonl"
     _install_controlled_adapters(env, monkeypatch, outbox)
+    authority = install_source_authority(
+        monkeypatch, tmp_path, user_id="user-1",
+        workspace_id="ws_assign", tenant_id="tenant_assign")
     source = tmp_path / "qualification.txt"
     source.write_text(
         "Subject: record-1\nStatus: Active\nQualification: Q-2\n"
@@ -443,6 +452,8 @@ def _eligibility_assignment(env, tmp_path, monkeypatch):
             approval_purpose="Notify the reviewer of the assessment",
         ),
     ]
+    authority.bind_path(
+        next(step for step in steps if step["step_id"] == "read"), source)
     return _create(
         env, objective="Prepare the eligibility assessment", steps=steps,
         teaching=teaching,
@@ -570,6 +581,9 @@ def test_provider_accepted_then_worker_lost_is_reconciled_not_resent(
         env, monkeypatch):
     outbox = env["tmp"] / "uncertain.jsonl"
     _install_controlled_adapters(env, monkeypatch, outbox)
+    authority = install_source_authority(
+        monkeypatch, env["tmp"], user_id="user-1",
+        workspace_id="ws_assign", tenant_id="tenant_assign")
     teaching = _teaching()
     source = _make_workbook(env["tmp"] / "u.xlsx")
     steps = [
@@ -582,6 +596,7 @@ def test_provider_accepted_then_worker_lost_is_reconciled_not_resent(
                          "body": "b", "crash_after_accept": True},
                  effect="external", approval_required=True),
     ]
+    authority.bind_path(steps[0], source)
     run_id, _ = _create(
         env, objective="Uncertain effect", steps=steps, teaching=teaching)
     executor = env["executor"]
@@ -1847,12 +1862,16 @@ def test_fact_evidence_branch_matrix(env):
     assert no_measure["reason"] == "aggregate_measure_missing"
 
 
-def _standing_send_steps(count, recipients, **step_overrides):
-    steps = [new_step(
+def _standing_send_steps(count, recipients, *, authority=None,
+                         **step_overrides):
+    read = new_step(
         step_id="read", title="Read", operation_type="retrieve",
         adapter="workbook.read",
         inputs={"path": str(step_overrides["workbook"]), "sheet": "Records"},
-        effect="read_only")]
+        effect="read_only")
+    if authority is not None:
+        authority.bind_path(read, step_overrides["workbook"])
+    steps = [read]
     for index in range(count):
         steps.append(new_step(
             step_id=f"send-{index + 1}", title=f"Send {index + 1}",
@@ -1873,6 +1892,9 @@ def test_bounded_standing_authority_covers_two_sends_without_approval(
     outbox = tmp_path / "standing-outbox.jsonl"
     _install_controlled_adapters(env, monkeypatch, outbox)
     workbook = _make_workbook(tmp_path / "standing.xlsx")
+    authority = install_source_authority(
+        monkeypatch, tmp_path, user_id="user-1",
+        workspace_id="ws_assign", tenant_id="tenant_assign")
     grant = normalize_standing_authority(
         {"actions": ["outbound"], "max_effects": 2,
          "recipients": ["one@example.invalid", "two@example.invalid"]},
@@ -1881,7 +1903,7 @@ def test_bounded_standing_authority_covers_two_sends_without_approval(
         env, objective="Two covered sends",
         steps=_standing_send_steps(
             2, ["one@example.invalid", "two@example.invalid"],
-            workbook=workbook),
+            workbook=workbook, authority=authority),
         teaching=_teaching(), authorized_actions=["retrieve", "outbound"],
         standing_authority=grant)
 
@@ -1908,6 +1930,9 @@ def test_standing_authority_bound_falls_back_to_approval(
     outbox = tmp_path / "standing-bound.jsonl"
     _install_controlled_adapters(env, monkeypatch, outbox)
     workbook = _make_workbook(tmp_path / "standing-bound.xlsx")
+    authority = install_source_authority(
+        monkeypatch, tmp_path, user_id="user-1",
+        workspace_id="ws_assign", tenant_id="tenant_assign")
     grant = normalize_standing_authority(
         {"actions": ["outbound"], "max_effects": 1,
          "recipients": ["one@example.invalid", "two@example.invalid"]},
@@ -1916,7 +1941,7 @@ def test_standing_authority_bound_falls_back_to_approval(
         env, objective="One covered send then approval",
         steps=_standing_send_steps(
             2, ["one@example.invalid", "two@example.invalid"],
-            workbook=workbook),
+            workbook=workbook, authority=authority),
         teaching=_teaching(), authorized_actions=["retrieve", "outbound"],
         standing_authority=grant)
 
@@ -1937,12 +1962,16 @@ def test_recipient_outside_the_grant_requires_approval(
     outbox = tmp_path / "standing-recipient.jsonl"
     _install_controlled_adapters(env, monkeypatch, outbox)
     workbook = _make_workbook(tmp_path / "standing-recipient.xlsx")
+    authority = install_source_authority(
+        monkeypatch, tmp_path, user_id="user-1",
+        workspace_id="ws_assign", tenant_id="tenant_assign")
     grant = normalize_standing_authority(
         {"actions": ["outbound"], "max_effects": 1,
          "recipients": ["allowed@example.invalid"]},
         granted_by="owner-1")
     steps = _standing_send_steps(
-        1, ["other@example.invalid"], workbook=workbook)
+        1, ["other@example.invalid"], workbook=workbook,
+        authority=authority)
     run_id, _ = _create(
         env, objective="Recipient outside grant", steps=steps,
         teaching=_teaching(), authorized_actions=["retrieve", "outbound"],
@@ -1960,6 +1989,9 @@ def test_expired_standing_authority_requires_approval(
     outbox = tmp_path / "standing-expired.jsonl"
     _install_controlled_adapters(env, monkeypatch, outbox)
     workbook = _make_workbook(tmp_path / "standing-expired.xlsx")
+    authority = install_source_authority(
+        monkeypatch, tmp_path, user_id="user-1",
+        workspace_id="ws_assign", tenant_id="tenant_assign")
     grant = normalize_standing_authority(
         {"actions": ["outbound"], "max_effects": 1,
          "recipients": ["one@example.invalid"],
@@ -1968,7 +2000,8 @@ def test_expired_standing_authority_requires_approval(
     run_id, _ = _create(
         env, objective="Expired grant",
         steps=_standing_send_steps(
-            1, ["one@example.invalid"], workbook=workbook),
+            1, ["one@example.invalid"], workbook=workbook,
+            authority=authority),
         teaching=_teaching(), authorized_actions=["retrieve", "outbound"],
         standing_authority=grant)
 
@@ -2966,6 +2999,9 @@ def test_evidence_backed_quote_plan_end_to_end(env, monkeypatch):
 
     tmp = env["tmp"]
     monkeypatch.setenv("ATOM_OFFICE_DIR", str(tmp))
+    install_source_authority(
+        monkeypatch, tmp, user_id="user-1",
+        workspace_id="ws_assign", tenant_id="tenant_assign")
     workbook_path = tmp / "quote_inputs.xlsx"
     workbook = openpyxl.Workbook()
     sheet = workbook.active
@@ -3032,6 +3068,9 @@ def test_evidence_backed_quote_plan_end_to_end(env, monkeypatch):
             "kind": "workbook", "representation": "xlsx",
             "resource_id": "quote-workbook", "internal_fixture": True,
             "path": str(workbook_path), "sheet": "Items",
+            "access_scope": {
+                "user_id": "user-1", "workspace_id": "ws_assign",
+                "tenant_id": "tenant_assign"},
             "columns": ["SKU", "Qty", "Unit Price", "Discount Percent",
                         "Category", "Unit", "Pack"],
         },
@@ -3080,6 +3119,9 @@ def test_service_line_plan_uses_the_same_executor(env, monkeypatch):
 
     tmp = env["tmp"]
     monkeypatch.setenv("ATOM_OFFICE_DIR", str(tmp))
+    install_source_authority(
+        monkeypatch, tmp, user_id="user-1",
+        workspace_id="ws_assign", tenant_id="tenant_assign")
     scope = tmp / "service-scope.txt"
     scope.write_text("Service scope: four consulting hours and two trips.\n")
     plan = plan_assignment(
@@ -3088,6 +3130,9 @@ def test_service_line_plan_uses_the_same_executor(env, monkeypatch):
             "kind": "document", "representation": "file",
             "resource_id": "service-scope", "internal_fixture": True,
             "path": str(scope),
+            "access_scope": {
+                "user_id": "user-1", "workspace_id": "ws_assign",
+                "tenant_id": "tenant_assign"},
         }],
         deliverables=[{
             "kind": "document", "path": str(tmp / "service-proposal.docx"),
@@ -3133,6 +3178,9 @@ def test_non_sales_policy_plan_uses_the_same_executor(env, monkeypatch):
 
     tmp = env["tmp"]
     monkeypatch.setenv("ATOM_OFFICE_DIR", str(tmp))
+    install_source_authority(
+        monkeypatch, tmp, user_id="user-1",
+        workspace_id="ws_assign", tenant_id="tenant_assign")
     policy = tmp / "expense-policy.txt"
     policy.write_text("Expense limit: 200.00. Claimed: 250.00.\n")
     plan = plan_assignment(
@@ -3141,6 +3189,9 @@ def test_non_sales_policy_plan_uses_the_same_executor(env, monkeypatch):
             "kind": "document", "representation": "file",
             "resource_id": "expense-policy", "internal_fixture": True,
             "path": str(policy),
+            "access_scope": {
+                "user_id": "user-1", "workspace_id": "ws_assign",
+                "tenant_id": "tenant_assign"},
         }],
         deliverables=[{
             "kind": "document", "path": str(tmp / "expense-review.docx"),

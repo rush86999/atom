@@ -1,0 +1,34 @@
+{
+  "packet": "oracle_radio_create_thread_trace_20261107",
+  "executed_source": "36fa4ce39",
+  "source_files": {
+    "backend/api/rpc_routes.py": "d555cd7fa2f2f85b9d3b335d4a42badaeefc28b44346e65a47ad93fc79fd8e75",
+    "backend/core/action_effects.py": "47b9130cf601eb581159c117281febbbf692f9372c1226d621bbc55c5c480e5a",
+    "backend/core/action_registry.py": "5acd3dda2b071b73f15b39721f6dd900b0067c319f74cfea47efedc77d017f0c",
+    "backend/core/agent_radio/radio_actions.py": "c0c338e4d43b413f1af4a17578233898be3dc94ba0643e1e56dc77c92db8e02e",
+    "backend/core/agent_radio/radio_service.py": "5fa36db40a25144cc1f7627bb3d31cedd29b0312953dbdd3953ff3ccbe714c29",
+    "backend/core/assignment_executor.py": "cc55b12a4fab8444997f75f5a6b132cef0505702caf7cf11a2aef99d84451fa7",
+    "backend/core/bpe/actions.py": "778bedb24169869ea8bf6595c86f05a2627c43dec6d05f9c87dbe3ad4ef41e70",
+    "backend/core/connected_actions.py": "8acfce904f280b5e7529cbf44f3af4aede3831e53293df1e37f6c7643d43423a",
+    "backend/core/database.py": "fd3736e7f679b9b30e242597e25a27565d3ab93fc8c0efd3ea0b1cef76e9b16e",
+    "backend/core/generic_agent.py": "432904f89608b6c98b05834957c79023ed82f2ec1162056e3640f8da728f7191",
+    "backend/core/models.py": "9aec60c9155da8af8652b3209839c658d78896837b1a30d38763007b44e14b59",
+    "backend/core/models_registration.py": "87e51e95544b656e4ff18fd525f87d0100bd106b7e30ab7626945540ac95e323",
+    "backend/core/oracle/__init__.py": "70852a61398d0fdcbe4202beaa708dab8045dd49929d77f860c2be357e4614df",
+    "backend/core/oracle/postcondition_verifiers.py": "02e348849239cc4da7e1abdf9cff2dd09e71a4fd6fbdd489b6e32608bc584846",
+    "backend/core/oracle/request_expectations.py": "8d56d5934887aa2b443c914c594257cb97b7343680018cedea3d335161522a8d",
+    "backend/tools/registry.py": "eaf3b1ada4df8b84f1c53f493a7a1a875ba18986ed40ecdf8183aaaf597c1e5a"
+  },
+  "artifacts": {
+    "TRACE.md": "e8564af613567a78c6e2cd5283ae20cc604c1acffb1460b608534f90e620c7dc",
+    "gate-state.json": "464594fdd0af7a77b49e79b7671707db3acd948e8a67f899f5abf3a000778c14",
+    "probe-exit.json": "ed693d048578382510d7dcf90a2d4fc5829c5c66fe2dce037cada43c51a7a3d3",
+    "probe-failure-first-exit.json": "ed693d048578382510d7dcf90a2d4fc5829c5c66fe2dce037cada43c51a7a3d3",
+    "probe-failure-first.log": "ccf26f4747d33a1f18d2b4651aa9f8a4477daaa6c33bc61475e6c722583d1971",
+    "probe-successor-exit.json": "116a685375666570061b974c348e8992c9211c21ab167b63c2c51eea0d712959",
+    "probe-successor.log": "7805dc51d3642b07000e5581cf8eefabe9537b4f714d3389647fb87ee5713bec",
+    "probe.log": "ccf26f4747d33a1f18d2b4651aa9f8a4477daaa6c33bc61475e6c722583d1971",
+    "probe_radio_create_thread_gap.py": "4d71fd5900286c5f009d4877bda6c9139c7507e938a230107e002637939c1dcf",
+    "verification.json": "982f8b16cecc1a3fa3f32375230c08c0f5ad4450b83db84d2bffe9def9befde5"
+  }
+}

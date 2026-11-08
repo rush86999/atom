@@ -1,0 +1,48 @@
+{
+  "deterministic_repro": {
+    "command": "run_bounded_test_gate.py --cwd frontend-nextjs --profile bounded -- /usr/local/bin/node node_modules/.bin/jest tests/pages/goal-runs/detail.race-tmp.test.tsx --runInBand --watchman=false --no-cache -t \"supervisor sets the existing target\"",
+    "exit": 1,
+    "fixture": "exact test copy with first getGoalUtility response held pending",
+    "raw": "deterministic-race-old-pattern-fail.log",
+    "result": "1 failed (same goal-utility-metric failure)"
+  },
+  "environment": {
+    "jest": "--runInBand --watchman=false --no-cache",
+    "node": "/usr/local/bin/node (x64)",
+    "node_modules": "/private/tmp/atom-browser-capture-frozen-20261107/frontend-nextjs/node_modules (symlink; no install)"
+  },
+  "hosted_753": {
+    "head": "bd209add6",
+    "raw": "hosted-753-bd209-failure.log",
+    "result": "24 passed, 1 failed"
+  },
+  "hosted_755": {
+    "head": "755e081",
+    "raw": "hosted-755-e081-failure.log",
+    "result": "24 passed, 1 failed"
+  },
+  "local_detail_after": {
+    "command": "run_bounded_test_gate.py --cwd frontend-nextjs --profile bounded -- /usr/local/bin/node node_modules/.bin/jest tests/pages/goal-runs/detail.test.tsx --runInBand --watchman=false --no-cache",
+    "exit": 0,
+    "raw": "local-detail-25-after-pass.log",
+    "result": "25 passed"
+  },
+  "local_detail_before": {
+    "command": "run_bounded_test_gate.py --cwd frontend-nextjs --profile bounded -- /usr/local/bin/node node_modules/.bin/jest tests/pages/goal-runs/detail.test.tsx --runInBand --watchman=false --no-cache",
+    "exit": 0,
+    "raw": "local-detail-25-before-pass.log",
+    "result": "25 passed"
+  },
+  "local_goalrun_matrix": {
+    "command": "run_bounded_test_gate.py --cwd frontend-nextjs --profile bounded -- /usr/local/bin/node node_modules/.bin/jest tests/pages/goal-runs/detail.test.tsx tests/pages/goal-runs/index.test.tsx --runInBand --watchman=false --no-cache",
+    "exit": 0,
+    "raw": "local-goalrun-39-pass.log",
+    "result": "39 passed"
+  },
+  "typescript": {
+    "command": "run_bounded_test_gate.py --cwd frontend-nextjs --profile bounded -- /usr/local/bin/node node_modules/.bin/tsc --noEmit --incremental false --pretty false",
+    "exit": 0,
+    "raw": "tsc-noemit.log",
+    "result": "no diagnostics"
+  }
+}

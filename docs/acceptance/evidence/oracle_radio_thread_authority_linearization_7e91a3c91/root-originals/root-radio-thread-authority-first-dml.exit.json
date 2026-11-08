@@ -1,0 +1,31 @@
+{
+  "diagnostic_uncommitted_candidate": true,
+  "source_bytes_before": {
+    "backend/core/agent_radio/radio_thread_mutations.py": "571a4db333d814edf1e3590f7e0c6a3e999de6f0aae6efcd5aab92ffda035475",
+    "backend/core/agent_radio/radio_actions.py": "c9402657639459acc83a736b7114010f46142ab95ff88d83abf4a93cf99b24ba",
+    "backend/core/oracle/postcondition_verifiers.py": "81f5a0f3bfd2fcf281577dd67cf83df0885f735254efee042570737834d4bda2",
+    "backend/core/oracle/request_expectations.py": "e6650e9d7f58f593683ae2326abb4910cf185e8edeea82d3fcc6ba8ae6f89383",
+    "backend/tests/test_oracle_radio_create_thread.py": "6e8640933e984e4e82903f0667b12fa279d8e0b5c9fb9c1546d7cce6499e50e7"
+  },
+  "source_bytes_after": {
+    "backend/core/agent_radio/radio_thread_mutations.py": "571a4db333d814edf1e3590f7e0c6a3e999de6f0aae6efcd5aab92ffda035475",
+    "backend/core/agent_radio/radio_actions.py": "c9402657639459acc83a736b7114010f46142ab95ff88d83abf4a93cf99b24ba",
+    "backend/core/oracle/postcondition_verifiers.py": "81f5a0f3bfd2fcf281577dd67cf83df0885f735254efee042570737834d4bda2",
+    "backend/core/oracle/request_expectations.py": "e6650e9d7f58f593683ae2326abb4910cf185e8edeea82d3fcc6ba8ae6f89383",
+    "backend/tests/test_oracle_radio_create_thread.py": "6e8640933e984e4e82903f0667b12fa279d8e0b5c9fb9c1546d7cce6499e50e7"
+  },
+  "source": "86f666d008da6443d1e02db49144b3ffffda45be",
+  "head_after": "86f666d008da6443d1e02db49144b3ffffda45be",
+  "runtime_or_test_diff": [
+    "backend/core/agent_radio/radio_actions.py",
+    "backend/core/oracle/postcondition_verifiers.py",
+    "backend/core/oracle/request_expectations.py"
+  ],
+  "actual_exit": 1,
+  "scratch": "/private/tmp/root-wait-source-final-review-8scdlfzt",
+  "finished": 1794077176.573229,
+  "probe_sha256": "f9d44155f5ba7a4021d2a1bcf2d35221e1038c7f99cae285d7b9a7a161ee59d2",
+  "frozen_probe": "/private/tmp/lead_radio_thread_authority_first_dml_frozen.py",
+  "result": "2 failed, 1 passed; creator/member peer disable commits immediately before first authority-claim or thread-insert DML",
+  "scope": "preliminary exact uncommitted candidate bytes, not attributed to base HEAD runtime"
+}

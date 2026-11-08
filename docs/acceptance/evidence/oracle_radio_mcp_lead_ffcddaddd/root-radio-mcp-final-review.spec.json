@@ -1,0 +1,24 @@
+{
+  "source": "ffcddaddd210adcc5c78503c229aae2491716931",
+  "scratch": "/private/tmp/root-wait-source-final-review-ndnb73cu",
+  "command": [
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-oracle-refresh-20261107/backend",
+    "--profile",
+    "bounded",
+    "--",
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "tests/test_oracle_radio_create_thread.py",
+    "tests/test_lead_radio_thread_authority_linearization.py",
+    "tests/test_lead_radio_mcp_replay.py",
+    "tests/test_oracle_radio_thread_replay.py",
+    "-q",
+    "--tb=short",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=/private/tmp/root-wait-source-final-review-ndnb73cu/pytest"
+  ]
+}
