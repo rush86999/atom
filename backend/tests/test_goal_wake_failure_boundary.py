@@ -30,7 +30,7 @@ def test_assignment_wake_failure_never_advances_general_router(monkeypatch, capl
         def record_external_response(self, *args, **kwargs):
             if failure_stage == "reply":
                 raise RuntimeError(private_detail)
-            return {"status": "accepted"}
+            return {"status": "resumed"}
 
         async def resume(self, run_id):
             raise RuntimeError(private_detail)
