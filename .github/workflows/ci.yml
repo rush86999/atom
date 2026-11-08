@@ -164,6 +164,13 @@ jobs:
           ENVIRONMENT: "development"
         run: |
           python -m pytest tests/test_ci_backend_lane_contract.py tests/test_quickstart_matrix_contract.py -q --tb=short --timeout=300 --timeout-method=thread
+      - name: Run cache benchmark reproducer contract
+        timeout-minutes: 3
+        env:
+          TESTING: "1"
+          PYTEST_DISABLE_PLUGIN_AUTOLOAD: "1"
+        run: |
+          python -m pytest --noconftest tests/test_governance_cache_benchmark_cli.py -q --tb=short
       - name: Run backend tests
         env:
           DATABASE_URL: "sqlite:///test_ci.db"

@@ -1,0 +1,28 @@
+{
+  "executed_source": "ff457e05caff260db38d605e359a097ba2ccfbfe",
+  "source_files": {
+    "scripts/benchmark_governance.py": "sha256:d639fb0013e96cb35b403fd2afe5740134816765b4310d8afc826ff3d8720293",
+    "backend/core/governance_cache.py": "sha256:fcc2ae94eb31974e49e16b59718a1390797443d14e1620af80740501354e810a",
+    "backend/core/asyncio_compat.py": "sha256:e680ae8d48c9e49873d7a8be2485afbe01024bf855400cf4c44c994f2f57ae67",
+    "backend/tests/test_governance_cache_benchmark_cli.py": "sha256:82ffdc7ae5d8086ce9edb18200a5da1d6599525c12541422807443ae7a326f64",
+    "backend/tests/test_ci_backend_lane_contract.py": "sha256:5698275023be3820b4827415beffa463dd0f0c28116502f7625736ffc657b434",
+    ".github/workflows/ci.yml": "sha256:46842257ceaf487bf7942ee1db123ff43e6e138116c9db6db1b74c56101a299d",
+    "backend/tests/test_quickstart_matrix_contract.py": "sha256:0397014e499a6d7a21c21720c4b2c19230e4388633fdccdb7d6ad38217977b53",
+    "backend/tests/test_quickstart_python_guard.py": "sha256:e54a38b72fbb2996579c085ee41c7daf728c5bb34f616d9820a1dd59f480a791",
+    "backend/requirements.txt": "sha256:f898a07127dad556f0ef59b21dc4e92c5cefa612957c15022e951793e30217f9",
+    "scripts/quickstart.sh": "sha256:740381e79b0bf9fa2387c74082ac081c72197e0a678e1e95045125567a9e7781",
+    "scripts/ci/verify_quickstart_storage.py": "sha256:58a6b58db56c5cd8ac67e20cd527b40af7e395148bdd61880ed61a336bb29f67",
+    "backend/tests/fixtures/quickstart_before_supported_matrix.json": "sha256:b0909a3b3c7aeef2a4ae1e3af1374aeaa811bb8d99ab949fe155503d20e19720",
+    "backend/tests/fixtures/ci_backend_before_parallel.json": "sha256:2878abd5d8c4e3e9e29932a8e08185f9d8328a2bc6d363f7385887bf431e6940"
+  },
+  "artifacts": {
+    "README.md": "sha256:51bc06e6c9cdf2de673acc75f239a8ba58b7ea16988bda75bf90fad3106c16a9",
+    "attribution.json": "sha256:28346b22fd3edf330cbd348f0333fc15b620e3da9909558c80e9b25e17ea8f11",
+    "py311.exit.json": "sha256:1cbc68c209958de0b36dc2f2f89919243271c566d0efd6fad63b1e1350422b89",
+    "py311.log": "sha256:95f0f8553a363977accc31b5df4cbcb41aba1d6ec4ef65b86ef64b2cb62746fc",
+    "py311.spec.json": "sha256:3f5da76a4eda3d4ba0fe8907382594c1b401fec7c6856d91313bb40b9313131c",
+    "py314.exit.json": "sha256:c0dc6858064d37c3628097e8e96bd0ed5696de9126cda4bb27eda38cf04c60e9",
+    "py314.log": "sha256:e0f54c4a5062c46b8ae97c7d968aa36e0c89be934ff139cab7f8dda37fff30b0",
+    "py314.spec.json": "sha256:ab2209aa7fa53d7ad0a651f5b5c97f47cfc0c2ea43d4820b92548f2f7a81c83d"
+  }
+}

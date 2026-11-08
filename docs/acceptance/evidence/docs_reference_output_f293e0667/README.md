@@ -1,0 +1,7 @@
+# Documentation inventory output boundary
+
+The unmerged original writer at e5a7644f5 was reproduced with the nine probe cases from fixed source f293e0667. On both Python3.11 and3.14, exactly three negatives fail: dangling output symlink, a peer file created after preflight, and implicit output-parent creation. Six controls, including valid new publication, remain passing. These failures occur only in owned temporary Git/file fixtures; no actual reference, world or app DB was modified.
+
+The fixed writer refuses existing/symbolic outputs, requires an existing output directory, and publishes with exclusive file creation. All nine controls pass on each runtime. Raw old/fixed logs and both source identities are retained. The probe file differs from the old release; this is explicitly old runtime code plus new verifier probes, not nine tests secretly attributed to the original five-test commit. Reproduction: copy the old inventory_reference.py from e5a7644f5 and current test_inventory_reference.py from f293e0667 into an owned temporary folder; unittest discovery there yields the recorded three failures. Run discovery in scripts/docs at f293e0667 for the fixed twin.
+
+The subsequent integration of accepted benchmark main changes neither inventory tool nor probe bytes. Fresh CI at the submitted head remains required. This evidence proves only the inventory writer/source-boundary controls. It does not certify reference/diagram accuracy, renderer correctness, app safety, or complete DOCS-REF-01.

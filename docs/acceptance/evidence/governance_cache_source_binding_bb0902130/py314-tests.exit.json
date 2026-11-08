@@ -1,0 +1,16 @@
+{
+  "source": "bb0902130443c0e202dfb37cde9c8e0d8384f471",
+  "command": [
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "--noconftest",
+    "-p",
+    "no:cacheprovider",
+    "backend/tests/test_governance_cache_benchmark_cli.py",
+    "backend/tests/test_ci_backend_lane_contract.py",
+    "-q"
+  ],
+  "actual_exit": 0,
+  "head_after": "bb0902130443c0e202dfb37cde9c8e0d8384f471"
+}

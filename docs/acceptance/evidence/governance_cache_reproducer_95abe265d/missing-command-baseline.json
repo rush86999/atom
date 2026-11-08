@@ -1,0 +1,14 @@
+{
+  "working_tree_source": "f22695e45be27634e3e9d6d351e96ee85484d21f",
+  "main_reference": "d9a45f559033e4f6ae9a2e50725ade3cddfb2b4b",
+  "command_absent_at_main": true,
+  "cache_source_bytes_equal_main": true,
+  "cache_sha256": "fcc2ae94eb31974e49e16b59718a1390797443d14e1620af80740501354e810a",
+  "command": [
+    "/usr/local/opt/python@3.11/bin/python3.11",
+    "scripts/benchmark_governance.py",
+    "--help"
+  ],
+  "actual_exit": 2,
+  "scope": "Missing public command reproduction only; no performance or full-main runtime claim."
+}

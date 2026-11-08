@@ -1,0 +1,16 @@
+{
+  "source": "bb0902130443c0e202dfb37cde9c8e0d8384f471",
+  "command": [
+    "/usr/local/opt/python@3.11/bin/python3.11",
+    "-m",
+    "pytest",
+    "--noconftest",
+    "-p",
+    "no:cacheprovider",
+    "backend/tests/test_governance_cache_benchmark_cli.py",
+    "backend/tests/test_ci_backend_lane_contract.py",
+    "-q"
+  ],
+  "actual_exit": 0,
+  "head_after": "bb0902130443c0e202dfb37cde9c8e0d8384f471"
+}

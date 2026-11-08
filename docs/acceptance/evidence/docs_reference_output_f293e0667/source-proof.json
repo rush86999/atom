@@ -1,0 +1,44 @@
+{
+  "old_runtime_script": "e5a7644f5675727b25f0f23b2e71b9b0fd85e25c",
+  "probe_and_fixed_source": "f293e0667377570f77287e0d2ef0bf183f8d0ce3",
+  "old_script_sha256": "9170e1c8b133c1d7d3a8675835e42e3e94f67911dbc04c7fc7d57aa0a6cda067",
+  "probe_sha256": "277bb95fba4c7a6b16ff3a1a26122d8d6d2a716f76699c17b6dd1b3c497e3cac",
+  "runs": [
+    {
+      "python": "311",
+      "kind": "old_frozen_negative",
+      "actual_exit": 1,
+      "failures": [
+        "test_cli_refuses_dangling_output_symlink",
+        "test_late_peer_output_is_not_overwritten",
+        "test_missing_output_parent_is_not_created"
+      ],
+      "log": "/private/tmp/root-doc-e5a-frozen-negative-py311-20261108.log"
+    },
+    {
+      "python": "311",
+      "kind": "fixed_clean_source",
+      "actual_exit": 0,
+      "passed": 9,
+      "log": "/private/tmp/root-doc-f293-frozen-positive-py311-20261108.log"
+    },
+    {
+      "python": "314",
+      "kind": "old_frozen_negative",
+      "actual_exit": 1,
+      "failures": [
+        "test_cli_refuses_dangling_output_symlink",
+        "test_late_peer_output_is_not_overwritten",
+        "test_missing_output_parent_is_not_created"
+      ],
+      "log": "/private/tmp/root-doc-e5a-frozen-negative-py314-20261108.log"
+    },
+    {
+      "python": "314",
+      "kind": "fixed_clean_source",
+      "actual_exit": 0,
+      "passed": 9,
+      "log": "/private/tmp/root-doc-f293-frozen-positive-py314-20261108.log"
+    }
+  ]
+}
