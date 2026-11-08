@@ -36,6 +36,17 @@ def test_public_note_respects_actor_revocation_at_tool_time(real_env, monkeypatc
             assert row.status == 'approved' and row.reviewed_by == 'root-reviewer'
         return await original_wait(self, action_id)
     monkeypatch.setattr(generic.GenericAgent, '_wait_for_approval', reviewed_then_real_wait)
+    trace = []
+    original_call = generic.mcp_service.call_tool
+    async def observed_call(*args, **kwargs):
+        try:
+            result = await original_call(*args, **kwargs)
+            trace.append({'type': type(result).__name__, 'result': str(result)[:1200]})
+            return result
+        except Exception as exc:
+            trace.append({'exception_class': type(exc).__name__})
+            raise
+    monkeypatch.setattr(generic.mcp_service, 'call_tool', observed_call)
     marker = 'root-public-note-authority-marker'
     def first(task_input, history, context):
         if revoke:
@@ -49,7 +60,7 @@ def test_public_note_respects_actor_revocation_at_tool_time(real_env, monkeypatc
     response = _run(real_env, operation_id='root-public-note-'+str(revoke), parameters={'sync': True, 'task_input': 'Record a task fact'})
     records = [json.loads(p.read_text()) for p in root.glob('*.json')]
     wrote = marker in json.dumps(records)
-    capture = {'revoked': revoke, 'http': response.status_code, 'persisted_marker': wrote}
+    capture = {'revoked': revoke, 'http': response.status_code, 'persisted_marker': wrote, 'transport_trace': trace}
     try:
         assert wrote is (not revoke), capture
     finally:
