@@ -1,0 +1,151 @@
+{
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/api/documents",
+      "query": {},
+      "query_keys": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/documents",
+      "query": {},
+      "query_keys": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/documents",
+      "query": {},
+      "query_keys": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/documents",
+      "query": {},
+      "query_keys": []
+    },
+    {
+      "method": "POST",
+      "path": "/api/documents/upload",
+      "query": {},
+      "query_keys": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/documents",
+      "query": {},
+      "query_keys": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/documents/doc_2c10320dd7cf5200d76adb60",
+      "query": {},
+      "query_keys": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/documents/doc_2c10320dd7cf5200d76adb60",
+      "query": {},
+      "query_keys": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/documents/doc_2c10320dd7cf5200d76adb60",
+      "query": {},
+      "query_keys": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/documents/doc_2c10320dd7cf5200d76adb60/export",
+      "query": {
+        "format": "text"
+      },
+      "query_keys": [
+        "format"
+      ],
+      "doc_id": "doc_2c10320dd7cf5200d76adb60"
+    },
+    {
+      "method": "GET",
+      "path": "/api/documents/doc_2c10320dd7cf5200d76adb60/export",
+      "query": {
+        "format": "markdown"
+      },
+      "query_keys": [
+        "format"
+      ],
+      "doc_id": "doc_2c10320dd7cf5200d76adb60"
+    },
+    {
+      "method": "GET",
+      "path": "/api/documents/doc_2c10320dd7cf5200d76adb60/export",
+      "query": {
+        "format": "json"
+      },
+      "query_keys": [
+        "format"
+      ],
+      "doc_id": "doc_2c10320dd7cf5200d76adb60"
+    }
+  ],
+  "export_requests": [
+    {
+      "method": "GET",
+      "path": "/api/documents/doc_2c10320dd7cf5200d76adb60/export",
+      "query": {
+        "format": "text"
+      },
+      "query_keys": [
+        "format"
+      ],
+      "doc_id": "doc_2c10320dd7cf5200d76adb60"
+    },
+    {
+      "method": "GET",
+      "path": "/api/documents/doc_2c10320dd7cf5200d76adb60/export",
+      "query": {
+        "format": "markdown"
+      },
+      "query_keys": [
+        "format"
+      ],
+      "doc_id": "doc_2c10320dd7cf5200d76adb60"
+    },
+    {
+      "method": "GET",
+      "path": "/api/documents/doc_2c10320dd7cf5200d76adb60/export",
+      "query": {
+        "format": "json"
+      },
+      "query_keys": [
+        "format"
+      ],
+      "doc_id": "doc_2c10320dd7cf5200d76adb60"
+    }
+  ],
+  "upload_requests": [
+    {
+      "method": "POST",
+      "path": "/api/documents/upload",
+      "query": {},
+      "query_keys": []
+    }
+  ],
+  "foreign": [],
+  "console_errors": [
+    "Failed to load resource: the server responded with a status of 404 (Not Found)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "[API Error] {code: ERR_CANCELED, status: undefined, message: canceled, url: /api/maturity/proposals?status_filter=pending_approval&limit=10}",
+    "Failed to load resource: the server responded with a status of 405 (Method Not Allowed)",
+    "Failed to load resource: the server responded with a status of 405 (Method Not Allowed)",
+    "[API Error] {code: ERR_CANCELED, status: undefined, message: canceled, url: /api/maturity/proposals?status_filter=pending_approval&limit=50}",
+    "[API Error] {code: ERR_CANCELED, status: undefined, message: canceled, url: /api/maturity/proposals?status_filter=pending_approval&limit=50}",
+    "[API Error] {code: ERR_CANCELED, status: undefined, message: canceled, url: /api/maturity/proposals?status_filter=pending_approval&limit=10}"
+  ],
+  "page_errors": []
+}

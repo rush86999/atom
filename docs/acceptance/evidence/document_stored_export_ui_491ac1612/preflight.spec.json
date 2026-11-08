@@ -1,0 +1,14 @@
+{
+  "source": "491ac1612d0c9f4b4728a945019c6a94306d7ba6",
+  "root": "/private/tmp/root-export-preflight-491-sl6059vi",
+  "command": [
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "scripts/acceptance/browser_document_export_ui.py",
+    "--preflight",
+    "--expect-source-sha",
+    "491ac1612d0c9f4b4728a945019c6a94306d7ba6",
+    "--out",
+    "/private/tmp/root-export-preflight-491-sl6059vi/capture"
+  ],
+  "scope": "ordinary TXT upload/open/reload/stored-text exports; cached local indexing only; no model decision or search qualification"
+}
