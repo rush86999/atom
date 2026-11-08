@@ -1,0 +1,559 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-07 21:49:39 [    INFO] MCP Service initialized
+
+tests/test_bpe_current_principal_scope.py::test_same_actor_continues_own_buffer 
+-------------------------------- live log setup --------------------------------
+2026-11-07 21:49:40 [    INFO] EscalationManager initialized
+2026-11-07 21:49:40 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 21:49:40 [    INFO] EscalationManager initialized
+2026-11-07 21:49:40 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 21:49:40 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 21:49:40 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-07 21:49:40 [    INFO] HTTP Request: POST http://testserver/api/rpc/workspace.note "HTTP/1.1 200 OK"
+2026-11-07 21:49:40 [    INFO] HTTP Request: POST http://testserver/api/rpc/workspace.note "HTTP/1.1 200 OK"
+PASSED                                                                   [  0%]
+tests/test_bpe_current_principal_scope.py::test_tampered_body_params_cannot_grant_namespace 
+-------------------------------- live log call ---------------------------------
+2026-11-07 21:49:41 [    INFO] HTTP Request: POST http://testserver/api/rpc/workspace.note "HTTP/1.1 200 OK"
+PASSED                                                                   [  1%]
+tests/test_bpe_current_principal_scope.py::test_different_workspace_principal_never_inherits_peer_buffer 
+-------------------------------- live log call ---------------------------------
+2026-11-07 21:49:41 [    INFO] HTTP Request: POST http://testserver/api/rpc/workspace.note "HTTP/1.1 200 OK"
+2026-11-07 21:49:41 [    INFO] HTTP Request: POST http://testserver/api/rpc/workspace.note "HTTP/1.1 200 OK"
+PASSED                                                                   [  1%]
+tests/test_bpe_current_principal_scope.py::test_personal_null_workspace_principals_are_isolated 
+-------------------------------- live log call ---------------------------------
+2026-11-07 21:49:42 [    INFO] HTTP Request: POST http://testserver/api/rpc/workspace.note "HTTP/1.1 200 OK"
+2026-11-07 21:49:42 [    INFO] HTTP Request: POST http://testserver/api/rpc/workspace.note "HTTP/1.1 200 OK"
+PASSED                                                                   [  2%]
+tests/test_bpe_current_principal_scope.py::test_literal_default_workspace_principals_are_isolated 
+-------------------------------- live log call ---------------------------------
+2026-11-07 21:49:43 [    INFO] HTTP Request: POST http://testserver/api/rpc/workspace.note "HTTP/1.1 200 OK"
+2026-11-07 21:49:43 [    INFO] HTTP Request: POST http://testserver/api/rpc/workspace.note "HTTP/1.1 200 OK"
+PASSED                                                                   [  2%]
+tests/test_bpe_current_principal_scope.py::test_missing_principal_fails_closed_with_typed_no_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-07 21:49:43 [    INFO] HTTP Request: POST http://testserver/api/rpc/workspace.note "HTTP/1.1 200 OK"
+PASSED                                                                   [  3%]
+tests/test_bpe_current_principal_scope.py::test_inactive_principal_fails_closed 
+-------------------------------- live log call ---------------------------------
+2026-11-07 21:49:44 [    INFO] HTTP Request: POST http://testserver/api/rpc/workspace.note "HTTP/1.1 200 OK"
+PASSED                                                                   [  4%]
+tests/test_bpe_current_principal_scope.py::test_stale_authority_change_refuses_append PASSED [  4%]
+tests/test_bpe_current_principal_scope.py::test_claim_rechecks_workspace_before_append PASSED [  5%]
+tests/test_bpe_current_principal_scope.py::test_contradictory_tenant_workspace_refuses_before_append 
+-------------------------------- live log call ---------------------------------
+2026-11-07 21:49:45 [    INFO] HTTP Request: POST http://testserver/api/rpc/workspace.note "HTTP/1.1 200 OK"
+2026-11-07 21:49:45 [    INFO] HTTP Request: POST http://testserver/api/rpc/workspace.note "HTTP/1.1 200 OK"
+PASSED                                                                   [  5%]
+tests/test_bpe_current_principal_scope.py::test_matching_current_user_and_workspace_is_authorized 
+-------------------------------- live log call ---------------------------------
+2026-11-07 21:49:46 [    INFO] HTTP Request: POST http://testserver/api/rpc/workspace.note "HTTP/1.1 200 OK"
+PASSED                                                                   [  6%]
+tests/test_bpe_current_principal_scope.py::test_dispatch_binding_ignores_forged_params_and_matches_render PASSED [  7%]
+tests/test_bpe_current_principal_scope.py::test_generic_execute_binds_server_scope_for_production_action 
+-------------------------------- live log call ---------------------------------
+2026-11-07 21:49:47 [    INFO] Agent Consumer (consumer-agent) starting task: store a bounded note
+2026-11-07 21:49:47 [ WARNING] Complexity analysis failed, using fallback: 'types.SimpleNamespace' object has no attribute '_get_handler'
+PASSED                                                                   [  7%]
+tests/test_bpe_current_principal_scope.py::test_mcp_current_context_uses_its_server_scope PASSED [  8%]
+tests/test_bpe_current_principal_scope.py::test_all_four_actions_share_the_principal_scope PASSED [  8%]
+tests/test_bpe_current_principal_scope.py::test_recall_does_not_cross_principal_namespaces PASSED [  9%]
+tests/test_bpe_current_principal_scope.py::test_scope_helper_fails_closed_and_keeps_legit_server_scope PASSED [ 10%]
+tests/test_bpe_current_principal_scope.py::test_anonymous_default_scope_is_refused PASSED [ 10%]
+tests/test_lead_bpe_rpc_scope.py::test_same_actor_can_buffer_two_local_notes 
+-------------------------------- live log call ---------------------------------
+2026-11-07 21:49:50 [    INFO] HTTP Request: POST http://testserver/api/rpc/workspace.note "HTTP/1.1 200 OK"
+2026-11-07 21:49:50 [    INFO] HTTP Request: POST http://testserver/api/rpc/workspace.note "HTTP/1.1 200 OK"
+PASSED                                                                   [ 11%]
+tests/test_lead_bpe_rpc_scope.py::test_different_current_workspace_cannot_append_peer_buffer 
+-------------------------------- live log call ---------------------------------
+2026-11-07 21:49:51 [    INFO] HTTP Request: POST http://testserver/api/rpc/workspace.note "HTTP/1.1 200 OK"
+2026-11-07 21:49:51 [    INFO] HTTP Request: POST http://testserver/api/rpc/workspace.note "HTTP/1.1 200 OK"
+PASSED                                                                   [ 11%]
+tests/core/test_bpe_persistence_write_truth.py::TestBPEPersistenceWriteTruth::test_replace_failure_returns_false_and_preserves_previous_file PASSED [ 12%]
+tests/core/test_bpe_persistence_write_truth.py::TestBPEPersistenceWriteTruth::test_json_dump_failure_returns_false_and_preserves_previous_file PASSED [ 13%]
+tests/core/test_bpe_persistence_write_truth.py::TestBPEPersistenceWriteTruth::test_mkstemp_failure_returns_false_and_preserves_previous_file PASSED [ 13%]
+tests/core/test_bpe_persistence_write_truth.py::TestBPEPersistenceWriteTruth::test_mkdir_failure_returns_false_without_creating_temp PASSED [ 14%]
+tests/core/test_bpe_persistence_write_truth.py::TestBPEPersistenceWriteTruth::test_fdopen_failure_closes_fd_and_removes_temp_file PASSED [ 14%]
+tests/core/test_bpe_persistence_write_truth.py::TestBPEPersistenceWriteTruth::test_valid_save_and_load_round_trip PASSED [ 15%]
+tests/core/test_bpe_persistence_write_truth.py::TestBPEPersistenceWriteTruth::test_save_succeeds_after_failed_replacement PASSED [ 15%]
+tests/core/test_bpe_persistence_path_anchoring.py::TestDefaultPathAnchoring::test_default_store_is_identical_from_repo_root_and_backend PASSED [ 16%]
+tests/core/test_bpe_persistence_path_anchoring.py::TestDefaultPathAnchoring::test_configured_catalog_default_matches_canonical_default PASSED [ 17%]
+tests/core/test_bpe_persistence_path_anchoring.py::TestDefaultPathAnchoring::test_default_helper_reads_relative_override PASSED [ 17%]
+tests/core/test_bpe_persistence_path_anchoring.py::TestOverrideAnchoring::test_absolute_override_is_preserved_from_either_cwd PASSED [ 18%]
+tests/core/test_bpe_persistence_path_anchoring.py::TestOverrideAnchoring::test_relative_override_is_backend_relative PASSED [ 18%]
+tests/core/test_bpe_persistence_path_anchoring.py::TestOverrideAnchoring::test_legacy_documented_default_spelling_remains_compatible PASSED [ 19%]
+tests/core/test_bpe_persistence_path_anchoring.py::TestOverrideAnchoring::test_explicit_data_dir_is_used_as_supplied PASSED [ 20%]
+tests/core/test_bpe_evolution.py::TestPersistence::test_save_and_load_round_trip PASSED [ 20%]
+tests/core/test_bpe_evolution.py::TestPersistence::test_load_missing_returns_none PASSED [ 21%]
+tests/core/test_bpe_evolution.py::TestPersistence::test_lru_bound_keeps_recent PASSED [ 21%]
+tests/core/test_bpe_evolution.py::TestPersistence::test_oversized_snapshot_rejected PASSED [ 22%]
+tests/core/test_bpe_evolution.py::TestPersistence::test_corrupt_file_degrades_to_empty PASSED [ 23%]
+tests/core/test_bpe_evolution.py::TestPersistence::test_registry_lazy_restore PASSED [ 23%]
+tests/core/test_bpe_evolution.py::TestWorkspaceBounds::test_defaults_until_genome_applied PASSED [ 24%]
+tests/core/test_bpe_evolution.py::TestWorkspaceBounds::test_genome_clamped_to_gene_bounds PASSED [ 24%]
+tests/core/test_bpe_evolution.py::TestWorkspaceBounds::test_invalid_genome_entries_ignored PASSED [ 25%]
+tests/core/test_bpe_evolution.py::TestWorkspaceBounds::test_new_workspaces_honor_bounds PASSED [ 26%]
+tests/core/test_bpe_evolution.py::TestWorkspaceBounds::test_experience_honors_capacity PASSED [ 26%]
+tests/core/test_bpe_evolution.py::TestEvolutionSearch::test_clamp_and_validation PASSED [ 27%]
+tests/core/test_bpe_evolution.py::TestEvolutionSearch::test_mutate_single_gene_in_bounds PASSED [ 27%]
+tests/core/test_bpe_evolution.py::TestEvolutionSearch::test_random_genome_in_bounds PASSED [ 28%]
+tests/core/test_bpe_evolution.py::TestEvolutionSearch::test_population_keeps_top_n_distinct PASSED [ 28%]
+tests/core/test_bpe_evolution.py::TestEvolutionSearch::test_report_rejects_incomplete_genome PASSED [ 29%]
+tests/core/test_bpe_evolution.py::TestEvolutionSearch::test_propose_cold_population_samples_fresh PASSED [ 30%]
+tests/core/test_bpe_evolution.py::TestEvolutionSearch::test_propose_mutates_an_elite PASSED [ 30%]
+tests/core/test_bpe_evolution.py::TestEvolutionSearch::test_fitness_penalizes_call_rate_drift PASSED [ 31%]
+tests/core/test_bpe_evolution.py::TestEvolutionSearch::test_auto_applies_when_evidence_ready 
+-------------------------------- live log call ---------------------------------
+2026-11-07 21:49:51 [    INFO] [BPE Automation] evolution_apply: {'family': 'fam', 'genome': {'max_subgoals': 8, 'recall_top_k': 3, 'max_entries_per_category': 88, 'max_render_chars': 2400}, 'fitness': 1.2}
+PASSED                                                                   [ 31%]
+tests/core/test_bpe_evolution.py::TestEvolutionSearch::test_auto_holds_until_evidence_ready PASSED [ 32%]
+tests/core/test_bpe_evolution.py::TestEvolutionSearch::test_evidence_below_fitness_floor_holds PASSED [ 33%]
+tests/core/test_bpe_evolution.py::TestEvolutionSearch::test_explicit_false_is_kill_switch PASSED [ 33%]
+tests/core/test_bpe_evolution.py::TestEvolutionSearch::test_explicit_true_forces_apply 
+-------------------------------- live log call ---------------------------------
+2026-11-07 21:49:51 [    INFO] [BPE Automation] evolution_apply: {'family': 'fam', 'genome': {'max_subgoals': 8, 'recall_top_k': 3, 'max_entries_per_category': 80, 'max_render_chars': 2400}, 'fitness': 2.0}
+PASSED                                                                   [ 34%]
+tests/core/test_bpe_evolution.py::TestTelemetryFeed::test_errored_consults_become_patterns PASSED [ 34%]
+tests/core/test_bpe_evolution.py::TestTelemetryFeed::test_negative_value_agents_become_patterns PASSED [ 35%]
+tests/core/test_bpe_evolution.py::TestTelemetryFeed::test_harness_evolution_service_appends_bpe_patterns PASSED [ 36%]
+tests/core/test_bpe_evolution.py::TestRenderProperties::test_render_deterministic_and_bounded PASSED [ 36%]
+tests/core/test_bpe_workspace.py::TestProgress::test_commit_adds_subgoal PASSED [ 37%]
+tests/core/test_bpe_workspace.py::TestProgress::test_commit_via_apply_async PASSED [ 37%]
+tests/core/test_bpe_workspace.py::TestProgress::test_commit_requires_title PASSED [ 38%]
+tests/core/test_bpe_workspace.py::TestProgress::test_progress_capped_at_eight PASSED [ 39%]
+tests/core/test_bpe_workspace.py::TestProgress::test_status_update_by_prefix PASSED [ 39%]
+tests/core/test_bpe_workspace.py::TestProgress::test_status_update_rejects_invalid_status PASSED [ 40%]
+tests/core/test_bpe_workspace.py::TestProgress::test_status_update_no_match_fails PASSED [ 40%]
+tests/core/test_bpe_workspace.py::TestProgress::test_done_subgoals_drop_first_at_cap PASSED [ 41%]
+tests/core/test_bpe_workspace.py::TestExperience::test_add_and_recall_keyword_overlap PASSED [ 42%]
+tests/core/test_bpe_workspace.py::TestExperience::test_recall_top3_per_query PASSED [ 42%]
+tests/core/test_bpe_workspace.py::TestExperience::test_recall_no_match_empty PASSED [ 43%]
+tests/core/test_bpe_workspace.py::TestExperience::test_unknown_category_rejected PASSED [ 43%]
+tests/core/test_bpe_workspace.py::TestExperience::test_lfu_cap_evicts_least_used PASSED [ 44%]
+tests/core/test_bpe_workspace.py::TestExperience::test_dedupe_increments_uses PASSED [ 44%]
+tests/core/test_bpe_workspace.py::TestExperience::test_consolidate_removes PASSED [ 45%]
+tests/core/test_bpe_workspace.py::TestExperience::test_all_four_categories_exist PASSED [ 46%]
+tests/core/test_bpe_workspace.py::TestNotes::test_note_buffers PASSED    [ 46%]
+tests/core/test_bpe_workspace.py::TestNotes::test_note_requires_content PASSED [ 47%]
+tests/core/test_bpe_workspace.py::TestNotes::test_note_truncated_to_cap PASSED [ 47%]
+tests/core/test_bpe_workspace.py::TestNotes::test_drain_clears_buffer PASSED [ 48%]
+tests/core/test_bpe_workspace.py::TestTrack::test_track_without_adapter_empty_belief PASSED [ 49%]
+tests/core/test_bpe_workspace.py::TestTrack::test_track_with_async_adapter PASSED [ 49%]
+tests/core/test_bpe_workspace.py::TestTrack::test_track_sync_adapter_supported PASSED [ 50%]
+tests/core/test_bpe_workspace.py::TestTrack::test_track_belief_truncated PASSED [ 50%]
+tests/core/test_bpe_workspace.py::TestTrack::test_unknown_action_fails_gracefully PASSED [ 51%]
+tests/core/test_bpe_workspace.py::TestTrack::test_adapter_crash_never_raises 
+-------------------------------- live log call ---------------------------------
+2026-11-07 21:49:51 [ WARNING] bpe.apply(track) failed: boom
+PASSED                                                                   [ 52%]
+tests/core/test_bpe_workspace.py::TestRenderAndSerialize::test_render_empty_when_unused PASSED [ 52%]
+tests/core/test_bpe_workspace.py::TestRenderAndSerialize::test_render_includes_sections PASSED [ 53%]
+tests/core/test_bpe_workspace.py::TestRenderAndSerialize::test_render_bounded PASSED [ 53%]
+tests/core/test_bpe_workspace.py::TestRenderAndSerialize::test_round_trip PASSED [ 54%]
+tests/core/test_bpe_workspace.py::TestRenderAndSerialize::test_from_dict_none_safe PASSED [ 55%]
+tests/core/test_bpe_workspace.py::TestRenderAndSerialize::test_from_dict_caps_progress PASSED [ 55%]
+tests/core/test_bpe_workspace.py::TestRegistry::test_same_scope_returns_same_instance PASSED [ 56%]
+tests/core/test_bpe_workspace.py::TestRegistry::test_different_scope_different_instance PASSED [ 56%]
+tests/core/test_bpe_workspace.py::TestRegistry::test_key_normalization PASSED [ 57%]
+tests/core/test_bpe_workspace.py::TestTelemetry::test_apply_records_span PASSED [ 57%]
+tests/core/test_bpe_workspace.py::TestTelemetry::test_failed_action_records_error_span PASSED [ 58%]
+tests/core/test_bpe_workspace.py::TestActionRegistration::test_four_meta_actions_registered PASSED [ 59%]
+tests/core/test_bpe_workspace.py::TestActionRegistration::test_commit_action_end_to_end PASSED [ 59%]
+tests/core/test_bpe_workspace.py::TestActionRegistration::test_flag_default_on PASSED [ 60%]
+tests/core/test_bpe_workspace.py::TestActionRegistration::test_flag_gating_on PASSED [ 60%]
+tests/core/test_bpe_trust_bridge.py::TestProtocolSignal::test_accepted_correction_raises_protocol_signal PASSED [ 61%]
+tests/core/test_bpe_trust_bridge.py::TestProtocolSignal::test_approval_alone_is_not_protocol_signal PASSED [ 62%]
+tests/core/test_bpe_trust_bridge.py::TestProtocolSignal::test_rejected_feedback_is_ignored PASSED [ 62%]
+tests/core/test_bpe_trust_bridge.py::TestProtocolSignal::test_bypass_renders_despite_negative_ema PASSED [ 63%]
+tests/core/test_bpe_trust_bridge.py::TestRoleScaledThreshold::test_unknown_role_uses_base_threshold PASSED [ 63%]
+tests/core/test_bpe_trust_bridge.py::TestRoleScaledThreshold::test_student_needs_triple_evidence PASSED [ 64%]
+tests/core/test_bpe_trust_bridge.py::TestRoleScaledThreshold::test_intern_needs_double_evidence PASSED [ 65%]
+tests/core/test_bpe_trust_bridge.py::TestRoleScaledThreshold::test_senior_and_exotic_roles_fail_open[supervised] PASSED [ 65%]
+tests/core/test_bpe_trust_bridge.py::TestRoleScaledThreshold::test_senior_and_exotic_roles_fail_open[autonomous] PASSED [ 66%]
+tests/core/test_bpe_trust_bridge.py::TestRoleScaledThreshold::test_senior_and_exotic_roles_fail_open[paused] PASSED [ 66%]
+tests/core/test_bpe_trust_bridge.py::TestRoleScaledThreshold::test_senior_and_exotic_roles_fail_open[] PASSED [ 67%]
+tests/core/test_bpe_trust_bridge.py::TestRoleScaledThreshold::test_role_read_failure_fails_open PASSED [ 68%]
+tests/core/test_bpe_trust_bridge.py::TestEvolutionVeto::test_pending_corrections_hold_apply 
+-------------------------------- live log call ---------------------------------
+2026-11-07 21:49:51 [    INFO] bpe evolution: best genome held (1 adjudicated correction(s) since last genome apply)
+PASSED                                                                   [ 68%]
+tests/core/test_bpe_trust_bridge.py::TestEvolutionVeto::test_apply_clears_the_veto_window 
+-------------------------------- live log call ---------------------------------
+2026-11-07 21:49:51 [    INFO] [BPE Automation] evolution_apply: {'family': 'fam', 'genome': {'max_subgoals': 6, 'recall_top_k': 3, 'max_entries_per_category': 80, 'max_render_chars': 2400}, 'fitness': 6.0}
+PASSED                                                                   [ 69%]
+tests/core/test_bpe_trust_bridge.py::TestEvolutionVeto::test_explicit_true_bypasses_veto 
+-------------------------------- live log call ---------------------------------
+2026-11-07 21:49:51 [    INFO] [BPE Automation] evolution_apply: {'family': 'fam', 'genome': {'max_subgoals': 6, 'recall_top_k': 3, 'max_entries_per_category': 80, 'max_render_chars': 2400}, 'fitness': 6.0}
+PASSED                                                                   [ 69%]
+tests/core/test_bpe_trust_bridge.py::TestEvolutionVeto::test_no_corrections_no_veto 
+-------------------------------- live log call ---------------------------------
+2026-11-07 21:49:51 [    INFO] [BPE Automation] evolution_apply: {'family': 'fam', 'genome': {'max_subgoals': 6, 'recall_top_k': 3, 'max_entries_per_category': 80, 'max_render_chars': 2400}, 'fitness': 6.0}
+PASSED                                                                   [ 70%]
+tests/core/test_bpe_trust_bridge.py::TestDeinflation::test_overlapping_entry_demoted_other_untouched PASSED [ 71%]
+tests/core/test_bpe_trust_bridge.py::TestDeinflation::test_correction_tokens_are_not_demotion_signals PASSED [ 71%]
+tests/core/test_bpe_trust_bridge.py::TestDeinflation::test_record_adjudication_sweeps_agent_workspaces PASSED [ 72%]
+tests/core/test_bpe_trust_bridge.py::TestDeinflation::test_empty_texts_noop PASSED [ 72%]
+tests/core/test_bpe_consult_policy.py::TestConsultPolicyGating::test_empty_workspace_never_renders PASSED [ 73%]
+tests/core/test_bpe_consult_policy.py::TestConsultPolicyGating::test_simple_complexity_suppressed PASSED [ 73%]
+tests/core/test_bpe_consult_policy.py::TestConsultPolicyGating::test_auto_mode_gating_active_but_healthy_renders PASSED [ 74%]
+tests/core/test_bpe_consult_policy.py::TestConsultPolicyGating::test_kill_switch_false_disables_gating PASSED [ 75%]
+tests/core/test_bpe_consult_policy.py::TestConsultPolicyGating::test_default_off_allows_until_evidence PASSED [ 75%]
+tests/core/test_bpe_consult_policy.py::TestConsultPolicyGating::test_failing_agent_suppressed_after_evidence PASSED [ 76%]
+tests/core/test_bpe_consult_policy.py::TestConsultPolicyGating::test_succeeding_agent_keeps_rendering PASSED [ 76%]
+tests/core/test_bpe_consult_policy.py::TestAnnealing::test_full_mode_early PASSED [ 77%]
+tests/core/test_bpe_consult_policy.py::TestAnnealing::test_recall_only_when_commit_note_share_collapses PASSED [ 78%]
+tests/core/test_bpe_consult_policy.py::TestAnnealing::test_full_mode_while_commit_note_active PASSED [ 78%]
+tests/core/test_bpe_consult_policy.py::TestAnnealing::test_harness_call_rate_metric PASSED [ 79%]
+tests/core/test_bpe_consult_policy.py::TestAnnealing::test_snapshot_shape PASSED [ 79%]
+tests/core/test_bpe_consult_policy.py::TestEpisodeCounters::test_counters_increment_on_successful_consults PASSED [ 80%]
+tests/core/test_bpe_consult_policy.py::TestEpisodeCounters::test_reset PASSED [ 81%]
+tests/core/test_bpe_consult_policy.py::TestRenderMode::test_recall_only_header PASSED [ 81%]
+tests/core/test_bpe_consult_policy.py::TestRenderMode::test_full_header_default PASSED [ 82%]
+tests/core/test_bpe_consult_policy.py::TestConsolidation::test_note_classification PASSED [ 82%]
+tests/core/test_bpe_consult_policy.py::TestConsolidation::test_success_promotes_notes PASSED [ 83%]
+tests/core/test_bpe_consult_policy.py::TestConsolidation::test_failure_drops_notes PASSED [ 84%]
+tests/core/test_bpe_consult_policy.py::TestConsolidation::test_nightly_sweep_covers_all_workspaces PASSED [ 84%]
+tests/core/test_bpe_consult_policy.py::TestConsolidation::test_memory_consolidator_wire_in PASSED [ 85%]
+tests/api/test_bpe_routes.py::TestAuth::test_non_admin_gets_403 
+-------------------------------- live log call ---------------------------------
+2026-11-07 21:49:51 [    INFO] HTTP Request: GET http://testserver/api/v1/admin/bpe/overview "HTTP/1.1 403 Forbidden"
+2026-11-07 21:49:51 [    INFO] HTTP Request: GET http://testserver/api/v1/admin/bpe/workspaces/detail?workspace_id=w&agent_id=a "HTTP/1.1 403 Forbidden"
+2026-11-07 21:49:51 [    INFO] HTTP Request: POST http://testserver/api/v1/admin/bpe/evolution/apply/fam "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 85%]
+tests/api/test_bpe_routes.py::TestAuth::test_unauthenticated_gets_401 
+-------------------------------- live log call ---------------------------------
+2026-11-07 21:49:51 [    INFO] HTTP Request: GET http://testserver/api/v1/admin/bpe/overview "HTTP/1.1 401 Unauthorized"
+PASSED                                                                   [ 86%]
+tests/api/test_bpe_routes.py::TestOverview::test_full_payload_shape 
+-------------------------------- live log call ---------------------------------
+2026-11-07 21:49:51 [    INFO] HTTP Request: GET http://testserver/api/v1/admin/bpe/overview "HTTP/1.1 200 OK"
+PASSED                                                                   [ 86%]
+tests/api/test_bpe_routes.py::TestOverview::test_env_override_shown_with_source 
+-------------------------------- live log call ---------------------------------
+2026-11-07 21:49:51 [    INFO] HTTP Request: GET http://testserver/api/v1/admin/bpe/overview "HTTP/1.1 200 OK"
+2026-11-07 21:49:51 [    INFO] HTTP Request: GET http://testserver/api/v1/admin/bpe/overview "HTTP/1.1 200 OK"
+PASSED                                                                   [ 87%]
+tests/api/test_bpe_routes.py::TestOverview::test_db_override_shown_with_source 
+-------------------------------- live log call ---------------------------------
+2026-11-07 21:49:51 [    INFO] HTTP Request: GET http://testserver/api/v1/admin/bpe/overview "HTTP/1.1 200 OK"
+PASSED                                                                   [ 88%]
+tests/api/test_bpe_routes.py::TestOverview::test_policy_snapshot_in_overview 
+-------------------------------- live log call ---------------------------------
+2026-11-07 21:49:51 [    INFO] HTTP Request: GET http://testserver/api/v1/admin/bpe/overview "HTTP/1.1 200 OK"
+PASSED                                                                   [ 88%]
+tests/api/test_bpe_routes.py::TestOverview::test_telemetry_aggregates_and_flips 
+-------------------------------- live log call ---------------------------------
+2026-11-07 21:49:51 [    INFO] [BPE Automation] evolution_apply: {'family': 'sales', 'fitness': 0.4}
+2026-11-07 21:49:51 [    INFO] HTTP Request: GET http://testserver/api/v1/admin/bpe/overview "HTTP/1.1 200 OK"
+FAILED                                                                   [ 89%]
+tests/api/test_bpe_routes.py::TestWorkspaces::test_summary_and_detail 
+-------------------------------- live log call ---------------------------------
+2026-11-07 21:49:52 [    INFO] HTTP Request: GET http://testserver/api/v1/admin/bpe/overview "HTTP/1.1 200 OK"
+2026-11-07 21:49:52 [    INFO] HTTP Request: GET http://testserver/api/v1/admin/bpe/workspaces/detail?workspace_id=ws-ui&agent_id=agent-ui&scope_key=sess-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 89%]
+tests/api/test_bpe_routes.py::TestWorkspaces::test_detail_unknown_scope_404 
+-------------------------------- live log call ---------------------------------
+2026-11-07 21:49:52 [    INFO] HTTP Request: GET http://testserver/api/v1/admin/bpe/workspaces/detail?workspace_id=nope&agent_id=nope "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 90%]
+tests/api/test_bpe_routes.py::TestWorkspaces::test_detail_does_not_create 
+-------------------------------- live log call ---------------------------------
+2026-11-07 21:49:52 [    INFO] HTTP Request: GET http://testserver/api/v1/admin/bpe/workspaces/detail?workspace_id=ghost&agent_id=ghost "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 91%]
+tests/api/test_bpe_routes.py::TestEvolutionApply::test_apply_empty_population_reports_no_genomes 
+-------------------------------- live log call ---------------------------------
+2026-11-07 21:49:52 [    INFO] HTTP Request: POST http://testserver/api/v1/admin/bpe/evolution/apply/empty-fam "HTTP/1.1 200 OK"
+PASSED                                                                   [ 91%]
+tests/api/test_bpe_routes.py::TestEvolutionApply::test_readiness_in_overview 
+-------------------------------- live log call ---------------------------------
+2026-11-07 21:49:52 [    INFO] HTTP Request: GET http://testserver/api/v1/admin/bpe/overview "HTTP/1.1 200 OK"
+PASSED                                                                   [ 92%]
+tests/api/test_bpe_routes.py::TestEvolutionApply::test_apply_force_override_deploys_genome 
+-------------------------------- live log call ---------------------------------
+2026-11-07 21:49:52 [    INFO] [BPE Automation] evolution_apply: {'family': 'fam-b', 'genome': {'max_subgoals': 10, 'recall_top_k': 3, 'max_entries_per_category': 80, 'max_render_chars': 2400}, 'fitness': 0.5}
+2026-11-07 21:49:52 [    INFO] HTTP Request: POST http://testserver/api/v1/admin/bpe/evolution/apply/fam-b "HTTP/1.1 200 OK"
+PASSED                                                                   [ 92%]
+tests/api/test_bpe_routes.py::TestEvolutionApply::test_apply_held_without_evidence_or_override 
+-------------------------------- live log call ---------------------------------
+2026-11-07 21:49:52 [    INFO] HTTP Request: POST http://testserver/api/v1/admin/bpe/evolution/apply/fam-c "HTTP/1.1 200 OK"
+PASSED                                                                   [ 93%]
+tests/api/test_bpe_routes.py::TestFlagResolution::test_env_beats_db_row PASSED [ 94%]
+tests/api/test_bpe_routes.py::TestFlagResolution::test_db_row_breaks_tie_when_env_unset PASSED [ 94%]
+tests/api/test_bpe_routes.py::TestFlagResolution::test_no_env_no_row_is_auto PASSED [ 95%]
+tests/api/test_bpe_routes.py::TestFlagResolution::test_workspace_flag_db_override PASSED [ 95%]
+tests/api/test_bpe_routes.py::TestFlagResolution::test_workspace_flag_db_override_true PASSED [ 96%]
+tests/test_generic_information_multiday_contract.py::test_same_job_verified_result_after_multiday_wait[3] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 21:49:52 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 21:49:52 [    INFO] EscalationManager initialized
+2026-11-07 21:49:52 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 21:49:52 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 21:49:52 [    INFO] EscalationManager initialized
+2026-11-07 21:49:52 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 21:49:52 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 21:49:52 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Create the closing task
+2026-11-07 21:49:52 [    INFO] Agent Agent One (a1) starting task: Create the closing task
+2026-11-07 21:49:52 [    INFO] EscalationManager initialized
+2026-11-07 21:49:52 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 21:49:52 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 21:49:52 [    INFO] LanceDBHandler initialized. ID: 4915709264. LANCEDB_AVAILABLE: True
+2026-11-07 21:49:52 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 21:49:52 [    INFO] Connecting to LanceDB at /private/tmp/root-feedback-sqlite-4ui_p80s/lance with storage_options=None
+2026-11-07 21:49:52 [    INFO] LanceDB connected successfully
+2026-11-07 21:49:52 [    INFO] EscalationManager initialized
+2026-11-07 21:49:52 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 21:49:52 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-07 21:49:52 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 1}
+2026-11-07 21:49:52 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=generic-info-wait "HTTP/1.1 202 Accepted"
+2026-11-10 21:49:52 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-10 21:49:52 [    INFO] EscalationManager initialized
+2026-11-10 21:49:52 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-10 21:49:52 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-10 21:49:52 [    INFO] EscalationManager initialized
+2026-11-10 21:49:52 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 21:49:52 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 21:49:52 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Create the closing task
+2026-11-10 21:49:52 [    INFO] Agent Agent One (a1) starting task: Create the closing task
+2026-11-10 21:49:52 [    INFO] EscalationManager initialized
+2026-11-10 21:49:52 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-10 21:49:52 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-10 21:49:52 [    INFO] LanceDBHandler initialized. ID: 4918711056. LANCEDB_AVAILABLE: True
+2026-11-10 21:49:52 [    INFO] Lazy loading LanceDB connection...
+2026-11-10 21:49:52 [    INFO] Connecting to LanceDB at /private/tmp/root-feedback-sqlite-4ui_p80s/lance with storage_options=None
+2026-11-10 21:49:52 [    INFO] LanceDB connected successfully
+2026-11-10 21:49:52 [    INFO] Recorded outcome for a1: success
+2026-11-10 21:49:52 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-10 21:49:52 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 2}
+2026-11-10 21:49:52 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/jobs/34aa997a-19fc-4c31-9095-3da750240cb2/answer "HTTP/1.1 200 OK"
+PASSED                                                                   [ 97%]
+tests/test_generic_information_multiday_contract.py::test_same_job_verified_result_after_multiday_wait[14] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 21:49:53 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 21:49:53 [    INFO] EscalationManager initialized
+2026-11-07 21:49:53 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 21:49:53 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 21:49:53 [    INFO] EscalationManager initialized
+2026-11-07 21:49:53 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 21:49:53 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 21:49:53 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Create the closing task
+2026-11-07 21:49:53 [    INFO] Agent Agent One (a1) starting task: Create the closing task
+2026-11-07 21:49:53 [    INFO] EscalationManager initialized
+2026-11-07 21:49:53 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 21:49:53 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 21:49:53 [    INFO] LanceDBHandler initialized. ID: 4916967456. LANCEDB_AVAILABLE: True
+2026-11-07 21:49:53 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 21:49:53 [    INFO] Connecting to LanceDB at /private/tmp/root-feedback-sqlite-4ui_p80s/lance with storage_options=None
+2026-11-07 21:49:53 [    INFO] LanceDB connected successfully
+2026-11-07 21:49:53 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-07 21:49:53 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 3}
+2026-11-07 21:49:53 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=generic-info-wait "HTTP/1.1 202 Accepted"
+2026-11-21 21:49:53 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-21 21:49:53 [    INFO] EscalationManager initialized
+2026-11-21 21:49:53 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-21 21:49:53 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-21 21:49:53 [    INFO] EscalationManager initialized
+2026-11-21 21:49:53 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-21 21:49:53 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-21 21:49:53 [    INFO] Executing Agent Agent One with ReAct Loop. Input: Create the closing task
+2026-11-21 21:49:53 [    INFO] Agent Agent One (a1) starting task: Create the closing task
+2026-11-21 21:49:53 [    INFO] EscalationManager initialized
+2026-11-21 21:49:53 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-21 21:49:53 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-21 21:49:53 [    INFO] LanceDBHandler initialized. ID: 4919102512. LANCEDB_AVAILABLE: True
+2026-11-21 21:49:53 [    INFO] Lazy loading LanceDB connection...
+2026-11-21 21:49:53 [    INFO] Connecting to LanceDB at /private/tmp/root-feedback-sqlite-4ui_p80s/lance with storage_options=None
+2026-11-21 21:49:53 [    INFO] LanceDB connected successfully
+2026-11-21 21:49:53 [    INFO] Recorded outcome for a1: success
+2026-11-21 21:49:53 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-21 21:49:53 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 4}
+2026-11-21 21:49:53 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/jobs/b9673c90-5787-407d-90ed-dc00bb6ba6b5/answer "HTTP/1.1 200 OK"
+PASSED                                                                   [ 97%]
+tests/test_generic_information_multiday_contract.py::test_two_missing_facts_span_two_weeks_same_job 
+-------------------------------- live log call ---------------------------------
+2026-11-07 21:49:53 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 21:49:53 [    INFO] EscalationManager initialized
+2026-11-07 21:49:53 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 21:49:53 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 21:49:53 [    INFO] EscalationManager initialized
+2026-11-07 21:49:53 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 21:49:53 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 21:49:53 [    INFO] Executing Agent Agent One with ReAct Loop. Input: prepare the task
+2026-11-07 21:49:53 [    INFO] Agent Agent One (a1) starting task: prepare the task
+2026-11-07 21:49:53 [    INFO] EscalationManager initialized
+2026-11-07 21:49:53 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 21:49:53 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 21:49:53 [    INFO] LanceDBHandler initialized. ID: 4924689008. LANCEDB_AVAILABLE: True
+2026-11-07 21:49:53 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 21:49:53 [    INFO] Connecting to LanceDB at /private/tmp/root-feedback-sqlite-4ui_p80s/lance with storage_options=None
+2026-11-07 21:49:53 [    INFO] LanceDB connected successfully
+2026-11-07 21:49:53 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-07 21:49:53 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 5}
+2026-11-07 21:49:53 [ WARNING] turn_fact circuit breaker OPENED after 5 consecutive failures (cooldown=120s) — extraction skipped
+2026-11-07 21:49:53 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=generic-second-prerequisite "HTTP/1.1 202 Accepted"
+2026-11-14 21:49:53 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-14 21:49:53 [    INFO] EscalationManager initialized
+2026-11-14 21:49:53 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-14 21:49:53 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-14 21:49:53 [    INFO] EscalationManager initialized
+2026-11-14 21:49:53 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-14 21:49:53 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-14 21:49:53 [    INFO] Executing Agent Agent One with ReAct Loop. Input: prepare the task
+2026-11-14 21:49:53 [    INFO] Agent Agent One (a1) starting task: prepare the task
+2026-11-14 21:49:53 [    INFO] EscalationManager initialized
+2026-11-14 21:49:53 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-14 21:49:53 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-14 21:49:53 [    INFO] LanceDBHandler initialized. ID: 4920743856. LANCEDB_AVAILABLE: True
+2026-11-14 21:49:53 [    INFO] Lazy loading LanceDB connection...
+2026-11-14 21:49:53 [    INFO] Connecting to LanceDB at /private/tmp/root-feedback-sqlite-4ui_p80s/lance with storage_options=None
+2026-11-14 21:49:53 [    INFO] LanceDB connected successfully
+2026-11-14 21:49:53 [    INFO] turn_fact circuit breaker HALF-OPEN — probing
+2026-11-14 21:49:53 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-14 21:49:53 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 6}
+2026-11-14 21:49:53 [ WARNING] turn_fact circuit breaker OPENED after 6 consecutive failures (cooldown=120s) — extraction skipped
+2026-11-14 21:49:53 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/jobs/4ea01524-a41b-46be-bd77-4ee6835490b3/answer "HTTP/1.1 202 Accepted"
+2026-11-21 21:49:53 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-21 21:49:53 [    INFO] EscalationManager initialized
+2026-11-21 21:49:53 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-21 21:49:53 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-21 21:49:53 [    INFO] EscalationManager initialized
+2026-11-21 21:49:53 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-21 21:49:53 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-21 21:49:53 [    INFO] Executing Agent Agent One with ReAct Loop. Input: prepare the task
+2026-11-21 21:49:53 [    INFO] Agent Agent One (a1) starting task: prepare the task
+2026-11-21 21:49:53 [    INFO] EscalationManager initialized
+2026-11-21 21:49:53 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-21 21:49:53 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-21 21:49:53 [    INFO] LanceDBHandler initialized. ID: 4920752288. LANCEDB_AVAILABLE: True
+2026-11-21 21:49:53 [    INFO] Lazy loading LanceDB connection...
+2026-11-21 21:49:53 [    INFO] Connecting to LanceDB at /private/tmp/root-feedback-sqlite-4ui_p80s/lance with storage_options=None
+2026-11-21 21:49:53 [    INFO] LanceDB connected successfully
+2026-11-21 21:49:53 [    INFO] Recorded outcome for a1: success
+2026-11-21 21:49:53 [    INFO] turn_fact circuit breaker HALF-OPEN — probing
+2026-11-21 21:49:53 [ WARNING] turn_fact parse failure — raw output (truncated): LLM Client not initialized (No API Keys configured).
+2026-11-21 21:49:53 [ WARNING] turn_fact_extraction_failure total={'timeout': 0, 'llm_error': 0, 'parse_error': 7}
+2026-11-21 21:49:53 [ WARNING] turn_fact circuit breaker OPENED after 7 consecutive failures (cooldown=120s) — extraction skipped
+2026-11-21 21:49:53 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/jobs/4ea01524-a41b-46be-bd77-4ee6835490b3/answer "HTTP/1.1 200 OK"
+PASSED                                                                   [ 98%]
+tests/test_generic_information_multiday_contract.py::test_late_multiday_answer_cannot_revive_cancelled_job 
+-------------------------------- live log call ---------------------------------
+2026-11-07 21:49:54 [    INFO] Starting agent Agent One (ID: a1)...
+2026-11-07 21:49:54 [    INFO] EscalationManager initialized
+2026-11-07 21:49:54 [    INFO] CognitiveTierService initialized for workspace: ws1
+2026-11-07 21:49:54 [ WARNING] LanceDBService initialized in stub mode (no-op)
+2026-11-07 21:49:54 [    INFO] EscalationManager initialized
+2026-11-07 21:49:54 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 21:49:54 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 21:49:54 [    INFO] Executing Agent Agent One with ReAct Loop. Input: use the code
+2026-11-07 21:49:54 [    INFO] Agent Agent One (a1) starting task: use the code
+2026-11-07 21:49:54 [    INFO] EscalationManager initialized
+2026-11-07 21:49:54 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 21:49:54 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 21:49:54 [    INFO] LanceDBHandler initialized. ID: 4923986512. LANCEDB_AVAILABLE: True
+2026-11-07 21:49:54 [    INFO] Lazy loading LanceDB connection...
+2026-11-07 21:49:54 [    INFO] Connecting to LanceDB at /private/tmp/root-feedback-sqlite-4ui_p80s/lance with storage_options=None
+2026-11-07 21:49:54 [    INFO] LanceDB connected successfully
+2026-11-07 21:49:54 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/run?operation_id=generic-cancelled-wait "HTTP/1.1 202 Accepted"
+2026-11-21 21:49:54 [    INFO] HTTP Request: POST http://testserver/api/agents/a1/jobs/ac33b7be-f4dc-4999-b8a7-dd5b6b3be3bc/answer "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 98%]
+::test_current_actor_cannot_reenter_workspace_with_contradictory_tenant 
+-------------------------------- live log call ---------------------------------
+2026-11-07 21:49:55 [    INFO] HTTP Request: POST http://testserver/api/rpc/workspace.note "HTTP/1.1 200 OK"
+2026-11-07 21:49:55 [    INFO] HTTP Request: POST http://testserver/api/rpc/workspace.note "HTTP/1.1 200 OK"
+PASSED                                                                   [ 99%]
+::test_matching_current_user_and_workspace_valid_twin 
+-------------------------------- live log call ---------------------------------
+2026-11-07 21:49:56 [    INFO] HTTP Request: POST http://testserver/api/rpc/workspace.note "HTTP/1.1 200 OK"
+PASSED                                                                   [100%]
+
+=================================== FAILURES ===================================
+_______________ TestOverview.test_telemetry_aggregates_and_flips _______________
+tests/api/test_bpe_routes.py:185: in test_telemetry_aggregates_and_flips
+    assert len(tel["automation_flips"]) == 1
+E   AssertionError: assert 4 == 1
+E    +  where 4 = len([{'at': 1794106191.972013, 'detail': {'bpe_action': 'automation_flip', 'workspace_id': 'default', 'agent_id': 'agent', 'scope_key': '', ...}}, {'at': 1794106191.919947, 'detail': {'bpe_action': 'automation_flip', 'workspace_id': 'default', 'agent_id': 'agent', 'scope_key': '', ...}}, {'at': 1794106191.919314, 'detail': {'bpe_action': 'automation_flip', 'workspace_id': 'default', 'agent_id': 'agent', 'scope_key': '', ...}}, {'at': 1794106191.918682, 'detail': {'bpe_action': 'automation_flip', 'workspace_id': 'default', 'agent_id': 'agent', 'scope_key': '', ...}}])
+------------------------------ Captured log call -------------------------------
+INFO     core.bpe.automation:automation.py:129 [BPE Automation] evolution_apply: {'family': 'sales', 'fitness': 0.4}
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/api/v1/admin/bpe/overview "HTTP/1.1 200 OK"
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 338 warnings
+tests/test_generic_information_multiday_contract.py: 8 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_bpe_current_principal_scope.py::test_same_actor_continues_own_buffer
+  /private/tmp/atom-bpe-persistence-write-20261108/backend/core/graphrag_engine.py:203: SyntaxWarning: "\%" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\%"? A raw string is also an option.
+    Escaped pattern where % and _ are escaped to \%
+
+tests/core/test_bpe_consult_policy.py::TestConsolidation::test_memory_consolidator_wire_in
+  /private/tmp/atom-bpe-persistence-write-20261108/backend/core/memory_consolidator.py:277: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    started = datetime.utcnow()
+
+tests/core/test_bpe_consult_policy.py::TestConsolidation::test_memory_consolidator_wire_in
+  /private/tmp/atom-bpe-persistence-write-20261108/backend/core/memory_consolidator.py:121: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    now = datetime.utcnow()
+
+tests/test_generic_information_multiday_contract.py::test_same_job_verified_result_after_multiday_wait[3]
+tests/test_generic_information_multiday_contract.py::test_same_job_verified_result_after_multiday_wait[3]
+tests/test_generic_information_multiday_contract.py::test_same_job_verified_result_after_multiday_wait[14]
+tests/test_generic_information_multiday_contract.py::test_same_job_verified_result_after_multiday_wait[14]
+tests/test_generic_information_multiday_contract.py::test_two_missing_facts_span_two_weeks_same_job
+tests/test_generic_information_multiday_contract.py::test_two_missing_facts_span_two_weeks_same_job
+tests/test_generic_information_multiday_contract.py::test_two_missing_facts_span_two_weeks_same_job
+tests/test_generic_information_multiday_contract.py::test_late_multiday_answer_cannot_revive_cancelled_job
+  /private/tmp/atom-bpe-persistence-write-20261108/backend/core/lancedb_handler.py:407: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    names = set(self.db.table_names())
+
+tests/test_generic_information_multiday_contract.py: 16 warnings
+  /Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/asyncio/events.py:94: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    self._context.run(self._callback, *self._args)
+
+tests/test_generic_information_multiday_contract.py::test_same_job_verified_result_after_multiday_wait[3]
+tests/test_generic_information_multiday_contract.py::test_same_job_verified_result_after_multiday_wait[3]
+tests/test_generic_information_multiday_contract.py::test_same_job_verified_result_after_multiday_wait[14]
+tests/test_generic_information_multiday_contract.py::test_same_job_verified_result_after_multiday_wait[14]
+tests/test_generic_information_multiday_contract.py::test_two_missing_facts_span_two_weeks_same_job
+tests/test_generic_information_multiday_contract.py::test_two_missing_facts_span_two_weeks_same_job
+tests/test_generic_information_multiday_contract.py::test_two_missing_facts_span_two_weeks_same_job
+tests/test_generic_information_multiday_contract.py::test_late_multiday_answer_cannot_revive_cancelled_job
+  /private/tmp/atom-bpe-persistence-write-20261108/backend/core/lancedb_handler.py:620: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    if table_name in self.db.table_names():
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/api/test_bpe_routes.py::TestOverview::test_telemetry_aggregates_and_flips
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================= 1 failed, 168 passed, 388 warnings in 26.24s =================
