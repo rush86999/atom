@@ -14,7 +14,6 @@ import logging
 from typing import Any, Dict, List, Optional
 from sqlalchemy import or_
 from sqlalchemy.orm import Session
-from sqlalchemy.orm.attributes import flag_modified
 
 from core.lancedb_handler import get_lancedb_handler
 from core.episode_service import EpisodeService
@@ -799,6 +798,39 @@ class AgentGraduationService:
             )
             return False
 
+        # Freeze authority and physical target material before the readiness
+        # await. Reuse the shared writer's claims; a fresh read after the await
+        # alone would silently authorize a different reviewed target.
+        from types import SimpleNamespace
+        from core.models import UserRole
+        from core import agent_decision_write_service as writes
+
+        if self.db.new or self.db.dirty or self.db.deleted:
+            return False  # Never flush unrelated caller work as a promotion.
+        actor = writes._resolve_actor(
+            self.db, SimpleNamespace(id=validated_by),
+            minimum_role=UserRole.TEAM_LEAD, authority_label="GRADUATION")
+        if not actor.get("ok") or not writes._agent_visible(actor, agent):
+            return False
+        try:
+            reviewed, raw_config, raw_schedule = writes._load_replace_source(self.db, agent_id)
+            if reviewed is None or (
+                reviewed.tenant_id != agent.tenant_id
+                or reviewed.workspace_id != agent.workspace_id
+                or reviewed.status != agent.status
+            ):
+                return False
+            predicates, claim_params = writes._replace_agent_predicates(
+                reviewed, raw_config, raw_schedule)
+            predicates.extend(writes._agent_predicates(reviewed, current_status))
+            for field in ("module_path", "class_name", "user_id", "confidence_score",
+                          "required_role_for_autonomy"):
+                predicates.append(writes._exact(getattr(AgentRegistry, field),
+                                               getattr(reviewed, field)))
+        except Exception as exc:
+            logger.warning("Graduation snapshot unavailable: error_class=%s", type(exc).__name__)
+            return False
+
         try:
             readiness = await self.calculate_readiness_score(
                 agent_id=agent_id,
@@ -852,22 +884,27 @@ class AgentGraduationService:
                 )
                 return False
 
-        previous_status = agent.status
-        agent.status = target_status
-
-        agent.updated_at = datetime.now()
-
-        # Add promotion metadata to configuration
-        if not agent.configuration:
-            agent.configuration = {}
-        agent.configuration["promoted_at"] = datetime.now().isoformat()
-        agent.configuration["promoted_by"] = validated_by
-
-        # Flag configuration as modified for SQLAlchemy JSON tracking
-        flag_modified(agent, "configuration")
+        previous_status = reviewed.status
+        configuration = dict(reviewed.configuration or {})
+        configuration.update(promoted_at=datetime.now().isoformat(), promoted_by=validated_by)
 
         try:
+            from sqlalchemy import update
+            if self.db.new or self.db.dirty or self.db.deleted:
+                return False
+            if not writes._claim_actor(self.db, actor):
+                self.db.rollback()
+                return False
+            changed = self.db.execute(
+                update(AgentRegistry).where(*predicates).values(
+                    status=target_status, updated_at=datetime.now(),
+                    configuration=configuration,
+                ).execution_options(synchronize_session=False), claim_params)
+            if changed.rowcount != 1:
+                self.db.rollback()
+                return False
             self.db.commit()
+            self.db.expire(agent)
             logger.info(f"Agent {agent_id} promoted to {new_maturity} by {validated_by}")
 
             # Real-time circuit: the tier just moved — drop the GovernanceCache

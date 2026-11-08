@@ -59,7 +59,8 @@ def graduation_world(tmp_path, monkeypatch):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("peer_change", [
-    "target_scope", "target_status", "actor_disabled", "unchanged",
+    "target_scope", "target_status", "target_configuration", "actor_disabled",
+    "actor_demoted", "actor_scope", "unchanged",
 ])
 async def test_graduation_revalidates_after_awaited_readiness(graduation_world, peer_change):
     sessions = graduation_world
@@ -76,6 +77,15 @@ async def test_graduation_revalidates_after_awaited_readiness(graduation_world, 
                 elif peer_change == "target_status":
                     peer.execute(update(AgentRegistry).where(AgentRegistry.id == "graduate")
                                  .values(status="student"))
+                elif peer_change == "target_configuration":
+                    peer.execute(update(AgentRegistry).where(AgentRegistry.id == "graduate")
+                                 .values(configuration={"accepted": "peer"}))
+                elif peer_change == "actor_demoted":
+                    peer.execute(update(User).where(User.id == "supervisor")
+                                 .values(role="member"))
+                elif peer_change == "actor_scope":
+                    peer.execute(update(User).where(User.id == "supervisor")
+                                 .values(workspace_id="ws-b"))
                 elif peer_change == "actor_disabled":
                     peer.execute(update(User).where(User.id == "supervisor")
                                  .values(is_active=False))
@@ -102,4 +112,7 @@ async def test_graduation_revalidates_after_awaited_readiness(graduation_world, 
             "autonomous" if peer_change == "unchanged"
             else "student" if peer_change == "target_status" else "supervised")
         if peer_change != "unchanged":
-            assert agent.configuration == {"accepted": "original"}
+            assert agent.configuration == {"accepted": (
+                "peer" if peer_change == "target_configuration" else "original")}
+        assert actor.role == ("member" if peer_change == "actor_demoted" else "team_lead")
+        assert actor.workspace_id == ("ws-b" if peer_change == "actor_scope" else "ws-a")
