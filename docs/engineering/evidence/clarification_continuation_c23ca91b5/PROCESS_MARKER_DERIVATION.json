@@ -1,0 +1,19 @@
+{
+  "raw_sha256": "sha256:b237ab032c217a5ea1ed4ef085475967682bc3eaff989e7dd5cc697615e5f78a",
+  "derivative_sha256": "sha256:99958c0b1bad0215e406de6b651715ba64a50ff30d8ddaedc0ed2de80255e898",
+  "redacted_marker_sha256": "sha256:7b7d0ee9956773fd0551cdc3aff92bcda5045d03aefda209d21db05b1c9a8276",
+  "redacted_field": "owner_process.token",
+  "redactions": 1,
+  "line_count_unchanged": true,
+  "other_line_bytes_unchanged": true,
+  "scanner_incident": 39820258,
+  "classification": "per-process UUID liveness marker, not an account/provider/authentication credential",
+  "definition_source": "c23ca91b51aa92f737ad62a845e24e477c5844e8:backend/core/execution_ownership.py",
+  "definition": "PROCESS_TOKEN = uuid.uuid4().hex; records OS-process ownership/start identity",
+  "raw_git_ref": "edf6f2f24bd884cbc33558b00197dfa562840381",
+  "raw_git_path": "docs/engineering/evidence/clarification_continuation_c23ca91b5/root-clarification-60f-recovery-negative.log",
+  "raw_private_copy": "/private/tmp/root-clarification-60f-recovery-negative.log",
+  "derivative_path": "root-clarification-60f-recovery-negative.sanitized.log",
+  "history_rewritten": false,
+  "scanner_waiver": false
+}

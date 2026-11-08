@@ -522,6 +522,94 @@ def apply_transition(
     return new_task, ops
 
 
+def _supersede_gap_settlement_operations(
+    task: Dict[str, Any],
+    operations: List[Dict[str, Any]],
+    assignment: Dict[str, Any],
+    transition: Optional[Dict[str, Any]],
+    *,
+    previous_task: Optional[Dict[str, Any]] = None,
+) -> List[Dict[str, Any]]:
+    """Supersede ONLY a waiting operation backing a question resolved here.
+
+    ``apply_transition`` is a general task API fed by structured callers. A
+    free-form/model-supplied transition must never be able to close an
+    arbitrary operation. The narrow trust boundary for a gap settlement is:
+
+    - the transition is ``record_unresolved`` and actually resolves a question;
+    - the named operation belongs to THIS assignment;
+    - its step is one of the steps carrying a question resolved in this same
+      transition; and
+    - the operation is still ``waiting`` (never an applied/settled effect).
+
+    Only ``mutate_assignment_and_task`` invokes this, after it has the fresh
+    assignment and task revision under the same CAS.
+    """
+    requested = {
+        str(item) for item in (transition or {}).get(
+            "supersede_operations") or [] if str(item)
+    }
+    if not requested or (transition or {}).get("kind") != "record_unresolved":
+        return operations
+    # A requested resolution is not proof that apply_transition settled it.
+    # Missing/already-closed questions are ignored by that general function.
+    # Require an actual OPEN -> resolved change in this CAS snapshot.
+    prior_open = {
+        str(q.get("question_id")): q
+        for q in (previous_task or {}).get("unresolved") or []
+        if isinstance(q, dict) and q.get("status") == "open"
+        and str(q.get("question_id") or "")
+    }
+    settled = {
+        str(q.get("question_id")): q
+        for q in (task or {}).get("unresolved") or []
+        if isinstance(q, dict) and q.get("status") == "resolved"
+        and str(q.get("question_id") or "")
+    }
+    resolved_ids = {
+        str(item.get("question_id"))
+        for item in (transition or {}).get("resolutions") or []
+        if isinstance(item, dict)
+        and str(item.get("question_id") or "") in prior_open
+        and str(item.get("question_id") or "") in settled
+        and settled[str(item["question_id"])].get("resolution_value") == (
+            _bounded_text(item.get("value"), 400)
+            or _bounded_text(item.get("resolution"), 400))
+    }
+    if not resolved_ids:
+        return operations
+    assignment_id = str((assignment or {}).get("assignment_id") or "")
+    eligible_steps = {
+        str(step.get("step_id") or "")
+        for step in (assignment or {}).get("steps") or []
+        if isinstance(step, dict)
+        and resolved_ids & {
+            str(item) for item in (step.get("gap_ids") or [])
+            if str(item)
+        }
+    }
+    updated = list(operations)
+    for index, op in enumerate(updated):
+        if str(op.get("operation_id") or "") not in requested:
+            continue
+        if str(op.get("assignment_id") or "") != assignment_id:
+            continue
+        if str(op.get("step_id") or "") not in eligible_steps:
+            continue
+        # The question's original operation is immutable source identity;
+        # another waiting attempt on that step cannot borrow its answer.
+        if not any(
+            str(prior_open[qid].get("source_operation") or "")
+            == str(op.get("operation_id") or "")
+            for qid in resolved_ids
+        ):
+            continue
+        if op.get("status") != "waiting":
+            continue
+        updated[index] = transition_operation(op, "superseded")
+    return updated
+
+
 def new_operation(
     *,
     task: Dict[str, Any],
@@ -1836,6 +1924,63 @@ class TaskLifecycle:
             lifecycle = {
                 "task_revision": record["task_revision"],
                 "operations": record["operations"],
+                "conversation_id": record.get("conversation_id"),
+                "assignment": new_assignment,
+            }
+            decision = {
+                "kind": "assignment",
+                "rationale": _bounded_text(rationale, 500),
+                "assignment_id": new_assignment.get("assignment_id"),
+                "state": new_assignment.get("status"),
+                "plan_revision": new_assignment.get("plan_revision"),
+            }
+            return result, lifecycle, decision
+
+        with self._lock:
+            return self._mutate(run_id, run)
+
+    def mutate_assignment_and_task(
+        self,
+        run_id: str,
+        compute,
+        *,
+        rationale: str = "",
+    ) -> Any:
+        """Atomically read-modify-write the assignment AND task revision.
+
+        ``compute(record, assignment) -> (new_assignment, result)`` keeps the
+        existing ``mutate_assignment`` contract. A settlement that must also
+        clear/reopen the question ledger returns the 3-tuple
+        ``(new_assignment, result, transition)``; ``transition`` is one normal
+        task transition applied to the FRESH record inside the SAME ``_mutate``
+        CAS. Question resolution, step reopen, operation supersede and the
+        accepted receipt therefore commit together or not at all.
+        """
+        from core.assignment_plan import validate_assignment
+
+        def run(record):
+            current = copy.deepcopy(record.get("assignment"))
+            if current is None:
+                raise TaskLifecycleError("task has no assignment plan")
+            computed = compute(record, current)
+            transition = None
+            if isinstance(computed, tuple) and len(computed) == 3:
+                new_assignment, result, transition = computed
+            else:
+                new_assignment, result = computed
+            validate_assignment(new_assignment)
+            new_revision = record["task_revision"]
+            operations = list(record["operations"])
+            if transition:
+                new_revision, operations = apply_transition(
+                    record["task_revision"], transition, operations)
+                validate_task_revision(new_revision)
+                operations = _supersede_gap_settlement_operations(
+                    new_revision, operations, new_assignment, transition,
+                    previous_task=record["task_revision"])
+            lifecycle = {
+                "task_revision": new_revision,
+                "operations": operations,
                 "conversation_id": record.get("conversation_id"),
                 "assignment": new_assignment,
             }

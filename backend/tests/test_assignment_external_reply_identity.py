@@ -521,7 +521,7 @@ def test_cas_rechecks_identity_after_competing_writer(
         route_env, tmp_path, monkeypatch)
     executor = route_env["executor"]
     lifecycle = route_env["lifecycle"]
-    original = lifecycle.mutate_assignment
+    original = lifecycle.mutate_assignment_and_task
     injected = {"done": False}
 
     def wrapper(run_id_arg, compute, **kwargs):
@@ -562,10 +562,11 @@ def test_cas_rechecks_identity_after_competing_writer(
             original(run_id, competitor, rationale="test: competitor")
         return original(run_id_arg, compute, **kwargs)
 
-    monkeypatch.setattr(lifecycle, "mutate_assignment", wrapper)
+    monkeypatch.setattr(lifecycle, "mutate_assignment_and_task", wrapper)
     result = executor.record_external_response(
         run_id, correlation, response="received 2 units",
         source=REPLY_SOURCE, value="2", reply_id=R1)
+    assert injected["done"] is True, "competitor must run at the actual CAS entry"
     assert result.get("status") == "reply_conflict", result
     wait_after = _wait(route_env, run_id)
     assert wait_after["status"] == "waiting"

@@ -1,0 +1,26 @@
+{
+  "source": "c52415e43d1e4fce86df872fa7c280299f1c978c",
+  "root": "/private/tmp/root-feedback-sqlite-a4hc_i64",
+  "command": [
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-assignment-gap-reply-identity-20261108/backend",
+    "--profile",
+    "bounded",
+    "--",
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "tests/test_root_gap_operation_settlement_guard.py",
+    "tests/test_assignment_gap_reply_identity.py",
+    "tests/test_assignment_external_reply_identity.py",
+    "tests/test_root_assignment_reply_material_probe.py",
+    "-q",
+    "--tb=short",
+    "-p",
+    "no:cacheprovider",
+    "--timeout=120",
+    "--timeout-method=thread",
+    "--basetemp=/private/tmp/root-feedback-sqlite-a4hc_i64/pytest"
+  ]
+}
