@@ -1,10 +1,10 @@
 <div align="center">
 
-# Atom
+# Atom — Open-source AI workflow automation
 
 ### Teach an AI employee your business. Give it work. Come back to a result.
 
-**Open-source AI employees for spreadsheets, documents and repeatable business work.**
+**AI agents for spreadsheets, documents and repeatable business work—with source-backed results you can review.**
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL_v3-blue.svg)](LICENSE.md)
 [![Python](https://img.shields.io/badge/Python-3.11%E2%80%933.13-blue)](docs/getting_started/quick-start.md)
@@ -16,26 +16,40 @@
 
 ![Atom workspace](https://github.com/user-attachments/assets/398de2e3-4ea6-487c-93ae-9600a66598fc)
 
-## From instructions to finished work
+## Put your business knowledge to work
 
-Atom is a locally run AI employee workspace. Teach an employee your business
-rules, supply company data, and ask it to calculate, assess or prepare a
-deliverable. When a field or instruction is ambiguous, it asks. When work must
-wait, it saves its state so you can leave and continue after a restart.
+Atom is an **open-source AI agent workspace for business workflow automation**.
+Run it locally, bring your data, and teach an AI employee the rules your team
+uses. Start with a useful job: prepare a sales quote, review a document or work
+through a spreadsheet. Inspect the source records, calculations and deliverable
+before using the result.
 
-- **Teach and correct.** Save contextual lessons, field mappings, document
-  formats and email protocols. New work adopts corrections; active work keeps
+**Teach it once. Review the work. Keep the context.**
+
+- **Turn company data into deliverables.** Demonstrated workflows map unfamiliar
+  spreadsheet columns, calculate against source records and produce cited
+  Word or PowerPoint documents within supported schemas.
+- **Make your rules reusable.** Save field mappings, commercial terms and
+  contextual lessons. New work adopts accepted corrections; active work keeps
   its accepted teaching snapshot.
-- **Work with unfamiliar data.** Upload CSV/XLSX files, confirm ambiguous column
-  mappings, calculate against source records and produce cited DOCX/PPTX output.
-- **Turn policy into repeatable decisions.** Author ordered rules in the canvas
-  editor. Supported deterministic rules preserve unresolved requirements rather
-  than inventing an approval.
-- **Keep work moving.** Durable questions, approvals and waiting states survive
-  restarts. Completed operations are preserved and uncertain effects require
-  reconciliation before another attempt.
-- **Choose your model.** Configure your own provider in Settings or use a local
-  OpenAI-compatible endpoint. The sample below needs no model or cloud key.
+- **Handle work that needs an answer.** Supported durable questions, approvals
+  and waits survive restarts. Completed operations are retained, and uncertain
+  effects need reconciliation before another attempt.
+- **Keep decisions reviewable.** Author ordered policies in the canvas editor.
+  Supported deterministic rules retain unresolved requirements rather than
+  inventing an approval.
+- **Bring your own model.** Configure a supported provider or local
+  OpenAI-compatible endpoint. Model capability and permissions still matter;
+  the starter sample needs no model or cloud key.
+
+Atom's deployment model is **single tenant**: a locally owned workspace with
+user, role and workspace boundaries. The workflows below have recorded local
+or controlled-provider evidence. General autonomous judgment and universal
+business automation remain development goals.
+
+[**Run the local sample →**](#try-atom-locally) ·
+[**Explore demonstrated workflows →**](#see-what-an-employee-can-do) ·
+[**Check the evidence and limits →**](#what-you-can-rely-on)
 
 ## Try Atom locally
 
@@ -167,6 +181,33 @@ without the required authority. See [TASK-WAIT-01 acceptance requirements](docs/
   integration surfaces. Some need `ATOM_PRODUCT_PROFILE=full`, a configured
   provider or additional infrastructure. Consult the inventory before relying
   on a particular feature.
+
+## Common questions
+
+**Is Atom an AI agent framework or an AI employee app?**
+
+Both: the employee workspace uses the app's shared agent, tool, workflow and
+governance mechanisms. “AI employee” describes the business-facing experience;
+it is not a separate replacement for the agent framework.
+
+**Can I use it with a local model?**
+
+Yes. Atom supports local inference through configured routes, including Ollama.
+A model must meet the workload's capability requirements; local availability
+alone does not establish reliable business judgment.
+
+**Can an agent wait for information for days?**
+
+Durable wait/restart/answer workflows are demonstrated at their recorded scopes.
+General days-long coordination with external people and systems is an explicit
+[acceptance goal](docs/acceptance/GOAL_COMPLETION_DELTA_2026_11_06.md#task-wait-01--long-running-tasks-pause-for-information-and-resume-on-its-arrival).
+It is not yet a universal capability claim.
+
+**Does running locally keep all data on my computer?**
+
+Local storage and local inference can support a local workflow. If you configure
+a cloud model or connector, the data you send follows that service's terms and
+your authorized access. See [security boundaries](docs/security/TRUST_VS_SANDBOX.md).
 
 ## Connect your own data and models
 
