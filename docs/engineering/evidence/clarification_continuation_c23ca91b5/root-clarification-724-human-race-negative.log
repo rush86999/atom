@@ -1,0 +1,119 @@
+
+tests/test_root_clarification_continuation.py::test_human_answer_rechecks_question_inside_the_cas[removed] 
+-------------------------------- live log setup --------------------------------
+2026-11-08 03:05:13 [    INFO] EscalationManager initialized
+2026-11-08 03:05:13 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 03:05:13 [    INFO] EscalationManager initialized
+2026-11-08 03:05:13 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 03:05:13 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-08 03:05:13 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-08 03:05:14 [    INFO] HTTP Request: POST http://testserver/api/assignments/ae1f79fd-49e6-41dd-a3a1-63e6a32743f6/gaps/c5e68c04-028b-4b79-bf76-b19dcc011665/resolve "HTTP/1.1 200 OK"
+FAILED                                                                   [ 25%]
+tests/test_root_clarification_continuation.py::test_human_answer_rechecks_question_inside_the_cas[resolved_same] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 03:05:15 [    INFO] HTTP Request: POST http://testserver/api/assignments/0ad47697-5038-46f6-8b4f-97bda51c8afd/gaps/b0dd7f8a-6131-42dc-86c8-c145a6199eae/resolve "HTTP/1.1 200 OK"
+FAILED                                                                   [ 50%]
+tests/test_root_clarification_continuation.py::test_human_answer_rechecks_question_inside_the_cas[resolved_different] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 03:05:15 [    INFO] HTTP Request: POST http://testserver/api/assignments/6d316a75-1386-45d2-8303-a1214d5c8409/gaps/3dc34507-d3fa-4915-9081-879a255f53ec/resolve "HTTP/1.1 200 OK"
+FAILED                                                                   [ 75%]
+tests/test_root_clarification_continuation.py::test_human_answer_rechecks_question_inside_the_cas[material_changed] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 03:05:16 [    INFO] HTTP Request: POST http://testserver/api/assignments/847373da-33d1-4310-95ed-b846891fcd2c/gaps/7f6ff222-4fb0-49d7-a188-ae0197e5b740/resolve "HTTP/1.1 200 OK"
+FAILED                                                                   [100%]
+
+=================================== FAILURES ===================================
+_________ test_human_answer_rechecks_question_inside_the_cas[removed] __________
+tests/test_root_clarification_continuation.py:397: in test_human_answer_rechecks_question_inside_the_cas
+    assert response.status_code == expected, response.text
+E   AssertionError: {"run_id":"ae1f79fd-49e6-41dd-a3a1-63e6a32743f6","assignment":{"assignment_id":"asg-800164a52a6c4422","objective":"Prepare the requested quote after the owner confirms scope","employee_id":"lead-1","workspace_id":"ws-1","plan_revision":1,"status":"blocked","teaching_revision":"heldout-terms-1","teaching_fingerprint":"008caeccf2de005819d2248ccceb13cf","teaching_history":[],"effective_lesson_ids":[],"mappings":[],"mapping_history":[],"business_requirements":[],"deliverables":[],"sources":[],"authorized_actions":["retrieve","calculate"],"standing_authority":null,"budget":{"max_steps":40,"max_attempts_per_step":3,"max_wall_seconds":3600.0,"max_cost_usd":0.0,"deadline":null,"cost_mode":"hard","soft_limit_authorized_by":null,"reserved_cost_usd":0.0,"cost_reservations":[],"cost_overrun_usd":0.0,"cost_violation":null,"soft_limit_exceeded":false,"steps_started":0,"started_at":"2026-11-08T08:05:14.589283+00:00","elapsed_seconds":0.0,"paused_seconds":0.015,"waiting_since":null,"wait_credits":{},"wait_credits_schema":1,"active_wait":null,"cost_usd":0.0,"idle_ledger_schema":2,"idle_intervals":{},"idle_open":{"id":"asg-800164a52a6c4422:idle:1794125114.590988","started_at":"2026-11-08T08:05:14.605071+00:00","reason":"waiting for an information answer","first_started_at":"2026-11-08T08:05:14.590988+00:00","checkpointed_at":"2026-11-08T08:05:14.605074+00:00"},"working_seconds":0.002,"wall_seconds":0.017},"steps":[{"step_id":"read","title":"Read held-out price rows","operation_type":"retrieve","adapter":"workbook.read","depends_on":[],"required":true,"effect":"read_only","status":"applied","recovery_class":"terminal","operation_id":"op-read","attempts":0,"result_summary":null,"result_value":null,"result_unit":null,"readiness":null,"result_measure":null,"prior_result_count":0,"artifact_revision":null,"gap_ids":[],"waiting":{},"external_response":{},"approval_request":{},"standing_authority_receipt":{},"failure":{}}],"created_at":"2026-11-08T08:05:14.576597+00:00","updated_at":"2026-11-08T08:05:14.605126+00:00","completed_at":"2026-11-08T08:05:14.604733+00:00","progress":{"total_steps":1,"required_steps":1,"completed_steps":1,"waiting_steps":0,"failed_steps":0,"uncertain_steps":0,"open_gap_count":0}},"open_gaps":[],"operations":[]}
+E   assert 200 == 409
+E    +  where 200 = <Response [200 OK]>.status_code
+------------------------------ Captured log setup ------------------------------
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.embedding_service:embedding_service.py:131 Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+INFO     core.agent_task_registry:agent_task_registry.py:64 AgentTaskRegistry initialized
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/ae1f79fd-49e6-41dd-a3a1-63e6a32743f6/gaps/c5e68c04-028b-4b79-bf76-b19dcc011665/resolve "HTTP/1.1 200 OK"
+______ test_human_answer_rechecks_question_inside_the_cas[resolved_same] _______
+tests/test_root_clarification_continuation.py:399: in test_human_answer_rechecks_question_inside_the_cas
+    assert response.json()["status"] == "already_resolved", response.json()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'status'
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/0ad47697-5038-46f6-8b4f-97bda51c8afd/gaps/b0dd7f8a-6131-42dc-86c8-c145a6199eae/resolve "HTTP/1.1 200 OK"
+____ test_human_answer_rechecks_question_inside_the_cas[resolved_different] ____
+tests/test_root_clarification_continuation.py:397: in test_human_answer_rechecks_question_inside_the_cas
+    assert response.status_code == expected, response.text
+E   AssertionError: {"run_id":"6d316a75-1386-45d2-8303-a1214d5c8409","assignment":{"assignment_id":"asg-38581d1d875b4d82","objective":"Prepare the requested quote after the owner confirms scope","employee_id":"lead-1","workspace_id":"ws-1","plan_revision":1,"status":"blocked","teaching_revision":"heldout-terms-1","teaching_fingerprint":"ef5de791cdb92fce126c1cb084c2b2da","teaching_history":[],"effective_lesson_ids":[],"mappings":[],"mapping_history":[],"business_requirements":[],"deliverables":[],"sources":[],"authorized_actions":["retrieve","calculate"],"standing_authority":null,"budget":{"max_steps":40,"max_attempts_per_step":3,"max_wall_seconds":3600.0,"max_cost_usd":0.0,"deadline":null,"cost_mode":"hard","soft_limit_authorized_by":null,"reserved_cost_usd":0.0,"cost_reservations":[],"cost_overrun_usd":0.0,"cost_violation":null,"soft_limit_exceeded":false,"steps_started":0,"started_at":"2026-11-08T08:05:15.902336+00:00","elapsed_seconds":0.0,"paused_seconds":0.016,"waiting_since":null,"wait_credits":{},"wait_credits_schema":1,"active_wait":null,"cost_usd":0.0,"idle_ledger_schema":2,"idle_intervals":{},"idle_open":{"id":"asg-38581d1d875b4d82:idle:1794125115.9041548","started_at":"2026-11-08T08:05:15.917494+00:00","reason":"waiting for an information answer","first_started_at":"2026-11-08T08:05:15.904155+00:00","checkpointed_at":"2026-11-08T08:05:15.917496+00:00"},"working_seconds":0.002,"wall_seconds":0.018},"steps":[{"step_id":"read","title":"Read held-out price rows","operation_type":"retrieve","adapter":"workbook.read","depends_on":[],"required":true,"effect":"read_only","status":"applied","recovery_class":"terminal","operation_id":"op-read","attempts":0,"result_summary":null,"result_value":null,"result_unit":null,"readiness":null,"result_measure":null,"prior_result_count":0,"artifact_revision":null,"gap_ids":[],"waiting":{},"external_response":{},"approval_request":{},"standing_authority_receipt":{},"failure":{}}],"created_at":"2026-11-08T08:05:15.891313+00:00","updated_at":"2026-11-08T08:05:15.917548+00:00","completed_at":"2026-11-08T08:05:15.917172+00:00","progress":{"total_steps":1,"required_steps":1,"completed_steps":1,"waiting_steps":0,"failed_steps":0,"uncertain_steps":0,"open_gap_count":0}},"open_gaps":[],"operations":[]}
+E   assert 200 == 409
+E    +  where 200 = <Response [200 OK]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/6d316a75-1386-45d2-8303-a1214d5c8409/gaps/3dc34507-d3fa-4915-9081-879a255f53ec/resolve "HTTP/1.1 200 OK"
+_____ test_human_answer_rechecks_question_inside_the_cas[material_changed] _____
+tests/test_root_clarification_continuation.py:397: in test_human_answer_rechecks_question_inside_the_cas
+    assert response.status_code == expected, response.text
+E   AssertionError: {"run_id":"847373da-33d1-4310-95ed-b846891fcd2c","assignment":{"assignment_id":"asg-f7ab1c8bb4b846bd","objective":"Prepare the requested quote after the owner confirms scope","employee_id":"lead-1","workspace_id":"ws-1","plan_revision":1,"status":"blocked","teaching_revision":"heldout-terms-1","teaching_fingerprint":"a88277d89d1584984ace7074cc875aaa","teaching_history":[],"effective_lesson_ids":[],"mappings":[],"mapping_history":[],"business_requirements":[],"deliverables":[],"sources":[],"authorized_actions":["retrieve","calculate"],"standing_authority":null,"budget":{"max_steps":40,"max_attempts_per_step":3,"max_wall_seconds":3600.0,"max_cost_usd":0.0,"deadline":null,"cost_mode":"hard","soft_limit_authorized_by":null,"reserved_cost_usd":0.0,"cost_reservations":[],"cost_overrun_usd":0.0,"cost_violation":null,"soft_limit_exceeded":false,"steps_started":0,"started_at":"2026-11-08T08:05:16.624096+00:00","elapsed_seconds":0.0,"paused_seconds":0.014,"waiting_since":null,"wait_credits":{},"wait_credits_schema":1,"active_wait":null,"cost_usd":0.0,"idle_ledger_schema":2,"idle_intervals":{},"idle_open":{"id":"asg-f7ab1c8bb4b846bd:idle:1794125116.625996","started_at":"2026-11-08T08:05:16.638892+00:00","reason":"waiting for an information answer","first_started_at":"2026-11-08T08:05:16.625996+00:00","checkpointed_at":"2026-11-08T08:05:16.638895+00:00"},"working_seconds":0.002,"wall_seconds":0.016},"steps":[{"step_id":"read","title":"Read held-out price rows","operation_type":"retrieve","adapter":"workbook.read","depends_on":[],"required":true,"effect":"read_only","status":"applied","recovery_class":"terminal","operation_id":"op-read","attempts":0,"result_summary":null,"result_value":null,"result_unit":null,"readiness":null,"result_measure":null,"prior_result_count":0,"artifact_revision":null,"gap_ids":[],"waiting":{},"external_response":{},"approval_request":{},"standing_authority_receipt":{},"failure":{}}],"created_at":"2026-11-08T08:05:16.614453+00:00","updated_at":"2026-11-08T08:05:16.638953+00:00","completed_at":"2026-11-08T08:05:16.638557+00:00","progress":{"total_steps":1,"required_steps":1,"completed_steps":1,"waiting_steps":0,"failed_steps":0,"uncertain_steps":0,"open_gap_count":0}},"open_gaps":[],"operations":[]}
+E   assert 200 == 409
+E    +  where 200 = <Response [200 OK]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/847373da-33d1-4310-95ed-b846891fcd2c/gaps/7f6ff222-4fb0-49d7-a188-ae0197e5b740/resolve "HTTP/1.1 200 OK"
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+  /private/tmp/root-py311-plugins/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_root_clarification_continuation.py::test_human_answer_rechecks_question_inside_the_cas[removed]
+  /private/tmp/atom-clarification-continuation-20261108/backend/core/graphrag_engine.py:203: SyntaxWarning: "\%" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\%"? A raw string is also an option.
+    Escaped pattern where % and _ are escaped to \%
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_root_clarification_continuation.py::test_human_answer_rechecks_question_inside_the_cas[removed]
+FAILED tests/test_root_clarification_continuation.py::test_human_answer_rechecks_question_inside_the_cas[resolved_same]
+FAILED tests/test_root_clarification_continuation.py::test_human_answer_rechecks_question_inside_the_cas[resolved_different]
+FAILED tests/test_root_clarification_continuation.py::test_human_answer_rechecks_question_inside_the_cas[material_changed]
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 4 failed, 16 warnings in 12.46s ========================

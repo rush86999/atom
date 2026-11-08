@@ -1,0 +1,32 @@
+{
+  "source": "14a9c2e1d9dbea522aa266282d8b7e9a321d4ded",
+  "root": "/private/tmp/root-feedback-sqlite-fr8w3apx",
+  "command": [
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-clarification-continuation-20261108/backend",
+    "--profile",
+    "bounded",
+    "--",
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "tests/test_root_clarification_continuation.py",
+    "tests/test_assignment_external_reply_identity.py",
+    "tests/test_assignment_gap_reply_identity.py",
+    "tests/test_root_gap_operation_settlement_guard.py",
+    "-q",
+    "--tb=short",
+    "-p",
+    "no:cacheprovider",
+    "-p",
+    "root_no_network",
+    "-p",
+    "no:randomly",
+    "-p",
+    "no:rerunfailures",
+    "--timeout=120",
+    "--timeout-method=thread",
+    "--basetemp=/private/tmp/root-feedback-sqlite-fr8w3apx/pytest"
+  ]
+}

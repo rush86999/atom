@@ -1,0 +1,29 @@
+{
+  "source": "72490db443fcb811b1ca17ed632694e7da90196a",
+  "root": "/private/tmp/root-feedback-sqlite-kin8hpyx",
+  "command": [
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-clarification-continuation-20261108/backend",
+    "--profile",
+    "bounded",
+    "--",
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "tests/test_root_clarification_continuation.py::test_human_answer_rechecks_question_inside_the_cas",
+    "-q",
+    "--tb=short",
+    "-p",
+    "no:cacheprovider",
+    "-p",
+    "root_no_network",
+    "-p",
+    "no:randomly",
+    "-p",
+    "no:rerunfailures",
+    "--timeout=120",
+    "--timeout-method=thread",
+    "--basetemp=/private/tmp/root-feedback-sqlite-kin8hpyx/pytest"
+  ]
+}

@@ -1,0 +1,20 @@
+{
+  "executed_source": "c90dd03ed7a26f3263b822a6206a8055ecb5e519",
+  "source_files": {
+    "scripts/acceptance/evidence_git_check.py": "sha256:6ae3f7c4e2e04b47b0de64555844144df4125628e9b08957a1e5a6dc64640f16",
+    "backend/tests/test_evidence_git_ref_contract.py": "sha256:8af9cfe0fb0ca0e9308c571186352f76d4872173433226469fb624faff5b52a7"
+  },
+  "artifacts": {
+    "README.md": "sha256:8426dec3ebd1a52191335917bb61f6fd3d536c666dfc359e5cc9a08640044a32",
+    "pytest_freezegun.py": "sha256:a8fa00f30404ea7afdaa41abe9d255cdc37c7d5b419b56c63a6b135e7bb7d85c",
+    "root-evidence-digest-c90-contract-py311.exit.json": "sha256:87bdeb43abd7d2e4fafecd03af6264b63ab75aada16f8f048410d23e94b710fb",
+    "root-evidence-digest-c90-contract-py311.log": "sha256:b3339e42230a99cde27d8c8def71b695cd4f48901663509147260a328b9af531",
+    "root-evidence-digest-c90-contract-py311.py": "sha256:9a1cfaedc87fa9272062297a9bed739dd9ca896c00f7b9cee7ed981a5effa552",
+    "root-evidence-digest-c90-contract-py311.spec.json": "sha256:6a1044e287f68a2471140c473978dff24fddfe0da68dbdbff5feb5580fb498b8",
+    "root-evidence-digest-c90-contract.exit.json": "sha256:43bab87553ab02158bf8cea576d316e2983017a659ae0852b87edcbd9fd7912b",
+    "root-evidence-digest-c90-contract.log": "sha256:e24237abdde864c54d532e73b27f6ae70a99977ed23765333bc7eb744fef19d6",
+    "root-evidence-digest-c90-contract.py": "sha256:2dca574e4e9ed39dcaee67059e0ee8cd49169ceb6b45f1951318b0f2e0d618d5",
+    "root-evidence-digest-c90-contract.spec.json": "sha256:f2cb3bd1f08267271376c6fd6e14f5b4582a82e474e2d7e3188cc2b7b8fafaf9",
+    "root_no_network.py": "sha256:e6e180ca0f9f03d6c173277a244f3b81994e6a3a6547325087f57ef9208a50df"
+  }
+}
