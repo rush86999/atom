@@ -54,3 +54,41 @@ def test_assignment_wake_failure_never_advances_general_router(monkeypatch, capl
                       "code": "assignment_wake_resume_unavailable", "run_id": "run-exact"}
     assert private_detail not in caplog.text
     assert "RuntimeError" in caplog.text
+
+
+@pytest.mark.parametrize("reply_status", ["blocked", "", "future_refusal"])
+def test_unaccepted_reply_status_cannot_resume_assignment(monkeypatch, reply_status):
+    calls = []
+
+    class Lifecycle:
+        def __init__(self, svc):
+            pass
+
+        def get_task(self, run_id):
+            return {"assignment": {"id": run_id}}
+
+    class Executor:
+        def __init__(self, lifecycle):
+            pass
+
+        def record_external_response(self, *args, **kwargs):
+            return {"status": reply_status}
+
+        async def resume(self, run_id):
+            calls.append("assignment")
+            return {"status": "executed"}
+
+    class Service:
+        async def advance(self, *args, **kwargs):
+            calls.append("general")
+
+    lifecycle_module = types.ModuleType("core.task_lifecycle")
+    lifecycle_module.TaskLifecycle = Lifecycle
+    executor_module = types.ModuleType("core.assignment_executor")
+    executor_module.AssignmentExecutor = Executor
+    monkeypatch.setitem(sys.modules, "core.task_lifecycle", lifecycle_module)
+    monkeypatch.setitem(sys.modules, "core.assignment_executor", executor_module)
+    result = asyncio.run(_resume_woken_run(
+        Service(), "run-exact", {"correlation_id": "reply-exact"}))
+    assert calls == []
+    assert result == {"status": reply_status}
