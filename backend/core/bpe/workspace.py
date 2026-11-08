@@ -450,21 +450,32 @@ def get_workspace(workspace_id: str, agent_id: str, scope_key: str) -> BPEWorksp
             _workspaces.pop(next(iter(_workspaces)))  # FIFO; state is durable via to_dict
         restored: Optional[BPEWorkspace] = None
         try:
-            from core.bpe.persistence import BPEWorkspaceStore
+            from core.bpe.persistence import (
+                BPEWorkspaceStore,
+                stored_namespace_identity,
+            )
 
             snapshot = BPEWorkspaceStore().load(*key)
             if snapshot:
-                restored = BPEWorkspace.from_dict(snapshot)
-                # The registry slot is the requested namespace. Never adopt a
-                # snapshot whose embedded identity addresses another one, even
-                # if a custom/older store returned it.
-                if (restored.workspace_id, restored.agent_id,
-                        restored.scope_key) != key:
+                # Validate the on-disk identity strictly before from_dict can
+                # normalize any missing field into a default namespace. The
+                # registry slot is the requested namespace, never the stored
+                # entry's implicit fallback.
+                stored_identity = stored_namespace_identity(snapshot)
+                if stored_identity == key:
+                    restored = BPEWorkspace.from_dict(snapshot)
+                    if (restored.workspace_id, restored.agent_id,
+                            restored.scope_key) != key:
+                        logger.warning(
+                            "bpe workspace restore identity mismatch; "
+                            "starting a fresh namespace"
+                        )
+                        restored = None
+                else:
                     logger.warning(
-                        "bpe workspace restore identity mismatch; "
+                        "bpe workspace restore identity missing or mismatched; "
                         "starting a fresh namespace"
                     )
-                    restored = None
         except Exception as e:  # persistence is best-effort
             logger.debug("bpe workspace restore skipped: %s", e)
         ws = restored if restored is not None else BPEWorkspace(*key)

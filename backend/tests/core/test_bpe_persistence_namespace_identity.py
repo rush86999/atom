@@ -6,7 +6,8 @@ ways: the file name replaced every non-alphanumeric character with ``_`` and
 the inner key joined ``agent_id`` and ``scope_key`` with ``|``. Different
 namespaces could therefore share (and overwrite) one persisted slot. A stored
 snapshot's embedded identity was also trusted even when it disagreed with the
-requested namespace.
+requested namespace, and missing/ill-typed identity fields were normalized
+into default authority.
 
 These controls use the real :class:`BPEWorkspaceStore` on ``tmp_path``. Root
 owns execution; nothing here is asserted as passing by the author.
@@ -49,6 +50,12 @@ def _title(store: BPEWorkspaceStore, workspace_id, agent_id, scope_key) -> str:
     snapshot = store.load(workspace_id, agent_id, scope_key)
     assert snapshot is not None
     return snapshot["progress"][0]["title"]
+
+
+def _write_raw(store: BPEWorkspaceStore, workspace_id: str, scopes: dict) -> None:
+    store._path_for(workspace_id).write_text(
+        json.dumps(scopes), encoding="utf-8"
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -262,3 +269,136 @@ def test_traversal_shaped_workspace_ids_stay_inside_the_store(tmp_path):
             _snapshot(workspace_id, "a", "s", workspace_id)
         ) is True
         assert _title(store, workspace_id, "a", "s") == workspace_id
+
+
+# ---------------------------------------------------------------------------
+# Stored identity is strict: no default alias from absent/ill-typed fields
+# ---------------------------------------------------------------------------
+
+
+def test_missing_stored_identity_is_not_defaulted_into_authority(
+    tmp_path, monkeypatch
+):
+    """The root negative: default.json with no identity fields."""
+    monkeypatch.setattr(persistence, "DATA_DIR", tmp_path)
+    store = BPEWorkspaceStore(data_dir=tmp_path)
+    path = store._path_for("default")
+    _write_raw(store, "default", {
+        "agent|": {"progress": [{"title": "unbound record"}]},
+    })
+    original_bytes = path.read_bytes()
+
+    assert store.load("default", "agent", "") is None
+    # Caller normalization still addresses default/agent/empty; only the
+    # stored entry is refused, so the registry starts empty.
+    reset_registry()
+    restored = get_workspace("default", "agent", "")
+    assert (
+        restored.workspace_id, restored.agent_id, restored.scope_key
+    ) == ("default", "agent", "")
+    assert restored.progress == []
+    assert path.read_bytes() == original_bytes
+
+
+@pytest.mark.parametrize(
+    "field", ["workspace_id", "agent_id", "scope_key"]
+)
+def test_each_missing_stored_identity_field_is_refused(tmp_path, field):
+    store = BPEWorkspaceStore(data_dir=tmp_path)
+    snapshot = _snapshot("w", "a", "s", "owned")
+    snapshot.pop(field)
+    _write_raw(store, "w", {"a|s": snapshot})
+
+    assert store.load("w", "a", "s") is None
+
+
+_NON_STRING_IDENTITIES = [
+    None,
+    True,
+    False,
+    0,
+    1,
+    1.5,
+    [],
+    {},
+]
+
+
+@pytest.mark.parametrize(
+    "field", ["workspace_id", "agent_id", "scope_key"]
+)
+@pytest.mark.parametrize("bad_value", _NON_STRING_IDENTITIES)
+def test_non_string_stored_identity_is_refused(tmp_path, field, bad_value):
+    store = BPEWorkspaceStore(data_dir=tmp_path)
+    snapshot = _snapshot("w", "a", "s", "owned")
+    snapshot[field] = bad_value
+    _write_raw(store, "w", {"a|s": snapshot})
+
+    assert store.load("w", "a", "s") is None
+
+
+@pytest.mark.parametrize("field", ["workspace_id", "agent_id"])
+def test_empty_workspace_or_agent_is_refused(tmp_path, field):
+    store = BPEWorkspaceStore(data_dir=tmp_path)
+    snapshot = _snapshot("w", "a", "s", "owned")
+    snapshot[field] = ""
+    _write_raw(store, "w", {"a|s": snapshot})
+
+    assert store.load("w", "a", "s") is None
+
+
+def test_save_refuses_missing_stored_identity_without_overwriting(
+    tmp_path
+):
+    store = BPEWorkspaceStore(data_dir=tmp_path)
+    assert store.save(_snapshot("w", "a", "s", "original")) is True
+    path = store._path_for("w")
+    original_bytes = path.read_bytes()
+
+    malformed = _snapshot("w", "a", "s", "replacement")
+    malformed.pop("agent_id")
+    assert store.save(malformed) is False
+    assert path.read_bytes() == original_bytes
+    assert _title(store, "w", "a", "s") == "original"
+
+    typed = _snapshot("w", "a", "s", "replacement")
+    typed["workspace_id"] = False
+    assert store.save(typed) is False
+    assert path.read_bytes() == original_bytes
+
+    # No implicit default file is created for an identity-less snapshot.
+    assert store.save({"progress": [{"title": "unbound"}]}) is False
+    assert not store._path_for("default").exists()
+
+
+# ---------------------------------------------------------------------------
+# Valid historical twin: explicit matching identity, empty scope allowed
+# ---------------------------------------------------------------------------
+
+
+def test_explicit_default_empty_scope_snapshot_still_loads(tmp_path, monkeypatch):
+    monkeypatch.setattr(persistence, "DATA_DIR", tmp_path)
+    store = BPEWorkspaceStore(data_dir=tmp_path)
+    _write_raw(store, "default", {
+        "agent|": {
+            "workspace_id": "default",
+            "agent_id": "agent",
+            "scope_key": "",
+            "progress": [{"title": "explicit historical record"}],
+            "pending_notes": [],
+            "experience": {},
+        },
+    })
+
+    # Explicit stored fields load; caller None/empty normalization still
+    # addresses the documented default/agent/empty namespace.
+    assert _title(store, "default", "agent", "") == (
+        "explicit historical record")
+    assert _title(store, None, None, None) == "explicit historical record"
+
+    reset_registry()
+    restored = get_workspace(None, None, None)
+    assert (
+        restored.workspace_id, restored.agent_id, restored.scope_key
+    ) == ("default", "agent", "")
+    assert restored.progress[0].title == "explicit historical record"

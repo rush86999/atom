@@ -26,10 +26,14 @@ different namespaces can never read or overwrite one another through a
 lossy character substitution or a ``|`` separator collision. ``load`` also
 verifies that the identity embedded in the stored snapshot is the identity
 that was asked for; a mismatched (tampered/stale) snapshot is refused rather
-than restored under the wrong namespace. Normal lowercase ids keep their
-historic ``<workspace_id>.json`` / ``<agent_id>|<scope_key>`` spelling.
-Unsafe or mixed-case ids are encoded, and a legacy lossy-named file is
-read once for compatibility without being moved, deleted or overwritten.
+than restored under the wrong namespace. Stored identity fields must be
+explicitly present strings, and workspace/agent must be non-empty; missing,
+null, boolean, numeric or container values are never normalized into
+authority (only the caller-facing request arguments are normalized). Normal
+lowercase ids keep their historic ``<workspace_id>.json`` /
+``<agent_id>|<scope_key>`` spelling. Unsafe or mixed-case ids are encoded, and
+a legacy lossy-named file is read once for compatibility without being moved,
+deleted or overwritten.
 """
 from __future__ import annotations
 
@@ -57,7 +61,12 @@ _SCOPE_SEPARATOR = "|"
 def namespace_identity(
     workspace_id: Any, agent_id: Any, scope_key: Any
 ) -> Tuple[str, str, str]:
-    """Canonical persisted namespace triple (same normalization as the API)."""
+    """Normalize caller-facing request arguments into the requested triple.
+
+    This compatibility normalization is intentionally separate from
+    :func:`stored_namespace_identity`: a caller may omit an argument, but a
+    persisted entry must carry its authority explicitly.
+    """
     return (
         str(workspace_id or "default"),
         str(agent_id or "agent"),
@@ -113,15 +122,38 @@ def _scope_storage_key(agent_id: Any, scope_key: Any) -> str:
     return f"{_ENCODED_SCOPE_PREFIX}{_SCOPE_SEPARATOR}{_encode(agent)}{_SCOPE_SEPARATOR}{_encode(scope)}"
 
 
-def _snapshot_identity(snapshot: Any) -> Optional[Tuple[str, str, str]]:
-    """Embedded namespace identity of one stored entry (None when not a dict)."""
+_IDENTITY_FIELDS = ("workspace_id", "agent_id", "scope_key")
+
+
+def stored_namespace_identity(snapshot: Any) -> Optional[Tuple[str, str, str]]:
+    """Strict identity carried by one *stored* entry, or None when invalid.
+
+    Stored identity is authority, so it is validated exactly and never
+    normalized: every field must be explicitly present and be a string; the
+    workspace and agent must be non-empty; the scope may be empty. Missing,
+    null, boolean, numeric and container values are refused. Caller argument
+    normalization (``None`` -> default/agent/empty) happens separately in
+    :func:`namespace_identity` and is not allowed to manufacture stored
+    authority.
+    """
     if not isinstance(snapshot, dict):
         return None
-    return namespace_identity(
-        snapshot.get("workspace_id"),
-        snapshot.get("agent_id"),
-        snapshot.get("scope_key"),
-    )
+    if any(field not in snapshot for field in _IDENTITY_FIELDS):
+        return None
+    workspace_id = snapshot["workspace_id"]
+    agent_id = snapshot["agent_id"]
+    scope_key = snapshot["scope_key"]
+    if not all(isinstance(value, str)
+               for value in (workspace_id, agent_id, scope_key)):
+        return None
+    if not workspace_id or not agent_id:
+        return None
+    return workspace_id, agent_id, scope_key
+
+
+def _snapshot_identity(snapshot: Any) -> Optional[Tuple[str, str, str]]:
+    """Embedded identity of one stored entry; defaults never fill gaps."""
+    return stored_namespace_identity(snapshot)
 
 
 def _snapshot_workspace_id(snapshot: Any) -> Optional[str]:
@@ -252,11 +284,15 @@ class BPEWorkspaceStore:
         and file name always agree.
         """
         try:
-            identity = namespace_identity(
-                snapshot.get("workspace_id"),
-                snapshot.get("agent_id"),
-                snapshot.get("scope_key"),
-            )
+            # Stored identity must be explicit and well typed; never invent a
+            # namespace from missing/default-shaped fields.
+            identity = stored_namespace_identity(snapshot)
+            if identity is None:
+                logger.debug(
+                    "bpe store snapshot lacks a valid stored namespace "
+                    "identity; skipping persist"
+                )
+                return False
             workspace_id, agent_id, scope_key = identity
             key = _scope_storage_key(agent_id, scope_key)
 

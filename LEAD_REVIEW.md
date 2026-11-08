@@ -365,3 +365,110 @@ Code/test authoring is complete; no Python, pytest, server, model, provider, or
 install command was executed here. Root must serially run the exact primary
 selection and then the full backend gate. This repair is not accepted until
 root verifies it at the exact head.
+
+---
+
+# LEAD REVIEW — strict persisted-entry identity (namespace follow-up)
+
+Status: **AUTHOR-ONLY / NOT EXECUTED**. No Python, pytest, server, model,
+provider, install, migration or credential/env inspection was run here. Root
+owns execution and acceptance.
+
+## Root negative being closed
+
+At integrated source `b86a7dbe6`, a real store file `default.json` containing:
+
+```json
+{"agent|": {"progress": [{"title": "unbound record"}]}}
+```
+
+loaded under `default/agent/empty`. The entry has no stored identity at all,
+but `_snapshot_identity` fed missing fields through the caller-facing
+`namespace_identity` normalizer, which supplied `"default"`, `"agent"` and
+`""`. That made absent data look like explicit persisted authority.
+
+## Repair
+
+`backend/core/bpe/persistence.py`
+
+- Added `stored_namespace_identity(snapshot)`, a strict validator for
+  **stored** entries:
+  - `workspace_id`, `agent_id` and `scope_key` must all be explicit keys in
+    the entry;
+  - all three values must be strings;
+  - `workspace_id` and `agent_id` must be non-empty;
+  - `scope_key` may be empty.
+- Missing, `None`, boolean, numeric, list/dict and other container values now
+  return `None`; they are never coerced into a namespace.
+- `_snapshot_identity`/`_snapshot_workspace_id` use this strict validator, so
+  `load()` refuses the root-negative entry and also refuses malformed legacy
+  entries during read-through instead of carrying them forward.
+- `load()` still normalizes its **caller arguments** through
+  `namespace_identity`, preserving existing `None`/empty/default request
+  behavior. Only the stored side is strict.
+- `save()` now rejects a snapshot whose stored identity fields are absent or
+  ill-typed (`False`, no file write). It never manufactures a default entry.
+  The existing truthful replacement result, temporary-file cleanup and
+  injective path/key encodings are unchanged.
+
+`backend/core/bpe/workspace.py`
+
+- The only production restoration consumer, `get_workspace()`, now calls
+  `stored_namespace_identity(snapshot)` before `BPEWorkspace.from_dict()`.
+  `from_dict()` has no namespace-request context and is retained as an
+  object-level materializer with its existing defaults; it is never allowed
+  to decide persisted authority. A missing/mismatched stored identity starts a
+  fresh workspace in the requested registry slot.
+
+Parallel restoration consumers traced: `generic_agent.py` and
+`atom_meta_agent.py` only **save** `BPEWorkspace.to_dict()` state;
+`api/bpe_routes.py` reads the in-process snapshot, not the file store; direct
+test use of `BPEWorkspace.from_dict()` is object-level and unchanged. No other
+production file-store restore path exists.
+
+## Authored controls added
+
+`backend/tests/core/test_bpe_persistence_namespace_identity.py`
+
+1. `test_missing_stored_identity_is_not_defaulted_into_authority` — the exact
+   root negative: `default.json` / `agent|` with no identity fields yields
+   `load(...) is None`; `get_workspace("default", "agent", "")` starts empty
+   rather than adopting the record.
+2. `test_each_missing_stored_identity_field_is_refused` — each of the three
+   fields removed independently is refused.
+3. `test_non_string_stored_identity_is_refused` — `None`, `True`, `False`,
+   `0`, `1`, `1.5`, `[]` and `{}` are refused for each identity field.
+4. `test_empty_workspace_or_agent_is_refused` — empty workspace or agent is
+   refused, while empty scope remains valid.
+5. `test_save_refuses_missing_stored_identity_without_overwriting` — a
+   malformed snapshot returns `False`, leaves the existing file bytes intact,
+   and creates no implicit `default.json`.
+6. `test_explicit_default_empty_scope_snapshot_still_loads` — a valid
+   historical entry with explicit `default` / `agent` / `""` fields loads via
+   `load(None, None, None)` and through `get_workspace(None, None, None)`.
+
+Existing namespace-collision, path-encoding, write-truth, path-anchoring and
+current-principal controls are unchanged.
+
+## Preserved compatibility / exact negatives
+
+- Caller normalization remains: `load(None, None, None)`,
+  `get_workspace(None, None, None)` and empty caller arguments still address
+  `default/agent/empty`.
+- Valid historical snapshots with explicit matching string fields still load,
+  including the default/empty-scope case.
+- Legacy files are read-through only and their bytes are untouched; malformed
+  entries are simply not admitted.
+- Existing safe filenames/keys, truthful `save()` result, temporary cleanup,
+  explicit `data_dir`, backend-relative anchoring and all prior controls are
+  preserved.
+
+## Explicitly open
+
+- Malformed historical entries are refused rather than migrated, repaired or
+  deleted; no live store data was touched.
+- Concurrent writers, multi-process last-writer-wins, fsync/crash durability,
+  note/commit Oracle receipts, hot runtime settings and PostgreSQL/soak remain
+  open and unchanged.
+- No runtime result is claimed here. Root must execute the controls and the
+  wider BPE selection at the exact accepted head.
