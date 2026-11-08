@@ -567,12 +567,12 @@
         {
           "kind": "pending-extension",
           "ref": "https://github.com/rush86999/atom/pull/784",
-          "scope": "Head 05ba5555d; runtime 1d8a2cee5 full 138 governance/exam controls pass on Python 3.11/3.14. Historical safety review explicitly does not qualify candidate competence. Current-head hosted/integration acceptance remains pending."
+          "scope": "Head5be597bd2 resolves squash-history CI conflicts and has the exact same complete tree as qualified05ba5555d. Runtime1d8a2cee5 full138 governance/exam controls pass on Python3.11/3.14; old05ba all10 hosted checks succeeded. New-head checks remain mandatory. Historical trace safety review is not candidate qualification."
         },
         {
           "kind": "pending-extension",
           "ref": "https://github.com/rush86999/atom/pull/785",
-          "scope": "Integrated 003e68484 normal governance plus CI-preservation selection 171 passed on each Python runtime. Eleven new epoch controls pass; broader 95 pass / 2 fail matches main 84 pass / the identical 2 IDs on both. Current-head hosted acceptance remains pending; no multi-writer or held-out competence claim."
+          "scope": "Combined head513ddcb46 includes pending PR784 and accepted mainb718. Entire exam/epoch/governance plus CI-preservation union183 passed on each Python runtime. Broader95pass/2fail matches main84pass/the identical2IDs on both. The autonomy family has its own preserved CI step; no tests/flags removed. Hosted integration remains pending; no multi-writer, unique-outcome or held-out competence claim."
         }
       ],
       "gap": "Historical tier-based action gating stays verified at its original source. The separately reproduced current-authority, target-material, receipt/replay and audit-scope defects are repaired and accepted at the bounded PR782/783 sources. Historical-exam truth/scope (PR784) and post-regression fresh-credit reentry (PR785) remain pending current-head integration. Held-out capability calibration, unique verified-outcome credit, broader agent judgment and multi-writer qualification are not established by tier labels, episode counts, historical trace review or these repair tests.",
@@ -5328,7 +5328,7 @@
       "claim_ids": [
         "GOV-01"
       ],
-      "scope": "Current bounded promotion/audit acceptance and two pending successors; other142 claim records and historical denominator are unchanged. Earlier focused entries are historical snapshots.",
+      "scope": "Current bounded promotion/audit acceptance, ancestry-only exam conflict resolution and combined183-control pending successor. Other142 claim records, historical statuses and denominator remain unchanged; earlier focused entries are historical snapshots.",
       "accepted_prs": [
         782,
         783
@@ -5338,8 +5338,8 @@
         785
       ],
       "pending_sources": [
-        "05ba5555d",
-        "003e68484"
+        "5be597bd2",
+        "513ddcb46"
       ],
       "historical_scores_unchanged": true
     }
