@@ -9,6 +9,7 @@ from __future__ import annotations
 import hashlib
 import importlib.util
 import json
+import subprocess
 from pathlib import Path
 
 import pytest
@@ -33,6 +34,40 @@ def driver():
 
 def _sha(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
+
+
+def _write_checksums(fixtures: Path, digests: dict[str, str]) -> None:
+    lines = [f"{digest}  ./{name}\n" for name, digest in digests.items()]
+    (fixtures / "SHA256SUMS").write_text("".join(lines), encoding="utf-8")
+
+
+def _git(repo: Path, *args: str) -> str:
+    proc = subprocess.run(
+        ["git", "-C", str(repo), "-c", "user.email=t@example.invalid",
+         "-c", "user.name=Fixture Test", "-c", "commit.gpgsign=false",
+         *args],
+        capture_output=True, text=True, check=True)
+    return proc.stdout
+
+
+def _commit(repo: Path, message: str = "fixtures", *paths: str) -> None:
+    targets = ["--", *paths] if paths else ["-A"]
+    _git(repo, "add", *targets)
+    _git(repo, "commit", "-q", "-m", message)
+
+
+def _fixture_repo(tmp_path: Path, files: dict[str, bytes]):
+    repo = tmp_path / "repo"
+    fixtures = repo / "fixtures"
+    fixtures.mkdir(parents=True)
+    for name, blob in files.items():
+        path = fixtures / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_bytes(blob)
+    _write_checksums(fixtures, {name: _sha(blob) for name, blob in files.items()})
+    _git(repo, "init", "-q")
+    _commit(repo)
+    return repo, fixtures
 
 
 def _headers(driver, export_format: str, body: bytes, text: str,
@@ -325,3 +360,222 @@ def test_output_target_refuses_worlds_and_unmarked_reuse(driver, tmp_path):
     allowed = driver._output_target_probe(
         fresh, worlds_root=worlds, require_empty=True)
     assert allowed["ok"], allowed["problems"]
+
+
+def test_acc_metadata_probe_missing_dir_is_not_ready_and_does_not_mkdir(
+        driver, tmp_path):
+    acc = tmp_path / "acceptance"
+    proof = driver._acc_metadata_probe(acc)
+    assert not proof["ok"]
+    assert proof["exists"] is False
+    assert proof["mkdir_in_preflight"] is False
+    assert proof["write_in_preflight"] is False
+    assert proof["venv_freeze_is_generated_output"] is True
+    assert not acc.exists()
+
+
+def test_acc_metadata_probe_accepts_existing_dir_without_writing(
+        driver, tmp_path):
+    acc = tmp_path / "acceptance"
+    acc.mkdir()
+    proof = driver._acc_metadata_probe(acc)
+    assert proof["ok"], proof["problems"]
+    assert proof["writable"] is True
+    assert not (acc / "venv_freeze.txt").exists()
+
+
+def test_acc_metadata_probe_refuses_tracked_fake_venv_freeze(
+        driver, tmp_path):
+    repo = tmp_path / "repo"
+    acc = repo / "acceptance"
+    acc.mkdir(parents=True)
+    (acc / "venv_freeze.txt").write_text("fake freeze\n", encoding="utf-8")
+    _git(repo, "init", "-q")
+    _commit(repo)
+    proof = driver._acc_metadata_probe(acc, git_root=repo)
+    assert not proof["ok"]
+    assert proof["venv_freeze_tracked"] is True
+    assert proof["checks"]["venv_freeze_not_tracked"] is False
+
+
+def test_checksum_inventory_rejects_empty_bad_and_truncated(driver):
+    digest = "a" * 64
+    bad_inventories = [
+        "",
+        "\n",
+        f"{digest[:63]}  ./a.txt\n",
+        f"{digest[:-1]}z  ./a.txt\n",
+        f"{digest} ./a.txt\n",
+        f"{digest}  \n",
+    ]
+    for text in bad_inventories:
+        parsed = driver._parse_checksum_inventory(text, expected_count=1)
+        assert not parsed["ok"], text
+
+
+def test_checksum_inventory_rejects_duplicate_and_escaped_names(driver):
+    digest = "a" * 64
+    other = "b" * 64
+    duplicate = driver._parse_checksum_inventory(
+        f"{digest}  ./a.txt\n{other}  a.txt\n", expected_count=1)
+    assert not duplicate["ok"]
+    assert duplicate["duplicate_names"] == ["a.txt"]
+
+    escaped = driver._parse_checksum_inventory(
+        f"{digest}  ../a.txt\n", expected_count=1)
+    assert not escaped["ok"]
+    assert escaped["escaped_names"] == ["../a.txt"]
+
+    absolute = driver._parse_checksum_inventory(
+        f"{digest}  /tmp/a.txt\n", expected_count=1)
+    assert not absolute["ok"]
+    assert absolute["escaped_names"] == ["/tmp/a.txt"]
+
+    backslash = driver._parse_checksum_inventory(
+        f"{digest}  sub\\a.txt\n", expected_count=1)
+    assert not backslash["ok"]
+    assert backslash["escaped_names"] == ["sub\\a.txt"]
+
+
+def test_fixture_checksum_probe_missing_checksums_is_not_ready(
+        driver, tmp_path):
+    fixtures = tmp_path / "fixtures"
+    fixtures.mkdir()
+    proof = driver._fixture_checksum_probe(
+        fixtures_dir=fixtures, expected_count=2, git_root=tmp_path)
+    assert not proof["ok"]
+    assert proof["checksums_git_tracked"] is False
+    assert proof["generated_or_repaired"] is False
+    assert not (fixtures / "SHA256SUMS").exists()
+
+
+def test_fixture_checksum_probe_accepts_exact_git_twins(driver, tmp_path):
+    repo, fixtures = _fixture_repo(
+        tmp_path, {"a.txt": b"alpha", "b.txt": b"beta"})
+    proof = driver._fixture_checksum_probe(
+        fixtures_dir=fixtures, expected_count=2, git_root=repo)
+    assert proof["ok"], proof["problems"]
+    assert proof["entry_count"] == 2
+    assert proof["expected_entry_count"] == 2
+    assert proof["checksums_git_exact"] is True
+    assert proof["all_files_git_exact"] is True
+    assert proof["generated_or_repaired"] is False
+    assert proof["uploaded_as_user_document"] is False
+
+
+def test_fixture_checksum_probe_rejects_bad_or_truncated_inventory(
+        driver, tmp_path):
+    repo, fixtures = _fixture_repo(
+        tmp_path, {"a.txt": b"alpha", "b.txt": b"beta"})
+    (fixtures / "SHA256SUMS").write_text(
+        f"{_sha(b'alpha')[:63]}  ./a.txt\n", encoding="utf-8")
+    _commit(repo, "truncated inventory")
+    proof = driver._fixture_checksum_probe(
+        fixtures_dir=fixtures, expected_count=2, git_root=repo)
+    assert not proof["ok"]
+    assert proof["checks"]["inventory_parsed"] is False
+    assert proof["checks"]["entry_count_exact"] is False
+
+
+def test_fixture_checksum_probe_rejects_wrong_digest(driver, tmp_path):
+    repo, fixtures = _fixture_repo(
+        tmp_path, {"a.txt": b"alpha", "b.txt": b"beta"})
+    _write_checksums(fixtures, {
+        "a.txt": _sha(b"alpha"), "b.txt": _sha(b"not-beta")})
+    _commit(repo, "wrong digest")
+    proof = driver._fixture_checksum_probe(
+        fixtures_dir=fixtures, expected_count=2, git_root=repo)
+    assert not proof["ok"]
+    assert proof["digest_mismatches"] == ["b.txt"]
+
+
+def test_fixture_checksum_probe_rejects_missing_fixture(driver, tmp_path):
+    repo, fixtures = _fixture_repo(
+        tmp_path, {"a.txt": b"alpha", "b.txt": b"beta"})
+    (fixtures / "b.txt").unlink()
+    _commit(repo, "remove fixture")
+    proof = driver._fixture_checksum_probe(
+        fixtures_dir=fixtures, expected_count=2, git_root=repo)
+    assert not proof["ok"]
+    assert proof["missing_fixtures"] == ["b.txt"]
+
+
+def test_fixture_checksum_probe_rejects_symlink_borrow(driver, tmp_path):
+    repo, fixtures = _fixture_repo(
+        tmp_path, {"a.txt": b"alpha", "b.txt": b"beta"})
+    (fixtures / "b.txt").unlink()
+    (fixtures / "b.txt").symlink_to(fixtures / "a.txt")
+    _write_checksums(fixtures, {
+        "a.txt": _sha(b"alpha"), "b.txt": _sha(b"alpha")})
+    _commit(repo, "symlink fixture")
+    proof = driver._fixture_checksum_probe(
+        fixtures_dir=fixtures, expected_count=2, git_root=repo)
+    assert not proof["ok"]
+    assert proof["symlinked_fixtures"] == ["b.txt"]
+    assert proof["checks"]["no_symlinked_fixtures"] is False
+
+
+def test_fixture_checksum_probe_rejects_worktree_bytes_not_in_git(
+        driver, tmp_path):
+    repo, fixtures = _fixture_repo(
+        tmp_path, {"a.txt": b"alpha", "b.txt": b"beta"})
+    (fixtures / "b.txt").write_bytes(b"beta-drifted")
+    _write_checksums(fixtures, {
+        "a.txt": _sha(b"alpha"), "b.txt": _sha(b"beta-drifted")})
+    _git(repo, "add", "--", "fixtures/SHA256SUMS")
+    _git(repo, "commit", "-q", "-m", "only checksums committed")
+    proof = driver._fixture_checksum_probe(
+        fixtures_dir=fixtures, expected_count=2, git_root=repo)
+    assert not proof["ok"]
+    assert proof["checksums_git_exact"] is True
+    assert proof["git_mismatches"] == ["b.txt"]
+
+
+def test_checksum_source_binding_records_git_identity(driver):
+    binding = driver._checksum_source_binding({
+        "checksums_path": "/repo/fixtures/SHA256SUMS",
+        "checksums_git_relpath": "fixtures/SHA256SUMS",
+        "checksums_git_blob": "0" * 40,
+        "checksums_sha256": "1" * 64,
+        "checksums_bytes": 123,
+        "checksums_git_tracked": True,
+        "checksums_git_exact": True,
+        "ok": True,
+    })
+    assert binding["git_relpath"] == "fixtures/SHA256SUMS"
+    assert binding["git_blob"] == "0" * 40
+    assert binding["git_exact"] is True
+    assert binding["ok"] is True
+
+
+@pytest.mark.parametrize("failed_check", [
+    "acc_metadata_dir_writable",
+    "legacy_fixture_inventory_verified",
+])
+def test_build_world_refuses_missing_prereq_before_builder(
+        driver, tmp_path, monkeypatch, failed_check):
+    world = tmp_path / "document_export_ui_test"
+    built: list[str] = []
+
+    monkeypatch.delenv("ATOM_WORLD_STORAGE_BYPASS", raising=False)
+    monkeypatch.setattr(driver, "_heavy_probe", lambda path: {
+        "disk": {"ok": True},
+        "requires_root_heavy_approval": False,
+    })
+    import core.world_storage_guard as WSG
+    monkeypatch.setattr(WSG, "require_storage_ready", lambda: None)
+    checks = {failed_check: False}
+    monkeypatch.setattr(driver, "_prebuild_support_probe", lambda: {
+        "ok": False,
+        "checks": checks,
+        "launcher": {},
+        "fixture_inventory": {},
+    })
+    monkeypatch.setattr(
+        driver.R, "build_world", lambda *args, **kwargs: built.append("built"))
+
+    with pytest.raises(driver.DriverError, match="prerequisites"):
+        driver._build_world(world, "a" * 40, False)
+
+    assert built == []
+    assert not world.exists()

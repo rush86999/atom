@@ -151,6 +151,16 @@ LAUNCHER_FILES = (
     "backend/scripts/orchestration_acceptance/browser_verify.py",
     "scripts/acceptance/browser_agent_job_wait.py",
 )
+# run_isolated.build_world writes <ACC>/venv_freeze.txt in addition to the
+# per-world copy, and it does so WITHOUT creating <ACC> first. The directory
+# must therefore already exist and be writable before the builder is called.
+# venv_freeze.txt is GENERATED output (a recorded virtualenv freeze); it is not
+# a tracked fixture and committing one would only hide this defect.
+ACC_DIR = REPO / "docs" / "architecture" / "orchestration_migration" / "acceptance"
+FIXTURES_DIR = ACC_DIR / "fixtures"
+FIXTURE_CHECKSUMS = FIXTURES_DIR / "SHA256SUMS"
+FIXTURE_ENTRY_COUNT = 55
+FIXTURE_CHECKSUM_NAME = "SHA256SUMS"
 
 LABELS = {
     "fixture": (
@@ -167,6 +177,16 @@ LABELS = {
         "The upload uses the product's default local FastEmbed provider and the "
         "pre-existing model cache. Only local index-write availability is "
         "claimed; no provider or embedding-quality claim is made."
+    ),
+    "legacy_fixtures": (
+        "LEGACY FRAMEWORK INPUTS: the 55 files named by the tracked "
+        "docs/architecture/orchestration_migration/acceptance/fixtures/"
+        "SHA256SUMS are existing acceptance inputs required by "
+        "run_isolated.build_world (workbook parquet sheets plus old "
+        "conversation/provider fixtures). They are NOT the document uploaded "
+        "by this episode, they are not new business rows, and most are unused "
+        "by the Documents export path. The uploaded TXT is generated and "
+        "disclosed separately as synthetic user content."
     ),
     "production_boundary": (
         "The public document upload/detail/export routes, DocumentParser, "
@@ -1044,9 +1064,445 @@ def _storage_probe() -> Dict[str, Any]:
         }
 
 
+def _repo_relative(git_root: Path, path: Path) -> str:
+    """Return a POSIX path relative to the Git worktree, or "" when outside."""
+    try:
+        return Path(path).resolve().relative_to(
+            Path(git_root).resolve()).as_posix()
+    except (OSError, ValueError):
+        return ""
+
+
+def _git_blob_oid(data: bytes) -> str:
+    """Hash raw bytes exactly as Git hashes a blob (no clean/smudge filters)."""
+    return hashlib.sha1(
+        b"blob " + str(len(data)).encode("ascii") + b"\0" + data).hexdigest()
+
+
+def _git_path_tracked(rel_path: str, git_root: Path = REPO) -> bool:
+    if not rel_path:
+        return False
+    proc = subprocess.run(
+        ["git", "-C", str(git_root), "ls-files", "--error-unmatch", "--",
+         rel_path],
+        capture_output=True, text=True, timeout=60)
+    return proc.returncode == 0 and bool(proc.stdout.strip())
+
+
+def _git_tree_entries(git_root: Path, rel_dir: str) -> Dict[str, Any]:
+    """Read the frozen HEAD tree for one directory (read-only, no checkout)."""
+    if not rel_dir:
+        return {
+            "ok": False,
+            "entries": {},
+            "error": "directory is outside the Git worktree",
+        }
+    proc = subprocess.run(
+        ["git", "-C", str(git_root), "ls-tree", "-r", "-z", "HEAD", "--",
+         rel_dir],
+        capture_output=True, timeout=120)
+    if proc.returncode != 0:
+        return {
+            "ok": False,
+            "entries": {},
+            "error": (
+                proc.stderr.decode("utf-8", "replace")[-300:]
+                or f"git ls-tree exited {proc.returncode}"),
+        }
+    entries: Dict[str, Dict[str, str]] = {}
+    for record in proc.stdout.split(b"\0"):
+        if not record:
+            continue
+        meta, sep, raw_path = record.partition(b"\t")
+        if not sep:
+            continue
+        parts = meta.decode("utf-8", "replace").split(" ")
+        if len(parts) != 3:
+            continue
+        mode, kind, oid = parts
+        entries[raw_path.decode("utf-8", "surrogateescape")] = {
+            "mode": mode,
+            "type": kind,
+            "oid": oid,
+        }
+    return {"ok": True, "entries": entries, "root": rel_dir, "error": None}
+
+
+def _parse_checksum_inventory(
+    text: str,
+    expected_count: int = FIXTURE_ENTRY_COUNT,
+) -> Dict[str, Any]:
+    """Parse SHA256SUMS strictly; empty, malformed, duplicate or escaping
+    entries are all evidence failures, never silently skipped."""
+    entries: Dict[str, str] = {}
+    empty_lines: List[int] = []
+    malformed: List[Dict[str, Any]] = []
+    duplicate_names: List[str] = []
+    escaped_names: List[str] = []
+    lines = text.splitlines()
+    for lineno, raw in enumerate(lines, 1):
+        if not raw.strip():
+            empty_lines.append(lineno)
+            continue
+        digest, sep, name = raw.partition("  ")
+        digest = digest.strip()
+        name = name.strip()
+        if (not sep or not re.fullmatch(r"[0-9a-f]{64}", digest) or not name):
+            malformed.append({"line": lineno, "text": raw[:120]})
+            continue
+        normalized = name
+        while normalized.startswith("./"):
+            normalized = normalized[2:]
+        parts = normalized.split("/")
+        if (not normalized or normalized.startswith("/")
+                or "\\" in normalized or "//" in normalized
+                or any(part in ("", ".", "..") for part in parts)):
+            escaped_names.append(name)
+            continue
+        if normalized in entries:
+            duplicate_names.append(normalized)
+            continue
+        entries[normalized] = digest
+    checks = {
+        "inventory_non_empty": bool(lines) and not empty_lines,
+        "no_malformed_entries": not malformed,
+        "entry_count_exact": len(entries) == int(expected_count),
+        "no_duplicate_names": not duplicate_names,
+        "no_path_escape": not escaped_names,
+    }
+    return {
+        "ok": all(checks.values()),
+        "checks": checks,
+        "entries": entries,
+        "entry_count": len(entries),
+        "expected_entry_count": int(expected_count),
+        "line_count": len(lines),
+        "empty_lines": empty_lines,
+        "malformed_entries": malformed,
+        "duplicate_names": duplicate_names,
+        "escaped_names": escaped_names,
+    }
+
+
+def _fixture_checksum_probe(
+    fixtures_dir: Path = FIXTURES_DIR,
+    checksums_path: Optional[Path] = None,
+    expected_count: int = FIXTURE_ENTRY_COUNT,
+    git_root: Path = REPO,
+) -> Dict[str, Any]:
+    """Prove the legacy acceptance fixture set is real, complete and Git-exact.
+
+    This is read-only: it never creates, repairs, downloads or regenerates a
+    fixture. A missing/empty/duplicated/escaping inventory, a wrong digest, a
+    missing file, a symlink (borrowed bytes) or a file whose bytes are not the
+    HEAD blob all make the probe not-ready.
+    """
+    fixtures_dir = Path(fixtures_dir)
+    checksums = (Path(checksums_path) if checksums_path is not None
+                 else fixtures_dir / FIXTURE_CHECKSUM_NAME)
+    fixtures_rel = _repo_relative(git_root, fixtures_dir)
+    checksums_rel = _repo_relative(git_root, checksums)
+    tree = _git_tree_entries(git_root, fixtures_rel)
+    tree_entries = tree.get("entries") or {}
+    problems: List[str] = []
+
+    fixtures_regular = fixtures_dir.is_dir() and not fixtures_dir.is_symlink()
+    checksums_regular = checksums.is_file() and not checksums.is_symlink()
+    checksums_blob = (checksums.read_bytes() if checksums_regular else b"")
+    checksums_sha = _sha256_bytes(checksums_blob) if checksums_regular else None
+    checksums_tree = tree_entries.get(checksums_rel) if checksums_rel else None
+    checksums_git_exact = bool(
+        checksums_regular and checksums_tree
+        and checksums_tree.get("oid") == _git_blob_oid(checksums_blob))
+    if not fixtures_regular:
+        problems.append("fixtures directory is missing, not a directory or is a symlink")
+    if not checksums_regular:
+        problems.append("fixtures/SHA256SUMS is missing, not a regular file or is a symlink")
+    if not checksums_tree:
+        problems.append("SHA256SUMS is not tracked in the current Git HEAD tree")
+    elif not checksums_git_exact:
+        problems.append("SHA256SUMS worktree bytes differ from the Git HEAD blob")
+
+    if checksums_regular:
+        try:
+            inventory = _parse_checksum_inventory(
+                checksums_blob.decode("utf-8"), expected_count)
+        except UnicodeDecodeError as exc:
+            inventory = {
+                "ok": False,
+                "checks": {"inventory_utf8": False},
+                "entries": {},
+                "entry_count": 0,
+                "expected_entry_count": int(expected_count),
+                "line_count": 0,
+                "empty_lines": [],
+                "malformed_entries": [{"line": 0, "text": str(exc)}],
+                "duplicate_names": [],
+                "escaped_names": [],
+            }
+    else:
+        inventory = {
+            "ok": False,
+            "checks": {"inventory_file_present": False},
+            "entries": {},
+            "entry_count": 0,
+            "expected_entry_count": int(expected_count),
+            "line_count": 0,
+            "empty_lines": [],
+            "malformed_entries": [],
+            "duplicate_names": [],
+            "escaped_names": [],
+        }
+
+    records: Dict[str, Dict[str, Any]] = {}
+    missing: List[str] = []
+    symlinked: List[str] = []
+    outside: List[str] = []
+    digest_mismatches: List[str] = []
+    git_missing: List[str] = []
+    git_mismatches: List[str] = []
+    git_symlink_modes: List[str] = []
+    for name, digest in inventory.get("entries", {}).items():
+        path = fixtures_dir / name
+        entry: Dict[str, Any] = {
+            "path": str(path),
+            "expected_sha256": digest,
+            "exists": False,
+            "regular_file": False,
+            "symlink": path.is_symlink(),
+            "sha256": None,
+            "bytes": None,
+            "digest_matches": False,
+            "inside_fixtures_dir": False,
+            "git_tracked": False,
+            "git_mode": None,
+            "git_oid": None,
+            "git_exact": False,
+        }
+        if entry["symlink"]:
+            symlinked.append(name)
+            problems.append(f"fixture is a symlink (borrowed bytes): {name}")
+        elif not path.is_file():
+            missing.append(name)
+            problems.append(f"fixture is missing or not a file: {name}")
+        else:
+            entry["exists"] = True
+            entry["regular_file"] = True
+            data = path.read_bytes()
+            entry["bytes"] = len(data)
+            entry["sha256"] = _sha256_bytes(data)
+            entry["digest_matches"] = entry["sha256"] == digest
+            if not entry["digest_matches"]:
+                digest_mismatches.append(name)
+                problems.append(f"fixture sha256 does not match SHA256SUMS: {name}")
+            try:
+                resolved_root = fixtures_dir.resolve()
+                resolved = path.resolve()
+                entry["inside_fixtures_dir"] = resolved_root in resolved.parents
+            except OSError:
+                entry["inside_fixtures_dir"] = False
+            if not entry["inside_fixtures_dir"]:
+                outside.append(name)
+                problems.append(f"fixture resolves outside the fixtures dir: {name}")
+            rel = _repo_relative(git_root, path)
+            tree_entry = tree_entries.get(rel) if rel else None
+            entry["git_tracked"] = bool(tree_entry)
+            if tree_entry:
+                entry["git_mode"] = tree_entry.get("mode")
+                entry["git_oid"] = tree_entry.get("oid")
+                if tree_entry.get("mode") == "120000":
+                    git_symlink_modes.append(name)
+                    problems.append(f"fixture is a Git symlink entry: {name}")
+                entry["git_exact"] = (
+                    tree_entry.get("oid") == _git_blob_oid(data))
+                if not entry["git_exact"]:
+                    git_mismatches.append(name)
+                    problems.append(
+                        f"fixture bytes differ from the Git HEAD blob: {name}")
+            else:
+                git_missing.append(name)
+                problems.append(f"fixture is not tracked in the Git HEAD tree: {name}")
+        records[name] = entry
+
+    complete = bool(records) and len(records) == int(expected_count)
+    checks = {
+        "fixtures_dir_regular": fixtures_regular,
+        "checksums_file_regular": checksums_regular,
+        "checksums_git_tracked": bool(checksums_tree),
+        "checksums_git_exact": checksums_git_exact,
+        "inventory_parsed": inventory.get("ok") is True,
+        "entry_count_exact": (
+            int(inventory.get("entry_count") or 0) == int(expected_count)),
+        "no_duplicate_names": not inventory.get("duplicate_names"),
+        "no_path_escape": not inventory.get("escaped_names"),
+        "all_fixtures_present": complete and not missing and not symlinked,
+        "all_fixture_hashes_match": (
+            complete and not missing and not symlinked
+            and not digest_mismatches),
+        "no_symlinked_fixtures": not symlinked and not git_symlink_modes,
+        "all_fixtures_inside_fixtures_dir": complete and not outside,
+        "all_fixtures_git_tracked": (
+            complete and not missing and not symlinked and not git_missing),
+        "all_fixtures_git_exact": (
+            complete and not git_mismatches and not git_symlink_modes),
+    }
+    all_git_exact = bool(records) and all(
+        entry["git_exact"] for entry in records.values())
+    return {
+        "ok": all(checks.values()),
+        "checks": checks,
+        "fixtures_dir": str(fixtures_dir),
+        "fixtures_git_relpath": fixtures_rel,
+        "checksums_path": str(checksums),
+        "checksums_git_relpath": checksums_rel,
+        "checksums_sha256": checksums_sha,
+        "checksums_bytes": len(checksums_blob) if checksums_regular else None,
+        "checksums_git_blob": (
+            checksums_tree.get("oid") if checksums_tree else None),
+        "checksums_git_tracked": bool(checksums_tree),
+        "checksums_git_exact": checksums_git_exact,
+        "entry_count": int(inventory.get("entry_count") or 0),
+        "expected_entry_count": int(expected_count),
+        "line_count": int(inventory.get("line_count") or 0),
+        "empty_lines": inventory.get("empty_lines") or [],
+        "malformed_entries": inventory.get("malformed_entries") or [],
+        "duplicate_names": inventory.get("duplicate_names") or [],
+        "escaped_names": inventory.get("escaped_names") or [],
+        "entries": inventory.get("entries") or {},
+        "files": records,
+        "missing_fixtures": missing,
+        "symlinked_fixtures": symlinked,
+        "outside_fixtures_dir": outside,
+        "digest_mismatches": digest_mismatches,
+        "git_missing": git_missing,
+        "git_mismatches": git_mismatches,
+        "git_symlink_modes": git_symlink_modes,
+        "all_files_git_exact": all_git_exact,
+        "git_tree_ok": tree.get("ok") is True,
+        "git_tree_error": tree.get("error"),
+        "problems": problems,
+        "generated_or_repaired": False,
+        "legacy_framework_inputs": True,
+        "uploaded_as_user_document": False,
+    }
+
+
+def _checksum_source_binding(proof: Dict[str, Any]) -> Dict[str, Any]:
+    """Bind the checksum input into the source-proof record."""
+    return {
+        "path": proof.get("checksums_path"),
+        "git_relpath": proof.get("checksums_git_relpath"),
+        "git_blob": proof.get("checksums_git_blob"),
+        "sha256": proof.get("checksums_sha256"),
+        "bytes": proof.get("checksums_bytes"),
+        "git_tracked": proof.get("checksums_git_tracked") is True,
+        "git_exact": proof.get("checksums_git_exact") is True,
+        "ok": proof.get("ok") is True,
+    }
+
+
+def _acc_metadata_probe(
+    acc_dir: Path = ACC_DIR,
+    git_root: Path = REPO,
+) -> Dict[str, Any]:
+    """Read-only proof that build_world can write <ACC>/venv_freeze.txt.
+
+    ``run_isolated.build_world`` writes that file but never creates <ACC>.
+    The file itself is GENERATED output, not a tracked fixture, so a missing
+    directory must fail here rather than be papered over with a committed
+    venv_freeze.txt. This helper never mkdirs or writes.
+    """
+    acc_dir = Path(acc_dir)
+    exists = acc_dir.is_dir()
+    writable = bool(exists and os.access(acc_dir, os.W_OK))
+    venv_freeze = acc_dir / "venv_freeze.txt"
+    rel = _repo_relative(git_root, venv_freeze)
+    tracked = _git_path_tracked(rel, git_root) if rel else False
+    checks = {
+        "acc_dir_exists": exists,
+        "acc_dir_writable": writable,
+        "venv_freeze_not_tracked": not tracked,
+    }
+    problems: List[str] = []
+    if not exists:
+        problems.append(
+            "acceptance metadata directory is missing; build_world writes "
+            "ACC/venv_freeze.txt without creating it")
+    elif not writable:
+        problems.append(
+            "acceptance metadata directory is not writable; build_world "
+            "cannot write ACC/venv_freeze.txt")
+    if tracked:
+        problems.append(
+            "ACC/venv_freeze.txt is tracked in Git, but it is generated "
+            "output, not a fixture; remove it and make ACC writable")
+    return {
+        "ok": all(checks.values()),
+        "checks": checks,
+        "path": str(acc_dir),
+        "exists": exists,
+        "writable": writable,
+        "venv_freeze_path": str(venv_freeze),
+        "venv_freeze_tracked": tracked,
+        "venv_freeze_is_generated_output": True,
+        "mkdir_in_preflight": False,
+        "write_in_preflight": False,
+        "problems": problems,
+    }
+
+
 def _launcher_paths_probe() -> Dict[str, Any]:
     files = {path: (REPO / path).is_file() for path in LAUNCHER_FILES}
-    return {"ok": all(files.values()), "files": files}
+    acc = _acc_metadata_probe()
+    checksums_present = (
+        FIXTURE_CHECKSUMS.is_file()
+        and not FIXTURE_CHECKSUMS.is_symlink())
+    worlds_present = WORLDS_ROOT.exists()
+    worlds_resolves = bool(
+        worlds_present
+        and (not WORLDS_ROOT.is_symlink() or WORLDS_ROOT.resolve().is_dir()))
+    return {
+        "ok": (all(files.values()) and acc["ok"] and checksums_present
+               and worlds_resolves),
+        "files": files,
+        "acc_metadata": acc,
+        "acc_dir": str(ACC_DIR),
+        "acc_dir_writable": acc["writable"],
+        "fixtures_checksums_present": checksums_present,
+        "fixtures_checksums_path": str(FIXTURE_CHECKSUMS),
+        "worlds_root": str(WORLDS_ROOT),
+        "worlds_root_exists": worlds_present,
+        "worlds_root_is_symlink": WORLDS_ROOT.is_symlink(),
+        "worlds_root_resolves": worlds_resolves,
+    }
+
+
+def _prebuild_support_probe() -> Dict[str, Any]:
+    """All launcher/ACC/fixture prerequisites, used by preflight and again
+    immediately before build_world. Never creates or repairs anything."""
+    launcher = _launcher_paths_probe()
+    fixture_inventory = _fixture_checksum_probe()
+    acc = launcher.get("acc_metadata") or {}
+    checks = {
+        "launcher_files_present": (
+            bool(launcher.get("files"))
+            and all(launcher.get("files", {}).values())),
+        "acc_metadata_dir_exists": acc.get("exists") is True,
+        "acc_metadata_dir_writable": acc.get("writable") is True,
+        "acc_venv_freeze_not_tracked": (
+            acc.get("venv_freeze_tracked") is False),
+        "fixtures_checksums_present": (
+            launcher.get("fixtures_checksums_present") is True),
+        "worlds_root_resolves": launcher.get("worlds_root_resolves") is True,
+        "legacy_fixture_inventory_verified": (
+            fixture_inventory.get("ok") is True),
+    }
+    return {
+        "ok": all(checks.values()),
+        "checks": checks,
+        "launcher": launcher,
+        "fixture_inventory": fixture_inventory,
+    }
 
 
 def _heavy_probe(world: Path) -> Dict[str, Any]:
@@ -1123,7 +1579,11 @@ def _run_preflight(args: argparse.Namespace) -> int:
         deps = D3._dependency_probe()
         cache = _effective_cache_probe()
         fastembed_runtime = _fastembed_runtime_probe()
-        launcher = _launcher_paths_probe()
+        support = _prebuild_support_probe()
+        launcher = support["launcher"]
+        fixture_inventory = support["fixture_inventory"]
+        source["fixture_checksum"] = _checksum_source_binding(
+            fixture_inventory)
         storage = _storage_probe()
         heavy = _heavy_probe(world)
         fixture_filename, fixture_text, fixture_tail = _fixture_document(
@@ -1171,7 +1631,14 @@ def _run_preflight(args: argparse.Namespace) -> int:
             "core_documents_profile_enabled": profile.get("ok") is True,
             "search_deferred": profile.get("search_enabled") is False,
             "frozen_source_contract_present": static.get("ok") is True,
-            "launcher_paths_present": launcher["ok"] is True,
+            "launcher_paths_present": (
+                support["checks"]["launcher_files_present"]),
+            "acc_metadata_dir_writable": (
+                support["checks"]["acc_metadata_dir_writable"]),
+            "acc_venv_freeze_not_tracked": (
+                support["checks"]["acc_venv_freeze_not_tracked"]),
+            "legacy_fixture_set_55_verified": (
+                support["checks"]["legacy_fixture_inventory_verified"]),
             "fresh_world_name": (
                 world_name.startswith(WORLD_PREFIX)
                 and not world.exists() and under_root),
@@ -1207,6 +1674,15 @@ def _run_preflight(args: argparse.Namespace) -> int:
             warnings.append(
                 "worlds storage guard is not ready: "
                 f"{storage.get('problems') or storage.get('error')}")
+        if not support["checks"]["acc_metadata_dir_writable"]:
+            warnings.append(
+                "acceptance metadata dir is missing/unwritable; build_world "
+                "writes ACC/venv_freeze.txt without creating ACC: "
+                f"{launcher['acc_metadata'].get('problems')}")
+        if not support["checks"]["legacy_fixture_inventory_verified"]:
+            warnings.append(
+                "legacy fixture inventory is not Git-exact/complete: "
+                f"{fixture_inventory.get('problems')}")
         if not cache.get("ok"):
             warnings.append(
                 f"fastembed cache prerequisite missing: {cache.get('problems')}")
@@ -1243,6 +1719,9 @@ def _run_preflight(args: argparse.Namespace) -> int:
             "static_contract": static,
             "fixture": fixture,
             "launcher": launcher,
+            "acc_metadata": launcher["acc_metadata"],
+            "fixture_inventory": fixture_inventory,
+            "prebuild_support": support["checks"],
             "environment": ctx,
             "dependencies": deps,
             "ports": ports,
@@ -1271,7 +1750,10 @@ def _run_preflight(args: argparse.Namespace) -> int:
             "remaining_inputs": [
                 "prepared capture worktree with backend/venv314 and "
                 "frontend-nextjs/node_modules (this prep-only worktree may lack "
-                "backend/venv314 and the worlds root)",
+                "backend/venv314)",
+                "writable docs/architecture/orchestration_migration/acceptance "
+                "parent and the exact 55 Git-tracked fixtures "
+                "(git sparse-checkout add .../acceptance/fixtures)",
                 "world storage guard ready (local or drive-backed per config)",
                 "complete existing FastEmbed cache under TMPDIR/fastembed_cache",
                 "Google Chrome.app and node on PATH",
@@ -1309,6 +1791,12 @@ def _run_preflight(args: argparse.Namespace) -> int:
               f"runtime={fastembed_runtime.get('ok')} "
               f"storage={storage.get('ok')} "
               f"heavy={heavy['required_bytes']}B")
+        print(f"[preflight] acc={support['checks']['acc_metadata_dir_writable']} "
+              f"fixtures={fixture_inventory.get('entry_count')}/"
+              f"{fixture_inventory.get('expected_entry_count')} "
+              f"git_exact={fixture_inventory.get('all_files_git_exact')} "
+              f"launcher={sum(1 for v in launcher['files'].values() if v)}/"
+              f"{len(launcher['files'])}")
         for warning in warnings:
             print(f"[preflight] warning: {warning}")
         return 0 if report["ok"] else 1
@@ -1374,6 +1862,15 @@ def _build_world(world: Path, source_sha: str,
         raise DriverError(
             f"world {world.name!r} already exists; this driver requires a "
             "unique fresh world and never deletes or rebuilds one")
+    # build_world writes <ACC>/venv_freeze.txt and reads every legacy fixture
+    # named by SHA256SUMS, so re-prove both AFTER the storage guard and BEFORE
+    # the builder/any world mkdir. A missing ACC parent must fail here, not
+    # after a database has been allocated inside a half-built world.
+    support = _prebuild_support_probe()
+    if not support["ok"]:
+        raise DriverError(
+            "launcher/ACC/fixture prerequisites failed before build_world: "
+            f"{support['checks']}")
     R.WORKTREE = REPO
     R.build_world.snapshot_working_tree = True
     R.build_world.full_dev_db = False
@@ -1412,6 +1909,10 @@ def _build_world(world: Path, source_sha: str,
         "world": str(world),
         "disk_preflight": heavy["disk"],
         "heavy": heavy,
+        "launcher": support["launcher"],
+        "acc_metadata": support["launcher"]["acc_metadata"],
+        "fixture_inventory": support["fixture_inventory"],
+        "prebuild_support": support["checks"],
         "manifest_path": str(manifest),
         "fixture_path": str(fixture),
         "preflight": pre,
@@ -1807,6 +2308,10 @@ def _run_execute(args: argparse.Namespace) -> int:
     exec_env = D3._prepare_execute_environment(args)
 
     source = _source_proof(args.expect_source_sha)
+    support = _prebuild_support_probe()
+    launcher = support["launcher"]
+    fixture_inventory = support["fixture_inventory"]
+    source["fixture_checksum"] = _checksum_source_binding(fixture_inventory)
     _write_json(out / "source.json", source)
     if not source.get("source_proof_ok"):
         print("[execute] source proof failed; refusing to build/launch",
@@ -1827,6 +2332,27 @@ def _run_execute(args: argparse.Namespace) -> int:
         print(
             "[execute] current Documents/export source does not match the "
             f"frozen contract: {static.get('checks')}", file=sys.stderr)
+        return 2
+    if not support["ok"]:
+        print(
+            "[execute] launcher/ACC/fixture prerequisites failed before any "
+            f"world was created: {support['checks']}", file=sys.stderr)
+        _write_json(out / "prebuild_blocker.json", {
+            "kind": "browser_document_export_ui_prebuild_blocker",
+            "generated_at": _now(),
+            "source": source,
+            "checks": support["checks"],
+            "launcher": launcher,
+            "acc_metadata": launcher.get("acc_metadata"),
+            "fixture_inventory": fixture_inventory,
+            "not_executed": True,
+            "world_created": False,
+            "note": (
+                "Read-only prebuild proof failed. No world, database, server, "
+                "browser or model was started. ACC/venv_freeze.txt is "
+                "generated output; materialize the exact Git fixtures instead "
+                "of inventing or regenerating them."),
+        })
         return 2
     cache = _effective_cache_probe()
     fastembed_runtime = _fastembed_runtime_probe()
@@ -1929,6 +2455,9 @@ def _run_execute(args: argparse.Namespace) -> int:
         "retained_evidence": retained,
         "profile_prelaunch": profile,
         "static_contract_prelaunch": static,
+        "launcher_prelaunch": launcher,
+        "acc_metadata_prelaunch": launcher.get("acc_metadata"),
+        "fixture_inventory_prelaunch": fixture_inventory,
         "fixture": {
             "filename": fixture_filename,
             "chars": len(fixture_text),
@@ -1984,6 +2513,14 @@ def _run_execute(args: argparse.Namespace) -> int:
             "core_documents_profile": profile.get("ok") is True,
             "frozen_source_contract": static.get("ok") is True,
             "search_deferred": profile.get("search_enabled") is False,
+            "launcher_paths_present": (
+                support["checks"]["launcher_files_present"]),
+            "acc_metadata_dir_writable": (
+                support["checks"]["acc_metadata_dir_writable"]),
+            "acc_venv_freeze_not_tracked": (
+                support["checks"]["acc_venv_freeze_not_tracked"]),
+            "legacy_fixture_set_verified": (
+                support["checks"]["legacy_fixture_inventory_verified"]),
             "fastembed_cache_complete": cache.get("ok") is True,
             "fastembed_runtime_present": fastembed_runtime.get("ok") is True,
             "fixture_over_20k_tail": (
@@ -2019,6 +2556,15 @@ def _run_execute(args: argparse.Namespace) -> int:
                 == source["head"]),
             "export_tree_matches_manifest": (
                 build.get("export_tree") == build.get("code_manifest")),
+            "launcher_rechecked_before_build": (
+                (build.get("prebuild_support") or {}).get(
+                    "launcher_files_present") is True),
+            "acc_metadata_rechecked_before_build": (
+                (build.get("prebuild_support") or {}).get(
+                    "acc_metadata_dir_writable") is True),
+            "legacy_fixture_set_rechecked_before_build": (
+                (build.get("prebuild_support") or {}).get(
+                    "legacy_fixture_inventory_verified") is True),
             "storage_guard_was_required": True,
         }, details={"world": str(world), "marker": build["marker"]})
 
