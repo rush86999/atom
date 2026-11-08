@@ -1,0 +1,36 @@
+{
+  "executed_source": "fa6a047f67ad762b5c04e97ea3a8124ea323a004",
+  "source_files": {
+    "backend/api/assignment_routes.py": "51d59a6bbb5a1c1f5920806ca5f257c47c1d3690553439b7fef18a67bd0aa017",
+    "backend/core/assignment_executor.py": "79bb904b591721742e6fa2582909b2757bf8bbcde893481a7133fcaa61da0ac5",
+    "backend/core/goals/goal_run_events.py": "0f62b59e449a6e123802c43eadc5a9073f71274169f0e30944f47998afe6e90f",
+    "backend/core/task_lifecycle.py": "4e6e67384ec759f691d084f4781d0567add04fd7dfead4a47c36a82d9a68ba61",
+    "backend/tests/conftest.py": "5f8c8b1016b8bb08d18c297deb8d2c452b7b897d4e023a4f3198281dbbdc8dc2",
+    "backend/tests/test_assignment_executor.py": "7183ccf90ca40aef9530fc684b7628eb98bffa2639ae43469755816e79e667c1",
+    "backend/tests/test_assignment_routes.py": "febc83254b06b6c6de49a344024df8232fdd6d6729bc83c14a10bbb796adf450",
+    "backend/tests/test_employee_durable_wait_g5.py": "96a27e4e1867d6a6c3f895fd9c33dd6b4a8e51f905b111e189e2061b7e003173",
+    "backend/tests/test_task_wait_source_continuation_regressions.py": "486cd74543e6b5a79fe11836933fed385c5d0b72698e2b65ac0e072aac942d74",
+    "backend/tests/test_assignment_external_reply_identity.py": "3017e38262da5cedc0664e906c5d1451e7ea858f8ce04e8e76d749a58c907d97",
+    "backend/tests/test_root_assignment_reply_material_probe.py": "eb1fa17a553ba67a08f5a38a05a67dd0351846bef3b35d6fc0393b26c622b3b5",
+    "backend/tests/test_goal_run_events.py": "212bfce5734056b49cd19bc4db123ee8a46c970757052404fd688cd81842d154"
+  },
+  "artifacts": {
+    "root-assignment-reply-fa6-affected.log": "47324c92626acf3b1446df075509581d17b20a27ec5aa7e248a735d93ad2bc1b",
+    "root-assignment-reply-fa6-affected-py311.exit.json": "3f43d167b0271a9d92054ed28350890c5ac7ad1433bb46b32aa11b84074895d5",
+    "root-assignment-reply-fa6-affected-py311.spec.json": "fa360cfc55be3eeb9312460c02ef67e4ccf385a12afee5c268f5dc6a88e79853",
+    "root-assignment-reply-fa6-affected-py311.log": "b00a2b41f61d0e438bb37701dd6055efebcc51cb0b2768fdcb7b2d14d761b5f0",
+    "root-assignment-reply-legacy-negative.log": "0c61d1d1c504bc5f862359e2270c91c3338751a44ec31b34f12d6fdb59b6a4fd",
+    "root-assignment-reply-material-negative.spec.json": "e8da10f52b0e2d1ccb5545146b446468f4ae33356f21f755f0802fdfc662674d",
+    "root-assignment-reply-material-negative.exit.json": "bba7dc74fd3d95862f1a12d0e404a5aea5f0fd34b1942a6a99012f36ebd63aa6",
+    "root-assignment-reply-material-negative.log": "51b18c324f1dc0417b1a6b61d9ea6e98c2d33cafd3d78f37ce7ef59441bcd7ea",
+    "README.md": "1f195fcb1fdd1d3f8b8622fbc01fb841b381a8dca8d4127f4e419fb7c0f7624d",
+    "root-assignment-reply-final-focused.log": "d32c34ef9cbc25e2cff1c0f21e019fd3ae6a3ce557dbfa0b158e3a28c8400c43",
+    "root-assignment-reply-legacy-negative.exit.json": "ed8a8dfd5606fcdb52d429d3a2d70c93b76c00aed9af7c8b1c61ebb41e49fc8f",
+    "root-assignment-reply-fa6-affected.exit.json": "104dbdd08e48d52a7076d7c1bcb8c8107e86bd50600680e2fa637f3118ea823d",
+    "pytest_freezegun.py": "a8fa00f30404ea7afdaa41abe9d255cdc37c7d5b419b56c63a6b135e7bb7d85c",
+    "root-assignment-reply-fa6-affected.spec.json": "6f8a75e49367335fdd93f1d8870fc37ba2453c2211e97cd02c30b664cb235e7f",
+    "root-assignment-reply-legacy-negative.spec.json": "207bd48cda7556149984e33f5fe03dcec6bd5142d9373ca6fa9b289a5d7498b4",
+    "root-assignment-reply-final-focused.spec.json": "bfdf4c4cbc325f42c7e2813c2403c71ddd02c1ee7e7d84786c3bc32aad27b774",
+    "root-assignment-reply-final-focused.exit.json": "5c70d650f4c9ef823bdab5b4699a8930b3e3a66e934c70540ebad459673a4a9b"
+  }
+}
