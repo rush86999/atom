@@ -1,0 +1,8 @@
+{
+  "source": "1123937d865d30428c12d7eb6ea29a9d7b732ce3",
+  "environment_override_present": false,
+  "root_launch_path": "/private/tmp/atom-bpe-persistence-write-20261108/backend/data/bpe_workspaces",
+  "backend_launch_path": "/private/tmp/atom-bpe-persistence-write-20261108/backend/backend/data/bpe_workspaces",
+  "same_default_store": false,
+  "no_store_read_write": true
+}

@@ -1,0 +1,8 @@
+{
+  "pid": 90422,
+  "at": 1794105669.718692,
+  "classification": "diagnostic harness isolation incomplete, not a product result",
+  "reason": "external-only test path did not use normal repository conftest/config import neighborhood; startup did not reach the declared per-test timeout; move acceptance controls into the normal backend/tests tree before product qualification",
+  "diagnostic_limits": "macOS stack-only Python attach refused task-port access; no root entitlement requested",
+  "records_preserved": true
+}

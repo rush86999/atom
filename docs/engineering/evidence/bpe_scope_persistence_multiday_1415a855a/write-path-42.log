@@ -1,0 +1,97 @@
+
+tests/core/test_bpe_persistence_write_truth.py::TestBPEPersistenceWriteTruth::test_replace_failure_returns_false_and_preserves_previous_file 
+-------------------------------- live log setup --------------------------------
+2026-11-07 21:41:14 [    INFO] EscalationManager initialized
+2026-11-07 21:41:14 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 21:41:14 [    INFO] EscalationManager initialized
+2026-11-07 21:41:14 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 21:41:14 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 21:41:14 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  2%]
+tests/core/test_bpe_persistence_write_truth.py::TestBPEPersistenceWriteTruth::test_json_dump_failure_returns_false_and_preserves_previous_file PASSED [  4%]
+tests/core/test_bpe_persistence_write_truth.py::TestBPEPersistenceWriteTruth::test_mkstemp_failure_returns_false_and_preserves_previous_file PASSED [  7%]
+tests/core/test_bpe_persistence_write_truth.py::TestBPEPersistenceWriteTruth::test_mkdir_failure_returns_false_without_creating_temp PASSED [  9%]
+tests/core/test_bpe_persistence_write_truth.py::TestBPEPersistenceWriteTruth::test_fdopen_failure_closes_fd_and_removes_temp_file PASSED [ 11%]
+tests/core/test_bpe_persistence_write_truth.py::TestBPEPersistenceWriteTruth::test_valid_save_and_load_round_trip PASSED [ 14%]
+tests/core/test_bpe_persistence_write_truth.py::TestBPEPersistenceWriteTruth::test_save_succeeds_after_failed_replacement PASSED [ 16%]
+tests/core/test_bpe_persistence_path_anchoring.py::TestDefaultPathAnchoring::test_default_store_is_identical_from_repo_root_and_backend PASSED [ 19%]
+tests/core/test_bpe_persistence_path_anchoring.py::TestDefaultPathAnchoring::test_configured_catalog_default_matches_canonical_default PASSED [ 21%]
+tests/core/test_bpe_persistence_path_anchoring.py::TestDefaultPathAnchoring::test_default_helper_reads_relative_override PASSED [ 23%]
+tests/core/test_bpe_persistence_path_anchoring.py::TestOverrideAnchoring::test_absolute_override_is_preserved_from_either_cwd PASSED [ 26%]
+tests/core/test_bpe_persistence_path_anchoring.py::TestOverrideAnchoring::test_relative_override_is_backend_relative PASSED [ 28%]
+tests/core/test_bpe_persistence_path_anchoring.py::TestOverrideAnchoring::test_legacy_documented_default_spelling_remains_compatible PASSED [ 30%]
+tests/core/test_bpe_persistence_path_anchoring.py::TestOverrideAnchoring::test_explicit_data_dir_is_used_as_supplied PASSED [ 33%]
+tests/core/test_bpe_evolution.py::TestPersistence::test_save_and_load_round_trip PASSED [ 35%]
+tests/core/test_bpe_evolution.py::TestPersistence::test_load_missing_returns_none PASSED [ 38%]
+tests/core/test_bpe_evolution.py::TestPersistence::test_lru_bound_keeps_recent PASSED [ 40%]
+tests/core/test_bpe_evolution.py::TestPersistence::test_oversized_snapshot_rejected PASSED [ 42%]
+tests/core/test_bpe_evolution.py::TestPersistence::test_corrupt_file_degrades_to_empty PASSED [ 45%]
+tests/core/test_bpe_evolution.py::TestPersistence::test_registry_lazy_restore PASSED [ 47%]
+tests/core/test_bpe_evolution.py::TestWorkspaceBounds::test_defaults_until_genome_applied PASSED [ 50%]
+tests/core/test_bpe_evolution.py::TestWorkspaceBounds::test_genome_clamped_to_gene_bounds PASSED [ 52%]
+tests/core/test_bpe_evolution.py::TestWorkspaceBounds::test_invalid_genome_entries_ignored PASSED [ 54%]
+tests/core/test_bpe_evolution.py::TestWorkspaceBounds::test_new_workspaces_honor_bounds PASSED [ 57%]
+tests/core/test_bpe_evolution.py::TestWorkspaceBounds::test_experience_honors_capacity PASSED [ 59%]
+tests/core/test_bpe_evolution.py::TestEvolutionSearch::test_clamp_and_validation PASSED [ 61%]
+tests/core/test_bpe_evolution.py::TestEvolutionSearch::test_mutate_single_gene_in_bounds PASSED [ 64%]
+tests/core/test_bpe_evolution.py::TestEvolutionSearch::test_random_genome_in_bounds PASSED [ 66%]
+tests/core/test_bpe_evolution.py::TestEvolutionSearch::test_population_keeps_top_n_distinct PASSED [ 69%]
+tests/core/test_bpe_evolution.py::TestEvolutionSearch::test_report_rejects_incomplete_genome PASSED [ 71%]
+tests/core/test_bpe_evolution.py::TestEvolutionSearch::test_propose_cold_population_samples_fresh PASSED [ 73%]
+tests/core/test_bpe_evolution.py::TestEvolutionSearch::test_propose_mutates_an_elite PASSED [ 76%]
+tests/core/test_bpe_evolution.py::TestEvolutionSearch::test_fitness_penalizes_call_rate_drift PASSED [ 78%]
+tests/core/test_bpe_evolution.py::TestEvolutionSearch::test_auto_applies_when_evidence_ready 
+-------------------------------- live log call ---------------------------------
+2026-11-07 21:41:14 [    INFO] [BPE Automation] evolution_apply: {'family': 'fam', 'genome': {'max_subgoals': 8, 'recall_top_k': 3, 'max_entries_per_category': 88, 'max_render_chars': 2400}, 'fitness': 1.2}
+PASSED                                                                   [ 80%]
+tests/core/test_bpe_evolution.py::TestEvolutionSearch::test_auto_holds_until_evidence_ready PASSED [ 83%]
+tests/core/test_bpe_evolution.py::TestEvolutionSearch::test_evidence_below_fitness_floor_holds PASSED [ 85%]
+tests/core/test_bpe_evolution.py::TestEvolutionSearch::test_explicit_false_is_kill_switch PASSED [ 88%]
+tests/core/test_bpe_evolution.py::TestEvolutionSearch::test_explicit_true_forces_apply 
+-------------------------------- live log call ---------------------------------
+2026-11-07 21:41:14 [    INFO] [BPE Automation] evolution_apply: {'family': 'fam', 'genome': {'max_subgoals': 8, 'recall_top_k': 3, 'max_entries_per_category': 80, 'max_render_chars': 2400}, 'fitness': 2.0}
+PASSED                                                                   [ 90%]
+tests/core/test_bpe_evolution.py::TestTelemetryFeed::test_errored_consults_become_patterns PASSED [ 92%]
+tests/core/test_bpe_evolution.py::TestTelemetryFeed::test_negative_value_agents_become_patterns PASSED [ 95%]
+tests/core/test_bpe_evolution.py::TestTelemetryFeed::test_harness_evolution_service_appends_bpe_patterns PASSED [ 97%]
+tests/core/test_bpe_evolution.py::TestRenderProperties::test_render_deterministic_and_bounded PASSED [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 84 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/core/test_bpe_persistence_write_truth.py::TestBPEPersistenceWriteTruth::test_replace_failure_returns_false_and_preserves_previous_file
+  /private/tmp/atom-bpe-persistence-write-20261108/backend/core/graphrag_engine.py:203: SyntaxWarning: "\%" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\%"? A raw string is also an option.
+    Escaped pattern where % and _ are escaped to \%
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 42 passed, 91 warnings in 10.61s =======================
