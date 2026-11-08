@@ -1,5 +1,8 @@
 # App completion requirement audit — all 143 claims — 2026-11-07
 
+> **Focused graduation reconciliation — 2026-11-08:** current main `b718a6f3f` includes accepted bounded promotion PR #782 (`56da05345`) and audit privacy PR #783 (`b718a6f3f`). All required checks succeeded at each reviewed head; actual merge trees/parents matched the inspected proofs. Historical GOV-01 tier-gating status and all other 142 claim records remain unchanged. PR #784 historical-exam scope/truth (138 controls per runtime) and PR #785 fresh-credit epoch/reentry (183 combined exam/epoch controls per runtime) are pending exact-head hosted/integration review, not accepted general competence. Raw source-bound records remain private. The earlier 40ff pending snapshot below is history, not the current work order. See the leading [completion state](APP_COMPLETION_STATE_2026_11_07.md) for live-queue guidance; resolve remote heads before acting. No full-app, held-out judgment, duplicate-credit or multi-writer claim follows.
+
+
 ## Focused graduation reconciliation — 2026-11-08
 
 At main `8d04a1664`, historical GOV-01 maturity-based action gating remains valid at its original tested scope. New independent readiness-await and lost-confirmation probes expose a separate graduation-authority/outcome extension gap. Draft [PR #782](https://github.com/rush86999/atom/pull/782), source `40ff1653a`, is under hosted qualification; its new receipt controls are not accepted. Preserve Student→Intern→Supervised→Autonomous readiness/strategic gates and existing shared authority/receipt mechanisms. Do not turn an unauthorized or uncertain promotion into a successful autonomy claim.
