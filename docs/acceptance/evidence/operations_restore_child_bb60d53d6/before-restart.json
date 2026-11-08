@@ -1,0 +1,297 @@
+{
+  "actor": {
+    "email": "child-restore-smoke@example.invalid",
+    "id": "user-child-smoke",
+    "role": "member",
+    "status": "active",
+    "tenant_id": "tenant-child-smoke",
+    "workspace_id": "ws-child-smoke"
+  },
+  "artifact": {
+    "bound_path": "/private/tmp/root-restore-child-bb60-20261107/target/office/restored-office.docx",
+    "content_type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    "disk_sha256": "9ea00749eae17a2ba166c8d5cd7ce31e84f33094b49ceb94423bb65808a9787a",
+    "docx_text": "child restore smoke office artifact\nsecond disclosure line",
+    "docx_text_exact": true,
+    "docx_valid": true,
+    "download_sha256": "9ea00749eae17a2ba166c8d5cd7ce31e84f33094b49ceb94423bb65808a9787a",
+    "download_status": 200,
+    "expected_path": "/private/tmp/root-restore-child-bb60-20261107/target/office/restored-office.docx",
+    "scope": "authenticated office download route",
+    "size_bytes": 36617
+  },
+  "audit": {
+    "baseline_original_rows_sha256": "0a412e68abed46e8c57e13e3580d8e02884af909fb469c23a716561bcfeaed13",
+    "columns_exact": true,
+    "event_scope_checks": {
+      "event_action_restore": true,
+      "event_actor_none": true,
+      "event_canvas_exact": true,
+      "event_no_non_restore_new": true,
+      "event_one": true,
+      "event_present": true,
+      "event_tenant_exact": true
+    },
+    "forbidden_keys_present": [],
+    "forbidden_markers_present": [],
+    "new_row_count": 1,
+    "non_restore_new_rows": 0,
+    "original_rows_count": 1,
+    "original_rows_sha256": "0a412e68abed46e8c57e13e3580d8e02884af909fb469c23a716561bcfeaed13",
+    "original_unchanged": true,
+    "provenance_checks": {
+      "audit_id": true,
+      "binding": true,
+      "manifest_sha256": true,
+      "original_details_sha256": true,
+      "restore_event_id": true,
+      "source_audit_tenant_id": true,
+      "source_canvas_tenant_id": true,
+      "source_data_dir": true,
+      "target_data_dir": true
+    },
+    "restore_event": {
+      "action_type": "restore",
+      "agent_id": null,
+      "canvas_id": "canvas-child-smoke",
+      "canvas_type": "office_word",
+      "episode_id": null,
+      "forbidden_keys_present": [],
+      "forbidden_markers_present": [],
+      "id": "28dd834c-15e7-4205-b1e7-3e2ef8fa2962",
+      "restored_from": {
+        "action_type": "update",
+        "audit_id": "audit-child-smoke",
+        "binding": "rebased_to_target",
+        "created_at": "2026-11-07 23:27:26.383974",
+        "manifest_sha256": "a2d20cd0e145195116042317d02631420c36c7237873f3159d40d8f2a27bae42",
+        "note": "Restore-appended event. The original audit row, actor, operation identity and material are unchanged; this event certifies the current target binding only.",
+        "original_details_sha256": "43dc9f2117ce65a5949ad5466c5022daa33d07e91f4a7fda54b10b57c7c91461",
+        "restore_event_id": "28dd834c-15e7-4205-b1e7-3e2ef8fa2962",
+        "source_audit_tenant_id": "tenant-child-smoke",
+        "source_canvas_tenant_id": "tenant-child-smoke",
+        "source_data_dir": "/private/tmp/root-restore-child-bb60-20261107/source",
+        "target_data_dir": "/private/tmp/root-restore-child-bb60-20261107/target"
+      },
+      "session_id": null,
+      "tenant_id": "tenant-child-smoke",
+      "user_id": null
+    },
+    "restore_row_count": 1
+  },
+  "bookkeeping": {
+    "authentication": {
+      "disclosed": true,
+      "last_login_updated": true,
+      "login_audit_rows_added": 1,
+      "login_audit_rows_after": 1,
+      "login_audit_rows_before": 0
+    },
+    "business_mutation_basis": "No business write route was called; original canvas_audit rows are unchanged and the canvas/goal/document/dataset fixture rows match the restored target after startup.",
+    "business_mutations_after_restore": false,
+    "business_write_methods_called": [],
+    "http_write_methods_called": [
+      "POST /api/auth/login"
+    ],
+    "startup_bookkeeping": "Startup may write the product wipe-check fingerprint, the product-generated bootstrap password file (0600 in scratch), and operational/auth receipts; no business write route was called by this readback."
+  },
+  "business_completion_claimed": false,
+  "canvas": {
+    "canvas_type": "office_word",
+    "content": {
+      "file_path": "/private/tmp/root-restore-child-bb60-20261107/target/office/restored-office.docx",
+      "format": "docx",
+      "office_file": "/private/tmp/root-restore-child-bb60-20261107/target/office/restored-office.docx"
+    },
+    "created_by": "user-child-smoke",
+    "http": {
+      "action_type": "restore",
+      "audit_id": "28dd834c-15e7-4205-b1e7-3e2ef8fa2962",
+      "canvas_id": "canvas-child-smoke",
+      "canvas_type": "office_word",
+      "content": {
+        "file_path": "/private/tmp/root-restore-child-bb60-20261107/target/office/restored-office.docx",
+        "format": "docx",
+        "office_file": "/private/tmp/root-restore-child-bb60-20261107/target/office/restored-office.docx"
+      },
+      "operation_id": null,
+      "review_status": "unknown",
+      "success": true,
+      "title": "Child restore smoke office"
+    },
+    "id": "canvas-child-smoke",
+    "name": "Child restore smoke office",
+    "tenant_id": "tenant-child-smoke",
+    "workspace_id": "ws-child-smoke"
+  },
+  "checks": {
+    "artifact_ok": true,
+    "auth_bookkeeping_disclosed": true,
+    "auth_bookkeeping_observed": true,
+    "business_mutations_after_restore_false": true,
+    "canvas_action_restore": true,
+    "canvas_audit_event_exact": true,
+    "canvas_db_content_binding_exact": true,
+    "canvas_db_scope_exact": true,
+    "canvas_http_200": true,
+    "canvas_id_exact": true,
+    "canvas_no_historical_operation": true,
+    "canvas_review_status_unknown": true,
+    "canvas_row_scope_exact": true,
+    "canvas_success": true,
+    "canvas_title_exact": true,
+    "canvas_type_exact": true,
+    "dataset_hash_exact": true,
+    "dataset_ok": true,
+    "dataset_path_exact": true,
+    "dataset_row_present": true,
+    "dataset_rows_exact": true,
+    "document_hash_exact": true,
+    "document_ok": true,
+    "document_path_exact": true,
+    "document_row_present": true,
+    "document_text_exact": true,
+    "goal_http_200": true,
+    "goal_id_exact": true,
+    "goal_identity_exact": true,
+    "goal_owner_exact": true,
+    "goal_scope_exact": true,
+    "goal_tenant_exact": true,
+    "goal_workspace_exact": true,
+    "login_http_200": true,
+    "me_actor_exact": true,
+    "me_http_200": true,
+    "me_scope_exact": true,
+    "memory_excluded_labeled": true,
+    "no_business_write_methods": true,
+    "no_lancedb_claim": true,
+    "no_public_document_search_claim": true,
+    "office_binding_exact": true,
+    "office_binding_not_source": true,
+    "office_binding_under_target": true,
+    "office_download_content_type": true,
+    "office_download_docx_valid": true,
+    "office_download_hash_exact": true,
+    "office_download_http_200": true,
+    "office_download_text_exact": true,
+    "office_file_hash_exact": true,
+    "original_audit_columns_exact": true,
+    "original_audit_hash_exact": true,
+    "original_audit_rows_unchanged": true,
+    "restore_event_action_restore": true,
+    "restore_event_actor_none": true,
+    "restore_event_canvas_exact": true,
+    "restore_event_no_authority": true,
+    "restore_event_no_non_restore_new": true,
+    "restore_event_one": true,
+    "restore_event_present": true,
+    "restore_event_provenance_exact": true,
+    "restore_event_scope_exact": true,
+    "restore_event_tenant_exact": true,
+    "serving_cwd_exact": true,
+    "serving_database_exact": true,
+    "serving_identity_exact": true,
+    "serving_instance_exact": true,
+    "serving_pid_exact": true,
+    "serving_revision_exact": true,
+    "source_original_missing": true,
+    "source_preserved_exists": true,
+    "target_db_exact": true,
+    "token_present": true
+  },
+  "dataset": {
+    "columns": [
+      "value"
+    ],
+    "file_name": "sheet.parquet",
+    "id": "dataset-child-smoke",
+    "parquet_path": "/private/tmp/root-restore-child-bb60-20261107/target/sheet_datasets/default/ds-1/sheet.parquet",
+    "rows": [
+      [
+        1
+      ],
+      [
+        2
+      ]
+    ],
+    "scope": "sql_row_plus_parquet_file; not public document search",
+    "sha256": "c783478057d5ff2c9eae674c66b01ff75c7c98e06d8d5b5a3356b956f1e2b4f7"
+  },
+  "document": {
+    "file_name": "restored-document.txt",
+    "file_path": "/private/tmp/root-restore-child-bb60-20261107/target/office/uploads/restored-document.txt",
+    "id": "document-child-smoke",
+    "scope": "sql_row_plus_managed_file; not public document search",
+    "sha256": "ecafb4a392dc1b2869b02d64b2d9ec50a9d31ec648a1b077fd521203014cdd41",
+    "text": "child restore smoke document text\n"
+  },
+  "failed_checks": [],
+  "goal": {
+    "http_id": "goal-child-smoke",
+    "http_owner_id": "user-child-smoke",
+    "http_title": "Child restore smoke goal",
+    "id": "goal-child-smoke",
+    "owner_id": "user-child-smoke",
+    "source": "api",
+    "status": "active",
+    "tenant_id": "tenant-child-smoke",
+    "title": "Child restore smoke goal",
+    "workspace_id": "ws-child-smoke"
+  },
+  "http": {
+    "canvas": {
+      "method": "GET",
+      "path": "/api/canvas/canvas-child-smoke",
+      "status": 200
+    },
+    "goal": {
+      "method": "GET",
+      "path": "/api/goals/goal-child-smoke",
+      "status": 200
+    },
+    "health": {
+      "method": "GET",
+      "path": "/api/health",
+      "status": 200
+    },
+    "login": {
+      "method": "POST",
+      "path": "/api/auth/login",
+      "status": 200
+    },
+    "me": {
+      "method": "GET",
+      "path": "/api/auth/me",
+      "status": 200
+    },
+    "office_download": {
+      "method": "GET",
+      "path": "/api/v1/office/download",
+      "status": 200
+    }
+  },
+  "memory": {
+    "included": false,
+    "lancedb_search_claimed": false,
+    "public_document_search_claimed": false
+  },
+  "model_dispatched": false,
+  "ok": true,
+  "schema": "atom-child-restore-readback-2",
+  "serving": {
+    "backend_path": "/private/tmp/atom-oracle-refresh-20261107/backend",
+    "cwd": "/private/tmp/atom-oracle-refresh-20261107/backend",
+    "database": "/private/tmp/root-restore-child-bb60-20261107/target/atom.db",
+    "dirty": true,
+    "dirty_paths": [],
+    "instance_id": "bb60d53d6a2e-dirty.af85e3652454.49134.1794094053",
+    "pid": 49134,
+    "revision": "bb60d53d6a2e3d9725a18c18b346febc64c51176",
+    "source_id": "bb60d53d6a2e-dirty.af85e3652454",
+    "untracked_paths": [
+      "LEAD_NEXT.md",
+      "opencode.jsonc"
+    ]
+  },
+  "timestamp": "2026-11-07T23:27:33.504476+00:00"
+}

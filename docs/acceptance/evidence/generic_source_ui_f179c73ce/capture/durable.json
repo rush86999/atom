@@ -1,0 +1,47 @@
+{
+  "job": {
+    "id": "f4ae742d-c567-4ac3-b221-2eed77028ec9",
+    "status": "success",
+    "result_summary_present": true
+  },
+  "execution": {
+    "id": "c96f9047-4f60-4533-a4e5-3bf53c4830b9",
+    "status": "success",
+    "result_steps": []
+  },
+  "waits": [
+    {
+      "id": "d3048f72-ef02-4726-b51e-f4aaa0a0b634",
+      "status": "approved",
+      "action_type": "agent_information_request",
+      "user_feedback": "authorized-ui-source.txt",
+      "correlation_id": "2f07da7c-e67f-4671-a871-95015375b2ca",
+      "accepted_answer_sha256": "739a9721e1cbb8b67dad93a1057662312baf223c9ad4179ebcedcf9b2b88fec0",
+      "accepted_answer": "authorized-ui-source.txt",
+      "source": {
+        "resource_id": "doc_31ce5238e581512e726f0424",
+        "source_version": "ev4:31ce5238e581512e726f0424c32a3ae9ac846ef5867c270a4e208d0d12d758f8",
+        "content_sha256": "31ce5238e581512e726f0424c32a3ae9ac846ef5867c270a4e208d0d12d758f8",
+        "reader": "document.text",
+        "display_label": "authorized-ui-source.txt",
+        "receipt_status": "verified",
+        "receipt_reader": "document.text"
+      }
+    }
+  ],
+  "tasks": [
+    {
+      "id": "f7bf5de9-714d-4df7-bf74-5c37da684dbe",
+      "title": "UI source-backed closing task",
+      "priority": "normal",
+      "status": "backlog",
+      "board_id": "cafcd8c4-ed7e-43ad-a5f2-6ebd8cee21c4",
+      "column_id": "c71052eb-7849-4aa5-90cf-e921788bba6c"
+    }
+  ],
+  "counts": {
+    "jobs_for_agent": 1,
+    "executions_for_id": 1,
+    "tasks_on_scratch_board": 1
+  }
+}

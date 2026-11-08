@@ -1,0 +1,25 @@
+{
+  "diagnostic_uncommitted_candidate": true,
+  "source_bytes_before": {
+    "backend/core/agent_radio/radio_thread_mutations.py": "24c84c176f8183ee5711de0fab71ea9d8102fca04a95445a48dc842553b544e6",
+    "backend/core/agent_radio/radio_actions.py": "d6fc8af80180ac6bb77ee218c7f5271259d4aedc69181b4038dbcd77c9c1fc22",
+    "backend/core/oracle/postcondition_verifiers.py": "f313d0ac4300e940f7093afa711c85e1d0a0e59ce39fc77e40c2161d8cedcf03",
+    "backend/core/oracle/request_expectations.py": "e6bcc5c9bbbc1684a8aa750d4657e95ccaeb0d1d7fb68ba8c75927eda3788381",
+    "backend/tests/test_oracle_radio_create_thread.py": "087c3ae5069b196e93f490f4b29d37aa6dade78064f4d62490287e1e91120607",
+    "backend/integrations/mcp_service.py": "235c89f416b862c217284d73f9d4f2d8b20ae752b8cbf7ce60a47ddb5527dc10"
+  },
+  "source_bytes_after": {
+    "backend/core/agent_radio/radio_thread_mutations.py": "24c84c176f8183ee5711de0fab71ea9d8102fca04a95445a48dc842553b544e6",
+    "backend/core/agent_radio/radio_actions.py": "d6fc8af80180ac6bb77ee218c7f5271259d4aedc69181b4038dbcd77c9c1fc22",
+    "backend/core/oracle/postcondition_verifiers.py": "f313d0ac4300e940f7093afa711c85e1d0a0e59ce39fc77e40c2161d8cedcf03",
+    "backend/core/oracle/request_expectations.py": "e6bcc5c9bbbc1684a8aa750d4657e95ccaeb0d1d7fb68ba8c75927eda3788381",
+    "backend/tests/test_oracle_radio_create_thread.py": "087c3ae5069b196e93f490f4b29d37aa6dade78064f4d62490287e1e91120607",
+    "backend/integrations/mcp_service.py": "235c89f416b862c217284d73f9d4f2d8b20ae752b8cbf7ce60a47ddb5527dc10"
+  },
+  "source": "f010c7174de10a9d5564e32eac3f4ef809f1b56d",
+  "head_after": "f010c7174de10a9d5564e32eac3f4ef809f1b56d",
+  "runtime_or_test_diff": [],
+  "actual_exit": 1,
+  "scratch": "/private/tmp/root-wait-source-final-review-q_7kvnbr",
+  "finished": 1794082099.898402
+}

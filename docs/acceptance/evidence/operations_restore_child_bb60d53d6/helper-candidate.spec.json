@@ -1,0 +1,21 @@
+{
+  "source": "0e152492ed40dc8b614ac66d99a928c54b7d96a3",
+  "scratch": "/private/tmp/root-wait-source-final-review-39_9jgla",
+  "command": [
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-oracle-refresh-20261107/backend",
+    "--profile",
+    "bounded",
+    "--",
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "/private/tmp/atom-oracle-refresh-20261107/scripts/tests/test_restore_child_smoke_contract.py",
+    "-q",
+    "--tb=short",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=/private/tmp/root-wait-source-final-review-39_9jgla/pytest"
+  ]
+}

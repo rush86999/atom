@@ -307,7 +307,7 @@ const AgentsDashboard = () => {
         appendLog(`Instructions: ${runInstructions || "Default behavior"}`);
 
         try {
-            const res = await fetch(`${API_BASE}/api/agents/${selectedAgentId}/run/`, {
+            const res = await fetch(`${API_BASE}/api/agents/${selectedAgentId}/run`, {
                 headers: {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${localStorage.getItem('auth_token')}`

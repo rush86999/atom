@@ -1,0 +1,13 @@
+{
+  "command": [
+    "python3",
+    "docs/acceptance/evidence/oracle_registry_refresh_20261107/generate_inventory.py"
+  ],
+  "cwd": "/private/tmp/atom-oracle-refresh-20261107",
+  "exit_code": 0,
+  "test_env": {
+    "TESTING": "1",
+    "DATABASE_URL": "sqlite:////private/tmp/atom-oracle-refresh-evidence/inventory-final/atom.db",
+    "ATOM_DATA_DIR": "/private/tmp/atom-oracle-refresh-evidence/inventory-final/data"
+  }
+}

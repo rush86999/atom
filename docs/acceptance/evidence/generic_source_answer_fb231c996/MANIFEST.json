@@ -1,0 +1,44 @@
+{
+  "kind": "generic_source_answer_manifest",
+  "branch": "codex/generic-source-answer-20261107",
+  "base_source": "7d38d2ac946ca8b4470bde8edd72ed00ef49497d",
+  "executed_source": "fb231c9962ab4660912afa865b1440e9194d652c",
+  "source_tree_clean": true,
+  "backend_focused": {
+    "passed": 12,
+    "exit": 0
+  },
+  "ui_focused": {
+    "passed": 11,
+    "exit": 0
+  },
+  "no_dependency_install": true,
+  "no_live_actions": true,
+  "stacked_on_source_branch": true,
+  "source_branch_edited": false,
+  "remaining_limits": [
+    "dataset valid twin",
+    "Generic-specific revoked/foreign/stale",
+    "before/after restart",
+    "output withholding",
+    "ordinary UI episode"
+  ],
+  "task_wait_01": "open",
+  "self_acceptance": false,
+  "source_files": {
+    "backend/api/agent_routes.py": "8bdccdeddcf0222a732448f405ac52c580754fff804ad7149e23db9eec609721",
+    "backend/core/generic_agent.py": "2440ed15152ae6b0200831b6f2c07f8eb923e2ee34cae93dba9dbc4bef8d668a",
+    "backend/tests/test_generic_source_answer_contract.py": "443c42b265fb04a847d071b9333cfa5f3af7400830969f5779310968552e0231",
+    "frontend-nextjs/components/Agents/AgentJobWaitPanel.tsx": "30c6055f0af72e2a5108e0fb9aa1ccbc9c56ba14b4e938462f44c724f2fa6301",
+    "frontend-nextjs/components/Agents/__tests__/AgentJobWaitPanel.test.tsx": "c953f4305515c628c2813768e0743036b8069c417b3beb04524f5c7baaba2916",
+    ".github/workflows/ci.yml": "455a5ae838d353cc3d8b1db4a625422c24a4cd105351bd9c27c072bb8cac060d"
+  },
+  "artifacts": {
+    "HANDOFF.md": "b81f3e0d727d8e99f5f66f358bb863d9ec9c9da5493d4b39722e5d968c708c9b",
+    "README.md": "89ffe904c8631a8806289cfb4bdbf128d21e23352c4a1d01627b88a15694be25",
+    "backend-focused-12.log": "3ca317b3fa3bdb4209b1a4d9792eb4bf4d6419c16b39258c1c249bff34225ea6",
+    "source-change.patch": "f4b6f52d2c2cf9b005b01f06932a062c79ee15a2859ba0fbaf75cbeae7d15dd1",
+    "ui-agent-job-wait-11.log": "39ac628cb23eda407b37a0582f18f18e094be04344814b4d56c5ceb15b928fba",
+    "verification.json": "2ed90295a6cb52748568c00ec421f0d3275c007a3a1fab2dee3b20de22af3c4f"
+  }
+}

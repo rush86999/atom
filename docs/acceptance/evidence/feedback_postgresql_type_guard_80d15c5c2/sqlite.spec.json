@@ -1,0 +1,24 @@
+{
+  "source": "80d15c5c287be3e7c7047206e0ef2ced8715cc47",
+  "root": "/private/tmp/root-feedback-sqlite-reg08e8b",
+  "command": [
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-feedback-postgres-20261107/backend",
+    "--profile",
+    "bounded",
+    "--",
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "tests/test_employee_business_feedback.py",
+    "tests/test_employee_feedback_interleaving.py",
+    "tests/test_feedback_cas_dialect_contract.py",
+    "/private/tmp/test_root_feedback_json_binding_type.py",
+    "-q",
+    "--tb=short",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=/private/tmp/root-feedback-sqlite-reg08e8b/pytest"
+  ]
+}

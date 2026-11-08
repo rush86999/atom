@@ -1,0 +1,133 @@
+
+::test_roundtrip_and_source_absent_portability PASSED                    [  1%]
+::test_wal_committed_row_is_in_backup_and_restore PASSED                 [  3%]
+::test_memory_included_restores_content PASSED                           [  4%]
+::test_manifest_hash_mismatch_refused_with_no_target PASSED              [  6%]
+::test_missing_artifact_refused PASSED                                   [  8%]
+::test_corrupt_database_refused PASSED                                   [  9%]
+::test_manifest_path_escape_refused PASSED                               [ 11%]
+::test_manifest_colliding_paths_refused PASSED                           [ 12%]
+::test_manifest_symlink_and_hardlink_refused PASSED                      [ 14%]
+::test_existing_or_live_target_refused PASSED                            [ 16%]
+::test_concurrent_target_claim_one_winner PASSED                         [ 17%]
+::test_source_change_during_copy_refused PASSED                          [ 19%]
+::test_postpublish_verification_failure_is_committed_unverified PASSED   [ 20%]
+::test_unknown_schema_and_absolute_path_refused PASSED                   [ 22%]
+::test_duplicate_manifest_key_refused PASSED                             [ 24%]
+::test_target_symlink_refused PASSED                                     [ 25%]
+::test_unresolved_managed_reference_refuses_before_publish PASSED        [ 27%]
+::test_backup_resolution_refuses_ambiguous_or_missing_config PASSED      [ 29%]
+::test_external_configured_office_is_recorded_and_restored PASSED        [ 30%]
+tests/test_db_safety.py::test_snapshot_is_gzipped_and_restores_a_valid_db 
+-------------------------------- live log setup --------------------------------
+2026-11-07 16:24:18 [    INFO] EscalationManager initialized
+2026-11-07 16:24:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 16:24:18 [    INFO] EscalationManager initialized
+2026-11-07 16:24:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 16:24:18 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 16:24:18 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [ 32%]
+tests/test_db_safety.py::test_snapshot_prunes_per_label_keep PASSED      [ 33%]
+tests/test_db_safety.py::test_snapshot_skips_under_testing PASSED        [ 35%]
+tests/test_db_safety.py::test_snapshot_skips_when_disk_below_floor 
+-------------------------------- live log call ---------------------------------
+2026-11-07 16:24:18 [ WARNING] db snapshot (cycle) SKIPPED: only 3506 MB free (floor 999999999 MB) — free disk space or lower ATOM_DB_SNAPSHOT_MIN_FREE_MB. No snapshot was published this cycle.
+PASSED                                                                   [ 37%]
+tests/test_db_safety.py::test_lance_cleanup_walks_every_workspace_table 
+-------------------------------- live log call ---------------------------------
+2026-11-07 16:24:18 [    INFO] lance version cleanup: cleaned 3/3 tables (retention 24h)
+PASSED                                                                   [ 38%]
+tests/test_db_safety.py::test_lance_cleanup_survives_missing_dir PASSED  [ 40%]
+tests/test_db_safety_atomicity.py::test_interrupted_fingerprint_write_keeps_previous_baseline 
+-------------------------------- live log call ---------------------------------
+2026-11-07 16:24:18 [   ERROR] db fingerprint write FAILED (RuntimeError: simulated interrupt mid-dump) -- the previous baseline at /private/tmp/ops-restore-evidence/final-gate/basetemp/pytest-of-rushiparikh/pytest-0/test_interrupted_fingerprint_w0/db_fingerprint.json is being kept unchanged. Wipe detection will be blind once that baseline goes stale.
+PASSED                                                                   [ 41%]
+tests/test_db_safety_atomicity.py::test_fingerprint_write_failure_is_logged_loudly 
+-------------------------------- live log call ---------------------------------
+2026-11-07 16:24:18 [   ERROR] db fingerprint write FAILED (RuntimeError: no space left on device) -- the previous baseline at /private/tmp/ops-restore-evidence/final-gate/basetemp/pytest-of-rushiparikh/pytest-0/test_fingerprint_write_failure0/db_fingerprint.json is being kept unchanged. Wipe detection will be blind once that baseline goes stale.
+PASSED                                                                   [ 43%]
+tests/test_db_safety_atomicity.py::test_broken_fingerprint_is_loud_and_never_reseeded[zero_bytes] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 16:24:18 [CRITICAL] DB WIPE DETECTION IS OFF: fingerprint file is empty (0 bytes): /private/tmp/ops-restore-evidence/final-gate/basetemp/pytest-of-rushiparikh/pytest-0/test_broken_fingerprint_is_lou0/db_fingerprint.json. The dev database at /private/tmp/ops-restore-evidence/final-gate/basetemp/pytest-of-rushiparikh/pytest-0/test_broken_fingerprint_is_lou0/atom.db is UNMONITORED -- if a stray script empties it, nothing will notice. This is NOT re-seeded from current row counts on purpose: doing so would adopt a wiped database as the new baseline and hide it. No preserved baseline is available: the last valid fingerprint was destroyed by the truncate-before-dump bug. The next successful write establishes a new one, and until then there is no comparison point for wipe detection. Fix the write path, then restore a known-good baseline by hand (or delete the file and accept one cycle of no detection). Recent snapshots: /private/tmp/ops-restore-evidence/final-gate/basetemp/pytest-of-rushiparikh/pytest-0/test_broken_fingerprint_is_lou0/backups (atom-cycle-*.db.gz, atom-pre-restart-*.db.gz).
+PASSED                                                                   [ 45%]
+tests/test_db_safety_atomicity.py::test_broken_fingerprint_is_loud_and_never_reseeded[not_json] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 16:24:18 [CRITICAL] DB WIPE DETECTION IS OFF: fingerprint file is unreadable: /private/tmp/ops-restore-evidence/final-gate/basetemp/pytest-of-rushiparikh/pytest-0/test_broken_fingerprint_is_lou1/db_fingerprint.json: Expecting property name enclosed in double quotes: line 1 column 3 (char 2). The dev database at /private/tmp/ops-restore-evidence/final-gate/basetemp/pytest-of-rushiparikh/pytest-0/test_broken_fingerprint_is_lou1/atom.db is UNMONITORED -- if a stray script empties it, nothing will notice. This is NOT re-seeded from current row counts on purpose: doing so would adopt a wiped database as the new baseline and hide it. No preserved baseline is available: the last valid fingerprint was destroyed by the truncate-before-dump bug. The next successful write establishes a new one, and until then there is no comparison point for wipe detection. Fix the write path, then restore a known-good baseline by hand (or delete the file and accept one cycle of no detection). Recent snapshots: /private/tmp/ops-restore-evidence/final-gate/basetemp/pytest-of-rushiparikh/pytest-0/test_broken_fingerprint_is_lou1/backups (atom-cycle-*.db.gz, atom-pre-restart-*.db.gz).
+PASSED                                                                   [ 46%]
+tests/test_db_safety_atomicity.py::test_broken_fingerprint_is_loud_and_never_reseeded[no_counts] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 16:24:18 [CRITICAL] DB WIPE DETECTION IS OFF: fingerprint file is malformed (no counts): /private/tmp/ops-restore-evidence/final-gate/basetemp/pytest-of-rushiparikh/pytest-0/test_broken_fingerprint_is_lou2/db_fingerprint.json. The dev database at /private/tmp/ops-restore-evidence/final-gate/basetemp/pytest-of-rushiparikh/pytest-0/test_broken_fingerprint_is_lou2/atom.db is UNMONITORED -- if a stray script empties it, nothing will notice. This is NOT re-seeded from current row counts on purpose: doing so would adopt a wiped database as the new baseline and hide it. No preserved baseline is available: the last valid fingerprint was destroyed by the truncate-before-dump bug. The next successful write establishes a new one, and until then there is no comparison point for wipe detection. Fix the write path, then restore a known-good baseline by hand (or delete the file and accept one cycle of no detection). Recent snapshots: /private/tmp/ops-restore-evidence/final-gate/basetemp/pytest-of-rushiparikh/pytest-0/test_broken_fingerprint_is_lou2/backups (atom-cycle-*.db.gz, atom-pre-restart-*.db.gz).
+PASSED                                                                   [ 48%]
+tests/test_db_safety_atomicity.py::test_genuine_agent_collapse_still_logs_the_critical_restore_hint 
+-------------------------------- live log call ---------------------------------
+2026-11-07 16:24:18 [CRITICAL] DB WIPE SUSPECTED: agent_registry fell from 9 (fingerprint 2026-11-07T21:24:18.084283+00:00) to 0 at /private/tmp/ops-restore-evidence/final-gate/basetemp/pytest-of-rushiparikh/pytest-0/test_genuine_agent_collapse_st0/atom.db — the dev database was likely emptied by a stray script. Recent snapshots: /private/tmp/ops-restore-evidence/final-gate/basetemp/pytest-of-rushiparikh/pytest-0/test_genuine_agent_collapse_st0/backups (atom-cycle-*.db, atom-pre-restart-*.db). The API is still starting; restore before real work if this was not intentional.
+PASSED                                                                   [ 50%]
+tests/test_db_safety_atomicity.py::test_absent_fingerprint_is_still_a_first_run PASSED [ 51%]
+tests/test_db_safety_atomicity.py::test_failed_validation_publishes_nothing_and_prunes_nothing 
+-------------------------------- live log call ---------------------------------
+2026-11-07 16:24:18 [ WARNING] removed unpublished snapshot debris: /private/tmp/ops-restore-evidence/final-gate/basetemp/pytest-of-rushiparikh/pytest-0/test_failed_validation_publish0/backups/.cycle-20261107-162418.db.partial
+2026-11-07 16:24:18 [   ERROR] db snapshot (cycle) FAILED -- live backup protection is OFF until this succeeds. type=RuntimeError message=validation failed. Nothing was published and no existing backup was pruned.
+PASSED                                                                   [ 53%]
+tests/test_db_safety_atomicity.py::test_snapshot_that_would_be_short_of_the_source_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-07 16:24:18 [ WARNING] removed unpublished snapshot debris: /private/tmp/ops-restore-evidence/final-gate/basetemp/pytest-of-rushiparikh/pytest-0/test_snapshot_that_would_be_sh0/backups/.cycle-20261107-162418.db.partial
+2026-11-07 16:24:18 [   ERROR] db snapshot (cycle) FAILED -- live backup protection is OFF until this succeeds. type=RuntimeError message=snapshot lost rows relative to the live source (copy, source): {'agent_registry': (9, 9999)}. Nothing was published and no existing backup was pruned.
+PASSED                                                                   [ 54%]
+tests/test_db_safety_atomicity.py::test_successful_snapshot_leaves_no_partial_or_sidecar_debris PASSED [ 56%]
+tests/test_db_safety_atomicity.py::test_maintenance_step_reports_failure_distinctly 
+-------------------------------- live log call ---------------------------------
+2026-11-07 16:24:18 [   ERROR] db safety cycle INCOMPLETE: snapshot=False fingerprint=False -- live backup protection is degraded until both succeed.
+PASSED                                                                   [ 58%]
+tests/test_db_safety_atomicity.py::test_maintenance_step_reports_success_distinctly PASSED [ 59%]
+tests/test_db_safety_atomicity.py::test_snapshot_ok_but_fingerprint_failed_is_not_reported_as_protected 
+-------------------------------- live log call ---------------------------------
+2026-11-07 16:24:18 [   ERROR] db safety cycle INCOMPLETE: snapshot=True fingerprint=False -- live backup protection is degraded until both succeed.
+PASSED                                                                   [ 61%]
+tests/test_db_safety_atomicity.py::test_free_space_below_floor_skips_cleanly_and_says_so 
+-------------------------------- live log call ---------------------------------
+2026-11-07 16:24:18 [ WARNING] db snapshot (cycle) SKIPPED: only 3506 MB free (floor 999999999 MB) — free disk space or lower ATOM_DB_SNAPSHOT_MIN_FREE_MB. No snapshot was published this cycle.
+PASSED                                                                   [ 62%]
+tests/test_db_safety_atomicity.py::test_snapshot_never_falls_back_to_a_weaker_read_mode 
+-------------------------------- live log call ---------------------------------
+2026-11-07 16:24:18 [   ERROR] CANNOT open the live DB read-only (file:/private/tmp/ops-restore-evidence/final-gate/basetemp/pytest-of-rushiparikh/pytest-0/test_snapshot_never_falls_back0/atom.db?mode=ro) -- backup protection is OFF for this cycle and no snapshot will be published. sqlite_errorcode=None sqlite_errorname=None type=OperationalError message=('disk I/O error', 'unable to open database file') (WAL is 0 bytes; NOT falling back to mode=rw, immutable=1 or a file copy, because each of those can produce a backup that is silently incomplete)
+2026-11-07 16:24:18 [   ERROR] db snapshot (cycle) FAILED -- live backup protection is OFF until this succeeds. sqlite_errorcode=None sqlite_errorname=None type=OperationalError message=('disk I/O error', 'unable to open database file'). Nothing was published and no existing backup was pruned.
+PASSED                                                                   [ 64%]
+tests/core/test_db_snapshot_protection.py::test_snapshot_publishes_a_verified_non_empty_file PASSED [ 66%]
+tests/core/test_db_snapshot_protection.py::test_failed_snapshot_leaves_no_debris_and_warns 
+-------------------------------- live log call ---------------------------------
+2026-11-07 16:24:18 [   ERROR] db snapshot (unittest) FAILED -- live backup protection is OFF until this succeeds. sqlite_errorcode=None sqlite_errorname=None type=OperationalError message=disk I/O error. Nothing was published and no existing backup was pruned.
+PASSED                                                                   [ 67%]
+tests/core/test_db_snapshot_protection.py::test_verify_rejects_zero_byte_file PASSED [ 69%]
+tests/core/test_db_snapshot_protection.py::test_unreadable_live_db_fails_loudly_and_publishes_nothing 
+-------------------------------- live log call ---------------------------------
+2026-11-07 16:24:18 [   ERROR] CANNOT open the live DB read-only (file:/private/tmp/ops-restore-evidence/final-gate/basetemp/pytest-of-rushiparikh/pytest-0/test_unreadable_live_db_fails_0/atom.db?mode=ro) -- backup protection is OFF for this cycle and no snapshot will be published. sqlite_errorcode=None sqlite_errorname=None type=OperationalError message=disk I/O error (WAL is 64 bytes; NOT falling back to mode=rw, immutable=1 or a file copy, because each of those can produce a backup that is silently incomplete)
+2026-11-07 16:24:18 [   ERROR] db snapshot (unittest) FAILED -- live backup protection is OFF until this succeeds. sqlite_errorcode=None sqlite_errorname=None type=OperationalError message=disk I/O error. Nothing was published and no existing backup was pruned.
+PASSED                                                                   [ 70%]
+::test_pre_shutdown_failures_leave_service_alone PASSED                  [ 72%]
+::test_stale_freshness_refuses_before_shutdown PASSED                    [ 74%]
+::test_post_backup_stale_refuses_before_shutdown PASSED                  [ 75%]
+::test_pre_activation_stale_after_stop_rolls_back PASSED                 [ 77%]
+::test_partial_stop_triggers_recovery PASSED                             [ 79%]
+::test_unexpected_exit_after_shutdown_triggers_recovery PASSED           [ 80%]
+::test_candidate_and_acceptance_failures_trigger_recovery PASSED         [ 82%]
+::test_receipt_failure_is_not_committed_and_rolls_back PASSED            [ 83%]
+::test_rollback_failure_is_reported_explicitly PASSED                    [ 85%]
+::test_successful_commit_has_no_rollback PASSED                          [ 87%]
+::test_production_plan_has_no_rehearsal_flag PASSED                      [ 88%]
+::test_rehearsal_plan_has_one_rehearsal_flag PASSED                      [ 90%]
+::test_production_refuses_without_approval_before_shutdown PASSED        [ 91%]
+::test_rehearsal_approval_cannot_authorize_production PASSED             [ 93%]
+::test_mismatched_production_approval_refuses PASSED                     [ 95%]
+::test_production_approval_binds_source_shutdown_scope PASSED            [ 96%]
+::test_production_approval_without_scope_is_refused PASSED               [ 98%]
+::test_source_control_refuses_a_pid_only_stop PASSED                     [100%]
+
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+================== 62 passed, 6 warnings in 61.44s (0:01:01) ===================
+
+STDERR

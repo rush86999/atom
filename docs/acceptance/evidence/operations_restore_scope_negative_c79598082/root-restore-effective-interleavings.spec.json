@@ -1,0 +1,21 @@
+{
+  "source": "4bae4c480024bf2346117e7c661b2c87aca4a969",
+  "scratch": "/private/tmp/root-wait-source-final-review-l23nhl1l",
+  "command": [
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-oracle-refresh-20261107/backend",
+    "--profile",
+    "bounded",
+    "--",
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "/private/tmp/test_lead_restore_effective_interleavings.py",
+    "-q",
+    "--tb=short",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=/private/tmp/root-wait-source-final-review-l23nhl1l/pytest"
+  ]
+}

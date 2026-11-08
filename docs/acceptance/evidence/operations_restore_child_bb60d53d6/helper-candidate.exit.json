@@ -1,0 +1,19 @@
+{
+  "external_diagnostic_probe": true,
+  "source_bytes_before": {
+    "backend/api/canvas_routes.py": "7e31aae03d685063d50a3d50d0f21fcae8c2250a91b63d7cde4a136e704cc731",
+    "backend/tools/canvas_crud_tool.py": "be810f46a3d6be3a9a3b8ed069a075e746d18bf04e2fe3947ec144380c33ebc3",
+    "backend/core/models.py": "9aec60c9155da8af8652b3209839c658d78896837b1a30d38763007b44e14b59"
+  },
+  "source_bytes_after": {
+    "backend/api/canvas_routes.py": "7e31aae03d685063d50a3d50d0f21fcae8c2250a91b63d7cde4a136e704cc731",
+    "backend/tools/canvas_crud_tool.py": "be810f46a3d6be3a9a3b8ed069a075e746d18bf04e2fe3947ec144380c33ebc3",
+    "backend/core/models.py": "9aec60c9155da8af8652b3209839c658d78896837b1a30d38763007b44e14b59"
+  },
+  "source": "0e152492ed40dc8b614ac66d99a928c54b7d96a3",
+  "head_after": "0e152492ed40dc8b614ac66d99a928c54b7d96a3",
+  "runtime_or_test_diff": [],
+  "actual_exit": 0,
+  "scratch": "/private/tmp/root-wait-source-final-review-39_9jgla",
+  "finished": 1794094014.016455
+}

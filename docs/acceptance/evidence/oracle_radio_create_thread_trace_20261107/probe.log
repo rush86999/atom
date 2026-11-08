@@ -1,0 +1,84 @@
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+_________________ test_create_thread_is_independently_verified _________________
+
+env = {'Session': sessionmaker(class_='Session', bind=Engine(sqlite:////private/tmp/atom-oracle-refresh-evidence/probe2/base...racle-refresh-evidence/probe2/basetemp/pytest-of-rushiparikh/pytest-0/test_create_thread_is_independ0/radio_thread.db'}
+
+    def test_create_thread_is_independently_verified(env):
+        operation_id = "op-radio-thread-exact"
+        result = _call(
+            _agent(),
+            {
+                "name": "alpha",
+                "member_agent_ids": ["agent-b"],
+                "scope_hint": "task",
+                "operation_id": operation_id,
+            },
+            _context(operation_id),
+        )
+    
+        thread_id = result.get("thread_id") or result.get("remote_id")
+        assert thread_id, result
+        rows = _threads(env)
+        assert len(rows) == 1, rows
+        thread = rows[0]
+        assert thread.name == "alpha"
+        assert thread.created_by_agent_id == "agent-a"
+        assert sorted(thread.member_agent_ids or []) == ["agent-a", "agent-b"]
+        assert thread.tenant_id == "tenant-1"
+        assert (thread.metadata_json or {}).get("scope") == "task"
+    
+        # The end state: the shared consumer independently certifies the exact row.
+>       assert result.get("oracle_verified") is True, result.get("oracle_evidence")
+E       AssertionError: no registered postcondition verifier
+E       assert False is True
+E        +  where False = <built-in method get of dict object at 0x12c1d0a80>('oracle_verified')
+E        +    where <built-in method get of dict object at 0x12c1d0a80> = {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}.get
+
+../docs/acceptance/evidence/oracle_radio_create_thread_trace_20261107/probe_radio_create_thread_gap.py:160: AssertionError
+_________________ test_cross_tenant_roster_cannot_be_certified _________________
+
+env = {'Session': sessionmaker(class_='Session', bind=Engine(sqlite:////private/tmp/atom-oracle-refresh-evidence/probe2/base...racle-refresh-evidence/probe2/basetemp/pytest-of-rushiparikh/pytest-0/test_cross_tenant_roster_canno0/radio_thread.db'}
+
+    def test_cross_tenant_roster_cannot_be_certified(env):
+        with env["Session"]() as db:
+            db.add(AgentRegistry(
+                id="agent-other", name="Other Tenant Agent", category="operations",
+                module_path="x.o", class_name="O",
+                tenant_id="tenant-2", workspace_id="ws-2",
+                status="autonomous"))
+            db.commit()
+    
+        operation_id = "op-radio-thread-cross-tenant"
+        result = _call(
+            _agent(),
+            {
+                "name": "cross-tenant",
+                "member_agent_ids": ["agent-other"],
+                "scope_hint": "task",
+                "operation_id": operation_id,
+            },
+            _context(operation_id),
+        )
+    
+        # A pre-effect refusal is acceptable.  Otherwise the consumer must evaluate
+        # the tenant/member contradiction, not merely say "no verifier".
+        evidence = str(result.get("oracle_evidence") or "").lower()
+        refused_before_effect = (
+            result.get("success") is False
+            and str(result.get("action_result") or "").lower()
+            in {"proven_not_applied", "failed_before_effect", "not_applied"})
+        contradiction_named = (
+            result.get("oracle_verified") is False
+            and any(term in evidence for term in ("tenant", "member", "cross")))
+>       assert refused_before_effect or contradiction_named, result
+E       AssertionError: {'action_result': 'uncertain', 'business_success': False, 'durable_claim': True, 'effect_state': 'unknown', ...}
+E       assert (False or False)
+
+../docs/acceptance/evidence/oracle_radio_create_thread_trace_20261107/probe_radio_create_thread_gap.py:196: AssertionError
+=========================== short test summary info ============================
+FAILED ../docs/acceptance/evidence/oracle_radio_create_thread_trace_20261107/probe_radio_create_thread_gap.py::test_create_thread_is_independently_verified
+FAILED ../docs/acceptance/evidence/oracle_radio_create_thread_trace_20261107/probe_radio_create_thread_gap.py::test_cross_tenant_roster_cannot_be_certified
+2 failed in 3.67s
+
+STDERR

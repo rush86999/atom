@@ -1,0 +1,22 @@
+[
+  {
+    "raw_exit_record": "root-generic-source-answer-material-valid-probe.exit.json",
+    "actual_exit": 1,
+    "executed_head": "fb231c9962ab4660912afa865b1440e9194d652c",
+    "runtime_or_test_diff": [],
+    "source_bytes_unchanged": true,
+    "probe": "test_lead_generic_source_answer_material.py",
+    "probe_sha256": "611642600fccae4323b1287e016a2069e7b6b34cfd52f1e51f5855a52f6dddf1",
+    "scope": "real public route, real Generic consumer/registry/durable task; controlled model transport and indexed text; deliberate accepted-before-continuation interruption or peer snapshot update"
+  },
+  {
+    "raw_exit_record": "root-generic-source-snapshot-cas-negative.exit.json",
+    "actual_exit": 1,
+    "executed_head": "323e4050749c1e5c270a1e1c287364662c0c2755",
+    "runtime_or_test_diff": [],
+    "source_bytes_unchanged": true,
+    "probe": "test_lead_generic_source_snapshot_cas.py",
+    "probe_sha256": "fa6e5a95e52979d4214585bfd9c795dac1d5e02bb2bf618229246beaadba41ac",
+    "scope": "real public route, real Generic consumer/registry/durable task; controlled model transport and indexed text; deliberate accepted-before-continuation interruption or peer snapshot update"
+  }
+]

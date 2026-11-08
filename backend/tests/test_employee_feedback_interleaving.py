@@ -45,7 +45,7 @@ def _pause_weak_read(monkeypatch, generation, read, release):
     monkeypatch.setattr(Query, "all", paused_all)
 
 
-def _evaluate(positive, generation):
+def _evaluate(positive, generation, workspace_id="ws-ctrl"):
     from core.employee_routing_feedback import (
         record_attempt_evaluation,
         record_pending_business_evaluation,
@@ -55,12 +55,12 @@ def _evaluate(positive, generation):
     if positive == "pending":
         return asyncio.run(record_pending_business_evaluation(
             result, stage="employee_evidence_selection",
-            workspace_id="ws-ctrl", tenant_id="tenant-ctrl"))
+            workspace_id=workspace_id, tenant_id="tenant-ctrl"))
     return asyncio.run(record_attempt_evaluation(
         result, stage="employee_evidence_selection",
         evaluation="satisfied" if positive else "failed",
         failure_kind=None if positive else "wrong_evidence_selection",
-        workspace_id="ws-ctrl", tenant_id="tenant-ctrl"))
+        workspace_id=workspace_id, tenant_id="tenant-ctrl"))
 
 
 @pytest.mark.parametrize("weak_kind", ["positive", "pending"])
@@ -358,3 +358,49 @@ def test_changed_binding_during_evaluation_refuses(
         get_profile("employee_evidence_selection"),
         workspace_id="ws-ctrl", tenant_id="tenant-ctrl")
     assert "local_ctrl1234/llama3.1:8b" not in evidence, evidence
+
+
+def test_changed_binding_json_type_during_evaluation_refuses(
+        feedback_db, fresh_router, monkeypatch):
+    """A type change at the SAME revision still conflicts atomically.
+
+    The weak writer reads the opaque string "123"; a peer then rewrites the
+    same binding as JSON number 123 WITHOUT bumping ``evaluation_revision``.
+    The value predicate alone (``->>``) still renders "123", so only the
+    stored-JSON-type predicate can stop the stale annotation on PostgreSQL.
+    """
+    from core.models import LLMRoutingFeedback
+
+    generation = "interleave-binding-type-change"
+    row_id = _insert_outcome_row(feedback_db, generation, workspace="123")
+    read = threading.Event()
+    release = threading.Event()
+    _pause_weak_read(monkeypatch, generation, read, release)
+
+    with ThreadPoolExecutor(
+            max_workers=1, thread_name_prefix="weak") as pool:
+        pending = pool.submit(_evaluate, "positive", generation, "123")
+        assert read.wait(20)
+        try:
+            with feedback_db["Session"]() as session:
+                row = session.query(LLMRoutingFeedback).filter(
+                    LLMRoutingFeedback.id == row_id).one()
+                features = dict(row.prompt_features or {})
+                features["workspace_id"] = 123
+                # Deliberately unchanged revision: the type guard, not the
+                # revision predicate, must reject this interleaving.
+                features.pop("evaluation_revision", None)
+                row.prompt_features = features
+                session.commit()
+        finally:
+            release.set()
+        weak = pending.result(timeout=20)
+
+    assert weak["recorded"] is False, weak
+    assert weak["status"] == "refused_workspace", weak
+    row = _row_by_id(feedback_db, row_id)
+    features = row.prompt_features or {}
+    assert features.get("workspace_id") == 123
+    assert "evaluation_revision" not in features
+    assert features.get("business_outcome") is None
+    assert row.success is True

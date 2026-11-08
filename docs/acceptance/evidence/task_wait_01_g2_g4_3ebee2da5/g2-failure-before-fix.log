@@ -1,0 +1,128 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-07 12:24:20 [    INFO] Dev secret key loaded (persisted for restart survival). Set SECRET_KEY to override.
+
+tests/test_task_wait_source_version_after_acceptance.py::test_source_change_after_acceptance_is_revalidated_before_consumption 
+-------------------------------- live log setup --------------------------------
+2026-11-07 12:24:21 [    INFO] Updated costs for 16 providers from dynamic pricing
+2026-11-07 12:24:21 [    INFO] EscalationManager initialized
+2026-11-07 12:24:21 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:24:21 [    INFO] EscalationManager initialized
+2026-11-07 12:24:21 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 12:24:21 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 12:24:21 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-07 12:24:22 [    INFO] runtime identity: source_id=552aa1378952-dirty.e21245deb609 revision=552aa1378952 dirty=True (0 modified, 1 untracked)
+2026-11-07 12:24:22 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-07 12:24:22 [    INFO] HTTP Request: POST http://testserver/api/assignments/643df967-778b-4905-b9b7-415a8bb5fb30/sources "HTTP/1.1 200 OK"
+2026-11-07 12:24:22 [    INFO] HTTP Request: POST http://testserver/api/assignments/643df967-778b-4905-b9b7-415a8bb5fb30/sources "HTTP/1.1 200 OK"
+FAILED                                                                   [100%]
+
+=================================== FAILURES ===================================
+____ test_source_change_after_acceptance_is_revalidated_before_consumption _____
+
+route_env = {'db': <sqlalchemy.orm.session.Session object at 0x12f40be00>, 'factory': sessionmaker(class_='Session', bind=Engine(s...'other': <core.models.User object at 0x12f47f890>}, 'current': {'user': <core.models.User object at 0x12f47f610>}, ...}
+tmp_path = PosixPath('/private/var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/pytest-of-rushiparikh/pytest-421/test_source_change_after_accep0')
+monkeypatch = <_pytest.monkeypatch.MonkeyPatch object at 0x12f1f8180>
+
+    def test_source_change_after_acceptance_is_revalidated_before_consumption(
+            route_env, tmp_path, monkeypatch):
+        monkeypatch.setenv(
+            "ATOM_ASSIGNMENT_OUTPUT_DIR", str(tmp_path / "artifacts"))
+        po, invoice, receiving = _fixtures(tmp_path)
+        _install_transport(monkeypatch)
+        client = route_env["client"]
+        lifecycle = route_env["lifecycle"]
+    
+        run_id = _start(client, po)
+        first = _questions(lifecycle, run_id)
+        assert len(first) == 1, first
+    
+        accepted = client.post(
+            f"/api/assignments/{run_id}/sources",
+            json={"source": {"path": str(invoice)},
+                  "reason": "authorized invoice accepted before receiving"})
+        assert accepted.status_code == 200, accepted.text
+        assert accepted.json()["resolved_question_ids"] == [
+            first[0]["question_id"]], accepted.json()
+    
+        # The accepted/read invoice changes before dependent consumption.
+        invoice.write_text(json.dumps(_invoice("4", "50.00", "10.00")))
+    
+        second = _questions(lifecycle, run_id)
+        assert len(second) == 1, second
+        assert second[0]["inputs"]["missing"] == ["receiving"]
+    
+        answered = client.post(
+            f"/api/assignments/{run_id}/sources",
+            json={"source": {"path": str(receiving)},
+                  "reason": "authorized receiving record"})
+        assert answered.status_code == 200, answered.text
+    
+        final = lifecycle.get_assignment(run_id)
+        reconciliations = _reconciliations(final)
+        stale = [
+            step for step in reconciliations
+            if str((step.get("result") or {}).get("value") or "") == "130.00"]
+>       assert not stale, (
+            "a changed source certified the old accepted value",
+            final["status"], reconciliations)
+E       AssertionError: ('a changed source certified the old accepted value', 'completed', [{'step_id': 'invoice-reconcile', 'title': 'Reconcile invoice against purchase and receiving evidence', 'operation_type': 'calculate', 'adapter': 'invoice.reconcile', ...}])
+E       assert not [{'step_id': 'invoice-reconcile', 'title': 'Reconcile invoice against purchase and receiving evidence', 'operation_type': 'calculate', 'adapter': 'invoice.reconcile', ...}]
+
+tests/test_task_wait_source_version_after_acceptance.py:79: AssertionError
+------------------------------ Captured log setup ------------------------------
+INFO     core.byok_endpoints:byok_endpoints.py:877 Updated costs for 16 providers from dynamic pricing
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.embedding_service:embedding_service.py:131 Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+INFO     core.agent_task_registry:agent_task_registry.py:64 AgentTaskRegistry initialized
+------------------------------ Captured log call -------------------------------
+INFO     core.runtime_identity:runtime_identity.py:199 runtime identity: source_id=552aa1378952-dirty.e21245deb609 revision=552aa1378952 dirty=True (0 modified, 1 untracked)
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/643df967-778b-4905-b9b7-415a8bb5fb30/sources "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/643df967-778b-4905-b9b7-415a8bb5fb30/sources "HTTP/1.1 200 OK"
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_task_wait_source_version_after_acceptance.py::test_source_change_after_acceptance_is_revalidated_before_consumption
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== 1 failed, 9 warnings in 11.03s ========================

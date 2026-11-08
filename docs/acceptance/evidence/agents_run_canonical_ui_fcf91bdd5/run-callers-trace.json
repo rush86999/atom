@@ -1,0 +1,40 @@
+{
+  "canonical_backend_route": {
+    "file": "backend/api/agent_routes.py",
+    "line": 669,
+    "decorator": "@router.post(\"/{agent_id}/run\")",
+    "explicit_trailing_slash_alias": false,
+    "redirect_source": "Starlette/FastAPI automatic redirect_slashes"
+  },
+  "frontend_callers": [
+    {
+      "file": "frontend-nextjs/pages/agents/index.tsx",
+      "line_before": 310,
+      "before": "/api/agents/${selectedAgentId}/run/",
+      "after": "/api/agents/${selectedAgentId}/run",
+      "status": "fixed"
+    },
+    {
+      "file": "frontend-nextjs/components/Agents/AgentStudio.tsx",
+      "line": 281,
+      "url": "/api/agents/${agentId}/run",
+      "status": "already canonical"
+    }
+  ],
+  "generated_contract": {
+    "file": "frontend-nextjs/src/types/api-generated.ts",
+    "line": 8784,
+    "path": "/api/agents/{agent_id}/run"
+  },
+  "tests": [
+    {
+      "file": "frontend-nextjs/tests/pages/agents-information-job.test.tsx",
+      "status": "updated to exact canonical path; asserts POST, auth, content type and objective body; rejects /run/"
+    },
+    {
+      "file": "frontend-nextjs/tests/pages/agents-index.test.tsx",
+      "status": "mock includes(\"/run\") remains canonical-compatible; run dialog/error/network cases unchanged"
+    }
+  ],
+  "other_trailing_slash_callers": []
+}

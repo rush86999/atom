@@ -1,0 +1,3 @@
+[preflight] ok=True report=/private/tmp/goal-utility-ui-preflight-8a4K6x/report/preflight.json
+[preflight] source=98bb2e181da25d48fdbebdcd1c0d3bfb6d419735 files=10 fixture_winner=eligible-low eligible=2
+[preflight] warning: backend/venv314/bin/python is absent in this prep worktree; --execute requires a prepared frozen capture worktree

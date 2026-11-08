@@ -1,0 +1,45 @@
+FF                                                                       [100%]
+=================================== FAILURES ===================================
+_______ test_current_authority_loses_revision_after_accepted_read[None] ________
+../../test_lead_wait_missing_authoritative_revision.py:20: in test_current_authority_loses_revision_after_accepted_read
+    _valid_current(route_env,tmp_path,monkeypatch,'ev4')
+tests/test_lead_wait_source_progress_and_extraction.py:49: in test_valid_indexed_source_version_is_not_a_binary_file_digest
+    problem = AssignmentExecutor(route_env['lifecycle'])._source_consumption_gap(assignment,{})
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../test_lead_wait_missing_authoritative_revision.py:17: in after_revision_removed
+    assert problem is not None, 'missing authoritative source revision certified an old accepted indexed receipt'
+E   AssertionError: missing authoritative source revision certified an old accepted indexed receipt
+E   assert None is not None
+------------------------------ Captured log call -------------------------------
+WARNING  core.lancedb_handler:lancedb_handler.py:2008 LanceDB not initialized, chat history disabled
+_________ test_current_authority_loses_revision_after_accepted_read[] __________
+../../test_lead_wait_missing_authoritative_revision.py:20: in test_current_authority_loses_revision_after_accepted_read
+    _valid_current(route_env,tmp_path,monkeypatch,'ev4')
+tests/test_lead_wait_source_progress_and_extraction.py:49: in test_valid_indexed_source_version_is_not_a_binary_file_digest
+    problem = AssignmentExecutor(route_env['lifecycle'])._source_consumption_gap(assignment,{})
+              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+../../test_lead_wait_missing_authoritative_revision.py:17: in after_revision_removed
+    assert problem is not None, 'missing authoritative source revision certified an old accepted indexed receipt'
+E   AssertionError: missing authoritative source revision certified an old accepted indexed receipt
+E   assert None is not None
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED ../../test_lead_wait_missing_authoritative_revision.py::test_current_authority_loses_revision_after_accepted_read[None]
+FAILED ../../test_lead_wait_missing_authoritative_revision.py::test_current_authority_loses_revision_after_accepted_read[]
+2 failed, 6 warnings in 2.53s

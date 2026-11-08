@@ -1,0 +1,9 @@
+{
+  "nodes": [
+    "tests/test_oracle_radio_create_thread.py",
+    "tests/test_lead_radio_thread_authority_linearization.py",
+    "tests/test_lead_radio_mcp_replay.py",
+    "tests/test_oracle_radio_thread_replay.py"
+  ],
+  "exit_code": 0
+}

@@ -1,0 +1,197 @@
+
+::test_restore_preserves_every_original_canvas_audit_byte PASSED         [  1%]
+::test_backup_database_swap_after_validation_refuses_before_publication PASSED [  2%]
+::test_exact_original_backup_positive_twin PASSED                        [  3%]
+::test_real_postvalidation_peer_interleaving_occurs_and_is_refused[content] PASSED [  4%]
+::test_real_postvalidation_peer_interleaving_occurs_and_is_refused[inode] PASSED [  5%]
+::test_real_postvalidation_peer_interleaving_occurs_and_is_refused[wal] PASSED [  6%]
+::test_real_postvalidation_peer_interleaving_occurs_and_is_refused[shm] PASSED [  7%]
+::test_original_audit_complete_rows_preserved_and_current_canvas_rebased PASSED [  8%]
+::test_foreign_historical_audit_cannot_be_reissued_under_current_canvas_tenant PASSED [  9%]
+::test_roundtrip_and_source_absent_portability PASSED                    [ 10%]
+::test_wal_committed_row_is_in_backup_and_restore PASSED                 [ 11%]
+::test_memory_included_restores_content PASSED                           [ 12%]
+::test_manifest_hash_mismatch_refused_with_no_target PASSED              [ 13%]
+::test_missing_artifact_refused PASSED                                   [ 14%]
+::test_corrupt_database_refused PASSED                                   [ 15%]
+::test_manifest_path_escape_refused PASSED                               [ 16%]
+::test_manifest_colliding_paths_refused PASSED                           [ 17%]
+::test_manifest_symlink_and_hardlink_refused PASSED                      [ 18%]
+::test_existing_or_live_target_refused PASSED                            [ 19%]
+::test_concurrent_target_claim_one_winner PASSED                         [ 20%]
+::test_source_change_during_copy_refused PASSED                          [ 21%]
+::test_postpublish_verification_failure_is_committed_unverified PASSED   [ 22%]
+::test_unknown_schema_and_absolute_path_refused PASSED                   [ 23%]
+::test_duplicate_manifest_key_refused PASSED                             [ 24%]
+::test_target_symlink_refused PASSED                                     [ 25%]
+::test_unresolved_managed_reference_refuses_before_publish PASSED        [ 26%]
+::test_backup_resolution_refuses_ambiguous_or_missing_config PASSED      [ 27%]
+::test_external_configured_office_is_recorded_and_restored PASSED        [ 28%]
+::test_restore_appends_truthful_event_and_preserves_all_original_audit_rows PASSED [ 29%]
+::test_restore_scope_matrix_refuses_only_present_contradictions[tenant-1-tenant-1-True-tenant-1] PASSED [ 30%]
+::test_restore_scope_matrix_refuses_only_present_contradictions[tenant-1--True-tenant-1] PASSED [ 31%]
+::test_restore_scope_matrix_refuses_only_present_contradictions[-tenant-1-True-tenant-1] PASSED [ 32%]
+::test_restore_scope_matrix_refuses_only_present_contradictions[--True-default] PASSED [ 33%]
+::test_restore_scope_matrix_refuses_only_present_contradictions[default-default-True-default] PASSED [ 34%]
+::test_restore_scope_matrix_refuses_only_present_contradictions[default--True-default] PASSED [ 35%]
+::test_restore_scope_matrix_refuses_only_present_contradictions[-default-True-default] PASSED [ 36%]
+::test_restore_scope_matrix_refuses_only_present_contradictions[tenant-1-foreign-tenant-False-None] PASSED [ 37%]
+::test_restore_scope_matrix_refuses_only_present_contradictions[foreign-tenant-tenant-1-False-None] PASSED [ 38%]
+::test_restore_scope_matrix_refuses_only_present_contradictions[default-foreign-tenant-False-None] PASSED [ 39%]
+::test_restore_scope_matrix_refuses_only_present_contradictions[foreign-tenant-default-False-None] PASSED [ 40%]
+::test_restore_event_is_minimal_truthful_and_keeps_canvas_readable PASSED [ 41%]
+::test_restore_refuses_foreign_current_scope_even_without_path_rebase PASSED [ 42%]
+::test_restore_scope_refusal_matches_actual_canvas_write_policy PASSED   [ 43%]
+::test_peer_database_update_during_freeze_refused PASSED                 [ 44%]
+::test_peer_symlink_swap_before_database_copy_refused PASSED             [ 45%]
+::test_peer_inode_swap_same_bytes_refused PASSED                         [ 46%]
+::test_peer_wal_sidecar_after_validation_refused PASSED                  [ 47%]
+::test_manifest_sidecar_entry_refused PASSED                             [ 48%]
+::test_verify_database_row_count_semantics_and_injection PASSED          [ 49%]
+::test_manifest_row_count_injection_and_type_refused PASSED              [ 50%]
+::test_peer_target_directory_after_last_check_refused PASSED             [ 51%]
+::test_peer_target_symlink_after_last_check_refused PASSED               [ 52%]
+::test_peer_claim_not_deleted_by_owned_cleanup PASSED                    [ 53%]
+::test_existing_empty_target_refused_and_preserved PASSED                [ 54%]
+::test_target_parent_symlink_refused PASSED                              [ 55%]
+::test_manifest_provenance_root_must_be_absolute_and_not_root PASSED     [ 56%]
+::test_backup_rejects_symlink_in_managed_store PASSED                    [ 57%]
+tests/test_db_safety.py::test_snapshot_is_gzipped_and_restores_a_valid_db 
+-------------------------------- live log setup --------------------------------
+2026-11-07 17:43:44 [    INFO] EscalationManager initialized
+2026-11-07 17:43:44 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 17:43:44 [    INFO] EscalationManager initialized
+2026-11-07 17:43:44 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 17:43:44 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 17:43:44 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [ 58%]
+tests/test_db_safety.py::test_snapshot_prunes_per_label_keep PASSED      [ 59%]
+tests/test_db_safety.py::test_snapshot_skips_under_testing PASSED        [ 60%]
+tests/test_db_safety.py::test_snapshot_skips_when_disk_below_floor 
+-------------------------------- live log call ---------------------------------
+2026-11-07 17:43:44 [ WARNING] db snapshot (cycle) SKIPPED: only 3030 MB free (floor 999999999 MB) — free disk space or lower ATOM_DB_SNAPSHOT_MIN_FREE_MB. No snapshot was published this cycle.
+PASSED                                                                   [ 61%]
+tests/test_db_safety.py::test_lance_cleanup_walks_every_workspace_table 
+-------------------------------- live log call ---------------------------------
+2026-11-07 17:43:44 [    INFO] lance version cleanup: cleaned 3/3 tables (retention 24h)
+PASSED                                                                   [ 62%]
+tests/test_db_safety.py::test_lance_cleanup_survives_missing_dir PASSED  [ 63%]
+tests/test_db_safety_atomicity.py::test_interrupted_fingerprint_write_keeps_previous_baseline 
+-------------------------------- live log call ---------------------------------
+2026-11-07 17:43:44 [   ERROR] db fingerprint write FAILED (RuntimeError: simulated interrupt mid-dump) -- the previous baseline at /private/tmp/root-wait-source-final-review-r6nup72r/pytest/test_interrupted_fingerprint_w0/db_fingerprint.json is being kept unchanged. Wipe detection will be blind once that baseline goes stale.
+PASSED                                                                   [ 64%]
+tests/test_db_safety_atomicity.py::test_fingerprint_write_failure_is_logged_loudly 
+-------------------------------- live log call ---------------------------------
+2026-11-07 17:43:44 [   ERROR] db fingerprint write FAILED (RuntimeError: no space left on device) -- the previous baseline at /private/tmp/root-wait-source-final-review-r6nup72r/pytest/test_fingerprint_write_failure0/db_fingerprint.json is being kept unchanged. Wipe detection will be blind once that baseline goes stale.
+PASSED                                                                   [ 65%]
+tests/test_db_safety_atomicity.py::test_broken_fingerprint_is_loud_and_never_reseeded[zero_bytes] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 17:43:44 [CRITICAL] DB WIPE DETECTION IS OFF: fingerprint file is empty (0 bytes): /private/tmp/root-wait-source-final-review-r6nup72r/pytest/test_broken_fingerprint_is_lou0/db_fingerprint.json. The dev database at /private/tmp/root-wait-source-final-review-r6nup72r/pytest/test_broken_fingerprint_is_lou0/atom.db is UNMONITORED -- if a stray script empties it, nothing will notice. This is NOT re-seeded from current row counts on purpose: doing so would adopt a wiped database as the new baseline and hide it. No preserved baseline is available: the last valid fingerprint was destroyed by the truncate-before-dump bug. The next successful write establishes a new one, and until then there is no comparison point for wipe detection. Fix the write path, then restore a known-good baseline by hand (or delete the file and accept one cycle of no detection). Recent snapshots: /private/tmp/root-wait-source-final-review-r6nup72r/pytest/test_broken_fingerprint_is_lou0/backups (atom-cycle-*.db.gz, atom-pre-restart-*.db.gz).
+PASSED                                                                   [ 66%]
+tests/test_db_safety_atomicity.py::test_broken_fingerprint_is_loud_and_never_reseeded[not_json] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 17:43:44 [CRITICAL] DB WIPE DETECTION IS OFF: fingerprint file is unreadable: /private/tmp/root-wait-source-final-review-r6nup72r/pytest/test_broken_fingerprint_is_lou1/db_fingerprint.json: Expecting property name enclosed in double quotes: line 1 column 3 (char 2). The dev database at /private/tmp/root-wait-source-final-review-r6nup72r/pytest/test_broken_fingerprint_is_lou1/atom.db is UNMONITORED -- if a stray script empties it, nothing will notice. This is NOT re-seeded from current row counts on purpose: doing so would adopt a wiped database as the new baseline and hide it. No preserved baseline is available: the last valid fingerprint was destroyed by the truncate-before-dump bug. The next successful write establishes a new one, and until then there is no comparison point for wipe detection. Fix the write path, then restore a known-good baseline by hand (or delete the file and accept one cycle of no detection). Recent snapshots: /private/tmp/root-wait-source-final-review-r6nup72r/pytest/test_broken_fingerprint_is_lou1/backups (atom-cycle-*.db.gz, atom-pre-restart-*.db.gz).
+PASSED                                                                   [ 67%]
+tests/test_db_safety_atomicity.py::test_broken_fingerprint_is_loud_and_never_reseeded[no_counts] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 17:43:44 [CRITICAL] DB WIPE DETECTION IS OFF: fingerprint file is malformed (no counts): /private/tmp/root-wait-source-final-review-r6nup72r/pytest/test_broken_fingerprint_is_lou2/db_fingerprint.json. The dev database at /private/tmp/root-wait-source-final-review-r6nup72r/pytest/test_broken_fingerprint_is_lou2/atom.db is UNMONITORED -- if a stray script empties it, nothing will notice. This is NOT re-seeded from current row counts on purpose: doing so would adopt a wiped database as the new baseline and hide it. No preserved baseline is available: the last valid fingerprint was destroyed by the truncate-before-dump bug. The next successful write establishes a new one, and until then there is no comparison point for wipe detection. Fix the write path, then restore a known-good baseline by hand (or delete the file and accept one cycle of no detection). Recent snapshots: /private/tmp/root-wait-source-final-review-r6nup72r/pytest/test_broken_fingerprint_is_lou2/backups (atom-cycle-*.db.gz, atom-pre-restart-*.db.gz).
+PASSED                                                                   [ 68%]
+tests/test_db_safety_atomicity.py::test_genuine_agent_collapse_still_logs_the_critical_restore_hint 
+-------------------------------- live log call ---------------------------------
+2026-11-07 17:43:44 [CRITICAL] DB WIPE SUSPECTED: agent_registry fell from 9 (fingerprint 2026-11-07T22:43:44.095404+00:00) to 0 at /private/tmp/root-wait-source-final-review-r6nup72r/pytest/test_genuine_agent_collapse_st0/atom.db — the dev database was likely emptied by a stray script. Recent snapshots: /private/tmp/root-wait-source-final-review-r6nup72r/pytest/test_genuine_agent_collapse_st0/backups (atom-cycle-*.db, atom-pre-restart-*.db). The API is still starting; restore before real work if this was not intentional.
+PASSED                                                                   [ 69%]
+tests/test_db_safety_atomicity.py::test_absent_fingerprint_is_still_a_first_run PASSED [ 70%]
+tests/test_db_safety_atomicity.py::test_failed_validation_publishes_nothing_and_prunes_nothing 
+-------------------------------- live log call ---------------------------------
+2026-11-07 17:43:44 [ WARNING] removed unpublished snapshot debris: /private/tmp/root-wait-source-final-review-r6nup72r/pytest/test_failed_validation_publish0/backups/.cycle-20261107-174344.db.partial
+2026-11-07 17:43:44 [   ERROR] db snapshot (cycle) FAILED -- live backup protection is OFF until this succeeds. type=RuntimeError message=validation failed. Nothing was published and no existing backup was pruned.
+PASSED                                                                   [ 71%]
+tests/test_db_safety_atomicity.py::test_snapshot_that_would_be_short_of_the_source_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-07 17:43:44 [ WARNING] removed unpublished snapshot debris: /private/tmp/root-wait-source-final-review-r6nup72r/pytest/test_snapshot_that_would_be_sh0/backups/.cycle-20261107-174344.db.partial
+2026-11-07 17:43:44 [   ERROR] db snapshot (cycle) FAILED -- live backup protection is OFF until this succeeds. type=RuntimeError message=snapshot lost rows relative to the live source (copy, source): {'agent_registry': (9, 9999)}. Nothing was published and no existing backup was pruned.
+PASSED                                                                   [ 72%]
+tests/test_db_safety_atomicity.py::test_successful_snapshot_leaves_no_partial_or_sidecar_debris PASSED [ 73%]
+tests/test_db_safety_atomicity.py::test_maintenance_step_reports_failure_distinctly 
+-------------------------------- live log call ---------------------------------
+2026-11-07 17:43:44 [   ERROR] db safety cycle INCOMPLETE: snapshot=False fingerprint=False -- live backup protection is degraded until both succeed.
+PASSED                                                                   [ 74%]
+tests/test_db_safety_atomicity.py::test_maintenance_step_reports_success_distinctly PASSED [ 75%]
+tests/test_db_safety_atomicity.py::test_snapshot_ok_but_fingerprint_failed_is_not_reported_as_protected 
+-------------------------------- live log call ---------------------------------
+2026-11-07 17:43:44 [   ERROR] db safety cycle INCOMPLETE: snapshot=True fingerprint=False -- live backup protection is degraded until both succeed.
+PASSED                                                                   [ 76%]
+tests/test_db_safety_atomicity.py::test_free_space_below_floor_skips_cleanly_and_says_so 
+-------------------------------- live log call ---------------------------------
+2026-11-07 17:43:44 [ WARNING] db snapshot (cycle) SKIPPED: only 3030 MB free (floor 999999999 MB) — free disk space or lower ATOM_DB_SNAPSHOT_MIN_FREE_MB. No snapshot was published this cycle.
+PASSED                                                                   [ 77%]
+tests/test_db_safety_atomicity.py::test_snapshot_never_falls_back_to_a_weaker_read_mode 
+-------------------------------- live log call ---------------------------------
+2026-11-07 17:43:44 [   ERROR] CANNOT open the live DB read-only (file:/private/tmp/root-wait-source-final-review-r6nup72r/pytest/test_snapshot_never_falls_back0/atom.db?mode=ro) -- backup protection is OFF for this cycle and no snapshot will be published. sqlite_errorcode=None sqlite_errorname=None type=OperationalError message=('disk I/O error', 'unable to open database file') (WAL is 0 bytes; NOT falling back to mode=rw, immutable=1 or a file copy, because each of those can produce a backup that is silently incomplete)
+2026-11-07 17:43:44 [   ERROR] db snapshot (cycle) FAILED -- live backup protection is OFF until this succeeds. sqlite_errorcode=None sqlite_errorname=None type=OperationalError message=('disk I/O error', 'unable to open database file'). Nothing was published and no existing backup was pruned.
+PASSED                                                                   [ 78%]
+tests/core/test_db_snapshot_protection.py::test_snapshot_publishes_a_verified_non_empty_file PASSED [ 79%]
+tests/core/test_db_snapshot_protection.py::test_failed_snapshot_leaves_no_debris_and_warns 
+-------------------------------- live log call ---------------------------------
+2026-11-07 17:43:44 [   ERROR] db snapshot (unittest) FAILED -- live backup protection is OFF until this succeeds. sqlite_errorcode=None sqlite_errorname=None type=OperationalError message=disk I/O error. Nothing was published and no existing backup was pruned.
+PASSED                                                                   [ 80%]
+tests/core/test_db_snapshot_protection.py::test_verify_rejects_zero_byte_file PASSED [ 81%]
+tests/core/test_db_snapshot_protection.py::test_unreadable_live_db_fails_loudly_and_publishes_nothing 
+-------------------------------- live log call ---------------------------------
+2026-11-07 17:43:44 [   ERROR] CANNOT open the live DB read-only (file:/private/tmp/root-wait-source-final-review-r6nup72r/pytest/test_unreadable_live_db_fails_0/atom.db?mode=ro) -- backup protection is OFF for this cycle and no snapshot will be published. sqlite_errorcode=None sqlite_errorname=None type=OperationalError message=disk I/O error (WAL is 64 bytes; NOT falling back to mode=rw, immutable=1 or a file copy, because each of those can produce a backup that is silently incomplete)
+2026-11-07 17:43:44 [   ERROR] db snapshot (unittest) FAILED -- live backup protection is OFF until this succeeds. sqlite_errorcode=None sqlite_errorname=None type=OperationalError message=disk I/O error. Nothing was published and no existing backup was pruned.
+PASSED                                                                   [ 82%]
+::test_pre_shutdown_failures_leave_service_alone PASSED                  [ 83%]
+::test_stale_freshness_refuses_before_shutdown PASSED                    [ 84%]
+::test_post_backup_stale_refuses_before_shutdown PASSED                  [ 85%]
+::test_pre_activation_stale_after_stop_rolls_back PASSED                 [ 86%]
+::test_partial_stop_triggers_recovery PASSED                             [ 87%]
+::test_unexpected_exit_after_shutdown_triggers_recovery PASSED           [ 88%]
+::test_candidate_and_acceptance_failures_trigger_recovery PASSED         [ 89%]
+::test_receipt_failure_is_not_committed_and_rolls_back PASSED            [ 90%]
+::test_rollback_failure_is_reported_explicitly PASSED                    [ 91%]
+::test_successful_commit_has_no_rollback PASSED                          [ 92%]
+::test_production_plan_has_no_rehearsal_flag PASSED                      [ 93%]
+::test_rehearsal_plan_has_one_rehearsal_flag PASSED                      [ 94%]
+::test_production_refuses_without_approval_before_shutdown PASSED        [ 95%]
+::test_rehearsal_approval_cannot_authorize_production PASSED             [ 96%]
+::test_mismatched_production_approval_refuses PASSED                     [ 97%]
+::test_production_approval_binds_source_shutdown_scope PASSED            [ 98%]
+::test_production_approval_without_scope_is_refused PASSED               [ 99%]
+::test_source_control_refuses_a_pid_only_stop PASSED                     [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 200 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================= 100 passed, 206 warnings in 60.89s (0:01:00) =================

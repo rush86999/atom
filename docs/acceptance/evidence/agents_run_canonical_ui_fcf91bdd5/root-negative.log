@@ -1,0 +1,190 @@
+[PASS] source_identity
+    ok head_present: True
+    ok backend_tree_clean: True
+    ok expected_sha_matches: True
+world storage preflight OK
+  ok       no maintenance lock
+  ok       worlds root is a symlink resolving to /Users/rushiparikh/projects/atom/backend/data/acceptance_worlds
+[execute] FAILED: DriverError: scenario check failed: source_answer_verified
+[fixture] MODE=api-seeded-fixture (default): small API-seeded fixture (app schema, no dev rows; 8.5 MB measured, hard ceiling 32.00 MB). Pass --full-dev-db-snapshot only for a case that genuinely needs dev data.
+[world] snapshot export: sha256=623bed527c2e87e4...
+[world] API-seeded fixture provisioned: 371 tables, 8.19 MB, 0 dev rows (live dev database NOT read)
+[world] built: export 623bed527c2e..., 46 parquets verified, farm -> world/code @ 79b2a41032, seatbelt profile written
+[storage] build marker cleared (build_in_progress.json)
+[PASS] world_built_once
+    ok manifest_present: True
+    ok fixture_present: True
+    ok disk_preflight_ok: True
+    ok preflight_source_matches_frozen: True
+    ok export_tree_matches_manifest: True
+    ok backend_export_hash_present: True
+[world] schema sync: created 5 table(s) absent from the frozen fixture: hypothesis_trees, skill_candidates, skill_impact_entries, tool_mutations, workflow_variants
+[server] healthy on :18501 (pid 13125, world identity verified: ec69e24f4385-dirty.5f754, seatbelt, credential-free)
+[PASS] initial_backend_source_bound
+    ok frozen_source_sha_present: True
+    ok frozen_source_matches_head: True
+    ok preflight_source_matches_frozen: True
+    ok git_repo_present: True
+    ok git_commit_resolved: True
+    ok tracked_backend_files_present: True
+    ok all_tracked_backend_files_exported: True
+    ok no_unexpected_backend_files: True
+    ok git_blob_read_ok: True
+    ok git_blob_bytes_match_export: True
+    ok code_manifest_matches_git_blobs: True
+    ok export_tree_matches_git_blobs: True
+    ok code_manifest_keys_match_export: True
+    ok export_tree_keys_match_export: True
+    ok all_git_modes_supported: True
+    ok manifest_export_hash_present: True
+    ok manifest_source_revision_not_conflicting: True
+    ok export_tree_matches_code_manifest: True
+    ok backend_export_hash_present: True
+    ok backend_export_hash_bound: True
+    ok health_cwd_exact: True
+    ok descriptor_export_exact: True
+    ok health_source_id_observed: True
+[PASS] backend_identity
+    ok health_ok: True
+    ok cwd_is_world_backend_root: True
+    ok db_is_run_db: True
+    ok db_not_live: True
+[PASS] fixture_through_public_routes
+    ok agent_created: True
+    ok agent_promoted: True
+    ok board_created: True
+    ok column_present: True
+[shim] serving on :18503 (script: browser_agent_source_answer_shim.json)
+[PASS] provider_shim_started
+    ok available: True
+    ok no_calls_before_run: True
+[frontend] copying /private/tmp/atom-goal-utility-surface-20261107/frontend-nextjs -> /private/tmp/atom-goal-utility-surface-20261107/backend/data/acceptance_worlds/browser_source_0bb931831_root_20261107/frontend_snapshot (excluding caches)
+[PASS] frontend_cwd_isolated
+    ok cwd_observed: True
+    ok cwd_exact: True
+[PASS] ordinary_ui_login
+    ok attempted: True
+    ok landed_off_login: True
+    ok token_present_after_login: True
+[PASS] ordinary_onboarding_completed
+    ok wizard_closed: True
+    ok authoritative_me_ok: True
+    ok completion_durable: True
+[PASS] enabled_agent_card
+    ok card_visible: True
+    ok not_paused_or_stopped: True
+[PASS] run_admitted
+    ok http_2xx: True
+    ok job_id_present: True
+[PASS] first_source_question
+    ok job_status_waiting: True
+    ok same_job_id: True
+    ok same_execution_id: True
+    ok wait_id_present: True
+    ok correlation_present: True
+    ok question_exact: True
+    ok ui_question_exact: True
+    ok ui_waiting_status: True
+    ok ui_blocking_fact: True
+    ok panel_says_information_not_approval: True
+    ok no_completion: True
+    ok no_result: True
+[PASS] job_read_is_pure
+    ok same_wait_id: True
+    ok same_job_status: True
+    ok no_provider_call: True
+[PASS] wait_authority_not_in_prompt
+    ok capture_has_full_messages: True
+    ok correlation_absent: True
+    ok hitl_id_absent: True
+[PASS] ordinary_ui_source_upload
+    ok http_2xx: True
+    ok upload_id_present: True
+    ok notice_names_file: True
+    ok catalog_document_id: True
+    ok catalog_source_version: True
+    ok catalog_kind_document: True
+    ok catalog_file_name: True
+[PASS] upload_alone_inert
+    ok same_job_id: True
+    ok same_execution_id: True
+    ok same_wait_id: True
+    ok job_still_waiting: True
+    ok wait_still_pending: True
+    ok no_result: True
+    ok no_task_created: True
+    ok no_new_provider_call: True
+    ok no_second_job: True
+[PASS] source_picker_binds_catalog
+    ok same_job_id: True
+    ok same_execution_id: True
+    ok same_wait_id: True
+    ok same_correlation: True
+    ok ui_same_question: True
+    ok picker_option_names_file: True
+    ok picker_explains_upload_not_answer: True
+    ok answer_input_empty: True
+    ok submit_enabled_for_source: True
+    ok no_result: True
+[PASS] restart_ports_freed
+    ok frontend_port_free: True
+    ok backend_port_free: True
+    ok shim_alive: True
+[server] healthy on :18501 (pid 13696, world identity verified: ec69e24f4385-dirty.5f754, seatbelt, credential-free)
+[frontend] copying /private/tmp/atom-goal-utility-surface-20261107/frontend-nextjs -> /private/tmp/atom-goal-utility-surface-20261107/backend/data/acceptance_worlds/browser_source_0bb931831_root_20261107/frontend_snapshot (excluding caches)
+[PASS] frontend_restarted_isolated
+    ok cwd_observed: True
+    ok cwd_exact: True
+[PASS] backend_restarted_same_world
+    ok new_pid: True
+    ok same_cwd: True
+    ok same_source_id: True
+    ok same_db_path: True
+    ok db_still_not_live: True
+[PASS] restarted_backend_source_bound
+    ok frozen_source_sha_present: True
+    ok frozen_source_matches_head: True
+    ok preflight_source_matches_frozen: True
+    ok git_repo_present: True
+    ok git_commit_resolved: True
+    ok tracked_backend_files_present: True
+    ok all_tracked_backend_files_exported: True
+    ok no_unexpected_backend_files: True
+    ok git_blob_read_ok: True
+    ok git_blob_bytes_match_export: True
+    ok code_manifest_matches_git_blobs: True
+    ok export_tree_matches_git_blobs: True
+    ok code_manifest_keys_match_export: True
+    ok export_tree_keys_match_export: True
+    ok all_git_modes_supported: True
+    ok manifest_export_hash_present: True
+    ok manifest_source_revision_not_conflicting: True
+    ok export_tree_matches_code_manifest: True
+    ok backend_export_hash_present: True
+    ok backend_export_hash_bound: True
+    ok health_cwd_exact: True
+    ok descriptor_export_exact: True
+    ok health_source_id_observed: True
+[PASS] same_source_after_restart
+    ok same_job_id: True
+    ok same_execution_id: True
+    ok same_wait_id: True
+    ok same_correlation: True
+    ok same_question: True
+    ok ui_same_question: True
+    ok picker_still_names_file: True
+    ok answer_input_empty: True
+    ok no_completion: True
+    ok no_new_provider_call: True
+[FAIL] source_answer_verified
+    ok http_200: True
+    ok job_status_success: True
+    ok outcome_success: True
+    ok same_execution_id: True
+    ok result_output: True
+    ok tasks_create_step: True
+    ok oracle_verified: True
+    ok single_answer_post: True
+    FAIL single_run_post: False
+    ok no_advance_path: True
+[execute] evidence written to /private/tmp/root-source-ui-episode-728lqjcb/capture

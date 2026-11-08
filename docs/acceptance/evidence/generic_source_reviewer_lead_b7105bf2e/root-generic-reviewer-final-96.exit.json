@@ -1,0 +1,21 @@
+{
+  "external_diagnostic_probe": true,
+  "source_bytes_before": {
+    "backend/api/agent_routes.py": "11fa2a877571c76bba573d9b51b0187e74d7ccbe25a931ccccc5ecda64f34790",
+    "backend/core/information_wait.py": "7b16e3d678c7bffa51e721c364d5d1473a36fdcaf04a6983f640d084130fdd17",
+    "backend/core/generic_agent.py": "2440ed15152ae6b0200831b6f2c07f8eb923e2ee34cae93dba9dbc4bef8d668a",
+    "backend/tests/test_lead_generic_source_reviewer_authority.py": "b218cb451b3b2d9106ca52c4e5ec1bad6acfe445cd9e03830813433ebc4aa4b1"
+  },
+  "source_bytes_after": {
+    "backend/api/agent_routes.py": "11fa2a877571c76bba573d9b51b0187e74d7ccbe25a931ccccc5ecda64f34790",
+    "backend/core/information_wait.py": "7b16e3d678c7bffa51e721c364d5d1473a36fdcaf04a6983f640d084130fdd17",
+    "backend/core/generic_agent.py": "2440ed15152ae6b0200831b6f2c07f8eb923e2ee34cae93dba9dbc4bef8d668a",
+    "backend/tests/test_lead_generic_source_reviewer_authority.py": "b218cb451b3b2d9106ca52c4e5ec1bad6acfe445cd9e03830813433ebc4aa4b1"
+  },
+  "source": "b7105bf2ee66b1b9bab0e8a906f1a93a949e2a22",
+  "head_after": "b7105bf2ee66b1b9bab0e8a906f1a93a949e2a22",
+  "runtime_or_test_diff": [],
+  "actual_exit": 0,
+  "scratch": "/private/tmp/root-wait-source-final-review-jv3q2fgm",
+  "finished": 1794084976.853555
+}

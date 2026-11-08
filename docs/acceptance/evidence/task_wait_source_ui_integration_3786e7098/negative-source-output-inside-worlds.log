@@ -1,0 +1,7 @@
+rc=2
+head=3786e7098fa04dc26d8ba78c3847b5327ec215bd
+cmd=["/private/tmp/atom-goal-utility-surface-20261107/backend/venv314/bin/python", "scripts/acceptance/browser_agent_source_answer.py", "--preflight", "--out", "/private/tmp/atom-goal-utility-surface-20261107/backend/data/acceptance_worlds/__preflight_should_not_exist__", "--expect-source-sha", "3786e7098fa04dc26d8ba78c3847b5327ec215bd", "--world", "browser_source_preflight_neg"]
+
+
+--- stderr ---
+[preflight] REFUSED: preflight report target is not writable or is inside the worlds root: {'ok': False, 'target': '/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/__preflight_should_not_exist__/preflight.json', 'parent': '/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds/__preflight_should_not_exist__', 'existing_ancestor': '/Users/rushiparikh/projects/atom/backend/data/acceptance_worlds', 'existing_ancestor_writable': True, 'inside_worlds_root': True}

@@ -1,0 +1,30 @@
+{
+  "executed_source": "b7105bf2ee66b1b9bab0e8a906f1a93a949e2a22",
+  "source_files": {
+    "backend/api/agent_routes.py": "11fa2a877571c76bba573d9b51b0187e74d7ccbe25a931ccccc5ecda64f34790",
+    "backend/core/assignment_resources.py": "4f67e795a96999e12323173d5f84f6033deba27cf3a9c35c827ca790c53ad034",
+    "backend/core/generic_agent.py": "2440ed15152ae6b0200831b6f2c07f8eb923e2ee34cae93dba9dbc4bef8d668a",
+    "backend/core/information_wait.py": "7b16e3d678c7bffa51e721c364d5d1473a36fdcaf04a6983f640d084130fdd17",
+    "backend/tests/test_agent_generic_information_wait.py": "30dea4516cdf332bf211c19c591c8e6716664a481329880c34d58abc4b4e0102",
+    "backend/tests/test_agent_generic_information_wait_process.py": "4b3619952b6b1a452c6249658d40a0e13b82e8e2cbf9a14d16b80901714fe5c2",
+    "backend/tests/test_agent_job_readback.py": "df30b4a31faf1dc50316eeb34aa212cdaf356f8674bdd73eb7b43100c6094270",
+    "backend/tests/test_generic_information_exact_event_contract.py": "afed948c3b3af40847b14ee201eb3fc2381170a70d487ed9f04f8bd11b9af155",
+    "backend/tests/test_generic_information_resume_namespace_contract.py": "c898ac7c8a0295f423a908fceb1e9232830a960d0a452929a6898528db1accc4",
+    "backend/tests/test_generic_information_wait_recovery.py": "ac4e9fa89a5d6da7084e3849384f517b8773e9cade052c1e0974548676f5107e",
+    "backend/tests/test_generic_information_wait_recovery_authority.py": "e08401c57872c6950c303b1d36eda096cba4aab93a9a1792804f7ed240f5f477",
+    "backend/tests/test_generic_source_answer_contract.py": "d671b8c6b33623f0693d09547c26427058e861497047bab94c865e99f3cf2d97",
+    "backend/tests/test_lead_generic_source_answer_material.py": "611642600fccae4323b1287e016a2069e7b6b34cfd52f1e51f5855a52f6dddf1",
+    "backend/tests/test_lead_generic_source_reviewer_authority.py": "b218cb451b3b2d9106ca52c4e5ec1bad6acfe445cd9e03830813433ebc4aa4b1",
+    "backend/tests/test_lead_generic_source_scope_cas.py": "5f6769bfaa5f3a080e0b60776a655dec97e82f5a0c636481ca9ec30feddbe4e7",
+    "backend/tests/test_lead_generic_source_snapshot_cas.py": "fa6e5a95e52979d4214585bfd9c795dac1d5e02bb2bf618229246beaadba41ac",
+    "backend/tests/test_lead_personal_information_answer.py": "a6d057b4e98c605811912c293ad4c504d8a53fda71430c2fa8ddf631f723f415",
+    "backend/tests/test_lead_recovery_personal_authority.py": "91598677cfe42bc0245b56a6711f1e981b6a4de8dc4991607bdd6ac67dac1f57",
+    "frontend-nextjs/components/Agents/AgentJobWaitPanel.tsx": "30c6055f0af72e2a5108e0fb9aa1ccbc9c56ba14b4e938462f44c724f2fa6301"
+  },
+  "artifacts": {
+    "root-generic-reviewer-final-96.log": "a911ccc89a83a9f39599229c10738126c95c71f9559c17ebf1b5bd057fc13bda",
+    "root-generic-reviewer-final-96.exit.json": "20addd3ef43fbd8aa6e27724ea43a85a36eebb16f43f8ea7b7d9c0e1a6b5653c",
+    "root-generic-reviewer-final-96.spec.json": "d401bc4c341d675dfbcd1daaf580cb0141bc9c85ae97fdc265c469c23cd0b0f0",
+    "README.md": "155ce7276b5bb634ddd974cd37831df44ab1e37445d6f00ebe348989d53f95bd"
+  }
+}

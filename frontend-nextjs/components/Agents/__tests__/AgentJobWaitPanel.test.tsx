@@ -407,4 +407,47 @@ describe("AgentJobWaitPanel", () => {
     expect(screen.queryByTestId("agent-job-result")).not.toBeInTheDocument();
     expect(onForget).toHaveBeenCalled();
   });
+
+  test("source-only answer selects an authorized source and binds the exact wait", async () => {
+    const user = userEvent.setup();
+    const source = {
+      document_id: "doc-source-1",
+      dataset_name: null,
+      sheet: null,
+      source: "upload",
+      external_id: "doc-source-1",
+      source_version: "ev4:abc123",
+      kind: "document",
+      file_name: "authorized-invoice.json",
+    };
+    fetchMock
+      .mockResolvedValueOnce(jsonResponse(waitingJob("wait-1", "Which invoice?", "corr-1")))
+      .mockResolvedValueOnce(jsonResponse([source]))
+      .mockResolvedValueOnce(jsonResponse(successJob(), 200))
+      .mockResolvedValueOnce(jsonResponse(successJob()));
+
+    render(<AgentJobWaitPanel agentId="a1" jobId="job-1" />);
+    await screen.findByText("Which invoice?");
+    await user.click(screen.getByTestId("agent-job-source-open"));
+    const select = await screen.findByTestId("agent-job-source-select");
+    await user.selectOptions(select, "0");
+    expect(screen.getByText(/uploading a file elsewhere does not answer it/i)).toBeInTheDocument();
+    await user.click(screen.getByTestId("agent-job-answer-submit"));
+
+    expect(await screen.findByTestId("agent-job-completed")).toBeInTheDocument();
+    const posts = postCalls(fetchMock);
+    expect(posts).toHaveLength(1);
+    expect(JSON.parse(posts[0][1].body)).toEqual({
+      answer: "",
+      correlation_id: "corr-1",
+      source: {
+        document_id: "doc-source-1",
+        source: "upload",
+        external_id: "doc-source-1",
+        source_version: "ev4:abc123",
+        kind: "document",
+      },
+    });
+  });
+
 });

@@ -1,0 +1,20 @@
+{
+  "executed_source": "c79598082d25a48dddc532648dc41b0e94824342",
+  "source_files": {
+    "scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/release_tool.py": "2a13399fbd44621660f171df3b3e1d3bb0f2ab95d21ed36577acb5292115bb9c",
+    "scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/restore_support.py": "3308fc2cb88ec54203acd083368d183121cf1d3b41943c8051eccbc8a7fc6751",
+    "scripts/deployment/assignment_successor_2026-10-30_fda4f2dc9/tests/test_release_restore.py": "09f0b950e6ed0736bbd42822cd339e20986ae4c288c4619ae68e7a2080e64b59"
+  },
+  "artifacts": {
+    "test_lead_restore_effective_interleavings.py": "7d09945f0d492838274e5c5ca35aa0b036f9fa1c2fd9a75e6f14d657f83bae77",
+    "root-restore-effective-interleavings.log": "37923c7ee37da61f5475fda817e3ae1e1cf2795120a16aaa9cb4b86e3b610cc3",
+    "test_lead_restore_audit_scope.py": "bdec3e7f30b42f12eeffbc9174f19ed810093ea393e16cd637199146ebe0f40c",
+    "README.md": "dfff39b2cdf9a2895af123e2d3505e37d61bb8c1a6dc7f4eb886ff2dae857d14",
+    "root-restore-audit-scope-negative.exit.json": "46ba7e165e33a9ab6cdc8aa863ffb762bfb07fa51707a87769f651da89119b0a",
+    "root-restore-audit-scope-negative.spec.json": "1799a1024f3c6d8b5e3cf5ce3df54ca7a3cb4000444e9cd48307a513ec698186",
+    "root-restore-effective-interleavings-review.md": "765075376f651bd13c6463d43876573c347b834c31ec113c05e35b0219060f25",
+    "root-restore-effective-interleavings.spec.json": "3ed3c3854d96058502d27bc9af5bdd8852fca59266f7bbd20592b968c46a870e",
+    "root-restore-effective-interleavings.exit.json": "456da902b9c3ecb9e26914348b6906ac49ee92800f286625ae79b3db4b3eec70",
+    "root-restore-audit-scope-negative.log": "6671577b22ddf0c7400acef7376a1aeb4237498a50f8e7ad15974d6d86e3083d"
+  }
+}
