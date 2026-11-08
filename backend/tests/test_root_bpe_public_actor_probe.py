@@ -18,6 +18,24 @@ def test_public_note_respects_actor_revocation_at_tool_time(real_env, monkeypatc
     monkeypatch.setattr(persistence, 'DATA_DIR', root)
     reset_registry()
     _seed_board(real_env)
+    import core.generic_agent as generic
+    import core.intervention_service as interventions
+    from core.models import HITLAction
+    with real_env.SessionLocal() as db:
+        db.add(User(id='root-reviewer', email='root-reviewer@example.invalid', first_name='Root', last_name='Reviewer', role='team_lead', status='active', is_active=True, tenant_id='t1', workspace_id='ws1'))
+        db.commit()
+    monkeypatch.setattr(interventions, 'get_db_session', real_env.db_session)
+    original_wait = generic.GenericAgent._wait_for_approval
+    async def reviewed_then_real_wait(self, action_id):
+        # The real service checks the real reviewer's policy; no approval
+        # verdict or production polling consumer is replaced.
+        result = await interventions.InterventionService().approve_intervention(action_id, 'root-reviewer')
+        assert result.get('success') is True, result
+        with real_env.SessionLocal() as db:
+            row = db.get(HITLAction, action_id)
+            assert row.status == 'approved' and row.reviewed_by == 'root-reviewer'
+        return await original_wait(self, action_id)
+    monkeypatch.setattr(generic.GenericAgent, '_wait_for_approval', reviewed_then_real_wait)
     marker = 'root-public-note-authority-marker'
     def first(task_input, history, context):
         if revoke:
