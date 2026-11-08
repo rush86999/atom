@@ -132,3 +132,68 @@ async def test_graduation_does_not_commit_unrelated_caller_changes(graduation_wo
         caller.commit()
     with sessions() as fresh:
         assert fresh.get(User, "supervisor").first_name == "Uncommitted caller edit"
+
+
+def test_public_graduation_lost_confirmation_is_not_clean_failure(graduation_world, monkeypatch):
+    from tests.test_graduation_readiness_tenant_scoping import make_client
+    sessions = graduation_world
+    with sessions() as caller:
+        user = caller.get(User, "supervisor")
+        client = make_client(caller, user)
+
+        async def ready(self, **kwargs):
+            return {"ready": True, "gaps": [], "episodes_analyzed": 60,
+                    "readiness_score": 1.0, "success_rate": 1.0,
+                    "avg_constitutional_score": 1.0, "intervention_rate": 0.0,
+                    "avg_confidence_score": 0.99}
+
+        monkeypatch.setattr(graduation.AgentGraduationService, "calculate_readiness_score", ready)
+        commit = caller.commit
+
+        def lost_confirmation():
+            commit()
+            raise RuntimeError("synthetic lost commit confirmation")
+
+        monkeypatch.setattr(caller, "commit", lost_confirmation)
+        response = client.post("/api/episodes/graduation/promote", params={
+            "agent_id": "graduate", "new_maturity": "AUTONOMOUS"})
+        with sessions() as fresh:
+            assert fresh.get(AgentRegistry, "graduate").status == "autonomous"
+        assert response.status_code == 503, response.json()
+        assert response.json()["detail"]["verification"]["replay"] == "do_not_repeat"
+
+
+@pytest.mark.asyncio
+async def test_graduation_receipt_replays_once_and_refutes_changed_result(graduation_world):
+    from core.models import AuditLog
+    sessions = graduation_world
+    calls = []
+    with sessions() as caller:
+        service = graduation.AgentGraduationService(caller)
+
+        async def ready(**kwargs):
+            calls.append(kwargs)
+            return {"ready": True, "gaps": [], "episodes_analyzed": 60,
+                    "readiness_score": 1.0, "success_rate": 1.0,
+                    "avg_constitutional_score": 1.0, "intervention_rate": 0.0,
+                    "avg_confidence_score": 0.99}
+
+        service.calculate_readiness_score = ready
+        args = dict(agent_id="graduate", new_maturity="AUTONOMOUS", validated_by="supervisor",
+                    tenant_id="company", workspace_id="ws-a", operation_id="review-once")
+        first = await service.promote_agent_decision(**args)
+        assert first["status"] == "verified", first
+        again = await service.promote_agent_decision(**args)
+        assert again["status"] == "already_applied", again
+        assert again["operation_id"] == first["operation_id"]
+        assert len(calls) == 1
+        with sessions() as fresh:
+            assert fresh.query(AuditLog).count() == 1
+            fresh.execute(update(AgentRegistry).where(AgentRegistry.id == "graduate")
+                          .values(configuration={"accepted": "later edit"}))
+            fresh.commit()
+        changed = await service.promote_agent_decision(**args)
+        assert changed["status"] == "committed_unverified", changed
+        with sessions() as fresh:
+            assert fresh.query(AuditLog).count() == 1
+            assert fresh.get(AgentRegistry, "graduate").configuration == {"accepted": "later edit"}
