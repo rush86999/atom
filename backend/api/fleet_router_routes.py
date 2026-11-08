@@ -100,9 +100,9 @@ async def run_automation_now(
 ) -> Dict[str, Any]:
     """Trigger an immediate calibration pass."""
     try:
-        from core.fleet_orchestration.fleet_router_automation import run_auto_certification
+        from core.fleet_orchestration.fleet_router_automation import run_auto_certification_async
 
-        return cast(Dict[str, Any], run_auto_certification())
+        return cast(Dict[str, Any], await run_auto_certification_async())
     except Exception as e:
         logger.error(f"Fleet automation run failed: {e}")
         raise HTTPException(status_code=500, detail="Automation run failed")

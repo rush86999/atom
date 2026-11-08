@@ -1,0 +1,17 @@
+[{"path": "backend/core/llm/stage_router_automation.py", "source_sha256": "458c03fcf20f5ebc926313b2c61d5ab26b64b44f34dc9e62f07d6a67f4d80132", "function": "stage_router_automation_loop", "heartbeat_during_pass": [false], "scope": "exact production loop AST executed with bounded pass/timer doubles; not full module startup"}, {"path": "backend/core/fleet_orchestration/fleet_router_automation.py", "source_sha256": "864e7058b2bfc4ae759c85ade5e2c1d2604177a25e3d888deb5903f34cb35066", "function": "fleet_router_automation_loop", "heartbeat_during_pass": [false], "scope": "exact production loop AST executed with bounded pass/timer doubles; not full module startup"}]
+Traceback (most recent call last):
+  File "/private/tmp/root-router-loop-source-bound-probe-20261108.py", line 22, in <module>
+    asyncio.run(main())
+  File "/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/runners.py", line 190, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/base_events.py", line 654, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/private/tmp/root-router-loop-source-bound-probe-20261108.py", line 21, in main
+    result=[await check(*case) for case in CASES];print(json.dumps(result));assert all(r['heartbeat_during_pass']==[True] for r in result),'router loops blocked their event loop'
+                                                                                   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: router loops blocked their event loop

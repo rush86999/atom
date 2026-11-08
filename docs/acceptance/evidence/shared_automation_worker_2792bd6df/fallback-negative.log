@@ -1,0 +1,17 @@
+{"source_sha256": "8a4fd0b904f291541c807ab94523d86ee34006e754a4766a2e678e2a30e21fc0", "caller_context_preserved": false, "origin_loop_preserved": false, "scope": "actual generic executor fallback, no app DB/model"}
+Traceback (most recent call last):
+  File "/private/tmp/root-shared-worker-fallback-context-probe-20261108.py", line 11, in <module>
+    asyncio.run(main())
+  File "/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/runners.py", line 190, in run
+    return runner.run(main)
+           ^^^^^^^^^^^^^^^^
+  File "/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/runners.py", line 118, in run
+    return self._loop.run_until_complete(task)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/base_events.py", line 654, in run_until_complete
+    return future.result()
+           ^^^^^^^^^^^^^^^
+  File "/private/tmp/root-shared-worker-fallback-context-probe-20261108.py", line 10, in main
+    report={'source_sha256':hashlib.sha256(p.read_bytes()).hexdigest(),'caller_context_preserved':result[0]=='caller','origin_loop_preserved':result[1] is loop,'scope':'actual generic executor fallback, no app DB/model'};print(json.dumps(report));assert report['caller_context_preserved'] and report['origin_loop_preserved'], 'executor fallback lost caller context'
+                                                                                                                                                                                                                                                              ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+AssertionError: executor fallback lost caller context

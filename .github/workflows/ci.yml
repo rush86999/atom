@@ -309,7 +309,7 @@ jobs:
           SECRET_KEY: "ci-test-secret-key"
           ENVIRONMENT: "development"
         run: |
-          python -m pytest tests/test_org_politics_registered_loop_join.py tests/test_org_politics_scheduled_entry.py tests/test_org_politics_automation.py tests/test_org_politics_loop_responsiveness.py -q --tb=short --timeout=300 --timeout-method=thread
+          python -m pytest tests/test_org_politics_registered_loop_join.py tests/test_org_politics_scheduled_entry.py tests/test_org_politics_automation.py tests/test_org_politics_loop_responsiveness.py tests/test_shared_automation_worker.py tests/test_router_automation_responsiveness.py tests/unit/core/test_stage_router_automation.py tests/unit/test_fleet_router_automation.py tests/test_governance_cache.py tests/test_governance_cache_async_safety.py -q --tb=short --timeout=300 --timeout-method=thread
 
       # MINI-03 runtime-boundary journey (additive): the actual public RPC
       # consumer (POST /api/rpc/mini_app_dev_run / mini_app_run_tests) must

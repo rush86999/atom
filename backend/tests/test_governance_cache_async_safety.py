@@ -1,11 +1,9 @@
 """
 Test suite for GovernanceCache async safety verification.
 
-GREEN PHASE: These tests verify the bug fix for threading.Lock in async contexts.
-
-The fix implements a dual-lock system:
-- threading.Lock for synchronous methods (backward compatibility)
-- asyncio.Lock for async-safe methods (proper async concurrency protection)
+Sync and async methods must share one native thread guard for the same dict.
+Separate thread/async locks previously allowed concurrent mutation. Historical
+test names are retained for baseline reconciliation; behavior is authoritative.
 """
 
 import asyncio
@@ -20,24 +18,46 @@ class TestGovernanceCacheAsyncSafety:
     """
     Test suite verifying the concurrency bug fix in GovernanceCache.
 
-    The fix: Added dual-lock system with threading.Lock for sync methods
-    and asyncio.Lock for async methods (get_async, set_async, etc.).
+    Verify the shared-guard design across sync and async entry points.
     """
 
     @pytest.mark.asyncio
-    async def test_dual_lock_system_exists(self):
-        """Verify both locks exist and are correct types."""
+    async def test_dual_lock_system_exists(self, monkeypatch):
+        """Legacy identity: both entry-point families enter the same guard."""
         cache = GovernanceCache(max_size=100, ttl_seconds=60)
-
         import threading
-        assert isinstance(cache._lock, threading.Lock), \
-            "Sync lock should be threading.Lock for backward compatibility"
-        assert isinstance(cache._async_lock, asyncio.Lock), \
-            "Async lock should be asyncio.Lock for proper async protection"
+        original = cache._lock
+        assert isinstance(original, type(threading.Lock()))
+
+        class RecordingGuard:
+            entries = 0
+
+            def __enter__(self):
+                original.acquire()
+                self.entries += 1
+                return self
+
+            def __exit__(self, *_exc):
+                original.release()
+
+        shared = RecordingGuard()
+        monkeypatch.setattr(cache, "_lock", shared)
+        before = shared.entries
+        assert cache.set("sync", "action", {"value": 1}) is True
+        assert shared.entries > before
+        before = shared.entries
+        assert cache.get("sync", "action") == {"value": 1}
+        assert shared.entries > before
+        before = shared.entries
+        assert await cache.set_async("async", "action", {"value": 2}) is True
+        assert shared.entries > before
+        before = shared.entries
+        assert await cache.get_async("async", "action") == {"value": 2}
+        assert shared.entries > before
 
     @pytest.mark.asyncio
     async def test_async_methods_use_async_lock(self):
-        """Test that async methods properly use asyncio.Lock."""
+        """Test async entry points using the shared cache guard."""
         cache = GovernanceCache(max_size=100, ttl_seconds=60)
 
         # Test set_async and get_async

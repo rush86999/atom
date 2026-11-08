@@ -1,0 +1,24 @@
+{
+  "backend/core/org_politics_automation.py": {
+    "changed_existing_functions": [
+      "_run_auto_certification_guarded",
+      "_spawn_notification",
+      "run_auto_certification_async"
+    ],
+    "existing_policy_functions_unchanged": true
+  },
+  "backend/core/llm/stage_router_automation.py": {
+    "changed_existing_functions": [
+      "_spawn_notification",
+      "stage_router_automation_loop"
+    ],
+    "existing_policy_functions_unchanged": true
+  },
+  "backend/core/fleet_orchestration/fleet_router_automation.py": {
+    "changed_existing_functions": [
+      "_spawn_notification",
+      "fleet_router_automation_loop"
+    ],
+    "existing_policy_functions_unchanged": true
+  }
+}

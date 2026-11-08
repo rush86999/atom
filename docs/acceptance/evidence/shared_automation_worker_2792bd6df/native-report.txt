@@ -1,0 +1,30 @@
+Maximum steps for this agent have been reached. No further tool calls will be made.
+
+## Work completed
+
+### Shared boundary — `backend/core/asyncio_compat.py`
+Added stdlib-only shared mechanisms while leaving `get_event_loop` and `iscoroutinefunction` untouched:
+- `notification_loop_var(name)` — named ContextVar for the owning application loop.
+- `run_sync_in_worker(func, notification_loop)` — offloads via `asyncio.to_thread` (with `run_in_executor` fallback), propagates the caller's context, binds the original loop, and converts an escaping `StopIteration` into `RuntimeError`.
+- `run_with_thread_gate(gate, func, ...)` — non-blocking thread gate; contending calls return `{"skipped": "pass_in_progress"}` without invoking the pass; releases only when the worker actually exits.
+- `schedule_notification(...)` — takes a coroutine factory; creates no coroutine when no origin is bound; handles original-loop `create_task` or cross-thread `run_coroutine_threadsafe`; closes exactly one unscheduled coroutine on refusal/shutdown; logs only exception class names; no worker-private-loop fallback or double dispatch.
+
+### Owners
+- **`backend/core/org_politics_automation.py`** — preserved `_notification_loop`, `_pass_gate`, `_run_auto_certification_guarded`, and the single real pass invocation. Refactored `_spawn_notification`, guarded pass, and async offload onto the shared helpers. Existing single gate acquisition, notification contents/cooldowns, and all policy/auth/verdict/statistics logic left intact.
+- **`backend/core/llm/stage_router_automation.py`** — added its own `_notification_loop` and `_pass_gate`, shared `_run_auto_certification_guarded`, `run_auto_certification_async`, notification scheduling with preserved sync fallback, and loop now awaits the async boundary.
+- **`backend/core/fleet_orchestration/fleet_router_automation.py`** — same distinct owner gate/loop var, guarded adapter, async offload, notification scheduling, and loop awaiting the async boundary.
+- **`backend/api/stage_router_routes.py`** and **`backend/api/fleet_router_routes.py`** — run-now routes now import and `await` the same-owner async boundary; auth dependency, status/error codes, and detail strings unchanged.
+
+### Tests authored (not executed)
+- **`backend/tests/test_shared_automation_worker.py`** — context propagation/origin-loop binding, StopIteration→RuntimeError, serial gate plus independent gates, original-loop notification delivery, unbound no-coroutine behavior, and both threadsafe/create_task shutdown cleanup.
+- **`backend/tests/test_router_automation_responsiveness.py`** — actual stage/fleet module workers: heartbeat responsiveness, ContextVar copy/isolation, serial passes with `pass_in_progress`, independent owners, cancellation/replacement no-overlap, exception recovery, StopIteration, original-loop notification delivery, unbound sync fallback, shutdown coroutine cleanup, and actual stage/fleet run-now route delegation plus error shape. Only owner passes/timer binding are doubled.
+
+## Remaining tasks / limitations
+- None of the code could be executed, imported, or tested, per the work order. All test behavior is statically authored and unverified.
+- No syntax/AST check, formatter, linter, or test run was performed.
+- Read-only org controls and PR789 source were not rewritten; policy/auth math was not deliberately altered.
+
+## Recommended next steps
+1. Root should run the new two test files plus the prior org40 suite and stage/fleet neighborhoods under scratch DB isolation on Python 3.11 and 3.14.
+2. Root should verify the read-only org reference tests still pass unchanged, especially notification shutdown, ContextVar reset, cancellation/replacement, and registered-loop join.
+3. Root should run a static compile/import check and confirm no remaining sync route consumer bypasses the awaited boundary.

@@ -1,0 +1,116 @@
+
+tests/test_shared_automation_worker.py::test_worker_receives_copied_context_and_origin_loop 
+-------------------------------- live log setup --------------------------------
+2026-11-08 15:24:19 [    INFO] EscalationManager initialized
+2026-11-08 15:24:19 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 15:24:19 [    INFO] EscalationManager initialized
+2026-11-08 15:24:19 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 15:24:19 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-08 15:24:19 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  3%]
+tests/test_shared_automation_worker.py::test_worker_converts_stopiteration_to_runtimeerror PASSED [  6%]
+tests/test_shared_automation_worker.py::test_thread_gate_is_serial_per_gate_and_independent_across_gates 
+-------------------------------- live log call ---------------------------------
+2026-11-08 15:24:19 [    INFO] automation skipped: previous pass still running
+PASSED                                                                   [ 10%]
+tests/test_shared_automation_worker.py::test_schedule_notification_delivers_on_original_loop PASSED [ 13%]
+tests/test_shared_automation_worker.py::test_schedule_notification_unbound_creates_no_coroutine PASSED [ 16%]
+tests/test_shared_automation_worker.py::test_schedule_notification_threadsafe_refusal_closes_one_coroutine 
+-------------------------------- live log call ---------------------------------
+2026-11-08 15:24:19 [ WARNING] automation notification not scheduled: RuntimeError
+PASSED                                                                   [ 20%]
+tests/test_shared_automation_worker.py::test_schedule_notification_create_task_refusal_closes_one_coroutine 
+-------------------------------- live log call ---------------------------------
+2026-11-08 15:24:19 [ WARNING] automation notification not scheduled: RuntimeError
+PASSED                                                                   [ 23%]
+tests/test_router_automation_responsiveness.py::test_owner_loop_heartbeat_progresses_while_pass_blocks[stage] PASSED [ 26%]
+tests/test_router_automation_responsiveness.py::test_owner_loop_heartbeat_progresses_while_pass_blocks[fleet] PASSED [ 30%]
+tests/test_router_automation_responsiveness.py::test_owner_worker_context_is_copied_and_isolated[stage] PASSED [ 33%]
+tests/test_router_automation_responsiveness.py::test_owner_worker_context_is_copied_and_isolated[fleet] PASSED [ 36%]
+tests/test_router_automation_responsiveness.py::test_owner_passes_are_serial_and_new_call_skips[stage] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 15:24:19 [    INFO] stage-router certification skipped: previous pass still running
+PASSED                                                                   [ 40%]
+tests/test_router_automation_responsiveness.py::test_owner_passes_are_serial_and_new_call_skips[fleet] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 15:24:19 [    INFO] fleet-router certification skipped: previous pass still running
+PASSED                                                                   [ 43%]
+tests/test_router_automation_responsiveness.py::test_independent_owners_do_not_suppress_each_other PASSED [ 46%]
+tests/test_router_automation_responsiveness.py::test_cancellation_does_not_release_surviving_worker[stage] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 15:24:19 [    INFO] stage-router certification skipped: previous pass still running
+PASSED                                                                   [ 50%]
+tests/test_router_automation_responsiveness.py::test_cancellation_does_not_release_surviving_worker[fleet] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 15:24:19 [    INFO] fleet-router certification skipped: previous pass still running
+PASSED                                                                   [ 53%]
+tests/test_router_automation_responsiveness.py::test_exception_releases_gate_and_next_pass_runs[stage] PASSED [ 56%]
+tests/test_router_automation_responsiveness.py::test_exception_releases_gate_and_next_pass_runs[fleet] PASSED [ 60%]
+tests/test_router_automation_responsiveness.py::test_stopiteration_becomes_runtimeerror_and_releases_gate[stage] PASSED [ 63%]
+tests/test_router_automation_responsiveness.py::test_stopiteration_becomes_runtimeerror_and_releases_gate[fleet] PASSED [ 66%]
+tests/test_router_automation_responsiveness.py::test_worker_notification_is_delivered_on_application_loop[stage] PASSED [ 70%]
+tests/test_router_automation_responsiveness.py::test_worker_notification_is_delivered_on_application_loop[fleet] PASSED [ 73%]
+tests/test_router_automation_responsiveness.py::test_unbound_notification_uses_existing_sync_fallback[stage] PASSED [ 76%]
+tests/test_router_automation_responsiveness.py::test_unbound_notification_uses_existing_sync_fallback[fleet] PASSED [ 80%]
+tests/test_router_automation_responsiveness.py::test_owner_shutdown_race_closes_unscheduled_coroutine[stage] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 15:24:19 [ WARNING] Stage-router notification not scheduled: RuntimeError
+PASSED                                                                   [ 83%]
+tests/test_router_automation_responsiveness.py::test_owner_shutdown_race_closes_unscheduled_coroutine[fleet] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 15:24:19 [ WARNING] Fleet router notification not scheduled: RuntimeError
+PASSED                                                                   [ 86%]
+tests/test_router_automation_responsiveness.py::test_run_now_route_awaits_shared_worker_boundary[api.stage_router_routes-core.llm.stage_router_automation-Automation run failed] PASSED [ 90%]
+tests/test_router_automation_responsiveness.py::test_run_now_route_awaits_shared_worker_boundary[api.fleet_router_routes-core.fleet_orchestration.fleet_router_automation-Automation run failed] PASSED [ 93%]
+tests/test_router_automation_responsiveness.py::test_run_now_route_preserves_error_shape[api.stage_router_routes-core.llm.stage_router_automation-Automation run failed] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 15:24:19 [   ERROR] Automation run failed: controlled route failure
+PASSED                                                                   [ 96%]
+tests/test_router_automation_responsiveness.py::test_run_now_route_preserves_error_shape[api.fleet_router_routes-core.fleet_orchestration.fleet_router_automation-Automation run failed] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 15:24:19 [   ERROR] Fleet automation run failed: controlled route failure
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../root-py311-plugins/pytest_freezegun.py:17: 60 warnings
+  /private/tmp/root-py311-plugins/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_shared_automation_worker.py::test_worker_receives_copied_context_and_origin_loop
+  /private/tmp/atom-shared-automation-worker-20261108/backend/core/graphrag_engine.py:196: DeprecationWarning: invalid escape sequence '\%'
+    """
+
+tests/test_router_automation_responsiveness.py::test_owner_loop_heartbeat_progresses_while_pass_blocks[fleet]
+  /private/tmp/atom-shared-automation-worker-20261108/backend/core/fleet_orchestration/scaling_proposal_service.py:48: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class ScalingProposal(BaseModel):
+
+tests/test_router_automation_responsiveness.py::test_owner_loop_heartbeat_progresses_while_pass_blocks[fleet]
+  /private/tmp/atom-shared-automation-worker-20261108/backend/core/fleet_orchestration/fleet_scaler_service.py:43: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class ScalingOperation(BaseModel):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 30 passed, 68 warnings in 16.55s =======================
