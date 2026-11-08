@@ -384,7 +384,9 @@ class GenericAgent:
             if _bpe_on():
                 from core.bpe.actions import bpe_scope_from_context
 
-                _get_ws(*bpe_scope_from_context(context)).reset_episode_counters()
+                _bpe_scope = bpe_scope_from_context(context)
+                if _bpe_scope[0]:
+                    _get_ws(*_bpe_scope).reset_episode_counters()
         except Exception as _bpe_err:
             logger.debug(f"bpe episode reset skipped: {_bpe_err}")
 
@@ -958,39 +960,41 @@ class GenericAgent:
             if _bpe_on():
                 from core.bpe.actions import bpe_scope_from_context
 
-                _ws = _get_ws(*bpe_scope_from_context(context))
-                _success = status in _SUCCESS_STATUSES
-                _bpe_consolidated = (
-                    consolidate_workspace_notes(_ws) if _success
-                    else {"dropped_notes": len(_ws.drain_pending_notes())}
-                )
-                _policy = get_consult_policy()
-                _policy.record_consult_mix(str(self.id), _ws.episode_commit_notes)
-                _policy.record_episode(
-                    str(self.id), _ws.episode_consults, _success, step_efficiency
-                )
-                # BPE automation: each finished run is a chance to auto-apply
-                # an evolved workspace genome (evidence-gated; see
-                # core/bpe/automation.py — no operator flip required).
-                try:
-                    from core.bpe.evolution import apply_best
+                _bpe_scope = bpe_scope_from_context(context)
+                if _bpe_scope[0]:
+                    _ws = _get_ws(*_bpe_scope)
+                    _success = status in _SUCCESS_STATUSES
+                    _bpe_consolidated = (
+                        consolidate_workspace_notes(_ws) if _success
+                        else {"dropped_notes": len(_ws.drain_pending_notes())}
+                    )
+                    _policy = get_consult_policy()
+                    _policy.record_consult_mix(str(self.id), _ws.episode_commit_notes)
+                    _policy.record_episode(
+                        str(self.id), _ws.episode_consults, _success, step_efficiency
+                    )
+                    # BPE automation: each finished run is a chance to auto-apply
+                    # an evolved workspace genome (evidence-gated; see
+                    # core/bpe/automation.py — no operator flip required).
+                    try:
+                        from core.bpe.evolution import apply_best
 
-                    apply_best(str(self.id))
-                except Exception as _evo_err:
-                    logger.debug(f"bpe evolution apply skipped: {_evo_err}")
-                execution_result["bpe"] = {
-                    "consults": _ws.episode_consults,
-                    "consolidated": _bpe_consolidated,
-                    "value_ema": _policy.snapshot().get(str(self.id), {}).get("value_ema"),
-                    "state": _ws.to_dict(),
-                }
-                try:
-                    from core.bpe.persistence import BPEWorkspaceStore
+                        apply_best(str(self.id))
+                    except Exception as _evo_err:
+                        logger.debug(f"bpe evolution apply skipped: {_evo_err}")
+                    execution_result["bpe"] = {
+                        "consults": _ws.episode_consults,
+                        "consolidated": _bpe_consolidated,
+                        "value_ema": _policy.snapshot().get(str(self.id), {}).get("value_ema"),
+                        "state": _ws.to_dict(),
+                    }
+                    try:
+                        from core.bpe.persistence import BPEWorkspaceStore
 
-                    BPEWorkspaceStore().save(execution_result["bpe"]["state"])
-                except Exception as _persist_err:
-                    logger.debug(f"bpe persist skipped: {_persist_err}")
-                _ws.reset_episode_counters()
+                        BPEWorkspaceStore().save(execution_result["bpe"]["state"])
+                    except Exception as _persist_err:
+                        logger.debug(f"bpe persist skipped: {_persist_err}")
+                    _ws.reset_episode_counters()
         except Exception as _bpe_err:
             logger.debug(f"bpe episode close-out skipped: {_bpe_err}")
 
@@ -1475,16 +1479,18 @@ class GenericAgent:
             if bpe_enabled():
                 from core.bpe.actions import bpe_scope_from_context
 
-                _ws = get_workspace(*bpe_scope_from_context(context or {}))
-                _policy = get_consult_policy()
-                try:
-                    _complexity = self.llm._get_handler().analyze_query_complexity(task_input).value
-                except Exception:
-                    _complexity = "moderate"
-                if _policy.should_render(str(self.id), _complexity, workspace_nonempty=True):
-                    bpe_block = _ws.render(mode=_policy.render_mode(str(self.id)))
-                    if bpe_block:
-                        bpe_block += "\n"
+                _bpe_scope = bpe_scope_from_context(context or {})
+                _ws = get_workspace(*_bpe_scope) if _bpe_scope[0] else None
+                if _ws is not None:
+                    _policy = get_consult_policy()
+                    try:
+                        _complexity = self.llm._get_handler().analyze_query_complexity(task_input).value
+                    except Exception:
+                        _complexity = "moderate"
+                    if _policy.should_render(str(self.id), _complexity, workspace_nonempty=True):
+                        bpe_block = _ws.render(mode=_policy.render_mode(str(self.id)))
+                        if bpe_block:
+                            bpe_block += "\n"
         except Exception as e:
             logger.debug(f"bpe workspace render failed: {e}")
 

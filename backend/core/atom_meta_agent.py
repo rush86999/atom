@@ -1356,8 +1356,10 @@ class AtomMetaAgent:
                 if _bpe_on():
                     from core.bpe.actions import bpe_scope_from_context
 
-                    _bpe_ws = _get_ws(*bpe_scope_from_context(context))
-                    _bpe_ws.reset_episode_counters()
+                    _bpe_scope = bpe_scope_from_context(context)
+                    if _bpe_scope[0]:
+                        _bpe_ws = _get_ws(*_bpe_scope)
+                        _bpe_ws.reset_episode_counters()
             except Exception as _bpe_err:
                 logger.debug(f"bpe episode reset skipped: {_bpe_err}")
 
@@ -1953,11 +1955,13 @@ class AtomMetaAgent:
             if bpe_enabled():
                 from core.bpe.actions import bpe_scope_from_context
 
-                _ws = get_workspace(*bpe_scope_from_context(context or {}))
-                _policy = get_consult_policy()
-                _agent_id = "atom_main"
-                if _policy.should_render(_agent_id, "moderate", workspace_nonempty=True):
-                    bpe_block = "\n" + _ws.render(mode=_policy.render_mode(_agent_id)) + "\n"
+                _bpe_scope = bpe_scope_from_context(context or {})
+                _ws = get_workspace(*_bpe_scope) if _bpe_scope[0] else None
+                if _ws is not None:
+                    _policy = get_consult_policy()
+                    _agent_id = "atom_main"
+                    if _policy.should_render(_agent_id, "moderate", workspace_nonempty=True):
+                        bpe_block = "\n" + _ws.render(mode=_policy.render_mode(_agent_id)) + "\n"
         except Exception as e:
             logger.debug(f"bpe workspace render skipped: {e}")
 

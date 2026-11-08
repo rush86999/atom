@@ -45,6 +45,15 @@ def actors(tmp_path, monkeypatch):
 
     monkeypatch.setattr(persistence, "DATA_DIR", tmp_path / "bpe")
     workspace.reset_registry()
+    # tests/conftest.py's `_isolate_registered_actions` autouse fixture restores
+    # the global registry after each case, while this module's import is cached.
+    # Re-run the real production @register_action decorators per case so every
+    # test starts with workspace.* registered (no production auto-reset).
+    import importlib
+
+    from core.bpe import actions as bpe_actions
+
+    importlib.reload(bpe_actions)
 
     engine = create_engine(
         "sqlite:///" + str(tmp_path / "actors.db"),
@@ -282,6 +291,9 @@ def test_claim_rechecks_workspace_before_append(actors):
             {
                 "authority": "user", "user_id": "bpe-user-a",
                 "workspace_id": "bpe-ws-a", "workspace_claim": True,
+                "principal_tenant": "bpe-tenant",
+                "principal_workspace": "bpe-ws-a",
+                "workspace_tenant": "bpe-tenant",
             },
         )
     assert denial is not None
@@ -290,13 +302,73 @@ def test_claim_rechecks_workspace_before_append(actors):
 
 
 # ---------------------------------------------------------------------------
+# Current principal tenant / workspace agreement
+# ---------------------------------------------------------------------------
+
+
+def test_contradictory_tenant_workspace_refuses_before_append(actors):
+    first = _post_note(actors, {"content": "original workspace-owned insight"})
+    assert first.json()["data"]["buffered"] == 1
+
+    from core.models import Tenant, User
+
+    with actors.Session() as db:
+        db.add(Tenant(id="new-tenant", name="scratch-new",
+                      subdomain="new-tenant-probe"))
+        db.commit()
+        row = db.get(User, "bpe-user-a")
+        row.tenant_id = "new-tenant"  # workspace bpe-ws-a still belongs to bpe-tenant
+        db.commit()
+
+    response = _post_note(actors, {"content": "must not append to the old namespace"})
+    body = response.json()
+    assert body["success"] is False
+    assert body["data"]["error"] == "scope_workspace_tenant_mismatch"
+    assert body["data"]["action_result"] == "not_applied"
+
+    # The peer's user row and the old buffer are preserved untouched.
+    with actors.Session() as db:
+        row = db.get(User, "bpe-user-a")
+        assert row.tenant_id == "new-tenant"
+        assert row.workspace_id == "bpe-ws-a"
+    snap = _snapshot(actors, "bpe-ws-a", scope_key="user:bpe-user-a")
+    assert snap["pending_notes"] == ["original workspace-owned insight"]
+
+
+def test_matching_current_user_and_workspace_is_authorized(actors):
+    from core.models import Tenant, User, Workspace
+
+    with actors.Session() as db:
+        db.add(Tenant(id="new-tenant", name="scratch-new",
+                      subdomain="new-tenant-probe"))
+        db.commit()
+        db.add(Workspace(id="new-ws", name="scratch-new", tenant_id="new-tenant"))
+        db.commit()
+        row = db.get(User, "bpe-user-a")
+        row.tenant_id = "new-tenant"
+        row.workspace_id = "new-ws"
+        db.commit()
+
+    response = _post_note(actors, {"content": "authorized matching current namespace"})
+    assert response.status_code == 200
+    assert response.json()["data"]["success"] is True
+    assert response.json()["data"]["buffered"] == 1
+    assert _snapshot(actors, "new-ws", scope_key="user:bpe-user-a") is not None
+    assert _snapshot(actors, "bpe-ws-a", scope_key="user:bpe-user-a") is None
+
+
+# ---------------------------------------------------------------------------
 # Generic / MCP server-bound context
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.asyncio
-async def test_generic_server_scope_ignores_forged_params_and_matches_render(actors):
-    """The GenericAgent dispatch path: caller params are not a namespace."""
+async def test_dispatch_binding_ignores_forged_params_and_matches_render(actors):
+    """Dispatch-context contract (bind helper + MCP), not a full Generic run.
+
+    This exercises the same binding the agent loop uses; the full
+    ``GenericAgent.execute`` consumer has its own bounded twin below.
+    """
     from core.bpe.actions import (
         PRINCIPAL_SCOPE_CONTEXT_KEY,
         bind_trusted_scope,
@@ -333,6 +405,119 @@ async def test_generic_server_scope_ignores_forged_params_and_matches_render(act
     assert snap["pending_notes"] == ["generic-owned"]
     assert _snapshot(actors, "peer-ws") is None
     assert _snapshot(actors, "default") is None
+
+
+@pytest.mark.asyncio
+async def test_generic_execute_binds_server_scope_for_production_action(actors, monkeypatch):
+    """Bounded REAL GenericAgent.execute consumer (no provider/LLM).
+
+    The loop's step generation, memory/budget/recording legs and turn-fact
+    extraction are stubbed; a controlled custom action receives the same
+    dispatch context an MCP tool would and forwards it to the production
+    ``workspace.note`` action. This is a genuine execute-level binding twin,
+    not a qualified full-model Generic run.
+    """
+    import core.generic_agent as generic_agent
+    import core.turn_fact_extractor as turn_fact_extractor
+    import core.decision_shadow as decision_shadow
+    from core.bpe.actions import (
+        PRINCIPAL_SCOPE_CONTEXT_KEY,
+        bpe_scope_from_context,
+    )
+    from core.react_models import ReActStep, ToolCall
+
+    monkeypatch.setattr(
+        turn_fact_extractor, "TURN_FACT_EXTRACTION_ENABLED", False,
+        raising=False,
+    )
+    monkeypatch.setattr(
+        decision_shadow, "schedule_turn_shadow", lambda *_a, **_kw: None,
+        raising=False,
+    )
+
+    class _StubWorld:
+        async def recall_experiences(self, **_kwargs):
+            return {}
+
+    monkeypatch.setattr(
+        generic_agent, "LLMService", lambda workspace_id=None: SimpleNamespace())
+    monkeypatch.setattr(
+        generic_agent, "WorldModelService", lambda workspace_id: _StubWorld())
+    monkeypatch.setattr(
+        generic_agent, "ReflectionService", lambda workspace_id: SimpleNamespace())
+    monkeypatch.setattr(
+        generic_agent, "CanvasSummaryService", lambda llm: SimpleNamespace())
+
+    agent_model = SimpleNamespace(
+        id="consumer-agent", name="Consumer", configuration={},
+        vision_enabled=False,
+    )
+    agent = generic_agent.GenericAgent(agent_model, workspace_id="consumer-ws")
+
+    captured = {}
+
+    async def _consumer(args, context):
+        captured["scope"] = dict(context.get(PRINCIPAL_SCOPE_CONTEXT_KEY) or {})
+        from core.action_registry import action_registry
+
+        return await action_registry.execute_action("workspace.note", args, context)
+
+    agent._custom_actions["test.bpe.consumer"] = _consumer
+    agent._custom_action_specs["test.bpe.consumer"] = {
+        "description": "bounded BPE consumer", "parameters": {},
+    }
+
+    async def _react_step(*_args, **_kwargs):
+        if "planned" not in captured:
+            captured["planned"] = True
+            return ReActStep(
+                thought="record a note",
+                action=ToolCall(
+                    tool="test.bpe.consumer",
+                    params={"content": "consumer-owned note"},
+                ),
+            )
+        return ReActStep(thought="done", final_answer="done")
+
+    async def _budget():
+        return {"allowed": True}
+
+    async def _no_success_rate():
+        return None
+
+    async def _no_execution(*_args, **_kwargs):
+        return None
+
+    async def _no_facts(*_args, **_kwargs):
+        return []
+
+    agent._react_step = _react_step
+    agent._check_budget_before_react = _budget
+    agent._measure_success_rate = _no_success_rate
+    agent._record_execution = _no_execution
+    agent._recall_durable_facts = _no_facts
+
+    # Caller-supplied params are present but are not the namespace source.
+    context = {
+        "workspace_id": "peer-ws",
+        "agent_id": "peer-agent",
+        "user_id": "bpe-user-b",
+    }
+    result = await agent.execute("store a bounded note", context=context)
+    assert result["status"] == "success"
+
+    scope = captured["scope"]
+    assert scope["workspace_id"] == "consumer-ws"
+    assert scope["agent_id"] == "consumer-agent"
+    assert bpe_scope_from_context(context) == (
+        "consumer-ws", "consumer-agent", scope["scope_key"])
+
+    snap = _snapshot(actors, "consumer-ws", agent_id="consumer-agent",
+                     scope_key=scope["scope_key"])
+    assert snap is not None
+    promoted = [entry["content"] for entry in snap["experience"]["skills"]]
+    assert "consumer-owned note" in promoted
+    assert _snapshot(actors, "peer-ws") is None
 
 
 @pytest.mark.asyncio
@@ -417,6 +602,33 @@ async def test_recall_does_not_cross_principal_namespaces(actors):
         )
     assert result["success"] is True
     assert result["results"] == []
+
+
+def test_scope_helper_fails_closed_and_keeps_legit_server_scope(actors):
+    from core.bpe.actions import (
+        PRINCIPAL_SCOPE_CONTEXT_KEY,
+        bind_trusted_scope,
+        bpe_scope_from_context,
+    )
+
+    # A denied/absent authority must not fall back to a reserved or shared
+    # default namespace in prompt/close-out.
+    assert bpe_scope_from_context({}) == ("", "", "")
+    assert bpe_scope_from_context({
+        PRINCIPAL_SCOPE_CONTEXT_KEY: {
+            "workspace_id": "default", "agent_id": "atom_main",
+            "scope_key": "",
+        },
+    }) == ("", "", "")
+
+    # A legitimate server-bound scope still resolves.
+    context = {}
+    bind_trusted_scope(
+        context, workspace_id="bpe-ws-a", agent_id="agent-1",
+        scope_key="server-run",
+    )
+    assert bpe_scope_from_context(context) == (
+        "bpe-ws-a", "agent-1", "server-run")
 
 
 @pytest.mark.asyncio

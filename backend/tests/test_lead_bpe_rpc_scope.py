@@ -16,6 +16,13 @@ def rpc(tmp_path,monkeypatch):
     from core.database import get_db
     monkeypatch.setattr(persistence,'DATA_DIR',tmp_path/'bpe')
     workspace.reset_registry()
+    # tests/conftest.py's `_isolate_registered_actions` autouse fixture restores
+    # the global registry after each case, while this module's import is cached.
+    # Re-run the real production @register_action decorators so every case
+    # starts with workspace.* registered (fixture only; test bodies unchanged).
+    import importlib
+    from core.bpe import actions as bpe_actions
+    importlib.reload(bpe_actions)
     engine=create_engine('sqlite:///'+str(tmp_path/'actors.db'),connect_args={'check_same_thread':False})
     @event.listens_for(engine,'connect')
     def fks(connection,_):connection.execute('PRAGMA foreign_keys=ON')

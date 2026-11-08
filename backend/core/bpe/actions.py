@@ -59,6 +59,7 @@ _SCOPE_PRINCIPAL_UNVERIFIED = "scope_principal_unverified"
 _SCOPE_AUTHORITY_MISSING = "scope_authority_missing"
 _SCOPE_AUTHORITY_CHANGED = "scope_authority_changed"
 _SCOPE_WORKSPACE_UNAVAILABLE = "scope_workspace_unavailable"
+_SCOPE_WORKSPACE_TENANT_MISMATCH = "scope_workspace_tenant_mismatch"
 
 
 def bpe_enabled() -> bool:
@@ -157,6 +158,130 @@ def _canonical_user_workspace(row: Any, user_id: str) -> str:
     return str(raw) if raw else f"{PERSONAL_WORKSPACE_PREFIX}{user_id}"
 
 
+def _scope_text(value: Any) -> Optional[str]:
+    """Trimmed scope text, or None for an unset value (never normalized)."""
+    if value is None:
+        return None
+    text = str(value).strip()
+    return text or None
+
+
+def _tenant_is_legacy(value: Any) -> bool:
+    """True for the single-tenant NULL/default policy (not a real tenant)."""
+    text = _scope_text(value)
+    return text is None or text.lower() == "default"
+
+
+def _same_scope_value(left: Any, right: Any) -> bool:
+    """NULL-safe comparison of two scope values."""
+    return _scope_text(left) == _scope_text(right)
+
+
+def _workspace_authority(
+    db: Any, principal_row: Any, workspace_id: str
+) -> Tuple[Any, Optional[Dict[str, Any]]]:
+    """Resolve the Workspace row backing a real principal scope.
+
+    Returns ``(row, None)`` when the scope is Personal/literal-default (no
+    row required) or the row's tenant agrees with the principal's raw tenant
+    under the existing single-tenant NULL/default policy. A real principal
+    tenant that contradicts a real Workspace tenant is refused; a missing
+    real Workspace row is refused too. A NULL/``default`` value on either
+    side keeps the legacy Personal compatibility and is not treated as a
+    foreign scope.
+    """
+    if not workspace_id or workspace_id == "default" or workspace_id.startswith(
+        PERSONAL_WORKSPACE_PREFIX
+    ):
+        return None, None
+
+    from core.models import Workspace
+
+    try:
+        workspace = (
+            db.query(Workspace)
+            .filter(Workspace.id == workspace_id)
+            .populate_existing()
+            .first()
+        )
+    except Exception as e:  # noqa: BLE001 — unverifiable authority fails closed
+        logger.warning("bpe workspace authority lookup failed closed: %s", e)
+        return None, _deny(
+            _SCOPE_AUTHORITY_MISSING,
+            "Could not verify the principal's workspace authority.",
+        )
+    if workspace is None:
+        return None, _deny(
+            _SCOPE_WORKSPACE_UNAVAILABLE,
+            "The principal's workspace no longer exists.",
+        )
+
+    principal_tenant = _scope_text(getattr(principal_row, "tenant_id", None))
+    workspace_tenant = _scope_text(getattr(workspace, "tenant_id", None))
+    if not _tenant_is_legacy(principal_tenant) and not _tenant_is_legacy(
+        workspace_tenant
+    ):
+        if principal_tenant != workspace_tenant:
+            return None, _deny(
+                _SCOPE_WORKSPACE_TENANT_MISMATCH,
+                "The principal's tenant contradicts the workspace's tenant; "
+                "refresh the current authority before writing.",
+            )
+    return workspace, None
+
+
+def _build_user_scope(
+    db: Any,
+    row: Any,
+    user_id: str,
+    *,
+    agent_id: Optional[str] = None,
+    trusted_workspace: Optional[str] = None,
+) -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
+    """Build the canonical per-principal scope for a fresh active row."""
+    raw_workspace = getattr(row, "workspace_id", None)
+    authoritative_workspace = _canonical_user_workspace(row, user_id)
+    if (
+        trusted_workspace
+        and trusted_workspace != authoritative_workspace
+        and not (
+            trusted_workspace == "default"
+            and authoritative_workspace.startswith(PERSONAL_WORKSPACE_PREFIX)
+        )
+    ):
+        return None, _deny(
+            _SCOPE_AUTHORITY_CHANGED,
+            "Principal workspace changed; refresh before writing.",
+        )
+
+    workspace_row, denial = _workspace_authority(
+        db, row, authoritative_workspace
+    )
+    if denial:
+        return None, denial
+
+    return {
+        "workspace_id": authoritative_workspace,
+        "agent_id": agent_id or "atom_main",
+        # Per-principal key: same user continues their own buffer, a
+        # different user (including a NULL/Personal default principal)
+        # never inherits it.
+        "scope_key": f"user:{user_id}",
+        "user_id": user_id,
+        # Frozen raw binding for the claim (NULL-safe).
+        "principal_tenant": getattr(row, "tenant_id", None),
+        "principal_workspace": raw_workspace,
+        "workspace_tenant": (
+            getattr(workspace_row, "tenant_id", None)
+            if workspace_row is not None else None
+        ),
+        # The literal single-tenant ``default`` workspace has no row to
+        # claim; the per-user key above is what isolates it.
+        "workspace_claim": bool(raw_workspace) and str(raw_workspace) != "default",
+        "authority": "user",
+    }, None
+
+
 def resolve_scope(context: Dict[str, Any]) -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
     """Resolve the canonical BPE namespace, or a typed no-effect denial.
 
@@ -187,29 +312,20 @@ def resolve_scope(context: Dict[str, Any]) -> Tuple[Optional[Dict[str, Any]], Op
         row, denial = _fresh_active_user(db, user_id)
         if denial:
             return None, denial
-        authoritative_workspace = _canonical_user_workspace(row, user_id)
         presented_workspace = _user_workspace_from(presented_user)
+        scope, denial = _build_user_scope(
+            db, row, user_id, agent_id=trusted_agent or "atom_main"
+        )
+        if denial:
+            return None, denial
         # A stale presented row may disagree with the current row; refuse
         # instead of silently moving the buffer or merging two authorities.
-        if presented_workspace and presented_workspace != authoritative_workspace:
+        if presented_workspace and presented_workspace != scope["workspace_id"]:
             return None, _deny(
                 _SCOPE_AUTHORITY_CHANGED,
                 "Principal workspace changed; refresh before writing.",
             )
-        return {
-            "workspace_id": authoritative_workspace,
-            "agent_id": trusted_agent or "atom_main",
-            # Per-principal key: same user continues their own buffer, a
-            # different user (including a NULL/Personal default principal)
-            # never inherits it.
-            "scope_key": f"user:{user_id}",
-            "user_id": user_id,
-            # The literal single-tenant ``default`` workspace has no row to
-            # claim; the per-user key above is what isolates it.
-            "workspace_claim": bool(getattr(row, "workspace_id", None))
-            and str(getattr(row, "workspace_id", "")) != "default",
-            "authority": "user",
-        }, None
+        return scope, None
 
     # A user object without a DB session cannot prove *current* activity.
     if presented_user is not None and user_id and db is None:
@@ -224,43 +340,30 @@ def resolve_scope(context: Dict[str, Any]) -> Tuple[Optional[Dict[str, Any]], Op
         workspace_id = str(trusted.get("workspace_id") or "").strip()
         scope_key = str(trusted.get("scope_key") or "").strip()
         scoped_user_id = str(trusted.get("user_id") or "").strip()
-        verified_user = False
         if scoped_user_id and db is not None:
             row, denial = _fresh_active_user(db, scoped_user_id)
             if denial:
                 return None, denial
-            verified_user = True
-            authoritative_workspace = _canonical_user_workspace(row, scoped_user_id)
-            if (workspace_id and workspace_id != authoritative_workspace
-                    and not (workspace_id == "default"
-                             and authoritative_workspace.startswith(
-                                 PERSONAL_WORKSPACE_PREFIX))):
-                return None, _deny(
-                    _SCOPE_AUTHORITY_CHANGED,
-                    "Principal workspace changed; refresh before writing.",
-                )
-            workspace_id = authoritative_workspace
+            scope, denial = _build_user_scope(
+                db, row, scoped_user_id,
+                agent_id=str(trusted.get("agent_id") or "atom_main"),
+                trusted_workspace=workspace_id,
+            )
+            if denial:
+                return None, denial
+            if scope_key:
+                scope["scope_key"] = f"user:{scoped_user_id}:{scope_key}"
+            return scope, None
         # ``default`` is tolerated only for a server-bound agent scope with a
         # real session/run key: that is single-tenant Personal parity, not a
         # shared anonymous buffer.
         if workspace_id and (workspace_id != "default" or scope_key):
-            scope = {
+            return {
                 "workspace_id": workspace_id,
                 "agent_id": str(trusted.get("agent_id") or "atom_main"),
                 "scope_key": scope_key,
-                "authority": "user" if verified_user else "server",
-            }
-            if verified_user:
-                scope["user_id"] = scoped_user_id
-                scope["workspace_claim"] = (
-                    bool(getattr(row, "workspace_id", None))
-                    and str(getattr(row, "workspace_id", "")) != "default"
-                )
-                scope["scope_key"] = (
-                    f"user:{scoped_user_id}:{scope_key}" if scope_key
-                    else f"user:{scoped_user_id}"
-                )
-            return scope, None
+                "authority": "server",
+            }, None
         return None, _deny(
             _SCOPE_AUTHORITY_MISSING,
             "Server-bound BPE scope requires a workspace and session/run key.",
@@ -289,18 +392,17 @@ def bpe_scope_from_context(context: Dict[str, Any]) -> Tuple[str, str, str]:
     Agent code uses this same helper for the rendered Prompt block, the
     episode reset and the close-out consolidation, so all three always
     address the namespace the action handlers use.
+
+    On a resolution denial this returns an empty scope and the caller must
+    skip BPE state entirely. It deliberately does NOT fall back to a raw
+    reserved/default context value: doing so would let caller-supplied params
+    (or the legacy shared ``default`` namespace) leak into prompt/close-out
+    after the authority check already refused them.
     """
     scope, _denial = resolve_scope(context)
     if scope is not None:
         return scope["workspace_id"], scope["agent_id"], scope["scope_key"]
-    trusted = (context or {}).get(PRINCIPAL_SCOPE_CONTEXT_KEY)
-    if isinstance(trusted, dict):
-        return (
-            str(trusted.get("workspace_id") or "default"),
-            str(trusted.get("agent_id") or "atom_main"),
-            str(trusted.get("scope_key") or ""),
-        )
-    return "default", "atom_main", ""
+    return "", "", ""
 
 
 def bind_trusted_scope(context: Dict[str, Any], *, workspace_id: Any,
@@ -346,12 +448,24 @@ def _claim_authority(context: Dict[str, Any], scope: Dict[str, Any]) -> Optional
 
         from core.models import User, UserStatus, Workspace
 
+        def _match(column, value):
+            """NULL-safe SQL comparison against a frozen scope value."""
+            if value is None:
+                return column.is_(None)
+            return column == value
+
+        # Freeze the binding read during resolution: a peer that changes the
+        # raw tenant/workspace after the SELECT makes this claim match zero
+        # rows, so the append is refused rather than written under a stale
+        # identity.
         claimed = db.execute(
             update(User)
             .where(
                 User.id == str(user_id),
                 User.status == UserStatus.ACTIVE.value,
                 User.is_active.is_(True),
+                _match(User.tenant_id, scope.get("principal_tenant")),
+                _match(User.workspace_id, scope.get("principal_workspace")),
             )
             .values(updated_at=User.updated_at)
         )
@@ -367,9 +481,14 @@ def _claim_authority(context: Dict[str, Any], scope: Dict[str, Any]) -> Optional
                     _SCOPE_PRINCIPAL_MISSING,
                     "Principal disappeared before the append; nothing was written.",
                 )
+            if _is_inactive_user(row):
+                return _deny(
+                    _SCOPE_PRINCIPAL_INACTIVE,
+                    "Principal is no longer active; nothing was written.",
+                )
             return _deny(
-                _SCOPE_PRINCIPAL_INACTIVE,
-                "Principal is no longer active; nothing was written.",
+                _SCOPE_AUTHORITY_CHANGED,
+                "Principal authority changed before the append; nothing was written.",
             )
 
         row = (
@@ -383,22 +502,54 @@ def _claim_authority(context: Dict[str, Any], scope: Dict[str, Any]) -> Optional
                 _SCOPE_PRINCIPAL_MISSING,
                 "Principal disappeared before the append; nothing was written.",
             )
-        if _canonical_user_workspace(row, str(user_id)) != scope["workspace_id"]:
+        if (
+            not _same_scope_value(getattr(row, "tenant_id", None),
+                                 scope.get("principal_tenant"))
+            or not _same_scope_value(getattr(row, "workspace_id", None),
+                                     scope.get("principal_workspace"))
+            or _canonical_user_workspace(row, str(user_id)) != scope["workspace_id"]
+        ):
             return _deny(
                 _SCOPE_AUTHORITY_CHANGED,
                 "Principal workspace changed before the append; nothing was written.",
             )
 
         if scope.get("workspace_claim"):
+            # Recheck the protected Workspace row (and its frozen tenant) in
+            # the same write transaction as the append.
             claimed_workspace = db.execute(
                 update(Workspace)
-                .where(Workspace.id == scope["workspace_id"])
+                .where(
+                    Workspace.id == scope["workspace_id"],
+                    _match(Workspace.tenant_id, scope.get("workspace_tenant")),
+                )
                 .values(updated_at=Workspace.updated_at)
             )
             if claimed_workspace.rowcount != 1:
+                current = (
+                    db.query(Workspace)
+                    .filter(Workspace.id == scope["workspace_id"])
+                    .populate_existing()
+                    .first()
+                )
+                if current is None:
+                    return _deny(
+                        _SCOPE_WORKSPACE_UNAVAILABLE,
+                        "Workspace is no longer available; nothing was written.",
+                    )
+                if not _same_scope_value(
+                    getattr(current, "tenant_id", None),
+                    scope.get("workspace_tenant"),
+                ):
+                    return _deny(
+                        _SCOPE_WORKSPACE_TENANT_MISMATCH,
+                        "Workspace tenant changed before the append; "
+                        "nothing was written.",
+                    )
                 return _deny(
-                    _SCOPE_WORKSPACE_UNAVAILABLE,
-                    "Workspace is no longer available; nothing was written.",
+                    _SCOPE_AUTHORITY_CHANGED,
+                    "Workspace authority changed before the append; "
+                    "nothing was written.",
                 )
     except Exception as e:  # noqa: BLE001 — unverifiable authority fails closed
         logger.warning("bpe authority claim failed closed: %s", e)
