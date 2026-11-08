@@ -197,3 +197,41 @@ async def test_graduation_receipt_replays_once_and_refutes_changed_result(gradua
         with sessions() as fresh:
             assert fresh.query(AuditLog).count() == 1
             assert fresh.get(AgentRegistry, "graduate").configuration == {"accepted": "later edit"}
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("same_operation", [True, False])
+async def test_graduation_racing_peer_receipt_is_exactly_reconciled(graduation_world, same_operation):
+    """A real peer commits during the loser's readiness await, not a fake replay read."""
+    from core.models import AuditLog
+    sessions = graduation_world
+    ready_result = {"ready": True, "gaps": [], "episodes_analyzed": 60,
+                    "readiness_score": 1.0, "success_rate": 1.0,
+                    "avg_constitutional_score": 1.0, "intervention_rate": 0.0,
+                    "avg_confidence_score": 0.99}
+    args = dict(agent_id="graduate", new_maturity="AUTONOMOUS", validated_by="supervisor",
+                tenant_id="company", workspace_id="ws-a", operation_id="racing-review")
+    with sessions() as loser:
+        service = graduation.AgentGraduationService(loser)
+
+        async def peer_finishes(**kwargs):
+            with sessions() as winner:
+                peer = graduation.AgentGraduationService(winner)
+
+                async def ready(**kwargs):
+                    return ready_result
+
+                peer.calculate_readiness_score = ready
+                peer_args = dict(args)
+                if not same_operation:
+                    peer_args["operation_id"] = "different-review"
+                result = await peer.promote_agent_decision(**peer_args)
+                assert result["status"] == "verified", result
+            return ready_result
+
+        service.calculate_readiness_score = peer_finishes
+        result = await service.promote_agent_decision(**args)
+        assert result["status"] == ("already_applied" if same_operation else "conflict"), result
+    with sessions() as fresh:
+        assert fresh.query(AuditLog).count() == 1
+        assert fresh.get(AgentRegistry, "graduate").status == "autonomous"
