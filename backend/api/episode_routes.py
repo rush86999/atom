@@ -752,7 +752,12 @@ async def get_audit_trail(
 ):
     """Get full audit trail for governance review"""
     service = AgentGraduationService(db)
-    return await service.get_graduation_audit_trail(agent_id)
+    result = await service.get_graduation_audit_trail(
+        agent_id, tenant_id=resolve_tenant_id(current_user),
+        workspace_id=resolve_workspace_id(current_user))
+    if result.get("error") == "Agent not found":
+        raise HTTPException(status_code=404, detail="Agent not found")
+    return result
 
 
 # Lifecycle endpoints
