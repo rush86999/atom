@@ -1,5 +1,9 @@
 """Boundary tests: inventory is immutable-source metadata, not certification."""
 import json
+import contextlib
+import io
+from unittest import mock
+import inventory_reference
 from pathlib import Path
 import subprocess
 import sys
@@ -64,6 +68,68 @@ class ReferenceInventoryBoundaryTests(unittest.TestCase):
             self.assertEqual(result['summary']['references'], 1)
             self.assertEqual(result['summary']['diagram_candidates'], 0)
             self.assertNotIn('outside-marker', json.dumps(result))
+
+    def test_cli_refuses_dangling_output_symlink(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            repo = self.repo(root)
+            (repo / 'README.md').write_text('# Fixture')
+            self.commit(repo)
+            target = root / 'must-not-be-created.json'
+            output = root / 'inventory.json'
+            output.symlink_to(target)
+            with mock.patch.object(sys, 'argv', ['inventory', '--repo', str(repo), '--output', str(output)]):
+                with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                    with self.assertRaises(SystemExit) as result:
+                        inventory_reference.main()
+            self.assertEqual(result.exception.code, 2)
+            self.assertFalse(target.exists())
+
+    def test_late_peer_output_is_not_overwritten(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            repo = self.repo(root)
+            (repo / 'README.md').write_text('# Fixture')
+            self.commit(repo)
+            output = root / 'inventory.json'
+            original = inventory_reference.build_inventory
+            def peer_writes_after_preflight(*args):
+                result = original(*args)
+                output.write_bytes(b'peer retained snapshot')
+                return result
+            with mock.patch.object(sys, 'argv', ['inventory', '--repo', str(repo), '--output', str(output)]):
+                with mock.patch.object(inventory_reference, 'build_inventory', side_effect=peer_writes_after_preflight):
+                    with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                        with self.assertRaises(SystemExit) as result:
+                            inventory_reference.main()
+            self.assertEqual(result.exception.code, 2)
+            self.assertEqual(output.read_bytes(), b'peer retained snapshot')
+
+    def test_missing_output_parent_is_not_created(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            repo = self.repo(root)
+            (repo / 'README.md').write_text('# Fixture')
+            self.commit(repo)
+            output = root / 'unrequested-tree' / 'inventory.json'
+            with mock.patch.object(sys, 'argv', ['inventory', '--repo', str(repo), '--output', str(output)]):
+                with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()):
+                    with self.assertRaises(SystemExit) as result:
+                        inventory_reference.main()
+            self.assertEqual(result.exception.code, 2)
+            self.assertFalse(output.parent.exists())
+
+    def test_valid_new_output_is_written_and_source_bound(self):
+        with tempfile.TemporaryDirectory() as folder:
+            root = Path(folder)
+            repo = self.repo(root)
+            (repo / 'README.md').write_text('# Fixture')
+            source = self.commit(repo)
+            output = root / 'inventory.json'
+            with mock.patch.object(sys, 'argv', ['inventory', '--repo', str(repo), '--output', str(output)]):
+                with contextlib.redirect_stdout(io.StringIO()):
+                    inventory_reference.main()
+            self.assertEqual(json.loads(output.read_text())['source_ref'], source)
 
     def test_cli_refuses_overwriting_retained_inventory(self):
         with tempfile.TemporaryDirectory() as folder:

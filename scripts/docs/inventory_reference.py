@@ -93,11 +93,16 @@ def main():
     parser.add_argument("--ref", default="HEAD")
     parser.add_argument("--output", type=Path, required=True)
     args = parser.parse_args()
-    if args.output.exists():
+    if args.output.exists() or args.output.is_symlink():
         parser.error("refusing to overwrite an existing source-bound inventory")
+    if not args.output.parent.is_dir():
+        parser.error("output directory must already exist")
     result = build_inventory(args.repo, args.ref)
-    args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(result, indent=2, ensure_ascii=True) + "\n")
+    try:
+        with args.output.open("x", encoding="utf-8") as handle:
+            handle.write(json.dumps(result, indent=2, ensure_ascii=True) + "\n")
+    except FileExistsError:
+        parser.error("refusing to overwrite an existing source-bound inventory")
     print(json.dumps({"source_ref": result["source_ref"], **result["summary"], "accuracy_complete": False}))
 
 
