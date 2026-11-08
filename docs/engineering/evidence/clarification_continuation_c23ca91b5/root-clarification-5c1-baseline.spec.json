@@ -1,0 +1,29 @@
+{
+  "source": "5c1c8b463e500c3808f4c5293357513059b3e101",
+  "root": "/private/tmp/root-feedback-sqlite-ak6lm_th",
+  "command": [
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-clarification-continuation-20261108/backend",
+    "--profile",
+    "bounded",
+    "--",
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "tests/test_root_clarification_continuation.py",
+    "-q",
+    "--tb=short",
+    "-p",
+    "no:cacheprovider",
+    "-p",
+    "root_no_network",
+    "-p",
+    "no:randomly",
+    "-p",
+    "no:rerunfailures",
+    "--timeout=120",
+    "--timeout-method=thread",
+    "--basetemp=/private/tmp/root-feedback-sqlite-ak6lm_th/pytest"
+  ]
+}

@@ -1,0 +1,158 @@
+
+tests/test_root_clarification_continuation.py::test_question_only_answer_continues_same_job[gap-True-False] 
+-------------------------------- live log setup --------------------------------
+2026-11-08 02:54:10 [    INFO] EscalationManager initialized
+2026-11-08 02:54:10 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 02:54:10 [    INFO] EscalationManager initialized
+2026-11-08 02:54:10 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 02:54:10 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-08 02:54:10 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-08 02:54:10 [    INFO] runtime identity: source_id=8cd5485c0004 revision=8cd5485c0004 dirty=False (0 modified, 0 untracked)
+2026-11-08 02:54:11 [    INFO] HTTP Request: POST http://testserver/api/assignments/e9f6d819-84dc-42d1-86f8-ca7abdee1c4b/gaps/26f01f69-d85f-40d7-b44c-fafa2eb9dcce/resolve "HTTP/1.1 200 OK"
+2026-11-08 02:54:11 [    INFO] HTTP Request: POST http://testserver/api/assignments/e9f6d819-84dc-42d1-86f8-ca7abdee1c4b/gaps/26f01f69-d85f-40d7-b44c-fafa2eb9dcce/resolve "HTTP/1.1 200 OK"
+PASSED                                                                   [  8%]
+tests/test_root_clarification_continuation.py::test_question_only_answer_continues_same_job[response-True-False] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 02:54:11 [    INFO] HTTP Request: POST http://testserver/api/assignments/55ab6772-89b0-4b65-8808-e799eb184e4b/responses/scope-confirmation "HTTP/1.1 200 OK"
+2026-11-08 02:54:11 [    INFO] HTTP Request: POST http://testserver/api/assignments/55ab6772-89b0-4b65-8808-e799eb184e4b/responses/scope-confirmation "HTTP/1.1 200 OK"
+2026-11-08 02:54:11 [    INFO] HTTP Request: POST http://testserver/api/assignments/55ab6772-89b0-4b65-8808-e799eb184e4b/responses/scope-confirmation "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 16%]
+tests/test_root_clarification_continuation.py::test_question_only_answer_continues_same_job[gap-False-False] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 02:54:12 [    INFO] HTTP Request: POST http://testserver/api/assignments/a1c86214-22b3-4b59-a001-a0945e0f4979/gaps/6cc3db30-4bae-47f3-a37a-8d977f601a60/resolve "HTTP/1.1 200 OK"
+2026-11-08 02:54:12 [    INFO] HTTP Request: POST http://testserver/api/assignments/a1c86214-22b3-4b59-a001-a0945e0f4979/gaps/6cc3db30-4bae-47f3-a37a-8d977f601a60/resolve "HTTP/1.1 200 OK"
+PASSED                                                                   [ 25%]
+tests/test_root_clarification_continuation.py::test_question_only_answer_continues_same_job[response-False-False] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 02:54:12 [    INFO] HTTP Request: POST http://testserver/api/assignments/407a5b67-8e1a-45c3-965b-32d8407f5648/responses/scope-confirmation "HTTP/1.1 200 OK"
+2026-11-08 02:54:12 [    INFO] HTTP Request: POST http://testserver/api/assignments/407a5b67-8e1a-45c3-965b-32d8407f5648/responses/scope-confirmation "HTTP/1.1 200 OK"
+2026-11-08 02:54:12 [    INFO] HTTP Request: POST http://testserver/api/assignments/407a5b67-8e1a-45c3-965b-32d8407f5648/responses/scope-confirmation "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 33%]
+tests/test_root_clarification_continuation.py::test_question_only_answer_continues_same_job[gap-True-True] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 02:54:13 [    INFO] HTTP Request: POST http://testserver/api/assignments/5330c664-210d-47ef-bdeb-dc70f05fdded/advance "HTTP/1.1 200 OK"
+2026-11-08 02:54:13 [    INFO] HTTP Request: POST http://testserver/api/assignments/5330c664-210d-47ef-bdeb-dc70f05fdded/gaps/a93222a2-a37e-4360-9d43-5118a4a8ee74/resolve "HTTP/1.1 200 OK"
+2026-11-08 02:54:13 [    INFO] HTTP Request: POST http://testserver/api/assignments/5330c664-210d-47ef-bdeb-dc70f05fdded/gaps/a93222a2-a37e-4360-9d43-5118a4a8ee74/resolve "HTTP/1.1 200 OK"
+PASSED                                                                   [ 41%]
+tests/test_root_clarification_continuation.py::test_resolved_answer_rearms_old_one_shot_recovery PASSED [ 50%]
+tests/test_root_clarification_continuation.py::test_missing_declared_question_binding_refuses_without_resolution[step_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 02:54:15 [    INFO] HTTP Request: POST http://testserver/api/assignments/56d22460-9af5-4f50-be75-1815bf374dd4/responses/bound-question "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 58%]
+tests/test_root_clarification_continuation.py::test_missing_declared_question_binding_refuses_without_resolution[source_operation] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 02:54:15 [    INFO] HTTP Request: POST http://testserver/api/assignments/58d3d5ab-3ceb-4660-b944-acecd22d9170/responses/bound-question "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 66%]
+tests/test_root_clarification_continuation.py::test_contradictory_binding_cannot_fall_back_to_another_gap_step[step_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 02:54:16 [    INFO] HTTP Request: POST http://testserver/api/assignments/cf4ed1be-5ce3-44a4-b091-df9fb8108419/responses/contradictory-binding "HTTP/1.1 200 OK"
+FAILED                                                                   [ 75%]
+tests/test_root_clarification_continuation.py::test_contradictory_binding_cannot_fall_back_to_another_gap_step[source_operation] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 02:54:17 [    INFO] HTTP Request: POST http://testserver/api/assignments/c858c240-19fc-41e0-9a45-c1dfb06e3634/responses/contradictory-binding "HTTP/1.1 200 OK"
+FAILED                                                                   [ 83%]
+tests/test_root_clarification_continuation.py::test_explicit_plan_answer_does_not_opt_in_to_model_work[gap] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 02:54:18 [    INFO] HTTP Request: POST http://testserver/api/assignments/67f72590-71f5-4278-87ea-08bd9bd76c1a/gaps/18fc50d6-178e-46ea-bfb2-1e72a81b3b80/resolve "HTTP/1.1 200 OK"
+FAILED                                                                   [ 91%]
+tests/test_root_clarification_continuation.py::test_explicit_plan_answer_does_not_opt_in_to_model_work[response] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 02:54:18 [    INFO] HTTP Request: POST http://testserver/api/assignments/c75d4354-8425-45e9-9109-89d7f32168a2/responses/explicit-plan-answer "HTTP/1.1 200 OK"
+FAILED                                                                   [100%]
+
+=================================== FAILURES ===================================
+___ test_contradictory_binding_cannot_fall_back_to_another_gap_step[step_id] ___
+tests/test_root_clarification_continuation.py:263: in test_contradictory_binding_cannot_fall_back_to_another_gap_step
+    assert response.status_code == 404, response.text
+E   AssertionError: {"run_id":"cf4ed1be-5ce3-44a4-b091-df9fb8108419","assignment":{"assignment_id":"asg-157293577fd1474e","objective":"Prepare the requested quote after the owner confirms scope","employee_id":"lead-1","workspace_id":"ws-1","plan_revision":1,"status":"blocked","teaching_revision":"heldout-terms-1","teaching_fingerprint":"6e1de77c28479bc37bfb28fdd2787045","teaching_history":[],"effective_lesson_ids":[],"mappings":[],"mapping_history":[],"business_requirements":[],"deliverables":[],"sources":[],"authorized_actions":["retrieve","calculate"],"standing_authority":null,"budget":{"max_steps":40,"max_attempts_per_step":3,"max_wall_seconds":3600.0,"max_cost_usd":0.0,"deadline":null,"cost_mode":"hard","soft_limit_authorized_by":null,"reserved_cost_usd":0.0,"cost_reservations":[],"cost_overrun_usd":0.0,"cost_violation":null,"soft_limit_exceeded":false,"steps_started":0,"started_at":"2026-11-08T07:54:16.455586+00:00","elapsed_seconds":0.0,"paused_seconds":0.0,"waiting_since":null,"wait_credits":{},"wait_credits_schema":1,"active_wait":null,"cost_usd":0.0,"idle_ledger_schema":2,"idle_intervals":{},"working_seconds":0.004,"wall_seconds":0.004},"steps":[{"step_id":"read","title":"Read held-out price rows","operation_type":"retrieve","adapter":"workbook.read","depends_on":[],"required":true,"effect":"read_only","status":"applied","recovery_class":"terminal","operation_id":"op-read","attempts":0,"result_summary":null,"result_value":null,"result_unit":null,"readiness":null,"result_measure":null,"prior_result_count":0,"artifact_revision":null,"gap_ids":["bb561a0a-913f-4497-b08a-11f3d01f0cb3"],"waiting":{},"external_response":{"correlation_id":"contradictory-binding","fact":"scope","subject":"","party":"owner","typed_binding":false,"expected_answer_type":"","response":"confirmed","source":"lead-1","evidence":"","fact_resolution":{},"reply_id":"wrong-binding","identity_kind":"explicit","material_sha256":"ae049fa069b68fcd1e79ecba3a5f0b1945c473300e4cb6301fccf57b866a7bb0","at":"2026-11-08T07:54:16.453283+00:00"},"approval_request":{},"standing_authority_receipt":{},"failure":{}}],"created_at":"2026-11-08T07:54:16.431800+00:00","updated_at":"2026-11-08T07:54:16.457860+00:00","completed_at":"2026-11-08T07:54:16.455501+00:00","progress":{"total_steps":1,"required_steps":1,"completed_steps":1,"waiting_steps":0,"failed_steps":0,"uncertain_steps":0,"open_gap_count":0}},"open_gaps":[],"operations":[]}
+E   assert 200 == 404
+E    +  where 200 = <Response [200 OK]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/cf4ed1be-5ce3-44a4-b091-df9fb8108419/responses/contradictory-binding "HTTP/1.1 200 OK"
+_ test_contradictory_binding_cannot_fall_back_to_another_gap_step[source_operation] _
+tests/test_root_clarification_continuation.py:263: in test_contradictory_binding_cannot_fall_back_to_another_gap_step
+    assert response.status_code == 404, response.text
+E   AssertionError: {"run_id":"c858c240-19fc-41e0-9a45-c1dfb06e3634","assignment":{"assignment_id":"asg-3be815f6e4574086","objective":"Prepare the requested quote after the owner confirms scope","employee_id":"lead-1","workspace_id":"ws-1","plan_revision":1,"status":"blocked","teaching_revision":"heldout-terms-1","teaching_fingerprint":"6e2078fba4d58663ace0a82bae2af3e5","teaching_history":[],"effective_lesson_ids":[],"mappings":[],"mapping_history":[],"business_requirements":[],"deliverables":[],"sources":[],"authorized_actions":["retrieve","calculate"],"standing_authority":null,"budget":{"max_steps":40,"max_attempts_per_step":3,"max_wall_seconds":3600.0,"max_cost_usd":0.0,"deadline":null,"cost_mode":"hard","soft_limit_authorized_by":null,"reserved_cost_usd":0.0,"cost_reservations":[],"cost_overrun_usd":0.0,"cost_violation":null,"soft_limit_exceeded":false,"steps_started":0,"started_at":"2026-11-08T07:54:17.313531+00:00","elapsed_seconds":0.0,"paused_seconds":0.0,"waiting_since":null,"wait_credits":{},"wait_credits_schema":1,"active_wait":null,"cost_usd":0.0,"idle_ledger_schema":2,"idle_intervals":{},"working_seconds":0.003,"wall_seconds":0.003},"steps":[{"step_id":"read","title":"Read held-out price rows","operation_type":"retrieve","adapter":"workbook.read","depends_on":[],"required":true,"effect":"read_only","status":"applied","recovery_class":"terminal","operation_id":"op-read","attempts":0,"result_summary":null,"result_value":null,"result_unit":null,"readiness":null,"result_measure":null,"prior_result_count":0,"artifact_revision":null,"gap_ids":["43bec891-4310-4407-a360-d82e0cf2cf23"],"waiting":{},"external_response":{"correlation_id":"contradictory-binding","fact":"scope","subject":"","party":"owner","typed_binding":false,"expected_answer_type":"","response":"confirmed","source":"lead-1","evidence":"","fact_resolution":{},"reply_id":"wrong-binding","identity_kind":"explicit","material_sha256":"ae049fa069b68fcd1e79ecba3a5f0b1945c473300e4cb6301fccf57b866a7bb0","at":"2026-11-08T07:54:17.311489+00:00"},"approval_request":{},"standing_authority_receipt":{},"failure":{}}],"created_at":"2026-11-08T07:54:17.292991+00:00","updated_at":"2026-11-08T07:54:17.315245+00:00","completed_at":"2026-11-08T07:54:17.313450+00:00","progress":{"total_steps":1,"required_steps":1,"completed_steps":1,"waiting_steps":0,"failed_steps":0,"uncertain_steps":0,"open_gap_count":0}},"open_gaps":[],"operations":[]}
+E   assert 200 == 404
+E    +  where 200 = <Response [200 OK]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/c858c240-19fc-41e0-9a45-c1dfb06e3634/responses/contradictory-binding "HTTP/1.1 200 OK"
+_________ test_explicit_plan_answer_does_not_opt_in_to_model_work[gap] _________
+tests/test_root_clarification_continuation.py:300: in test_explicit_plan_answer_does_not_opt_in_to_model_work
+    assert calls == [], response.json()
+E   AssertionError: {'run_id': '67f72590-71f5-4278-87ea-08bd9bd76c1a', 'assignment': {'assignment_id': 'asg-1893cce6b6644b6e', 'objective': 'Prepare the requested quote after the owner confirms scope', 'employee_id': 'lead-1', 'workspace_id': 'ws-1', ...}, 'open_gaps': [], 'operations': [], ...}
+E   assert ['67f72590-71...08bd9bd76c1a'] == []
+E     
+E     Left contains one more item: '67f72590-71f5-4278-87ea-08bd9bd76c1a'
+E     
+E     Full diff:
+E     - []
+E     + [
+E     +     '67f72590-71f5-4278-87ea-08bd9bd76c1a',
+E     + ]
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/67f72590-71f5-4278-87ea-08bd9bd76c1a/gaps/18fc50d6-178e-46ea-bfb2-1e72a81b3b80/resolve "HTTP/1.1 200 OK"
+______ test_explicit_plan_answer_does_not_opt_in_to_model_work[response] _______
+tests/test_root_clarification_continuation.py:300: in test_explicit_plan_answer_does_not_opt_in_to_model_work
+    assert calls == [], response.json()
+E   AssertionError: {'run_id': 'c75d4354-8425-45e9-9109-89d7f32168a2', 'assignment': {'assignment_id': 'asg-00520632dd4e47fb', 'objective': 'Prepare the requested quote after the owner confirms scope', 'employee_id': 'lead-1', 'workspace_id': 'ws-1', ...}, 'open_gaps': [], 'operations': [], ...}
+E   assert ['c75d4354-84...89d7f32168a2'] == []
+E     
+E     Left contains one more item: 'c75d4354-8425-45e9-9109-89d7f32168a2'
+E     
+E     Full diff:
+E     - []
+E     + [
+E     +     'c75d4354-8425-45e9-9109-89d7f32168a2',
+E     + ]
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/c75d4354-8425-45e9-9109-89d7f32168a2/responses/explicit-plan-answer "HTTP/1.1 200 OK"
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../root-py311-plugins/pytest_freezegun.py:17: 24 warnings
+  /private/tmp/root-py311-plugins/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_root_clarification_continuation.py::test_question_only_answer_continues_same_job[gap-True-False]
+  /private/tmp/atom-clarification-continuation-20261108/backend/core/graphrag_engine.py:203: SyntaxWarning: "\%" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\%"? A raw string is also an option.
+    Escaped pattern where % and _ are escaped to \%
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_root_clarification_continuation.py::test_contradictory_binding_cannot_fall_back_to_another_gap_step[step_id]
+FAILED tests/test_root_clarification_continuation.py::test_contradictory_binding_cannot_fall_back_to_another_gap_step[source_operation]
+FAILED tests/test_root_clarification_continuation.py::test_explicit_plan_answer_does_not_opt_in_to_model_work[gap]
+FAILED tests/test_root_clarification_continuation.py::test_explicit_plan_answer_does_not_opt_in_to_model_work[response]
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================== 4 failed, 8 passed, 32 warnings in 18.92s ===================

@@ -1,0 +1,262 @@
+
+tests/test_assignment_gap_reply_identity.py::test_gap_partial_conflict_new_identity_replay_and_terminal 
+-------------------------------- live log setup --------------------------------
+2026-11-08 01:19:05 [    INFO] EscalationManager initialized
+2026-11-08 01:19:05 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 01:19:05 [    INFO] EscalationManager initialized
+2026-11-08 01:19:05 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 01:19:05 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-08 01:19:05 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-08 01:19:05 [    INFO] runtime identity: source_id=349db796f5f3-dirty.8095be8f7b01 revision=349db796f5f3 dirty=True (0 modified, 3 untracked)
+2026-11-08 01:19:05 [    INFO] HTTP Request: POST http://testserver/api/assignments/5ea207f6-e889-4a43-ade1-227240ecb19f/responses/gap-corr-1 "HTTP/1.1 200 OK"
+2026-11-08 01:19:05 [    INFO] HTTP Request: POST http://testserver/api/assignments/5ea207f6-e889-4a43-ade1-227240ecb19f/responses/gap-corr-1 "HTTP/1.1 200 OK"
+2026-11-08 01:19:05 [    INFO] HTTP Request: POST http://testserver/api/assignments/5ea207f6-e889-4a43-ade1-227240ecb19f/responses/gap-corr-1 "HTTP/1.1 409 Conflict"
+2026-11-08 01:19:05 [    INFO] HTTP Request: POST http://testserver/api/assignments/5ea207f6-e889-4a43-ade1-227240ecb19f/responses/gap-corr-1 "HTTP/1.1 200 OK"
+2026-11-08 01:19:05 [    INFO] HTTP Request: POST http://testserver/api/assignments/5ea207f6-e889-4a43-ade1-227240ecb19f/responses/gap-corr-1 "HTTP/1.1 200 OK"
+2026-11-08 01:19:05 [    INFO] HTTP Request: POST http://testserver/api/assignments/5ea207f6-e889-4a43-ade1-227240ecb19f/responses/gap-corr-1 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  3%]
+tests/test_assignment_gap_reply_identity.py::test_gap_same_identity_refuses_each_changed_material_field[response-changed0] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 01:19:06 [    INFO] HTTP Request: POST http://testserver/api/assignments/c1d11975-8cde-4b4c-9b37-3bdbce576c06/responses/gap-corr-response "HTTP/1.1 200 OK"
+2026-11-08 01:19:06 [    INFO] HTTP Request: POST http://testserver/api/assignments/c1d11975-8cde-4b4c-9b37-3bdbce576c06/responses/gap-corr-response "HTTP/1.1 409 Conflict"
+PASSED                                                                   [  7%]
+tests/test_assignment_gap_reply_identity.py::test_gap_same_identity_refuses_each_changed_material_field[source-changed1] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 01:19:06 [    INFO] HTTP Request: POST http://testserver/api/assignments/1776ea8b-c453-48ac-b300-6df83019e14e/responses/gap-corr-source "HTTP/1.1 200 OK"
+2026-11-08 01:19:06 [    INFO] HTTP Request: POST http://testserver/api/assignments/1776ea8b-c453-48ac-b300-6df83019e14e/responses/gap-corr-source "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 11%]
+tests/test_assignment_gap_reply_identity.py::test_gap_same_identity_refuses_each_changed_material_field[evidence-changed2] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 01:19:07 [    INFO] HTTP Request: POST http://testserver/api/assignments/19bed51c-c3d3-4c25-bba8-d869abf60ed2/responses/gap-corr-evidence "HTTP/1.1 200 OK"
+2026-11-08 01:19:07 [    INFO] HTTP Request: POST http://testserver/api/assignments/19bed51c-c3d3-4c25-bba8-d869abf60ed2/responses/gap-corr-evidence "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 14%]
+tests/test_assignment_gap_reply_identity.py::test_gap_same_identity_refuses_each_changed_material_field[value-changed3] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 01:19:08 [    INFO] HTTP Request: POST http://testserver/api/assignments/a5b4ff0a-e602-4d7f-969e-9196c05f07cb/responses/gap-corr-value "HTTP/1.1 200 OK"
+2026-11-08 01:19:08 [    INFO] HTTP Request: POST http://testserver/api/assignments/a5b4ff0a-e602-4d7f-969e-9196c05f07cb/responses/gap-corr-value "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 18%]
+tests/test_assignment_gap_reply_identity.py::test_gap_cross_wait_identity_reuse_refuses_and_new_identity_resolves 
+-------------------------------- live log call ---------------------------------
+2026-11-08 01:19:08 [    INFO] HTTP Request: POST http://testserver/api/assignments/19371cab-3df1-4e08-911d-7d45323bf83d/responses/gap-scope-1 "HTTP/1.1 200 OK"
+2026-11-08 01:19:08 [    INFO] HTTP Request: POST http://testserver/api/assignments/19371cab-3df1-4e08-911d-7d45323bf83d/responses/gap-scope-1 "HTTP/1.1 200 OK"
+FAILED                                                                   [ 22%]
+tests/test_assignment_gap_reply_identity.py::test_reraised_question_same_correlation_replays_without_settling 
+-------------------------------- live log call ---------------------------------
+2026-11-08 01:19:09 [    INFO] HTTP Request: POST http://testserver/api/assignments/fdad838e-e83b-4ed7-936f-b7a8d4d985de/responses/gap-reraise "HTTP/1.1 200 OK"
+FAILED                                                                   [ 25%]
+tests/test_assignment_gap_reply_identity.py::test_gap_cas_rechecks_identity_after_competing_writer PASSED [ 29%]
+tests/test_assignment_gap_reply_identity.py::test_direct_gap_resolution_matches_literal_bracket_not_audit_prefix PASSED [ 33%]
+tests/test_assignment_gap_reply_identity.py::test_direct_gap_route_preserves_exact_human_answer_replay 
+-------------------------------- live log call ---------------------------------
+2026-11-08 01:19:10 [    INFO] HTTP Request: POST http://testserver/api/assignments/b2b1b1e6-5738-4406-b075-0fd3634b4512/gaps/52ebd0b2-1d80-4028-8af2-6e2475306a5e/resolve "HTTP/1.1 200 OK"
+2026-11-08 01:19:10 [    INFO] HTTP Request: POST http://testserver/api/assignments/b2b1b1e6-5738-4406-b075-0fd3634b4512/gaps/52ebd0b2-1d80-4028-8af2-6e2475306a5e/resolve "HTTP/1.1 409 Conflict"
+2026-11-08 01:19:10 [    INFO] HTTP Request: POST http://testserver/api/assignments/b2b1b1e6-5738-4406-b075-0fd3634b4512/gaps/52ebd0b2-1d80-4028-8af2-6e2475306a5e/resolve "HTTP/1.1 200 OK"
+PASSED                                                                   [ 37%]
+tests/test_assignment_external_reply_identity.py::test_changed_material_under_same_reply_identity_stays_unresolved 
+-------------------------------- live log call ---------------------------------
+2026-11-08 01:19:11 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-08 01:19:11 [    INFO] HTTP Request: POST http://testserver/api/assignments/58b08884-a0f2-4dc4-a960-8b6333f99f0a/sources "HTTP/1.1 200 OK"
+2026-11-08 01:19:11 [    INFO] HTTP Request: POST http://testserver/api/assignments/58b08884-a0f2-4dc4-a960-8b6333f99f0a/responses/await-1a13ef6678b451a43ebe "HTTP/1.1 200 OK"
+2026-11-08 01:19:11 [    INFO] HTTP Request: POST http://testserver/api/assignments/58b08884-a0f2-4dc4-a960-8b6333f99f0a/responses/await-1a13ef6678b451a43ebe "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 40%]
+tests/test_assignment_external_reply_identity.py::test_same_reply_identity_same_material_is_idempotent 
+-------------------------------- live log call ---------------------------------
+2026-11-08 01:19:12 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-08 01:19:12 [    INFO] HTTP Request: POST http://testserver/api/assignments/189b5571-e929-4339-b850-2bf9fa938ce5/sources "HTTP/1.1 200 OK"
+2026-11-08 01:19:12 [    INFO] HTTP Request: POST http://testserver/api/assignments/189b5571-e929-4339-b850-2bf9fa938ce5/responses/await-a41cb8ac55441172b014 "HTTP/1.1 200 OK"
+2026-11-08 01:19:12 [    INFO] HTTP Request: POST http://testserver/api/assignments/189b5571-e929-4339-b850-2bf9fa938ce5/responses/await-a41cb8ac55441172b014 "HTTP/1.1 200 OK"
+2026-11-08 01:19:12 [    INFO] HTTP Request: POST http://testserver/api/assignments/189b5571-e929-4339-b850-2bf9fa938ce5/responses/await-a41cb8ac55441172b014 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 44%]
+tests/test_assignment_external_reply_identity.py::test_new_reply_identity_resumes_same_job_once 
+-------------------------------- live log call ---------------------------------
+2026-11-08 01:19:13 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-08 01:19:13 [    INFO] HTTP Request: POST http://testserver/api/assignments/f129512f-c91b-4c76-9960-39d57c3de234/sources "HTTP/1.1 200 OK"
+2026-11-08 01:19:13 [    INFO] HTTP Request: POST http://testserver/api/assignments/f129512f-c91b-4c76-9960-39d57c3de234/responses/await-4cea14b1212b02f3d6be "HTTP/1.1 200 OK"
+2026-11-08 01:19:13 [    INFO] HTTP Request: POST http://testserver/api/assignments/f129512f-c91b-4c76-9960-39d57c3de234/responses/await-4cea14b1212b02f3d6be "HTTP/1.1 200 OK"
+2026-11-08 01:19:13 [    INFO] HTTP Request: POST http://testserver/api/assignments/f129512f-c91b-4c76-9960-39d57c3de234/responses/await-4cea14b1212b02f3d6be "HTTP/1.1 200 OK"
+2026-11-08 01:19:13 [    INFO] HTTP Request: POST http://testserver/api/assignments/f129512f-c91b-4c76-9960-39d57c3de234/responses/await-4cea14b1212b02f3d6be "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 48%]
+tests/test_assignment_external_reply_identity.py::test_cancel_and_foreign_workspace_refuse_reply_identity 
+-------------------------------- live log call ---------------------------------
+2026-11-08 01:19:14 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-08 01:19:14 [    INFO] HTTP Request: POST http://testserver/api/assignments/230e0aa3-89c9-459b-8152-85a214c6908b/sources "HTTP/1.1 200 OK"
+2026-11-08 01:19:14 [    INFO] HTTP Request: POST http://testserver/api/assignments/230e0aa3-89c9-459b-8152-85a214c6908b/responses/await-81ce80a9d3f3e04b0e3b "HTTP/1.1 404 Not Found"
+2026-11-08 01:19:14 [    INFO] HTTP Request: POST http://testserver/api/assignments/230e0aa3-89c9-459b-8152-85a214c6908b/cancel "HTTP/1.1 200 OK"
+2026-11-08 01:19:14 [    INFO] HTTP Request: POST http://testserver/api/assignments/230e0aa3-89c9-459b-8152-85a214c6908b/responses/await-81ce80a9d3f3e04b0e3b "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 51%]
+tests/test_assignment_external_reply_identity.py::test_same_identity_refuses_each_changed_material_field[response-changed0] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 01:19:15 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-08 01:19:15 [    INFO] HTTP Request: POST http://testserver/api/assignments/f4639636-e009-4e85-b787-6a9e95a80624/sources "HTTP/1.1 200 OK"
+2026-11-08 01:19:15 [    INFO] HTTP Request: POST http://testserver/api/assignments/f4639636-e009-4e85-b787-6a9e95a80624/responses/await-b7ed023d236d6cdcbd4a "HTTP/1.1 200 OK"
+2026-11-08 01:19:15 [    INFO] HTTP Request: POST http://testserver/api/assignments/f4639636-e009-4e85-b787-6a9e95a80624/responses/await-b7ed023d236d6cdcbd4a "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 55%]
+tests/test_assignment_external_reply_identity.py::test_same_identity_refuses_each_changed_material_field[source-changed1] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 01:19:16 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-08 01:19:16 [    INFO] HTTP Request: POST http://testserver/api/assignments/2b0ddfa2-9957-4537-b39a-c7e95c4269ca/sources "HTTP/1.1 200 OK"
+2026-11-08 01:19:16 [    INFO] HTTP Request: POST http://testserver/api/assignments/2b0ddfa2-9957-4537-b39a-c7e95c4269ca/responses/await-2bd8d643a29e99d01295 "HTTP/1.1 200 OK"
+2026-11-08 01:19:16 [    INFO] HTTP Request: POST http://testserver/api/assignments/2b0ddfa2-9957-4537-b39a-c7e95c4269ca/responses/await-2bd8d643a29e99d01295 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 59%]
+tests/test_assignment_external_reply_identity.py::test_same_identity_refuses_each_changed_material_field[evidence-changed2] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 01:19:17 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-08 01:19:17 [    INFO] HTTP Request: POST http://testserver/api/assignments/ed2b6942-979b-4011-99db-7dd5ac4502ae/sources "HTTP/1.1 200 OK"
+2026-11-08 01:19:17 [    INFO] HTTP Request: POST http://testserver/api/assignments/ed2b6942-979b-4011-99db-7dd5ac4502ae/responses/await-fc25322223e07e228b14 "HTTP/1.1 200 OK"
+2026-11-08 01:19:17 [    INFO] HTTP Request: POST http://testserver/api/assignments/ed2b6942-979b-4011-99db-7dd5ac4502ae/responses/await-fc25322223e07e228b14 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 62%]
+tests/test_assignment_external_reply_identity.py::test_same_identity_refuses_each_changed_material_field[value-changed3] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 01:19:17 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-08 01:19:17 [    INFO] HTTP Request: POST http://testserver/api/assignments/e68c4540-ab17-471b-b898-36a4541f34ff/sources "HTTP/1.1 200 OK"
+2026-11-08 01:19:17 [    INFO] HTTP Request: POST http://testserver/api/assignments/e68c4540-ab17-471b-b898-36a4541f34ff/responses/await-d0343738e909cd38a730 "HTTP/1.1 200 OK"
+2026-11-08 01:19:17 [    INFO] HTTP Request: POST http://testserver/api/assignments/e68c4540-ab17-471b-b898-36a4541f34ff/responses/await-d0343738e909cd38a730 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 66%]
+tests/test_assignment_external_reply_identity.py::test_opaque_reply_ids_are_exact_not_normalized[Reply-R1-reply-r1] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 01:19:18 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-08 01:19:18 [    INFO] HTTP Request: POST http://testserver/api/assignments/4edab166-8866-499a-962a-e3665c2acde7/sources "HTTP/1.1 200 OK"
+2026-11-08 01:19:18 [    INFO] HTTP Request: POST http://testserver/api/assignments/4edab166-8866-499a-962a-e3665c2acde7/responses/await-f840d3075f74ad163ec6 "HTTP/1.1 200 OK"
+2026-11-08 01:19:18 [    INFO] HTTP Request: POST http://testserver/api/assignments/4edab166-8866-499a-962a-e3665c2acde7/responses/await-f840d3075f74ad163ec6 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 70%]
+tests/test_assignment_external_reply_identity.py::test_opaque_reply_ids_are_exact_not_normalized[ reply-r1-reply-r1] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 01:19:19 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-08 01:19:19 [    INFO] HTTP Request: POST http://testserver/api/assignments/6cd4c94b-144c-4c7e-b192-6db04f9c4035/sources "HTTP/1.1 200 OK"
+2026-11-08 01:19:19 [    INFO] HTTP Request: POST http://testserver/api/assignments/6cd4c94b-144c-4c7e-b192-6db04f9c4035/responses/await-aed33c2d4459fa537294 "HTTP/1.1 200 OK"
+2026-11-08 01:19:20 [    INFO] HTTP Request: POST http://testserver/api/assignments/6cd4c94b-144c-4c7e-b192-6db04f9c4035/responses/await-aed33c2d4459fa537294 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 74%]
+tests/test_assignment_external_reply_identity.py::test_opaque_reply_ids_are_exact_not_normalized[re\u0301ply-r1-r\xe9ply-r1] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 01:19:20 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-08 01:19:21 [    INFO] HTTP Request: POST http://testserver/api/assignments/6368c966-daad-4a6d-b6cd-876e40cf6cc6/sources "HTTP/1.1 200 OK"
+2026-11-08 01:19:21 [    INFO] HTTP Request: POST http://testserver/api/assignments/6368c966-daad-4a6d-b6cd-876e40cf6cc6/responses/await-e1816d8eefd14b9f55f3 "HTTP/1.1 200 OK"
+2026-11-08 01:19:21 [    INFO] HTTP Request: POST http://testserver/api/assignments/6368c966-daad-4a6d-b6cd-876e40cf6cc6/responses/await-e1816d8eefd14b9f55f3 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 77%]
+tests/test_assignment_external_reply_identity.py::test_omitted_reply_id_partial_then_corrected_full 
+-------------------------------- live log call ---------------------------------
+2026-11-08 01:19:22 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-08 01:19:22 [    INFO] HTTP Request: POST http://testserver/api/assignments/2d998bb6-f846-43e7-b018-d0c6ef479b10/sources "HTTP/1.1 200 OK"
+2026-11-08 01:19:22 [    INFO] HTTP Request: POST http://testserver/api/assignments/2d998bb6-f846-43e7-b018-d0c6ef479b10/responses/await-ba6c2e28a17ceb7691d2 "HTTP/1.1 200 OK"
+2026-11-08 01:19:22 [    INFO] HTTP Request: POST http://testserver/api/assignments/2d998bb6-f846-43e7-b018-d0c6ef479b10/responses/await-ba6c2e28a17ceb7691d2 "HTTP/1.1 200 OK"
+2026-11-08 01:19:22 [    INFO] HTTP Request: POST http://testserver/api/assignments/2d998bb6-f846-43e7-b018-d0c6ef479b10/responses/await-ba6c2e28a17ceb7691d2 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 81%]
+tests/test_assignment_external_reply_identity.py::test_old_identity_survives_more_than_ten_display_entries 
+-------------------------------- live log call ---------------------------------
+2026-11-08 01:19:23 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-08 01:19:23 [    INFO] HTTP Request: POST http://testserver/api/assignments/569cf959-f346-478d-8fad-2c07d4ceb9eb/sources "HTTP/1.1 200 OK"
+2026-11-08 01:19:23 [    INFO] HTTP Request: POST http://testserver/api/assignments/569cf959-f346-478d-8fad-2c07d4ceb9eb/responses/await-c46245c42baa5b0a1b33 "HTTP/1.1 200 OK"
+2026-11-08 01:19:23 [    INFO] HTTP Request: POST http://testserver/api/assignments/569cf959-f346-478d-8fad-2c07d4ceb9eb/responses/await-c46245c42baa5b0a1b33 "HTTP/1.1 200 OK"
+2026-11-08 01:19:23 [    INFO] HTTP Request: POST http://testserver/api/assignments/569cf959-f346-478d-8fad-2c07d4ceb9eb/responses/await-c46245c42baa5b0a1b33 "HTTP/1.1 200 OK"
+2026-11-08 01:19:23 [    INFO] HTTP Request: POST http://testserver/api/assignments/569cf959-f346-478d-8fad-2c07d4ceb9eb/responses/await-c46245c42baa5b0a1b33 "HTTP/1.1 200 OK"
+2026-11-08 01:19:23 [    INFO] HTTP Request: POST http://testserver/api/assignments/569cf959-f346-478d-8fad-2c07d4ceb9eb/responses/await-c46245c42baa5b0a1b33 "HTTP/1.1 200 OK"
+2026-11-08 01:19:23 [    INFO] HTTP Request: POST http://testserver/api/assignments/569cf959-f346-478d-8fad-2c07d4ceb9eb/responses/await-c46245c42baa5b0a1b33 "HTTP/1.1 200 OK"
+2026-11-08 01:19:23 [    INFO] HTTP Request: POST http://testserver/api/assignments/569cf959-f346-478d-8fad-2c07d4ceb9eb/responses/await-c46245c42baa5b0a1b33 "HTTP/1.1 200 OK"
+2026-11-08 01:19:23 [    INFO] HTTP Request: POST http://testserver/api/assignments/569cf959-f346-478d-8fad-2c07d4ceb9eb/responses/await-c46245c42baa5b0a1b33 "HTTP/1.1 200 OK"
+2026-11-08 01:19:23 [    INFO] HTTP Request: POST http://testserver/api/assignments/569cf959-f346-478d-8fad-2c07d4ceb9eb/responses/await-c46245c42baa5b0a1b33 "HTTP/1.1 200 OK"
+2026-11-08 01:19:23 [    INFO] HTTP Request: POST http://testserver/api/assignments/569cf959-f346-478d-8fad-2c07d4ceb9eb/responses/await-c46245c42baa5b0a1b33 "HTTP/1.1 200 OK"
+2026-11-08 01:19:23 [    INFO] HTTP Request: POST http://testserver/api/assignments/569cf959-f346-478d-8fad-2c07d4ceb9eb/responses/await-c46245c42baa5b0a1b33 "HTTP/1.1 200 OK"
+2026-11-08 01:19:23 [    INFO] HTTP Request: POST http://testserver/api/assignments/569cf959-f346-478d-8fad-2c07d4ceb9eb/responses/await-c46245c42baa5b0a1b33 "HTTP/1.1 200 OK"
+2026-11-08 01:19:23 [    INFO] HTTP Request: POST http://testserver/api/assignments/569cf959-f346-478d-8fad-2c07d4ceb9eb/responses/await-c46245c42baa5b0a1b33 "HTTP/1.1 200 OK"
+2026-11-08 01:19:23 [    INFO] HTTP Request: POST http://testserver/api/assignments/569cf959-f346-478d-8fad-2c07d4ceb9eb/responses/await-c46245c42baa5b0a1b33 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 85%]
+tests/test_assignment_external_reply_identity.py::test_stale_wait_scope_refuses_same_identity 
+-------------------------------- live log call ---------------------------------
+2026-11-08 01:19:24 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-08 01:19:24 [    INFO] HTTP Request: POST http://testserver/api/assignments/4a061dba-47a9-4634-a001-5fa7e612a6dc/sources "HTTP/1.1 200 OK"
+2026-11-08 01:19:24 [    INFO] HTTP Request: POST http://testserver/api/assignments/4a061dba-47a9-4634-a001-5fa7e612a6dc/responses/await-67eecf153f30a48eafff "HTTP/1.1 200 OK"
+2026-11-08 01:19:24 [    INFO] HTTP Request: POST http://testserver/api/assignments/4a061dba-47a9-4634-a001-5fa7e612a6dc/responses/await-67eecf153f30a48eafff "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 88%]
+tests/test_assignment_external_reply_identity.py::test_cas_rechecks_identity_after_competing_writer 
+-------------------------------- live log call ---------------------------------
+2026-11-08 01:19:25 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-08 01:19:25 [    INFO] HTTP Request: POST http://testserver/api/assignments/15df3311-58a3-4d6d-8e0e-c1c8e098eb45/sources "HTTP/1.1 200 OK"
+FAILED                                                                   [ 92%]
+tests/test_root_assignment_reply_material_probe.py::test_same_reply_identity_cannot_change_into_a_resolving_answer 
+-------------------------------- live log call ---------------------------------
+2026-11-08 01:19:26 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-08 01:19:26 [    INFO] HTTP Request: POST http://testserver/api/assignments/0d248b68-313a-4cf4-8b76-1e03fd381c87/sources "HTTP/1.1 200 OK"
+2026-11-08 01:19:26 [    INFO] HTTP Request: POST http://testserver/api/assignments/0d248b68-313a-4cf4-8b76-1e03fd381c87/responses/await-3bfa4e73760d4cb2d861 "HTTP/1.1 200 OK"
+2026-11-08 01:19:26 [    INFO] HTTP Request: POST http://testserver/api/assignments/0d248b68-313a-4cf4-8b76-1e03fd381c87/responses/await-3bfa4e73760d4cb2d861 "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 96%]
+tests/test_root_assignment_reply_material_probe.py::test_changed_unkeyed_reply_after_completion_is_not_acknowledged_as_replay 
+-------------------------------- live log call ---------------------------------
+2026-11-08 01:19:26 [    INFO] HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+2026-11-08 01:19:26 [    INFO] HTTP Request: POST http://testserver/api/assignments/67f840cd-2962-468d-95b0-5d46b52fd0b6/sources "HTTP/1.1 200 OK"
+2026-11-08 01:19:27 [    INFO] HTTP Request: POST http://testserver/api/assignments/67f840cd-2962-468d-95b0-5d46b52fd0b6/responses/await-37da6168563c5a2e5f1b "HTTP/1.1 200 OK"
+2026-11-08 01:19:27 [    INFO] HTTP Request: POST http://testserver/api/assignments/67f840cd-2962-468d-95b0-5d46b52fd0b6/responses/await-37da6168563c5a2e5f1b "HTTP/1.1 409 Conflict"
+PASSED                                                                   [100%]
+
+=================================== FAILURES ===================================
+_____ test_gap_cross_wait_identity_reuse_refuses_and_new_identity_resolves _____
+tests/test_assignment_gap_reply_identity.py:399: in test_gap_cross_wait_identity_reuse_refuses_and_new_identity_resolves
+    new_gap = next(
+E   StopIteration
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/19371cab-3df1-4e08-911d-7d45323bf83d/responses/gap-scope-1 "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/19371cab-3df1-4e08-911d-7d45323bf83d/responses/gap-scope-1 "HTTP/1.1 200 OK"
+_______ test_reraised_question_same_correlation_replays_without_settling _______
+tests/test_assignment_gap_reply_identity.py:458: in test_reraised_question_same_correlation_replays_without_settling
+    new_gap = next(
+E   StopIteration
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/fdad838e-e83b-4ed7-936f-b7a8d4d985de/responses/gap-reraise "HTTP/1.1 200 OK"
+______________ test_cas_rechecks_identity_after_competing_writer _______________
+tests/test_assignment_external_reply_identity.py:569: in test_cas_rechecks_identity_after_competing_writer
+    assert result.get("status") == "reply_conflict", result
+E   AssertionError: {'status': 'resumed', 'step_id': 'await', 'operation_id': '482aa3db-15ee-4ab4-9955-0079d9c6da01', 'event': 'external_fact', ...}
+E   assert 'resumed' == 'reply_conflict'
+E     
+E     - reply_conflict
+E     + resumed
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/from-objective "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/15df3311-58a3-4d6d-8e0e-c1c8e098eb45/sources "HTTP/1.1 200 OK"
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 54 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_assignment_gap_reply_identity.py::test_gap_partial_conflict_new_identity_replay_and_terminal
+  /private/tmp/atom-assignment-gap-reply-identity-20261108/backend/core/graphrag_engine.py:203: SyntaxWarning: "\%" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\%"? A raw string is also an option.
+    Escaped pattern where % and _ are escaped to \%
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_assignment_gap_reply_identity.py::test_gap_cross_wait_identity_reuse_refuses_and_new_identity_resolves
+FAILED tests/test_assignment_gap_reply_identity.py::test_reraised_question_same_correlation_replays_without_settling
+FAILED tests/test_assignment_external_reply_identity.py::test_cas_rechecks_identity_after_competing_writer
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================== 3 failed, 24 passed, 62 warnings in 32.64s ==================

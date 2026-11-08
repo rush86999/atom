@@ -699,6 +699,8 @@ def _compact_single_request_context(
         "known_identities": entry.get("known_identities") or {},
         "teaching_terms": (
             (context.get("teaching") or {}).get("terms") or {}),
+        "resolved_obligations": list(
+            context.get("resolved_obligations") or [])[-20:],
         "decisions": ["replan", "retain", "clarify"],
     }
     operation_rule = ""
@@ -877,6 +879,8 @@ def _compact_wait_choice_context(
         "all_authorized_sources_read": not unread_sources,
         "teaching_terms": (
             (context.get("teaching") or {}).get("terms") or {}),
+        "resolved_obligations": list(
+            context.get("resolved_obligations") or [])[-20:],
         "decisions": ["replan", "retain", "clarify"],
     }
     prompt = (

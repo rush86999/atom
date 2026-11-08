@@ -1,0 +1,351 @@
+
+tests/test_root_clarification_continuation.py::test_question_only_answer_continues_same_job[gap-True-False] 
+-------------------------------- live log setup --------------------------------
+2026-11-08 02:32:12 [    INFO] EscalationManager initialized
+2026-11-08 02:32:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 02:32:12 [    INFO] EscalationManager initialized
+2026-11-08 02:32:12 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 02:32:12 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-08 02:32:12 [    INFO] AgentTaskRegistry initialized
+FAILED                                                                   [ 20%]
+tests/test_root_clarification_continuation.py::test_question_only_answer_continues_same_job[response-True-False] FAILED [ 40%]
+tests/test_root_clarification_continuation.py::test_question_only_answer_continues_same_job[gap-False-False] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 02:32:14 [    INFO] HTTP Request: POST http://testserver/api/assignments/9082dd3b-df50-4e5e-8912-6ad3d155ed9e/gaps/a8397561-ee22-4477-b1dc-0f44fa0e9424/resolve "HTTP/1.1 200 OK"
+2026-11-08 02:32:14 [    INFO] HTTP Request: POST http://testserver/api/assignments/9082dd3b-df50-4e5e-8912-6ad3d155ed9e/gaps/a8397561-ee22-4477-b1dc-0f44fa0e9424/resolve "HTTP/1.1 200 OK"
+PASSED                                                                   [ 60%]
+tests/test_root_clarification_continuation.py::test_question_only_answer_continues_same_job[response-False-False] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 02:32:15 [    INFO] HTTP Request: POST http://testserver/api/assignments/3b5b5513-88f0-4df4-a8ad-f3d93f93ace1/responses/scope-confirmation "HTTP/1.1 200 OK"
+2026-11-08 02:32:15 [    INFO] HTTP Request: POST http://testserver/api/assignments/3b5b5513-88f0-4df4-a8ad-f3d93f93ace1/responses/scope-confirmation "HTTP/1.1 200 OK"
+2026-11-08 02:32:15 [    INFO] HTTP Request: POST http://testserver/api/assignments/3b5b5513-88f0-4df4-a8ad-f3d93f93ace1/responses/scope-confirmation "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 80%]
+tests/test_root_clarification_continuation.py::test_question_only_answer_continues_same_job[gap-True-True] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 02:32:15 [    INFO] HTTP Request: POST http://testserver/api/assignments/b82382c1-0afc-45ec-89ef-36ad8fddd92a/advance "HTTP/1.1 200 OK"
+FAILED                                                                   [100%]
+
+=================================== FAILURES ===================================
+_________ test_question_only_answer_continues_same_job[gap-True-False] _________
+tests/test_root_clarification_continuation.py:103: in test_question_only_answer_continues_same_job
+    response = route_env["client"].post(path, json=body)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:546: in post
+    return super().post(
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/httpx/_client.py:1144: in post
+    return self.request(
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:445: in request
+    return super().request(
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/httpx/_client.py:825: in request
+    return self.send(request, auth=auth, follow_redirects=follow_redirects)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/httpx/_client.py:914: in send
+    response = self._send_handling_auth(
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/httpx/_client.py:942: in _send_handling_auth
+    response = self._send_handling_redirects(
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/httpx/_client.py:979: in _send_handling_redirects
+    response = self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/httpx/_client.py:1014: in _send_single_request
+    response = transport.handle_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:348: in handle_request
+    raise exc
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:345: in handle_request
+    portal.call(self.app, scope, receive, send)
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/anyio/from_thread.py:340: in call
+    return cast(T_Retval, self.start_task_soon(func, *args).result())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/concurrent/futures/_base.py:454: in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+/Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/concurrent/futures/_base.py:396: in __get_result
+    raise self._exception
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/anyio/from_thread.py:265: in _call_func
+    retval = await retval_or_awaitable
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/fastapi/applications.py:1163: in __call__
+    await super().__call__(scope, receive, send)
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/applications.py:107: in __call__
+    await self.middleware_stack(scope, receive, send)
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/middleware/errors.py:186: in __call__
+    raise exc
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/middleware/errors.py:164: in __call__
+    await self.app(scope, receive, _send)
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/middleware/exceptions.py:63: in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/_exception_handler.py:53: in wrapped_app
+    raise exc
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/fastapi/middleware/asyncexitstack.py:18: in __call__
+    await self.app(scope, receive, send)
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/routing.py:716: in __call__
+    await self.middleware_stack(scope, receive, send)
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/fastapi/routing.py:2734: in app
+    await route.handle(scope, receive, send)
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/fastapi/routing.py:1780: in handle
+    await self.original_router.handle(scope, receive, send)
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/fastapi/routing.py:2789: in handle
+    await included_router._handle_selected(scope, receive, send)
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/fastapi/routing.py:1800: in _handle_selected
+    await original_route.handle(scope, receive, send)
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/fastapi/routing.py:1279: in handle
+    await app(scope, receive, send)
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/fastapi/routing.py:158: in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/_exception_handler.py:53: in wrapped_app
+    raise exc
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/fastapi/routing.py:144: in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/fastapi/routing.py:706: in app
+    raw_response = await run_endpoint_function(
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/fastapi/routing.py:352: in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+api/assignment_routes.py:2694: in resolve_assignment_gap
+    rounds = await _advance_employee_work(
+api/assignment_routes.py:1322: in _advance_employee_work
+    proposal_result = await propose_adaptation(
+tests/test_root_clarification_continuation.py:84: in proposal
+    assert "Use the accepted price rows" in json.dumps(context)
+E   assert 'Use the accepted price rows' in '{"schema": "atom-employee-work-proposal-1", "objective": "Prepare the requested quote after the owner confirms scope", "identity": {"employee_id": "lead-1", "agent_id": null, "workspace_id": "ws-1", "tenant_id": "tenant-1", "execution_owner": "assignment"}, "authorized_source_count": 0, "unread_source_count": 0, "task_version": 7, "plan_revision": 1, "criteria": [{"kind": "required_work_complete", "required": true}, {"criterion_id": "employee_result:objective", "kind": "employee_result", "required": true, "verifier": "employee_result"}], "teaching": {"revision": "heldout-terms-1", "effective_lesson_ids": [], "applicable_conditions": {}, "rules": [], "terms": {"currency": "USD", "freight": "20.00", "tax_basis": "none", "rounding_authority": "held-out agreement"}}, "task_context": {}, "sources": [], "unread_sources": [], "facts": [], "open_obligations": [], "waiting": [], "ready_operations": ["quote_calculation"], "completed_operations": [], "business_requirements": [], "authorized_actions": ["retrieve", "calculate"], "action_views": [], "adapter_views": [], "existing_step_ids": ["read"], "evidence_results": [{"step_id": "read", "adapter": "workbook.read", "status": "applied", "su...oteCalculationRequest", "type": "object"}}], "available_business_operations": [{"operation": "quote_calculation", "when": "accepted price rows and taught/authorized currency, freight and tax terms are available", "supports": ["exact quote line items and total from full rows"], "label": "quote calculation", "status": "ready", "missing": [], "evidence": [{"step_id": "read", "title": "Read held-out price rows", "verified": true, "shape": "tabular", "columns": ["Currency", "Item", "Price", "Qty"]}], "question_hint": ""}, {"operation": "invoice_reconciliation", "when": "accepted invoice, purchase order and receiving evidence are available", "supports": ["quantity/amount reconciliation", "one targeted correction obligation when mismatched"], "label": "invoice reconciliation", "status": "unavailable", "missing": [], "evidence": [], "question_hint": ""}], "missing_prerequisites": [], "rules": {"allowed_proposal_kinds": ["replan"], "allowed_work_requests": ["quote_calculation"], "can_execute": false, "can_grant_authority": false, "can_supply_receipts": false, "can_propose_supported_work": true, "evidence_only": false, "clarify_only_when_material": true, "execution_mechanics": "compiler"}}'
+E    +  where '{"schema": "atom-employee-work-proposal-1", "objective": "Prepare the requested quote after the owner confirms scope", "identity": {"employee_id": "lead-1", "agent_id": null, "workspace_id": "ws-1", "tenant_id": "tenant-1", "execution_owner": "assignment"}, "authorized_source_count": 0, "unread_source_count": 0, "task_version": 7, "plan_revision": 1, "criteria": [{"kind": "required_work_complete", "required": true}, {"criterion_id": "employee_result:objective", "kind": "employee_result", "required": true, "verifier": "employee_result"}], "teaching": {"revision": "heldout-terms-1", "effective_lesson_ids": [], "applicable_conditions": {}, "rules": [], "terms": {"currency": "USD", "freight": "20.00", "tax_basis": "none", "rounding_authority": "held-out agreement"}}, "task_context": {}, "sources": [], "unread_sources": [], "facts": [], "open_obligations": [], "waiting": [], "ready_operations": ["quote_calculation"], "completed_operations": [], "business_requirements": [], "authorized_actions": ["retrieve", "calculate"], "action_views": [], "adapter_views": [], "existing_step_ids": ["read"], "evidence_results": [{"step_id": "read", "adapter": "workbook.read", "status": "applied", "su...oteCalculationRequest", "type": "object"}}], "available_business_operations": [{"operation": "quote_calculation", "when": "accepted price rows and taught/authorized currency, freight and tax terms are available", "supports": ["exact quote line items and total from full rows"], "label": "quote calculation", "status": "ready", "missing": [], "evidence": [{"step_id": "read", "title": "Read held-out price rows", "verified": true, "shape": "tabular", "columns": ["Currency", "Item", "Price", "Qty"]}], "question_hint": ""}, {"operation": "invoice_reconciliation", "when": "accepted invoice, purchase order and receiving evidence are available", "supports": ["quantity/amount reconciliation", "one targeted correction obligation when mismatched"], "label": "invoice reconciliation", "status": "unavailable", "missing": [], "evidence": [], "question_hint": ""}], "missing_prerequisites": [], "rules": {"allowed_proposal_kinds": ["replan"], "allowed_work_requests": ["quote_calculation"], "can_execute": false, "can_grant_authority": false, "can_supply_receipts": false, "can_propose_supported_work": true, "evidence_only": false, "clarify_only_when_material": true, "execution_mechanics": "compiler"}}' = <function dumps at 0x1094126c0>({'schema': 'atom-employee-work-proposal-1', 'objective': 'Prepare the requested quote after the owner confirms scope', 'identity': {'employee_id': 'lead-1', 'agent_id': None, 'workspace_id': 'ws-1', 'tenant_id': 'tenant-1', ...}, 'authorized_source_count': 0, ...})
+E    +    where <function dumps at 0x1094126c0> = <module 'json' from '/Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/json/__init__.py'>.dumps
+------------------------------ Captured log setup ------------------------------
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.embedding_service:embedding_service.py:131 Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+INFO     core.agent_task_registry:agent_task_registry.py:64 AgentTaskRegistry initialized
+______ test_question_only_answer_continues_same_job[response-True-False] _______
+tests/test_root_clarification_continuation.py:103: in test_question_only_answer_continues_same_job
+    response = route_env["client"].post(path, json=body)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:546: in post
+    return super().post(
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/httpx/_client.py:1144: in post
+    return self.request(
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:445: in request
+    return super().request(
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/httpx/_client.py:825: in request
+    return self.send(request, auth=auth, follow_redirects=follow_redirects)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/httpx/_client.py:914: in send
+    response = self._send_handling_auth(
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/httpx/_client.py:942: in _send_handling_auth
+    response = self._send_handling_redirects(
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/httpx/_client.py:979: in _send_handling_redirects
+    response = self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/httpx/_client.py:1014: in _send_single_request
+    response = transport.handle_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:348: in handle_request
+    raise exc
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:345: in handle_request
+    portal.call(self.app, scope, receive, send)
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/anyio/from_thread.py:340: in call
+    return cast(T_Retval, self.start_task_soon(func, *args).result())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/concurrent/futures/_base.py:454: in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+/Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/concurrent/futures/_base.py:396: in __get_result
+    raise self._exception
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/anyio/from_thread.py:265: in _call_func
+    retval = await retval_or_awaitable
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/fastapi/applications.py:1163: in __call__
+    await super().__call__(scope, receive, send)
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/applications.py:107: in __call__
+    await self.middleware_stack(scope, receive, send)
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/middleware/errors.py:186: in __call__
+    raise exc
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/middleware/errors.py:164: in __call__
+    await self.app(scope, receive, _send)
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/middleware/exceptions.py:63: in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/_exception_handler.py:53: in wrapped_app
+    raise exc
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/fastapi/middleware/asyncexitstack.py:18: in __call__
+    await self.app(scope, receive, send)
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/routing.py:716: in __call__
+    await self.middleware_stack(scope, receive, send)
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/fastapi/routing.py:2734: in app
+    await route.handle(scope, receive, send)
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/fastapi/routing.py:1780: in handle
+    await self.original_router.handle(scope, receive, send)
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/fastapi/routing.py:2789: in handle
+    await included_router._handle_selected(scope, receive, send)
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/fastapi/routing.py:1800: in _handle_selected
+    await original_route.handle(scope, receive, send)
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/fastapi/routing.py:1279: in handle
+    await app(scope, receive, send)
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/fastapi/routing.py:158: in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/_exception_handler.py:53: in wrapped_app
+    raise exc
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/fastapi/routing.py:144: in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/fastapi/routing.py:706: in app
+    raw_response = await run_endpoint_function(
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/fastapi/routing.py:352: in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+api/assignment_routes.py:2591: in record_assignment_response
+    rounds = await _advance_employee_work(
+api/assignment_routes.py:1322: in _advance_employee_work
+    proposal_result = await propose_adaptation(
+tests/test_root_clarification_continuation.py:84: in proposal
+    assert "Use the accepted price rows" in json.dumps(context)
+E   assert 'Use the accepted price rows' in '{"schema": "atom-employee-work-proposal-1", "objective": "Prepare the requested quote after the owner confirms scope", "identity": {"employee_id": "lead-1", "agent_id": null, "workspace_id": "ws-1", "tenant_id": "tenant-1", "execution_owner": "assignment"}, "authorized_source_count": 0, "unread_source_count": 0, "task_version": 7, "plan_revision": 1, "criteria": [{"kind": "required_work_complete", "required": true}, {"criterion_id": "employee_result:objective", "kind": "employee_result", "required": true, "verifier": "employee_result"}], "teaching": {"revision": "heldout-terms-1", "effective_lesson_ids": [], "applicable_conditions": {}, "rules": [], "terms": {"currency": "USD", "freight": "20.00", "tax_basis": "none", "rounding_authority": "held-out agreement"}}, "task_context": {}, "sources": [], "unread_sources": [], "facts": [], "open_obligations": [], "waiting": [], "ready_operations": ["quote_calculation"], "completed_operations": [], "business_requirements": [], "authorized_actions": ["retrieve", "calculate"], "action_views": [], "adapter_views": [], "existing_step_ids": ["read"], "evidence_results": [{"step_id": "read", "adapter": "workbook.read", "status": "applied", "su...oteCalculationRequest", "type": "object"}}], "available_business_operations": [{"operation": "quote_calculation", "when": "accepted price rows and taught/authorized currency, freight and tax terms are available", "supports": ["exact quote line items and total from full rows"], "label": "quote calculation", "status": "ready", "missing": [], "evidence": [{"step_id": "read", "title": "Read held-out price rows", "verified": true, "shape": "tabular", "columns": ["Currency", "Item", "Price", "Qty"]}], "question_hint": ""}, {"operation": "invoice_reconciliation", "when": "accepted invoice, purchase order and receiving evidence are available", "supports": ["quantity/amount reconciliation", "one targeted correction obligation when mismatched"], "label": "invoice reconciliation", "status": "unavailable", "missing": [], "evidence": [], "question_hint": ""}], "missing_prerequisites": [], "rules": {"allowed_proposal_kinds": ["replan"], "allowed_work_requests": ["quote_calculation"], "can_execute": false, "can_grant_authority": false, "can_supply_receipts": false, "can_propose_supported_work": true, "evidence_only": false, "clarify_only_when_material": true, "execution_mechanics": "compiler"}}'
+E    +  where '{"schema": "atom-employee-work-proposal-1", "objective": "Prepare the requested quote after the owner confirms scope", "identity": {"employee_id": "lead-1", "agent_id": null, "workspace_id": "ws-1", "tenant_id": "tenant-1", "execution_owner": "assignment"}, "authorized_source_count": 0, "unread_source_count": 0, "task_version": 7, "plan_revision": 1, "criteria": [{"kind": "required_work_complete", "required": true}, {"criterion_id": "employee_result:objective", "kind": "employee_result", "required": true, "verifier": "employee_result"}], "teaching": {"revision": "heldout-terms-1", "effective_lesson_ids": [], "applicable_conditions": {}, "rules": [], "terms": {"currency": "USD", "freight": "20.00", "tax_basis": "none", "rounding_authority": "held-out agreement"}}, "task_context": {}, "sources": [], "unread_sources": [], "facts": [], "open_obligations": [], "waiting": [], "ready_operations": ["quote_calculation"], "completed_operations": [], "business_requirements": [], "authorized_actions": ["retrieve", "calculate"], "action_views": [], "adapter_views": [], "existing_step_ids": ["read"], "evidence_results": [{"step_id": "read", "adapter": "workbook.read", "status": "applied", "su...oteCalculationRequest", "type": "object"}}], "available_business_operations": [{"operation": "quote_calculation", "when": "accepted price rows and taught/authorized currency, freight and tax terms are available", "supports": ["exact quote line items and total from full rows"], "label": "quote calculation", "status": "ready", "missing": [], "evidence": [{"step_id": "read", "title": "Read held-out price rows", "verified": true, "shape": "tabular", "columns": ["Currency", "Item", "Price", "Qty"]}], "question_hint": ""}, {"operation": "invoice_reconciliation", "when": "accepted invoice, purchase order and receiving evidence are available", "supports": ["quantity/amount reconciliation", "one targeted correction obligation when mismatched"], "label": "invoice reconciliation", "status": "unavailable", "missing": [], "evidence": [], "question_hint": ""}], "missing_prerequisites": [], "rules": {"allowed_proposal_kinds": ["replan"], "allowed_work_requests": ["quote_calculation"], "can_execute": false, "can_grant_authority": false, "can_supply_receipts": false, "can_propose_supported_work": true, "evidence_only": false, "clarify_only_when_material": true, "execution_mechanics": "compiler"}}' = <function dumps at 0x1094126c0>({'schema': 'atom-employee-work-proposal-1', 'objective': 'Prepare the requested quote after the owner confirms scope', 'identity': {'employee_id': 'lead-1', 'agent_id': None, 'workspace_id': 'ws-1', 'tenant_id': 'tenant-1', ...}, 'authorized_source_count': 0, ...})
+E    +    where <function dumps at 0x1094126c0> = <module 'json' from '/Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/json/__init__.py'>.dumps
+_________ test_question_only_answer_continues_same_job[gap-True-True] __________
+tests/test_root_clarification_continuation.py:103: in test_question_only_answer_continues_same_job
+    response = route_env["client"].post(path, json=body)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:546: in post
+    return super().post(
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/httpx/_client.py:1144: in post
+    return self.request(
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:445: in request
+    return super().request(
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/httpx/_client.py:825: in request
+    return self.send(request, auth=auth, follow_redirects=follow_redirects)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/httpx/_client.py:914: in send
+    response = self._send_handling_auth(
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/httpx/_client.py:942: in _send_handling_auth
+    response = self._send_handling_redirects(
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/httpx/_client.py:979: in _send_handling_redirects
+    response = self._send_single_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/httpx/_client.py:1014: in _send_single_request
+    response = transport.handle_request(request)
+               ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:348: in handle_request
+    raise exc
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:345: in handle_request
+    portal.call(self.app, scope, receive, send)
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/anyio/from_thread.py:340: in call
+    return cast(T_Retval, self.start_task_soon(func, *args).result())
+                          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/concurrent/futures/_base.py:454: in result
+    return self.__get_result()
+           ^^^^^^^^^^^^^^^^^^^
+/Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/concurrent/futures/_base.py:396: in __get_result
+    raise self._exception
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/anyio/from_thread.py:265: in _call_func
+    retval = await retval_or_awaitable
+             ^^^^^^^^^^^^^^^^^^^^^^^^^
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/fastapi/applications.py:1163: in __call__
+    await super().__call__(scope, receive, send)
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/applications.py:107: in __call__
+    await self.middleware_stack(scope, receive, send)
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/middleware/errors.py:186: in __call__
+    raise exc
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/middleware/errors.py:164: in __call__
+    await self.app(scope, receive, _send)
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/middleware/exceptions.py:63: in __call__
+    await wrap_app_handling_exceptions(self.app, conn)(scope, receive, send)
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/_exception_handler.py:53: in wrapped_app
+    raise exc
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/fastapi/middleware/asyncexitstack.py:18: in __call__
+    await self.app(scope, receive, send)
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/routing.py:716: in __call__
+    await self.middleware_stack(scope, receive, send)
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/fastapi/routing.py:2734: in app
+    await route.handle(scope, receive, send)
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/fastapi/routing.py:1780: in handle
+    await self.original_router.handle(scope, receive, send)
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/fastapi/routing.py:2789: in handle
+    await included_router._handle_selected(scope, receive, send)
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/fastapi/routing.py:1800: in _handle_selected
+    await original_route.handle(scope, receive, send)
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/fastapi/routing.py:1279: in handle
+    await app(scope, receive, send)
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/fastapi/routing.py:158: in app
+    await wrap_app_handling_exceptions(app, request)(scope, receive, send)
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/_exception_handler.py:53: in wrapped_app
+    raise exc
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/_exception_handler.py:42: in wrapped_app
+    await app(scope, receive, sender)
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/fastapi/routing.py:144: in app
+    response = await f(request)
+               ^^^^^^^^^^^^^^^^
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/fastapi/routing.py:706: in app
+    raw_response = await run_endpoint_function(
+/Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/fastapi/routing.py:352: in run_endpoint_function
+    return await dependant.call(**values)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+api/assignment_routes.py:2694: in resolve_assignment_gap
+    rounds = await _advance_employee_work(
+api/assignment_routes.py:1322: in _advance_employee_work
+    proposal_result = await propose_adaptation(
+tests/test_root_clarification_continuation.py:84: in proposal
+    assert "Use the accepted price rows" in json.dumps(context)
+E   assert 'Use the accepted price rows' in '{"schema": "atom-employee-work-proposal-1", "objective": "Prepare the requested quote after the owner confirms scope", "identity": {"employee_id": "lead-1", "agent_id": null, "workspace_id": "ws-1", "tenant_id": "tenant-1", "execution_owner": "assignment"}, "authorized_source_count": 0, "unread_source_count": 0, "task_version": 8, "plan_revision": 1, "criteria": [{"kind": "required_work_complete", "required": true}, {"criterion_id": "employee_result:objective", "kind": "employee_result", "required": true, "verifier": "employee_result"}], "teaching": {"revision": "heldout-terms-1", "effective_lesson_ids": [], "applicable_conditions": {}, "rules": [], "terms": {"currency": "USD", "freight": "20.00", "tax_basis": "none", "rounding_authority": "held-out agreement"}}, "task_context": {}, "sources": [], "unread_sources": [], "facts": [], "open_obligations": [], "waiting": [], "ready_operations": ["quote_calculation"], "completed_operations": [], "business_requirements": [], "authorized_actions": ["retrieve", "calculate"], "action_views": [], "adapter_views": [], "existing_step_ids": ["read"], "evidence_results": [{"step_id": "read", "adapter": "workbook.read", "status": "applied", "su...oteCalculationRequest", "type": "object"}}], "available_business_operations": [{"operation": "quote_calculation", "when": "accepted price rows and taught/authorized currency, freight and tax terms are available", "supports": ["exact quote line items and total from full rows"], "label": "quote calculation", "status": "ready", "missing": [], "evidence": [{"step_id": "read", "title": "Read held-out price rows", "verified": true, "shape": "tabular", "columns": ["Currency", "Item", "Price", "Qty"]}], "question_hint": ""}, {"operation": "invoice_reconciliation", "when": "accepted invoice, purchase order and receiving evidence are available", "supports": ["quantity/amount reconciliation", "one targeted correction obligation when mismatched"], "label": "invoice reconciliation", "status": "unavailable", "missing": [], "evidence": [], "question_hint": ""}], "missing_prerequisites": [], "rules": {"allowed_proposal_kinds": ["replan"], "allowed_work_requests": ["quote_calculation"], "can_execute": false, "can_grant_authority": false, "can_supply_receipts": false, "can_propose_supported_work": true, "evidence_only": false, "clarify_only_when_material": true, "execution_mechanics": "compiler"}}'
+E    +  where '{"schema": "atom-employee-work-proposal-1", "objective": "Prepare the requested quote after the owner confirms scope", "identity": {"employee_id": "lead-1", "agent_id": null, "workspace_id": "ws-1", "tenant_id": "tenant-1", "execution_owner": "assignment"}, "authorized_source_count": 0, "unread_source_count": 0, "task_version": 8, "plan_revision": 1, "criteria": [{"kind": "required_work_complete", "required": true}, {"criterion_id": "employee_result:objective", "kind": "employee_result", "required": true, "verifier": "employee_result"}], "teaching": {"revision": "heldout-terms-1", "effective_lesson_ids": [], "applicable_conditions": {}, "rules": [], "terms": {"currency": "USD", "freight": "20.00", "tax_basis": "none", "rounding_authority": "held-out agreement"}}, "task_context": {}, "sources": [], "unread_sources": [], "facts": [], "open_obligations": [], "waiting": [], "ready_operations": ["quote_calculation"], "completed_operations": [], "business_requirements": [], "authorized_actions": ["retrieve", "calculate"], "action_views": [], "adapter_views": [], "existing_step_ids": ["read"], "evidence_results": [{"step_id": "read", "adapter": "workbook.read", "status": "applied", "su...oteCalculationRequest", "type": "object"}}], "available_business_operations": [{"operation": "quote_calculation", "when": "accepted price rows and taught/authorized currency, freight and tax terms are available", "supports": ["exact quote line items and total from full rows"], "label": "quote calculation", "status": "ready", "missing": [], "evidence": [{"step_id": "read", "title": "Read held-out price rows", "verified": true, "shape": "tabular", "columns": ["Currency", "Item", "Price", "Qty"]}], "question_hint": ""}, {"operation": "invoice_reconciliation", "when": "accepted invoice, purchase order and receiving evidence are available", "supports": ["quantity/amount reconciliation", "one targeted correction obligation when mismatched"], "label": "invoice reconciliation", "status": "unavailable", "missing": [], "evidence": [], "question_hint": ""}], "missing_prerequisites": [], "rules": {"allowed_proposal_kinds": ["replan"], "allowed_work_requests": ["quote_calculation"], "can_execute": false, "can_grant_authority": false, "can_supply_receipts": false, "can_propose_supported_work": true, "evidence_only": false, "clarify_only_when_material": true, "execution_mechanics": "compiler"}}' = <function dumps at 0x1094126c0>({'schema': 'atom-employee-work-proposal-1', 'objective': 'Prepare the requested quote after the owner confirms scope', 'identity': {'employee_id': 'lead-1', 'agent_id': None, 'workspace_id': 'ws-1', 'tenant_id': 'tenant-1', ...}, 'authorized_source_count': 0, ...})
+E    +    where <function dumps at 0x1094126c0> = <module 'json' from '/Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/json/__init__.py'>.dumps
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/b82382c1-0afc-45ec-89ef-36ad8fddd92a/advance "HTTP/1.1 200 OK"
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../root-py311-plugins/pytest_freezegun.py:17: 10 warnings
+  /private/tmp/root-py311-plugins/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_root_clarification_continuation.py::test_question_only_answer_continues_same_job[gap-True-False]
+  /private/tmp/atom-clarification-continuation-20261108/backend/core/graphrag_engine.py:203: SyntaxWarning: "\%" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\%"? A raw string is also an option.
+    Escaped pattern where % and _ are escaped to \%
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_root_clarification_continuation.py::test_question_only_answer_continues_same_job[gap-True-False]
+FAILED tests/test_root_clarification_continuation.py::test_question_only_answer_continues_same_job[response-True-False]
+FAILED tests/test_root_clarification_continuation.py::test_question_only_answer_continues_same_job[gap-True-True]
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================== 3 failed, 2 passed, 18 warnings in 13.72s ===================

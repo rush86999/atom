@@ -1,0 +1,29 @@
+{
+  "source": "f8cd5876f82293f06cf6e67198c608be4dc132f5",
+  "root": "/private/tmp/root-feedback-sqlite-kcdp2r11",
+  "command": [
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-clarification-continuation-20261108/backend",
+    "--profile",
+    "bounded",
+    "--",
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "tests/test_root_clarification_continuation.py::test_old_operation_on_same_step_cannot_settle_the_new_wait",
+    "-q",
+    "--tb=short",
+    "-p",
+    "no:cacheprovider",
+    "-p",
+    "root_no_network",
+    "-p",
+    "no:randomly",
+    "-p",
+    "no:rerunfailures",
+    "--timeout=120",
+    "--timeout-method=thread",
+    "--basetemp=/private/tmp/root-feedback-sqlite-kcdp2r11/pytest"
+  ]
+}

@@ -92,21 +92,27 @@ async def _resume_woken_run(svc, run_id: str, event: Dict[str, Any]) -> Dict[str
                         or event.get("response") or ""),
                     source=str(event.get("source") or event.get("from") or ""),
                     evidence=str(event.get("message_id") or event.get("id") or ""),
+                    value=event.get("value"),
                     reply_id=(
                         str(reply_id) if reply_id is not None else None),
                 )
-                if (result.get("status") in (
-                        "reply_conflict", "terminal", "unmatched",
-                        "conflict", "partial", "unavailable", "incomplete",
-                        "already_applied")
+                if (result.get("status") not in ("resolved", "resumed")
                         or result.get("replayed")):
-                    # A refused, non-resolving or exact-replay reply must not
-                    # execute or advance the same job again.
+                    # Only an explicitly accepted settlement may advance work.
+                    # Unknown/new statuses fail closed, as do exact replays.
                     return result
             return await executor.resume(run_id)
-    except Exception as exc:  # noqa: BLE001 — fall back to the existing loop
+    except Exception as exc:  # noqa: BLE001 — ingestion isolates each run
+        # An assignment may already have accepted the reply or applied work.
+        # Uncertainty here is not permission to dispatch through another engine.
         logger.warning(
-            f"goal run {run_id}: assignment wake resume failed: {exc}")
+            "goal run %s: assignment wake resume unavailable (%s)",
+            run_id, type(exc).__name__)
+        return {
+            "status": "unavailable",
+            "code": "assignment_wake_resume_unavailable",
+            "run_id": run_id,
+        }
     return await svc.advance(run_id, event=event)
 
 
