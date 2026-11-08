@@ -112,7 +112,7 @@ jobs:
   # -------------------------------------------------------------------
   # Backend unit tests (unchanged set, fast feedback)
   # -------------------------------------------------------------------
-  backend-tests:
+  backend-core:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -128,6 +128,14 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -r requirements.txt
+      - name: Run backend lane preservation contract
+        env:
+          TESTING: "1"
+          DATABASE_URL: "sqlite:///test_ci.db"
+          SECRET_KEY: "ci-test-secret-key"
+          ENVIRONMENT: "development"
+        run: |
+          python -m pytest tests/test_ci_backend_lane_contract.py -q --tb=short --timeout=300 --timeout-method=thread
       - name: Run backend tests
         env:
           DATABASE_URL: "sqlite:///test_ci.db"
@@ -208,77 +216,6 @@ jobs:
           ENVIRONMENT: "development"
         run: |
           python -m pytest tests/test_generic_real_mcp_budget_contract.py tests/test_budget_caller_transaction_contract.py tests/test_budget_control.py tests/test_governance_budget_decision_matrix.py -q --tb=short --timeout=300 --timeout-method=thread
-      - name: Run shared ORACLE registry verification controls
-        env:
-          TESTING: "1"
-          DATABASE_URL: "sqlite:///test_ci.db"
-          SECRET_KEY: "ci-test-secret-key"
-          ENVIRONMENT: "development"
-        run: |
-          python -m pytest tests/test_oracle_registry_verification_gap.py \
-            tests/test_oracle_effect_families.py \
-            tests/test_oracle_connected_mutations.py \
-            tests/test_assignment_executor.py \
-            tests/test_generic_oracle_mutation_contract.py \
-            tests/test_lead_shopify_authorized_material.py \
-            tests/test_oracle_shopify_product_authorized_material.py \
-            tests/test_oracle_shopify_product_create.py \
-            tests/test_oracle_shopify_product_replay.py \
-            tests/test_oracle_shopify_blog_create.py \
-            tests/test_oracle_shopify_article_create.py \
-            tests/test_oracle_radio_send.py \
-            tests/test_lead_radio_readback_identity.py \
-            tests/test_oracle_shopify_fulfillment_create.py \
-            tests/test_lead_shopify_fulfillment_rest_shape.py \
-            tests/test_shopify_fulfillment_actions.py \
-            tests/test_asset_content_receipt.py \
-            tests/test_lead_asset_usable_image.py \
-            tests/test_lead_shopify_image_content_receipt.py \
-            tests/test_lead_shopify_article_rest_shape.py \
-            tests/test_lead_shopify_error_privacy.py \
-            tests/test_generic_request_expectations.py \
-            tests/test_oracle_radio_create_thread.py \
-            tests/test_lead_radio_thread_authority_linearization.py \
-            tests/test_lead_radio_mcp_replay.py \
-            tests/test_oracle_radio_thread_replay.py \
-            tests/unit/agents/test_radio_actions.py \
-            tests/unit/agents/test_agent_radio_tool.py \
-            tests/test_generic_reconcile_commit_contract.py \
-            tests/test_generic_normal_retry_identity.py \
-            tests/test_oracle_mini_app_host_mutations.py \
-            tests/test_agent_generic_information_wait.py \
-            tests/test_generic_source_answer_contract.py \
-            tests/test_lead_generic_source_answer_material.py \
-            tests/test_lead_generic_source_snapshot_cas.py \
-            tests/test_generic_information_idle_contract.py \
-            tests/test_generic_information_two_job_isolation.py \
-            tests/test_information_wait_maturity_neutral.py \
-            tests/test_positive_maturity_no_demotion.py \
-            ../scripts/tests/test_browser_agent_job_wait_identity.py \
-            tests/test_agent_generic_information_wait_process.py \
-            tests/test_generic_information_wait_recovery.py \
-            tests/test_generic_information_wait_recovery_authority.py \
-            tests/test_lead_recovery_personal_authority.py \
-            tests/test_generic_information_recovery_batch_contract.py \
-            tests/test_boot_recovery_not_gated_by_scheduler.py \
-            tests/test_generic_information_resume_namespace_contract.py \
-            tests/test_generic_information_exact_event_contract.py \
-            tests/test_agent_run_outcome_join_contract.py \
-            tests/test_agent_run_admission_contract.py \
-            tests/test_agent_read_scope_contract.py \
-            tests/test_agent_job_readback.py \
-            tests/test_lead_job_readback_material_scope.py \
-            tests/test_lead_personal_information_answer.py \
-            tests/test_agent_job_wait_reference_contract.py \
-            tests/test_agent_job_wait_execution_contract.py \
-            tests/test_agent_job_wait_scope_contract.py \
-            tests/test_agent_job_wait_namespace_contract.py \
-            tests/test_agent_job_claim_interleaving.py \
-            tests/test_agent_job_delivery_identity.py \
-            tests/test_agent_job_outcome_projection.py \
-            tests/integration/journeys/test_oracle_registry_mutation_journey.py \
-            tests/integration/journeys/test_mini_app_host_receipts_journey.py \
-            -q --tb=short --timeout=300 --timeout-method=thread
       - name: Run local backup/restore contract
         env:
           TESTING: "1"
@@ -372,6 +309,111 @@ jobs:
           python -m pytest tests/test_mini_app_records_process_restart.py \
             -q --tb=short --timeout=360 --timeout-method=thread \
             --basetemp="${mini04_run_root}/pytest"
+
+  backend-oracle:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: backend
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.11"
+          cache: pip
+          cache-dependency-path: backend/requirements.txt
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+      - name: Run shared ORACLE registry verification controls
+        env:
+          TESTING: "1"
+          DATABASE_URL: "sqlite:///test_ci.db"
+          SECRET_KEY: "ci-test-secret-key"
+          ENVIRONMENT: "development"
+        run: |
+          python -m pytest tests/test_oracle_registry_verification_gap.py \
+            tests/test_oracle_effect_families.py \
+            tests/test_oracle_connected_mutations.py \
+            tests/test_assignment_executor.py \
+            tests/test_generic_oracle_mutation_contract.py \
+            tests/test_lead_shopify_authorized_material.py \
+            tests/test_oracle_shopify_product_authorized_material.py \
+            tests/test_oracle_shopify_product_create.py \
+            tests/test_oracle_shopify_product_replay.py \
+            tests/test_oracle_shopify_blog_create.py \
+            tests/test_oracle_shopify_article_create.py \
+            tests/test_oracle_radio_send.py \
+            tests/test_lead_radio_readback_identity.py \
+            tests/test_oracle_shopify_fulfillment_create.py \
+            tests/test_lead_shopify_fulfillment_rest_shape.py \
+            tests/test_shopify_fulfillment_actions.py \
+            tests/test_asset_content_receipt.py \
+            tests/test_lead_asset_usable_image.py \
+            tests/test_lead_shopify_image_content_receipt.py \
+            tests/test_lead_shopify_article_rest_shape.py \
+            tests/test_lead_shopify_error_privacy.py \
+            tests/test_generic_request_expectations.py \
+            tests/test_oracle_radio_create_thread.py \
+            tests/test_lead_radio_thread_authority_linearization.py \
+            tests/test_lead_radio_mcp_replay.py \
+            tests/test_oracle_radio_thread_replay.py \
+            tests/unit/agents/test_radio_actions.py \
+            tests/unit/agents/test_agent_radio_tool.py \
+            tests/test_generic_reconcile_commit_contract.py \
+            tests/test_generic_normal_retry_identity.py \
+            tests/test_oracle_mini_app_host_mutations.py \
+            tests/test_agent_generic_information_wait.py \
+            tests/test_generic_source_answer_contract.py \
+            tests/test_lead_generic_source_answer_material.py \
+            tests/test_lead_generic_source_snapshot_cas.py \
+            tests/test_generic_information_idle_contract.py \
+            tests/test_generic_information_two_job_isolation.py \
+            tests/test_information_wait_maturity_neutral.py \
+            tests/test_positive_maturity_no_demotion.py \
+            ../scripts/tests/test_browser_agent_job_wait_identity.py \
+            tests/test_agent_generic_information_wait_process.py \
+            tests/test_generic_information_wait_recovery.py \
+            tests/test_generic_information_wait_recovery_authority.py \
+            tests/test_lead_recovery_personal_authority.py \
+            tests/test_generic_information_recovery_batch_contract.py \
+            tests/test_boot_recovery_not_gated_by_scheduler.py \
+            tests/test_generic_information_resume_namespace_contract.py \
+            tests/test_generic_information_exact_event_contract.py \
+            tests/test_agent_run_outcome_join_contract.py \
+            tests/test_agent_run_admission_contract.py \
+            tests/test_agent_read_scope_contract.py \
+            tests/test_agent_job_readback.py \
+            tests/test_lead_job_readback_material_scope.py \
+            tests/test_lead_personal_information_answer.py \
+            tests/test_agent_job_wait_reference_contract.py \
+            tests/test_agent_job_wait_execution_contract.py \
+            tests/test_agent_job_wait_scope_contract.py \
+            tests/test_agent_job_wait_namespace_contract.py \
+            tests/test_agent_job_claim_interleaving.py \
+            tests/test_agent_job_delivery_identity.py \
+            tests/test_agent_job_outcome_projection.py \
+            tests/integration/journeys/test_oracle_registry_mutation_journey.py \
+            tests/integration/journeys/test_mini_app_host_receipts_journey.py \
+            -q --tb=short --timeout=300 --timeout-method=thread
+
+  backend-tests:
+    needs: [backend-core, backend-oracle]
+    if: ${{ always() }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Require every backend lane to succeed
+        env:
+          ATOM_CI_CORE_RESULT: ${{ needs.backend-core.result }}
+          ATOM_CI_ORACLE_RESULT: ${{ needs.backend-oracle.result }}
+        run: |
+          if [ "$ATOM_CI_CORE_RESULT" != "success" ] || [ "$ATOM_CI_ORACLE_RESULT" != "success" ]; then
+            echo "A required backend lane did not succeed."
+            exit 1
+          fi
+          echo "Every required backend lane succeeded."
+
 
   # -------------------------------------------------------------------
   # End-to-end user-journey suite: boots full app + frontend, runs
