@@ -1753,8 +1753,9 @@ def _public_outcome_message(outcome: Dict[str, Any]) -> str:
     if reason == "execution_authority_denied":
         return (
             "The run stopped because the admitted actor or workspace "
-            "authority is no longer valid. No effect was applied; refresh "
-            "authority before retrying.")
+            "authority is no longer valid. The refused operation applied no "
+            "effect. Review earlier results and refresh authority before "
+            "retrying.")
     if reason == "execution_result_missing":
         return (
             "The agent run did not report a usable outcome. Review the "

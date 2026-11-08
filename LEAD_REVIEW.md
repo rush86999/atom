@@ -1054,3 +1054,10 @@ The combined a8a1be3ad source passed 20/20 focused controls on Python 3.14
 public-route probe is now included in the existing governance CI step, rather
 than relying only on helper-level denial assertions. Python 3.11 is still
 running; no hosted or app-wide completion is inferred.
+
+
+Root final message review: the refusal applies to the denied operation, not
+the entire run. The public message now asks the owner to review earlier
+results rather than claiming that no operation anywhere had an effect.
+Prior 951-test evidence remains bound to 4158db58a; this wording successor
+will have its own focused verification and is not relabeled into that run.

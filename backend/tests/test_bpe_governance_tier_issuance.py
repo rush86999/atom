@@ -655,3 +655,12 @@ def test_terminal_denial_does_not_hide_prior_uncertain_effect():
     assert outcome["requires_reconciliation"] is True
     assert outcome["reason"] == "execution_uncertain"
     assert outcome["next_action"] == "reconcile_operation"
+
+
+def test_authority_denial_message_does_not_erase_prior_results():
+    from api.agent_routes import _public_outcome_message
+
+    message = _public_outcome_message({"reason": "execution_authority_denied"})
+    assert "refused operation" in message
+    assert "Review earlier results" in message
+    assert "No effect was applied" not in message
