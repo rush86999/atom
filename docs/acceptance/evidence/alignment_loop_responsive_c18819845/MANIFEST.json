@@ -1,0 +1,31 @@
+{
+  "executed_source": "c1881984528bce79c7299a30024406ca935399f9",
+  "source_files": {
+    "backend/core/org_politics_automation.py": "sha256:cb473c35054f668d2f3660abcadfaabb1cca6d423fd070e495aaaada9f8125a9",
+    "backend/api/org_politics_routes.py": "sha256:012b92b7af924c4a6000123fac364becff1fdec66acfe95063b29c8f0a6850b2",
+    "backend/tests/test_org_politics_loop_responsiveness.py": "sha256:302fb80fdc8f25823b6ffa1074e6722bce8e42d48c00629588bba971830b4c4b",
+    ".github/workflows/ci.yml": "sha256:2425cbc13493dd6cf722b98de1f790fb365751b4f3607c9854242cc688f5fc46",
+    "backend/tests/fixtures/ci_backend_before_parallel.json": "sha256:261800ff36c2aaea6f91925187b79a543d52ce6ad6531db80e72d3df57b8e4db"
+  },
+  "artifacts": {
+    "README.md": "sha256:5219d5065b2ad4b533d7cdc4c9c9e5e7c6a4a172df239d203563759a96936554",
+    "baseline-311.exit.json": "sha256:c783db73a3397a1f8dc921e84ec166adaff5dd671c3e04935940a5d7db18cf19",
+    "baseline-311.log": "sha256:cec7507cda06615db52a6503d1fdc8128024f422c20faedd6077ad058b2b35f0",
+    "baseline-311.spec.json": "sha256:c9b82f23cea1030b84aacc6db364ddc8712a50c00a46877b58334661ff3eea64",
+    "ci-preservation-314.log": "sha256:fb11a1cff0cefb204f06d53f935abd91223b3060c7998a17527836b4cf879885",
+    "final-311.exit.json": "sha256:d8a2adb2cf7addaf44223fc5be7eb90836a108498b9a7c15a33f12dfa9d93e3b",
+    "final-311.log": "sha256:61c094b3a3a37e4510cfa8f516deb9e0aa5d5a1c2db8fbdcc114096afef69075",
+    "final-311.spec.json": "sha256:8ff50f0db4b126e4a0fdc992753bad9aba6b28a394e57fb4b1f3d92c14208674",
+    "final-314.exit.json": "sha256:9502271cbd905ee900b1203d045c778e25b8bad61083e996e56e7e8936a9090d",
+    "final-314.log": "sha256:7eabbcd5f2ea032b5ca995b656e67f6e87614b052df9ab2980aeeb7ef4832db8",
+    "final-314.spec.json": "sha256:80777af2cd6a8f929019d18d32ccace5c80c1595cf72c5bac719e6e15e331d14",
+    "heartbeat-negative.json": "sha256:6eaa703850321e24a8056c8001c610b0198af36309adcd3fba6a1a02619989c9",
+    "heartbeat-negative.log": "sha256:0e75e8c36b9bbb610320a8156299b2062357949d96eeca2b6959a4d0a8a8964f",
+    "heartbeat-negative.py": "sha256:f369c26962a2a0c483d0a35d48efb685244cf390a60d2189a39fc0ea71ec2e17",
+    "heartbeat-positive.log": "sha256:ad5115a9948d33cd57857e5b4e4f78b303e749272a50501ac38297caa19f703b",
+    "heartbeat-positive.py": "sha256:e53769a2acb7d166ab2b24f29c83387657695cef60096ed0d61436261bb3c9ed",
+    "incomplete-snapshot-diagnostic.log": "sha256:41639ad32b78d8cecd45c445e244a9bf4cbe7bc09dc3814b087593bd735bc9ca",
+    "native-audit.json": "sha256:37245a62661ba881cf06ebfc57e49451b0bb6d68cd3d9a141c870c7bbd191b2f",
+    "verification.json": "sha256:1cea2b574e4e3d79f2d0063eac77fb3d123326ee19eaf32931402b19af986d43"
+  }
+}

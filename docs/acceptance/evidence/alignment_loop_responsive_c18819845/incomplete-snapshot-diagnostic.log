@@ -1,0 +1,55 @@
+============================= test session starts ==============================
+platform darwin -- Python 3.11.16, pytest-8.4.2, pluggy-1.6.0 -- /usr/local/opt/python@3.11/bin/python3.11
+cachedir: .pytest_cache
+rootdir: /private/tmp/root-org-loop-review-snapshot-20261108
+collecting ... collected 6 items
+
+backend/tests/test_org_politics_loop_responsiveness.py::test_heartbeat_progresses_while_the_pass_blocks Timeout (0:00:15)!
+Thread 0x0000000201034e40 (most recent call first):
+  File "<frozen importlib._bootstrap_external>", line 147 in _path_stat
+  File "<frozen importlib._bootstrap_external>", line 368 in find_spec
+  File "<frozen importlib._bootstrap_external>", line 1497 in _get_spec
+  File ???, line 0 in ???
+  File Fatal Python error: Segmentation fault
+
+Thread 0x0000000201034e40 (most recent call first):
+  File "/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/logging/__init__.py", line 1601 in makeRecord
+  File "/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/logging/__init__.py", line 1634 in _log
+  File "/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/logging/__init__.py", line 1501 in warning
+  File "/private/tmp/root-org-loop-review-snapshot-20261108/backend/core/org_politics_automation.py", line 789 in org_politics_automation_loop
+  File "/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/events.py", line 84 in _run
+  File "/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/base_events.py", line 1936 in _run_once
+  File "/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/base_events.py", line 608 in run_forever
+  File "/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/base_events.py", line 641 in run_until_complete
+  File "/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/runners.py", line 118 in run
+  File "/usr/local/Cellar/python@3.11/3.11.16/Frameworks/Python.framework/Versions/3.11/lib/python3.11/asyncio/runners.py", line 190 in run
+  File "/private/tmp/root-org-loop-review-snapshot-20261108/backend/tests/test_org_politics_loop_responsiveness.py", line 115 in test_heartbeat_progresses_while_the_pass_blocks
+  File "/usr/local/lib/python3.11/site-packages/_pytest/python.py", line 157 in pytest_pyfunc_call
+  File "/usr/local/lib/python3.11/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/usr/local/lib/python3.11/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/usr/local/lib/python3.11/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/usr/local/lib/python3.11/site-packages/_pytest/python.py", line 1671 in runtest
+  File "/usr/local/lib/python3.11/site-packages/_pytest/runner.py", line 178 in pytest_runtest_call
+  File "/usr/local/lib/python3.11/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/usr/local/lib/python3.11/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/usr/local/lib/python3.11/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/usr/local/lib/python3.11/site-packages/_pytest/runner.py", line 246 in <lambda>
+  File "/usr/local/lib/python3.11/site-packages/_pytest/runner.py", line 344 in from_call
+  File "/usr/local/lib/python3.11/site-packages/_pytest/runner.py", line 245 in call_and_report
+  File "/usr/local/lib/python3.11/site-packages/_pytest/runner.py", line 136 in runtestprotocol
+  File "/usr/local/lib/python3.11/site-packages/_pytest/runner.py", line 117 in pytest_runtest_protocol
+  File "/usr/local/lib/python3.11/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/usr/local/lib/python3.11/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/usr/local/lib/python3.11/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/usr/local/lib/python3.11/site-packages/_pytest/main.py", line 367 in pytest_runtestloop
+  File "/usr/local/lib/python3.11/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/usr/local/lib/python3.11/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/usr/local/lib/python3.11/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/usr/local/lib/python3.11/site-packages/_pytest/main.py", line 343 in _main
+  File "/usr/local/lib/python3.11/site-packages/_pytest/main.py", line 289 in wrap_session
+  File "/usr/local/lib/python3.11/site-packages/_pytest/main.py", line 336 in pytest_cmdline_main
+  File "/usr/local/lib/python3.11/site-packages/pluggy/_callers.py", line 121 in _multicall
+  File "/usr/local/lib/python3.11/site-packages/pluggy/_manager.py", line 120 in _hookexec
+  File "/usr/local/lib/python3.11/site-packages/pluggy/_hooks.py", line 512 in __call__
+  File "/usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py", line 175 in main
+  File "<string>", line 1 in <module>

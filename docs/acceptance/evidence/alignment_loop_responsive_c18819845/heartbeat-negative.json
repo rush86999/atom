@@ -1,0 +1,6 @@
+{
+  "returncode": 1,
+  "source": "d9a45f559033e4f6ae9a2e50725ade3cddfb2b4b",
+  "probe": "/private/tmp/root-org-loop-responsiveness-probe-20261108.py",
+  "scope": "bounded pass double; no database or provider"
+}
