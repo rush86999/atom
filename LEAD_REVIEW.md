@@ -317,3 +317,18 @@ accepted material must replay; changed material must return terminal while
 keeping the completed assignment and one bill effect. No runtime guard was
 relaxed. The campaign is added to the existing CI step. Earlier220 results
 remain accurate for their named selection and are not expanded retroactively.
+
+
+## Root independent first execution at349db796f
+
+Focused new-gap plus preserved direct controls:24passed/3failed onPython3.14.
+Two failures were author fixture defects: a call counter was compared with a
+question dict, so the supposed second prerequisite never occurred. Both
+fixtures now actually raise their second prerequisite on call2. The third
+failure was a stale interleaving hook: direct reply settlement now enters
+mutate_assignment_and_task, so the old mutate_assignment hook never inserted
+the competing receipt. The hook now targets the actual entry and explicitly
+asserts the competitor ran. Exact conflict/receipt assertions are retained.
+No production logic was changed by this test-scaffold correction. Original
+failed log/spec/exit remain root-assignment-gap-349-focused in retained
+scratch evidence. Further semantic and affected verification remain pending.

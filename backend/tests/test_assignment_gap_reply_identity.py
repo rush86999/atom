@@ -51,13 +51,13 @@ def _new_mapping_adapter(
 
     async def adapter(inputs, context):
         calls["n"] += 1
-        if re_raise is not None and calls["n"] == re_raise:
+        if re_raise is not None and calls["n"] == 2:
             raise NeedsContext(re_raise)
         column = str((inputs or {}).get("value_column") or "")
         if re_raise is None and column == candidate:
             return {"status": "applied", "summary": "mapped price",
                     "value": "35.00", "unit": "USD"}
-        if re_raise is not None and calls["n"] > 1 and calls["n"] != re_raise:
+        if re_raise is not None and calls["n"] > 1 and calls["n"] != 2:
             return {"status": "applied", "summary": "mapped price",
                     "value": "35.00", "unit": "USD"}
         raise NeedsContext({
@@ -86,9 +86,9 @@ def _new_text_adapter(route_env, *, correlation, re_raise=None):
 
     async def adapter(inputs, context):
         calls["n"] += 1
-        if re_raise is not None and calls["n"] == re_raise:
+        if re_raise is not None and calls["n"] == 2:
             raise NeedsContext(re_raise)
-        if calls["n"] > 1 and (re_raise is None or calls["n"] != re_raise):
+        if calls["n"] > 1 and (re_raise is None or calls["n"] != 2):
             return {"status": "applied", "summary": "price scope accepted",
                     "value": "100.00"}
         raise NeedsContext({
