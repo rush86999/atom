@@ -325,7 +325,7 @@ class CapabilityGraduationService:
             # Keep the epoch's clock after the active hold is removed. Legacy
             # baselines without a clock anchor at their first new observation;
             # the receipt consumer treats that observation as unverified.
-            if (int(stats.get("epoch_baseline_verified_success") or 0) > 0
+            if ("epoch_baseline_verified_success" in stats
                     and not stats.get("epoch_started_at")):
                 stats["epoch_started_at"] = (
                     active.get("at") or stats["last_outcome_at"])

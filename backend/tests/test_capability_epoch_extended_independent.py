@@ -57,3 +57,25 @@ def test_old_receipt_is_not_new_work_after_reentry_marker_clears(fleet_world,mon
         assert _stats(db,action)['verified_success']==70
         assert db.get(AgentRegistry,'ag-fleet').configuration['capability_maturities'][action]=='intern'
         assert _credit(db) is False
+
+
+@pytest.mark.parametrize("baseline",[0,25])
+def test_unknown_epoch_clock_is_not_evidence(store,baseline):
+    from datetime import datetime,timezone,timedelta
+    from core.contribution_credit import _pre_revocation
+    _Session,db=store
+    row=db.get(AgentRegistry,"agent-revocation-1");cfg=deepcopy(row.configuration)
+    stats=cfg["capability_stats"]["canvas_edit"]
+    stats["epoch_baseline_verified_success"]=baseline
+    stats.pop("epoch_started_at",None)
+    cfg.pop("autonomy_revocations",None)
+    row.configuration=cfg;db.commit()
+    before=_pre_revocation(db,row.id,"canvas_edit",datetime.now(timezone.utc))
+    assert before[0] is True and before[1] is True
+    assert CapabilityGraduationService(db).record_usage(row.id,"canvas_edit",True,"unverified") is True
+    db.expire_all();new=db.get(AgentRegistry,row.id).configuration["capability_stats"]["canvas_edit"]
+    assert new["verified_success"]==25
+    assert new["epoch_time_origin"]=="legacy_first_observed"
+    anchor=datetime.fromisoformat(new["epoch_started_at"])
+    assert _pre_revocation(db,row.id,"canvas_edit",anchor-timedelta(seconds=1))[0] is True
+    assert _pre_revocation(db,row.id,"canvas_edit",anchor+timedelta(seconds=1))[0] is False

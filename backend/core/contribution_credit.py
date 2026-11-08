@@ -400,8 +400,8 @@ def _pre_revocation(
     revocations = _as_dict(config.get("autonomy_revocations"))
     marker = _as_dict(revocations.get(capability))
     stats = _as_dict(_as_dict(config.get("capability_stats")).get(capability))
-    has_epoch = bool(marker or stats.get("epoch_started_at")
-                     or stats.get("epoch_baseline_verified_success"))
+    has_epoch = (bool(marker) or "epoch_started_at" in stats
+                 or "epoch_baseline_verified_success" in stats)
     if not has_epoch:
         return False, True, raw
     marker_at = _parse_time(marker.get("at")) if marker else None
