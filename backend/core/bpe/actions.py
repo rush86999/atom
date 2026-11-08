@@ -38,10 +38,15 @@ from __future__ import annotations
 
 import logging
 import os
+import time
 from typing import Any, Dict, Optional, Tuple
 
 from core.action_registry import register_action
-from core.bpe.workspace import get_workspace
+from core.bpe.workspace import (
+    MAX_NOTE_CHARS,
+    SUBGOAL_STATUSES,
+    get_workspace,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -92,6 +97,70 @@ def _deny(code: str, message: str) -> Dict[str, Any]:
         "action_result": "not_applied",
         "effect_possible": False,
     }
+
+
+def canonical_note_content(value: Any) -> str:
+    """The exact material ``workspace.note`` appends (strip + hard cap)."""
+    return str(value or "").strip()[:MAX_NOTE_CHARS]
+
+
+def canonical_commit_material(args: Any) -> Dict[str, Any]:
+    """The exact business material a ``workspace.commit`` call authorizes."""
+    payload = args if isinstance(args, dict) else {}
+    status = payload.get("status")
+    return {
+        "title": str(payload.get("title") or "").strip()[:200],
+        "status": str(status) if status is not None else None,
+    }
+
+
+def note_material(content: Any) -> Dict[str, Any]:
+    return {"content": canonical_note_content(content)}
+
+
+def bpe_material_sha256(material: Any) -> str:
+    """Stable digest shared by the producer, request freeze and verifier.
+
+    Uses the same binding helper as every other registered mutation so a
+    result envelope cannot supply replacement proof material.
+    """
+    try:
+        from core.oracle.request_expectations import approved_payload_sha256
+
+        return approved_payload_sha256(material)
+    except Exception:  # noqa: BLE001 - a missing binding is refused, not faked
+        return ""
+
+
+def _persist_workspace_state(ws: Any) -> bool:
+    """Persist the current workspace snapshot through the existing file store."""
+    try:
+        from core.bpe.persistence import BPEWorkspaceStore
+
+        return bool(BPEWorkspaceStore().save(ws.to_dict()))
+    except Exception as e:  # noqa: BLE001 - persistence truth is reported
+        logger.debug("bpe durable state write failed: %s", e)
+        return False
+
+
+def _operation_receipt(
+    action: str, scope: Dict[str, Any], operation_id: str,
+    material: Dict[str, Any], **extra: Any,
+) -> Dict[str, Any]:
+    """Build the producer-owned receipt the oracle later re-reads from disk."""
+    receipt = {
+        "action": str(action),
+        "operation_id": str(operation_id),
+        "workspace_id": str(scope.get("workspace_id") or ""),
+        "agent_id": str(scope.get("agent_id") or ""),
+        "scope_key": str(scope.get("scope_key") or ""),
+        "actor_id": str(scope.get("user_id") or ""),
+        "material": dict(material or {}),
+        "material_sha256": bpe_material_sha256(material),
+        "created_at": time.time(),
+    }
+    receipt.update(extra)
+    return receipt
 
 
 def _user_id_from(value: Any) -> Optional[str]:
@@ -635,11 +704,53 @@ async def _bpe_track(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str,
     effects=[{"effect": "update", "scope": "local"}],
 )
 async def _bpe_commit(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
-    ws, _scope, denial = _resolve_workspace(context, claim=True)
+    # Material validation precedes workspace creation/claim: an invalid request
+    # is a proven no-effect refusal, not an uncertain mutation.
+    material = canonical_commit_material(args)
+    if not material["title"]:
+        return {
+            "success": False,
+            "error": "commit requires a subgoal title",
+            "action_result": "not_applied",
+            "effect_possible": False,
+        }
+    if (
+        material["status"] is not None
+        and material["status"] not in SUBGOAL_STATUSES
+    ):
+        return {
+            "success": False,
+            "error": f"status must be one of {SUBGOAL_STATUSES}",
+            "action_result": "not_applied",
+            "effect_possible": False,
+        }
+    ws, scope, denial = _resolve_workspace(context, claim=True)
     if denial:
         return denial
-    payload = {"title": args.get("title") or "", "status": args.get("status")}
-    return await ws.apply("commit", payload)
+    payload = {"title": material["title"], "status": material["status"]}
+    result = await ws.apply("commit", payload)
+    if not result.get("success"):
+        # Validation/no-match refusal happens before any Progress mutation.
+        out = dict(result)
+        out.update({
+            "action_result": "not_applied",
+            "effect_possible": False,
+        })
+        return out
+    operation_id = str((context or {}).get("operation_id") or "").strip()
+    if not operation_id:
+        return result
+    receipt = _operation_receipt(
+        "workspace.commit", scope, operation_id, material,
+        resolved_title=str(result.get("title") or material["title"]),
+    )
+    if not receipt["material_sha256"]:
+        # No durable binding could be formed; the oracle will honestly refuse
+        # to certify the effect. Keep the historical handler result shape.
+        return result
+    ws.record_operation_receipt(receipt)
+    _persist_workspace_state(ws)
+    return result
 
 
 @register_action(
@@ -678,7 +789,36 @@ async def _bpe_recall(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str
     effects=[{"effect": "create", "scope": "local"}],
 )
 async def _bpe_note(args: Dict[str, Any], context: Dict[str, Any]) -> Dict[str, Any]:
-    ws, _scope, denial = _resolve_workspace(context, claim=True)
+    # Proven before-effect refusal: validate before creating a namespace or
+    # claiming authority, so nothing is appended or persisted.
+    content = canonical_note_content(args.get("content"))
+    if not content:
+        return {
+            "success": False,
+            "error": "note requires content",
+            "action_result": "not_applied",
+            "effect_possible": False,
+        }
+    ws, scope, denial = _resolve_workspace(context, claim=True)
     if denial:
         return denial
-    return await ws.apply("note", args.get("content") or "")
+    result = await ws.apply("note", content)
+    if not result.get("success"):
+        out = dict(result)
+        out.update({
+            "action_result": "not_applied",
+            "effect_possible": False,
+        })
+        return out
+    operation_id = str((context or {}).get("operation_id") or "").strip()
+    if not operation_id:
+        return result
+    receipt = _operation_receipt(
+        "workspace.note", scope, operation_id, note_material(content))
+    if not receipt["material_sha256"]:
+        # The oracle will refuse to certify without a durable binding; keep the
+        # historical handler result shape instead of inventing proof fields.
+        return result
+    ws.record_operation_receipt(receipt)
+    _persist_workspace_state(ws)
+    return result

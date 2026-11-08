@@ -1801,9 +1801,11 @@ class AtomMetaAgent:
                 from core.bpe.consult_policy import get_consult_policy
 
                 _success = status == "success"
+                # Preserve unresolved/failed notes for recovery instead of
+                # draining the only copy of a fact that may have landed.
                 _bpe_consolidated = (
                     consolidate_workspace_notes(_bpe_ws) if _success
-                    else {"dropped_notes": len(_bpe_ws.drain_pending_notes())}
+                    else {"preserved_notes": len(_bpe_ws._pending_notes)}
                 )
                 _policy = get_consult_policy()
                 _meta_agent_id = "atom_main"

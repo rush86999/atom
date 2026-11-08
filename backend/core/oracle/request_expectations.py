@@ -89,6 +89,7 @@ def build_request_expectations(
     agent_id: str = "",
     request_sha256: Optional[str] = None,
     binding: Optional[Mapping[str, Any]] = None,
+    bpe_scope: Optional[Mapping[str, Any]] = None,
 ) -> Dict[str, Any]:
     """Build the ``_oracle_expected_*`` snapshot for one authorized request.
 
@@ -103,7 +104,9 @@ def build_request_expectations(
 
     ``binding`` may be supplied when the caller already computed the connected
     mutation binding; otherwise it is derived here through the existing
-    ``core.connected_actions.oracle_request_binding`` helper.
+    ``core.connected_actions.oracle_request_binding`` helper. ``bpe_scope`` is
+    the server-resolved BPE namespace for harness mutations (workspace/agent/
+    run); it is never taken from model-visible arguments.
     """
     name = str(action or "")
     args = strip_expected_fields(arguments)
@@ -290,6 +293,40 @@ def build_request_expectations(
     expected_db_data = None
     expected_db_record_id = ""
     expected_db_append_id = ""
+    # BPE harness mutations are local writes whose durable proof is the
+    # existing per-workspace JSON state. Freeze the server-owned namespace and
+    # the canonical business material here; the producer records the same
+    # binding and the oracle re-reads it from disk.
+    expected_bpe_workspace_id = ""
+    expected_bpe_agent_id = ""
+    expected_bpe_scope_key = ""
+    expected_bpe_actor_id = ""
+    expected_bpe_material: Optional[Dict[str, Any]] = None
+    expected_bpe_material_sha256 = ""
+    if name in ("workspace.note", "workspace.commit"):
+        try:
+            from core.bpe.actions import (
+                bpe_material_sha256,
+                canonical_commit_material,
+                note_material,
+            )
+
+            if name == "workspace.note":
+                expected_bpe_material = note_material(args.get("content"))
+            else:
+                expected_bpe_material = canonical_commit_material(args)
+            expected_bpe_material_sha256 = bpe_material_sha256(
+                expected_bpe_material)
+        except Exception:  # noqa: BLE001 - verifier refuses absent binding
+            expected_bpe_material = None
+            expected_bpe_material_sha256 = ""
+        if isinstance(bpe_scope, Mapping):
+            expected_bpe_workspace_id = str(
+                bpe_scope.get("workspace_id") or "")
+            expected_bpe_agent_id = str(bpe_scope.get("agent_id") or "")
+            expected_bpe_scope_key = str(bpe_scope.get("scope_key") or "")
+            expected_bpe_actor_id = str(bpe_scope.get("user_id") or "")
+
     expected_db_filter: Dict[str, Any] = {}
     if name == "mini_app_scaffold":
         expected_mini_app_name = str(args.get("name") or "")
@@ -367,4 +404,10 @@ def build_request_expectations(
         "_oracle_expected_db_record_id": expected_db_record_id,
         "_oracle_expected_db_append_id": expected_db_append_id,
         "_oracle_expected_db_filter": expected_db_filter,
+        "_oracle_expected_bpe_workspace_id": expected_bpe_workspace_id,
+        "_oracle_expected_bpe_agent_id": expected_bpe_agent_id,
+        "_oracle_expected_bpe_scope_key": expected_bpe_scope_key,
+        "_oracle_expected_bpe_actor_id": expected_bpe_actor_id,
+        "_oracle_expected_bpe_material": expected_bpe_material,
+        "_oracle_expected_bpe_material_sha256": expected_bpe_material_sha256,
     }

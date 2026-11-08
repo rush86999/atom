@@ -976,9 +976,12 @@ class GenericAgent:
                 if _bpe_scope[0]:
                     _ws = _get_ws(*_bpe_scope)
                     _success = status in _SUCCESS_STATUSES
+                    # Success promotes the verified fact. An unresolved/failed
+                    # run preserves its pending notes for honest recovery —
+                    # dropping them here silently destroyed a landed note.
                     _bpe_consolidated = (
                         consolidate_workspace_notes(_ws) if _success
-                        else {"dropped_notes": len(_ws.drain_pending_notes())}
+                        else {"preserved_notes": len(_ws._pending_notes)}
                     )
                     _policy = get_consult_policy()
                     _policy.record_consult_mix(str(self.id), _ws.episode_commit_notes)
@@ -1919,6 +1922,24 @@ What is your next step?"""
             )
 
             request_sha256 = approved_payload_sha256(authorized)
+        bpe_scope = None
+        if str(tool_name or "") in ("workspace.note", "workspace.commit"):
+            try:
+                from core.bpe.actions import resolve_scope
+
+                resolved, _denial = resolve_scope(context or {})
+                if resolved:
+                    bpe_scope = {
+                        "workspace_id": str(
+                            resolved.get("workspace_id") or ""),
+                        "agent_id": str(resolved.get("agent_id") or ""),
+                        "scope_key": str(resolved.get("scope_key") or ""),
+                        "user_id": str(resolved.get("user_id") or ""),
+                    }
+            except Exception as exc:  # noqa: BLE001 - honest uncertainty
+                logger.debug(
+                    "bpe request scope freeze skipped for %s: %s",
+                    tool_name, type(exc).__name__)
         try:
             return build_request_expectations(
                 tool_name,
@@ -1929,6 +1950,7 @@ What is your next step?"""
                 actor_id=identity["actor_id"],
                 agent_id=identity["agent_id"],
                 request_sha256=request_sha256,
+                bpe_scope=bpe_scope,
             )
         except Exception as exc:  # noqa: BLE001 - honest uncertainty
             logger.debug(

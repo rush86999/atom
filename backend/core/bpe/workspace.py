@@ -22,6 +22,7 @@ instances by ``(workspace_id, agent_id, scope_key)``.
 """
 from __future__ import annotations
 
+import copy
 import inspect
 import logging
 import time
@@ -40,6 +41,10 @@ RECALL_TOP_K = 3
 MAX_NOTE_CHARS = 400
 MAX_BELIEF_SUMMARY_CHARS = 800
 MAX_RENDER_CHARS = 2400
+# Bounded durable receipts for producer-verified harness mutations. These are
+# ordinary workspace state (serialized through to_dict/from_dict), not a new
+# store: the postcondition verifier re-reads them from the existing JSON file.
+MAX_OPERATION_RECEIPTS = 64
 
 # Tunable workspace bounds — the AlphaEvolve-lite genome (core/bpe/evolution.py
 # searches over these offline; set_active_bounds applies an approved genome).
@@ -253,6 +258,10 @@ class BPEWorkspace:
         )
         self.adapter: Any = None  # BPEAdapter; late-bound to avoid cycles
         self._pending_notes: List[str] = []
+        # Producer-owned durable bindings for harness mutations. A receipt is
+        # written only after the effect lands in this workspace and is then
+        # persisted; the oracle re-reads it from disk independently.
+        self.operation_receipts: List[Dict[str, Any]] = []
         # Per-episode consult counters (consult_policy feedback signal).
         self.episode_consults = 0
         self.episode_commit_notes = 0
@@ -356,6 +365,45 @@ class BPEWorkspace:
         notes, self._pending_notes = self._pending_notes, []
         return notes
 
+    def record_operation_receipt(
+        self, receipt: Optional[Dict[str, Any]]
+    ) -> Optional[Dict[str, Any]]:
+        """Keep one bounded, producer-owned receipt per exact operation.
+
+        Duplicate operation ids are idempotent: the first receipt wins, so a
+        retry cannot rewrite the binding for an operation that already landed.
+        """
+        if not isinstance(receipt, dict):
+            return None
+        normalized = copy.deepcopy(receipt)
+        operation_id = str(normalized.get("operation_id") or "").strip()
+        action = str(normalized.get("action") or "").strip()
+        if not operation_id or not action:
+            return None
+        existing = self.find_operation_receipt(action, operation_id)
+        if existing is not None:
+            return existing
+        self.operation_receipts.append(normalized)
+        if len(self.operation_receipts) > MAX_OPERATION_RECEIPTS:
+            del self.operation_receipts[:-MAX_OPERATION_RECEIPTS]
+        return normalized
+
+    def find_operation_receipt(
+        self, action: str, operation_id: str
+    ) -> Optional[Dict[str, Any]]:
+        """The durable receipt for one exact (action, operation), if any."""
+        action = str(action or "")
+        operation_id = str(operation_id or "")
+        if not action or not operation_id:
+            return None
+        for receipt in reversed(self.operation_receipts):
+            if (
+                str(receipt.get("action") or "") == action
+                and str(receipt.get("operation_id") or "") == operation_id
+            ):
+                return receipt
+        return None
+
     def reset_episode_counters(self) -> None:
         """Start a fresh episode (called at run start by the agent loop)."""
         self.episode_consults = 0
@@ -405,6 +453,10 @@ class BPEWorkspace:
             "progress": [s.to_dict() for s in self.progress],
             "pending_notes": list(self._pending_notes),
             "experience": self.experience.to_dict(),
+            "operation_receipts": [
+                copy.deepcopy(receipt)
+                for receipt in self.operation_receipts
+            ],
         }
 
     @classmethod
@@ -419,6 +471,11 @@ class BPEWorkspace:
         ws.progress = ws.progress[:int(ws.bounds.get("max_subgoals", MAX_SUBGOALS))]
         ws._pending_notes = [str(n)[:MAX_NOTE_CHARS] for n in (data.get("pending_notes") or [])]
         ws.experience = ExperienceStore.from_dict(data.get("experience"))
+        ws.operation_receipts = [
+            copy.deepcopy(receipt)
+            for receipt in (data.get("operation_receipts") or [])
+            if isinstance(receipt, dict)
+        ][-MAX_OPERATION_RECEIPTS:]
         return ws
 
 

@@ -163,3 +163,212 @@ author.
 - No fsync/durability guarantee and no multi-process locking semantics.
 - Oracle note honesty, broader BPE/Oracle gaps, and principal/workspace scope
   work remain untouched and are not claimed fixed.
+
+---
+
+# LEAD_REVIEW — finite BPE note/commit outcome repair
+
+Status: **AUTHOR-ONLY / NOT EXECUTED**. No product code, pytest, server,
+model, provider, install, or credential/env inspection was performed. Root owns
+all runtime gates and acceptance. Nothing here is a self-acceptance claim.
+
+## Root negative being closed
+
+Root's confirmed evidence (`/private/tmp/root-workspace-note-independent-main27a.log`,
+original probe copied locally as `ROOT_NOTE_PROBE.py`):
+
+- a legitimate `workspace.note` really lands in the scoped BPE buffer;
+- the normal Generic consumer has no registered postcondition verifier, so it
+  rewrites the landed observation to `status=uncertain`,
+  `requires_reconciliation=True`, marks the durable claim `uncertain_effect`;
+- the episode close-out then **drains/drops** the pending note;
+- an empty note refusal is also relabelled `uncertain` instead of staying a
+  proven pre-effect no-effect.
+
+`Original2FAIL5PASS5SKIP` is historical context, not a result of this branch.
+
+## What changed and why
+
+### 1. Producer-owned durable receipt inside existing BPE state
+
+`backend/core/bpe/workspace.py`
+
+- `BPEWorkspace` now carries a bounded `operation_receipts` list
+  (`MAX_OPERATION_RECEIPTS = 64`) with `record_operation_receipt()` /
+  `find_operation_receipt()`.
+- Receipts are ordinary workspace state: they serialize through the existing
+  `to_dict`/`from_dict` and therefore through the existing per-workspace JSON
+  file (`core/bpe/persistence.py`). No new DB, table, store, or router.
+- Duplicate `(action, operation_id)` receipts are idempotent: the first
+  receipt wins, so a retry cannot rewrite the binding.
+
+`backend/core/bpe/actions.py`
+
+- Added canonical material helpers shared by producer, request freeze, and
+  verifier: `canonical_note_content`, `canonical_commit_material`,
+  `note_material`, `bpe_material_sha256`.
+- `workspace.note` and `workspace.commit`, when they run with a server-owned
+  `operation_id`, now record a receipt binding:
+  `operation_id`, `action`, `workspace_id`, `agent_id`, `scope_key`,
+  `actor_id` (when the scope has an authenticated principal), canonical
+  `material`, `material_sha256`, and for commit the resolved subgoal title.
+- The receipt is written through the existing `BPEWorkspaceStore.save()`.
+  Persistence failure is not hidden: the file has no receipt, so the oracle
+  below refuses to certify and the consumer stays uncertain.
+- Empty note and invalid/empty commit material are validated **before**
+  workspace creation or authority claim and return a typed
+  `action_result=not_applied`, `effect_possible=False` envelope. They remain
+  proven no-effect refusals, not uncertainty.
+- The successful handler result shape is deliberately unchanged (note still
+  returns `{success, buffered}`; commit retains its historical result), which
+  preserves older diagnostics that assert the exact shape.
+
+### 2. Server-frozen scope/material without model authority
+
+`backend/core/oracle/request_expectations.py`
+
+- `build_request_expectations(..., bpe_scope=...)` adds
+  `_oracle_expected_bpe_{workspace_id,agent_id,scope_key,actor_id,material,
+  material_sha256}` for `workspace.note` / `workspace.commit`.
+- The material is the canonical producer transform (strip + 400-char cap for
+  notes; stripped/200-char title + status for commits), so a changed request
+  cannot compare equal.
+- The namespace comes from the caller's server-resolved `bpe_scope`, never
+  from model-visible arguments. `GenericAgent` passes it only after
+  `core.bpe.actions.resolve_scope(context)` succeeds.
+
+`backend/core/generic_agent.py`
+
+- `_frozen_request_expectations` resolves the BPE namespace from the trusted
+  dispatch context for these two actions and passes it to the shared builder.
+  This is the same resolution used by prompt render and close-out, so the
+  handler, oracle, and close-out address one namespace.
+
+### 3. Independent readback verifier
+
+`backend/core/oracle/postcondition_verifiers.py`
+
+- Registered `workspace.note` and `workspace.commit` postconditions.
+- The verifier ignores the tool result envelope. It re-loads the persisted
+  workspace JSON from disk using the **frozen** workspace/agent/run and:
+  - requires a receipt for the exact action + operation id;
+  - compares receipt operation, workspace, agent, run/scope, actor, material,
+    and material digest against the frozen request (partial receipts fail);
+  - for notes, requires the exact content to be present in reloaded
+    pending notes (or consolidated Experience, so a post-consolidation replay
+    still re-reads the same fact);
+  - for commits, requires the authorized subgoal/status in reloaded Progress.
+- A prior same-content note, wrong user/workspace/agent/run, changed material,
+  missing/partial receipt, forged output echo, or in-memory-only state cannot
+  certify the request.
+
+### 4. Honest close-out
+
+`backend/core/generic_agent.py`, `backend/core/atom_meta_agent.py`
+
+- Successful runs still call the normal `consolidate_workspace_notes()`.
+- Failed/unresolved runs now **preserve** pending notes
+  (`{"preserved_notes": n}`) instead of draining the only copy. This is what
+  keeps a landed-but-unconfirmed note recoverable.
+- Success is still decided by the existing public finalization join; a
+  harness-note receipt never substitutes for a completed business objective.
+
+## Existing mechanisms reused (no parallel implementation)
+
+- Unified action registry (`core.action_registry`) — same registration/dispatch.
+- Existing `TaskOperationRecord` claim (`core.outbound_operation_claim` via
+  `GenericAgent`) — exact retry/no second dispatch, changed-material conflict,
+  uncertain-no-resend. The producer receipt is file state; the claim is DB
+  state. The code does **not** claim a cross-store atomic commit.
+- Existing postcondition oracle contract (`core.oracle`) — independent
+  readback, no self-grading.
+- Existing BPE JSON persistence (`core/bpe/persistence.py`) — file-based local
+  storage remains first-class, with root/backend path anchoring untouched.
+- Existing shared request-expectation builder (`core.oracle.request_expectations`)
+  — one server-owned freeze path for Generic and the assignment adapter.
+- Actor binding is enforced in two layers: the durable `TaskOperationRecord`
+  claim includes actor identity for every Generic operation; the file receipt
+  also records the authenticated principal when the BPE scope has one
+  (server-bound agent runs may legitimately have no user principal).
+
+Research citation used by root: LangGraph persistence guidance separates thread
+checkpoints from scoped durable shared information
+(https://docs.langchain.com/oss/python/langgraph/persistence). This informed
+the "exact operation/run receipt re-read from durable state, not the model's
+message/result" split. No LangGraph dependency or proof is claimed.
+
+## Control inventory (authored, NOT executed)
+
+`backend/tests/test_bpe_note_commit_outcome.py`
+
+Failure-first / root-negative twins:
+
+1. `test_landed_note_is_independently_verified_then_consolidated` — landed note
+   is `success` + `oracle_verified`, claim `succeeded`, durable receipt exists,
+   real consolidation promotes it, reloaded store has Experience.
+2. `test_empty_note_is_a_pre_effect_refusal` — no append, typed
+   `not_applied`, claim `failed_before_effect`, no uncertainty ledger.
+3. `test_commit_without_title_or_with_invalid_status_is_pre_effect` — same
+   refusal posture for commit, Progress unchanged.
+4. `test_persistence_failure_stays_uncertain_and_preserves_the_note` — save
+   failure keeps uncertainty, `uncertain_effect`, and the in-memory note.
+5. `test_execute_closeout_preserves_unresolved_note` — real `execute()` with a
+   first-write persistence failure: status remains `uncertain`, close-out
+   reports `preserved_notes`, and the second real write leaves the note
+   recoverable in the durable file.
+
+Valid twins / negative proof:
+
+6. `test_registered_shape_and_read_twin_stay_usable` — real registrations and
+   verifier presence; `workspace.track` read twin unaffected.
+7. `test_exact_retry_replays_without_duplicating_the_note` — same operation is
+   replayed; handler called once; one pending note; verified.
+8. `test_commit_is_verified_persisted_and_status_update_is_read_back` — commit
+   add + status update both verified against reloaded Progress.
+9. `test_prior_same_content_without_this_operation_receipt_is_not_proof`.
+10. `test_forged_result_echo_cannot_certify_without_durable_state`.
+11. `test_wrong_operation_scope_or_principal_receipt_is_refuted` — operation,
+    workspace, agent, run, and actor bindings, parameterized.
+12. `test_changed_material_for_same_operation_is_refuted`.
+13. `test_partial_receipt_is_refuted`.
+14. `test_in_memory_only_state_is_not_durable_proof`.
+15. `test_commit_changed_material_same_operation_is_refuted`.
+16. `test_durable_readback_shape_is_plain_json` — proof lives in the existing
+    BPE JSON file, not a new store.
+
+The tests use real scratch SQLite claims, the real action registry, the real
+Generic outcome consumer, and the real BPE JSON store. They do not monkeypatch
+an oracle verdict flag.
+
+## Integration / remaining limits (honest)
+
+- **Single-writer file semantics remain.** `BPEWorkspaceStore` is a whole-file
+  read/modify/write JSON store. A concurrent writer can still last-writer-win.
+  The receipt makes the *observed* operation provable after the write; it does
+  not make the DB claim and file write atomic. Reconcile from the durable claim
+  + file; do not assume cross-store atomicity.
+- **Broader-than-HITL boundary not re-proved here.** Tests isolate the outcome
+  consumer with `pre_approved=True`, matching the existing mutation-contract
+  suite; governance/HITL behavior is unchanged and out of scope.
+- **PostgreSQL / multiworker / fsync / soak remain unqualified** as stated by
+  the work order. Only local SQLite scratch claim behavior and local JSON file
+  readback are covered by these controls.
+- **Legacy callers without a server-owned operation id** keep the historical
+  in-memory behavior (no receipt, no oracle proof). The normal Generic
+  dispatch path always supplies/mints one for declared mutations.
+- **Consolidation failure after a verified note** still follows the existing
+  consolidator contract; the new verifier proves the note landed and the note
+  is preserved on non-success, but it does not invent a second retry engine.
+- The assignment adapter only gets BPE proof if it supplies `bpe_scope`; this
+  change did not broaden provider/send/spend/deployment authority.
+
+## Falsifiable result
+
+On this branch, a root run of the work order's external probe should lose both
+historical failures: `test_landed_note_must_not_force_uncertain_or_drop_the_note`
+and `test_empty_note_is_a_pre_effect_refusal` should pass, while the 5 PASS / 5
+SKIP valid twins remain intact. If any landed note still reports `uncertain`,
+or an empty note still reports `uncertain`, or the note is dropped after an
+unresolved run, this repair failed. Conversely, if a prior same-content note,
+wrong scope/actor, changed material, partial receipt, or forged result echo is
+accepted as verified, the verifier is too weak and this repair failed.
