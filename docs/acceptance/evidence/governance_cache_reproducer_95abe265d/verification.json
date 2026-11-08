@@ -1,0 +1,31 @@
+{
+  "executed_source": "95abe265d5efee562ce363407bb2f69034cb397c",
+  "tests": {
+    "py311": 33,
+    "py314": 33
+  },
+  "measurement_summary": {
+    "py311": {
+      "empty_miss": {
+        "median_ops_per_second": 2500791.8757474553,
+        "p99_ns": 458
+      },
+      "warm_hit": {
+        "median_ops_per_second": 1759511.421683645,
+        "p99_ns": 667
+      }
+    },
+    "py314": {
+      "empty_miss": {
+        "median_ops_per_second": 6234203.696745641,
+        "p99_ns": 250
+      },
+      "warm_hit": {
+        "median_ops_per_second": 3926778.769917702,
+        "p99_ns": 334
+      }
+    }
+  },
+  "scope": "cache-only method reproducer; not full governance or universal performance",
+  "author": "native OpenCode Go DeepSeek V4.1 Flash; root runtime verification"
+}
