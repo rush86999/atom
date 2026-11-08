@@ -36,6 +36,40 @@ KNOWN_EFFECTS = MUTATING_EFFECTS | KNOWN_NON_MUTATING_EFFECTS
 
 VALID_SCOPES = frozenset({"local", "external"})
 
+#: Producer-owned marker for a terminal actor/scope authority denial.
+#: Unlike an argument/validation error, this cannot be repaired by replanning
+#: inside the same admitted namespace: the actor or its scope is no longer
+#: authorized. Only the producer may set it; consumers must use this typed
+#: field (never message text or an action name) to stop continuation.
+TERMINAL_AUTHORITY_DENIAL_FIELD = "terminal_authority_denial"
+
+
+def is_terminal_authority_denial(result: Any) -> bool:
+    """True only for an explicit producer-owned authority denial envelope."""
+    return (
+        isinstance(result, dict)
+        and result.get(TERMINAL_AUTHORITY_DENIAL_FIELD) is True
+    )
+
+
+def terminal_authority_denial(result: Any) -> Optional[dict]:
+    """Compact typed description of a terminal authority denial, or ``None``.
+
+    The caller keeps the original result envelope/receipt. This helper only
+    extracts the closed vocabulary fields so a lifecycle consumer never has
+    to inspect human-readable messages.
+    """
+    if not is_terminal_authority_denial(result):
+        return None
+    return {
+        "denial_kind": str(result.get("denial_kind") or "")[:120],
+        "denial_scope": str(result.get("denial_scope") or "")[:120],
+        "code": str(
+            result.get("error") or result.get("denial_code") or ""
+        )[:120],
+    }
+
+
 
 def _raw_declaration(effects_or_action: Any) -> Any:
     if hasattr(effects_or_action, "effects"):

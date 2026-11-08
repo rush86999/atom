@@ -412,6 +412,322 @@ author.
 
 ---
 
+# LEAD_REVIEW — finite BPE note/commit outcome repair
+
+Status: **AUTHOR-ONLY / NOT EXECUTED**. No product code, pytest, server,
+model, provider, install, or credential/env inspection was performed. Root owns
+all runtime gates and acceptance. Nothing here is a self-acceptance claim.
+
+## Root negative being closed
+
+Root's confirmed evidence (`/private/tmp/root-workspace-note-independent-main27a.log`,
+original probe copied locally as `ROOT_NOTE_PROBE.py`):
+
+- a legitimate `workspace.note` really lands in the scoped BPE buffer;
+- the normal Generic consumer has no registered postcondition verifier, so it
+  rewrites the landed observation to `status=uncertain`,
+  `requires_reconciliation=True`, marks the durable claim `uncertain_effect`;
+- the episode close-out then **drains/drops** the pending note;
+- an empty note refusal is also relabelled `uncertain` instead of staying a
+  proven pre-effect no-effect.
+
+`Original2FAIL5PASS5SKIP` is historical context, not a result of this branch.
+
+## What changed and why
+
+### 1. Producer-owned durable receipt inside existing BPE state
+
+`backend/core/bpe/workspace.py`
+
+- `BPEWorkspace` now carries a bounded `operation_receipts` list
+  (`MAX_OPERATION_RECEIPTS = 64`) with `record_operation_receipt()` /
+  `find_operation_receipt()`.
+- Receipts are ordinary workspace state: they serialize through the existing
+  `to_dict`/`from_dict` and therefore through the existing per-workspace JSON
+  file (`core/bpe/persistence.py`). No new DB, table, store, or router.
+- Duplicate `(action, operation_id)` receipts are idempotent: the first
+  receipt wins, so a retry cannot rewrite the binding.
+
+`backend/core/bpe/actions.py`
+
+- Added canonical material helpers shared by producer, request freeze, and
+  verifier: `canonical_note_content`, `canonical_commit_material`,
+  `note_material`, `bpe_material_sha256`.
+- `workspace.note` and `workspace.commit`, when they run with a server-owned
+  `operation_id`, now record a receipt binding:
+  `operation_id`, `action`, `workspace_id`, `agent_id`, `scope_key`,
+  `actor_id` (when the scope has an authenticated principal), canonical
+  `material`, `material_sha256`, and for commit the resolved subgoal title.
+- The receipt is written through the existing `BPEWorkspaceStore.save()`.
+  Persistence failure is not hidden: the file has no receipt, so the oracle
+  below refuses to certify and the consumer stays uncertain.
+- Empty note and invalid/empty commit material are validated **before**
+  workspace creation or authority claim and return a typed
+  `action_result=not_applied`, `effect_possible=False` envelope. They remain
+  proven no-effect refusals, not uncertainty.
+- The successful handler result shape is deliberately unchanged (note still
+  returns `{success, buffered}`; commit retains its historical result), which
+  preserves older diagnostics that assert the exact shape.
+
+### 2. Server-frozen scope/material without model authority
+
+`backend/core/oracle/request_expectations.py`
+
+- `build_request_expectations(..., bpe_scope=...)` adds
+  `_oracle_expected_bpe_{workspace_id,agent_id,scope_key,actor_id,material,
+  material_sha256}` for `workspace.note` / `workspace.commit`.
+- The material is the canonical producer transform (strip + 400-char cap for
+  notes; stripped/200-char title + status for commits), so a changed request
+  cannot compare equal.
+- The namespace comes from the caller's server-resolved `bpe_scope`, never
+  from model-visible arguments. `GenericAgent` passes it only after
+  `core.bpe.actions.resolve_scope(context)` succeeds.
+
+`backend/core/generic_agent.py`
+
+- `_frozen_request_expectations` resolves the BPE namespace from the trusted
+  dispatch context for these two actions and passes it to the shared builder.
+  This is the same resolution used by prompt render and close-out, so the
+  handler, oracle, and close-out address one namespace.
+
+### 3. Independent readback verifier
+
+`backend/core/oracle/postcondition_verifiers.py`
+
+- Registered `workspace.note` and `workspace.commit` postconditions.
+- The verifier ignores the tool result envelope. It re-loads the persisted
+  workspace JSON from disk using the **frozen** workspace/agent/run and:
+  - requires a receipt for the exact action + operation id;
+  - compares receipt operation, workspace, agent, run/scope, actor, material,
+    and material digest against the frozen request (partial receipts fail);
+  - for notes, requires the exact content to be present in reloaded
+    pending notes (or consolidated Experience, so a post-consolidation replay
+    still re-reads the same fact);
+  - for commits, requires the authorized subgoal/status in reloaded Progress.
+- A prior same-content note, wrong user/workspace/agent/run, changed material,
+  missing/partial receipt, forged output echo, or in-memory-only state cannot
+  certify the request.
+
+### 4. Honest close-out
+
+`backend/core/generic_agent.py`, `backend/core/atom_meta_agent.py`
+
+- Successful runs still call the normal `consolidate_workspace_notes()`.
+- Failed/unresolved runs now **preserve** pending notes
+  (`{"preserved_notes": n}`) instead of draining the only copy. This is what
+  keeps a landed-but-unconfirmed note recoverable.
+- Success is still decided by the existing public finalization join; a
+  harness-note receipt never substitutes for a completed business objective.
+
+## Existing mechanisms reused (no parallel implementation)
+
+- Unified action registry (`core.action_registry`) — same registration/dispatch.
+- Existing `TaskOperationRecord` claim (`core.outbound_operation_claim` via
+  `GenericAgent`) — exact retry/no second dispatch, changed-material conflict,
+  uncertain-no-resend. The producer receipt is file state; the claim is DB
+  state. The code does **not** claim a cross-store atomic commit.
+- Existing postcondition oracle contract (`core.oracle`) — independent
+  readback, no self-grading.
+- Existing BPE JSON persistence (`core/bpe/persistence.py`) — file-based local
+  storage remains first-class, with root/backend path anchoring untouched.
+- Existing shared request-expectation builder (`core.oracle.request_expectations`)
+  — one server-owned freeze path for Generic and the assignment adapter.
+- Actor binding is enforced in two layers: the durable `TaskOperationRecord`
+  claim includes actor identity for every Generic operation; the file receipt
+  also records the authenticated principal when the BPE scope has one
+  (server-bound agent runs may legitimately have no user principal).
+
+Research citation used by root: LangGraph persistence guidance separates thread
+checkpoints from scoped durable shared information
+(https://docs.langchain.com/oss/python/langgraph/persistence). This informed
+the "exact operation/run receipt re-read from durable state, not the model's
+message/result" split. No LangGraph dependency or proof is claimed.
+
+## Control inventory (authored, NOT executed)
+
+`backend/tests/test_bpe_note_commit_outcome.py`
+
+Failure-first / root-negative twins:
+
+1. `test_landed_note_is_independently_verified_then_consolidated` — landed note
+   is `success` + `oracle_verified`, claim `succeeded`, durable receipt exists,
+   real consolidation promotes it, reloaded store has Experience.
+2. `test_empty_note_is_a_pre_effect_refusal` — no append, typed
+   `not_applied`, claim `failed_before_effect`, no uncertainty ledger.
+3. `test_commit_without_title_or_with_invalid_status_is_pre_effect` — same
+   refusal posture for commit, Progress unchanged.
+4. `test_persistence_failure_stays_uncertain_and_preserves_the_note` — save
+   failure keeps uncertainty, `uncertain_effect`, and the in-memory note.
+5. `test_execute_closeout_preserves_unresolved_note` — real `execute()` with a
+   first-write persistence failure: status remains `uncertain`, close-out
+   reports `preserved_notes`, and the second real write leaves the note
+   recoverable in the durable file.
+
+Valid twins / negative proof:
+
+6. `test_registered_shape_and_read_twin_stay_usable` — real registrations and
+   verifier presence; `workspace.track` read twin unaffected.
+7. `test_exact_retry_replays_without_duplicating_the_note` — same operation is
+   replayed; handler called once; one pending note; verified.
+8. `test_commit_is_verified_persisted_and_status_update_is_read_back` — commit
+   add + status update both verified against reloaded Progress.
+9. `test_prior_same_content_without_this_operation_receipt_is_not_proof`.
+10. `test_forged_result_echo_cannot_certify_without_durable_state`.
+11. `test_wrong_operation_scope_or_principal_receipt_is_refuted` — operation,
+    workspace, agent, run, and actor bindings, parameterized.
+12. `test_changed_material_for_same_operation_is_refuted`.
+13. `test_partial_receipt_is_refuted`.
+14. `test_in_memory_only_state_is_not_durable_proof`.
+15. `test_commit_changed_material_same_operation_is_refuted`.
+16. `test_durable_readback_shape_is_plain_json` — proof lives in the existing
+    BPE JSON file, not a new store.
+
+The tests use real scratch SQLite claims, the real action registry, the real
+Generic outcome consumer, and the real BPE JSON store. They do not monkeypatch
+an oracle verdict flag.
+
+## Integration / remaining limits (honest)
+
+- **Single-writer file semantics remain.** `BPEWorkspaceStore` is a whole-file
+  read/modify/write JSON store. A concurrent writer can still last-writer-win.
+  The receipt makes the *observed* operation provable after the write; it does
+  not make the DB claim and file write atomic. Reconcile from the durable claim
+  + file; do not assume cross-store atomicity.
+- **Broader-than-HITL boundary not re-proved here.** Tests isolate the outcome
+  consumer with `pre_approved=True`, matching the existing mutation-contract
+  suite; governance/HITL behavior is unchanged and out of scope.
+- **PostgreSQL / multiworker / fsync / soak remain unqualified** as stated by
+  the work order. Only local SQLite scratch claim behavior and local JSON file
+  readback are covered by these controls.
+- **Legacy callers without a server-owned operation id** keep the historical
+  in-memory behavior (no receipt, no oracle proof). The normal Generic
+  dispatch path always supplies/mints one for declared mutations.
+- **Consolidation failure after a verified note** still follows the existing
+  consolidator contract; the new verifier proves the note landed and the note
+  is preserved on non-success, but it does not invent a second retry engine.
+- The assignment adapter only gets BPE proof if it supplies `bpe_scope`; this
+  change did not broaden provider/send/spend/deployment authority.
+
+## Falsifiable result
+
+On this branch, a root run of the work order's external probe should lose both
+historical failures: `test_landed_note_must_not_force_uncertain_or_drop_the_note`
+and `test_empty_note_is_a_pre_effect_refusal` should pass, while the 5 PASS / 5
+SKIP valid twins remain intact. If any landed note still reports `uncertain`,
+or an empty note still reports `uncertain`, or the note is dropped after an
+unresolved run, this repair failed. Conversely, if a prior same-content note,
+wrong scope/actor, changed material, partial receipt, or forged result echo is
+accepted as verified, the verifier is too weak and this repair failed.
+
+---
+
+# LEAD REVIEW — root integration rerun at `eb3e2168b` (test-double + isolation repair)
+
+Status: **AUTHOR-ONLY / NOT EXECUTED**. Root ran the integrated module plus the
+original external probe at `eb3e2168b` and retained
+`/private/tmp/root-bpe-note-eb3-independent.log`: **2 failed, 25 passed,
+5 skipped**. This section records the two failures, the trace, and the
+test-only repair. No production source changed in this round.
+
+## Failure 1 — exact-retry test double rejected the real call signature
+
+Observed: `test_exact_retry_replays_without_duplicating_the_note` failed on the
+first `oracle_verified` assertion with an `uncertain` envelope before the
+handler was reached.
+
+Trace: the production consumer invokes the MCP leaf as
+`self.mcp.call_tool(tool_name, copy.deepcopy(authorized),
+context=handler_context)`. The authored double was
+`async def leaf(tool, arguments, inner_context=None)`, so the `context=`
+keyword raised `TypeError` after `dispatch_started=True`. The post-dispatch
+exception path correctly treated that as ambiguous and exposed `uncertain`.
+
+Repair: **test double only**. The leaf now accepts
+`async def leaf(tool, arguments, context=None)` and forwards that context to
+the real registry. The exact-retry business assertions are unchanged: first
+result independently verified, one handler call, second result replayed with
+no second dispatch, one pending note, claim `succeeded`.
+
+## Failure 2 — external probe storage isolation (documented, probe unchanged)
+
+Observed: external
+`test_note_material_is_stripped_and_truncated_to_400` saw
+`{'success': True, 'buffered': 2}`.
+
+Trace: the external probe's autouse fixture calls `reset_registry()` but does
+not bind `bpe_persistence.DATA_DIR`. `reset_registry()` only clears the
+process cache; the next `get_workspace()` lazily restores the durable JSON
+snapshot. The probe's earlier landed-note control persists to the default
+store at the same `(workspace, agent, session)` keys, so the material control
+restores that pending note and appends a second one.
+
+Decision: the original external author-only probe stays unchanged. Clearing
+pending notes on `reset_registry()` or otherwise wiping production state would
+be broad production behavior change and is explicitly rejected. The correct
+fix is per-test storage isolation in the probe fixture (bind
+`bpe_persistence.DATA_DIR` to a `tmp_path`), which root can apply separately
+if desired.
+
+Our module now does exactly that in its own autouse fixture and adds permanent
+controls:
+
+- `test_per_test_storage_isolation_binds_the_store_to_tmp_path` — every case
+  binds `DATA_DIR` to this test's `tmp_path`, and another test's scope is
+  invisible.
+- `test_reset_registry_restores_only_the_current_isolated_store` — restore is
+  real, but only from this test's root.
+- `test_note_material_transform_is_isolated_like_the_external_probe` — the
+  external transform reports `buffered=1` under isolation.
+- `test_shared_store_without_storage_isolation_would_restore_prior_buffer` —
+  reproduces the external probe's `buffered=2` sequence under a temporary
+  shared root only; it documents why fixture isolation, not production
+  clearing, is the remedy.
+
+Expected root behavior after this commit: our module no longer leaks into any
+default store. The external probe's own material control remains subject to
+its unchanged fixture if it is run after its own persisted-note control in a
+shared store; that is disclosed here rather than hidden by production code.
+
+## New current-User / DB-session authority controls
+
+Traced consumers: `api/rpc_routes.call_action` builds
+`{"user", "user_id", "db"}` from the authenticated dependency;
+`core.bpe.actions.resolve_scope` branch 1 re-reads that User row
+(`_fresh_active_user`), builds the canonical `user:<id>` namespace
+(`_build_user_scope`), and refuses a presented row whose workspace no longer
+matches current authority. The handler then claims the principal inside the
+write transaction; the receipt records `actor_id` when the scope has one.
+
+Added real scratch `Tenant` / `Workspace` / `User` controls (no fake actor
+strings, no authority weakening):
+
+- `test_current_user_authority_accepts_active_actor_through_registered_handler`
+  — active current User + fresh DB session, RPC-shaped context, real handler
+  append/persist, `user:<id>` scope, receipt `actor_id` bound to the principal.
+- `test_current_user_authority_refuses_without_a_db_session` — User object but
+  no DB session → `scope_principal_unverified`, typed no-effect, no buffer or
+  durable state.
+- `test_current_user_authority_refuses_stale_workspace_after_change` — a
+  detached stale User row presented with a fresh DB session after the current
+  row moved to another real Workspace → `scope_authority_changed`, typed
+  no-effect in both old and new namespaces.
+
+These are authority controls, not replacements for the existing
+`pre_approved=True` outcome-consumer matrix; the latter still isolates
+governance while the new controls exercise real current-User re-read and
+refusal behavior.
+
+## Round-2 falsifiable result
+
+- `test_exact_retry_replays_without_duplicating_the_note` should now pass with
+  the original business assertions.
+- Every case in `test_bpe_note_commit_outcome.py` should run without touching
+  the repository default BPE store; the isolation controls should pass.
+- The new real-User controls should pass: active current principal accepted;
+  missing DB and changed workspace refused with typed no-effect.
+- The external material control is expected to remain a fixture-isolation
+  issue unless its own runner binds `DATA_DIR` per test; it is not repaired by
+  changing production restore/clear semantics.
 # LEAD REVIEW — persisted BPE namespace identity (finite)
 
 Status: **AUTHOR-ONLY / NOT EXECUTED**. No product code, pytest, server,
@@ -721,6 +1037,280 @@ current-principal controls are unchanged.
 
 ---
 
+# LEAD REVIEW — admitted governance tier + current BPE actor (finite stage)
+
+Status: **AUTHOR-ONLY / NOT EXECUTED**. No Python, pytest, app, server, model,
+provider, install, migration, live data or credential action was run here.
+Root owns runtime gates and acceptance. Nothing here is a self-acceptance
+claim.
+
+## Root-confirmed defects being closed
+
+1. `admit_agent_run()` CASed `AgentRegistry.status` to `running`, then
+   `GenericAgent._execute_impl()` re-read that transient row and froze it as
+   `tier_at_issuance`. The sandbox correctly treats `running` as unknown and
+   fell back to `student`, refusing the real `workspace.note` leaf.
+2. A server-bound admitted BPE action carried no current-actor verification
+   when the long-lived dispatch context had no DB session. The actor could
+   therefore not be re-read as disabled/moved between admission and effect.
+
+## Repair — server-owned tier
+
+`backend/core/governance_tier.py` (normalisation helper only, not a policy
+engine/store/table):
+
+- canonical tiers are exactly `student/intern/supervised/autonomous`;
+- `running`/`idle`/`success`/other runtime labels are never a tier;
+- `effective_governance_tier()` only narrows: an issued tier is a ceiling, a
+  current lower canonical tier wins, a disabled row fails closed to `student`,
+  and unknown material produces an explicit restricted/unverified source.
+
+`backend/core/agent_decision_write_service.py`:
+
+- captures canonical maturity **before** the status CAS;
+- persists `governance_tier`, `governance_tier_source` and raw `prior_status`
+  in the existing `AgentJob.result_summary` and admission `AuditLog.extra`;
+- does **not** newly reject legacy `idle`/`success` labels. Those are admitted
+  under an explicit `legacy_unverified` marker; dispatch then applies the
+  student ceiling. No autonomous tier is inferred from runtime state or
+  confidence.
+
+`backend/api/agent_routes.py`:
+
+- `_TRUSTED_CONTEXT_KEYS` now reserves `tier`, `tier_at_issuance`,
+  `governance_tier`, `governance_tier_source`, `_trusted_governance_tier`,
+  `provenance`, `canvas_provenance` and `_bpe_principal_scope`; request-body
+  values are overwritten from the durable namespace (not `setdefault`);
+- `_admitted_governance_tier()` reconciles new job material against the
+  admission receipt. New jobs must agree on tier/source/prior status. Legacy
+  jobs reconcile only an existing canonical receipt `prior_status` or a
+  current canonical registry row; otherwise they carry an explicit restricted
+  legacy marker, never a fabricated issued tier.
+- dispatch and resume fail closed with `governance_tier_unverified` only on
+  contradictory/tampered material; the job and agent status are settled and
+  restored through the existing finalizers.
+
+`backend/core/generic_agent.py`:
+
+- the transient `running` row is no longer used as a tier;
+- only the server-bound `_trusted_governance_tier` is accepted as issued
+  authority, then current demotion/revocation narrows it;
+- `_run_maturity` (custom-action discovery) now uses that same resolved tier,
+  not the execution-state row.
+
+`backend/core/atom_meta_agent.py`:
+
+- the meta caller now rebuilds its tier from the trusted registry value and
+  fails closed to `student`; the previous exception fallback to `autonomous`
+  and caller-authoritative `setdefault` are removed.
+
+## Repair — current BPE actor and stable identity
+
+`backend/core/bpe/actions.py`:
+
+- `stable_run_scope_key()` makes the durable `job_id` the BPE key for admitted
+  runs, so initial and resumed/fresh-session passes address one namespace;
+  non-admitted chat runs keep the server chat-session key.
+- a server-bound `scoped_user_id` is now always re-read through the existing
+  `_fresh_active_user` / `_build_user_scope` / workspace-tenant checks. When
+  the long-lived context has no DB session, a bounded owned
+  `get_db_session()` is opened for resolution and for the write claim, then
+  closed. No session is stored on the context across model calls or HITL
+  waits.
+- an admitted principal can no longer fall through to the anonymous/server
+  branch; missing/unverifiable authority is a typed `scope_principal_*`
+  no-effect. Legacy server-bound callers without a `user_id` are unchanged.
+
+`backend/core/generic_agent.py` / `backend/core/atom_meta_agent.py`:
+
+- the trusted BPE scope is bound with the admitted `actor_id` and the stable
+  run key; prompt render, episode reset, close-out and mutation all resolve
+  through the same helper.
+
+## Authored controls (NOT executed)
+
+`backend/tests/test_bpe_governance_tier_issuance.py`:
+
+1. all four canonical tiers are persisted in job + receipt and restored after
+   the run;
+2. legacy `idle`/`success`/`unknown` statuses remain usable under the
+   restricted student ceiling, with `governance_tier=None` and
+   `legacy_unverified` source — never autonomous;
+3. `running` is an execution state, not an admission tier (existing
+   `ALREADY_RUNNING` conflict preserved);
+4. forged body `tier`, `tier_at_issuance`, `governance_tier`, provenance,
+   canvas-provenance and BPE scope are rebuilt from admission; the effective
+   tier is the canonical low tier and the stable scope is the real job key;
+5. initial and resumed trusted contexts for the SAME job agree on the issued
+   tier/source across fresh sessions;
+6. effective-tier narrowing covers running, demotion, revocation, unknown
+   runtime state and legacy current-only material;
+7. the stable run key prefers the durable job id;
+8. a server-bound active actor appends through a bounded owned session;
+   disabled and moved actors return typed no-effect with zero new note;
+9. the root public positive/negative twins: real scratch team-lead reviewer,
+   real `InterventionService.approve_intervention`, persisted
+   approved/`reviewed_by`, original production `_wait_for_approval`; positive
+   lands the note at `tier_at_issuance=autonomous`, revoked actor writes zero
+   note. No approval is mocked or waived.
+
+`backend/tests/test_round81b_journey_followups.py` was honestly re-contracted:
+its old `test_caller_values_authoritative` encoded the defect (caller tier
+accepted). It now asserts caller `tier`/`tier_at_issuance` are not
+authoritative and the canonical registry tier wins. The other G9 assertions
+(identity stamping, DB-error student fallback) are unchanged.
+
+CI: the new module is a permanent backend step in `.github/workflows/ci.yml`.
+
+## Cross-caller behavior change (explicit)
+
+- Direct `GenericAgent.execute()` callers can no longer raise/lower the sandbox
+  tier by putting `tier`/`tier_at_issuance` in `context`; the canonical current
+  registry row (or a server-owned admission tier) decides.
+- Legacy non-canonical agent statuses are admitted under a student ceiling
+  instead of being interpreted by the sandbox issuer as an arbitrary value.
+- Atom meta-agent no longer falls back to `autonomous` on registry errors.
+- Admitted BPE runs use the durable `job_id` as scope key, so a resume/fresh
+  session continues the same buffer rather than minting a new one.
+
+## Preserved / explicitly open
+
+- All sandbox, capability, role, authority, approval, budget, Oracle and
+  strict route gates remain enabled; no wildcard grant, whitelist disable,
+  forced policy, fake Agent row or fake approval was added.
+- Existing BPE receipts, typed refusals, exact hashes/scopes, unresolved-note
+  preservation, scope encoding and truthful write failure are untouched.
+- Pre-repair pending jobs without canonical job material are reconciled only
+  from a canonical receipt/current row; otherwise they get the restricted
+  legacy marker and `review_agent_maturity` next action. They are not silently
+  promoted.
+- No file-vs-SQL atomicity, multiworker, crash, PostgreSQL or fsync guarantee
+  is claimed. Root must execute the new controls and the wider accepted
+  selection; no result is claimed here.
+
+---
+
+# LEAD REVIEW — terminal authority refusal must stay non-success (finite)
+
+Status: **AUTHOR-ONLY / NOT EXECUTED**. No tests, Python, app, server, model,
+provider, install, browser, migration, live data or credential action was run
+here. Root owns execution and acceptance.
+
+## Root-confirmed negative being closed
+
+At `e13bb21e3`, the disabled original actor produced the real BPE handler
+envelope `{success:false, error:scope_principal_inactive,
+action_result:not_applied, effect_possible:false}`, wrote no note/file receipt
+and correctly left a `failed_before_effect` claim. But the next controlled model
+step said `done`, so GenericAgent finalized `status=success`; the API returned
+HTTP 200 / `outcome=success`. Zero-effect was proven, but terminal authority
+truth was lost. The active twin correctly persisted one `succeeded`
+TaskOperationRecord.
+
+## Repair — typed producer marker and lifecycle stop
+
+`backend/core/action_effects.py` (existing action-outcome vocabulary, not a new
+evaluator/store):
+
+- adds `terminal_authority_denial` as a producer-owned typed marker plus
+  `is_terminal_authority_denial()` / `terminal_authority_denial()` helpers.
+- Consumers never inspect message text or action names.
+
+`backend/core/bpe/actions.py`:
+
+- `_deny()` (scope/actor/workspace authority refusals only) now emits
+  `status=failed_before_effect`, `terminal_authority_denial=True`,
+  `denial_scope=actor_or_workspace` and a safe `denial_kind`.
+- Ordinary validation refusals (empty note, bad commit status) do not set the
+  marker and remain recoverable.
+
+`backend/core/generic_agent.py`:
+
+- single-action and parallel-batch paths detect the typed marker, ledger it in
+  the existing run context, stop before another model plan step, and finalize
+  `status=blocked`.
+- finalization also refuses to turn a success status into success when a
+  terminal denial is present (parallel survivor / late model answer).
+- the result carries `terminal_authority_denial` and `authority_denials`; the
+  existing claim path still records `failed_before_effect` and never
+  `uncertain_effect`, so no provider resend/reconciliation is invited.
+- terminal authority denial is not sent to the tool-error evolution feedstock,
+  is not recorded as a model maturity failure, and is not credited as success.
+- earlier successful operation receipts are untouched.
+
+`backend/core/atom_meta_agent.py`:
+
+- the same typed detection/stop is applied to its single-action and parallel
+  paths; result status/finalization and governance feedback use the same
+  no-blame policy.
+
+`backend/api/agent_routes.py`:
+
+- `_execution_outcome()` gives the typed denial priority over any success or
+  uncertain label, producing `failed` / `execution_authority_denied` /
+  `review_authority` with no reconciliation requirement.
+- the public message states that authority is no longer valid and no effect was
+  applied.
+
+## Authored controls (NOT executed)
+
+`backend/tests/test_bpe_governance_tier_issuance.py` additions:
+
+1. the producer marker is typed: a recoverable invalid-argument envelope is
+   not terminal; a real `scope_principal_*` denial is terminal.
+2. the bounded-session actor control now asserts the typed terminal marker and
+   `failed_before_effect` for both disabled and moved actors, with zero new note.
+3. a recoverable invalid-argument custom action followed by a corrected action
+   continues to a real `success` result (no blanket terminal classification).
+4. the root public valid/refused twins now assert the stronger business outcome:
+   - revoked actor: no marker/file receipt, `outcome != success`,
+     HTTP != 200, exactly one model step, a `failed_before_effect` claim and no
+     `succeeded` claim;
+   - active actor: HTTP 200 / `outcome=success`, autonomous tier observed at the
+     real MCP transport, exactly one `succeeded` TaskOperationRecord.
+
+The inherited `e13bb21e3` root probe is unchanged.
+
+## Preserved / explicitly open
+
+- Receipts, state/operation records, exact hashes/scopes, typed no-effect
+  refusals, unresolved-note preservation and write-failure truth are unchanged.
+- No physical-stop claim is made for already-dispatched parallel workers; the
+  run simply does not plan or finalize past the already-observed denial.
+- Genuine in-flight uncertainty still follows the existing
+  `uncertain_effect` reconciliation path.
+- Feedback/CAS/classification remains closed: external revocation is neither a
+  model semantic failure nor model success; no new evaluator or store.
+- Root must reexecute `root-bpe-actor-outcome-negative` and the affected gates
+  at the committed head. No passing result is claimed here.
+
+
+## Root follow-through: uncertainty precedence
+
+The delivered 39174dbe9 controls passed 19/19 on Python 3.14, including
+the original public active/revoked actor twins. Review then found that the
+public mapper placed authority denial before an earlier uncertain effect.
+Moved that check after reconciliation classification: a proven no-effect
+refusal for the later operation cannot certify an earlier operation as absent.
+The new targeted regression passed 1/1; full affected verification is pending.
+
+
+The combined a8a1be3ad source passed 20/20 focused controls on Python 3.14
+(public admitted-route twins plus tier/denial/uncertainty controls). The real
+public-route probe is now included in the existing governance CI step, rather
+than relying only on helper-level denial assertions. Python 3.11 is still
+running; no hosted or app-wide completion is inferred.
+
+
+Root final message review: the refusal applies to the denied operation, not
+the entire run. The public message now asks the owner to review earlier
+results rather than claiming that no operation anywhere had an effect.
+Prior 951-test evidence remains bound to 4158db58a; this wording successor
+will have its own focused verification and is not relabeled into that run.
+
+
+## Dependency RPC consumer review (retained from PR764)
+
 # LEAD REVIEW — truthful RPC failure consumer/journey integration repair
 
 Status: **AUTHOR-ONLY / NOT EXECUTED**. No Python, pytest, app, server,
@@ -832,3 +1422,13 @@ files conflicted; both complete histories remain above. Assignment runtime
 and all previously verified assignment tests are unchanged from e65c2ac88.
 The CI union keeps the current-main BPE/RPC controls and the exact-reply and
 two-domain campaign modules. Fresh hosted checks apply to this new head.
+Root dependency integration: merged PR764 head1be38aec5 normally. The only
+conflict was append-only LEAD_REVIEW prose; both narratives are retained.
+CI keeps the RPC frontend step and both public/tier controls. All57 primary
+test-module bytes from951 run remain identical except the separately
+21/21-qualified wording-control module. The imported MiniApp/RPC consumers
+are exactly the separately9/9 backend and10/10 frontend-verified dependency
+bytes. Hosted checks must run on this merged head; prior green is not inherited.
+
+
+Root PR765 integration with main c96dcf17: only this journal conflicted; both append-only records retained. Assignment source and tests remain byte-identical to reviewed head8d3daf62; main authority/operation repairs and all CI selections are retained. Fresh checks required.
