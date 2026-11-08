@@ -79,6 +79,28 @@ interface DevRunResult extends LogicRunResult {
   state_changed?: boolean;
 }
 
+/** The known mini-app action result schema for a semantic failure. */
+interface MiniAppHandlerFailure {
+  success?: boolean;
+  error?: string;
+}
+
+/**
+ * Recover the already-exposed safe handler error from a body-level RPC
+ * failure. `rpc-client` preserves the action's typed result as
+ * `RpcError.actionResult`; only trust it when the handler itself reported
+ * `success: false` and supplied a string error. Transport/HTTP/unknown
+ * failures have no `actionResult`, so they keep the generic RpcError message
+ * instead of surfacing private axios/server detail.
+ */
+function handlerFailureMessage(err: unknown): string | null {
+  const result = (err as { actionResult?: unknown })?.actionResult;
+  if (!result || typeof result !== "object") return null;
+  const failure = result as MiniAppHandlerFailure;
+  if (failure.success !== false) return null;
+  return typeof failure.error === "string" && failure.error.trim() ? failure.error : null;
+}
+
 export function MiniAppHarness({ canvasId, lastMessage, onSocketMessage, agentId, canvasType }: MiniAppHarnessProps) {
   const [collapsed, setCollapsed] = useState(true);
   const [source, setSource] = useState<string>("");
@@ -217,7 +239,7 @@ export function MiniAppHarness({ canvasId, lastMessage, onSocketMessage, agentId
       );
     } catch (e) {
       const err = e as { message?: string };
-      setError(err?.message || "Failed to scaffold mini-app");
+      setError(handlerFailureMessage(e) ?? (err?.message || "Failed to scaffold mini-app"));
     } finally {
       setScaffolding(false);
     }
@@ -267,7 +289,7 @@ export function MiniAppHarness({ canvasId, lastMessage, onSocketMessage, agentId
       }
     } catch (e) {
       const err = e as { message?: string };
-      setError(err?.message || "Dev-run failed");
+      setError(handlerFailureMessage(e) ?? (err?.message || "Dev-run failed"));
     } finally {
       setRunning(false);
     }
@@ -290,7 +312,7 @@ export function MiniAppHarness({ canvasId, lastMessage, onSocketMessage, agentId
       setNotice(`Published v${(res as any).version ?? ""}. Snapshot is credential-stripped; installs are immutable.`);
     } catch (e) {
       const err = e as { message?: string };
-      setError(err?.message || "Publish failed");
+      setError(handlerFailureMessage(e) ?? (err?.message || "Publish failed"));
     } finally {
       setPublishing(false);
     }
@@ -319,7 +341,7 @@ export function MiniAppHarness({ canvasId, lastMessage, onSocketMessage, agentId
       setNotice(`Installed → instance canvas ${res.canvas_id}. Runs will broadcast state here.`);
     } catch (e) {
       const err = e as { message?: string };
-      setError(err?.message || "Install failed");
+      setError(handlerFailureMessage(e) ?? (err?.message || "Install failed"));
     } finally {
       setInstalling(false);
     }
