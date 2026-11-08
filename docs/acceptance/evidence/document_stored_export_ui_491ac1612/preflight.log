@@ -1,0 +1,4 @@
+[preflight] ok=True report=/private/tmp/root-export-preflight-491-sl6059vi/capture/preflight.json
+[preflight] source=491ac1612d0c9f4b4728a945019c6a94306d7ba6 files=18 retained=True profile=True
+[preflight] cache=True runtime=True storage=True heavy=1544019968B
+[preflight] acc=True fixtures=55/55 git_exact=True launcher=5/5

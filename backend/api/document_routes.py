@@ -3,13 +3,17 @@ Document Routes - API endpoints for document ingestion and search
 """
 import asyncio
 from datetime import datetime, timezone
+import hashlib
 import logging
 import os
 from pathlib import Path
+import re
+import unicodedata
+from urllib.parse import quote
 from typing import Any, Dict, List, Optional
 import uuid
 import json
-from fastapi import Depends, File, HTTPException, Request, UploadFile, Query
+from fastapi import Depends, File, HTTPException, Request, Response, UploadFile, Query
 from pydantic import BaseModel, Field
 from sqlalchemy.orm import Session
 
@@ -144,6 +148,266 @@ async def _upsert_document(
     if result == "write_failed":
         raise RuntimeError("LanceDB add_document returned False")
     return result
+
+
+# Stored-document export (NEXT03). This is an export of the text already
+# stored in the document index, not a download of original binary bytes.
+MAX_DOCUMENT_EXPORT_BYTES = 2 * 1024 * 1024
+DOCUMENT_EXPORT_FORMATS = ("text", "markdown", "json")
+_FORBIDDEN_EXPORT_PARAMS = (
+    "path", "url", "file_path", "locator", "download", "kind",
+    "content_kind", "original",
+)
+_CONTENT_DISPOSITION_SAFE = re.compile(r"[^A-Za-z0-9._-]+")
+
+
+def _safe_header_value(value: Any, max_length: int = 240) -> str:
+    """Strip header-breaking/control characters from a server-owned value."""
+    text = str(value or "").replace("\r", "").replace("\n", "")
+    text = "".join(ch for ch in text if 0x20 <= ord(ch) < 0x7F)
+    return text[:max_length]
+
+
+def _safe_display_name(value: Any, doc_id: str) -> str:
+    """A display-only name with no path, CR/LF or control material."""
+    text = str(value or "").replace("\r", "").replace("\n", "")
+    text = text.replace("\\", "/").rsplit("/", 1)[-1]
+    text = "".join(ch for ch in text if ord(ch) >= 0x20).strip()
+    return (text or f"document-{doc_id[:12]}")[:200]
+
+
+def _safe_export_disposition(stored_name: str, extension: str,
+                             doc_id: str) -> str:
+    """RFC 6266/5987 attachment header with an ASCII fallback.
+
+    The stored title/filename is used for display only; document identity is
+    always the canonical doc id. CR/LF and path separators never reach the
+    header. Unicode names use filename* exactly as Starlette's FileResponse
+    does, with a sanitized ASCII filename fallback.
+    """
+    raw = str(stored_name or "").replace("\r", "").replace("\n", "")
+    raw = raw.replace("\\", "/").rsplit("/", 1)[-1]
+    raw = "".join(ch for ch in raw if ord(ch) >= 0x20).strip()
+    stem = raw
+    for suffix in (".txt", ".md", ".json"):
+        if stem.lower().endswith(suffix):
+            stem = stem[:-len(suffix)]
+            break
+    stem = stem.strip(" ._-") or f"document-{doc_id[:12]}"
+    stem = stem[:100]
+    full = f"{stem}.{extension}"
+    ascii_stem = unicodedata.normalize("NFKD", stem).encode(
+        "ascii", "ignore").decode("ascii")
+    ascii_stem = _CONTENT_DISPOSITION_SAFE.sub("_", ascii_stem).strip("._-")
+    ascii_stem = ascii_stem or f"document-{doc_id[:12]}"
+    ascii_full = f"{ascii_stem}.{extension}"
+    encoded = quote(full, safe="")
+    if encoded != full:
+        return (
+            f'attachment; filename="{ascii_full}"; '
+            f"filename*=utf-8''{encoded}"
+        )
+    return f'attachment; filename="{ascii_full}"'
+
+
+def _export_not_found(doc_id: str) -> HTTPException:
+    # Unknown, foreign, and removed all look the same to avoid an existence
+    # oracle across workspaces.
+    return router.not_found_error("Document", doc_id)
+
+
+def _export_identity_failure(code: str, message: str) -> HTTPException:
+    return router.error_response(
+        error_code=code, message=message, status_code=409)
+
+
+def _document_export_provenance(
+    db: Session, workspace_id: Optional[str], tenant_id: Optional[str],
+    doc_id: str, document: Dict[str, Any],
+) -> Dict[str, Any]:
+    """Validate the indexed/SQL identity before any export body is produced.
+
+    Current automated/versioned evidence must match the authoritative SQL
+    revision through the existing strict matcher. Indexed/SQL document,
+    workspace and tenant identity must agree wherever both sides are present.
+    A missing/contradictory revision or scope on a known binding refuses, and
+    only an explicit ``fresh`` SQL row is authoritative. Only producer-marked
+    manual/legacy vector rows with no SQL/index binding may be exported as an
+    explicitly snapshot-only, unknown-source-version document.
+    """
+    from core.doc_freshness_service import (
+        ExtractionIdentityError,
+        current_extraction_revision,
+        extraction_identity,
+    )
+    from core.models import IngestedDocument
+
+    metadata = document.get("metadata") if isinstance(
+        document.get("metadata"), dict) else {}
+    indexed_doc_id = str(metadata.get("pg_document_id") or "").strip()
+    if indexed_doc_id and indexed_doc_id != str(doc_id):
+        raise _export_identity_failure(
+            "DOCUMENT_IDENTITY_MISMATCH",
+            "The indexed extraction belongs to a different document.",
+        )
+    indexed_row_id = str(document.get("id") or "").strip()
+    if indexed_row_id and indexed_row_id != str(doc_id):
+        raise _export_identity_failure(
+            "DOCUMENT_IDENTITY_MISMATCH",
+            "The indexed extraction row identity does not match the requested "
+            "document.",
+        )
+
+    # Scope is part of identity wherever it is present. An indexed metadata
+    # workspace/tenant that disagrees with the request scope or its SQL row is
+    # a contradictory extraction, never an authoritative export source. The
+    # existing Personal-Edition null/default policy is preserved by comparing
+    # only values that are actually present on both sides.
+    indexed_workspace = str(metadata.get("workspace_id") or "").strip()
+    if indexed_workspace and workspace_id and (
+            indexed_workspace != str(workspace_id)):
+        raise _export_not_found(str(doc_id))
+
+    indexed_version = str(
+        metadata.get("source_content_hash") or "").strip()
+    indexed_tenant = str(metadata.get("tenant_id") or "").strip()
+    row = db.query(IngestedDocument).filter(
+        IngestedDocument.id == str(doc_id)).first()
+    if row is not None and workspace_id and str(
+            row.workspace_id or "") != str(workspace_id):
+        raise _export_not_found(str(doc_id))
+    if row is not None and indexed_workspace and str(
+            row.workspace_id or "") and (
+            indexed_workspace != str(row.workspace_id)):
+        raise _export_identity_failure(
+            "DOCUMENT_SCOPE_MISMATCH",
+            "The indexed extraction workspace does not match its authoritative "
+            "document record.",
+        )
+    if row is not None and tenant_id and str(
+            row.tenant_id or "") and str(row.tenant_id) != str(tenant_id):
+        raise _export_identity_failure(
+            "DOCUMENT_SCOPE_MISMATCH",
+            "The authoritative document record belongs to a different tenant.",
+        )
+    if indexed_tenant and tenant_id and indexed_tenant != str(tenant_id):
+        # A legacy SQL NULL does not erase explicit indexed/request scope.
+        # Check each known authority independently rather than selecting the
+        # SQL row as the only comparison and skipping its absent value.
+        raise _export_identity_failure(
+            "DOCUMENT_SCOPE_MISMATCH",
+            "The indexed extraction tenant does not match the authenticated "
+            "scope.",
+        )
+    if indexed_tenant:
+        # When a SQL row exists, its tenant is another independent comparison.
+        # A NULL/legacy tenant supplies no additional evidence; the indexed
+        # tenant must still have matched authenticated Personal-Edition scope.
+        reference_tenant = (
+            str(row.tenant_id or "") if row is not None
+            else str(tenant_id or ""))
+        if reference_tenant and indexed_tenant != reference_tenant:
+            raise _export_identity_failure(
+                "DOCUMENT_SCOPE_MISMATCH",
+                "The indexed extraction tenant does not match the authoritative "
+                "scope.",
+            )
+
+    row_version = str(
+        getattr(row, "source_content_hash", "") or "").strip() if row else ""
+    freshness = str(
+        getattr(row, "freshness_status", "") or "").strip().lower() if row else ""
+    if freshness == "removed":
+        raise _export_not_found(str(doc_id))
+    # Only an explicit ``fresh`` SQL row can carry authoritative provenance.
+    # Empty/NULL/unknown/revoked and every other non-fresh status fail closed
+    # here; checking only NON_FRESH_STATUSES let unknown values through.
+    if row is not None and freshness != "fresh":
+        raise router.error_response(
+            error_code="DOCUMENT_NOT_CURRENT",
+            message=(
+                "The authoritative document is not current; refresh or "
+                "re-ingest it before exporting."),
+            details={"freshness_status": freshness or None},
+            status_code=409,
+        )
+
+    stored_source = str(document.get("source") or "")
+    manual_source = (
+        stored_source.startswith("upload:")
+        or stored_source.startswith("api:")
+    )
+    pg_manual = bool(row is not None and (
+        str(getattr(row, "integration_id", "") or "").lower()
+        == "manual_upload"
+        or str(getattr(row, "external_id", "") or "").startswith("upload_")
+    ))
+    known_binding = bool(indexed_doc_id or indexed_version or row is not None)
+
+    if indexed_version and row_version:
+        try:
+            source_version = current_extraction_revision(
+                indexed_version, row_version)
+        except ExtractionIdentityError:
+            raise _export_identity_failure(
+                "DOCUMENT_REVISION_INVALID",
+                "The stored document revision is missing, stale, or does not "
+                "match its authoritative record. Re-index or re-upload it "
+                "before exporting.",
+            ) from None
+        kind = extraction_identity(source_version)["kind"]
+        return {
+            "provenance_status": "authoritative",
+            "source_version": source_version,
+            "source_version_kind": kind,
+            "source_version_status": "matched",
+            "freshness_status": freshness or None,
+            "source_label": (
+                str(getattr(row, "integration_id", "") or "")
+                if row is not None else "unknown"),
+        }
+
+    if indexed_version or row_version:
+        # A known binding with only one side is not legacy: it is an
+        # incomplete/contradictory identity and must fail closed.
+        raise _export_identity_failure(
+            "DOCUMENT_IDENTITY_UNVERIFIABLE",
+            "This document has a known index or SQL binding but no matching "
+            "source revision on both sides. Re-index or re-upload it before "
+            "exporting.",
+        )
+
+    if known_binding and not (manual_source and pg_manual):
+        raise _export_identity_failure(
+            "DOCUMENT_IDENTITY_UNVERIFIABLE",
+            "This document's source revision cannot be verified. Re-index or "
+            "re-upload it before exporting.",
+        )
+    if not known_binding and not manual_source:
+        raise _export_identity_failure(
+            "DOCUMENT_IDENTITY_UNVERIFIABLE",
+            "This document's source revision cannot be verified. Re-index or "
+            "re-upload it before exporting.",
+        )
+    if indexed_doc_id:
+        # A join-key-bearing row is a known indexed binding, never a manual
+        # legacy snapshot.
+        raise _export_identity_failure(
+            "DOCUMENT_IDENTITY_UNVERIFIABLE",
+            "This document's source revision cannot be verified. Re-index or "
+            "re-upload it before exporting.",
+        )
+
+    return {
+        "provenance_status": "snapshot_only",
+        "source_version": None,
+        "source_version_kind": "missing",
+        "source_version_status": "unknown",
+        "freshness_status": None,
+        "source_label": (
+            str(getattr(row, "integration_id", "") or "manual_upload")
+            if row is not None else "manual_upload"),
+    }
 
 
 @router.post("/ingest", response_model=DocumentResponse)
@@ -505,6 +769,176 @@ async def get_document(
             raise
         logger.error(f"Failed to get document {doc_id}: {e}")
         raise router.internal_error(message="Internal error")
+
+@router.get("/{doc_id}/export")
+async def export_document(
+    doc_id: str,
+    request: Request,
+    format: str = Query("text", description="text, markdown or json"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Export the currently stored extracted text of one authorized document.
+
+    This is not an original-binary download. Identity/freshness are validated
+    against the durable SQL row and the indexed revision with the existing
+    strict revision matcher; the export body is the full stored text, not the
+    model reader's 20k context window.
+    """
+    for param in _FORBIDDEN_EXPORT_PARAMS:
+        if param in request.query_params:
+            raise router.error_response(
+                error_code="CLIENT_PATH_NOT_ALLOWED",
+                message=(
+                    "Export accepts only a document id and a supported format; "
+                    "client paths, URLs and original-binary modes are not "
+                    "accepted."),
+                details={"parameter": param},
+                status_code=422,
+            )
+    export_format = str(format or "text").strip().lower()
+    if export_format not in DOCUMENT_EXPORT_FORMATS:
+        raise router.error_response(
+            error_code="UNSUPPORTED_EXPORT_FORMAT",
+            message=(
+                "Unsupported export format. Supported formats are text, "
+                "markdown and json."),
+            details={"allowed_formats": list(DOCUMENT_EXPORT_FORMATS)},
+            status_code=422,
+        )
+
+    workspace_id = _resolve_ws_id(current_user)
+    try:
+        handler = get_lancedb_handler(workspace_id)
+        if not handler:
+            raise router.error_response(
+                error_code="DOCUMENT_STORE_UNAVAILABLE",
+                message="The document store is unavailable; retry.",
+                status_code=503,
+            )
+        document = handler.get_document_by_id("documents", str(doc_id))
+        if not document:
+            raise _export_not_found(str(doc_id))
+        from core.personal_scope import resolve_tenant_id
+
+        provenance = _document_export_provenance(
+            db, workspace_id, resolve_tenant_id(current_user),
+            str(doc_id), document)
+        text = str(document.get("text") or "")
+        if not text.strip():
+            raise router.error_response(
+                error_code="DOCUMENT_EMPTY",
+                message="The selected document has no stored text to export.",
+                status_code=422,
+            )
+        text_bytes = text.encode("utf-8")
+        if len(text_bytes) > MAX_DOCUMENT_EXPORT_BYTES:
+            raise router.error_response(
+                error_code="EXPORT_TOO_LARGE",
+                message=(
+                    "The stored document text exceeds the bounded export "
+                    "size; select a smaller document."),
+                details={"max_bytes": MAX_DOCUMENT_EXPORT_BYTES},
+                status_code=413,
+            )
+
+        metadata = document.get("metadata") if isinstance(
+            document.get("metadata"), dict) else {}
+        stored_name = _safe_display_name(
+            metadata.get("file_name")
+            or metadata.get("filename")
+            or metadata.get("title")
+            or str(doc_id),
+            str(doc_id),
+        )
+        stored_text_sha = hashlib.sha256(text_bytes).hexdigest()
+        truncation = metadata.get("truncated")
+        if truncation is None:
+            truncation = metadata.get("extraction_truncated")
+        truncated = bool(truncation) if truncation is not None else None
+
+        if export_format == "text":
+            body = text_bytes
+            media_type = "text/plain; charset=utf-8"
+            extension = "txt"
+        elif export_format == "markdown":
+            body = text_bytes
+            media_type = "text/markdown; charset=utf-8"
+            extension = "md"
+        else:
+            payload = {
+                "schema_version": 1,
+                "document_id": str(doc_id),
+                "title": _safe_display_name(
+                    metadata.get("title") or stored_name, str(doc_id)),
+                "file_name": stored_name,
+                "file_type": _safe_header_value(
+                    metadata.get("file_type") or "unknown", 40) or "unknown",
+                "source": _safe_header_value(
+                    provenance["source_label"] or "unknown", 80) or "unknown",
+                "source_version": provenance["source_version"],
+                "source_version_kind": provenance["source_version_kind"],
+                "source_version_status": provenance["source_version_status"],
+                "freshness_status": provenance["freshness_status"],
+                "provenance_status": provenance["provenance_status"],
+                "content_kind": "extracted_text",
+                "format": "json",
+                "reader": "lancedb.documents.get_document_by_id",
+                "stored_text_bytes": len(text_bytes),
+                "stored_text_truncated": truncated,
+                "stored_text_sha256": stored_text_sha,
+                "content": text,
+            }
+            body = json.dumps(
+                payload, ensure_ascii=False, sort_keys=True,
+                separators=(",", ":"),
+            ).encode("utf-8")
+            if len(body) > MAX_DOCUMENT_EXPORT_BYTES:
+                raise router.error_response(
+                    error_code="EXPORT_TOO_LARGE",
+                    message=(
+                        "The stored document text exceeds the bounded export "
+                        "size; select a smaller document."),
+                    details={"max_bytes": MAX_DOCUMENT_EXPORT_BYTES},
+                    status_code=413,
+                )
+            media_type = "application/json; charset=utf-8"
+            extension = "json"
+
+        headers = {
+            "Cache-Control": "no-store",
+            "X-Content-Type-Options": "nosniff",
+            "Content-Disposition": _safe_export_disposition(
+                str(stored_name), extension, str(doc_id)),
+            "X-Document-Id": _safe_header_value(doc_id),
+            "X-Document-Content-Kind": "extracted_text",
+            "X-Document-Provenance": provenance["provenance_status"],
+            "X-Document-Source-Version-Kind": provenance["source_version_kind"],
+            "X-Document-Source-Version-Status": provenance["source_version_status"],
+            "X-Document-Stored-Text-Sha256": stored_text_sha,
+        }
+        if provenance["source_version"]:
+            headers["X-Document-Source-Version"] = _safe_header_value(
+                provenance["source_version"])
+        if provenance["freshness_status"]:
+            headers["X-Document-Freshness"] = _safe_header_value(
+                provenance["freshness_status"])
+        if export_format == "markdown":
+            headers["X-Document-Export-Transform"] = "none"
+        headers["X-Document-Export-Sha256"] = hashlib.sha256(body).hexdigest()
+        return Response(content=body, media_type=media_type, headers=headers)
+    except HTTPException:
+        raise
+    except Exception as exc:  # noqa: BLE001 - no content/params in logs
+        logger.error(
+            "Document export failed for %s (%s)",
+            doc_id, type(exc).__name__)
+        raise router.error_response(
+            error_code="DOCUMENT_EXPORT_FAILED",
+            message="The document export failed. Retry after refreshing.",
+            status_code=500,
+        ) from None
+
 
 @router.delete("/{doc_id}")
 @require_governance(

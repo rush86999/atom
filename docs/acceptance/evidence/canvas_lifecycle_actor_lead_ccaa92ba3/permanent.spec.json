@@ -1,0 +1,22 @@
+{
+  "source": "19bd74ade5bfb495f294b886743217d4d9a84b41",
+  "root": "/private/tmp/root-feedback-sqlite-gxnqmm0k",
+  "command": [
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-canvas-lifecycle-20261107/backend",
+    "--profile",
+    "bounded",
+    "--",
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "tests/test_canvas_lifecycle_verified.py",
+    "tests/test_lead_canvas_lifecycle_authority.py",
+    "-q",
+    "--tb=short",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=/private/tmp/root-feedback-sqlite-gxnqmm0k/pytest"
+  ]
+}

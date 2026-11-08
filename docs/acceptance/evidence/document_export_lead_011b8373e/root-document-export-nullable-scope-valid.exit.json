@@ -1,0 +1,19 @@
+{
+  "external_diagnostic_probe": true,
+  "source_bytes_before": {
+    "backend/api/document_routes.py": "6a449ee92514b97fc2eced41259c2c92b8f42ed3b17639afda515d1159e07c86",
+    "backend/core/doc_freshness_service.py": "f0f9e4e70566ab2c600fd1290bfabc19c15231a092768359c4abdfcd8eb8d62b",
+    "backend/tests/test_document_export.py": "02f4f8e9c70f0533b90686f623862c44778eec4e89597c990ed8a9d589f9e1f3"
+  },
+  "source_bytes_after": {
+    "backend/api/document_routes.py": "6a449ee92514b97fc2eced41259c2c92b8f42ed3b17639afda515d1159e07c86",
+    "backend/core/doc_freshness_service.py": "f0f9e4e70566ab2c600fd1290bfabc19c15231a092768359c4abdfcd8eb8d62b",
+    "backend/tests/test_document_export.py": "02f4f8e9c70f0533b90686f623862c44778eec4e89597c990ed8a9d589f9e1f3"
+  },
+  "source": "f6df7e2252812207f93098e56f3d05a717b6e31b",
+  "head_after": "f6df7e2252812207f93098e56f3d05a717b6e31b",
+  "runtime_or_test_diff": [],
+  "actual_exit": 1,
+  "scratch": "/private/tmp/root-wait-source-final-review-7p16az_p",
+  "finished": 1794084119.649206
+}

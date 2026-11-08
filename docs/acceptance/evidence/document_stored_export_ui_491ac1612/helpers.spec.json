@@ -1,0 +1,28 @@
+{
+  "source": "491ac1612d0c9f4b4728a945019c6a94306d7ba6",
+  "paths": {
+    "scripts/acceptance/browser_document_export_ui.py": "8b8b380224ffb68b84556b25d380b9fd86e6ec5a8192069566a141504d7b3eb7",
+    "scripts/tests/test_browser_document_export_ui.py": "ddf6486b8d73bd6992871f41fd203c6d3ba8697c880f7d5d9cbaf49bc68614ab",
+    "backend/scripts/orchestration_acceptance/run_isolated.py": "e76d34ee15a7dd4542e3dd6d4873e71f5846ed745a88cb46362532ef3a498f66"
+  },
+  "root": "/private/tmp/root-export-helpers-0gniqzgk",
+  "command": [
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-document-stored-export-20261107/backend",
+    "--profile",
+    "bounded",
+    "--",
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "/private/tmp/atom-document-stored-export-20261107/scripts/tests/test_browser_document_export_ui.py",
+    "/private/tmp/test_root_export_worker_runtime_proof.py",
+    "-q",
+    "--tb=short",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=/private/tmp/root-export-helpers-0gniqzgk/pytest"
+  ],
+  "scope": "pure no-browser/no-model/no-server helper controls"
+}

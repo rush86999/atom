@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '../..
 import { Button } from '../../components/ui/button';
 import { Badge } from '../../components/ui/badge';
 import { Spinner } from '../../components/ui/spinner';
-import { ArrowLeft, Calendar, FileText, User, Tag } from 'lucide-react';
+import { ArrowLeft, Calendar, Download, FileText, User, Tag } from 'lucide-react';
 import { Alert, AlertDescription } from '../../components/ui/alert';
 import api from '../../lib/api';
 
@@ -24,6 +24,9 @@ export default function DocumentDetailsPage() {
     const [document, setDocument] = useState<DocumentDetails | null>(null);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    const [exportFormat, setExportFormat] = useState<'text' | 'markdown' | 'json'>('text');
+    const [exporting, setExporting] = useState(false);
+    const [exportError, setExportError] = useState<string | null>(null);
 
     useEffect(() => {
         if (!docId) return;
@@ -46,6 +49,51 @@ export default function DocumentDetailsPage() {
 
         fetchDocument();
     }, [docId]);
+
+    const exportStoredText = async () => {
+        if (!document || exporting) return;
+        setExporting(true);
+        setExportError(null);
+        try {
+            const response = await api.get(
+                `/api/documents/${encodeURIComponent(document.id)}/export`,
+                {
+                    params: { format: exportFormat },
+                    responseType: 'blob',
+                },
+            );
+            const blob = response.data instanceof Blob
+                ? response.data
+                : new Blob([response.data]);
+            const link = window.document.createElement('a');
+            const url = window.URL.createObjectURL(blob);
+            const extension = exportFormat === 'json'
+                ? 'json'
+                : exportFormat === 'markdown' ? 'md' : 'txt';
+            const baseTitle = String(document.title || 'document')
+                .replace(/\.[a-z0-9]{1,8}$/i, '')
+                .replace(/[\\/:*?"<>|\r\n]+/g, '_')
+                .trim()
+                .slice(0, 100) || `document-${document.id.slice(0, 12)}`;
+            link.href = url;
+            link.download = `${baseTitle}.${extension}`;
+            link.rel = 'noopener';
+            window.document.body.appendChild(link);
+            link.click();
+            link.remove();
+            window.URL.revokeObjectURL(url);
+        } catch (err: any) {
+            const detail = err?.response?.data?.detail;
+            const message = typeof detail === 'string'
+                ? detail
+                : detail?.error?.message
+                    || detail?.message
+                    || 'The stored document could not be exported. Refresh and retry.';
+            setExportError(message);
+        } finally {
+            setExporting(false);
+        }
+    };
 
     if (loading) {
         return (
@@ -111,6 +159,55 @@ export default function DocumentDetailsPage() {
                             )}
                         </div>
                     </div>
+                </div>
+
+                <div
+                    className="flex flex-wrap items-end gap-2 rounded-md border bg-muted/20 p-3"
+                    data-testid="document-export"
+                >
+                    <div className="space-y-1">
+                        <p className="text-sm font-medium">Export stored text</p>
+                        <p className="text-xs text-muted-foreground">
+                            Downloads the extracted text Atom stores for this
+                            document. Original file bytes are not included.
+                        </p>
+                    </div>
+                    <label className="sr-only" htmlFor="document-export-format">
+                        Export format
+                    </label>
+                    <select
+                        id="document-export-format"
+                        data-testid="document-export-format"
+                        aria-label="Export format"
+                        className="rounded border bg-background px-2 py-1 text-sm"
+                        value={exportFormat}
+                        onChange={(event) =>
+                            setExportFormat(event.target.value as 'text' | 'markdown' | 'json')
+                        }
+                        disabled={exporting}
+                    >
+                        <option value="text">Text (.txt)</option>
+                        <option value="markdown">Markdown (.md)</option>
+                        <option value="json">JSON (.json)</option>
+                    </select>
+                    <Button
+                        type="button"
+                        variant="outline"
+                        data-testid="document-export-submit"
+                        onClick={exportStoredText}
+                        disabled={exporting}
+                    >
+                        <Download className="mr-2 h-4 w-4" />
+                        {exporting ? 'Exporting…' : 'Download'}
+                    </Button>
+                    {exportError && (
+                        <p
+                            data-testid="document-export-error"
+                            className="w-full text-sm text-red-700"
+                        >
+                            {exportError}
+                        </p>
+                    )}
                 </div>
 
                 <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">

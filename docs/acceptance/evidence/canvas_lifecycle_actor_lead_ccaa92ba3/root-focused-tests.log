@@ -1,0 +1,333 @@
+
+tests/test_canvas_lifecycle_verified.py::test_owner_delete_has_verified_receipt_and_fresh_readback 
+-------------------------------- live log setup --------------------------------
+2026-11-07 20:18:49 [    INFO] EscalationManager initialized
+2026-11-07 20:18:49 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 20:18:49 [    INFO] EscalationManager initialized
+2026-11-07 20:18:49 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 20:18:49 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 20:18:49 [    INFO] AgentTaskRegistry initialized
+2026-11-07 20:18:50 [    INFO] MCP Service initialized
+-------------------------------- live log call ---------------------------------
+2026-11-07 20:18:50 [    INFO] Deleted canvas probe-canvas
+2026-11-07 20:18:50 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+PASSED                                                                   [  1%]
+tests/test_canvas_lifecycle_verified.py::test_undelete_binds_exact_tombstone_source_and_content 
+-------------------------------- live log call ---------------------------------
+2026-11-07 20:18:51 [    INFO] Deleted canvas probe-canvas
+2026-11-07 20:18:51 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+2026-11-07 20:18:51 [    INFO] Restored deleted canvas probe-canvas
+2026-11-07 20:18:51 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-canvas/undelete "HTTP/1.1 200 OK"
+PASSED                                                                   [  3%]
+tests/test_canvas_lifecycle_verified.py::test_same_scope_coeditor_still_allowed 
+-------------------------------- live log call ---------------------------------
+2026-11-07 20:18:51 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:coeditor'. type='canvas:update'
+2026-11-07 20:18:51 [    INFO] Deleted canvas probe-canvas
+2026-11-07 20:18:51 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+PASSED                                                                   [  5%]
+tests/test_canvas_lifecycle_verified.py::test_null_default_single_tenant_compatible 
+-------------------------------- live log call ---------------------------------
+2026-11-07 20:18:52 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:admin-null'. type='canvas:update'
+2026-11-07 20:18:52 [    INFO] Deleted canvas probe-legacy
+2026-11-07 20:18:52 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-legacy "HTTP/1.1 200 OK"
+PASSED                                                                   [  7%]
+tests/test_canvas_lifecycle_verified.py::test_audit_only_canvas_uses_latest_audit_tenant 
+-------------------------------- live log call ---------------------------------
+2026-11-07 20:18:52 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:audit-only-owner'. type='canvas:update'
+2026-11-07 20:18:52 [    INFO] Deleted canvas probe-audit-only
+2026-11-07 20:18:52 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-audit-only "HTTP/1.1 200 OK"
+PASSED                                                                   [  9%]
+tests/test_canvas_lifecycle_verified.py::test_audit_only_canvas_undelete_binds_source_without_mirror 
+-------------------------------- live log call ---------------------------------
+2026-11-07 20:18:53 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:audit-only-owner'. type='canvas:update'
+2026-11-07 20:18:53 [    INFO] Deleted canvas probe-audit-only
+2026-11-07 20:18:53 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-audit-only "HTTP/1.1 200 OK"
+2026-11-07 20:18:53 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:audit-only-owner'. type='canvas:update'
+2026-11-07 20:18:53 [    INFO] Restored deleted canvas probe-audit-only
+2026-11-07 20:18:53 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-audit-only/undelete "HTTP/1.1 200 OK"
+PASSED                                                                   [ 11%]
+tests/test_canvas_lifecycle_verified.py::test_stranger_gets_404_and_zero_rows 
+-------------------------------- live log call ---------------------------------
+2026-11-07 20:18:53 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 13%]
+tests/test_canvas_lifecycle_verified.py::test_stranger_cannot_replay_another_users_operation 
+-------------------------------- live log call ---------------------------------
+2026-11-07 20:18:54 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner'. type='canvas:update'
+2026-11-07 20:18:54 [    INFO] Deleted canvas probe-canvas
+2026-11-07 20:18:54 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas?operation_id=op-owner "HTTP/1.1 200 OK"
+2026-11-07 20:18:54 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas?operation_id=op-owner "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 15%]
+tests/test_canvas_lifecycle_verified.py::test_current_foreign_tenant_coeditor_refuses_before_effect[delete] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 20:18:55 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 17%]
+tests/test_canvas_lifecycle_verified.py::test_current_foreign_tenant_coeditor_refuses_before_effect[undelete] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 20:18:55 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner'. type='canvas:update'
+2026-11-07 20:18:55 [    INFO] Deleted canvas probe-canvas
+2026-11-07 20:18:55 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+2026-11-07 20:18:55 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-canvas/undelete "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 19%]
+tests/test_canvas_lifecycle_verified.py::test_current_foreign_workspace_coeditor_refuses_before_effect[delete] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 20:18:56 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 21%]
+tests/test_canvas_lifecycle_verified.py::test_current_foreign_workspace_coeditor_refuses_before_effect[undelete] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 20:18:57 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner'. type='canvas:update'
+2026-11-07 20:18:57 [    INFO] Deleted canvas probe-canvas
+2026-11-07 20:18:57 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+2026-11-07 20:18:57 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-canvas/undelete "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 23%]
+tests/test_canvas_lifecycle_verified.py::test_delete_same_operation_replays_one_tombstone_no_second_broadcast 
+-------------------------------- live log call ---------------------------------
+2026-11-07 20:18:57 [    INFO] Deleted canvas probe-canvas
+2026-11-07 20:18:57 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas?operation_id=op-delete-1 "HTTP/1.1 200 OK"
+2026-11-07 20:18:57 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas?operation_id=op-delete-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 25%]
+tests/test_canvas_lifecycle_verified.py::test_delete_different_operation_is_idempotent_with_original_tombstone 
+-------------------------------- live log call ---------------------------------
+2026-11-07 20:18:58 [    INFO] Deleted canvas probe-canvas
+2026-11-07 20:18:58 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas?operation_id=op-a "HTTP/1.1 200 OK"
+2026-11-07 20:18:58 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas?operation_id=op-b "HTTP/1.1 200 OK"
+PASSED                                                                   [ 26%]
+tests/test_canvas_lifecycle_verified.py::test_undelete_same_operation_replays_one_restore 
+-------------------------------- live log call ---------------------------------
+2026-11-07 20:18:58 [    INFO] Deleted canvas probe-canvas
+2026-11-07 20:18:58 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+2026-11-07 20:18:58 [    INFO] Restored deleted canvas probe-canvas
+2026-11-07 20:18:58 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-canvas/undelete "HTTP/1.1 200 OK"
+2026-11-07 20:18:58 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-canvas/undelete "HTTP/1.1 200 OK"
+PASSED                                                                   [ 28%]
+tests/test_canvas_lifecycle_verified.py::test_undelete_non_deleted_canvas_is_a_conflict 
+-------------------------------- live log call ---------------------------------
+2026-11-07 20:18:59 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-canvas/undelete "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 30%]
+tests/test_canvas_lifecycle_verified.py::test_undelete_without_content_source_is_a_conflict 
+-------------------------------- live log call ---------------------------------
+2026-11-07 20:19:00 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-empty/undelete "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 32%]
+tests/test_canvas_lifecycle_verified.py::test_delete_expected_prior_mismatch_is_zero_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-07 20:19:00 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas?expected_prior_audit_id=not-the-latest "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 34%]
+tests/test_canvas_lifecycle_verified.py::test_same_operation_different_material_is_a_conflict 
+-------------------------------- live log call ---------------------------------
+2026-11-07 20:19:01 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner'. type='canvas:update'
+2026-11-07 20:19:01 [    INFO] Deleted canvas probe-canvas
+2026-11-07 20:19:01 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas?operation_id=op-reused "HTTP/1.1 200 OK"
+2026-11-07 20:19:01 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner'. type='canvas:update'
+2026-11-07 20:19:01 [    INFO] Restored deleted canvas probe-canvas
+2026-11-07 20:19:01 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-canvas/undelete "HTTP/1.1 200 OK"
+2026-11-07 20:19:01 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas?operation_id=op-reused "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 36%]
+tests/test_canvas_lifecycle_verified.py::test_ambiguous_operation_identity_fails_closed 
+-------------------------------- live log call ---------------------------------
+2026-11-07 20:19:01 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas?operation_id=op-duplicate "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 38%]
+tests/test_canvas_lifecycle_verified.py::test_scope_move_before_effect_refuses_and_preserves_winner 
+-------------------------------- live log call ---------------------------------
+2026-11-07 20:19:02 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 40%]
+tests/test_canvas_lifecycle_verified.py::test_scope_move_after_commit_is_committed_unverified 
+-------------------------------- live log call ---------------------------------
+2026-11-07 20:19:02 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner'. type='canvas:update'
+2026-11-07 20:19:02 [    INFO] Deleted canvas probe-canvas
+2026-11-07 20:19:02 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+PASSED                                                                   [ 42%]
+tests/test_canvas_lifecycle_verified.py::test_actor_change_after_preflight_refuses_effect[workspace-delete] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 20:19:03 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 44%]
+tests/test_canvas_lifecycle_verified.py::test_actor_change_after_preflight_refuses_effect[workspace-undelete] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 20:19:03 [    INFO] Deleted canvas probe-canvas
+2026-11-07 20:19:03 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+2026-11-07 20:19:03 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-canvas/undelete "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 46%]
+tests/test_canvas_lifecycle_verified.py::test_actor_change_after_preflight_refuses_effect[inactive-delete] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 20:19:04 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 48%]
+tests/test_canvas_lifecycle_verified.py::test_actor_change_after_preflight_refuses_effect[inactive-undelete] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 20:19:04 [    INFO] Deleted canvas probe-canvas
+2026-11-07 20:19:04 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+2026-11-07 20:19:04 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-canvas/undelete "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 50%]
+tests/test_canvas_lifecycle_verified.py::test_unchanged_active_actor_valid_twin[delete] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 20:19:05 [    INFO] Deleted canvas probe-canvas
+2026-11-07 20:19:05 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+PASSED                                                                   [ 51%]
+tests/test_canvas_lifecycle_verified.py::test_unchanged_active_actor_valid_twin[undelete] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 20:19:06 [    INFO] Deleted canvas probe-canvas
+2026-11-07 20:19:06 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+2026-11-07 20:19:06 [    INFO] Restored deleted canvas probe-canvas
+2026-11-07 20:19:06 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-canvas/undelete "HTTP/1.1 200 OK"
+PASSED                                                                   [ 53%]
+tests/test_canvas_lifecycle_verified.py::test_tool_path_ignores_model_user_id_and_uses_context_actor 
+-------------------------------- live log call ---------------------------------
+2026-11-07 20:19:06 [    INFO] Executing MCP tool delete_canvas on server local-tools with args: {'user_id': 'victim', 'canvas_id': 'probe-canvas'}
+PASSED                                                                   [ 55%]
+tests/test_canvas_lifecycle_verified.py::test_tool_path_context_actor_wins_over_model_supplied_victim 
+-------------------------------- live log call ---------------------------------
+2026-11-07 20:19:07 [    INFO] Executing MCP tool delete_canvas on server local-tools with args: {'user_id': 'victim', 'canvas_id': 'probe-canvas'}
+2026-11-07 20:19:07 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner'. type='canvas:update'
+2026-11-07 20:19:07 [    INFO] Deleted canvas probe-canvas
+PASSED                                                                   [ 57%]
+tests/test_canvas_lifecycle_verified.py::test_standard_call_tool_entry_resolves_the_verified_lifecycle 
+-------------------------------- live log call ---------------------------------
+2026-11-07 20:19:08 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner'. type='canvas:update'
+2026-11-07 20:19:08 [    INFO] Deleted canvas probe-canvas
+PASSED                                                                   [ 59%]
+tests/test_canvas_lifecycle_verified.py::test_tool_path_without_trusted_context_actor_refuses 
+-------------------------------- live log call ---------------------------------
+2026-11-07 20:19:08 [    INFO] Executing MCP tool delete_canvas on server local-tools with args: {'user_id': 'owner', 'canvas_id': 'probe-canvas'}
+PASSED                                                                   [ 61%]
+tests/test_canvas_lifecycle_verified.py::test_missing_audit_readback_is_committed_unverified_and_no_second_effect 
+-------------------------------- live log call ---------------------------------
+2026-11-07 20:19:09 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+PASSED                                                                   [ 63%]
+tests/test_canvas_lifecycle_verified.py::test_unknown_commit_outcome_keeps_identity_and_never_claims_no_change 
+-------------------------------- live log call ---------------------------------
+2026-11-07 20:19:09 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+PASSED                                                                   [ 65%]
+tests/test_canvas_lifecycle_verified.py::test_verifier_refutes_wrong_actor_scope_operation_and_digest 
+-------------------------------- live log call ---------------------------------
+2026-11-07 20:19:10 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner'. type='canvas:update'
+2026-11-07 20:19:10 [    INFO] Deleted canvas probe-canvas
+2026-11-07 20:19:10 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+PASSED                                                                   [ 67%]
+tests/test_canvas_lifecycle_verified.py::test_verifier_refutes_a_later_lifecycle_row 
+-------------------------------- live log call ---------------------------------
+2026-11-07 20:19:11 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'user:owner'. type='canvas:update'
+2026-11-07 20:19:11 [    INFO] Deleted canvas probe-canvas
+2026-11-07 20:19:11 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+PASSED                                                                   [ 69%]
+tests/test_canvas_lifecycle_verified.py::test_verifier_refutes_missing_audit PASSED [ 71%]
+::test_former_coeditor_current_foreign_scope_has_zero_effect[delete-tenant] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 20:19:12 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 73%]
+::test_former_coeditor_current_foreign_scope_has_zero_effect[delete-workspace] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 20:19:12 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 75%]
+::test_former_coeditor_current_foreign_scope_has_zero_effect[undelete-tenant] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 20:19:13 [    INFO] Deleted canvas probe-canvas
+2026-11-07 20:19:13 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+2026-11-07 20:19:13 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-canvas/undelete "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 76%]
+::test_former_coeditor_current_foreign_scope_has_zero_effect[undelete-workspace] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 20:19:14 [    INFO] Deleted canvas probe-canvas
+2026-11-07 20:19:14 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+2026-11-07 20:19:14 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-canvas/undelete "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 78%]
+::test_supported_owner_and_same_scope_coeditor_still_work[delete-False] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 20:19:14 [    INFO] Deleted canvas probe-canvas
+2026-11-07 20:19:14 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+PASSED                                                                   [ 80%]
+::test_supported_owner_and_same_scope_coeditor_still_work[delete-True] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 20:19:15 [    INFO] Deleted canvas probe-canvas
+2026-11-07 20:19:15 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+PASSED                                                                   [ 82%]
+::test_supported_owner_and_same_scope_coeditor_still_work[undelete-False] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 20:19:16 [    INFO] Deleted canvas probe-canvas
+2026-11-07 20:19:16 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+2026-11-07 20:19:16 [    INFO] Restored deleted canvas probe-canvas
+2026-11-07 20:19:16 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-canvas/undelete "HTTP/1.1 200 OK"
+PASSED                                                                   [ 84%]
+::test_supported_owner_and_same_scope_coeditor_still_work[undelete-True] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 20:19:16 [    INFO] Deleted canvas probe-canvas
+2026-11-07 20:19:16 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+2026-11-07 20:19:16 [    INFO] Restored deleted canvas probe-canvas
+2026-11-07 20:19:16 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-canvas/undelete "HTTP/1.1 200 OK"
+PASSED                                                                   [ 86%]
+::test_stranger_without_authorship_is_still_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-07 20:19:17 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 88%]
+::test_actor_change_after_preflight_refuses_effect[workspace-delete] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 20:19:17 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 90%]
+::test_actor_change_after_preflight_refuses_effect[workspace-undelete] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 20:19:18 [    INFO] Deleted canvas probe-canvas
+2026-11-07 20:19:18 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+2026-11-07 20:19:18 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-canvas/undelete "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 92%]
+::test_actor_change_after_preflight_refuses_effect[inactive-delete] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 20:19:19 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 94%]
+::test_actor_change_after_preflight_refuses_effect[inactive-undelete] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 20:19:19 [    INFO] Deleted canvas probe-canvas
+2026-11-07 20:19:19 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+2026-11-07 20:19:19 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-canvas/undelete "HTTP/1.1 403 Forbidden"
+PASSED                                                                   [ 96%]
+::test_unchanged_actor_valid_twin[delete] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 20:19:20 [    INFO] Deleted canvas probe-canvas
+2026-11-07 20:19:20 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+PASSED                                                                   [ 98%]
+::test_unchanged_actor_valid_twin[undelete] 
+-------------------------------- live log call ---------------------------------
+2026-11-07 20:19:21 [    INFO] Deleted canvas probe-canvas
+2026-11-07 20:19:21 [    INFO] HTTP Request: DELETE http://testserver/api/canvas/probe-canvas "HTTP/1.1 200 OK"
+2026-11-07 20:19:21 [    INFO] Restored deleted canvas probe-canvas
+2026-11-07 20:19:21 [    INFO] HTTP Request: POST http://testserver/api/canvas/probe-canvas/undelete "HTTP/1.1 200 OK"
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 104 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_canvas_lifecycle_verified.py::test_owner_delete_has_verified_receipt_and_fresh_readback
+  /private/tmp/atom-canvas-lifecycle-20261107/backend/core/graphrag_engine.py:203: SyntaxWarning: "\%" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\%"? A raw string is also an option.
+    Escaped pattern where % and _ are escaped to \%
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+====================== 52 passed, 112 warnings in 40.94s =======================

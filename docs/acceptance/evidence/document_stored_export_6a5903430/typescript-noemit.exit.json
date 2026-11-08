@@ -1,0 +1,10 @@
+{
+  "kind": "frontend_typescript_noemit_gate",
+  "source_head": "6a5903430dc7adabfdaa1d56f8272265a59f73f7",
+  "source_clean": true,
+  "raw_exit": 0,
+  "log": "typescript-noemit.log",
+  "log_sha256": "81ddb085036b1e266e6497e5d925593855e2025f54b0dbae67ccdc45644ef0e6",
+  "dependency_install": false,
+  "npx_fetch": false
+}

@@ -145,6 +145,17 @@ def build_request_expectations(
     expected_restore_audit_id = (
         str(args.get("audit_id") or "")
         if name == "canvas.restore_version" else "")
+    expected_prior_audit_id = (
+        str(args.get("expected_prior_audit_id") or "")
+        if name == "canvas.delete" else "")
+    expected_tombstone_audit_id = (
+        str(args.get("tombstone_audit_id")
+            or args.get("expected_tombstone_audit_id") or "")
+        if name == "canvas.undelete" else "")
+    expected_source_audit_id = (
+        str(args.get("source_audit_id")
+            or args.get("expected_source_audit_id") or "")
+        if name == "canvas.undelete" else "")
     expected_canvas_content_sha256 = ""
     if name == "canvas.update" and "content" in args:
         expected_canvas_content_sha256 = approved_payload_sha256(
@@ -365,6 +376,9 @@ def build_request_expectations(
         "_oracle_expected_target": expected_target,
         "_oracle_expected_canvas_id": expected_canvas_id,
         "_oracle_expected_restore_audit_id": expected_restore_audit_id,
+        "_oracle_expected_prior_audit_id": expected_prior_audit_id,
+        "_oracle_expected_tombstone_audit_id": expected_tombstone_audit_id,
+        "_oracle_expected_source_audit_id": expected_source_audit_id,
         "_oracle_expected_canvas_content_sha256": (
             expected_canvas_content_sha256),
         "_oracle_expected_material_sha256": expected_material_sha256,

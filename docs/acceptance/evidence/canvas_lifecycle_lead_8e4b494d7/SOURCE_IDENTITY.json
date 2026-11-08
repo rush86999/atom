@@ -1,0 +1,30 @@
+{
+  "candidate_source": "8e4b494d722b5ca07c79cc487adab65e1350f2b8",
+  "candidate_branch": "codex/canvas-lifecycle-verified-20261107",
+  "candidate_tree": "c2c8abf6661d98fc54ff0cd5da15736e6d59c321",
+  "candidate_backend_tree": "ae203eef0063835ce6d3f5a034b2126e65b49dce",
+  "baseline_source": "27a1830a27e73ed30124a82d01bb710e26bc7113",
+  "baseline_tree": "cd5bc30aaa8ed41af5f625e697dd4e27eb850468",
+  "baseline_backend_tree": "5a8ff02bf90dafe34e99cf564d50f8929b7fec17",
+  "main_equivalent_source": "8ded00232c30961a990e675e06ec672ef6a43910",
+  "main_equivalent_tree": "9d23a5d713c0f84cc1ddecc9402dbfdcf66e30a6",
+  "main_equivalent_backend_tree": "5a8ff02bf90dafe34e99cf564d50f8929b7fec17",
+  "baseline_backend_equals_main_backend": true,
+  "independent_probe": {
+    "origin_repo": "/private/tmp/atom-current-claim-audit-20261107",
+    "origin_branch": "codex/current-claim-reconciliation-20261107",
+    "origin_commit": "de180672830e66e49ed87bcf4f7abedf9ff0f199",
+    "origin_path": "docs/engineering/probes/canvas_lifecycle_scope_root_2026_11_07.py",
+    "origin_blob": "ede2276fa2292558d77ed2b12928b887d1d6414d",
+    "packet_artifact": "independent-probe.py",
+    "packet_artifact_sha256": "332b911fa3a421b56a5e0714e74d925355987fbd4610035df4353159d229678e"
+  },
+  "derivation_commands": [
+    "git -C /private/tmp/atom-canvas-lifecycle-20261107 rev-parse 8e4b494d722b5ca07c79cc487adab65e1350f2b8^{tree}",
+    "git -C /private/tmp/atom-canvas-lifecycle-20261107 rev-parse 8e4b494d722b5ca07c79cc487adab65e1350f2b8:backend",
+    "git -C /Users/rushiparikh/projects/atom rev-parse 27a1830a27e73ed30124a82d01bb710e26bc7113^{tree}",
+    "git -C /Users/rushiparikh/projects/atom rev-parse 27a1830a27e73ed30124a82d01bb710e26bc7113:backend",
+    "git -C /Users/rushiparikh/projects/atom rev-parse 8ded00232c30961a990e675e06ec672ef6a43910:backend",
+    "git -C /private/tmp/atom-current-claim-audit-20261107 rev-parse HEAD:docs/engineering/probes/canvas_lifecycle_scope_root_2026_11_07.py"
+  ]
+}

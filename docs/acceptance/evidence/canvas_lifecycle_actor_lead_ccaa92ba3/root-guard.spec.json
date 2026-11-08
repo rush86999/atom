@@ -1,0 +1,23 @@
+{
+  "source": "ccaa92ba3c94fb32bbfd6cff50cc97d03ee36078",
+  "root": "/private/tmp/root-feedback-sqlite-lds322gt",
+  "command": [
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-canvas-lifecycle-20261107/backend",
+    "--profile",
+    "bounded",
+    "--",
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "/private/tmp/test_root_canvas_actor_guard_interleave_v2.py",
+    "-k",
+    "during_guard",
+    "-q",
+    "--tb=short",
+    "-p",
+    "no:cacheprovider",
+    "--basetemp=/private/tmp/root-feedback-sqlite-lds322gt/pytest"
+  ]
+}

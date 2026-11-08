@@ -1,0 +1,22 @@
+{
+  "runtime": "ccaa92ba3c94fb32bbfd6cff50cc97d03ee36078",
+  "permanent_test_successor": "19bd74ade5bfb495f294b886743217d4d9a84b41",
+  "product_files_byte_equal": {
+    "backend/api/canvas_routes.py": "563d5dabaea1df918de3594c63d3ecc0b8e5c15214965408da50fc4ba01c4970",
+    "backend/core/canvas_write_service.py": "569cae8a3edd69c6e54f797a6cefef19b66df4f8acd10f2309a16b9c83623fc1",
+    "backend/tools/canvas_crud_tool.py": "feae1ff118c2ed6cfaf14b27ab3695c65d03b9dfbeac82bab34a2fb86e7ff328",
+    "backend/integrations/mcp_service.py": "95fad06dc882e3603e9c3bf2b59bdd60264fb10a4783504c43ae08ef0fc6ee60",
+    "backend/core/oracle/postcondition_verifiers.py": "63678b93d34780c341282de8e05c1b30d1a9fdda6d257557925b20657eebc7fe",
+    "backend/core/oracle/request_expectations.py": "19b7f7bae14ac46609e39201dc796810d03316641af41533ea95821d2557b5e7",
+    "backend/core/models.py": "9aec60c9155da8af8652b3209839c658d78896837b1a30d38763007b44e14b59"
+  },
+  "baseline_failures": [
+    "tests/core/test_action_registry_coverage.py::TestDocumentsSearchAction::test_search_legacy_path_flag_off",
+    "tests/test_r79_action_registry_rpc.py::TestRpcRouteAuthenticated::test_list_actions_includes_registered_names"
+  ],
+  "candidate_failures": [
+    "tests/core/test_action_registry_coverage.py::TestDocumentsSearchAction::test_search_legacy_path_flag_off",
+    "tests/test_r79_action_registry_rpc.py::TestRpcRouteAuthenticated::test_list_actions_includes_registered_names"
+  ],
+  "identical_failure_ids": true
+}

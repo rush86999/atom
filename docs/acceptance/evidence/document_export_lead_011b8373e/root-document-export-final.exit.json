@@ -1,0 +1,19 @@
+{
+  "external_diagnostic_probe": true,
+  "source_bytes_before": {
+    "backend/api/document_routes.py": "44829e65debb8253f81eb68ccef1733c6840c491e40ebd57a984abf36fef909c",
+    "backend/core/doc_freshness_service.py": "f0f9e4e70566ab2c600fd1290bfabc19c15231a092768359c4abdfcd8eb8d62b",
+    "backend/tests/test_document_export.py": "02f4f8e9c70f0533b90686f623862c44778eec4e89597c990ed8a9d589f9e1f3"
+  },
+  "source_bytes_after": {
+    "backend/api/document_routes.py": "44829e65debb8253f81eb68ccef1733c6840c491e40ebd57a984abf36fef909c",
+    "backend/core/doc_freshness_service.py": "f0f9e4e70566ab2c600fd1290bfabc19c15231a092768359c4abdfcd8eb8d62b",
+    "backend/tests/test_document_export.py": "02f4f8e9c70f0533b90686f623862c44778eec4e89597c990ed8a9d589f9e1f3"
+  },
+  "source": "011b8373e1662ce29ce911c04e04ec085aea812c",
+  "head_after": "011b8373e1662ce29ce911c04e04ec085aea812c",
+  "runtime_or_test_diff": [],
+  "actual_exit": 0,
+  "scratch": "/private/tmp/root-wait-source-final-review-cs9htdz8",
+  "finished": 1794084255.338733
+}
