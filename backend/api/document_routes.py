@@ -830,9 +830,30 @@ async def upload_document(
                 _row.freshness_status = "fresh"
                 db.commit()
         except Exception as pg_err:
-            # Vector row already stored; never fail the upload because the
-            # mirror row failed — search still finds it (bridged:false).
-            logger.warning(f"PG mirror row skipped for upload {doc_id}: {pg_err}")
+            # The Lance/vector write was already attempted before this mirror.
+            # A commit exception may mean no commit, or a commit whose
+            # confirmation was lost. Do not claim "none"/"rolled_back" and do
+            # not invite an automatic retry: classify the effect as unverified.
+            logger.error(
+                "Document upload SQL mirror failed; stage=sql_mirror; "
+                "exception_class=%s",
+                type(pg_err).__name__)
+            raise router.error_response(
+                error_code="DOCUMENT_MIRROR_UNVERIFIED",
+                message=(
+                    "The upload could not be confirmed. Check this document "
+                    "before uploading it again; do not retry automatically."),
+                details={
+                    "document_id": doc_id,
+                    "stage": "sql_mirror",
+                    "verification": {
+                        "status": "unverified", "effect": "unknown",
+                        "replay": "do_not_repeat",
+                    },
+                    "next_action": "check_document_status",
+                },
+                status_code=503,
+            ) from None
         
         return DocumentResponse(
             id=doc_id,
