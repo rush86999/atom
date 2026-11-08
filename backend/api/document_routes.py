@@ -102,18 +102,110 @@ async def _stored_chunk_count(lancedb_handler, doc_id: str, fallback_text: str) 
     return max(1, -(-len(text) // 500))
 
 
-def _content_doc_key(text: str) -> str:
-    """Deterministic doc id from CONTENT (sha256), the identity that actually
-    matters for user-submitted documents with no external record id.
+# Caller-supplied ingest metadata must never override the server-owned scope,
+# the content identity or the PG binding of an extraction row.
+_CLIENT_IDENTITY_METADATA_KEYS = frozenset({
+    "doc_id", "pg_document_id", "source_content_hash",
+    "workspace_id", "tenant_id",
+})
 
-    Same content → same id → one row (re-post skips as unchanged); different
-    content → different id (titles/filenames never merge distinct documents
-    and never collide same-named ones). This follows the standard idempotency
-    pattern: source record id when one exists, content fingerprint when it
-    doesn't."""
-    import hashlib
 
+def _content_doc_key(text: str, workspace_id: Optional[str] = None,
+                     tenant_id: Optional[str] = None) -> str:
+    """Deterministic CONTENT identity bound to the trusted document scope.
+
+    The identity is ``sha256(canonical(workspace, tenant, content))``. JSON
+    object serialization is unambiguous (no lossy separators/case folding),
+    and preserves the raw distinction between ``None`` and the literal
+    ``"default"`` namespace. Scope comes only from the authenticated server
+    object, never from request metadata.
+
+    Same content in the same scope → same id → idempotent re-upload; the same
+    content in a different workspace/tenant → a different id, so one
+    workspace's upload can never alias or overwrite another's SQL row.
+    """
+    canonical = json.dumps(
+        {
+            "content": text,
+            "tenant_id": tenant_id,
+            "workspace_id": workspace_id,
+        },
+        ensure_ascii=False,
+        separators=(",", ":"),
+        sort_keys=True,
+    )
+    return "doc_" + hashlib.sha256(canonical.encode("utf-8")).hexdigest()[:24]
+
+
+def _legacy_content_doc_key(text: str) -> str:
+    """The pre-scope, content-only id used by historical uploads.
+
+    Kept only to detect an existing legacy row. It is never the identity for
+    a new write unless an authoritative SQL owner proves the current scope.
+    """
     return "doc_" + hashlib.sha256(text.encode("utf-8")).hexdigest()[:24]
+
+
+def _document_row_scope_matches(row, workspace_id: Optional[str],
+                                tenant_id: Optional[str]) -> bool:
+    """True only when an existing SQL row's authoritative owner is this scope.
+
+    Personal-Edition storage normalizes a missing workspace to ``"default"``;
+    tenant is compared raw, so a NULL tenant is not silently treated as the
+    literal ``"default"`` tenant. A digest is identity, never permission: a
+    mismatched row must never be adopted or overwritten.
+    """
+    if row is None:
+        return False
+    row_workspace = str(getattr(row, "workspace_id", "") or "default")
+    expected_workspace = str(workspace_id or "default")
+    return (row_workspace == expected_workspace
+            and getattr(row, "tenant_id", None) == tenant_id)
+
+
+def _resolve_upload_doc_id(db, text: str, workspace_id: Optional[str],
+                           tenant_id: Optional[str]) -> str:
+    """Choose the scoped id, reusing a legacy id only when its owner matches.
+
+    An old content-only id has no scope in its digest. It is reusable only
+    when the authoritative SQL row proves the current workspace/tenant and an
+    owned vector/history can therefore be addressed without fabricating
+    scope. A foreign legacy row is left untouched and a fresh scoped id is
+    used; an existing scoped row owned by somebody else is a fail-closed
+    conflict rather than an invitation to overwrite its metadata.
+    """
+    from core.models import IngestedDocument
+
+    scoped_id = _content_doc_key(
+        text, workspace_id=workspace_id, tenant_id=tenant_id)
+    scoped_row = (
+        db.query(IngestedDocument)
+        .filter(IngestedDocument.id == scoped_id)
+        .first()
+    )
+    if scoped_row is not None:
+        if _document_row_scope_matches(scoped_row, workspace_id, tenant_id):
+            # The current scoped identity already exists and is ours: stay on
+            # it even if an older content-only row also exists.
+            return scoped_id
+        raise router.error_response(
+            error_code="DOCUMENT_IDENTITY_CONFLICT",
+            message=(
+                "This document identity is already owned by a different "
+                "workspace or tenant, so it was not adopted or overwritten."),
+            status_code=409,
+        )
+
+    legacy_id = _legacy_content_doc_key(text)
+    if legacy_id != scoped_id:
+        legacy_row = (
+            db.query(IngestedDocument)
+            .filter(IngestedDocument.id == legacy_id)
+            .first()
+        )
+        if _document_row_scope_matches(legacy_row, workspace_id, tenant_id):
+            return legacy_id
+    return scoped_id
 
 
 async def _upsert_document(
@@ -420,16 +512,18 @@ async def ingest_document(
 
         # Dynamic workspace resolution
         ws_id = _resolve_ws_id(current_user)
+        # Raw authenticated tenant; never trust body metadata for scope.
+        tenant_id = getattr(current_user, "tenant_id", None)
              
         lancedb_handler = get_lancedb_handler(ws_id)
-        
+
         if not lancedb_handler:
              raise router.internal_error("Search database not available")
 
-        # Content-hash identity: no external record id exists for API-pasted
-        # text, so the content fingerprint IS the document identity (same
-        # content → same row regardless of title; different content → new
-        # row even under the same title).
+        # Scoped content identity: no external record id exists for API-pasted
+        # text, so the content fingerprint bound to the server-owned scope IS
+        # the document identity (same content in the same scope → same row;
+        # different scope or content → different row).
         content = request.content or ""
         doc_type = request.type
         title = request.title or "Untitled document"
@@ -448,9 +542,18 @@ async def ingest_document(
                 details={"file_type": doc_type},
                 status_code=422,
             )
-        doc_id = _content_doc_key(content)
+        doc_id = _content_doc_key(
+            content, workspace_id=ws_id, tenant_id=tenant_id)
 
-        metadata = request.metadata or {}
+        # A text ingest has no authoritative SQL row, so it must stay
+        # snapshot-only. Drop caller-supplied identity/scope/PG-binding keys
+        # before stamping server-owned metadata; body metadata is data, never
+        # namespace or authority.
+        metadata = {
+            key: value
+            for key, value in (request.metadata or {}).items()
+            if key not in _CLIENT_IDENTITY_METADATA_KEYS
+        }
         metadata.update({
             "title": title,
             "file_type": doc_type,
@@ -498,6 +601,8 @@ async def upload_document(
     try:
         # Dynamic workspace resolution (FK-first, J3 isolation contract)
         ws_id = _resolve_ws_id(current_user)
+        # Raw authenticated tenant; never trust file/body metadata for scope.
+        tenant_id = getattr(current_user, "tenant_id", None)
              
         lancedb_handler = get_lancedb_handler(ws_id)
 
@@ -586,7 +691,30 @@ async def upload_document(
                 status_code=422,
             )
 
-        # 2. Materialize the SQL-queryable sheet datasets — fire-and-forget,
+        # 2. Scoped content identity: same file re-uploaded in the same
+        # workspace/tenant → same row (skip/replace); identical bytes in a
+        # different scope → a different row. A filename is metadata, never an
+        # identity key.
+        doc_id = _content_doc_key(
+            content, workspace_id=ws_id, tenant_id=tenant_id)
+        # Legacy content-only ids carry no scope in the digest. Reuse one only
+        # when its authoritative SQL row proves this exact scope; otherwise
+        # fail closed on adoption and use the scoped id. If the SQL store is
+        # unavailable, no legacy id can be proven, so the scoped id is used.
+        try:
+            from core.database import get_db_session
+
+            with get_db_session() as _identity_db:
+                doc_id = _resolve_upload_doc_id(
+                    _identity_db, content, ws_id, tenant_id)
+        except HTTPException:
+            raise
+        except Exception as identity_err:  # noqa: BLE001 — vector-only uploads
+            logger.warning(
+                "Document identity scope lookup unavailable; using scoped id "
+                f"without legacy adoption: {identity_err}")
+
+        # 3. Materialize the SQL-queryable sheet datasets — fire-and-forget,
         # exactly like the storage-read path (2026-10-01 three-domain live
         # finding: an UPLOADED workbook ingested as a document but never
         # entered the sheet-datasets catalog, so the named-file reader
@@ -614,10 +742,7 @@ async def upload_document(
                 logger.warning(
                     f"sheet datasets: upload scheduling failed for {filename}: {ds_err}")
 
-        # 3. Store document — content-hash identity: same file re-uploaded →
-        # same row (skip/replace); DIFFERENT files sharing a filename → two
-        # rows (a filename is metadata, never an identity key).
-        doc_id = _content_doc_key(content)
+        # 4. Store document.
         upload_root = Path(
             os.getenv("ATOM_OFFICE_DIR") or "data/office").expanduser()
         upload_root = upload_root / "uploads"
@@ -659,7 +784,7 @@ async def upload_document(
             extra_columns={"freshness_status": "fresh"},
         )
 
-        # 4. Aligned PG row: gives the upload full journey parity with synced
+        # 5. Aligned PG row: gives the upload full journey parity with synced
         # documents — lexical leg (FTS), VFS cat, citability. id MUST equal the
         # LanceDB doc_id (join-key bridge).
         try:
@@ -676,11 +801,19 @@ async def upload_document(
                     .filter(IngestedDocument.id == doc_id)
                     .first()
                 )
+                if _row is not None and not _document_row_scope_matches(
+                        _row, ws_id, tenant_id):
+                    # A digest is identity, never permission. Never rewrite a
+                    # peer/foreign row merely because its id matched (race or
+                    # a manually crafted row); skip the mirror, leave it intact.
+                    raise RuntimeError(
+                        "refusing to overwrite a document row owned by a "
+                        "different workspace or tenant")
                 if _row is None:
                     _row = IngestedDocument(
                         id=doc_id,
                         workspace_id=ws_id or "default",
-                        tenant_id=getattr(current_user, "tenant_id", None),
+                        tenant_id=tenant_id,
                         external_id=f"upload_{doc_id}",
                         integration_id="manual_upload",
                     )

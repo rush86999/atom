@@ -205,3 +205,75 @@ handler factory (distinct physical directories) reproduced the actual product
 identity defect: identical DOCX content in two workspaces got the same docid;
 second upload200/export404 and peer_record_unchanged=false. This is not a
 fixture-only problem and must be repaired before document acceptance.
+
+
+## Content-namespace repair at 01f72a136
+
+Root runtime at 01f72a136: **13 passed / 2 failed**. Both failures are the real
+same-content cross-workspace collision, not parser failure. The parser repair
+from 711bd177e and root's complete SQL/Arrow pre/post snapshot fixtures are
+retained unchanged; root's scope probes are unchanged.
+
+### Changed producer contract — `backend/api/document_routes.py`
+
+`_content_doc_key(text, workspace_id, tenant_id)` is now
+`sha256(JSON{content, tenant_id, workspace_id})` sorted/compact. JSON is an
+unambiguous canonical serialization (no lossy separators, no case folding) and
+keeps raw `None` distinct from the literal `"default"` namespace.
+
+- Normal `/api/documents/upload` binds the id to `_resolve_ws_id(current_user)`
+  (the existing FK-first workspace resolver) and the authenticated user's raw
+  tenant. `/api/documents/ingest` uses the same server-owned scope; caller body
+  metadata can no longer supply `doc_id`, `pg_document_id`,
+  `source_content_hash`, `workspace_id` or `tenant_id`.
+- Same content in the same scope re-uploads to the same id (idempotent).
+  Identical bytes in different workspaces/tenants get different ids, so the
+  second upload cannot update the first workspace's SQL row.
+- Legacy content-only ids (`doc_<sha256(text)>`) remain readable and are reused
+  ONLY when the authoritative SQL `IngestedDocument` row's owner scope matches
+  the current scope (workspace under the existing Personal `None`→`"default"`
+  storage policy; tenant compared raw). Otherwise the scoped id is used and
+  the foreign/history row is left untouched.
+- An unbacked old vector (no authoritative SQL owner) is never adopted:
+  adoption fails closed to the scoped id, while the historical vector bytes
+  remain readable. No delete or migration.
+- A computed scoped id that already belongs to a foreign SQL row refuses with
+  `409 DOCUMENT_IDENTITY_CONFLICT` before materialization/vector write; the SQL
+  mirror also refuses to rewrite such a row if it appears concurrently.
+- Text ingest still creates no SQL row; the string `"pg_document_id"` is
+  stripped from caller metadata so a body cannot invent a PG binding. Existing
+  `ev4`/raw revision kinds, freshness statuses and export-authority rules were
+  not changed.
+
+### Tests authored (NOT RUN)
+
+New `backend/tests/test_document_content_namespace_identity.py`, reusing the
+existing `exported` fixture/helpers and the real workspace handler factory:
+
+- same-scope re-upload is idempotent (one id/row, updated filename);
+- two real workspace stores with identical DOCX bytes get distinct ids, both
+  export authoritatively, the first SQL row is byte/metadata unchanged, the
+  physical stores differ, and cross-workspace reads/exports return 404;
+- raw `None` vs `"default"` workspace/tenant identities differ, while existing
+  Personal storage ownership still treats missing workspace as `"default"`;
+- an owned legacy SQL id is reused; a foreign legacy row is preserved verbatim
+  and the upload uses a fresh scoped id that exports authoritatively;
+- an unbacked legacy vector is not adopted and remains readable;
+- forged ingest-body `doc_id`/`pg_document_id`/`source_content_hash`/
+  `workspace_id`/`tenant_id` are ignored for identity and PG binding.
+
+The existing CI document-export step now also runs this module; every previous
+module is preserved. No tests/runtime/DB/browser/provider/install/credential
+actions were executed here. Root independently runs and accepts.
+
+### Boundaries / risks
+
+- Legacy adoption uses the existing Personal `None`→`"default"` storage policy
+  for workspace ownership, so a legacy row stored as `"default"` is reusable
+  by the Personal scope; new identities still distinguish raw `None` from
+  `"default"`.
+- Cross-store transactional CAS, database availability during the identity
+  probe (falls back to the scoped id without legacy adoption), TTL/path
+  policy, legacy placeholder cleanup, UI and arbitrary-format qualification
+  remain out of scope. No actor/target CAS or broader readback integrity is
+  claimed.
