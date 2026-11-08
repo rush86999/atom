@@ -20,6 +20,7 @@ from core.auth import get_current_user
 from core.bpe import automation, evolution, workspace
 from core.bpe.actions import bpe_enabled
 from core.bpe.telemetry import record_bpe_span
+from core.observability.tracing import clear_spans
 from core.database import Base, get_db
 from core.models import RuntimeSetting, SettingChangeAudit, User, UserRole
 
@@ -54,7 +55,11 @@ def _clean_state(monkeypatch):
         monkeypatch.delenv(var, raising=False)
     rs.invalidate_settings_cache()
     workspace.reset_registry()
+    # The tracing seam is process-global; prior evolution/trust cases must not
+    # contribute to this case's exact telemetry counts. Keep production intact.
+    clear_spans()
     yield
+    clear_spans()
     workspace.reset_registry()
     rs.invalidate_settings_cache()
     workspace.set_active_bounds(None)
