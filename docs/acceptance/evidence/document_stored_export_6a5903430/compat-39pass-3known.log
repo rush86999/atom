@@ -1,0 +1,258 @@
+rc=1
+
+tests/api/test_document_routes_coverage_w52.py::TestIngestDocument::test_ingest_success 
+-------------------------------- live log setup --------------------------------
+2026-11-07 15:19:09 [    INFO] EscalationManager initialized
+2026-11-07 15:19:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:19:09 [    INFO] EscalationManager initialized
+2026-11-07 15:19:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 15:19:09 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 15:19:09 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:19:09 [    INFO] HTTP Request: POST http://testserver/api/documents/ingest "HTTP/1.1 200 OK"
+FAILED                                                                   [  2%]
+tests/api/test_document_routes_coverage_w52.py::TestIngestDocument::test_ingest_empty_content_placeholder 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:19:10 [    INFO] HTTP Request: POST http://testserver/api/documents/ingest "HTTP/1.1 200 OK"
+FAILED                                                                   [  4%]
+tests/api/test_document_routes_coverage_w52.py::TestIngestDocument::test_ingest_workspace_resolution 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:19:10 [    INFO] HTTP Request: POST http://testserver/api/documents/ingest "HTTP/1.1 200 OK"
+PASSED                                                                   [  7%]
+tests/api/test_document_routes_coverage_w52.py::TestIngestDocument::test_ingest_handler_missing_500 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:19:10 [ WARNING] API Error: INTERNAL_ERROR - Search database not available
+2026-11-07 15:19:10 [   ERROR] Document ingestion failed: 500: {'success': False, 'error': {'code': 'INTERNAL_ERROR', 'message': 'Search database not available', 'timestamp': '2026-11-07T20:19:10.070791+00:00'}}
+2026-11-07 15:19:10 [ WARNING] API Error: INTERNAL_ERROR - Internal error
+2026-11-07 15:19:10 [    INFO] HTTP Request: POST http://testserver/api/documents/ingest "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [  9%]
+tests/api/test_document_routes_coverage_w52.py::TestIngestDocument::test_ingest_add_failure_500 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:19:10 [   ERROR] Document ingestion failed: LanceDB add_document returned False
+2026-11-07 15:19:10 [ WARNING] API Error: INTERNAL_ERROR - Internal error
+2026-11-07 15:19:10 [    INFO] HTTP Request: POST http://testserver/api/documents/ingest "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 11%]
+tests/api/test_document_routes_coverage_w52.py::TestIngestDocument::test_ingest_exception_500 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:19:10 [   ERROR] Document ingestion failed: boom
+2026-11-07 15:19:10 [ WARNING] API Error: INTERNAL_ERROR - Internal error
+2026-11-07 15:19:10 [    INFO] HTTP Request: POST http://testserver/api/documents/ingest "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 14%]
+tests/api/test_document_routes_coverage_w52.py::TestUploadDocument::test_upload_success 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:19:10 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+PASSED                                                                   [ 16%]
+tests/api/test_document_routes_coverage_w52.py::TestUploadDocument::test_upload_declared_too_large_413 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:19:10 [ WARNING] API Error: FILE_TOO_LARGE - File exceeds the 50 MB upload limit
+2026-11-07 15:19:10 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 413 Request Entity Too Large"
+PASSED                                                                   [ 19%]
+tests/api/test_document_routes_coverage_w52.py::TestUploadDocument::test_upload_unsupported_ext_415 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:19:10 [ WARNING] API Error: UNSUPPORTED_FILE_TYPE - File type 'exe' is not supported
+2026-11-07 15:19:10 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 415 Unsupported Media Type"
+PASSED                                                                   [ 21%]
+tests/api/test_document_routes_coverage_w52.py::TestUploadDocument::test_upload_empty_parse_placeholder 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:19:10 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+PASSED                                                                   [ 23%]
+tests/api/test_document_routes_coverage_w52.py::TestUploadDocument::test_upload_add_failure_500 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:19:10 [   ERROR] File upload failed: LanceDB add_document returned False
+2026-11-07 15:19:10 [ WARNING] API Error: INTERNAL_ERROR - Internal error
+2026-11-07 15:19:10 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 26%]
+tests/api/test_document_routes_coverage_w52.py::TestUploadDocument::test_upload_parse_exception_500 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:19:10 [   ERROR] File upload failed: parse fail
+2026-11-07 15:19:10 [ WARNING] API Error: INTERNAL_ERROR - Internal error
+2026-11-07 15:19:10 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 28%]
+tests/api/test_document_routes_coverage_w52.py::TestSearchDocuments::test_search_success 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:19:10 [    INFO] HTTP Request: GET http://testserver/api/documents/search?q=hello "HTTP/1.1 200 OK"
+PASSED                                                                   [ 30%]
+tests/api/test_document_routes_coverage_w52.py::TestSearchDocuments::test_search_string_metadata_parsed 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:19:10 [    INFO] HTTP Request: GET http://testserver/api/documents/search?q=x "HTTP/1.1 200 OK"
+PASSED                                                                   [ 33%]
+tests/api/test_document_routes_coverage_w52.py::TestSearchDocuments::test_search_bad_json_metadata_empty 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:19:10 [    INFO] HTTP Request: GET http://testserver/api/documents/search?q=x "HTTP/1.1 200 OK"
+PASSED                                                                   [ 35%]
+tests/api/test_document_routes_coverage_w52.py::TestSearchDocuments::test_search_empty_results 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:19:10 [    INFO] HTTP Request: GET http://testserver/api/documents/search?q=nothing "HTTP/1.1 200 OK"
+PASSED                                                                   [ 38%]
+tests/api/test_document_routes_coverage_w52.py::TestSearchDocuments::test_search_limit_query_validation 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:19:10 [    INFO] HTTP Request: GET http://testserver/api/documents/search?q=x&limit=0 "HTTP/1.1 422 Unprocessable Entity"
+2026-11-07 15:19:10 [    INFO] HTTP Request: GET http://testserver/api/documents/search?q=x&limit=500 "HTTP/1.1 422 Unprocessable Entity"
+PASSED                                                                   [ 40%]
+tests/api/test_document_routes_coverage_w52.py::TestSearchDocuments::test_search_handler_missing_500 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:19:10 [ WARNING] API Error: INTERNAL_ERROR - Search database not available
+2026-11-07 15:19:10 [   ERROR] Document search failed: 500: {'success': False, 'error': {'code': 'INTERNAL_ERROR', 'message': 'Search database not available', 'timestamp': '2026-11-07T20:19:10.173059+00:00'}}
+2026-11-07 15:19:10 [ WARNING] API Error: INTERNAL_ERROR - Internal error
+2026-11-07 15:19:10 [    INFO] HTTP Request: GET http://testserver/api/documents/search?q=x "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 42%]
+tests/api/test_document_routes_coverage_w52.py::TestSearchDocuments::test_search_exception_500 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:19:10 [   ERROR] Document search failed: search down
+2026-11-07 15:19:10 [ WARNING] API Error: INTERNAL_ERROR - Internal error
+2026-11-07 15:19:10 [    INFO] HTTP Request: GET http://testserver/api/documents/search?q=x "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 45%]
+tests/api/test_document_routes_coverage_w52.py::TestGetDocument::test_get_success 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:19:10 [    INFO] HTTP Request: GET http://testserver/api/documents/doc-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 47%]
+tests/api/test_document_routes_coverage_w52.py::TestGetDocument::test_get_not_found_404 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:19:10 [ WARNING] API Error: NOT_FOUND - Document not found: ghost
+2026-11-07 15:19:10 [    INFO] HTTP Request: GET http://testserver/api/documents/ghost "HTTP/1.1 404 Not Found"
+PASSED                                                                   [ 50%]
+tests/api/test_document_routes_coverage_w52.py::TestGetDocument::test_get_handler_missing_500 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:19:10 [ WARNING] API Error: INTERNAL_ERROR - Search database not available
+2026-11-07 15:19:10 [    INFO] HTTP Request: GET http://testserver/api/documents/doc-1 "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 52%]
+tests/api/test_document_routes_coverage_w52.py::TestGetDocument::test_get_exception_500 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:19:10 [   ERROR] Failed to get document doc-1: boom
+2026-11-07 15:19:10 [ WARNING] API Error: INTERNAL_ERROR - Internal error
+2026-11-07 15:19:10 [    INFO] HTTP Request: GET http://testserver/api/documents/doc-1 "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 54%]
+tests/api/test_document_routes_coverage_w52.py::TestDeleteDocument::test_delete_user_initiated_success 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:19:10 [    INFO] HTTP Request: DELETE http://testserver/api/documents/doc-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 57%]
+tests/api/test_document_routes_coverage_w52.py::TestDeleteDocument::test_delete_with_agent_id_governance 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:19:10 [    INFO] HTTP Request: DELETE http://testserver/api/documents/doc-1?agent_id=agent-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 59%]
+tests/api/test_document_routes_coverage_w52.py::TestDeleteDocument::test_delete_handler_missing_500 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:19:10 [ WARNING] API Error: INTERNAL_ERROR - Search database not available
+2026-11-07 15:19:10 [    INFO] HTTP Request: DELETE http://testserver/api/documents/doc-1 "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 61%]
+tests/api/test_document_routes_coverage_w52.py::TestListDocuments::test_list_success 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:19:10 [    INFO] HTTP Request: GET http://testserver/api/documents "HTTP/1.1 200 OK"
+PASSED                                                                   [ 64%]
+tests/api/test_document_routes_coverage_w52.py::TestListDocuments::test_list_handler_missing_empty 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:19:10 [    INFO] HTTP Request: GET http://testserver/api/documents "HTTP/1.1 200 OK"
+PASSED                                                                   [ 66%]
+tests/api/test_document_routes_coverage_w52.py::TestListDocuments::test_list_exception_500 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:19:10 [   ERROR] Failed to list documents: boom
+2026-11-07 15:19:10 [ WARNING] API Error: INTERNAL_ERROR - Internal error
+2026-11-07 15:19:10 [    INFO] HTTP Request: GET http://testserver/api/documents "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 69%]
+tests/api/test_document_routes_coverage_w52.py::TestWorkspaceBranches::test_upload_workspace_resolution_exception_warned 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:19:10 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+FAILED                                                                   [ 71%]
+tests/api/test_document_routes_coverage_w52.py::TestWorkspaceBranches::test_search_workspace_branch 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:19:10 [    INFO] HTTP Request: GET http://testserver/api/documents/search?q=x "HTTP/1.1 200 OK"
+PASSED                                                                   [ 73%]
+tests/api/test_document_routes_coverage_w52.py::TestWorkspaceBranches::test_get_workspace_branch 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:19:10 [    INFO] HTTP Request: GET http://testserver/api/documents/doc-ws "HTTP/1.1 200 OK"
+PASSED                                                                   [ 76%]
+tests/api/test_document_routes_coverage_w52.py::TestWorkspaceBranches::test_delete_workspace_branch 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:19:10 [    INFO] HTTP Request: DELETE http://testserver/api/documents/doc-1 "HTTP/1.1 200 OK"
+PASSED                                                                   [ 78%]
+tests/api/test_document_routes_coverage_w52.py::TestWorkspaceBranches::test_list_workspace_branch 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:19:10 [    INFO] HTTP Request: GET http://testserver/api/documents "HTTP/1.1 200 OK"
+PASSED                                                                   [ 80%]
+tests/api/test_document_routes_coverage_w52.py::TestUploadHandlerMissing::test_upload_handler_missing_500 
+-------------------------------- live log call ---------------------------------
+2026-11-07 15:19:10 [ WARNING] API Error: INTERNAL_ERROR - Search database not available
+2026-11-07 15:19:10 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 500 Internal Server Error"
+PASSED                                                                   [ 83%]
+tests/test_documents_search_workspace_scope.py::test_vector_leg_uses_the_workspace_handler PASSED [ 85%]
+tests/test_documents_search_workspace_scope.py::test_documents_search_action_passes_context_workspace PASSED [ 88%]
+tests/test_documents_search_workspace_scope.py::test_documents_search_falls_back_to_request_scope PASSED [ 90%]
+tests/test_documents_search_workspace_scope.py::test_zero_match_grep_falls_back_to_hybrid_search PASSED [ 92%]
+tests/test_documents_search_workspace_scope.py::test_legacy_path_filters_to_the_workspace PASSED [ 95%]
+tests/test_documents_search_workspace_scope.py::test_upload_route_resolves_the_fk_first PASSED [ 97%]
+tests/test_documents_search_workspace_scope.py::test_upsert_document_forwards_the_freshness_stamp PASSED [100%]
+
+=================================== FAILURES ===================================
+____________________ TestIngestDocument.test_ingest_success ____________________
+tests/api/test_document_routes_coverage_w52.py:154: in test_ingest_success
+    assert data["chunk_count"] == 1
+E   assert 2 == 1
+------------------------------ Captured log setup ------------------------------
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.embedding_service:embedding_service.py:131 Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+INFO     core.agent_task_registry:agent_task_registry.py:64 AgentTaskRegistry initialized
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/documents/ingest "HTTP/1.1 200 OK"
+___________ TestIngestDocument.test_ingest_empty_content_placeholder ___________
+tests/api/test_document_routes_coverage_w52.py:165: in test_ingest_empty_content_placeholder
+    assert response.json()["title"].startswith("Document ")
+E   AssertionError: assert False
+E    +  where False = <built-in method startswith of str object at 0x12d1207b0>('Document ')
+E    +    where <built-in method startswith of str object at 0x12d1207b0> = 'Untitled document'.startswith
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/documents/ingest "HTTP/1.1 200 OK"
+___ TestWorkspaceBranches.test_upload_workspace_resolution_exception_warned ____
+tests/api/test_document_routes_coverage_w52.py:406: in test_upload_workspace_resolution_exception_warned
+    assert handler.add_document.call_args.kwargs["workspace_id"] is None
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'workspace_id'
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 84 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/api/test_document_routes_coverage_w52.py::TestIngestDocument::test_ingest_success
+FAILED tests/api/test_document_routes_coverage_w52.py::TestIngestDocument::test_ingest_empty_content_placeholder
+FAILED tests/api/test_document_routes_coverage_w52.py::TestWorkspaceBranches::test_upload_workspace_resolution_exception_warned
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================== 3 failed, 39 passed, 91 warnings in 10.97s ==================
+
+--- stderr ---

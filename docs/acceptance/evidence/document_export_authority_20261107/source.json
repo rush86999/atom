@@ -1,0 +1,24 @@
+{
+  "kind": "document_export_authority_source",
+  "branch": "codex/document-stored-export-20261107",
+  "base_main": "cf5e981917bc31809ca9e8824a2363bdbc9c8f68",
+  "predecessor_source": "11a50ce23ff0731162daa00aaa751cdbc24a9f68",
+  "permanent_leading_probe_commit": "605d1c767175a1d33a371bb13e9841de5650ff74",
+  "actual_source": "df845d83d15487b176f880682ac9d5740c676d02",
+  "tracked_tree_clean_at_capture": true,
+  "changed_files": {
+    "backend/api/document_routes.py": {
+      "blob": "9ec9963ff970b096f7ac056e0311b9c2d3de9648",
+      "sha256": "6a449ee92514b97fc2eced41259c2c92b8f42ed3b17639afda515d1159e07c86"
+    },
+    "backend/tests/test_document_export.py": {
+      "blob": "641678868911582097e01ff0055ff00f0213f073",
+      "sha256": "02f4f8e9c70f0533b90686f623862c44778eec4e89597c990ed8a9d589f9e1f3"
+    },
+    "backend/tests/test_lead_document_export_authority.py": {
+      "blob": "fac0846835ade62005492212f443dc2f6ecdba1d",
+      "sha256": "ffac24d4c06af438b40dc1a1577b566c8e8148e22e1903265a87fc6a044feec9"
+    }
+  },
+  "note": "Predecessor 11a50ce23 is the withheld implementation; 605d1c767 adds the permanent failure-first authority probe; actual source adds the strict scope/freshness repair and expanded matrix. No frontend/runtime other files changed."
+}

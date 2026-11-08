@@ -1,0 +1,17 @@
+{
+  "kind": "failure_first_absence_baseline",
+  "source_main": "cf5e981917bc31809ca9e8824a2363bdbc9c8f68",
+  "observed_in_worktree": "b493abb30 (document routes/UI byte-identical to main)",
+  "test": "baseline-no-export.test.py",
+  "raw_log": "baseline-no-export.log",
+  "raw_exit": 0,
+  "passed": 2,
+  "observed": [
+    "GET /api/documents/doc-1 -> 200 stored text",
+    "/export and /download -> 404/405",
+    "router paths contain no export/download",
+    "Documents detail/list source contain no export control"
+  ],
+  "initial_false_positive": "First harness run matched JavaScript export default; corrected before passing run. Not a product failure.",
+  "no_world_browser_model": true
+}

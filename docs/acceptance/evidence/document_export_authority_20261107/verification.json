@@ -1,0 +1,68 @@
+{
+  "kind": "document_export_authority_verification",
+  "branch": "codex/document-stored-export-20261107",
+  "predecessor_source": "11a50ce23ff0731162daa00aaa751cdbc24a9f68",
+  "permanent_probe_commit": "605d1c767175a1d33a371bb13e9841de5650ff74",
+  "actual_source": "df845d83d15487b176f880682ac9d5740c676d02",
+  "predecessor_negative": {
+    "result": "3 failed, 1 passed",
+    "actual_exit": 1,
+    "failing_cases": [
+      "indexed_workspace (200)",
+      "indexed_tenant (200)",
+      "unknown_freshness (200)"
+    ],
+    "passing_twin": "matching (200)",
+    "artifact": "predecessor-root-negative.log",
+    "spec": "predecessor-root-negative.spec.json",
+    "exit": "predecessor-root-negative.exit.json"
+  },
+  "fixed_export_gate": {
+    "command": "shared bounded gate; pytest tests/test_lead_document_export_authority.py tests/test_document_export.py",
+    "result": "34 passed",
+    "actual_exit": 0,
+    "artifact": "backend-export-34.log"
+  },
+  "neighborhood_gate": {
+    "command": "shared bounded gate; pytest tests/test_document_ingestion_routes_coverage.py tests/test_document_scope_authority.py tests/test_documents_search_workspace_scope.py",
+    "result": "99 passed",
+    "actual_exit": 0,
+    "artifact": "backend-neighborhood-99.log"
+  },
+  "py_compile": {
+    "result": "exit 0",
+    "actual_exit": 0,
+    "artifact": "pycompile.log"
+  },
+  "matrix": {
+    "matching_scope_and_revision": 200,
+    "indexed_workspace_conflict": 404,
+    "indexed_tenant_conflict": 409,
+    "empty_freshness": 409,
+    "unknown_freshness": 409,
+    "revoked_freshness": 409,
+    "pending_freshness": 409,
+    "stale_outdated_superseded": 409,
+    "removed": 404,
+    "manual_opaque_matching": 200,
+    "manual_sql_missing_version_snapshot_only": 200,
+    "vector_only_manual_legacy_snapshot_only": 200,
+    "automated_missing_version": 409,
+    "known_index_only_without_sql": 409,
+    "known_sql_only_without_index_version": 409
+  },
+  "preserved": [
+    "existing upload/parser storage and full stored-text export",
+    "manual/opaque exact revision matching",
+    "manual SQL no-version snapshot_only and vector-only manual legacy snapshot_only",
+    "workspace/Personal NULL/default present-only scope comparisons",
+    "no original-binary claim; text/markdown/json only",
+    "UI Download control unchanged"
+  ],
+  "not_changed_or_claimed": [
+    "no new store/router/tenant model/trust flag",
+    "no search/profile broadening or original-binary export",
+    "no live model/provider/account/send/spend/install/download/browser/deploy",
+    "no self-acceptance; root review/PR/CI/merge"
+  ]
+}

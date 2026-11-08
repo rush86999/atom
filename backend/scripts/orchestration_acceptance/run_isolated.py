@@ -319,6 +319,12 @@ SERVER_ENV_WHITELIST = {
     # (never a real secret) and exposes it as launch_server.last_auth_secret
     # so runners mint tokens in the server's signing domain.
     "SECRET_KEY",
+    # Core-profile worker flag. The browser export driver explicitly sets this
+    # to "false" before launch, so the actual exec env proves the safe OFF
+    # state. Only this explicit boolean is forwarded; launch_server still never
+    # forwards an arbitrary environment dictionary, and a caller that
+    # explicitly sets it true keeps that explicit semantics.
+    "ATOM_AGENT_EVOLUTION_ENABLED",
     # F04/F05 need the interactive canvas-edit leg to overrun its cap so the
     # REAL async fork is taken (an armed shim stall alone is not proof the fork
     # happened). Read the effective cap back out of the run's server_env.json so
@@ -351,6 +357,18 @@ SERVER_ENV_WHITELIST = {
     # the product reads them exactly as main_api_app always has.
     "ADDITIONAL_ALLOWED_ORIGINS", "ALLOWED_HOSTS",
 }
+
+# Value-free .env / .env.local shadows installed inside every world before
+# Popen. The world export and farm live under backend/data/acceptance_worlds,
+# so a bare python-dotenv load_dotenv() in product code can walk up into the
+# live backend/.env (or .env.local) and load operator credentials/config into
+# the sandboxed server. main_api_app also loads explicit backend_dir/.env and
+# project_root/.env/.env.local paths; the farm's backend_root symlinks to the
+# code export, so guard both the world root and the farm root for both names.
+DOTENV_WORLD_GUARD = (
+    "# isolated-acceptance world dotenv guard: value-free by design.\n"
+    "# It shadows live backend/.env discovery; do not add values.\n"
+)
 
 
 def _sha256_file(path: Path) -> str:
@@ -1155,6 +1173,109 @@ def current_run_db(world: Path) -> Path:
     return runs[-1] / "data" / "atom.db"
 
 
+def _install_dotenv_isolation(world: Path) -> Dict[str, Any]:
+    """Install value-free dotenv shadows inside the world before Popen.
+
+    Covers all loaders this app uses:
+    * bare ``load_dotenv()`` (find_dotenv walks up from the module/cwd),
+    * explicit ``backend_dir/.env`` and ``project_root/.env`` in main_api_app,
+    * explicit ``project_root/.env.local`` with override=True.
+
+    The world root and the backend farm root are both guarded, for both
+    ``.env`` and ``.env.local``. Existing symlinks or nonempty non-guard files
+    are refused without reading arbitrary content; the actual operator .env
+    and private key values are never opened or printed.
+
+    Caller impact: every launch_server caller gets these value-free files. A
+    caller that pre-seeded a nonempty world .env/.env.local now fails loudly
+    instead of silently loading it.
+    """
+    world = Path(world)
+    farm = world / "backend_root"
+    targets = (
+        world / ".env",
+        world / ".env.local",
+        farm / ".env",
+        farm / ".env.local",
+    )
+    guard = DOTENV_WORLD_GUARD.encode("utf-8")
+    files: Dict[str, Any] = {}
+    problems: List[str] = []
+    for path in targets:
+        try:
+            if path.is_symlink():
+                problems.append(f"{path} is a symlink; refusing to follow it")
+                files[str(path)] = {
+                    "path": str(path),
+                    "present": True,
+                    "symlink": True,
+                    "guard": False,
+                }
+                continue
+            if path.exists():
+                if not path.is_file():
+                    problems.append(
+                        f"{path} is not a regular file; refusing")
+                    files[str(path)] = {
+                        "path": str(path),
+                        "present": True,
+                        "symlink": False,
+                        "regular_file": False,
+                        "guard": False,
+                    }
+                    continue
+                size = path.stat().st_size
+                if size and size != len(guard):
+                    problems.append(
+                        f"{path} has non-guard content ({size} bytes); refusing")
+                    files[str(path)] = {
+                        "path": str(path),
+                        "present": True,
+                        "symlink": False,
+                        "guard": False,
+                        "bytes": size,
+                    }
+                    continue
+                if size == len(guard) and path.read_bytes() != guard:
+                    problems.append(
+                        f"{path} differs from the expected guard; refusing")
+                    files[str(path)] = {
+                        "path": str(path),
+                        "present": True,
+                        "symlink": False,
+                        "guard": False,
+                        "bytes": size,
+                    }
+                    continue
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_bytes(guard)
+            os.chmod(path, 0o600)
+            readback = path.read_bytes()
+            files[str(path)] = {
+                "path": str(path),
+                "present": True,
+                "symlink": False,
+                "guard": readback == guard,
+                "bytes": len(readback),
+                "contains_values": False,
+            }
+        except OSError as exc:
+            problems.append(f"{path}: {type(exc).__name__}: {exc}")
+            files[str(path)] = {
+                "path": str(path),
+                "present": path.exists(),
+                "guard": False,
+            }
+    ok = bool(files) and all(
+        entry.get("guard") is True for entry in files.values()) and not problems
+    return {
+        "ok": ok,
+        "files": files,
+        "problems": problems,
+        "guard_text_sha256": hashlib.sha256(guard).hexdigest(),
+    }
+
+
 def launch_server(port: int, world: Path, provider_shim: bool = False,
                   reuse_run_dir: Optional[Path] = None,
                   shim_port: int = SHIM_PORT) -> subprocess.Popen:
@@ -1163,6 +1284,14 @@ def launch_server(port: int, world: Path, provider_shim: bool = False,
     # symlink is re-pointed at it. Never delete WAL/SHM beside a live DB -
     # the fresh directory makes sidecar handling moot.
     import uuid as _uuid
+    # Schema synchronization imports frozen product modules, including
+    # core.database (bare load_dotenv), so isolate BEFORE seeding too.
+    dotenv_isolation = _install_dotenv_isolation(world)
+    if not dotenv_isolation.get("ok"):
+        raise RuntimeError(
+            "dotenv isolation guard failed; refusing to launch with possible "
+            f"live backend/.env contamination: {dotenv_isolation.get('problems')}")
+    launch_server.last_dotenv_isolation = dotenv_isolation
     if reuse_run_dir is not None:
         run_dir = Path(reuse_run_dir)  # RESTART: same DB dir, no re-seed
     else:
@@ -1327,6 +1456,7 @@ def launch_server(port: int, world: Path, provider_shim: bool = False,
         "world": str(world),
         "log_path": str(world / "server.log"),
         "expected_cwd": str((world / "backend_root").resolve()),
+        "dotenv_isolation": dotenv_isolation,
     }
     deadline = time.time() + 240
     while time.time() < deadline:

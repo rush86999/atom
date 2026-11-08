@@ -1,0 +1,23 @@
+{
+  "executed_source": "011b8373e1662ce29ce911c04e04ec085aea812c",
+  "source_files": {
+    "backend/api/document_routes.py": "44829e65debb8253f81eb68ccef1733c6840c491e40ebd57a984abf36fef909c",
+    "backend/core/doc_freshness_service.py": "f0f9e4e70566ab2c600fd1290bfabc19c15231a092768359c4abdfcd8eb8d62b",
+    "backend/core/lancedb_handler.py": "ae16083306c502bc57886ee381255f1bd2ee36ee36648ae64d13f46c39ce9f2e",
+    "backend/core/personal_scope.py": "fb475dcd302845a2d3fb8ed50da1acd2849f0103fa403a395393d4b52d1e21b3",
+    "backend/tests/test_document_export.py": "02f4f8e9c70f0533b90686f623862c44778eec4e89597c990ed8a9d589f9e1f3",
+    "backend/tests/test_lead_document_export_authority.py": "ffac24d4c06af438b40dc1a1577b566c8e8148e22e1903265a87fc6a044feec9",
+    "backend/tests/test_lead_document_export_nullable_scope.py": "05f389eca454ef2466f5f9803beafbcb621819a1a5074d8098978b30fd3f962e",
+    "frontend-nextjs/pages/documents/[docId].tsx": "58e33ab8ca1cbe50d34df6ba161303a94dfcdd8d08c479a0f01e3934db1e65aa",
+    "frontend-nextjs/tests/pages/document-detail.test.tsx": "b1bd4f1a26b7612f8c4b316de58316366fbf7662145c636687ef0c3e84dacb4b"
+  },
+  "artifacts": {
+    "root-document-export-final.log": "41da18fdea265f607d93b8a452c3985026d7a1141d17834cb48aed656661298c",
+    "root-document-export-final.spec.json": "3e0354164a5c336d75de7a6564686ca6255ed270a6b12c6191146352985e1ea4",
+    "root-document-export-final.exit.json": "36f2caaddc04b8be79077bb4efa2b4a8d40b7a1f0ece0234e1e52171d2115247",
+    "root-document-export-nullable-scope-valid.exit.json": "afa300c0b05d6828c67eb640b55f6b628243375a552414717a2dfa1b06e31560",
+    "root-document-export-nullable-scope-valid.spec.json": "07388ebb8b3a61aa073d984a09f5854b296396abf1f4ef447248a5353e6d5728",
+    "README.md": "ed816f739d88b0094b5746a60e63f1b2a34fd093d14d518a6904ab0b8ddb711c",
+    "root-document-export-nullable-scope-valid.log": "b2ed6d6b2ff5cdb16927645815be8091a8c0e7c2531d267055754a488587d3fd"
+  }
+}
