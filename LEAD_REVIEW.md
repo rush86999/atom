@@ -182,3 +182,17 @@ anchoring, workspace-default inconsistencies, archive/adversarial parsing, UI
 qualification, search/grounding/original-binary export, and arbitrary-format
 qualification remain open. No existing stored document was reclassified by
 text wording, and no data was wiped or migrated.
+
+
+## Root first execution at711bd177e
+
+Original root DOCX probes now pass. Combined execution:7passed/7failed. Six
+new-author failures incorrectly expected a process-wide SQL database to have
+zero rows after earlier valid tests. The new controls now compare complete
+pre/post SQL identity/scope/version/filename/freshness snapshots, preserving
+peer rows; no deletes or per-test DB wipes were introduced. The remaining
+valid DOCX failure is NOT dismissed: repeated identical extracted text in
+different workspaces aliases the global SQL document id. The second upload
+can return200 but export404 and update the first workspace's metadata. An
+independent real-factory two-workspace probe is being added before repair.
+No complete DOCX acceptance is claimed.
