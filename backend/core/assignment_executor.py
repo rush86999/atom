@@ -1768,6 +1768,27 @@ def _step_for_gap_question(
     return None
 
 
+def _gap_question_binding_valid(
+    record: Dict[str, Any], assignment: Dict[str, Any],
+    question: Dict[str, Any], step: Optional[Dict[str, Any]],
+) -> bool:
+    """A declared binding cannot be replaced by a convenient gap-id match."""
+    declared_step = str(question.get("step_id") or "")
+    actual_step = str((step or {}).get("step_id") or "")
+    if declared_step and declared_step != actual_step:
+        return False
+    declared_operation = str(question.get("source_operation") or "")
+    if declared_operation:
+        operation = _operation_by_id(record, declared_operation)
+        if not operation or not actual_step:
+            return False
+        if (str(operation.get("assignment_id") or "")
+                != str(assignment.get("assignment_id") or "")
+                or str(operation.get("step_id") or "") != actual_step):
+            return False
+    return True
+
+
 def _find_gap_reply_target(
     record: Dict[str, Any], correlation_id: str,
 ) -> Optional[Dict[str, Any]]:
@@ -4296,6 +4317,10 @@ class AssignmentExecutor:
                 }
             raise AssignmentError(
                 "the gap was already resolved with a different answer")
+        if not _gap_question_binding_valid(
+                record, record.get("assignment") or {}, question,
+                _step_for_gap_question(record.get("assignment") or {}, question)):
+            raise AssignmentError("The question's declared step/operation binding is unavailable")
         plan = self._build_gap_resolution_plan(
             record, question, resolution=resolution,
             current_source=current_source)
@@ -4337,6 +4362,13 @@ class AssignmentExecutor:
                 transition["supersede_operations"] = [waiting_operation_id]
 
         def compute(record, assignment):
+            fresh_question = next((
+                item for item in (record.get("task_revision") or {}).get("unresolved") or []
+                if item.get("question_id") == question_id), {})
+            if not _gap_question_binding_valid(
+                    record, assignment, fresh_question,
+                    _step_for_gap_question(assignment, fresh_question)):
+                raise AssignmentError("The question's declared binding changed before settlement")
             new_plan = copy.deepcopy(assignment)
             reopened = _reopen_resolved_gap_steps(
                 new_plan, question_id,
@@ -4809,7 +4841,7 @@ class AssignmentExecutor:
         assignment_status = str(current.get("status") or "")
         question_id = str(question.get("question_id") or "")
         step = _step_for_gap_question(current, question)
-        if step is None and (question.get("source_operation") or question.get("step_id")):
+        if not _gap_question_binding_valid(record, current, question, step):
             raise _ExternalReplyStop({
                 "status": "unmatched",
                 "message": (
@@ -4948,15 +4980,16 @@ class AssignmentExecutor:
                 outcome=outcome, reason="candidates_rejected",
                 message=message, conflict=conflict))
             item["reply_receipts"] = item_receipts
-            waiting_now = dict(item.get("waiting") or {})
-            conflicts = [
-                dict(entry) for entry in
-                (waiting_now.get("conflicts") or [])
-                if isinstance(entry, dict)
-            ]
-            conflicts.append(conflict)
-            waiting_now["conflicts"] = conflicts[-10:]
-            item["waiting"] = waiting_now
+            if step is not None:
+                waiting_now = dict(item.get("waiting") or {})
+                conflicts = [
+                    dict(entry) for entry in
+                    (waiting_now.get("conflicts") or [])
+                    if isinstance(entry, dict)
+                ]
+                conflicts.append(conflict)
+                waiting_now["conflicts"] = conflicts[-10:]
+                item["waiting"] = waiting_now
             item["updated_at"] = _utc_now_iso()
             new_plan["updated_at"] = _utc_now_iso()
             return new_plan, {

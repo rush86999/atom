@@ -1091,6 +1091,15 @@ async def _record_information_wait(
     return added
 
 
+def _answer_model_enabled(assignment: Dict[str, Any]) -> bool:
+    """An answer continues an opted-in job; it never opts an explicit plan in."""
+    provenance = assignment.get("provenance") or {}
+    if provenance.get("use_model") is False:
+        return False
+    return (provenance.get("started_from") == "employee_objective"
+            or provenance.get("use_model") is True)
+
+
 async def _advance_employee_work(
     executor: Any, run_id: str, llm: Any, *, max_rounds: int = 3,
     deadline_seconds: float = 240.0,
@@ -2582,11 +2591,9 @@ async def record_assignment_response(
     # not the route, chooses the supported next work.
     if result.get("status") in ("resumed", "resolved"):
         assignment = executor.lifecycle.get_assignment(run_id) or {}
-        provenance = assignment.get("provenance") or {}
-        # A deterministic initial discovery does not make the job
-        # non-model-driven: later adaptation rounds may be model-selected.
-        # Only an explicit objective start with use_model=false stays offline.
-        if provenance.get("use_model", True) is not False:
+        # Deterministic discovery within an employee objective retains its
+        # selected mode. An explicit plan answer does not authorize a model.
+        if _answer_model_enabled(assignment):
             llm = _employee_llm(current_user, db)
             rounds = await _advance_employee_work(
                 executor, run_id, llm, max_rounds=1,
@@ -2685,12 +2692,11 @@ async def resolve_assignment_gap(
         # A refused confirmation is a conflict with durable state, not a
         # server failure. resolve_gap validates before any lifecycle write.
         raise HTTPException(status_code=409, detail=str(exc))
-    if result.get("status") in ("already_resolved", "rejected_candidates"):
+    if result.get("status") != "resolved":
         return result
     resumed = await executor.resume(run_id)
     assignment = executor.lifecycle.get_assignment(run_id) or {}
-    provenance = assignment.get("provenance") or {}
-    if provenance.get("use_model", True) is not False:
+    if _answer_model_enabled(assignment):
         rounds = await _advance_employee_work(
             executor, run_id, _employee_llm(current_user, db), max_rounds=1,
             deadline_seconds=180.0,
