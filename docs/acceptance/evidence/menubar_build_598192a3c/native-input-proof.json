@@ -1,0 +1,52 @@
+{
+  "root-menubar-real-assets-rust-check-20261108.spec.json": {
+    "captured_spec": {
+      "base_source": "2eb45b480c6403f2aef1cf31bccff32a78236f25",
+      "command": [
+        "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+        "--cwd",
+        "/private/tmp/atom-menubar-build-20261108/menubar/src-tauri",
+        "--profile",
+        "heavy",
+        "--",
+        "/Users/rushiparikh/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo",
+        "check",
+        "--locked"
+      ],
+      "actual_frontend_assets": {
+        "menubar/dist/index.html": "1fb3282bff04d7723e95c94e021eca7ea65383fc6396bd4c57e326c06e844cdb",
+        "menubar/dist/assets/index-eBzlj5pD.css": "842e126bd24a152af8ec6b486b911364ba123c4eecc8d2ae319c92b36596c967",
+        "menubar/dist/assets/index-C38KAygZ.js": "011dca4bde549ebf36e3488fe652514fa08ef2579afcf0c4043b0424ebfc7c1f"
+      },
+      "cargo_lock_sha256": "31a77237518cd93b22a449fdebd1ebb8ebea5cfe5abcc61f3dbfceaf0fce9adb",
+      "scope": "native compile check over real strict/Vite output; no dummy assets, app launch, signing, tests with OS services or distribution"
+    },
+    "native_source_unchanged_from_recorded_base": true,
+    "frozen_cargo_lock_matches_recorded_digest": true
+  },
+  "root-menubar-real-assets-native-build-20261108.spec.json": {
+    "captured_spec": {
+      "base_source": "2eb45b480c6403f2aef1cf31bccff32a78236f25",
+      "command": [
+        "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+        "--cwd",
+        "/private/tmp/atom-menubar-build-20261108/menubar/src-tauri",
+        "--profile",
+        "heavy",
+        "--",
+        "/Users/rushiparikh/.rustup/toolchains/stable-aarch64-apple-darwin/bin/cargo",
+        "build",
+        "--locked"
+      ],
+      "actual_frontend_assets": {
+        "menubar/dist/index.html": "1fb3282bff04d7723e95c94e021eca7ea65383fc6396bd4c57e326c06e844cdb",
+        "menubar/dist/assets/index-eBzlj5pD.css": "842e126bd24a152af8ec6b486b911364ba123c4eecc8d2ae319c92b36596c967",
+        "menubar/dist/assets/index-C38KAygZ.js": "011dca4bde549ebf36e3488fe652514fa08ef2579afcf0c4043b0424ebfc7c1f"
+      },
+      "cargo_lock_sha256": "31a77237518cd93b22a449fdebd1ebb8ebea5cfe5abcc61f3dbfceaf0fce9adb",
+      "scope": "local native binary compilation/link only; no app launch/install, developer identity signing, notarization, credential/keychain operations or distribution"
+    },
+    "native_source_unchanged_from_recorded_base": true,
+    "frozen_cargo_lock_matches_recorded_digest": true
+  }
+}
