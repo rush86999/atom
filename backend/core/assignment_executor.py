@@ -4781,7 +4781,9 @@ class AssignmentExecutor:
     ):
         """Settle one question reply inside the shared lifecycle CAS.
 
-        The question and its backing step are re-read from the fresh record.
+        The question and any backing step are re-read from the fresh record.
+        Clarification-only questions keep the same receipts on the existing
+        assignment document; they never acquire a fabricated execution step.
         Identity/material checks, the accepted receipt, the question
         resolution, the reopened step and the superseded waiting operation all
         commit in one ``_mutate`` write. Non-resolving outcomes retain a
@@ -4919,7 +4921,9 @@ class AssignmentExecutor:
                 "remains open and was not reopened or woken.")
             new_plan = copy.deepcopy(current)
             item = step_by_id(new_plan, step_id) if step is not None else new_plan
-            assert item is not None
+            if item is None:
+                raise _ExternalReplyStop({"status": "unmatched",
+                    "message": "The backing question step is unavailable."})
             item_receipts = _external_reply_receipts(item)
             item_receipts.append(_external_reply_receipt(
                 reply_id=reply_id, digest=digest,
@@ -4952,7 +4956,9 @@ class AssignmentExecutor:
 
         # Resolve the question, reopen the blocked step, keep the accepted
         # receipt and supersede the old waiting operation in ONE CAS write.
-        operation_id = (_operation_id_for_step(record, step) or "") if step is not None else ""
+        operation_id = (
+            (_operation_id_for_step(record, step) or "")
+            if step is not None else "")
         accepted_at = _utc_now_iso()
         new_plan = copy.deepcopy(current)
         reopened = _reopen_resolved_gap_steps(
@@ -4961,7 +4967,9 @@ class AssignmentExecutor:
             mapping_applied=bool(plan.get("mapping_applied")),
             confirmed_mapping=plan.get("confirmed_mapping") or {})
         item = step_by_id(new_plan, step_id) if step is not None else new_plan
-        assert item is not None
+        if item is None:
+            raise _ExternalReplyStop({"status": "unmatched",
+                "message": "The backing question step is unavailable."})
         accepted_response = {
             "correlation_id": correlation_id,
             "fact": fact,
