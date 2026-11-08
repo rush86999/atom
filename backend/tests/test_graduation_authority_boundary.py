@@ -243,7 +243,7 @@ async def _assert_real_promotion(sessions, prior, target):
         agent = db.get(AgentRegistry, "graduate")
         agent.status = prior
         db.commit()
-        service = AgentGraduationService(db)
+        service = graduation.AgentGraduationService(db)
 
         async def ready(**kwargs):
             return {"ready": True, "gaps": [], "episodes_analyzed": 60,
