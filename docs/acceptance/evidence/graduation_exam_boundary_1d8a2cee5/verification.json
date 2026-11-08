@@ -1,0 +1,57 @@
+{
+  "scope": "controlled historical exam scope and result truth; not candidate performance qualification",
+  "summary_only": true,
+  "raw_records_published": false,
+  "executed_source_prefix": "1d8a2cee5103",
+  "runtime_repair_source_prefix": "c1b684c62",
+  "validation": {
+    "public_route_service_controls": {
+      "python311": 12,
+      "python314": 12
+    },
+    "complete_existing_governance_selection_plus_boundary": {
+      "python311": 138,
+      "python314": 138,
+      "exit_code": 0,
+      "tests_removed": 0
+    }
+  },
+  "preserved_negatives": [
+    {
+      "scope": "original public exam boundary",
+      "passed": 1,
+      "failed": 7
+    },
+    {
+      "scope": "native proposal partial-success refusal",
+      "passed": 11,
+      "failed": 1
+    },
+    {
+      "scope": "combined selection before real historical fixture",
+      "passed": 137,
+      "failed": 1
+    }
+  ],
+  "contracts": [
+    "server-resolved target and episode scope",
+    "whole-batch preflight before dispatch",
+    "scope recheck across awaited steps",
+    "missing/foreign records refuse",
+    "empty results do not pass",
+    "late refusal never passes with earlier successful result",
+    "same-scope historical cases from other agents remain supported",
+    "installation-only historical review remains supported",
+    "truthful total_cases equals returned result count",
+    "candidate_capability_qualified remains false"
+  ],
+  "qualification_limits": [
+    "executor and installation transport controlled in new boundary tests",
+    "historical trace safety review does not execute candidate reasoning",
+    "no live sandbox/model/provider/browser campaign",
+    "no maturity or approval gate weakened",
+    "no broad candidate judgment or full-app completion claim"
+  ],
+  "dependency": "PR783; exact-head hosted checks and post-dependency integration review still required",
+  "storage_note": "First full Python314 launch refused before dispatch at unchanged4-GiB floor; completed synthetic DBs losslessly compressed with full readback, then full gate passed. Raw specs, logs and compression proofs retained privately."
+}
