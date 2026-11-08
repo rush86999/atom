@@ -41,7 +41,7 @@ def test_public_note_respects_actor_revocation_at_tool_time(real_env, monkeypatc
     async def observed_call(*args, **kwargs):
         try:
             result = await original_call(*args, **kwargs)
-            trace.append({'type': type(result).__name__, 'result': str(result)[:1200]})
+            trace.append({'type': type(result).__name__, 'result': str(result)[:1200], 'tier_at_issuance': (kwargs.get('context') or {}).get('tier_at_issuance')})
             return result
         except Exception as exc:
             trace.append({'exception_class': type(exc).__name__})
@@ -56,7 +56,7 @@ def test_public_note_respects_actor_revocation_at_tool_time(real_env, monkeypatc
                 user.is_active = False
                 db.commit()
         return ReActStep(thought='Record the admitted task fact', action=ToolCall(tool='workspace.note', params={'content': marker}))
-    _install_model(monkeypatch, [first])
+    model_calls = _install_model(monkeypatch, [first])
     response = _run(real_env, operation_id='root-public-note-'+str(revoke), parameters={'sync': True, 'task_input': 'Record a task fact'})
     records = [json.loads(p.read_text()) for p in root.glob('*.json')]
     wrote = marker in json.dumps(records)
