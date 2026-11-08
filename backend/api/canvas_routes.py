@@ -796,35 +796,88 @@ async def restore_canvas_version(
 @router.delete("/{canvas_id}")
 async def delete_canvas(
     canvas_id: str,
+    operation_id: Optional[str] = None,
+    expected_prior_audit_id: Optional[str] = None,
     current_user: User = Depends(get_current_user)
 ):
-    """Delete (close) a specific canvas by ID."""
-    from tools.canvas_crud_tool import delete_canvas as delete_fn
-    result = await delete_fn(str(current_user.id), canvas_id)
-    if not result.get("success"):
-        # BUG FIX: not-found errors must return 404 (consistent with GET
-        # /{canvas_id}), not 400 — a missing canvas is not a bad request.
-        status = 404 if "not found" in str(result.get("error", "")).lower() else 400
-        raise HTTPException(status_code=status, detail=result.get("error"))
+    """Delete (close) a specific canvas by ID.
+
+    The append-only tombstone is written by the shared verified lifecycle
+    service: the acting user's CURRENT tenant/workspace is authorized in the
+    same transaction as the append, the logical operation is idempotent, and
+    a 200 carries an explicit verification status. A committed-but-unverified
+    delete keeps its ``audit_id``/``operation_id`` and says
+    ``replay: do_not_repeat``; an unknown commit outcome is never reported as
+    "nothing changed".
+    """
+    from core.canvas_write_service import delete_canvas_verified
+    result = await delete_canvas_verified(
+        user_id=str(current_user.id),
+        canvas_id=canvas_id,
+        operation_id=operation_id,
+        expected_prior_audit_id=expected_prior_audit_id,
+        tenant_id=getattr(current_user, "tenant_id", None),
+        workspace_id=getattr(current_user, "workspace_id", None),
+    )
+    if result.get("status") == "refused":
+        error = str(result.get("error", ""))
+        status = int(result.get("http_status") or (
+            409 if result.get("conflict") else (
+                404 if "not found" in error.lower() else 400)))
+        raise HTTPException(status_code=status, detail=error)
     return result
 
 
 @router.post("/{canvas_id}/undelete")
 async def undelete_canvas(
     canvas_id: str,
+    body: Optional[Dict[str, Any]] = Body(default=None),
+    operation_id: Optional[str] = None,
+    tombstone_audit_id: Optional[str] = None,
+    source_audit_id: Optional[str] = None,
     current_user: User = Depends(get_current_user)
 ):
     """Un-delete a tombstoned canvas (append a restore row; append-only).
 
     Distinct from POST /{canvas_id}/restore above, which restores an earlier
     VERSION of a live canvas — this one revives a canvas whose latest audit
-    row is a delete tombstone."""
+    row is a delete tombstone.
 
-    from tools.canvas_crud_tool import restore_deleted_canvas
-    result = await restore_deleted_canvas(str(current_user.id), canvas_id)
-    if not result.get("success"):
-        status = 404 if "not found" in str(result.get("error", "")).lower() else 400
-        raise HTTPException(status_code=status, detail=result.get("error"))
+    The receiver copies the newest CONTENT-bearing non-delete row (not a
+    contentless event stamp) and records the exact tombstone id, source row
+    id and content digest. The acting user's CURRENT tenant/workspace is
+    authorized in the same transaction as the append, so a historical
+    co-editor whose scope moved is refused before effect.
+    """
+    from core.canvas_write_service import restore_deleted_canvas_verified
+
+    payload = body or {}
+    resolved_operation_id = (
+        payload.get("operation_id") or operation_id)
+    resolved_tombstone_id = (
+        payload.get("tombstone_audit_id")
+        or payload.get("expected_tombstone_audit_id")
+        or tombstone_audit_id)
+    resolved_source_id = (
+        payload.get("source_audit_id")
+        or payload.get("expected_source_audit_id")
+        or source_audit_id)
+
+    result = await restore_deleted_canvas_verified(
+        user_id=str(current_user.id),
+        canvas_id=canvas_id,
+        operation_id=resolved_operation_id,
+        tombstone_audit_id=resolved_tombstone_id,
+        source_audit_id=resolved_source_id,
+        tenant_id=getattr(current_user, "tenant_id", None),
+        workspace_id=getattr(current_user, "workspace_id", None),
+    )
+    if result.get("status") == "refused":
+        error = str(result.get("error", ""))
+        status = int(result.get("http_status") or (
+            409 if result.get("conflict") else (
+                404 if "not found" in error.lower() else 400)))
+        raise HTTPException(status_code=status, detail=error)
     return result
 
 

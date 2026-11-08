@@ -40,7 +40,7 @@ CAPABILITIES: Dict[str, Dict[str, Any]] = {
     "documents": {
         "label": "Data",
         "enabled": True,
-        "job": "Upload, find and inspect company records.",
+        "job": "Upload, find, inspect and export company records.",
     },
     "canvas": {
         "label": "Workspace",

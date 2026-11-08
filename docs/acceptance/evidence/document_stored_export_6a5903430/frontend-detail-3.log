@@ -1,0 +1,9 @@
+rc=0
+
+--- stderr ---
+PASS tests/pages/document-detail.test.tsx
+
+Test Suites: 1 passed, 1 total
+Tests:       3 passed, 3 total
+Snapshots:   0 total
+Time:        1.169 s

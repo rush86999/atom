@@ -1,0 +1,85 @@
+FF.F                                                                     [100%]
+=================================== FAILURES ===================================
+_ test_export_rejects_contradictory_extraction_scope_and_unknown_freshness[indexed_workspace] _
+../../test_lead_document_export_authority_valid.py:19: in test_export_rejects_contradictory_extraction_scope_and_unknown_freshness
+    assert response.status_code in (403,404,409),(change,response.status_code,response.text)
+E   AssertionError: ('indexed_workspace', 200, '{"content":"Current scoped document.","content_kind":"extracted_text","document_id":"lead-...2e8b0493a213048aaa575494c637613700cbadda900b30","stored_text_truncated":null,"title":"lead-export-indexed_workspace"}')
+E   assert 200 in (403, 404, 409)
+E    +  where 200 = <Response [200 OK]>.status_code
+------------------------------ Captured log setup ------------------------------
+ERROR    core.llm.provider_policy:provider_policy.py:188 provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+ERROR    core.llm.byok_handler:byok_handler.py:1686 provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+WARNING  core.llm.byok_handler:byok_handler.py:2241 Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+_ test_export_rejects_contradictory_extraction_scope_and_unknown_freshness[indexed_tenant] _
+../../test_lead_document_export_authority_valid.py:19: in test_export_rejects_contradictory_extraction_scope_and_unknown_freshness
+    assert response.status_code in (403,404,409),(change,response.status_code,response.text)
+E   AssertionError: ('indexed_tenant', 200, '{"content":"Current scoped document.","content_kind":"extracted_text","document_id":"lead-exp...d0e2e8b0493a213048aaa575494c637613700cbadda900b30","stored_text_truncated":null,"title":"lead-export-indexed_tenant"}')
+E   assert 200 in (403, 404, 409)
+E    +  where 200 = <Response [200 OK]>.status_code
+_ test_export_rejects_contradictory_extraction_scope_and_unknown_freshness[unknown_freshness] _
+../../test_lead_document_export_authority_valid.py:19: in test_export_rejects_contradictory_extraction_scope_and_unknown_freshness
+    assert response.status_code in (403,404,409),(change,response.status_code,response.text)
+E   AssertionError: ('unknown_freshness', 200, '{"content":"Current scoped document.","content_kind":"extracted_text","document_id":"lead-...2e8b0493a213048aaa575494c637613700cbadda900b30","stored_text_truncated":null,"title":"lead-export-unknown_freshness"}')
+E   assert 200 in (403, 404, 409)
+E    +  where 200 = <Response [200 OK]>.status_code
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+test_lead_document_export_authority_valid.py::test_export_rejects_contradictory_extraction_scope_and_unknown_freshness[indexed_workspace]
+test_lead_document_export_authority_valid.py::test_export_rejects_contradictory_extraction_scope_and_unknown_freshness[indexed_tenant]
+test_lead_document_export_authority_valid.py::test_export_rejects_contradictory_extraction_scope_and_unknown_freshness[matching]
+test_lead_document_export_authority_valid.py::test_export_rejects_contradictory_extraction_scope_and_unknown_freshness[unknown_freshness]
+  /private/tmp/atom-document-stored-export-20261107/backend/core/lancedb_handler.py:407: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    names = set(self.db.table_names())
+
+test_lead_document_export_authority_valid.py::test_export_rejects_contradictory_extraction_scope_and_unknown_freshness[indexed_workspace]
+test_lead_document_export_authority_valid.py::test_export_rejects_contradictory_extraction_scope_and_unknown_freshness[indexed_workspace]
+test_lead_document_export_authority_valid.py::test_export_rejects_contradictory_extraction_scope_and_unknown_freshness[indexed_workspace]
+test_lead_document_export_authority_valid.py::test_export_rejects_contradictory_extraction_scope_and_unknown_freshness[indexed_tenant]
+test_lead_document_export_authority_valid.py::test_export_rejects_contradictory_extraction_scope_and_unknown_freshness[matching]
+test_lead_document_export_authority_valid.py::test_export_rejects_contradictory_extraction_scope_and_unknown_freshness[unknown_freshness]
+  /Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/asyncio/events.py:94: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    self._context.run(self._callback, *self._args)
+
+test_lead_document_export_authority_valid.py::test_export_rejects_contradictory_extraction_scope_and_unknown_freshness[indexed_workspace]
+test_lead_document_export_authority_valid.py::test_export_rejects_contradictory_extraction_scope_and_unknown_freshness[indexed_workspace]
+  /private/tmp/atom-document-stored-export-20261107/backend/core/lancedb_handler.py:620: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    if table_name in self.db.table_names():
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED ../../test_lead_document_export_authority_valid.py::test_export_rejects_contradictory_extraction_scope_and_unknown_freshness[indexed_workspace]
+FAILED ../../test_lead_document_export_authority_valid.py::test_export_rejects_contradictory_extraction_scope_and_unknown_freshness[indexed_tenant]
+FAILED ../../test_lead_document_export_authority_valid.py::test_export_rejects_contradictory_extraction_scope_and_unknown_freshness[unknown_freshness]
+3 failed, 1 passed, 22 warnings in 2.36s

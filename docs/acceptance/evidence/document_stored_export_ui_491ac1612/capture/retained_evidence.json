@@ -1,0 +1,55 @@
+{
+  "ok": true,
+  "path": "/private/tmp/atom-document-stored-export-20261107/docs/acceptance/evidence/document_export_lead_011b8373e/MANIFEST.json",
+  "sha256": "54213b3ede8e4a64b6555ab0d495272bd32dc0190abb678d1f2d0e8f5247310f",
+  "executed_source": "011b8373e1662ce29ce911c04e04ec085aea812c",
+  "files": {
+    "backend/api/document_routes.py": {
+      "expected_sha256": "44829e65debb8253f81eb68ccef1733c6840c491e40ebd57a984abf36fef909c",
+      "actual_sha256": "44829e65debb8253f81eb68ccef1733c6840c491e40ebd57a984abf36fef909c",
+      "matches": true
+    },
+    "backend/core/doc_freshness_service.py": {
+      "expected_sha256": "f0f9e4e70566ab2c600fd1290bfabc19c15231a092768359c4abdfcd8eb8d62b",
+      "actual_sha256": "f0f9e4e70566ab2c600fd1290bfabc19c15231a092768359c4abdfcd8eb8d62b",
+      "matches": true
+    },
+    "backend/core/lancedb_handler.py": {
+      "expected_sha256": "ae16083306c502bc57886ee381255f1bd2ee36ee36648ae64d13f46c39ce9f2e",
+      "actual_sha256": "ae16083306c502bc57886ee381255f1bd2ee36ee36648ae64d13f46c39ce9f2e",
+      "matches": true
+    },
+    "backend/core/personal_scope.py": {
+      "expected_sha256": "fb475dcd302845a2d3fb8ed50da1acd2849f0103fa403a395393d4b52d1e21b3",
+      "actual_sha256": "fb475dcd302845a2d3fb8ed50da1acd2849f0103fa403a395393d4b52d1e21b3",
+      "matches": true
+    },
+    "backend/tests/test_document_export.py": {
+      "expected_sha256": "02f4f8e9c70f0533b90686f623862c44778eec4e89597c990ed8a9d589f9e1f3",
+      "actual_sha256": "02f4f8e9c70f0533b90686f623862c44778eec4e89597c990ed8a9d589f9e1f3",
+      "matches": true
+    },
+    "backend/tests/test_lead_document_export_authority.py": {
+      "expected_sha256": "ffac24d4c06af438b40dc1a1577b566c8e8148e22e1903265a87fc6a044feec9",
+      "actual_sha256": "ffac24d4c06af438b40dc1a1577b566c8e8148e22e1903265a87fc6a044feec9",
+      "matches": true
+    },
+    "backend/tests/test_lead_document_export_nullable_scope.py": {
+      "expected_sha256": "05f389eca454ef2466f5f9803beafbcb621819a1a5074d8098978b30fd3f962e",
+      "actual_sha256": "05f389eca454ef2466f5f9803beafbcb621819a1a5074d8098978b30fd3f962e",
+      "matches": true
+    },
+    "frontend-nextjs/pages/documents/[docId].tsx": {
+      "expected_sha256": "58e33ab8ca1cbe50d34df6ba161303a94dfcdd8d08c479a0f01e3934db1e65aa",
+      "actual_sha256": "58e33ab8ca1cbe50d34df6ba161303a94dfcdd8d08c479a0f01e3934db1e65aa",
+      "matches": true
+    },
+    "frontend-nextjs/tests/pages/document-detail.test.tsx": {
+      "expected_sha256": "b1bd4f1a26b7612f8c4b316de58316366fbf7662145c636687ef0c3e84dacb4b",
+      "actual_sha256": "b1bd4f1a26b7612f8c4b316de58316366fbf7662145c636687ef0c3e84dacb4b",
+      "matches": true
+    }
+  },
+  "retained_case_count": 37,
+  "reuse_note": "Accepted public-route API controls (missing source, foreign scope, revoked/stale, wrong revision, unsafe headers, nullable scope) are referenced by unchanged source/test bytes, not re-run here."
+}

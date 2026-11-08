@@ -1,0 +1,174 @@
+{
+  "requests": [
+    {
+      "method": "GET",
+      "path": "/api/documents",
+      "query": {},
+      "query_keys": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/documents",
+      "query": {},
+      "query_keys": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/documents",
+      "query": {},
+      "query_keys": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/documents",
+      "query": {},
+      "query_keys": []
+    },
+    {
+      "method": "POST",
+      "path": "/api/documents/upload",
+      "query": {},
+      "query_keys": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/documents",
+      "query": {},
+      "query_keys": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/documents/doc_2c10320dd7cf5200d76adb60",
+      "query": {},
+      "query_keys": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/documents/doc_2c10320dd7cf5200d76adb60",
+      "query": {},
+      "query_keys": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/documents/doc_2c10320dd7cf5200d76adb60",
+      "query": {},
+      "query_keys": []
+    },
+    {
+      "method": "GET",
+      "path": "/api/documents/doc_2c10320dd7cf5200d76adb60/export",
+      "query": {
+        "format": "text"
+      },
+      "query_keys": [
+        "format"
+      ],
+      "doc_id": "doc_2c10320dd7cf5200d76adb60"
+    },
+    {
+      "method": "GET",
+      "path": "/api/documents/doc_2c10320dd7cf5200d76adb60/export",
+      "query": {
+        "format": "markdown"
+      },
+      "query_keys": [
+        "format"
+      ],
+      "doc_id": "doc_2c10320dd7cf5200d76adb60"
+    },
+    {
+      "method": "GET",
+      "path": "/api/documents/doc_2c10320dd7cf5200d76adb60/export",
+      "query": {
+        "format": "json"
+      },
+      "query_keys": [
+        "format"
+      ],
+      "doc_id": "doc_2c10320dd7cf5200d76adb60"
+    }
+  ],
+  "export_proofs": {
+    "text": {
+      "status": 200,
+      "doc_id": "doc_2c10320dd7cf5200d76adb60",
+      "observed_source_version": "ev4:2c10320dd7cf5200d76adb607c95b22d0a0789b1d6d4d263c97c14a3bb2329fb",
+      "suggested_filename": "synthetic-document-export-029f57fcddcb.txt",
+      "request_path": "/api/documents/doc_2c10320dd7cf5200d76adb60/export",
+      "request_query": {
+        "format": "text"
+      },
+      "request_headers_safe": {
+        "x-request-id": "req_1794104751052_x1wk1i5i3",
+        "referer": "http://localhost:3147/",
+        "accept": "application/json, text/plain, */*"
+      },
+      "proof_ok": true,
+      "api_sha256": "2c10320dd7cf5200d76adb607c95b22d0a0789b1d6d4d263c97c14a3bb2329fb",
+      "download_sha256": "2c10320dd7cf5200d76adb607c95b22d0a0789b1d6d4d263c97c14a3bb2329fb",
+      "failures": []
+    },
+    "markdown": {
+      "status": 200,
+      "doc_id": "doc_2c10320dd7cf5200d76adb60",
+      "observed_source_version": "ev4:2c10320dd7cf5200d76adb607c95b22d0a0789b1d6d4d263c97c14a3bb2329fb",
+      "suggested_filename": "synthetic-document-export-029f57fcddcb.md",
+      "request_path": "/api/documents/doc_2c10320dd7cf5200d76adb60/export",
+      "request_query": {
+        "format": "markdown"
+      },
+      "request_headers_safe": {
+        "x-request-id": "req_1794104751753_9ayclvo5y",
+        "referer": "http://localhost:3147/",
+        "accept": "application/json, text/plain, */*"
+      },
+      "proof_ok": true,
+      "api_sha256": "2c10320dd7cf5200d76adb607c95b22d0a0789b1d6d4d263c97c14a3bb2329fb",
+      "download_sha256": "2c10320dd7cf5200d76adb607c95b22d0a0789b1d6d4d263c97c14a3bb2329fb",
+      "failures": []
+    },
+    "json": {
+      "status": 200,
+      "doc_id": "doc_2c10320dd7cf5200d76adb60",
+      "observed_source_version": "ev4:2c10320dd7cf5200d76adb607c95b22d0a0789b1d6d4d263c97c14a3bb2329fb",
+      "suggested_filename": "synthetic-document-export-029f57fcddcb.json",
+      "request_path": "/api/documents/doc_2c10320dd7cf5200d76adb60/export",
+      "request_query": {
+        "format": "json"
+      },
+      "request_headers_safe": {
+        "x-request-id": "req_1794104752690_pps6r2315",
+        "referer": "http://localhost:3147/",
+        "accept": "application/json, text/plain, */*"
+      },
+      "proof_ok": true,
+      "api_sha256": "a9056c7b609a4d3b125df6ed023bee99a88ac331bb8c13fa81cfea4022ba43a8",
+      "download_sha256": "a9056c7b609a4d3b125df6ed023bee99a88ac331bb8c13fa81cfea4022ba43a8",
+      "failures": []
+    }
+  },
+  "own_process_exit": {
+    "frontend": {
+      "pid": 87907,
+      "was_running": true,
+      "poll": 0,
+      "exited": true,
+      "ps": {
+        "alive": false,
+        "line": ""
+      },
+      "only_own_pid": true
+    },
+    "backend": {
+      "pid": 87879,
+      "was_running": true,
+      "poll": -15,
+      "exited": true,
+      "ps": {
+        "alive": false,
+        "line": ""
+      },
+      "only_own_pid": true
+    }
+  }
+}
