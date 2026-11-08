@@ -1,8 +1,80 @@
 # Agent 1 and Agent 2 guidance for completing Atom goals
 
-## Owner-authorized merge checkpoint — 2026-11-08 UTC
+## Documentation and diagram completion gate — DOCS-REF-01
 
-This is the current operational queue. The earlier evidence cuts and numerical claim inventory remain historical, not reassigned runs.
+Owner requirement added 2026-11-08: **all documentation and diagrams must be
+complete and accurate for reference**. This is part of app completion, not an
+optional marketing polish phase. The original 143 historical claim records and
+111/123 score remain unchanged; this is an additional closure requirement.
+
+The first [reference inventory](reference_inventory_ac2b73778_20261108.json) is
+bound to source cut `ac2b73778`. It contains 1,729 reference files, 11 detected
+fenced diagram candidates and 633 image/PDF candidates. These are inventory
+counts, not accuracy or rendering passes. Nested fences, HTML/ASCII diagrams,
+figures inside binary documents and unclassified assets still require review.
+Use [live PRs](https://github.com/rush86999/atom/pulls) and
+[Actions](https://github.com/rush86999/atom/actions) for current delivery state.
+Older main/PR/assignment paragraphs below are dated operational snapshots,
+not standing instructions to redo closed work or current-head CI evidence.
+The recorded owner review-only administrator exception remains in force for
+independently verified exact heads; it never waives checks, conflicts, scanner
+findings, product authority or deployment restrictions. Use COMMENT under the
+same author account, never fabricate a separate-account approval.
+
+Close DOCS-REF-01 only when all of the following are supported:
+
+1. **Complete reference map.** Every reference and diagram is classified as
+   current, historical/source-bound evidence, generated reference, or planned
+   design. It has an owner and a canonical destination. Unclassified material
+   remains open. Preserve historical bytes, sources, negative results and counts;
+   label and index them instead of rewriting them to describe current behavior.
+   Do not rerun stable inference/browser campaigns merely to refresh a document
+   date, or reopen accepted runtime lanes without new contrary evidence.
+2. **Accurate user and operator paths.** Document actual tested setup versions,
+   configuration and release profiles, onboarding/auth, sources/teaching, model
+   choice, permissions/approvals, graduation, tasks and deliverables. Cover
+   durable missing-information waits that may span days, authorized answer
+   triggers on the same job, independent progress, restart, cancellation/late
+   responses, changed evidence, budgets and uncertain-effect reconciliation.
+   Separate demonstrated scope from goals and environment-dependent behavior.
+3. **Architecture and diagrams.** Cover system context, real components and
+   stores, trust/authority boundaries, agent/framework integration, execution
+   and wait/restart states, approval/graduation, BYOK/cost/feedback routing,
+   tool/MCP/integration access, result/artifact provenance and failure recovery.
+   Trace arrows and ownership to current callers/consumers and verified records.
+   A valid Mermaid/SVG render alone does not prove the diagram is correct.
+   Label conceptual/planned views distinctly; retain editable diagram sources.
+4. **API and configuration reference.** Match current routes, schemas, actor and
+   role/workspace rules, parameters/defaults, responses, errors, replay/stale
+   handling and effect/verification states. A connector or model catalogue entry
+   is not proof of served capability. Explain the single-tenant deployment model
+   without removing supported user/role/workspace safeguards.
+5. **Reproducible and safe instructions.** Check links, anchors, case-sensitive
+   paths, examples, configuration names and generated references. Test applicable
+   commands in isolated environments; record their actual versions and source.
+   Include backup/restore, storage/drive guards and operational recovery. Never
+   publish secrets, session tokens, private logs or misleading success receipts.
+6. **Final reference acceptance.** No unresolved contradiction remains in current
+   reference material. Every required diagram has both rendering and semantic
+   review evidence. Historical/design status is apparent at the reader's entry
+   point. CI/link checks, inventory counts and broad test totals do not substitute
+   for root's requirement-by-requirement accuracy and completeness audit.
+
+Agent 1 owns product/architecture/execution explanations alongside its fixes.
+Agent 2 owns API/security/data/operations reference alongside its fixes.
+Agent 3 handles source/link/schema/rendering integrity and exact-head CI;
+Agent 4 checks user instructions and screenshots through supported product
+journeys. Root retains engineering, product and final claim-scope review.
+Use the configured native Flash/GLM workers within existing authority and usage
+limits; mechanical inventory/CI needs no model. Keep independent ready work
+moving while review/CI runs, with separate worktrees and explicit shared-file
+ownership. Update relevant reference with behavior changes; avoid duplicate
+progress-only guide PRs or a parallel review/approval lifecycle.
+
+
+## Historical operational snapshot — owner-authorized merge checkpoint (2026-11-08)
+
+This records the operational queue at that historical source cut. The evidence cuts and numerical claim inventory are not reassigned runs.
 
 - Main is `054fa1f08`: PR #758 merged `57087159c`, #759 `f21bcecf1`, #760 `6a5d75961`, #757 `8a8581254`, and #762 `054fa1f08`. All eight checks were green at each exact reviewed head. Every actual merge tree matched its independently inspected prospective tree. Existing GitHub connection handled workflow-file merges; no credential or repository-setting change.
 - The owner explicitly authorized administrator bypass of the separate-account review requirement after the configured account was confirmed to be the PR author. This exception applies only to independently verified exact heads with all checks green and inspected conflict-free integration. It does not waive CI, scanner findings, merge conflicts, product authority or deployment restrictions. Never fabricate a separate-account approval. The earlier rejected attempt was not executed; no bypass happened before clarification.
@@ -14,9 +86,9 @@ This is the current operational queue. The earlier evidence cuts and numerical c
 
 Cold evidence archives are on the UUID-verified Seagate volume with a canonical symlink and complete byte/restore records; the active three-hour monitor checks that identity before archive operations. Never replace a missing-drive symlink with an empty local directory. Keep heavy test serialization and resource floors; do not restart quiet live workers.
 
-## Root verification checkpoint — 2026-11-08 UTC
+## Historical operational snapshot — root verification checkpoint (2026-11-08)
 
-This operational checkpoint supersedes older assignment paragraphs below, without changing historical evidence identities or scores. Main remains `8ded00232`. Full-app completion is not achieved.
+At that historical cut this checkpoint superseded earlier assignments, without changing evidence identities or scores. Its main was `8ded00232`; it did not establish full-app completion.
 
 - PR #759 source/Goal UI and PR #760 restore have all eight required checks green at their recorded heads but still need normal code-owner review. Repository auto-merge is disabled; do not change settings, approve your own work or bypass protection.
 - PR #762 runtime `80d15c5c2` fixes the independently reproduced PostgreSQL numeric/string binding defect. Root selection **49 passed** = 20 actual PostgreSQL DB controls + 24 pure type checks + five dialect checks; SQLite **71 passed** overlaps. Original `54daf` negative **1 failed / 1 passed** and earlierBDD proof are preserved. Evidence `f3ad0cca3`; current-headCI required. Full migrations/crash durability/PG breadth are not qualified.

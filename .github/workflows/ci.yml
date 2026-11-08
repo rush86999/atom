@@ -33,6 +33,9 @@ jobs:
         run: |
           python -m compileall -q -f -x '(^|/)(venv314|venv|node_modules|data|logs|__pycache__|coverage_html_batch|coverage_reports|htmlcov|\.pytest_cache|\.archive|archive|test_archives_[0-9]+_[0-9]+|scripts/dev)(/|$)' .
           echo "3.11 compile gate passed"
+      - name: Check source-bound documentation inventory boundaries
+        working-directory: ${{ github.workspace }}
+        run: python -m unittest discover -s scripts/docs -p test_inventory_reference.py
 
   # -------------------------------------------------------------------
   # Fast: does the full app even import + boot? (guards against the

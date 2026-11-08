@@ -6,14 +6,23 @@
 [teach, correct and resume work](demo/VERIFIED_WORKFLOWS.md) →
 [check tested scope](acceptance/VERIFIER_ACCEPTANCE_2026-11-01.md).
 
-The recommended fixed snapshot is `successor-first-use-2026-11-01`.
+For the current setup entry point, start with the [main README](../README.md).
+The historical first-use snapshot is `successor-first-use-2026-11-01`.
 The accepted milestone covers **111/123 frozen functional claims** in documented
 local/controlled configurations. Historical evidence and later correctness fixes
 remain separately identified in the [successor notes](acceptance/SUCCESSOR_RELEASE_2026-11-01.md).
-Measured first use was about **5 min 15 s with warm package caches**; 15 minutes
+At that recorded milestone, first use was about **5 min 15 s with warm package caches**; 15 minutes
 is a cold-install target. The sample needs no cloud key or connected account.
 
-Welcome to the Atom developer and user documentation center. Atom is a self-hosted **AI agent workforce** — a team of governed, sandboxed agents your employees can delegate work to with confidence.
+Atom is a self-hosted AI agent platform for business tasks and AI governance.
+The guides cover implementation, planned designs and historical experiments;
+a navigation link is not a claim that every feature or environment is qualified.
+Check the documented evidence and release profile before relying on a capability.
+
+The [documentation and diagram completion gate](engineering/AGENT_GOAL_COMPLETION_DIRECTIVE_2026_11_06.md#documentation-and-diagram-completion-gate--docs-ref-01)
+tracks reference accuracy as part of app completion. The initial
+[reference/diagram inventory](engineering/reference_inventory_ac2b73778_20261108.json)
+is a source-bound triage map, not a completed accuracy audit.
 
 > [!NOTE]
 > Are you setting up Atom for the first time? See the [🚀 Quick Start Guide](getting_started/quick-start.md) or follow the [📖 User Guide Index](USER_GUIDE_INDEX.md).
@@ -25,15 +34,15 @@ Welcome to the Atom developer and user documentation center. Atom is a self-host
 To keep configuration and reference material easily discoverable, the documentation is organized into six core pillars:
 
 ### 1. 🚀 Getting Started & Operations
-Steps to boot, deploy, configure, and maintain Atom instances in production.
-- [Quick Start Guide](getting_started/quick-start.md) — 15-minute quick start guide
-- [Installation Guide](getting_started/INSTALLATION.md) — Complete setup options (Local, Docker, Cloud)
+Setup and operating procedures, with deployment prerequisites and qualification limits.
+- [Quick Start Guide](getting_started/quick-start.md) — install and run the local sample
+- [Installation Guide](getting_started/INSTALLATION.md) — setup options and their environment prerequisites
 - [Production Readiness](operations/production-readiness.md) — Pre-flight checklist for staging and production
 - [Monitoring & Health](operations/monitoring.md) — Prometheus integration, health checks, and alerts
 
-### 2. 🛡️ Sandbox & Security Layer
-Deterministic execution isolation, permission tiers, and code analysis boundaries.
-- [Execution Sandbox Layer](architecture/SANDBOX_LAYER.md) — FS scope, Firecracker microVMs, egress, and AST invariants
+### 2. 🛡️ AI Governance, Sandbox & Security
+Permissions, human review, execution boundaries and security design; host-specific isolation still needs its recorded qualification.
+- [Execution Sandbox Layer](architecture/SANDBOX_LAYER.md) — filesystem/egress controls, AST checks and host-dependent isolation design
 - [Execution Sandbox Concept Guide](guides/EXECUTION_SANDBOX.md) — **NEW** Deep dive: phases, config, tripwires, audit
 - [Sandbox Policy Design](architecture/GOVERNANCE_STANDARDIZATION.md) — Detailed governance standards and enforcement rules
 - [Package Security](security/packages.md) — Vulnerability scanning and package isolation systems (PyPI, npm)
@@ -66,11 +75,11 @@ Workflows, event buses, and multi-agent roles (Queen, Fleet Admiral, lateral rad
 ### 5. 🔌 Integrations & Canvas Automation
 Third-party APIs, real-time collaboration canvas, and headless Office co-editing.
 - [Integrations Overview](integrations/OVERVIEW.md) — API integrations, resilience layers, and circuit breakers
-- [Third-Party App Integrations](integrations/THIRD_PARTY_INTEGRATIONS.md) — **NEW** 44+ native services, OAuth, governance, webhooks, custom integration
-- [LLM Providers Guide](guides/LLM_PROVIDERS.md) — All providers, setup, costs, routing strategies
-- [OpenCode Go Provider](guides/OPENCODE_GO_PROVIDER.md) — Low-cost subscription gateway (~90% savings)
+- [Third-Party App Integrations](integrations/THIRD_PARTY_INTEGRATIONS.md) — connector adapters, OAuth, governance and webhooks; qualification varies
+- [LLM Providers Guide](guides/LLM_PROVIDERS.md) — configured providers, setup, cost considerations and routing
+- [OpenCode Go Provider](guides/OPENCODE_GO_PROVIDER.md) — subscription gateway setup; model availability and plan limits vary
 - [Office Automation Guide](guides/ATOM_OFFICE_AUTOMATION_GUIDE.md) — Word, Excel (with formulas), PowerPoint co-editing, and transactional canvas snapshots/rollbacks
-- [Mini-Apps Architecture](architecture/MINI_APPS.md) — Stateful, resumable canvas apps authored by chatting with an agent (Firecracker microVM runtime)
+- [Mini-Apps Architecture](architecture/MINI_APPS.md) — canvas-app design and supported runtime boundaries; microVM host qualification is separate
 - [Mini-Apps User Guide](guides/MINI_APPS_GUIDE.md) — Create, run, and collaborate on mini-apps
 - [Firecracker Host Setup](deployment/FIRECRACKER_HOST_SETUP.md) — Provision the microVM runtime for mini-apps
 - [Browser Automation](integrations/browser-automation.md) — Sandboxed browser scraping and element interaction
@@ -83,8 +92,9 @@ Contribution standards, debugging procedures, and testing frameworks.
 
 ---
 
-## 📑 Complete Document Index
-For a comprehensive list of all documentation files in alphabetical order, see the **[Atom Alphabetical Index](INDEX.md)**.
+## 📑 Document Index
+Browse the **[Atom Alphabetical Index](INDEX.md)** for additional references.
+Its coverage and the status of linked material are part of the reference audit above.
 
 ## Connected business-workflow implementation
 
