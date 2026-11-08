@@ -757,10 +757,10 @@ def _consume_entries(
 def apply_credit(db: Any, entries: List[Dict[str, Any]]) -> int:
     """Directly feed explicit entries into CapabilityGraduationService.
 
-    Kept as a compatibility API for callers that already resolved authority.
-    A contribution weight is NOT verification: only an entry explicitly marked
-    ``verified`` *and* carrying a source receipt may increment verified
-    success. The fleet producer/consumer path uses :func:`record_chain_credit`.
+    Kept for legacy unverified usage accounting. Caller-owned flags and receipt
+    labels are not proof and never increment verified success here. Verified
+    credit uses :func:`record_chain_credit`, which resolves the durable scoped
+    operation, independent Oracle evidence, and unique consumption receipt.
 
     Returns applied count. Never raises for one bad entry.
     """
@@ -779,12 +779,7 @@ def apply_credit(db: Any, entries: List[Dict[str, Any]]) -> int:
                     e.get("capability") or e.get("domain") or "general")
                 if not agent_id or weight <= 0.0:
                     continue
-                verified = (
-                    "verified"
-                    if (e.get("verified") is True
-                        and e.get("source_record_id"))
-                    else "unverified"
-                )
+                verified = "unverified"
                 recorded = svc.record_usage(
                     agent_id, capability, success=True, verified=verified)
                 if recorded is False:

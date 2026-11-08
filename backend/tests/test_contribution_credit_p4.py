@@ -151,7 +151,7 @@ class TestApplyCredit:
         assert stats["success"] == 1
         assert stats["verified_success"] == 0
 
-    def test_explicit_receipt_backed_entry_records_verified_success(self, grad_db):
+    def test_claimed_receipt_id_cannot_substitute_for_readback(self, grad_db):
         from core.contribution_credit import apply_credit
         from core.models import AgentRegistry
 
@@ -168,7 +168,7 @@ class TestApplyCredit:
         assert applied == 1
         row = grad_db.query(AgentRegistry).filter_by(id="ag-a").first()
         stats = row.configuration["capability_stats"]["finance.invoice.post"]
-        assert stats["verified_success"] == 1
+        assert stats["verified_success"] == 0
 
     def test_moderate_credit_records_unverified_only(self, grad_db):
         from core.contribution_credit import apply_credit
