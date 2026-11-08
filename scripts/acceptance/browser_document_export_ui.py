@@ -145,6 +145,7 @@ SOURCE_FILES = [
     "frontend-nextjs/pages/documents/[docId].tsx",
     "scripts/acceptance/browser_agent_job_wait.py",
     "scripts/acceptance/browser_document_export_ui.py",
+    "scripts/acceptance/evidence_git_check.py",
     "scripts/tests/test_browser_document_export_ui.py",
 ]
 FRONTEND_SOURCE_FILES = [
@@ -774,47 +775,51 @@ def _source_proof(expected_sha: Optional[str]) -> Dict[str, Any]:
     }
 
 
-def _retained_evidence_probe() -> Dict[str, Any]:
-    """Prove the accepted 37-case API/test bytes are still the current bytes."""
-    if not RETAINED_EVIDENCE.is_file():
-        return {
-            "ok": False,
-            "path": str(RETAINED_EVIDENCE),
-            "error": "retained API evidence manifest is missing",
-            "files": {},
-        }
-    try:
-        manifest = _read_json(RETAINED_EVIDENCE)
-    except Exception as exc:
-        return {
-            "ok": False,
-            "path": str(RETAINED_EVIDENCE),
-            "error": f"{type(exc).__name__}: {exc}",
-            "files": {},
-        }
+def _retained_evidence_probe(
+        evidence: Optional[str] = None,
+        evidence_ref: str = "HEAD") -> Dict[str, Any]:
+    """Check a committed API packet and its declared source against current bytes.
+
+    Packet integrity is not a substitute for independent review of the recorded
+    test outcome. A newer qualification must have its own packet; historical
+    packets and their source hashes are never rewritten to match a repair.
+    """
+    directory = Path(evidence) if evidence else RETAINED_EVIDENCE.parent
+    if not directory.is_absolute():
+        directory = REPO / directory
+    checker_path = Path(__file__).resolve().parents[2] / "scripts/acceptance/evidence_git_check.py"
+    spec = importlib.util.spec_from_file_location("document_api_git_checker", checker_path)
+    checker = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(checker)
+    if evidence_ref in checker.INDEX_REFS:
+        return {"ok": False, "error": "API evidence requires a committed Git ref", "files": {}}
+    verified = checker.verify(REPO, directory, evidence_ref, True)
+    if not verified.get("passed"):
+        return {"ok": False, "error": "committed API evidence verification failed",
+                "git_verification": verified, "files": {}}
+    relative = verified["evidence_path"] + "/MANIFEST.json"
+    manifest = json.loads(checker._blob(REPO, verified["evidence_ref_commit"], relative))
+    declared = manifest.get("source_files") or {}
     files: Dict[str, Any] = {}
-    ok = True
-    for path, expected in (manifest.get("source_files") or {}).items():
+    for path, expected in declared.items():
         target = REPO / path
-        actual = _sha256_file(target) if target.is_file() else None
-        matches = actual == expected
-        ok = ok and matches
+        data = target.read_bytes() if target.is_file() else None
         files[path] = {
             "expected_sha256": expected,
-            "actual_sha256": actual,
-            "matches": matches,
+            "actual_sha256": hashlib.sha256(data).hexdigest() if data is not None else None,
+            "matches": data is not None and checker._matches_sha256(data, expected),
         }
     return {
-        "ok": bool(ok and files),
-        "path": str(RETAINED_EVIDENCE),
-        "sha256": _sha256_file(RETAINED_EVIDENCE),
-        "executed_source": manifest.get("executed_source"),
+        "ok": bool(files and all(item["matches"] for item in files.values())),
+        "path": str(directory),
+        "evidence_ref_commit": verified["evidence_ref_commit"],
+        "executed_source": verified.get("executed_source_commit"),
+        "git_verification": verified,
         "files": files,
-        "retained_case_count": 37,
         "reuse_note": (
-            "Accepted public-route API controls (missing source, foreign scope, "
-            "revoked/stale, wrong revision, unsafe headers, nullable scope) are "
-            "referenced by unchanged source/test bytes, not re-run here."),
+            "Committed packet and declared API/test source bytes verified. "
+            "Test outcome and qualification scope require independent review; "
+            "this probe does not execute tests or certify manifest completeness."),
     }
 
 
@@ -1560,10 +1565,12 @@ def _run_preflight(args: argparse.Namespace) -> int:
                 "frozen commit, not an in-flight tree")
         if not source.get("per_file", {}).get("ok"):
             raise PreflightError("per-file Git source proof failed")
-        retained = _retained_evidence_probe()
+        retained = _retained_evidence_probe(
+            getattr(args, "api_evidence", None),
+            getattr(args, "api_evidence_ref", "HEAD"))
         if not retained.get("ok"):
             raise PreflightError(
-                "retained 37-case API/test bytes drifted; do not claim reuse "
+                "committed API packet/source does not qualify reuse "
                 f"without review: {retained}")
         profile = _profile_probe()
         if not profile.get("ok"):
@@ -2838,7 +2845,9 @@ def _run_execute(args: argparse.Namespace) -> int:
         print("[execute] source proof failed; refusing to build/launch",
               file=sys.stderr)
         return 2
-    retained = _retained_evidence_probe()
+    retained = _retained_evidence_probe(
+        getattr(args, "api_evidence", None),
+        getattr(args, "api_evidence_ref", "HEAD"))
     if not retained.get("ok"):
         print(f"[execute] retained API/test bytes drifted: {retained}",
               file=sys.stderr)
@@ -3987,6 +3996,10 @@ def main(argv: Optional[List[str]] = None) -> int:
                       help="root-owned single ordinary UI episode")
     ap.add_argument("--expect-source-sha", required=True,
                     help="explicit frozen Git source SHA")
+    ap.add_argument("--api-evidence", default=None,
+                    help="committed API evidence directory; defaults to the historical packet")
+    ap.add_argument("--api-evidence-ref", default="HEAD",
+                    help="Git ref containing the API packet, frozen before verification")
     ap.add_argument("--world", default=None,
                     help=f"fresh world name; must start {WORLD_PREFIX!r}")
     ap.add_argument("--backend-port", type=int, default=8047)
