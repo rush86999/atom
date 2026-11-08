@@ -127,6 +127,10 @@ class AssignmentExternalResponse(BaseModel):
     source: str = ""
     evidence: str = ""
     value: Optional[Any] = None
+    # Opaque caller identity for this reply. It is deliberately not stripped,
+    # case-folded or otherwise normalized; ``None`` means the legacy omitted-ID
+    # path. It is identity, never authentication or authority.
+    reply_id: Optional[str] = None
 
 
 class EmployeeObjectiveStart(BaseModel):
@@ -2538,6 +2542,7 @@ async def record_assignment_response(
         source=body.source or str(current_user.id),
         evidence=body.evidence,
         value=body.value,
+        reply_id=body.reply_id,
     )
     if result.get("status") == "terminal":
         # The run exists and is terminal; the reply is refused rather than
@@ -2546,10 +2551,20 @@ async def record_assignment_response(
     if result.get("status") == "unmatched":
         raise HTTPException(status_code=404, detail=result.get("message"))
     if result.get("status") in (
+            "reply_conflict", "reply_identity_conflict",
+            "reply_scope_conflict"):
+        # One opaque reply identity cannot change material or move to another
+        # wait. Refuse before any state transition, wake or execute.
+        raise HTTPException(status_code=409, detail=result)
+    if result.get("status") in (
             "conflict", "partial", "unavailable", "incomplete"):
         # The reply was retained as a durable conflict or record-specific
         # partial answer and the wait remains open. Do not resume and do not
         # turn it into a generic assignment projection the UI cannot explain.
+        return result
+    if result.get("status") == "already_applied" or result.get("replayed"):
+        # Exact replay (explicit or legacy) is idempotent: it must not execute
+        # or advance the same job a second time.
         return result
     resumed = await executor.resume(run_id)
     # An authorized reply can make a previously blocked capability ready.

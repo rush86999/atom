@@ -5,20 +5,20 @@ Once a reply identity has been used on a durable wait, the same identity may
 replay exactly the same material, but it may never change that material and
 resolve the wait. A new identity may still supply the accepted answer.
 
-Failure-first public control: open the real typed ``received_quantity`` wait
-through the existing employee/durable-wait fixture, submit a non-resolving
-conflict under ``reply_id=r1``, then submit changed material under the SAME
-``r1``. The desired result is an exact material conflict (typed 409 or an
-explicit refusal), the wait remains unresolved, and no dependent
-reconciliation or artifact appears. Current production likely drops the extra
-``reply_id`` and resolves the wait; this test is authored, not run.
+Public control: open the real typed ``received_quantity`` wait through the
+existing employee/durable-wait fixture, submit a non-resolving conflict under
+``reply_id=r1``, then submit changed material under the SAME ``r1``. The
+result must be an exact material conflict (typed 409 or an explicit refusal),
+the wait remains unresolved, and no dependent reconciliation or artifact
+appears.
 
-Author-only. Only this file and LEAD_REVIEW.md are in scope. No production
-edits and no claim that these tests pass.
+This file is authored for root execution. No test here is claimed as passing.
 """
 from __future__ import annotations
 
 import copy
+
+import pytest
 
 from tests.test_assignment_routes import route_env  # noqa: F401
 from tests.test_employee_durable_wait_g5 import _start, _wait_step
@@ -72,13 +72,14 @@ def _open_wait(route_env, tmp_path, monkeypatch, *, requested_output=None):
 
 
 def _reply(route_env, run_id, correlation, *, reply_id, value, response,
-           source=REPLY_SOURCE):
+           source=REPLY_SOURCE, evidence=""):
     return route_env["client"].post(
         f"/api/assignments/{run_id}/responses/{correlation}",
         json={
             "reply_id": reply_id,
             "response": response,
             "source": source,
+            "evidence": evidence,
             "value": value,
         })
 
@@ -332,3 +333,241 @@ def test_cancel_and_foreign_workspace_refuse_reply_identity(
     durable = _rebuilt_executor(route_env).lifecycle.get_assignment(run_id)
     assert durable["status"] == "cancelled"
     assert _wait_step(durable)["status"] == "cancelled"
+
+
+@pytest.mark.parametrize("field,changed", [
+    ("response", {"value": "5", "response": "received five units",
+                  "evidence": "mail-1"}),
+    ("source", {"value": "5", "response": "received 5 units",
+                "source": "warehouse receiving desk",
+                "evidence": "mail-1"}),
+    ("evidence", {"value": "5", "response": "received 5 units",
+                  "evidence": "mail-2"}),
+    ("value", {"value": "2", "response": "received 5 units",
+               "evidence": "mail-1"}),
+])
+def test_same_identity_refuses_each_changed_material_field(
+        route_env, tmp_path, monkeypatch, field, changed):
+    """Every semantic field is part of the exact material identity."""
+    run_id, correlation, artifact_root = _open_wait(
+        route_env, tmp_path, monkeypatch)
+    first = _reply(
+        route_env, run_id, correlation, reply_id=R1,
+        value="5", response="received 5 units", evidence="mail-1")
+    assert first.status_code == 200, first.text
+    assert first.json()["status"] == "conflict", first.text
+    wait_before = _wait(route_env, run_id)
+    receipts_before = copy.deepcopy(wait_before.get("reply_receipts") or [])
+
+    refused = _reply(
+        route_env, run_id, correlation, reply_id=R1, **changed)
+    _assert_reply_identity_conflict(refused)
+    after = _assert_wait_and_no_dependent_work(
+        route_env, run_id, artifact_root)
+    assert _wait_step(after).get("reply_receipts") == receipts_before
+
+
+@pytest.mark.parametrize("first_id,second_id", [
+    ("Reply-R1", "reply-r1"),
+    (" reply-r1", "reply-r1"),
+    ("re\u0301ply-r1", "r\u00e9ply-r1"),
+])
+def test_opaque_reply_ids_are_exact_not_normalized(
+        route_env, tmp_path, monkeypatch, first_id, second_id):
+    """Opaque IDs are compared exactly; case, space and Unicode stay distinct."""
+    run_id, correlation, artifact_root = _open_wait(
+        route_env, tmp_path, monkeypatch, requested_output="document")
+    first = _reply(
+        route_env, run_id, correlation, reply_id=first_id,
+        value="5", response="received 5 units")
+    assert first.status_code == 200, first.text
+    assert first.json()["status"] == "conflict", first.text
+
+    second = _reply(
+        route_env, run_id, correlation, reply_id=second_id,
+        value="2", response="received 2 units")
+    assert second.status_code == 200, second.text
+    assert second.json().get("status") not in (
+        "reply_conflict", "conflict", "terminal", "refused"), second.json()
+    final = route_env["lifecycle"].get_assignment(run_id)
+    assert final["status"] == "completed", final["status"]
+    receipts = _wait_step(final).get("reply_receipts") or []
+    assert [item.get("reply_id") for item in receipts] == [
+        first_id, second_id], receipts
+    assert all(item.get("identity_kind") == "explicit" for item in receipts)
+
+
+def test_omitted_reply_id_partial_then_corrected_full(
+        route_env, tmp_path, monkeypatch):
+    """Legacy omitted IDs replay only identical material and remain usable."""
+    run_id, correlation, artifact_root = _open_wait(
+        route_env, tmp_path, monkeypatch, requested_output="document")
+    first = _reply(
+        route_env, run_id, correlation, reply_id=None,
+        value="5", response="received 5 units")
+    assert first.status_code == 200, first.text
+    assert first.json()["status"] == "conflict", first.text
+    wait_before = _wait(route_env, run_id)
+    receipts_before = copy.deepcopy(wait_before.get("reply_receipts") or [])
+    conflicts_before = copy.deepcopy(
+        wait_before["waiting"].get("conflicts") or [])
+    decisions_before = len(
+        route_env["lifecycle"].runs.get_decisions(run_id))
+
+    replay = _reply(
+        route_env, run_id, correlation, reply_id=None,
+        value="5", response="received 5 units")
+    assert replay.status_code == 200, replay.text
+    assert replay.json()["status"] == "conflict", replay.text
+    wait_now = _wait(route_env, run_id)
+    assert (wait_now.get("reply_receipts") or []) == receipts_before
+    assert wait_now["waiting"].get("conflicts") == conflicts_before
+    assert len(route_env["lifecycle"].runs.get_decisions(run_id)) == (
+        decisions_before)
+
+    corrected = _reply(
+        route_env, run_id, correlation, reply_id=None,
+        value="2", response="received 2 units")
+    assert corrected.status_code == 200, corrected.text
+    assert corrected.json().get("status") not in (
+        "conflict", "reply_conflict", "terminal", "refused"), corrected.json()
+    final = route_env["lifecycle"].get_assignment(run_id)
+    assert final["status"] == "completed", final["status"]
+    receipts = _wait_step(final).get("reply_receipts") or []
+    assert [item.get("identity_kind") for item in receipts] == [
+        "legacy", "legacy"], receipts
+    assert [item.get("outcome") for item in receipts] == [
+        "conflict", "resolved"], receipts
+    assert all(item.get("reply_id") == "" for item in receipts)
+
+
+def test_old_identity_survives_more_than_ten_display_entries(
+        route_env, tmp_path, monkeypatch):
+    """Display bounding never evicts an authoritative identity receipt."""
+    run_id, correlation, artifact_root = _open_wait(
+        route_env, tmp_path, monkeypatch)
+    for index in range(12):
+        value = str(5 + index)
+        reply = _reply(
+            route_env, run_id, correlation, reply_id=f"bulk-{index:02d}",
+            value=value, response=f"received {value} units")
+        assert reply.status_code == 200, reply.text
+        assert reply.json()["status"] == "conflict", reply.text
+
+    wait = _wait(route_env, run_id)
+    assert len(wait.get("reply_receipts") or []) == 12
+    assert len(wait["waiting"].get("conflicts") or []) == 10
+    old_receipt = wait["reply_receipts"][0]
+    old_digest = old_receipt["material_sha256"]
+
+    replay = _reply(
+        route_env, run_id, correlation, reply_id="bulk-00",
+        value="5", response="received 5 units")
+    assert replay.status_code == 200, replay.text
+    assert replay.json()["status"] == "conflict", replay.text
+    after_replay = _wait(route_env, run_id)
+    assert len(after_replay.get("reply_receipts") or []) == 12
+    assert after_replay["reply_receipts"][0]["material_sha256"] == old_digest
+    assert len(after_replay["waiting"].get("conflicts") or []) == 10
+
+    changed = _reply(
+        route_env, run_id, correlation, reply_id="bulk-00",
+        value="2", response="received 2 units")
+    _assert_reply_identity_conflict(changed)
+    _assert_wait_and_no_dependent_work(route_env, run_id, artifact_root)
+
+    durable = _rebuilt_executor(route_env).lifecycle.get_assignment(run_id)
+    durable_wait = _wait_step(durable)
+    assert len(durable_wait.get("reply_receipts") or []) == 12
+    assert durable_wait["reply_receipts"][0]["material_sha256"] == old_digest
+    assert len(durable_wait["waiting"].get("conflicts") or []) == 10
+
+
+def test_stale_wait_scope_refuses_same_identity(
+        route_env, tmp_path, monkeypatch):
+    """A changed wait subject is a scope conflict, not a fresh reply."""
+    run_id, correlation, artifact_root = _open_wait(
+        route_env, tmp_path, monkeypatch)
+    first = _reply(
+        route_env, run_id, correlation, reply_id=R1,
+        value="5", response="received 5 units")
+    assert first.status_code == 200, first.text
+    assert first.json()["status"] == "conflict", first.text
+    wait_before = _wait(route_env, run_id)
+    receipts_before = copy.deepcopy(wait_before.get("reply_receipts") or [])
+
+    def change_scope(record, current):
+        plan = copy.deepcopy(current)
+        wait = _wait_step(plan)
+        wait["waiting"]["subject"] = "PO-OTHER-9"
+        return plan, {}
+
+    route_env["lifecycle"].mutate_assignment(
+        run_id, change_scope, rationale="test: stale wait scope")
+
+    replay = _reply(
+        route_env, run_id, correlation, reply_id=R1,
+        value="5", response="received 5 units")
+    _assert_reply_identity_conflict(replay)
+    after = _assert_wait_and_no_dependent_work(
+        route_env, run_id, artifact_root)
+    assert _wait_step(after).get("reply_receipts") == receipts_before
+
+
+def test_cas_rechecks_identity_after_competing_writer(
+        route_env, tmp_path, monkeypatch):
+    """A competitor inserted before CAS makes the same-ID reply refuse."""
+    run_id, correlation, artifact_root = _open_wait(
+        route_env, tmp_path, monkeypatch)
+    executor = route_env["executor"]
+    lifecycle = route_env["lifecycle"]
+    original = lifecycle.mutate_assignment
+    injected = {"done": False}
+
+    def wrapper(run_id_arg, compute, **kwargs):
+        if not injected["done"] and run_id_arg == run_id:
+            injected["done"] = True
+
+            def competitor(record, current):
+                plan = copy.deepcopy(current)
+                wait = _wait_step(plan)
+                receipts = list(wait.get("reply_receipts") or [])
+                receipts.append({
+                    "reply_id": R1,
+                    "identity_kind": "explicit",
+                    "material_sha256": "0" * 64,
+                    "correlation_id": correlation,
+                    "fact": wait["waiting"]["fact"],
+                    "subject": wait["waiting"]["subject"],
+                    "outcome": "conflict",
+                    "reason": "source_fact_conflict",
+                    "message": "competing writer won",
+                    "at": "2026-11-08T00:00:00+00:00",
+                })
+                wait["reply_receipts"] = receipts
+                waiting_now = dict(wait.get("waiting") or {})
+                conflicts = list(waiting_now.get("conflicts") or [])
+                conflicts.append({
+                    "correlation_id": correlation,
+                    "fact": wait["waiting"]["fact"],
+                    "subject": wait["waiting"]["subject"],
+                    "reason": "source_fact_conflict",
+                    "reply_id": R1,
+                    "material_sha256": "0" * 64,
+                })
+                waiting_now["conflicts"] = conflicts[-10:]
+                wait["waiting"] = waiting_now
+                return plan, {}
+
+            original(run_id, competitor, rationale="test: competitor")
+        return original(run_id_arg, compute, **kwargs)
+
+    monkeypatch.setattr(lifecycle, "mutate_assignment", wrapper)
+    result = executor.record_external_response(
+        run_id, correlation, response="received 2 units",
+        source=REPLY_SOURCE, value="2", reply_id=R1)
+    assert result.get("status") == "reply_conflict", result
+    wait_after = _wait(route_env, run_id)
+    assert wait_after["status"] == "waiting"
+    assert len(wait_after.get("reply_receipts") or []) == 1
+    assert wait_after["reply_receipts"][0]["material_sha256"] == "0" * 64

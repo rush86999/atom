@@ -84,14 +84,25 @@ async def _resume_woken_run(svc, run_id: str, event: Dict[str, Any]) -> Dict[str
                 or ""
             )
             if correlation:
-                executor.record_external_response(
+                reply_id = event.get("reply_id")
+                result = executor.record_external_response(
                     run_id, correlation,
                     response=str(
                         event.get("summary") or event.get("body")
                         or event.get("response") or ""),
                     source=str(event.get("source") or event.get("from") or ""),
                     evidence=str(event.get("message_id") or event.get("id") or ""),
+                    reply_id=(
+                        str(reply_id) if reply_id is not None else None),
                 )
+                if (result.get("status") in (
+                        "reply_conflict", "terminal", "unmatched",
+                        "conflict", "partial", "unavailable", "incomplete",
+                        "already_applied")
+                        or result.get("replayed")):
+                    # A refused, non-resolving or exact-replay reply must not
+                    # execute or advance the same job again.
+                    return result
             return await executor.resume(run_id)
     except Exception as exc:  # noqa: BLE001 — fall back to the existing loop
         logger.warning(
