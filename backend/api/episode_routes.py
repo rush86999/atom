@@ -704,10 +704,18 @@ async def run_exam(
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
-    """Run graduation exam on edge cases"""
+    """Review authorized historical safety traces; not candidate qualification."""
     _require_supervisor(db, current_user)
     service = AgentGraduationService(db)
-    return await service.run_graduation_exam(agent_id, edge_case_episodes)
+    result = await service.run_graduation_exam(
+        agent_id,
+        edge_case_episodes,
+        tenant_id=resolve_tenant_id(current_user),
+        workspace_id=resolve_workspace_id(current_user),
+    )
+    if result.get("error"):
+        raise HTTPException(status_code=404, detail=result["error"])
+    return result
 
 
 @router.post("/graduation/promote")

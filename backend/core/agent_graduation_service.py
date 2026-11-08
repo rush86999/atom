@@ -606,12 +606,15 @@ class AgentGraduationService:
     async def run_graduation_exam(
         self,
         agent_id: str,
-        edge_case_episodes: List[str]
+        edge_case_episodes: List[str],
+        tenant_id: Optional[str] = None,
+        workspace_id: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
-        Run agent through historical "edge case" episodes in sandbox.
+        Review historical trace safety within the authorized scope.
 
-        Tests agent against historical failures from other agents.
+        This does not execute or qualify the candidate agent. Historical cases
+        from other agents in the same authorized scope remain supported.
 
         Args:
             agent_id: Agent to test
@@ -626,16 +629,58 @@ class AgentGraduationService:
         """
         from core.sandbox_executor import get_sandbox_executor
 
+        def outcome(results, installation_evals, error=None):
+            return {
+                "passed": error is None and bool(results) and all(r["passed"] for r in results),
+                "results": results,
+                "score": round(
+                    sum(1 for r in results if r["passed"]) / len(results) * 100, 1
+                ) if results else 0.0,
+                "total_cases": len(results),
+                "installation_evals": installation_evals,
+                **({"error": error} if error else {}),
+                "assessment_scope": "historical_trace_safety_review",
+                "candidate_capability_qualified": False,
+            }
+
+        def refuse(message, results=None):
+            return outcome(results or [], {"available": False}, message)
+
+        target = self.get_agent_in_scope(agent_id, tenant_id, workspace_id)
+        if target is None:
+            return refuse("Exam target is unknown or outside the authorized scope")
+        scope_tenant = (
+            tenant_id if tenant_id is not None else getattr(target, "tenant_id", None)
+        ) or PERSONAL_TENANT_ID
+        scope_workspace = (
+            workspace_id if workspace_id is not None
+            else getattr(target, "workspace_id", None)
+        ) or PERSONAL_WORKSPACE_ID
+        ordered_ids = []
+        for episode_id in edge_case_episodes:
+            episode = self._query_in_scope(
+                self.db.query(Episode).filter(Episode.id == episode_id),
+                Episode, scope_tenant, scope_workspace
+            ).first()
+            if episode is None:
+                return refuse(
+                    f"Episode {episode_id} is unknown or outside the authorized scope"
+                )
+            ordered_ids.append(episode_id)
+
         results = []
 
-        for episode_id in edge_case_episodes:
-            episode = self.db.query(Episode).filter(
-                Episode.id == episode_id
+        for episode_id in ordered_ids:
+            if self.get_agent_in_scope(agent_id, scope_tenant, scope_workspace) is None:
+                return refuse("Exam target left the authorized scope", results)
+            episode = self._query_in_scope(
+                self.db.query(Episode).filter(Episode.id == episode_id),
+                Episode, scope_tenant, scope_workspace
             ).first()
-
-            if not episode:
-                logger.warning(f"Episode {episode_id} not found for sandbox validation")
-                continue
+            if episode is None:
+                return refuse(
+                    f"Episode {episode_id} left the authorized scope", results
+                )
 
             # Execute episode in sandbox
             executor = get_sandbox_executor(self.db)
@@ -653,22 +698,18 @@ class AgentGraduationService:
                 "replayed_actions": sandbox_result.replayed_actions
             })
 
-        passed = all(r["passed"] for r in results)
-        score = sum(1 for r in results if r["passed"]) / len(results) * 100 if results else 0
-
         # Installation Adaptation Plan (Phase 2/5): the graduation exam also
         # replays the TENANT's own live-failure regression cases — a hire
         # that repeats an install's real past mistakes does not promote.
         # Fault-isolated: an eval-suite failure downgrades to "unavailable"
         # and never blocks the exam on infrastructure grounds.
         installation_evals: Dict[str, Any] = {"available": False}
+        if self.get_agent_in_scope(agent_id, scope_tenant, scope_workspace) is None:
+            return refuse("Exam target left the authorized scope", results)
         try:
             from core.incident_eval_runner import run_evals
 
-            agent_row = self.db.query(AgentRegistry).filter(
-                AgentRegistry.id == agent_id).first()
-            tenant_id = getattr(agent_row, "tenant_id", None) or "default"
-            summary = await run_evals(self.db, tenant_id=tenant_id, limit=10)
+            summary = await run_evals(self.db, tenant_id=scope_tenant, limit=10)
             failed = summary.get("failed", 0)
             installation_evals = {
                 "available": True,
@@ -686,19 +727,10 @@ class AgentGraduationService:
                     "safety_violations": 0,
                     "replayed_actions": [],
                 })
-                total_cases = len(results)
-                passed = all(r["passed"] for r in results)
-                score = sum(1 for r in results if r["passed"]) / total_cases * 100
         except Exception as eval_err:
-            logger.debug(f"installation eval gate unavailable: {eval_err}")
+            logger.debug("installation eval gate unavailable: error_class=%s", type(eval_err).__name__)
 
-        return {
-            "passed": passed,
-            "results": results,
-            "score": round(score, 1),
-            "total_cases": len(edge_case_episodes),
-            "installation_evals": installation_evals,
-        }
+        return outcome(results, installation_evals)
 
     async def validate_constitutional_compliance(
         self,
