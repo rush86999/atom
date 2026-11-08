@@ -34,9 +34,12 @@ Never raises: any failure is logged and the loop continues.
 from __future__ import annotations
 
 import asyncio
+from asyncio import get_running_loop, run_coroutine_threadsafe, to_thread
 from core.asyncio_compat import get_event_loop, iscoroutinefunction
+import contextvars
 import logging
 import os
+import threading
 import time
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
@@ -81,6 +84,19 @@ def _notify_cooldown_hours() -> float:
 _last_run: Dict[str, Any] = {}
 _automation_task: Optional[asyncio.Task] = None
 _last_notified: Dict[str, float] = {}
+
+# The application loop that owns the pass currently running in a worker
+# thread. ``asyncio.to_thread`` copies the current context into the worker, so
+# notifications spawned by that pass can be scheduled back onto the real
+# application loop instead of creating a worker-private, never-running loop.
+_notification_loop = contextvars.ContextVar(
+    "org_politics_notification_loop", default=None)
+
+# One synchronous certification pass at a time. This is deliberately a
+# thread lock, not an asyncio lock: cancelling the task awaiting
+# ``to_thread`` does NOT stop the worker that is already inside the pass, and
+# a re-registered loop must not start an overlapping pass while it finishes.
+_pass_gate = threading.Lock()
 # TTL cache for resolved_flag so hot paths (call_tool) don't hit the DB.
 _RESOLVER_TTL_SECONDS = 60.0
 _resolver_cache: Dict[str, tuple] = {}  # flag_key -> (monotonic_ts, value)
@@ -457,8 +473,49 @@ async def _notify(notification_type: str, title: str, message: str,
         logger.debug(f"org-politics notification failed: {e}")
 
 
+def _log_notification_result(future: Any) -> None:
+    try:
+        future.result()
+    except Exception as e:  # noqa: BLE001 — notification failure is non-fatal
+        logger.debug(f"org-politics notification failed: {e}")
+
+
 def _spawn_notification(notification_type: str, title: str, message: str,
                         action_url: str = "") -> None:
+    # A pass offloaded with ``asyncio.to_thread`` runs without an event loop
+    # in its worker thread. The copied context still names the application
+    # loop, so schedule there rather than letting ``get_event_loop`` create a
+    # worker-only loop (which would silently break loop-bound delivery).
+    app_loop = _notification_loop.get()
+    if app_loop is not None:
+        running_loop_fn = getattr(
+            asyncio, "get_running_loop", get_running_loop)
+        try:
+            running_loop = running_loop_fn()
+        except RuntimeError:
+            running_loop = None
+        if running_loop is app_loop:
+            app_loop.create_task(
+                _notify(notification_type, title, message, action_url)
+            )
+            return
+        if app_loop.is_running() and not app_loop.is_closed():
+            schedule = getattr(
+                asyncio, "run_coroutine_threadsafe", run_coroutine_threadsafe)
+            notification = _notify(notification_type, title, message, action_url)
+            try:
+                future = schedule(notification, app_loop)
+            except Exception as e:  # noqa: BLE001 — loop is shutting down
+                notification.close()
+                logger.warning(
+                    "org-politics notification not scheduled: %s", type(e).__name__)
+                return
+            future.add_done_callback(_log_notification_result)
+            return
+        logger.warning(
+            "org-politics notification not scheduled: "
+            "application event loop is no longer running")
+        return
     try:
         loop = get_event_loop()
         if loop.is_running():
@@ -706,12 +763,49 @@ def get_automation_status() -> Dict[str, Any]:
 # ── Background loop ─────────────────────────────────────────────────────────
 
 
+def _run_auto_certification_guarded() -> Dict[str, Any]:
+    """Run one pass unless a worker from a cancelled loop still owns it.
+
+    The lock is released only when the worker actually leaves
+    ``run_auto_certification``. Task cancellation cannot prove the worker
+    stopped, so a replacement loop gets a skip instead of overlapping DB/model
+    work and duplicate notifications.
+    """
+    if not _pass_gate.acquire(blocking=False):
+        logger.info(
+            "org-politics certification skipped: previous pass still running")
+        return {"skipped": "pass_in_progress"}
+    try:
+        return run_auto_certification()
+    finally:
+        _pass_gate.release()
+
+
+async def run_auto_certification_async() -> Dict[str, Any]:
+    """Offload one owned-session pass; preserve notification-loop context.
+
+    Shared by the scheduled loop and public run-now consumer. Cancellation
+    releases the awaiter, not the synchronous worker or its exclusion gate.
+    """
+    loop = get_event_loop()
+    token = _notification_loop.set(loop)
+    try:
+        # Keep blocking DB/model I/O off the application event loop. The
+        # direct import supports the existing sleep-only timer seam.
+        worker = getattr(asyncio, "to_thread", to_thread)
+        return await worker(_run_auto_certification_guarded)
+    finally:
+        _notification_loop.reset(token)
+
+
 async def org_politics_automation_loop() -> None:
     while True:
         try:
             await asyncio.sleep(max(automation_interval_min(), 0.5) * 60)
-            run_auto_certification()
+            await run_auto_certification_async()
         except asyncio.CancelledError:
+            # The awaiter is cancelled; any worker already in the pass keeps
+            # running and continues to hold _pass_gate until it returns.
             break
         except Exception as e:  # noqa: BLE001
             logger.warning(f"org-politics automation loop failed: {e}")

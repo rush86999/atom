@@ -1,0 +1,40 @@
+{
+  "source": "45f73d2a9b39149a6ce1b46d0d93bb18910d446a",
+  "candidate_files": {
+    "backend/core/org_politics_automation.py": "cb473c35054f668d2f3660abcadfaabb1cca6d423fd070e495aaaada9f8125a9",
+    "backend/api/org_politics_routes.py": "012b92b7af924c4a6000123fac364becff1fdec66acfe95063b29c8f0a6850b2",
+    "backend/tests/test_org_politics_loop_responsiveness.py": "302fb80fdc8f25823b6ffa1074e6722bce8e42d48c00629588bba971830b4c4b"
+  },
+  "attribution": "uncommitted candidate exact file hashes; not clean main runtime",
+  "root": "/private/tmp/root-feedback-sqlite-pf2brwrw",
+  "command": [
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-alignment-loop-responsive-20261108/backend",
+    "--profile",
+    "bounded",
+    "--",
+    "/usr/local/opt/python@3.11/bin/python3.11",
+    "-m",
+    "pytest",
+    "tests/test_org_politics_automation.py",
+    "tests/test_org_politics_registered_loop_join.py",
+    "tests/test_org_politics_scheduled_entry.py",
+    "tests/test_org_politics_loop_responsiveness.py",
+    "-q",
+    "--tb=short",
+    "-p",
+    "no:cacheprovider",
+    "-p",
+    "pytest_freezegun",
+    "-p",
+    "root_no_network",
+    "-p",
+    "no:randomly",
+    "-p",
+    "no:rerunfailures",
+    "--timeout=120",
+    "--timeout-method=thread",
+    "--basetemp=/private/tmp/root-feedback-sqlite-pf2brwrw/pytest"
+  ]
+}
