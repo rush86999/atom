@@ -5,6 +5,7 @@ or remote parser is called; the normal python-docx fallback, upload, index,
 SQL mirror and stored-text export paths execute.
 """
 import io
+import json
 import pytest
 from docx import Document
 from core.auto_document_ingestion import DocumentParser
@@ -60,6 +61,7 @@ def test_docx_without_extracted_content_does_not_become_fresh_evidence(
         capture['export_status'] = downloaded.status_code
         capture['export_provenance'] = downloaded.headers.get('X-Document-Provenance')
         capture['export_text'] = downloaded.text
+    print("ROOT_DOCUMENT_EXTRACTION_CAPTURE " + json.dumps(capture, sort_keys=True))
     assert response.status_code in (415, 422), capture
     exported.session.expire_all()
     assert exported.session.query(IngestedDocument).count() == before
