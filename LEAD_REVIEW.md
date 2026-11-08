@@ -163,3 +163,126 @@ author.
 - No fsync/durability guarantee and no multi-process locking semantics.
 - Oracle note honesty, broader BPE/Oracle gaps, and principal/workspace scope
   work remain untouched and are not claimed fixed.
+
+---
+
+# LEAD REVIEW — persisted BPE namespace identity (finite)
+
+Status: **AUTHOR-ONLY / NOT EXECUTED**. No product code, pytest, server,
+model, provider, install, migration or credential/env inspection was performed
+here. Root owns every runtime gate and the acceptance decision.
+
+## Confirmed defect (bounded)
+
+The evidence packet explicitly left **filename/key collision behavior** open
+(`docs/engineering/evidence/bpe_scope_persistence_multiday_1415a855a/README.md`
+§Remaining boundaries). The store had two non-injective namespace encodings:
+
+- the file name replaced every character outside `[A-Za-z0-9_-]` with `_`, so
+  e.g. `personal:user` and `personal_user` shared one file;
+- the inner key joined `agent_id` and `scope_key` with `|`, so
+  `("agent|scope", "")` and `("agent", "scope|")` shared one slot.
+
+In addition, `load()` returned any entry found under the computed key without
+checking the identity embedded in the snapshot, and `get_workspace()` restored
+that snapshot using its embedded identity while caching it under the requested
+registry key. A stale/tampered snapshot could therefore be addressed as one
+namespace while carrying another namespace's state.
+
+## Repair (runtime, file-based storage only)
+
+`backend/core/bpe/persistence.py`
+
+- Added one canonical `namespace_identity(workspace_id, agent_id, scope_key)`
+  normalization, identical to the workspace/API defaults.
+- File names are now injective while preserving the historic spelling:
+  lowercase safe ids `[a-z0-9_-]{1,120}` keep `<id>.json`; every other id uses
+  `~<sha256>.json`. The `~`/safe-alphabet split means an encoded name can never
+  equal a pass-through name, and mixed-case ids no longer alias on
+  case-insensitive filesystems. This also keeps traversal-shaped ids inside
+  the store directory.
+- Inner keys preserve the historic `<agent_id>|<scope_key>` spelling when
+  neither component contains `|`. Otherwise both components are urlsafe
+  base64-encoded inside `v2|<b64(agent)>|<b64(scope)>`; base64 cannot contain
+  `|`, so this cannot collide with a legacy one-separator key.
+- `save()` stamps the canonical triple into the stored entry, so the file
+  name, inner key and embedded identity always agree. A pre-repair lossy-named
+  file is used only as a read-through source when the canonical file does not
+  exist; every scope whose embedded `workspace_id` equals this workspace is
+  carried into the canonical file, while foreign workspace entries are left
+  untouched in the old file. The old file is never moved, rewritten or
+  deleted.
+- `load()` looks up the injective key, falls back to the legacy key only when
+  the new key is absent, and then requires the embedded
+  `(workspace_id, agent_id, scope_key)` to equal the requested triple. A
+  mismatch is logged and refused (`None`) instead of being returned.
+
+`backend/core/bpe/workspace.py`
+
+- `get_workspace()` re-checks the restored object's identity against the
+  requested registry key. A mismatched snapshot never enters the cache; the
+  store starts a fresh workspace for the requested namespace.
+
+No new store, schema, engine, router or migration. The truthful-write result,
+temporary-file cleanup, backend path anchoring and current-principal scope
+foundations are unchanged. Safe lowercase namespaces keep their exact existing
+file name and inner key.
+
+## Authored controls (not executed here)
+
+`backend/tests/core/test_bpe_persistence_namespace_identity.py` — real
+`BPEWorkspaceStore`/registry on `tmp_path`; no storage seam is faked:
+
+1. `test_safe_namespace_keeps_historic_filename_and_key` — `w.json` and
+   `a|s` are unchanged, and the stamped identity is exact.
+2. `test_lossy_workspace_filenames_cannot_collide` — `personal:user-1`,
+   `personal_user-1` and `personal/user-1` produce three paths and three
+   independently loadable states.
+3. `test_mixed_case_workspace_names_cannot_share_a_file` — `workspace` and
+   `Workspace` stay distinct on a case-insensitive filesystem.
+4. `test_scope_separator_collisions_are_distinct` (two parameterized pairs) —
+   legacy `agent|scope|` collisions persist and load as two namespaces.
+5. `test_embedded_identity_mismatch_is_refused` (workspace, agent and scope
+   variants) — a tampered embedded field makes `load()` return `None`.
+6. `test_tampered_snapshot_is_not_restored_under_requested_namespace` — a
+   fresh registry gets an empty workspace with the requested identity, never
+   the tampered state.
+7. `test_valid_awkward_namespace_survives_registry_restart` — an encoded
+   `personal:`/`|` namespace round-trips through a cold registry.
+8. `test_legacy_lossy_file_is_read_without_being_moved_or_deleted` — the old
+   file is readable, its bytes remain unchanged and the first save writes the
+   canonical file.
+9. `test_legacy_colliding_file_cannot_lend_a_foreign_namespace` — only the
+   target workspace's entries are read/written; the foreign entry is refused
+   and remains untouched in the legacy file.
+10. `test_traversal_shaped_workspace_ids_stay_inside_the_store` — `../`,
+    absolute and separator-shaped ids all resolve inside `data_dir`.
+
+Root owns execution and acceptance; none of these is labeled passing by the
+author.
+
+## Exact negatives / compatibility preserved
+
+- `BPEWorkspaceStore.save()` still returns `True` only after a successful
+  replacement and `False` on any write failure; the earlier failure-first
+  controls are unchanged.
+- The existing safe save/load round-trip, LRU bound, oversized rejection,
+  corrupt-file degradation and lazy restore controls are unchanged because
+  safe lowercase ids keep their historic file/key spelling.
+- Explicit `data_dir` values (including `tmp_path`) and backend-relative
+  `ATOM_BPE_DATA_DIR` resolution are unchanged.
+- Refusals remain `None` from `load`/fresh state from `get_workspace`; no
+  success wrapper or silent re-homing was added.
+
+## Explicitly open (not claimed here)
+
+- Old files that already collapsed several namespaces into one lossy name are
+  not merged, guessed or migrated. Each readable entry is admitted only when
+  its embedded identity proves the requested namespace; foreign entries stay
+  untouched in the legacy file.
+- Concurrent writers, multi-process/worker last-writer-wins, fsync/crash
+  durability, caller handling of `False` persistence, note/commit Oracle
+  receipts, hot runtime settings and PostgreSQL/soak remain open.
+- This is a code-and-control delivery only. The earlier evidence packet's
+  "filename/key collision behavior" item is repaired in source but is not
+  claimed verified until root executes these controls.
