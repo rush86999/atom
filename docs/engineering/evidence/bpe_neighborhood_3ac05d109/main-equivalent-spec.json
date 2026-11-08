@@ -1,0 +1,24 @@
+{
+  "source": "adbf2c386dae661e7725b61564f25632c8e23218",
+  "root": "/private/tmp/root-feedback-sqlite-ovhhepba",
+  "command": [
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-document-stored-export-20261107/backend",
+    "--profile",
+    "bounded",
+    "--",
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "tests/core/test_bpe_evolution.py",
+    "tests/api/test_bpe_routes.py::TestOverview::test_telemetry_aggregates_and_flips",
+    "-q",
+    "--tb=short",
+    "-p",
+    "no:cacheprovider",
+    "-p",
+    "no:randomly",
+    "--basetemp=/private/tmp/root-feedback-sqlite-ovhhepba/pytest"
+  ]
+}

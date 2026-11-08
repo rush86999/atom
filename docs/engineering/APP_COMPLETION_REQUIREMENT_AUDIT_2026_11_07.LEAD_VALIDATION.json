@@ -1,0 +1,15 @@
+{
+  "inventory_ids_exact": true,
+  "claim_count": 143,
+  "functional_count": 123,
+  "separate_count": 20,
+  "input_blobs_matched": 6,
+  "reviewed_audit_source": "3a0ce0d39492bce141fbc03b2874b44beb96f560",
+  "score_changed": false,
+  "scope": "read-only requirement accounting; no fresh all-app acceptance",
+  "clarifications": [
+    "reuse exact relevant source browser proof",
+    "review gate does not serialize independent work",
+    "Goal/restore negatives retained"
+  ]
+}

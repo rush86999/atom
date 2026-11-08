@@ -1,0 +1,11 @@
+{
+  "executed_source": "8ded00232c30961a990e675e06ec672ef6a43910",
+  "source_files": {
+    "backend/core/governance_cache.py": "fcc2ae94eb31974e49e16b59718a1390797443d14e1620af80740501354e810a"
+  },
+  "artifacts": {
+    "measurement.json": "3597e5145a33bdf3dde330958178f614478452feb5732e833691e82f32ce3a3e",
+    "measurement.py": "250587db39f8224670163cc8f74243ce3ea03e45c475290afe8c80101b842244",
+    "README.md": "55dd26b413a4790a50d6b02ad6efdcff6c050116b96bbabf23545d9b82e3953b"
+  }
+}
