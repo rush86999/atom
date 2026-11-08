@@ -145,6 +145,7 @@ SOURCE_FILES = [
     "frontend-nextjs/pages/documents/[docId].tsx",
     "scripts/acceptance/browser_agent_job_wait.py",
     "scripts/acceptance/browser_document_export_ui.py",
+    "scripts/acceptance/evidence_git_check.py",
     "scripts/tests/test_browser_document_export_ui.py",
 ]
 FRONTEND_SOURCE_FILES = [
@@ -308,6 +309,25 @@ def _fixture_document(run_id: str) -> Tuple[str, str, str]:
     tail = f"EXPORT-EPISODE-TAIL-{safe.upper()}-END"
     text = "\n".join(lines + [tail]) + "\n"
     return filename, text, tail
+
+
+def _expected_scoped_upload_id(text: str, actor: Dict[str, Any]) -> str:
+    """Independently predict a fresh scoped upload from pre-upload SQL scope.
+
+    This fixture has never been uploaded before. Legacy-id adoption is tested
+    separately by the API controls, not inferred from an upload response here.
+    Known SQL NULL remains distinct from a missing identity or literal default.
+    """
+    required = ("route_workspace_id", "raw_tenant_id")
+    if not isinstance(text, str) or not isinstance(actor, dict) or any(
+            key not in actor or (actor[key] is not None and not isinstance(actor[key], str))
+            for key in required):
+        raise DriverError("expected upload identity requires exact known route scope")
+    material = json.dumps(
+        {"content": text, "workspace_id": actor["route_workspace_id"],
+         "tenant_id": actor["raw_tenant_id"]},
+        ensure_ascii=False, separators=(",", ":"), sort_keys=True)
+    return "doc_" + _sha256_text(material)[:24]
 
 
 def _expected_download_name(title: str, export_format: str,
@@ -774,47 +794,51 @@ def _source_proof(expected_sha: Optional[str]) -> Dict[str, Any]:
     }
 
 
-def _retained_evidence_probe() -> Dict[str, Any]:
-    """Prove the accepted 37-case API/test bytes are still the current bytes."""
-    if not RETAINED_EVIDENCE.is_file():
-        return {
-            "ok": False,
-            "path": str(RETAINED_EVIDENCE),
-            "error": "retained API evidence manifest is missing",
-            "files": {},
-        }
-    try:
-        manifest = _read_json(RETAINED_EVIDENCE)
-    except Exception as exc:
-        return {
-            "ok": False,
-            "path": str(RETAINED_EVIDENCE),
-            "error": f"{type(exc).__name__}: {exc}",
-            "files": {},
-        }
+def _retained_evidence_probe(
+        evidence: Optional[str] = None,
+        evidence_ref: str = "HEAD") -> Dict[str, Any]:
+    """Check a committed API packet and its declared source against current bytes.
+
+    Packet integrity is not a substitute for independent review of the recorded
+    test outcome. A newer qualification must have its own packet; historical
+    packets and their source hashes are never rewritten to match a repair.
+    """
+    directory = Path(evidence) if evidence else RETAINED_EVIDENCE.parent
+    if not directory.is_absolute():
+        directory = REPO / directory
+    checker_path = Path(__file__).resolve().parents[2] / "scripts/acceptance/evidence_git_check.py"
+    spec = importlib.util.spec_from_file_location("document_api_git_checker", checker_path)
+    checker = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(checker)
+    if evidence_ref in checker.INDEX_REFS:
+        return {"ok": False, "error": "API evidence requires a committed Git ref", "files": {}}
+    verified = checker.verify(REPO, directory, evidence_ref, True)
+    if not verified.get("passed"):
+        return {"ok": False, "error": "committed API evidence verification failed",
+                "git_verification": verified, "files": {}}
+    relative = verified["evidence_path"] + "/MANIFEST.json"
+    manifest = json.loads(checker._blob(REPO, verified["evidence_ref_commit"], relative))
+    declared = manifest.get("source_files") or {}
     files: Dict[str, Any] = {}
-    ok = True
-    for path, expected in (manifest.get("source_files") or {}).items():
+    for path, expected in declared.items():
         target = REPO / path
-        actual = _sha256_file(target) if target.is_file() else None
-        matches = actual == expected
-        ok = ok and matches
+        data = target.read_bytes() if target.is_file() else None
         files[path] = {
             "expected_sha256": expected,
-            "actual_sha256": actual,
-            "matches": matches,
+            "actual_sha256": hashlib.sha256(data).hexdigest() if data is not None else None,
+            "matches": data is not None and checker._matches_sha256(data, expected),
         }
     return {
-        "ok": bool(ok and files),
-        "path": str(RETAINED_EVIDENCE),
-        "sha256": _sha256_file(RETAINED_EVIDENCE),
-        "executed_source": manifest.get("executed_source"),
+        "ok": bool(files and all(item["matches"] for item in files.values())),
+        "path": str(directory),
+        "evidence_ref_commit": verified["evidence_ref_commit"],
+        "executed_source": verified.get("executed_source_commit"),
+        "git_verification": verified,
         "files": files,
-        "retained_case_count": 37,
         "reuse_note": (
-            "Accepted public-route API controls (missing source, foreign scope, "
-            "revoked/stale, wrong revision, unsafe headers, nullable scope) are "
-            "referenced by unchanged source/test bytes, not re-run here."),
+            "Committed packet and declared API/test source bytes verified. "
+            "Test outcome and qualification scope require independent review; "
+            "this probe does not execute tests or certify manifest completeness."),
     }
 
 
@@ -1560,10 +1584,12 @@ def _run_preflight(args: argparse.Namespace) -> int:
                 "frozen commit, not an in-flight tree")
         if not source.get("per_file", {}).get("ok"):
             raise PreflightError("per-file Git source proof failed")
-        retained = _retained_evidence_probe()
+        retained = _retained_evidence_probe(
+            getattr(args, "api_evidence", None),
+            getattr(args, "api_evidence_ref", "HEAD"))
         if not retained.get("ok"):
             raise PreflightError(
-                "retained 37-case API/test bytes drifted; do not claim reuse "
+                "committed API packet/source does not qualify reuse "
                 f"without review: {retained}")
         profile = _profile_probe()
         if not profile.get("ok"):
@@ -1644,7 +1670,7 @@ def _run_preflight(args: argparse.Namespace) -> int:
             "backend_tree_clean": source.get("backend_tree_clean") is True,
             "per_file_git_source_proof": (
                 source.get("per_file", {}).get("ok") is True),
-            "retained_37_case_source_bytes_unchanged": (
+            "committed_api_packet_and_current_source_match": (
                 retained.get("ok") is True),
             "core_documents_profile_enabled": profile.get("ok") is True,
             "search_deferred": profile.get("search_enabled") is False,
@@ -2838,7 +2864,9 @@ def _run_execute(args: argparse.Namespace) -> int:
         print("[execute] source proof failed; refusing to build/launch",
               file=sys.stderr)
         return 2
-    retained = _retained_evidence_probe()
+    retained = _retained_evidence_probe(
+        getattr(args, "api_evidence", None),
+        getattr(args, "api_evidence_ref", "HEAD"))
     if not retained.get("ok"):
         print(f"[execute] retained API/test bytes drifted: {retained}",
               file=sys.stderr)
@@ -2943,13 +2971,6 @@ def _run_execute(args: argparse.Namespace) -> int:
     fixture_path = fixture_dir / fixture_filename
     fixture_path.write_bytes(fixture_text.encode("utf-8"))
     expected_version = f"ev4:{_sha256_text(fixture_text)}"
-    expected_doc_id = "doc_" + _sha256_text(fixture_text)[:24]
-    expected_filename = _expected_download_name(
-        fixture_filename, "text", expected_doc_id)
-    expected_markdown_name = _expected_download_name(
-        fixture_filename, "markdown", expected_doc_id)
-    expected_json_name = _expected_download_name(
-        fixture_filename, "json", expected_doc_id)
 
     run_marker = {
         "schema": "atom-document-stored-export-ui-run-1",
@@ -3323,6 +3344,20 @@ def _run_execute(args: argparse.Namespace) -> int:
                 raise DriverError("authenticated public identity read failed")
             me_body = me_response.json()
             actor = _actor_scope(db_path, me_body)
+            expected_doc_id = _expected_scoped_upload_id(fixture_text, actor)
+            expected_filename = _expected_download_name(
+                fixture_filename, "text", expected_doc_id)
+            expected_markdown_name = _expected_download_name(
+                fixture_filename, "markdown", expected_doc_id)
+            expected_json_name = _expected_download_name(
+                fixture_filename, "json", expected_doc_id)
+            scenario["expected_upload_identity"] = {
+                "id": expected_doc_id,
+                "workspace_id": actor["route_workspace_id"],
+                "tenant_id": actor["raw_tenant_id"],
+                "computed_before_upload": True,
+                "basis": "synthetic fixture + exact SQL-bound route scope, not upload response",
+            }
             scenario["actor_scope"] = actor
             scenario["api_login"] = login_meta
             step("bootstrap_account_and_null_default_scope_bound", {
@@ -3470,7 +3505,7 @@ def _run_execute(args: argparse.Namespace) -> int:
                 step("ordinary_txt_upload_returns_bound_document_identity", {
                     "http_2xx": 200 <= upload_status < 300,
                     "doc_id_present": bool(doc_id),
-                    "doc_id_is_content_key": (
+                    "doc_id_is_scoped_content_key": (
                         doc_id == expected_doc_id),
                     "doc_id_format": bool(DOC_ID_RE.fullmatch(doc_id)),
                     "title_is_uploaded_filename": (
@@ -3987,6 +4022,10 @@ def main(argv: Optional[List[str]] = None) -> int:
                       help="root-owned single ordinary UI episode")
     ap.add_argument("--expect-source-sha", required=True,
                     help="explicit frozen Git source SHA")
+    ap.add_argument("--api-evidence", default=None,
+                    help="committed API evidence directory; defaults to the historical packet")
+    ap.add_argument("--api-evidence-ref", default="HEAD",
+                    help="Git ref containing the API packet, frozen before verification")
     ap.add_argument("--world", default=None,
                     help=f"fresh world name; must start {WORLD_PREFIX!r}")
     ap.add_argument("--backend-port", type=int, default=8047)

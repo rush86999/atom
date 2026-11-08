@@ -157,12 +157,12 @@ class TestIngestDocument:
         assert kwargs["doc_id"] == data["id"]
         assert kwargs["metadata"]["source"] == "api_ingest"
 
-    def test_ingest_empty_content_placeholder(self, client, handler):
+    def test_ingest_empty_content_refuses_without_side_effects(self, client, handler):
         response = client.post("/api/documents/ingest", json={
             "content": "", "type": "text"})
-        assert response.status_code == 200
-        assert handler.add_document.call_args.kwargs["text"] == "(Empty document)"
-        assert response.json()["title"].startswith("Document ")
+        assert response.status_code == 422
+        assert handler.add_document.called is False
+        assert response.json()["detail"]["error"]["code"] == "DOCUMENT_CONTENT_EMPTY"
 
     def test_ingest_workspace_resolution(self, client, db, user, handler):
         from core.models import Workspace
@@ -229,15 +229,16 @@ class TestUploadDocument:
         assert response.status_code == 415
         assert handler.add_document.called is False
 
-    def test_upload_empty_parse_placeholder(self, client, handler):
+    def test_upload_empty_parse_refuses_without_side_effects(self, client, handler):
         with patch("api.document_routes.DocumentParser.parse_document",
                    new=AsyncMock(return_value="")):
             response = client.post(
                 "/api/documents/upload",
                 files={"file": ("blank.txt", b"", "text/plain")})
-        assert response.status_code == 200
-        assert handler.add_document.call_args.kwargs["text"].startswith(
-            "[Empty or unparseable file")
+        assert response.status_code == 422
+        assert handler.add_document.called is False
+        assert response.json()["detail"]["error"]["code"] == (
+            "DOCUMENT_EXTRACTION_EMPTY")
 
     def test_upload_add_failure_500(self, client, handler):
         handler.add_document.return_value = False

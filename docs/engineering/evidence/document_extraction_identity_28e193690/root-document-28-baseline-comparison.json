@@ -1,0 +1,29 @@
+{
+  "candidate_source": "28e193690bc3f896cb7a5b9c1232251aa40946e0",
+  "baseline_source": "ffd934e2fe49a754eff72991b2936d25b1448f40",
+  "candidate": [
+    "tests/api/test_document_routes_coverage_w52.py::TestIngestDocument::test_ingest_success",
+    "tests/api/test_document_routes_coverage_w52.py::TestWorkspaceBranches::test_upload_workspace_resolution_exception_warned",
+    "tests/core/test_auto_document_ingestion_coverage.py::TestDocumentParser::test_parse_csv_with_large_file",
+    "tests/test_covpush_ingest.py::TestAtomSaaSClient::test_fetch_agents",
+    "tests/test_covpush_ingest.py::TestAtomSaaSClient::test_http_client_headers",
+    "tests/test_covpush_ingest.py::TestDocumentParser::test_parse_csv_truncation",
+    "tests/test_covpush_ingest.py::TestAutoDocumentIngestionService::test_sync_integration_duplicate_not_modified",
+    "tests/test_covpush_w93_pomdp_misc.py::TestAutoDocumentIngestion::test_process_file_bytes_branches",
+    "tests/test_covpush_w93_pomdp_misc.py::TestAutoDocumentIngestion::test_sync_full_loop",
+    "tests/test_covpush_w93_pomdp_misc.py::TestAutoDocumentIngestion::test_persist_freshness_on_ingest"
+  ],
+  "baseline": [
+    "tests/api/test_document_routes_coverage_w52.py::TestIngestDocument::test_ingest_success",
+    "tests/api/test_document_routes_coverage_w52.py::TestWorkspaceBranches::test_upload_workspace_resolution_exception_warned",
+    "tests/core/test_auto_document_ingestion_coverage.py::TestDocumentParser::test_parse_csv_with_large_file",
+    "tests/test_covpush_ingest.py::TestAtomSaaSClient::test_fetch_agents",
+    "tests/test_covpush_ingest.py::TestAtomSaaSClient::test_http_client_headers",
+    "tests/test_covpush_ingest.py::TestDocumentParser::test_parse_csv_truncation",
+    "tests/test_covpush_ingest.py::TestAutoDocumentIngestionService::test_sync_integration_duplicate_not_modified",
+    "tests/test_covpush_w93_pomdp_misc.py::TestAutoDocumentIngestion::test_process_file_bytes_branches",
+    "tests/test_covpush_w93_pomdp_misc.py::TestAutoDocumentIngestion::test_sync_full_loop",
+    "tests/test_covpush_w93_pomdp_misc.py::TestAutoDocumentIngestion::test_persist_freshness_on_ingest"
+  ],
+  "scope": "same ten identities reproduced; error material still requires individual classification; not broad-baseline equivalence"
+}

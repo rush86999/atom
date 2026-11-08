@@ -2115,7 +2115,7 @@ class TestDocumentParser:
         from core.auto_document_ingestion import DocumentParser
         with patch.dict("sys.modules", {"pypdf": None}):
             text = await DocumentParser.parse_document(b"%PDF", "pdf", "a.pdf")
-        assert text == "[PDF content - parser not available]"
+        assert text == ""
 
     @pytest.mark.asyncio
     async def test_parse_pdf_error(self):
@@ -2129,7 +2129,7 @@ class TestDocumentParser:
         from core.auto_document_ingestion import DocumentParser
         with patch.dict("sys.modules", {"docx": None}):
             text = await DocumentParser.parse_document(b"docx", "docx", "a.docx")
-        assert text == "[DOCX content - parser not available]"
+        assert text == ""
 
     @pytest.mark.asyncio
     async def test_parse_docx_success(self):
@@ -2185,7 +2185,7 @@ class TestDocumentParser:
         from core.auto_document_ingestion import DocumentParser
         with patch.dict("sys.modules", {"pandas": None, "openpyxl": None}):
             text = await DocumentParser.parse_document(b"xlsx", "xlsx", "a.xlsx")
-        assert "[Excel content - parser not available]" in text
+        assert text == ""
 
     @pytest.mark.asyncio
     async def test_parse_csv_formula_extraction(self, tmp_path):

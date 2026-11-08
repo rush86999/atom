@@ -1,0 +1,7 @@
+# Document API requalification — integrated source e9eac3ba1
+
+Root directly ran the complete 12-module affected document/office gate: 80 passed on Python 3.14 and 80 on Python 3.11, both process exits0 with unchanged final source. SUMMARY.json records actual interpreter versions and elapsed pytest durations. Selection includes upload persistence uncertainty, export authority/nullable scope, extraction refusal/scoped identity, parse/error hygiene, launch-path anchoring, containment and office reads. Counts overlap prior runs and are not added to a global score.
+
+This is a reviewed summary-only packet. Raw logs/specs/exit records stay private under the existing publication boundary; this packet does not pretend those logs are publicly inspectable. The source manifest binds the actual e9eac3ba1 runtime, not the later packet commit. All declared source blobs are identical at browser-helper source9c5a93cfb. The existing Git evidence checker must verify this packet at its packet-bearing ref, then the browser driver must match its declared source to current bytes.
+
+No ordinary browser journey, new file-format breadth, original-binary recovery, grounding, model judgment, real multi-day wait, PostgreSQL or multi-worker qualification follows. A selector and matching packet do not establish test outcome or manifest completeness by themselves; root independently inspected the actual processes and numeric summaries. The original historical packet remains unchanged. No world/server/model/provider/business effect was launched for summary generation.

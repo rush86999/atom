@@ -6,6 +6,8 @@ run's own workspace binding.
 """
 from __future__ import annotations
 
+from core.local_paths import resolve_local_path
+
 import copy
 import json
 import mimetypes
@@ -1954,9 +1956,10 @@ async def download_assignment_deliverable(
     raw_path = str(deliverable.get("artifact_path") or "").strip()
     if not raw_path:
         raise HTTPException(status_code=404, detail="Deliverable has no artifact")
-    root = Path(os.getenv("ATOM_ASSIGNMENT_OUTPUT_DIR")
-                or "data/office/assignments").resolve()
-    path = Path(raw_path).resolve()
+    root = resolve_local_path(os.getenv("ATOM_ASSIGNMENT_OUTPUT_DIR")
+                or os.getenv("ATOM_OFFICE_DIR")
+                or "data/office/assignments")
+    path = resolve_local_path(raw_path)
     if path != root and root not in path.parents:
         raise HTTPException(
             status_code=403,

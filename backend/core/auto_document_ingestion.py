@@ -504,8 +504,14 @@ class DocumentParser:
             note = budget.truncation_note(total_pages, len(budget._parts))
             return budget.join("\n\n") + ("\n\n" + note if note else "")
         except ImportError:
+            # Missing optional dependency = absent content, not a factual
+            # sentence about the file. The established absent-content
+            # convention for this parser is "" (same as an unparseable or
+            # empty document), which every ingestion caller already classifies
+            # as no_text/skip. A bracketed "parser not available" string here
+            # is truthy and used to be stored/exported as real source text.
             logger.warning("pypdf not available, PDF parsing disabled")
-            return "[PDF content - parser not available]"
+            return ""
         except Exception as e:
             logger.error(f"PDF parse error: {e}")
             return ""
@@ -543,8 +549,10 @@ class DocumentParser:
             note = budget.truncation_note(total_units, consumed)
             return budget.join() + ("\n" + note if note else "")
         except ImportError:
+            # Absent optional dependency: return the established no-content
+            # value rather than a string that becomes stored factual text.
             logger.warning("python-docx not available")
-            return "[DOCX content - parser not available]"
+            return ""
         except Exception as e:
             logger.error(f"DOCX parse error: {e}")
             return ""
@@ -808,8 +816,12 @@ class DocumentParser:
                 index = "\n".join([f"WORKBOOK INDEX: {len(summaries)} sheets"] + [f"- {s}" for s in summaries])
                 return index + "\n" + budget.join() + ("\n" + note if note else "")
             except ImportError:
+                # Absent optional dependency: established no-content value.
+                # The old "[Excel content - parser not available]" marker was
+                # truthy and could be ingested/exported as if it were the
+                # workbook's contents.
                 logger.warning("No Excel parser available")
-                return "[Excel content - parser not available]"
+                return ""
         except Exception as e:
             # openpyxl is strict about workbook XML schema and hard-fails on
             # spreadsheets written by non-Excel tools (Zoho Sheet exports trip
@@ -1722,7 +1734,9 @@ class AutoDocumentIngestionService:
                         continue
                     
                     text = await self.parser.parse_document(content, file_ext, file_info.get("name"))
-                    if not text:
+                    # Whitespace-only extraction is not source evidence and
+                    # must not be stored as if it were the file's content.
+                    if not text or not text.strip():
                         continue
                     
                     # Redact secrets before storage

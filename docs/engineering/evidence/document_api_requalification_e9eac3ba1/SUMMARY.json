@@ -1,0 +1,41 @@
+{
+  "schema_version": 1,
+  "executed_source": "e9eac3ba1ae41cab52c09ceef99f18a6682369e6",
+  "scope": "controlled local API/office gate, not browser acceptance",
+  "modules": [
+    "tests/test_document_upload_persistence_outcome.py",
+    "tests/test_document_export.py",
+    "tests/test_lead_document_export_authority.py",
+    "tests/test_lead_document_export_nullable_scope.py",
+    "tests/test_document_extraction_refusal_contract.py",
+    "tests/test_document_content_namespace_identity.py",
+    "tests/test_root_document_parse_honesty.py",
+    "tests/test_root_document_workspace_identity.py",
+    "tests/test_root_document_error_hygiene.py",
+    "tests/test_office_path_launch_anchor.py",
+    "tests/test_round53_office_sync_path_containment.py",
+    "tests/core/services/test_office_service.py"
+  ],
+  "runs": [
+    {
+      "python": "Python 3.14.7",
+      "passed": 80,
+      "failed": 0,
+      "process_exit": 0,
+      "duration_seconds": 21.14,
+      "executed_source": "e9eac3ba1ae41cab52c09ceef99f18a6682369e6",
+      "unchanged_source_at_exit": true
+    },
+    {
+      "python": "Python 3.11.16",
+      "passed": 80,
+      "failed": 0,
+      "process_exit": 0,
+      "duration_seconds": 31.62,
+      "executed_source": "e9eac3ba1ae41cab52c09ceef99f18a6682369e6",
+      "unchanged_source_at_exit": true
+    }
+  ],
+  "raw_records": "Retained privately; not published or represented as publicly inspectable logs.",
+  "source_transfer": "All declared source blobs compared byte-for-byte with 9c5a93cfb before summary generation; no API rerun is implied."
+}

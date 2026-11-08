@@ -1,0 +1,36 @@
+{
+  "source": "07be04804d082bad81e81fee30bcc605200f00f4",
+  "stage_count": 19,
+  "named_assertion_count": 294,
+  "all_stages_passed": true,
+  "scoped_identity_derived_independently": true,
+  "formats": [
+    {
+      "format": "text",
+      "bytes": 24084,
+      "matches_api_bytes": true,
+      "complete_fixture_content": true,
+      "sha256": "sha256:91e66931c7b77f916f262be254d2db3ae6b9dd80ef89275c90128695e97d98b5"
+    },
+    {
+      "format": "markdown",
+      "bytes": 24084,
+      "matches_api_bytes": true,
+      "complete_fixture_content": true,
+      "sha256": "sha256:91e66931c7b77f916f262be254d2db3ae6b9dd80ef89275c90128695e97d98b5"
+    },
+    {
+      "format": "json",
+      "bytes": 25035,
+      "matches_api_bytes": true,
+      "complete_fixture_content": true,
+      "sha256": "sha256:b68c05b0ad66d0213a54094e39bdc9a474c05f6e743b35b2b31c9d2161c9a0dc"
+    }
+  ],
+  "fresh_readonly_sql_scope_and_version_exact": true,
+  "run_owned_materialized_bytes_exact": true,
+  "json_truncation_metadata": "unknown",
+  "owned_processes_exited": true,
+  "visual_readback_reviewed": true,
+  "scope_note": "The complete fixture is byte-verified; unknown general extraction-truncation metadata is not relabelled false."
+}
