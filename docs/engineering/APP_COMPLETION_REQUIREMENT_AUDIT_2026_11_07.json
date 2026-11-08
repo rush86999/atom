@@ -548,11 +548,16 @@
           "kind": "historical-bundle",
           "ref": "docs/acceptance/readme_feature_readiness_2026-11-01/evidence/claims/INDEX.json",
           "scope": "Canonical committed claim index for the 111/123 baseline."
+        },
+        {
+          "kind": "current-reproduced-boundary-and-pending-repair",
+          "ref": "https://github.com/rush86999/atom/pull/782",
+          "scope": "Original readiness-await negatives at b569f951d runtime; lost-confirmation public negative at f816e1682 runtime with a newly added independent test. Earlier46 controls retain distinct working-candidate3.14/exactf8163.11 attribution. New40ff outcome controls unqualified; raw scratch records remain private."
         }
       ],
-      "gap": "No gap recorded at the 2026-11-01 baseline. Preserved at its original source; not re-run merely for age. No current contrary evidence found in this read-only audit.",
-      "owner": "preserved baseline",
-      "next_work_order": null
+      "gap": "Historical maturity-based action gating remains verified at its original source. The graduation-to-autonomy extension has current contrary evidence: readiness-await interleavings admitted changed agent scope/status and a disabled supervisor; a separate public-route probe committed promotion but returned HTTP200 promoted=false after lost confirmation. Draft PR782 source40ff1653a repairs through shared authority/target CAS and AuditLog/replay, but its new outcome controls are pending hosted qualification. This does not refute the historical tier gate or certify general judgment.",
+      "owner": "root — graduation boundary verification",
+      "next_work_order": "PR782: qualify current authority, exact reviewed target, durable receipt/replay and honest uncertain HTTP outcome without weakening readiness or manual-promotion semantics."
     },
     {
       "id": "GOV-02",
@@ -5285,5 +5290,17 @@
       "full_app": "OPEN",
       "postmerge_CI": "054 exact-head observer active, not yet certified"
     }
-  }
+  },
+  "focused_reconciliations": [
+    {
+      "date": "2026-11-08",
+      "main": "8d04a1664ea626cfb5f2af2d5003753cc5d96a30",
+      "claim_ids": [
+        "GOV-01"
+      ],
+      "scope": "Focused graduation extension gap; other143-claim evidence is not recertified by this overlay. Historical statuses, tier-gating evidence and denominator unchanged.",
+      "pending_pr": 782,
+      "pending_source": "40ff1653a10766735a2a034e2e520231a002e65c"
+    }
+  ]
 }
