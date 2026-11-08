@@ -1,0 +1,29 @@
+{
+  "source": "28e193690bc3f896cb7a5b9c1232251aa40946e0",
+  "root": "/private/tmp/root-feedback-sqlite-rmzb5o7u",
+  "command": [
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-document-extraction-honesty-20261108/backend",
+    "--profile",
+    "bounded",
+    "--",
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "tests/test_root_document_error_hygiene.py",
+    "-q",
+    "--tb=short",
+    "-p",
+    "no:cacheprovider",
+    "-p",
+    "root_no_network",
+    "-p",
+    "no:randomly",
+    "-p",
+    "no:rerunfailures",
+    "--timeout=120",
+    "--timeout-method=thread",
+    "--basetemp=/private/tmp/root-feedback-sqlite-rmzb5o7u/pytest"
+  ]
+}

@@ -257,7 +257,7 @@ class TestDocumentParser:
 
         with patch.dict("sys.modules", {"pypdf": None}):
             result = await DocumentParser.parse_document(pdf_content, "pdf", "test.pdf")
-            assert "parser not available" in result
+            assert result == ""
 
     @pytest.mark.asyncio
     async def test_parse_docx_document(self):
@@ -286,7 +286,7 @@ class TestDocumentParser:
 
         with patch.dict("sys.modules", {"docx": None}):
             result = await DocumentParser.parse_document(docx_content, "docx", "test.docx")
-            assert "parser not available" in result
+            assert result == ""
 
     @pytest.mark.asyncio
     async def test_parse_excel_document(self):
