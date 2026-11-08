@@ -71,6 +71,21 @@ def _sha(data: bytes) -> str:
     return hashlib.sha256(data).hexdigest()
 
 
+def _matches_sha256(data: bytes, expected: object) -> bool:
+    """Accept exact legacy hex or an explicit algorithm-qualified digest.
+
+    The algorithm:encoded form follows OCI descriptor digest notation. No
+    shortening, alternate algorithm, whitespace or case normalization is used.
+    Both forms compare all 256 bits against the actual selected Git blob.
+    """
+    if not isinstance(expected, str):
+        return False
+    encoded = expected[7:] if expected.startswith("sha256:") else expected
+    return (len(encoded) == 64
+            and all(character in "0123456789abcdef" for character in encoded)
+            and _sha(data) == encoded)
+
+
 def verify(repo: Path, evidence: Path, evidence_ref: str, strict: bool) -> Dict:
     result: Dict = {
         "evidence": str(evidence),
@@ -134,7 +149,7 @@ def verify(repo: Path, evidence: Path, evidence_ref: str, strict: bool) -> Dict:
             if data is None:
                 result["failures"].append(
                     f"source missing at {source_commit[:12]}: {path}")
-            elif _sha(data) != str(expected):
+            elif not _matches_sha256(data, expected):
                 result["failures"].append(
                     f"source hash mismatch at {source_commit[:12]}: {path} "
                     f"expected {expected} got {_sha(data)}")
@@ -150,7 +165,7 @@ def verify(repo: Path, evidence: Path, evidence_ref: str, strict: bool) -> Dict:
             if data is None:
                 result["failures"].append(
                     f"artifact missing at {evidence_ref}: {rel}")
-            elif _sha(data) != str(expected):
+            elif not _matches_sha256(data, expected):
                 result["failures"].append(
                     f"artifact hash mismatch at {evidence_ref}: {rel} "
                     f"expected {expected} got {_sha(data)}")
