@@ -558,7 +558,11 @@ async def upload_document(
              from core.auto_document_ingestion import DocumentParser
              text = await DocumentParser.parse_document(content, file_ext, file_name)
         
-        if not text:
+        # Whitespace-only extraction is not source evidence: refuse it before
+        # the vector write / PG mirror with the existing bounded 400 shape.
+        # (A missing optional parser now also yields "", so it lands here
+        # instead of storing a "[... parser not available]" sentence.)
+        if not text or not text.strip():
             raise HTTPException(status_code=400, detail="Could not extract text from document")
 
         # 2. Add to LanceDB via the workspace-aware handler factory: a raw

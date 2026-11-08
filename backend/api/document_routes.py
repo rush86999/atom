@@ -434,8 +434,20 @@ async def ingest_document(
         doc_type = request.type
         title = request.title or "Untitled document"
 
-        if not content:
-            content = "(Empty document)"
+        # Same no-fabricated-content contract as the upload producer: absent
+        # or whitespace-only pasted text is not source evidence, so refuse
+        # before the vector write instead of storing "(Empty document)" as
+        # though it were the user's document. Legitimate short text is kept
+        # verbatim (no trimming, no placeholder heuristics).
+        if not content.strip():
+            raise router.error_response(
+                error_code="DOCUMENT_CONTENT_EMPTY",
+                message=(
+                    "No document content was supplied, so nothing was added "
+                    "to the document store."),
+                details={"file_type": doc_type},
+                status_code=422,
+            )
         doc_id = _content_doc_key(content)
 
         metadata = request.metadata or {}
@@ -469,6 +481,11 @@ async def ingest_document(
             chunk_count=await _stored_chunk_count(lancedb_handler, doc_id, content)
         )
     except Exception as e:
+        # Preserve the typed bounded refusal above; the broad catch previously
+        # turned any HTTPException into a generic 500.
+        from fastapi import HTTPException as _FastAPIHTTPException
+        if isinstance(e, _FastAPIHTTPException):
+            raise
         logger.error(f"Document ingestion failed: {e}")
         raise router.internal_error(message="Internal error")
 
@@ -541,13 +558,42 @@ async def upload_document(
                 status_code=413,
             )
 
-        # 0. Materialize the SQL-queryable sheet datasets BEFORE parsing —
-        # fire-and-forget, exactly like the storage-read path (2026-10-01
-        # three-domain live finding: an UPLOADED workbook ingested as a
-        # document but never entered the sheet-datasets catalog, so the
-        # named-file reader answered 'not present in the catalogued file
-        # index' for a file the user had JUST uploaded — the 2026-09-07
-        # 'two reads, zero datasets' class, on the upload surface).
+        # 1. Parse content using the robust parser BEFORE any side effect.
+        #
+        # A parser that yielded no content (malformed bytes, a valid-but-empty
+        # container, whitespace-only text, or an unavailable optional parser)
+        # has produced no source evidence. Inventing a non-empty placeholder
+        # here made that absence look like a freshly uploaded, authoritative
+        # document — the 2026-11-08 root extraction-honesty probe: malformed
+        # and empty DOCX uploads returned HTTP 200 and their placeholder text
+        # exported with provenance=authoritative. Refuse at the producer with
+        # a typed bounded error instead, before materializing bytes, writing
+        # the vector index, mirroring the SQL row or scheduling sheet
+        # datasets. Valid non-empty extraction is preserved; whitespace-only
+        # extraction is not evidence. Do not heuristically reject legitimate
+        # text that merely resembles a placeholder — classify absence here,
+        # where the parser result is known.
+        content = await DocumentParser.parse_document(content_bytes, file_ext, filename)
+        if not content or not content.strip():
+            raise router.error_response(
+                error_code="DOCUMENT_EXTRACTION_EMPTY",
+                message=(
+                    "No source text could be extracted from this file, so it "
+                    "was not added to the document store. The file may be "
+                    "empty, malformed, or require an optional parser that is "
+                    "not available."),
+                details={"file_type": file_ext},
+                status_code=422,
+            )
+
+        # 2. Materialize the SQL-queryable sheet datasets — fire-and-forget,
+        # exactly like the storage-read path (2026-10-01 three-domain live
+        # finding: an UPLOADED workbook ingested as a document but never
+        # entered the sheet-datasets catalog, so the named-file reader
+        # answered 'not present in the catalogued file index' for a file the
+        # user had JUST uploaded — the 2026-09-07 'two reads, zero datasets'
+        # class, on the upload surface). Scheduled only after extraction
+        # succeeded, so a refused upload dispatches no background work.
         if file_ext in ("xlsx", "xls", "xlsm", "csv"):
             try:
                 from core.sheet_dataset_service import (
@@ -568,13 +614,7 @@ async def upload_document(
                 logger.warning(
                     f"sheet datasets: upload scheduling failed for {filename}: {ds_err}")
 
-        # 1. Parse content using robust parser
-        content = await DocumentParser.parse_document(content_bytes, file_ext, filename)
-        
-        if not content:
-             content = f"[Empty or unparseable file: {filename}]"
-
-        # 2. Store document — content-hash identity: same file re-uploaded →
+        # 3. Store document — content-hash identity: same file re-uploaded →
         # same row (skip/replace); DIFFERENT files sharing a filename → two
         # rows (a filename is metadata, never an identity key).
         doc_id = _content_doc_key(content)
@@ -619,7 +659,7 @@ async def upload_document(
             extra_columns={"freshness_status": "fresh"},
         )
 
-        # 3. Aligned PG row: gives the upload full journey parity with synced
+        # 4. Aligned PG row: gives the upload full journey parity with synced
         # documents — lexical leg (FTS), VFS cat, citability. id MUST equal the
         # LanceDB doc_id (join-key bridge).
         try:
