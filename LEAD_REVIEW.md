@@ -941,3 +941,99 @@ CI: the new module is a permanent backend step in `.github/workflows/ci.yml`.
 - No file-vs-SQL atomicity, multiworker, crash, PostgreSQL or fsync guarantee
   is claimed. Root must execute the new controls and the wider accepted
   selection; no result is claimed here.
+
+---
+
+# LEAD REVIEW — terminal authority refusal must stay non-success (finite)
+
+Status: **AUTHOR-ONLY / NOT EXECUTED**. No tests, Python, app, server, model,
+provider, install, browser, migration, live data or credential action was run
+here. Root owns execution and acceptance.
+
+## Root-confirmed negative being closed
+
+At `e13bb21e3`, the disabled original actor produced the real BPE handler
+envelope `{success:false, error:scope_principal_inactive,
+action_result:not_applied, effect_possible:false}`, wrote no note/file receipt
+and correctly left a `failed_before_effect` claim. But the next controlled model
+step said `done`, so GenericAgent finalized `status=success`; the API returned
+HTTP 200 / `outcome=success`. Zero-effect was proven, but terminal authority
+truth was lost. The active twin correctly persisted one `succeeded`
+TaskOperationRecord.
+
+## Repair — typed producer marker and lifecycle stop
+
+`backend/core/action_effects.py` (existing action-outcome vocabulary, not a new
+evaluator/store):
+
+- adds `terminal_authority_denial` as a producer-owned typed marker plus
+  `is_terminal_authority_denial()` / `terminal_authority_denial()` helpers.
+- Consumers never inspect message text or action names.
+
+`backend/core/bpe/actions.py`:
+
+- `_deny()` (scope/actor/workspace authority refusals only) now emits
+  `status=failed_before_effect`, `terminal_authority_denial=True`,
+  `denial_scope=actor_or_workspace` and a safe `denial_kind`.
+- Ordinary validation refusals (empty note, bad commit status) do not set the
+  marker and remain recoverable.
+
+`backend/core/generic_agent.py`:
+
+- single-action and parallel-batch paths detect the typed marker, ledger it in
+  the existing run context, stop before another model plan step, and finalize
+  `status=blocked`.
+- finalization also refuses to turn a success status into success when a
+  terminal denial is present (parallel survivor / late model answer).
+- the result carries `terminal_authority_denial` and `authority_denials`; the
+  existing claim path still records `failed_before_effect` and never
+  `uncertain_effect`, so no provider resend/reconciliation is invited.
+- terminal authority denial is not sent to the tool-error evolution feedstock,
+  is not recorded as a model maturity failure, and is not credited as success.
+- earlier successful operation receipts are untouched.
+
+`backend/core/atom_meta_agent.py`:
+
+- the same typed detection/stop is applied to its single-action and parallel
+  paths; result status/finalization and governance feedback use the same
+  no-blame policy.
+
+`backend/api/agent_routes.py`:
+
+- `_execution_outcome()` gives the typed denial priority over any success or
+  uncertain label, producing `failed` / `execution_authority_denied` /
+  `review_authority` with no reconciliation requirement.
+- the public message states that authority is no longer valid and no effect was
+  applied.
+
+## Authored controls (NOT executed)
+
+`backend/tests/test_bpe_governance_tier_issuance.py` additions:
+
+1. the producer marker is typed: a recoverable invalid-argument envelope is
+   not terminal; a real `scope_principal_*` denial is terminal.
+2. the bounded-session actor control now asserts the typed terminal marker and
+   `failed_before_effect` for both disabled and moved actors, with zero new note.
+3. a recoverable invalid-argument custom action followed by a corrected action
+   continues to a real `success` result (no blanket terminal classification).
+4. the root public valid/refused twins now assert the stronger business outcome:
+   - revoked actor: no marker/file receipt, `outcome != success`,
+     HTTP != 200, exactly one model step, a `failed_before_effect` claim and no
+     `succeeded` claim;
+   - active actor: HTTP 200 / `outcome=success`, autonomous tier observed at the
+     real MCP transport, exactly one `succeeded` TaskOperationRecord.
+
+The inherited `e13bb21e3` root probe is unchanged.
+
+## Preserved / explicitly open
+
+- Receipts, state/operation records, exact hashes/scopes, typed no-effect
+  refusals, unresolved-note preservation and write-failure truth are unchanged.
+- No physical-stop claim is made for already-dispatched parallel workers; the
+  run simply does not plan or finalize past the already-observed denial.
+- Genuine in-flight uncertainty still follows the existing
+  `uncertain_effect` reconciliation path.
+- Feedback/CAS/classification remains closed: external revocation is neither a
+  model semantic failure nor model success; no new evaluator or store.
+- Root must reexecute `root-bpe-actor-outcome-negative` and the affected gates
+  at the committed head. No passing result is claimed here.

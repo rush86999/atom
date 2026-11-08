@@ -31,6 +31,7 @@ from core.models import (
     AgentRegistry,
     AuditLog,
     HITLAction,
+    TaskOperationRecord,
     Tenant,
     User,
     Workspace,
@@ -283,6 +284,119 @@ def test_stable_run_scope_key_prefers_durable_job_identity():
     assert first != second
 
 
+def test_terminal_denial_marker_is_typed_not_message_based():
+    from core.action_effects import (
+        is_terminal_authority_denial,
+        terminal_authority_denial,
+    )
+
+    recoverable = {
+        "success": False,
+        "status": "failed_before_effect",
+        "action_result": "not_applied",
+        "effect_possible": False,
+        "error": "invalid argument: title is required",
+    }
+    terminal = {
+        "success": False,
+        "status": "failed_before_effect",
+        "action_result": "not_applied",
+        "effect_possible": False,
+        "error": "scope_principal_inactive",
+        "terminal_authority_denial": True,
+        "denial_scope": "actor_or_workspace",
+        "denial_kind": "scope_principal_inactive",
+    }
+    assert is_terminal_authority_denial(recoverable) is False
+    assert terminal_authority_denial(recoverable) is None
+    assert is_terminal_authority_denial(terminal) is True
+    assert terminal_authority_denial(terminal)["code"] == (
+        "scope_principal_inactive")
+
+
+def test_recoverable_invalid_argument_can_replan_to_success(monkeypatch):
+    """A non-terminal pre-effect refusal must not halt the loop."""
+    import asyncio
+    from unittest.mock import AsyncMock, MagicMock, patch
+
+    from core.generic_agent import GenericAgent
+    from core.react_models import ReActStep, ToolCall
+    from tests.test_agent_generic_information_wait import _install_model
+    from tests.test_round81b_journey_followups import (
+        _harness_patches,
+        _make_agent_model,
+    )
+
+    mw, mr, ml, mmcp = _harness_patches()
+    model = _make_agent_model()
+    model.configuration = {"max_steps": 3}
+
+    def _gds(*_a, **_k):
+        db = MagicMock()
+        row = MagicMock()
+        row.status = "student"
+        row.enabled = True
+        db.query.return_value.filter.return_value.first.return_value = row
+        cm = MagicMock()
+        cm.__enter__.return_value = db
+        cm.__exit__.return_value = False
+        return cm
+
+    budget_patch = patch.object(
+        GenericAgent,
+        "_check_budget_before_react",
+        new=AsyncMock(return_value={"allowed": True}),
+    )
+    with patch("core.generic_agent.WorldModelService", return_value=mw), \
+         patch("core.generic_agent.ReflectionService", return_value=mr), \
+         patch("core.generic_agent.CanvasSummaryService"), \
+         patch("core.generic_agent.mcp_service", mmcp), \
+         patch("core.generic_agent.LLMService", return_value=ml), \
+         patch("core.generic_agent.get_db_session"), \
+         patch("core.generic_agent.AgentGovernanceService") as gov_cls, \
+         patch("core.generic_agent.trigger_episode_creation"), \
+         patch("core.turn_fact_extractor.TURN_FACT_EXTRACTION_ENABLED", False), \
+         patch("core.database.get_db_session", side_effect=_gds), \
+         budget_patch:
+        gov_cls.return_value.record_outcome = AsyncMock(return_value=None)
+        agent = GenericAgent(model)
+
+        async def _invalid(_args, _context):
+            return {
+                "success": False,
+                "status": "failed_before_effect",
+                "action_result": "not_applied",
+                "effect_possible": False,
+                "error": "invalid argument: title is required",
+            }
+
+        async def _valid(_args, _context):
+            return {"success": True, "status": "success"}
+
+        agent._custom_actions["test.invalid"] = _invalid
+        agent._custom_action_specs["test.invalid"] = {
+            "description": "recoverable refusal", "parameters": {},
+        }
+        agent._custom_actions["test.valid"] = _valid
+        agent._custom_action_specs["test.valid"] = {
+            "description": "corrected call", "parameters": {},
+        }
+        calls = _install_model(monkeypatch, [
+            lambda *_a: ReActStep(
+                thought="bad arguments",
+                action=ToolCall(tool="test.invalid", params={})),
+            lambda *_a: ReActStep(
+                thought="corrected",
+                action=ToolCall(tool="test.valid", params={})),
+        ])
+        result = asyncio.run(agent.execute(
+            "Task", context={"session_id": "s-recoverable"}))
+
+    assert result["status"] == "success", result
+    assert len(calls) >= 3
+    assert result.get("terminal_authority_denial") is not True
+
+
 # ---------------------------------------------------------------------------
 # Current actor at the BPE leaf
 # ---------------------------------------------------------------------------
@@ -363,6 +477,7 @@ async def test_admitted_actor_is_verified_with_bounded_sessions(actor_env):
         _server_bound_context(),
     )
     assert result["success"] is True, result
+    assert result.get("terminal_authority_denial") is not True
     scope_key = "user:user-a:job-actor-1"
     snap = workspace.get_workspace_snapshot("ws-a", "a1", scope_key)
     assert snap["pending_notes"] == ["active actor note"]
@@ -380,6 +495,9 @@ async def test_admitted_actor_is_verified_with_bounded_sessions(actor_env):
     assert denied["success"] is False, denied
     assert denied["error"] == "scope_principal_inactive", denied
     assert denied["action_result"] == "not_applied"
+    assert denied["status"] == "failed_before_effect"
+    assert denied["terminal_authority_denial"] is True
+    assert denied["denial_scope"] == "actor_or_workspace"
     assert workspace.get_workspace_snapshot(
         "ws-a", "a1", scope_key)["pending_notes"] == ["active actor note"]
 
@@ -397,6 +515,7 @@ async def test_admitted_actor_is_verified_with_bounded_sessions(actor_env):
     assert moved["success"] is False, moved
     assert moved["error"] == "scope_authority_changed", moved
     assert moved["action_result"] == "not_applied"
+    assert moved["terminal_authority_denial"] is True
     assert workspace.get_workspace_snapshot(
         "ws-a", "a1", scope_key)["pending_notes"] == ["active actor note"]
     assert workspace.get_workspace_snapshot(
@@ -476,7 +595,7 @@ def test_public_note_respects_actor_revocation_after_real_review(
                 tool="workspace.note", params={"content": marker}),
         )
 
-    _install_model(monkeypatch, [first])
+    model_calls = _install_model(monkeypatch, [first])
     response = _run(
         real_env,
         operation_id="root-public-note-" + str(revoke),
@@ -490,12 +609,32 @@ def test_public_note_respects_actor_revocation_after_real_review(
     capture = {
         "revoked": revoke,
         "http": response.status_code,
+        "outcome": (response.json().get("data") or {}).get("outcome"),
         "persisted_marker": wrote,
         "transport_trace": trace,
+        "model_calls": len(model_calls),
     }
     try:
         assert wrote is (not revoke), capture
-        if not revoke:
+        if revoke:
+            # A model's later "done" cannot turn revoked work into business
+            # success, and the loop must not spend another model step.
+            assert capture["outcome"] != "success", capture
+            assert response.status_code != 200, capture
+            assert len(model_calls) == 1, capture
+            with real_env.SessionLocal() as db:
+                assert db.query(TaskOperationRecord).filter(
+                    TaskOperationRecord.status == "failed_before_effect"
+                ).count() >= 1
+                assert db.query(TaskOperationRecord).filter(
+                    TaskOperationRecord.status == "succeeded"
+                ).count() == 0
+        else:
+            assert response.status_code == 200 and capture["outcome"] == "success", capture
+            with real_env.SessionLocal() as db:
+                assert db.query(TaskOperationRecord).filter(
+                    TaskOperationRecord.status == "succeeded"
+                ).count() == 1
             assert trace, capture
             assert any(
                 entry.get("tier_at_issuance") == "autonomous"

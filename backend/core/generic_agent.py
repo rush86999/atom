@@ -498,6 +498,10 @@ class GenericAgent:
 
                 while current_step < max_steps:
                     current_step += 1
+                    # Typed terminal-authority signal for this iteration. Set
+                    # only by a producer-owned denial envelope; a later model
+                    # answer cannot clear it.
+                    _terminal_denial: Optional[Dict[str, Any]] = None
 
                     # AgentRadio — passive awareness (never raises, sub-ms):
                     # absorb @mentions from the team's lateral thread into
@@ -652,6 +656,14 @@ class GenericAgent:
                         for pr in parallel_results:
                             p_tool = pr["tool_name"]
                             p_params = pr.get("params") or {}
+                            # A producer-owned terminal actor/scope denial is
+                            # already dispatched truth (no physical-stop claim
+                            # for peer workers), but the admitted run must not
+                            # plan/finish past it.
+                            if _terminal_denial is None:
+                                _terminal_denial = (
+                                    self._terminal_authority_denial(
+                                        pr.get("output")))
                             # R84c: ledger each parallel tool decision too.
                             try:
                                 from core.agent_action_audit import log_agent_action
@@ -693,6 +705,18 @@ class GenericAgent:
                                     f"before retrying.\n"
                                 )
                             steps.append(p_record)
+                        if _terminal_denial:
+                            self._record_terminal_authority_denial(
+                                context, "parallel-batch", _terminal_denial)
+                            final_answer = (
+                                "Execution blocked: the admitted actor or "
+                                "workspace authority for this run is no "
+                                "longer valid. No further work was dispatched.")
+                            status = "blocked"
+                            logger.warning(
+                                "Agent %s halted after a terminal authority "
+                                "denial in a parallel batch", self.id)
+                            break
                         continue
 
                     if action:
@@ -728,6 +752,8 @@ class GenericAgent:
                             observation = f"Error: Tool '{tool_name}' is not allowed."
                         else:
                             observation = await self._step_act(tool_name, tool_args, context, step_callback)
+                            _terminal_denial = (
+                                self._terminal_authority_denial(observation))
                             # W5 (P5b): refresh the utility delta after the
                             # step so the next plan sees the movement.
                             if _objective_loop:
@@ -862,6 +888,19 @@ class GenericAgent:
                             
                     steps.append(step_record)
 
+                    if _terminal_denial:
+                        self._record_terminal_authority_denial(
+                            context, tool_name or "action", _terminal_denial)
+                        final_answer = (
+                            "Execution blocked: the admitted actor or "
+                            "workspace authority for this run is no longer "
+                            "valid. No further work was dispatched.")
+                        status = "blocked"
+                        logger.warning(
+                            "Agent %s halted after a terminal authority "
+                            "denial on %s", self.id, tool_name)
+                        break
+
                     # P5 (W5): objective termination — if the goal's
                     # definition_of_done is satisfied, stop early instead of
                     # burning the remaining step budget.
@@ -964,6 +1003,17 @@ class GenericAgent:
         if _uncertain_operations and status in _SUCCESS_STATUSES:
             status = "uncertain"
             plan_adherence = 0.5
+        _terminal_authority_denials = list(
+            context.get("_terminal_authority_denials") or [])
+        if _terminal_authority_denials and status in _SUCCESS_STATUSES:
+            # A model final answer (including a parallel-batch survivor) can
+            # never override a typed producer-owned actor/scope denial.
+            status = "blocked"
+            plan_adherence = 0.5
+            if not final_answer:
+                final_answer = (
+                    "Execution blocked: the admitted actor or workspace "
+                    "authority for this run is no longer valid.")
         # Normalize internal loop sentinels to valid ExecutionStatus values at
         # the execution boundary. ``budget_exceeded`` is an in-loop signal; if
         # it leaks into the returned payload, the API/WS layer serializes an
@@ -982,6 +1032,9 @@ class GenericAgent:
             "audit_report": audit_report,
             "requires_reconciliation": bool(_uncertain_operations),
             "uncertain_operations": _uncertain_operations,
+            "terminal_authority_denial": bool(
+                _terminal_authority_denials),
+            "authority_denials": _terminal_authority_denials,
             "timestamp": start_time.isoformat()
         }
         if self._information_wait_receipt is not None:
@@ -2063,6 +2116,35 @@ What is your next step?"""
             "refused",
         }
 
+    @staticmethod
+    def _terminal_authority_denial(result: Any) -> Optional[Dict[str, Any]]:
+        """Typed producer-owned actor/scope denial (never message matching)."""
+        try:
+            from core.action_effects import terminal_authority_denial
+
+            return terminal_authority_denial(result)
+        except Exception:  # noqa: BLE001 - a malformed marker is not proof
+            return None
+
+    def _record_terminal_authority_denial(
+        self, context: Dict, tool_name: str, denial: Dict[str, Any],
+    ) -> None:
+        """Remember a terminal authority denial for finalization/resume."""
+        if not isinstance(context, dict):
+            return
+        entry = {
+            "tool": str(tool_name),
+            "denial_kind": str(denial.get("denial_kind") or "")[:120],
+            "denial_scope": str(denial.get("denial_scope") or "")[:120],
+            "code": str(denial.get("code") or "")[:120],
+            "effect_state": "none",
+            "terminal": True,
+            "retryable": False,
+        }
+        entries = context.setdefault("_terminal_authority_denials", [])
+        if entry not in entries:
+            entries.append(entry)
+
     def _record_uncertain_operation(
         self, context: Dict, tool_name: str, operation_id: str,
         evidence: str,
@@ -2819,7 +2901,10 @@ What is your next step?"""
                 }
             )
         if _is_err:
-            self._record_tool_failure(tool_name, result, context)
+            # A producer-owned terminal actor/scope denial is external
+            # revocation truth, not evolution feedstock for a model/tool bug.
+            if self._terminal_authority_denial(result) is None:
+                self._record_tool_failure(tool_name, result, context)
         try:
             from core.agent_action_audit import log_agent_action
             log_agent_action(
@@ -3315,6 +3400,9 @@ What is your next step?"""
                     if (context or {}).get("governance_tier_next_action"):
                         _metadata["governance_tier_next_action"] = str(
                             context["governance_tier_next_action"])
+                    if result.get("terminal_authority_denial"):
+                        _metadata["terminal_authority_denial"] = list(
+                            result.get("authority_denials") or [])
 
                     if _existing is None:
                         _exec = AgentExecution(
@@ -3366,6 +3454,11 @@ What is your next step?"""
         # experience/execution above, but award neither maturity success nor
         # failure (including on repeated questions for the same execution).
         if persisted_status == "waiting":
+            return
+        # External actor/scope revocation is not a model semantic failure (and
+        # must not be credited as model success). Persist the truthful
+        # execution/episode above, but do not move the maturity signal.
+        if result.get("terminal_authority_denial"):
             return
 
         # 2. Update Governance Maturity

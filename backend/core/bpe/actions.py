@@ -90,13 +90,22 @@ def bpe_enabled() -> bool:
 
 
 def _deny(code: str, message: str) -> Dict[str, Any]:
-    """Typed, proven no-effect refusal (never a success wrapper)."""
+    """Typed, proven no-effect terminal authority refusal.
+
+    The actor/scope is no longer authorized for this admitted namespace, so a
+    later model "done" cannot turn it into success. The marker is producer
+    owned; consumers must not infer it from message text.
+    """
     return {
         "success": False,
+        "status": "failed_before_effect",
         "error": code,
         "message": message,
         "action_result": "not_applied",
         "effect_possible": False,
+        "terminal_authority_denial": True,
+        "denial_scope": "actor_or_workspace",
+        "denial_kind": str(code)[:120],
     }
 
 

@@ -1657,6 +1657,12 @@ def _execution_outcome(
 
     raw = _safe_outcome_token(result.get("status"), default="")
     requires_reconciliation = bool(result.get("requires_reconciliation"))
+    # A producer-owned terminal actor/scope denial is a proven no-effect
+    # refusal. It outranks a later success/uncertain label from the model or a
+    # survivor of a parallel batch.
+    if result.get("terminal_authority_denial") is True:
+        return failed(
+            "blocked", "execution_authority_denied", "review_authority")
     contradictory = bool(
         raw in _RESULT_SUCCESS_STATUSES
         and (
@@ -1744,6 +1750,11 @@ def _public_outcome_message(outcome: Dict[str, Any]) -> str:
         return (
             "The agent run is blocked by a missing prerequisite. Resolve "
             "it before retrying.")
+    if reason == "execution_authority_denied":
+        return (
+            "The run stopped because the admitted actor or workspace "
+            "authority is no longer valid. No effect was applied; refresh "
+            "authority before retrying.")
     if reason == "execution_result_missing":
         return (
             "The agent run did not report a usable outcome. Review the "

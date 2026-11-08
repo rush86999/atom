@@ -1396,6 +1396,7 @@ class AtomMetaAgent:
 
             for current_step in range(1, max_steps + 1):
                 step_start = datetime.now(timezone.utc)
+                _terminal_denial = None
 
                 # AgentRadio — passive awareness: absorb @mentions from the
                 # team's lateral thread before planning the next step. Never
@@ -1507,6 +1508,14 @@ class AtomMetaAgent:
                     for p_index, pr in enumerate(parallel_results):
                         p_tool = pr["tool_name"]
                         p_params = pr.get("params") or {}
+                        if _terminal_denial is None:
+                            try:
+                                from core.action_effects import (
+                                    terminal_authority_denial as _tad,
+                                )
+                                _terminal_denial = _tad(pr.get("output"))
+                            except Exception:
+                                _terminal_denial = None
                         p_record = {
                             "execution_id": execution_id,
                             "step": current_step,
@@ -1562,6 +1571,19 @@ class AtomMetaAgent:
                             dispatch_turn_fact=(p_index == 0),
                         )
                         steps.append(p_record)
+                    if _terminal_denial:
+                        context.setdefault(
+                            "_terminal_authority_denials", []).append(
+                                _terminal_denial)
+                        final_answer = (
+                            "Execution blocked: the admitted actor or "
+                            "workspace authority for this run is no longer "
+                            "valid. No further work was dispatched.")
+                        status = "blocked"
+                        logger.warning(
+                            "Meta agent halted after a terminal authority "
+                            "denial in a parallel batch")
+                        break
                     continue
 
                 # Execute action if provided
@@ -1616,6 +1638,13 @@ class AtomMetaAgent:
                             observation = mark_observation(observation, source=tool_name)
                         except Exception:
                             pass  # marking must never break the agent loop
+                        try:
+                            from core.action_effects import (
+                                terminal_authority_denial as _tad,
+                            )
+                            _terminal_denial = _tad(observation)
+                        except Exception:
+                            _terminal_denial = None
                         execution_history += f"Observation: {observation}\n"
 
                         # Parse the tool return for a verification envelope
@@ -1675,7 +1704,20 @@ class AtomMetaAgent:
                 )
 
                 steps.append(step_record)
-        
+
+                if _terminal_denial:
+                    context.setdefault(
+                        "_terminal_authority_denials", []).append(
+                            _terminal_denial)
+                    final_answer = (
+                        "Execution blocked: the admitted actor or workspace "
+                        "authority for this run is no longer valid. No "
+                        "further work was dispatched.")
+                    status = "blocked"
+                    logger.warning(
+                        "Meta agent halted after a terminal authority denial")
+                    break
+
             # Handle max steps exceeded
             if not final_answer:
                 final_answer = "Maximum reasoning steps reached. Please refine your request."
@@ -1792,6 +1834,13 @@ class AtomMetaAgent:
             raise
 
         # 4. Record Execution
+        _terminal_authority_denials = list(
+            (context or {}).get("_terminal_authority_denials") or [])
+        if _terminal_authority_denials and status == "success":
+            status = "blocked"
+            final_answer = final_answer or (
+                "Execution blocked: the admitted actor or workspace "
+                "authority for this run is no longer valid.")
         result_payload = {
             "final_output": final_answer,
             "actions_executed": steps,
@@ -1805,6 +1854,9 @@ class AtomMetaAgent:
             # the HTTP response so the frontend can render a distinct UI.
             "failure_reason": failure_reason,
             "failure_mode": failure_mode,
+            "terminal_authority_denial": bool(
+                _terminal_authority_denials),
+            "authority_denials": _terminal_authority_denials,
         }
 
         # BPE workspace episode close-out (plan Phase 2) — mirrors
@@ -3414,6 +3466,12 @@ Provide your Mentorship Guidance:"""
             timestamp=datetime.now(timezone.utc)
         )
         await self.world_model.record_experience(experience)
+
+        # External actor/scope revocation is not a model semantic failure and
+        # must not be credited as model success. Keep the durable execution
+        # truth, but do not move the meta-agent maturity signal.
+        if result.get("terminal_authority_denial"):
+            return
 
         # 2. Update Governance Outcome — R87: terminal failure statuses
         # (timeout/budget_exceeded/killed_sandbox/failed) must never be
