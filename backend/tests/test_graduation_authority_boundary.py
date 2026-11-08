@@ -44,8 +44,6 @@ def graduation_world(tmp_path, monkeypatch):
         db.commit()
     monkeypatch.setattr(graduation, "get_lancedb_handler", lambda: None)
     monkeypatch.setattr(graduation, "POMDP_AVAILABLE", False)
-    monkeypatch.setattr(governance.DynamicGovernanceManager, "decide",
-                        lambda *a, **k: SimpleNamespace(allowed=True, reasons=[]))
     monkeypatch.setattr(cache, "get_governance_cache",
                         lambda: SimpleNamespace(invalidate_agent=lambda *a: None))
     monkeypatch.setattr(broadcast, "schedule_maturity_broadcast", lambda **k: None)
@@ -116,3 +114,21 @@ async def test_graduation_revalidates_after_awaited_readiness(graduation_world, 
                 "peer" if peer_change == "target_configuration" else "original")}
         assert actor.role == ("member" if peer_change == "actor_demoted" else "team_lead")
         assert actor.workspace_id == ("ws-b" if peer_change == "actor_scope" else "ws-a")
+
+@pytest.mark.asyncio
+async def test_graduation_does_not_commit_unrelated_caller_changes(graduation_world):
+    sessions = graduation_world
+    with sessions() as caller:
+        actor = caller.get(User, "supervisor")
+        actor.first_name = "Uncommitted caller edit"
+        service = graduation.AgentGraduationService(caller)
+        assert await service.promote_agent(
+            "graduate", "AUTONOMOUS", "supervisor",
+            tenant_id="company", workspace_id="ws-a") is False
+        assert actor.first_name == "Uncommitted caller edit"
+        with sessions() as fresh:
+            assert fresh.get(User, "supervisor").first_name == "Test"
+            assert fresh.get(AgentRegistry, "graduate").status == "supervised"
+        caller.commit()
+    with sessions() as fresh:
+        assert fresh.get(User, "supervisor").first_name == "Uncommitted caller edit"

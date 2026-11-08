@@ -28,6 +28,8 @@ from core.governance import (
     layer_for_action,
 )
 from core.episode_service import ReadinessThresholds
+from tests.test_graduation_authority_boundary import graduation_world
+from core.models import AgentRegistry
 
 
 STRONG_CONTEXT = {
@@ -271,15 +273,11 @@ class TestPromoteAgentStrategicGate:
     re-check the strategic policy against live evidence for AUTONOMOUS."""
 
     @pytest.mark.asyncio
-    async def test_autonomous_denied_on_weak_evidence(self):
+    async def test_autonomous_denied_on_weak_evidence(self, graduation_world):
         from core.agent_graduation_service import AgentGraduationService
 
-        agent = SimpleNamespace(
-            id="a1", status="supervised", tenant_id="t1", user_id="u1",
-            configuration={}, updated_at=None, name="Sales Assistant",
-        )
-        db = MagicMock()
-        db.query.return_value.filter.return_value.first.return_value = agent
+        db = graduation_world()
+        agent = db.get(AgentRegistry, "graduate")
         service = AgentGraduationService(db)
 
         weak = {
@@ -296,21 +294,19 @@ class TestPromoteAgentStrategicGate:
             service,
             "calculate_readiness_score",
             new=AsyncMock(return_value=weak),
-        ), patch("core.agent_graduation_service.flag_modified"):
-            result = await service.promote_agent("a1", "AUTONOMOUS", "supervisor-1")
+        ):
+            result = await service.promote_agent("graduate", "AUTONOMOUS", "supervisor")
         assert result is False
+        db.refresh(agent)
         assert agent.status == "supervised"
+        db.close()
 
     @pytest.mark.asyncio
-    async def test_autonomous_allowed_on_strong_evidence(self):
+    async def test_autonomous_allowed_on_strong_evidence(self, graduation_world):
         from core.agent_graduation_service import AgentGraduationService
 
-        agent = SimpleNamespace(
-            id="a2", status="supervised", tenant_id="t1", user_id="u1",
-            configuration={}, updated_at=None, name="SDR Hire",
-        )
-        db = MagicMock()
-        db.query.return_value.filter.return_value.first.return_value = agent
+        db = graduation_world()
+        agent = db.get(AgentRegistry, "graduate")
         service = AgentGraduationService(db)
 
         strong = {
@@ -327,32 +323,31 @@ class TestPromoteAgentStrategicGate:
             service,
             "calculate_readiness_score",
             new=AsyncMock(return_value=strong),
-        ), patch("core.agent_graduation_service.flag_modified"), \
-             patch("core.agent_graduation_service.POMDP_AVAILABLE", False):
-            result = await service.promote_agent("a2", "AUTONOMOUS", "supervisor-1")
+        ):
+            result = await service.promote_agent("graduate", "AUTONOMOUS", "supervisor")
         assert result is True
+        db.close()
 
     @pytest.mark.asyncio
-    async def test_lower_tier_requires_readiness(self):
+    async def test_lower_tier_requires_readiness(self, graduation_world):
         from core.agent_graduation_service import AgentGraduationService
 
-        agent = SimpleNamespace(
-            id="a3", status="student", tenant_id="t1", user_id="u1",
-            configuration={}, updated_at=None, name="Intern Candidate",
-        )
-        db = MagicMock()
-        db.query.return_value.filter.return_value.first.return_value = agent
+        db = graduation_world()
+        agent = db.get(AgentRegistry, "graduate")
         service = AgentGraduationService(db)
+        agent.status = "student"
+        db.commit()
         readiness = AsyncMock(return_value={
             "ready": False,
             "gaps": ["No episodes recorded yet"],
         })
         with patch.object(service, "calculate_readiness_score", new=readiness):
-            result = await service.promote_agent("a3", "INTERN", "supervisor-1")
+            result = await service.promote_agent("graduate", "INTERN", "supervisor")
         assert result is False
         assert agent.status == "student"
+        db.close()
         readiness.assert_awaited_once_with(
-            agent_id="a3",
+            agent_id="graduate",
             target_maturity="INTERN",
             tenant_id=None,
             workspace_id=None,

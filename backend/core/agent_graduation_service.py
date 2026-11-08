@@ -774,6 +774,10 @@ class AgentGraduationService:
         Returns:
             True if successful
         """
+        # Scope lookup itself can autoflush: refuse pending caller material
+        # before issuing any query, not merely before the final commit.
+        if self.db.new or self.db.dirty or self.db.deleted:
+            return False
         try:
             agent = self.get_agent_in_scope(agent_id, tenant_id, workspace_id)
         except Exception as e:
