@@ -267,20 +267,28 @@ def autonomy_cycle(db: Any, agent_id: Optional[str], topic: str) -> Dict[str, An
 def reset_autonomy_cycle(db: Any, agent_id: Optional[str], topic: str,
                          reason: str = "human correction") -> bool:
     """A human correction resets the hire's EARNED autonomy for one topic:
-    the capability tier drops to student, so ``auto_until_corrected`` topics
-    propose again until verified work re-graduates the capability. No-op for
-    unknown topics/hires; other modes never consult the entry, so resetting
-    under human_always/auto_if_mature is inert bookkeeping that still makes
-    the correction auditable."""
+    the capability tier drops to student and a new verified-success baseline
+    is bound at the reset, so ``auto_until_corrected`` topics propose again
+    until POST-correction verified work re-graduates through the normal
+    5/20/50 ladder (lifetime counters stay auditable but cannot be reused).
+    Returns False for unknown topics/hires or when the reset could not be
+    persisted. Other modes never consult the entry, so resetting under
+    human_always/auto_if_mature remains inert bookkeeping."""
     if not agent_id or topic not in TOPIC_GATES:
         return False
     try:
         from core.capability_graduation_service import CapabilityGraduationService
 
-        CapabilityGraduationService(db).reset_maturity(
+        changed = CapabilityGraduationService(db).reset_maturity(
             agent_id, TOPIC_GATES[topic].get("trust_domain") or topic,
             reason=reason,
         )
+        if not changed:
+            # Unknown hire or a contended CAS: the correction was not
+            # persisted, so do not report success.
+            logger.debug(
+                "autonomy cycle reset not applied for %s:%s", agent_id, topic)
+            return False
         logger.info(
             "autonomy cycle reset: %s lost earned %s autonomy (%s)",
             agent_id, topic, reason,

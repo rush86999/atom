@@ -15,6 +15,10 @@ from core.models import AgentRegistry, HITLAction, HITLActionStatus
 
 logger = logging.getLogger(__name__)
 
+#: Marker used by callers that need a configuration mutation to CAS against
+#: the exact raw blob they observed (rather than a freshly reread one).
+_UNSET = object()
+
 class CapabilityMaturityLevel:
     STUDENT = "student"
     INTERN = "intern"
@@ -110,6 +114,24 @@ class CapabilityGraduationService:
             return False, None
         return True, row[0]
 
+    def observed_configuration(self, agent_id: str, expected_scope=None):
+        """Public read of the exact raw configuration for eligibility binding.
+
+        Consumers that made an eligibility decision from this blob can pass it
+        back to :meth:`record_usage` as ``expected_configuration``; the counter
+        UPDATE then applies only while the database still holds that identical
+        physical value (SQL NULL and JSON ``null`` remain distinct).
+        """
+        return self._observed_configuration(agent_id, expected_scope)
+
+    @staticmethod
+    def _configuration_predicate(observed):
+        return (
+            AgentRegistry.configuration.is_(None)
+            if observed is None
+            else cast(AgentRegistry.configuration, Text) == observed
+        )
+
     def _mutate_configuration(
         self,
         agent_id: str,
@@ -117,6 +139,7 @@ class CapabilityGraduationService:
         *,
         commit: bool,
         expected_scope=None,
+        expected_configuration: Any = _UNSET,
     ) -> bool:
         """Apply one JSON configuration mutation via database CAS.
 
@@ -127,7 +150,43 @@ class CapabilityGraduationService:
         write makes the UPDATE match zero rows; we reload from the database and
         retry, so a stale success cannot erase the peer's revocation. After the
         bounded attempts we fail closed (no write) rather than guess.
+
+        When ``expected_configuration`` is supplied the caller has ALREADY
+        observed that exact raw blob to make an eligibility decision. The
+        mutation is then attempted once against that snapshot only: a changed
+        blob refuses the write (the caller must re-read and decide again)
+        instead of silently retrying on top of a peer's newer state.
         """
+        if expected_configuration is not _UNSET:
+            configuration = mutate(self._json_dict(expected_configuration))
+            if not isinstance(configuration, dict):
+                return False
+            statement = (
+                update(AgentRegistry)
+                .where(
+                    AgentRegistry.id == str(agent_id),
+                    self._configuration_predicate(expected_configuration),
+                    *self._scope_predicates(expected_scope),
+                )
+                .values(configuration=configuration)
+                .execution_options(synchronize_session=False)
+            )
+            try:
+                changed = self.db.execute(statement)
+            except Exception as exc:  # noqa: BLE001 - no write is the safe result
+                logger.warning(
+                    "Capability config CAS unavailable for %s (%s)",
+                    agent_id, type(exc).__name__)
+                return False
+            if int(changed.rowcount or 0) == 1:
+                if commit:
+                    self.db.commit()
+                return True
+            logger.debug(
+                "Capability eligibility snapshot changed for %s; refusing "
+                "counter credit until it is re-read", agent_id)
+            return False
+
         for _attempt in range(self.CAS_MAX_ATTEMPTS):
             found, observed = self._observed_configuration(agent_id, expected_scope)
             if not found:
@@ -135,11 +194,7 @@ class CapabilityGraduationService:
             configuration = mutate(self._json_dict(observed))
             if not isinstance(configuration, dict):
                 return False
-            predicate = (
-                AgentRegistry.configuration.is_(None)
-                if observed is None
-                else cast(AgentRegistry.configuration, Text) == observed
-            )
+            predicate = self._configuration_predicate(observed)
             statement = (
                 update(AgentRegistry)
                 .where(AgentRegistry.id == str(agent_id), predicate,
@@ -178,6 +233,7 @@ class CapabilityGraduationService:
         commit: bool = True,
         lock: bool = True,
         expected_scope=None,
+        expected_configuration: Any = _UNSET,
     ):
         """
         Record usage of a capability to progress maturity.
@@ -198,6 +254,12 @@ class CapabilityGraduationService:
                 a database-level conditional UPDATE (see
                 :meth:`_mutate_configuration`); this argument no longer selects
                 a weaker read/lock path.
+            expected_configuration: Exact raw configuration blob (as returned
+                by :meth:`observed_configuration`) that the caller used for its
+                eligibility decision. When supplied, the counter update is
+                attempted against that snapshot once and refused if the blob
+                changed — the caller must re-read and re-decide. This keeps an
+                eligibility decision and its counter write in one epoch.
         """
         def _apply(config: dict) -> dict:
             stats_map = config.get("capability_stats")
@@ -338,14 +400,22 @@ class CapabilityGraduationService:
             return config
 
         return self._mutate_configuration(
-            agent_id, _apply, commit=commit, expected_scope=expected_scope)
+            agent_id, _apply, commit=commit, expected_scope=expected_scope,
+            expected_configuration=expected_configuration)
 
-    def reset_maturity(self, agent_id: str, capability_name: str, reason: str):
-        """Reset capability maturity to STUDENT level.
+    def reset_maturity(self, agent_id: str, capability_name: str,
+                       reason: str) -> bool:
+        """Reset capability maturity to STUDENT and open a fresh epoch.
 
         Uses the same conditional-UPDATE discipline as :meth:`record_usage`, so
         a reset racing a revocation/regression cannot resurrect an unrelated
         stale configuration blob.
+
+        A human correction is NOT a verified regression: it starts a new
+        verified-success baseline at the exact reset (the existing lifetime
+        counters stay intact and auditable) without inventing failure counts or
+        an ``autonomy_revocations`` regression marker. Only successes after the
+        reset can re-graduate through the normal 5/20/50 ladder.
         """
         def _reset(config: dict) -> dict:
             maturities = config.get("capability_maturities")
@@ -353,6 +423,21 @@ class CapabilityGraduationService:
                 maturities = {}
             maturities[capability_name] = CapabilityMaturityLevel.STUDENT
             config["capability_maturities"] = maturities
+
+            stats_map = config.get("capability_stats")
+            if not isinstance(stats_map, dict):
+                stats_map = {}
+            config["capability_stats"] = stats_map
+            stats = stats_map.get(capability_name)
+            if not isinstance(stats, dict):
+                stats = {"success": 0, "total": 0, "verified_success": 0}
+            # Bind the epoch at the reset instant. Which success was lifetime
+            # history vs fresh post-correction work stays auditable from the
+            # counters; graduation compares against this baseline.
+            stats["epoch_baseline_verified_success"] = int(
+                stats.get("verified_success") or 0)
+            stats["epoch_baseline_origin"] = "human_correction"
+            stats_map[capability_name] = stats
             return config
 
         changed = self._mutate_configuration(
@@ -361,6 +446,7 @@ class CapabilityGraduationService:
             logger.info(
                 f"Reset maturity for {agent_id}:{capability_name} to STUDENT. "
                 f"Reason: {reason}")
+        return changed
 
     def _update_maturity(self, agent: AgentRegistry, capability_name: str, level: str):
         config = self._config(agent)

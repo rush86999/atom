@@ -375,37 +375,40 @@ def _child_execution_for_link(
 
 def _pre_revocation(
     db: Any, agent_id: str, capability: str, source_created_at: Any,
-) -> bool:
-    """True when this source outcome predates (or cannot prove post-revocation).
+    *,
+    expected_scope=None,
+) -> Tuple[bool, bool, Any]:
+    """Return ``(pre_revocation, found, raw_configuration)`` for one entry.
 
+    True when this source outcome predates (or cannot prove post-revocation).
     A late credit for work performed before an active revocation must remain
     visible but cannot become one of the NEW successes that re-enters INTERN.
     Unknown source time is treated as pre-revocation, never as fresh proof.
-    """
-    from core.models import AgentRegistry
 
-    # Column query keeps the entity out of the identity map so record_usage's
-    # serialized re-read observes a just-committed concurrent revocation.
-    row = (
-        db.query(AgentRegistry.configuration)
-        .filter(AgentRegistry.id == agent_id)
-        .first()
-    )
-    if row is None:
-        return False
-    config = _as_dict(row[0])
+    The same raw configuration blob is returned so the caller can bind its
+    eligibility decision into the counter CAS. Reading the physical value (not
+    an ORM entity) keeps SQL NULL vs JSON ``null`` distinct and avoids a stale
+    identity-map view of a just-committed peer revocation.
+    """
+    from core.capability_graduation_service import CapabilityGraduationService
+
+    found, raw = CapabilityGraduationService(db).observed_configuration(
+        agent_id, expected_scope=expected_scope)
+    if not found:
+        return False, False, None
+    config = _as_dict(raw)
     revocations = _as_dict(config.get("autonomy_revocations"))
     marker = _as_dict(revocations.get(capability))
     if not marker:
-        return False
+        return False, True, raw
     revoked_at = _parse_time(marker.get("at"))
     source_at = _parse_time(source_created_at)
     if revoked_at is None or source_at is None:
-        return True
+        return True, True, raw
     try:
-        return source_at < revoked_at
+        return source_at < revoked_at, True, raw
     except (TypeError, ValueError):
-        return True
+        return True, True, raw
 
 
 def _collect_credit_entries(
@@ -683,8 +686,14 @@ def _consume_entries(
             continue
 
         verified = bool(entry.get("verified"))
-        if verified and _pre_revocation(
-                db, agent_id, capability, entry.get("source_created_at")):
+        pre_revoked, config_found, config_snapshot = _pre_revocation(
+            db, agent_id, capability, entry.get("source_created_at"),
+            expected_scope=expected_scope)
+        if not config_found:
+            # The target disappeared between admission and eligibility. No
+            # counter and no receipt may be written for it.
+            continue
+        if verified and pre_revoked:
             # Visible legacy pre-revocation work may not become a NEW success.
             verified = False
 
@@ -714,13 +723,21 @@ def _consume_entries(
                     verified=("verified" if verified else "unverified"),
                     commit=False,
                     expected_scope=expected_scope,
+                    # Bind the exact raw configuration used for the
+                    # pre-revocation eligibility decision. If a peer commits a
+                    # revocation/regression after that read, the counter UPDATE
+                    # matches zero rows and this entry's receipt rolls back; a
+                    # later recovery pass re-reads and downgrades old work.
+                    expected_configuration=config_snapshot,
                 )
                 if applied_usage is False:
                     # The counter CAS could not be published against the
-                    # observed configuration (peer revocation/regression kept
-                    # winning). Roll this entry's savepoint back: no receipt
-                    # may exist without its counter update. A later recovery
-                    # pass can still apply the missing credit.
+                    # observed configuration (peer revocation/regression
+                    # changed the eligibility snapshot). Roll this entry's
+                    # savepoint back: no receipt may exist without its counter
+                    # update, and the published receipt may never claim more
+                    # verification than was actually credited. A later
+                    # recovery pass can still apply the missing credit.
                     raise RuntimeError("capability counter CAS not applied")
                 receipt.status = "succeeded"
                 receipt.result_json = {
