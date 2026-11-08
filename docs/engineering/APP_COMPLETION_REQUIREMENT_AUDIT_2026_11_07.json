@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "title": "App completion requirement audit \u2014 all 143 claims \u2014 2026-11-07",
+  "title": "App completion requirement audit — all 143 claims — 2026-11-07",
   "generated_at": "2026-11-07",
   "scope": "Read-only requirement/evidence audit. No runtime, test, browser, server, model, installer, dependency download, live DB, account, credential, send, spend, deploy, merge or review-comment action.",
   "historical_invariant": {
@@ -4856,19 +4856,19 @@
       "disposition": "Historical snapshot; superseded by this audit. Do not reuse its queue rows as current assignments."
     },
     {
-      "item": "GOAL_COMPLETION_DELTA \u00a73.10",
+      "item": "GOAL_COMPLETION_DELTA §3.10",
       "assertion": "GOAL-02 utility is only a maturity prompt delta; no two-outcome ranking/persisted target.",
       "current": "PR #707 (4c1bd507d) and PR #754 (8ded00232) contain persisted utility target, deterministic ranking, scoped reads and component UI; see goal02_utility_target_20261106 and goal_utility_surface_20261107.",
       "disposition": "Stale relative to current main; GOAL-02 is accepted-bounded at service/API+component scope, not a historical rescore. Ordinary Goal UI browser still unrun."
     },
     {
-      "item": "GOAL_COMPLETION_DELTA \u00a73.7 / MINI-04 inventory",
+      "item": "GOAL_COMPLETION_DELTA §3.7 / MINI-04 inventory",
       "assertion": "Per-instance record leg requires Firecracker/KVM.",
       "current": "Host-mediated record/install/restart/isolation leg qualified at d84e46a4a/8a577f14a; older assumption contradicted for that leg. Firecracker dev-run/install and MINI-05 remain environment-limited.",
       "disposition": "Assertion narrowed/corrected for the record leg; MINI-05 not promoted."
     },
     {
-      "item": "GOAL_COMPLETION_DELTA \u00a71/\u00a73 and APP_COMPLETION_STATE line 51",
+      "item": "GOAL_COMPLETION_DELTA §1/§3 and APP_COMPLETION_STATE line 51",
       "assertion": "12 open functional claims and historical 111/123.",
       "current": "111/123 historical score and denominator unchanged; several former gaps now have accepted-bounded or submitted evidence, but none is silently promoted to full verification.",
       "disposition": "Preserve the score; use the overlay, not a new denominator."
@@ -5242,6 +5242,26 @@
       "full_governance_qualified": false,
       "named_benchmark_command_absent": true,
       "historical_scores_changed": false
+    },
+    "root_follow_through_20261108": {
+      "observed_at": "2026-11-08T01:17:49.625876+00:00",
+      "main": "8ded00232c30961a990e675e06ec672ef6a43910",
+      "full_app": "OPEN",
+      "postgresql_feedback": {
+        "runtime": "80d15c5c287be3e7c7047206e0ef2ced8715cc47",
+        "pg_selection_passed": 49,
+        "actual_pg_db_cases": 20,
+        "pure_type_cases": 24,
+        "dialect_cases": 5,
+        "sqlite_passed": 71,
+        "source_bound_evidence": "docs/acceptance/evidence/feedback_postgresql_type_guard_80d15c5c2",
+        "scope": "not fullPG/migrations/crash durability/soak"
+      },
+      "canvas": "original9/31pass and175pass2baselinefail preserved; rootactor race4fail2pass; ccaa92ba3 successor awaits root verification",
+      "export": "bf3 failed runtime safety before browser; e659 source-only worker proof2falsepasses; shared-launcher actual exec flag fix active",
+      "bpe": "mountedRPC cross-workspace1fail1pass; separate controlled Generic step2fail5pass5skip, full episode unproved; principal-scope repair active",
+      "merge_gate": "759 and760 all8green need codeowner review; auto-merge disabled; do not bypass",
+      "disk": "cold archives moved with complete byte verification to UUID-verified Seagate; canonical symlink and restore record retained; three-hour disk automation active"
     }
   }
 }

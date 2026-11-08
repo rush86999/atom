@@ -1,5 +1,18 @@
 # ORACLE mutation queue — current-main static reconciliation (2026-11-07)
 
+## Root verification checkpoint — 2026-11-08 UTC
+
+This operational checkpoint supersedes older assignment paragraphs below, without changing historical evidence identities or scores. Main remains `8ded00232`. Full-app completion is not achieved.
+
+- PR #759 source/Goal UI and PR #760 restore have all eight required checks green at their recorded heads but still need normal code-owner review. Repository auto-merge is disabled; do not change settings, approve your own work or bypass protection.
+- PR #762 runtime `80d15c5c2` fixes the independently reproduced PostgreSQL numeric/string binding defect. Root selection **49 passed** = 20 actual PostgreSQL DB controls + 24 pure type checks + five dialect checks; SQLite **71 passed** overlaps. Original `54daf` negative **1 failed / 1 passed** and earlierBDD proof are preserved. Evidence `f3ad0cca3`; current-headCI required. Full migrations/crash durability/PG breadth are not qualified.
+- Canvas `8e4/a981` source-scope suites passed 9 and 31 controls; affected suite had 175 passed / two baseline failures remain preserved, but a NEW actor change after preflight failed four of six controls (two unchanged actor twins pass). Successor `ccaa92ba3` is under independent verification; do not self-accept the earlier gate or claim the current active User is atomically bound before that proof.
+- Export `bf3`'s launcher/fixture preflight passed, but its actual isolated process failed safety invariants BEFORE frontend/login/upload. `e659`'s source-only worker-off heuristic then falsely certified two inert-source twins. A small shared-launcher fix must pass actual exec flags and isolate dotenv, rather than adding AST heuristics or claiming source syntax is live state. No ordinary export UI completion is claimed.
+- BPE scope has a real mounted-RPC negative: different current workspaces share a default note buffer (one failure / one valid twin passed). Controlled Generic step also returns uncertain for a landed note and empty refusal (two failed / five passed / five skipped), but full episode close-out is not proved. The principal-scope repair owns codex/bpe-current-principal-scope-20261108; classification/receipt/durability is a separate still-open successor. See evidence/bpe_scope_negative_27a1830a2.
+- Existing raw negative evidence stays at its actual source. Do not add overlapping test totals, count skipped diagnostics as passes, or reinterpret harness errors as product negatives.
+
+Resource follow-through: cold archives were fully content-verified to the mounted Seagate drive and their original path is a symlink. The private volume identity/restore record is /private/tmp/atom-agent-cli/cold-archive-storage.json. Verify that volume UUID, marker and symlink before every archival write; absent drive means refuse, never create an empty local replacement. The disk automation remains ACTIVE every three hours and heavy tests still require the shared resource gate. Active code, databases/worlds, original negatives and archives were not discarded.
+
 Status: **read-only static inventory and finite work order preparation. Not a
 qualification run, not an acceptance, not a merge.** The 143-claim campaign
 scope remains **OPEN** with the root audit; no claim is closed or rescored here.
