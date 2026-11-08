@@ -1,0 +1,43 @@
+{
+  "source": "330c0e758d66d137264e9d31cb2522dd25b2325e",
+  "candidate_files": {
+    "backend/core/asyncio_compat.py": "8a4fd0b904f291541c807ab94523d86ee34006e754a4766a2e678e2a30e21fc0",
+    "backend/core/org_politics_automation.py": "27ca34d86148eeedc0d44c2a9c23b93397db371d629437a07c35ccd31aa71bb3",
+    "backend/core/llm/stage_router_automation.py": "b0f1368461777824ce6b6ee2afa1a3961fe255a650a8ac62432dd1b37c81d5dc",
+    "backend/core/fleet_orchestration/fleet_router_automation.py": "a5b719bc3b30102d31305a4aaee4b7b6cc8a2e73bf1c6d8d5a205b9391b7af79",
+    "backend/api/stage_router_routes.py": "bda31772f9229ac1f6f09729889cff26662c804dbf0ccdfd5c5ba700214cf687",
+    "backend/api/fleet_router_routes.py": "9e1bf8d5274afbffdada870e89028826447474bc79fe2acb2b6479099c2d9ed0",
+    "backend/tests/test_shared_automation_worker.py": "aabb5b369d9f2d899a23c5017d96e8f749c1fb843cc772413cb9ad3c2a0c1b45",
+    "backend/tests/test_router_automation_responsiveness.py": "64ba5d0758ef35205816413766c177ef14aa9d911582768d3a0436c423afd81e"
+  },
+  "attribution": "uncommitted candidate exact file hashes; not clean main runtime",
+  "root": "/private/tmp/root-feedback-sqlite-wgxxcdmz",
+  "command": [
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-shared-automation-worker-20261108/backend",
+    "--profile",
+    "bounded",
+    "--",
+    "/usr/local/opt/python@3.11/bin/python3.11",
+    "-m",
+    "pytest",
+    "tests/test_shared_automation_worker.py",
+    "tests/test_router_automation_responsiveness.py",
+    "-q",
+    "--tb=short",
+    "-p",
+    "no:cacheprovider",
+    "-p",
+    "pytest_freezegun",
+    "-p",
+    "root_no_network",
+    "-p",
+    "no:randomly",
+    "-p",
+    "no:rerunfailures",
+    "--timeout=120",
+    "--timeout-method=thread",
+    "--basetemp=/private/tmp/root-feedback-sqlite-wgxxcdmz/pytest"
+  ]
+}

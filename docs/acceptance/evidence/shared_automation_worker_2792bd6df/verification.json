@@ -1,0 +1,19 @@
+{
+  "frozen_source": "95596482eb3b239dd72ceba9abc04af8852aaee2",
+  "runtime_checkpoint": "2792bd6dfc8a5171f89ed415799e09d753d3d00a",
+  "entire_tree_unchanged_by_accepted_main_integration": true,
+  "final_controls": {
+    "python3.11": 200,
+    "python3.14": 200
+  },
+  "reference_controls": {
+    "python3.11": "168 passed,1 obsolete test failed",
+    "python3.14": "168 passed,1 obsolete test failed"
+  },
+  "new_controls": 31,
+  "independent_executor_context_probe": {
+    "native_exit": 1,
+    "corrected_exit": 0
+  },
+  "scope": "process-local shared async offload and notification boundary; scratch SQLite/doubled passes, no live model or scheduled/PG/soak qualification"
+}
