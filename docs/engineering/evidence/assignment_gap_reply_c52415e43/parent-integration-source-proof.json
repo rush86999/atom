@@ -1,0 +1,22 @@
+{
+  "executed_source": "c52415e43d1e4fce86df872fa7c280299f1c978c",
+  "parent": "8d3daf62f209e113275184b464297351905a67ed",
+  "assignment_runtime_and_test_bytes_unchanged": {
+    "backend/api/assignment_routes.py": "c448d80c292c6ea5d059fd8a2fe3b5e20966de3696a6d0ff1c8bb676cf0390d6",
+    "backend/core/assignment_executor.py": "7fb935c493b11b4de3719f7e4dad30cc2c0aa920936d80bd21de38df5bbc52a5",
+    "backend/core/goals/goal_run_events.py": "47003824f643ea3596787946ff4d99b32fffd9972d08571e3e252c88c05b9738",
+    "backend/core/task_lifecycle.py": "9e81f3a422ed491489765dbf56ce9dbcb7a9ec4bf42c48f66ea02347ca8a0076",
+    "backend/tests/test_assignment_executor.py": "7183ccf90ca40aef9530fc684b7628eb98bffa2639ae43469755816e79e667c1",
+    "backend/tests/test_assignment_external_reply_identity.py": "923c81ce12886d7f8ecaad950aad0b93dc965bf3cc32c87ff471a3f73596b277",
+    "backend/tests/test_assignment_gap_reply_identity.py": "ffe17563727d2697007e78e61a02b9b165cd04ba9b1d824ab38bf6acc2c7cd04",
+    "backend/tests/test_assignment_routes.py": "febc83254b06b6c6de49a344024df8232fdd6d6729bc83c14a10bbb796adf450",
+    "backend/tests/test_employee_durable_wait_g5.py": "96a27e4e1867d6a6c3f895fd9c33dd6b4a8e51f905b111e189e2061b7e003173",
+    "backend/tests/test_employee_two_domain_campaign.py": "b7152811c26d2f84ebc701dff69a5d8704233078bfa988cafb1ce88df45b05c8",
+    "backend/tests/test_goal_run_events.py": "212bfce5734056b49cd19bc4db123ee8a46c970757052404fd688cd81842d154",
+    "backend/tests/test_root_assignment_reply_material_probe.py": "eb1fa17a553ba67a08f5a38a05a67dd0351846bef3b35d6fc0393b26c622b3b5",
+    "backend/tests/test_root_gap_operation_settlement_guard.py": "43f151d91f4556f61c606d545de827f56e6b9afaaaeabe37d240452bdb90419e",
+    "backend/tests/test_task_wait_source_continuation_regressions.py": "486cd74543e6b5a79fe11836933fed385c5d0b72698e2b65ac0e072aac942d74"
+  },
+  "ci_union_preserved": true,
+  "fresh_hosted_checks_required": true
+}

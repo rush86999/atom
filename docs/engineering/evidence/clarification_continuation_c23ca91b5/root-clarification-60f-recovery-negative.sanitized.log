@@ -1,0 +1,107 @@
+
+tests/test_root_clarification_continuation.py::test_question_only_answer_continues_same_job[gap-True-False] 
+-------------------------------- live log setup --------------------------------
+2026-11-08 02:38:14 [    INFO] EscalationManager initialized
+2026-11-08 02:38:14 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 02:38:14 [    INFO] EscalationManager initialized
+2026-11-08 02:38:14 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 02:38:14 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-08 02:38:14 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-08 02:38:14 [    INFO] runtime identity: source_id=60f9878c07cc revision=60f9878c07cc dirty=False (0 modified, 0 untracked)
+2026-11-08 02:38:14 [    INFO] HTTP Request: POST http://testserver/api/assignments/3f110519-b35e-441f-9294-6e1bac214068/gaps/9547fc55-2a0b-4fe2-ba79-ececb9c20881/resolve "HTTP/1.1 200 OK"
+2026-11-08 02:38:14 [    INFO] HTTP Request: POST http://testserver/api/assignments/3f110519-b35e-441f-9294-6e1bac214068/gaps/9547fc55-2a0b-4fe2-ba79-ececb9c20881/resolve "HTTP/1.1 200 OK"
+PASSED                                                                   [ 12%]
+tests/test_root_clarification_continuation.py::test_question_only_answer_continues_same_job[response-True-False] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 02:38:15 [    INFO] HTTP Request: POST http://testserver/api/assignments/55050581-6272-4bc7-a218-4abe78bc8a41/responses/scope-confirmation "HTTP/1.1 200 OK"
+2026-11-08 02:38:15 [    INFO] HTTP Request: POST http://testserver/api/assignments/55050581-6272-4bc7-a218-4abe78bc8a41/responses/scope-confirmation "HTTP/1.1 200 OK"
+2026-11-08 02:38:15 [    INFO] HTTP Request: POST http://testserver/api/assignments/55050581-6272-4bc7-a218-4abe78bc8a41/responses/scope-confirmation "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 25%]
+tests/test_root_clarification_continuation.py::test_question_only_answer_continues_same_job[gap-False-False] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 02:38:16 [    INFO] HTTP Request: POST http://testserver/api/assignments/09e78a25-98f2-4d7f-b9e9-a6bd6ea25697/gaps/e14f7b2e-fba1-43ce-8b6e-b3c650e3ea94/resolve "HTTP/1.1 200 OK"
+2026-11-08 02:38:16 [    INFO] HTTP Request: POST http://testserver/api/assignments/09e78a25-98f2-4d7f-b9e9-a6bd6ea25697/gaps/e14f7b2e-fba1-43ce-8b6e-b3c650e3ea94/resolve "HTTP/1.1 200 OK"
+PASSED                                                                   [ 37%]
+tests/test_root_clarification_continuation.py::test_question_only_answer_continues_same_job[response-False-False] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 02:38:16 [    INFO] HTTP Request: POST http://testserver/api/assignments/8c9bd95e-e22b-498f-bcf2-ad4ef8d064e5/responses/scope-confirmation "HTTP/1.1 200 OK"
+2026-11-08 02:38:16 [    INFO] HTTP Request: POST http://testserver/api/assignments/8c9bd95e-e22b-498f-bcf2-ad4ef8d064e5/responses/scope-confirmation "HTTP/1.1 200 OK"
+2026-11-08 02:38:16 [    INFO] HTTP Request: POST http://testserver/api/assignments/8c9bd95e-e22b-498f-bcf2-ad4ef8d064e5/responses/scope-confirmation "HTTP/1.1 409 Conflict"
+PASSED                                                                   [ 50%]
+tests/test_root_clarification_continuation.py::test_question_only_answer_continues_same_job[gap-True-True] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 02:38:17 [    INFO] HTTP Request: POST http://testserver/api/assignments/d1f7e939-d61b-40e7-a24a-07247d89e1db/advance "HTTP/1.1 200 OK"
+2026-11-08 02:38:17 [    INFO] HTTP Request: POST http://testserver/api/assignments/d1f7e939-d61b-40e7-a24a-07247d89e1db/gaps/4150350c-7e96-4ef7-81e9-b40dc2471dcc/resolve "HTTP/1.1 200 OK"
+2026-11-08 02:38:17 [    INFO] HTTP Request: POST http://testserver/api/assignments/d1f7e939-d61b-40e7-a24a-07247d89e1db/gaps/4150350c-7e96-4ef7-81e9-b40dc2471dcc/resolve "HTTP/1.1 200 OK"
+PASSED                                                                   [ 62%]
+tests/test_root_clarification_continuation.py::test_resolved_answer_rearms_old_one_shot_recovery FAILED [ 75%]
+tests/test_root_clarification_continuation.py::test_missing_declared_question_binding_refuses_without_resolution[step_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 02:38:18 [    INFO] HTTP Request: POST http://testserver/api/assignments/9cb89bf5-06cc-4b53-949f-b97dc1e774a2/responses/bound-question "HTTP/1.1 200 OK"
+FAILED                                                                   [ 87%]
+tests/test_root_clarification_continuation.py::test_missing_declared_question_binding_refuses_without_resolution[source_operation] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 02:38:19 [    INFO] HTTP Request: POST http://testserver/api/assignments/1a2227ed-b884-455c-8592-2934c6533947/responses/bound-question "HTTP/1.1 404 Not Found"
+PASSED                                                                   [100%]
+
+=================================== FAILURES ===================================
+______________ test_resolved_answer_rearms_old_one_shot_recovery _______________
+tests/test_root_clarification_continuation.py:174: in test_resolved_answer_rearms_old_one_shot_recovery
+    assert recovery is not None, record["assignment"].get("evidence_recovery")
+E   AssertionError: {'key': '5638d13fdfe432e15844', 'status': 'attempted', 'owner': 'instance_id:60f9878c07cc.36922.1794123494', 'owner_process': {'pid': 36922, 'token': '[process-start-marker]', 'host': 'MacBook-Pro.local', 'process_started_at': '2026-11-08T07:38:18.048611+00:00'}, ...}
+E   assert None is not None
+__ test_missing_declared_question_binding_refuses_without_resolution[step_id] __
+tests/test_root_clarification_continuation.py:200: in test_missing_declared_question_binding_refuses_without_resolution
+    assert result.status_code == 404, result.text
+E   AssertionError: {"run_id":"9cb89bf5-06cc-4b53-949f-b97dc1e774a2","assignment":{"assignment_id":"asg-225164482b294a52","objective":"Prepare the requested quote after the owner confirms scope","employee_id":"lead-1","workspace_id":"ws-1","plan_revision":1,"status":"blocked","teaching_revision":"heldout-terms-1","teaching_fingerprint":"709ec5168155747ff32e98c6f297a4a5","teaching_history":[],"effective_lesson_ids":[],"mappings":[],"mapping_history":[],"business_requirements":[],"deliverables":[],"sources":[],"authorized_actions":["retrieve","calculate"],"standing_authority":null,"budget":{"max_steps":40,"max_attempts_per_step":3,"max_wall_seconds":3600.0,"max_cost_usd":0.0,"deadline":null,"cost_mode":"hard","soft_limit_authorized_by":null,"reserved_cost_usd":0.0,"cost_reservations":[],"cost_overrun_usd":0.0,"cost_violation":null,"soft_limit_exceeded":false,"steps_started":0,"started_at":"2026-11-08T07:38:18.825281+00:00","elapsed_seconds":0.0,"paused_seconds":0.0,"waiting_since":null,"wait_credits":{},"wait_credits_schema":1,"active_wait":null,"cost_usd":0.0,"idle_ledger_schema":2,"idle_intervals":{},"working_seconds":0.003,"wall_seconds":0.003},"steps":[{"step_id":"read","title":"Read held-out price rows","operation_type":"retrieve","adapter":"workbook.read","depends_on":[],"required":true,"effect":"read_only","status":"applied","recovery_class":"terminal","operation_id":"op-read","attempts":0,"result_summary":null,"result_value":null,"result_unit":null,"readiness":null,"result_measure":null,"prior_result_count":0,"artifact_revision":null,"gap_ids":[],"waiting":{},"external_response":{},"approval_request":{},"standing_authority_receipt":{},"failure":{}}],"created_at":"2026-11-08T07:38:18.805411+00:00","updated_at":"2026-11-08T07:38:18.827051+00:00","completed_at":"2026-11-08T07:38:18.825201+00:00","progress":{"total_steps":1,"required_steps":1,"completed_steps":1,"waiting_steps":0,"failed_steps":0,"uncertain_steps":0,"open_gap_count":0}},"open_gaps":[],"operations":[]}
+E   assert 200 == 404
+E    +  where 200 = <Response [200 OK]>.status_code
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/assignments/9cb89bf5-06cc-4b53-949f-b97dc1e774a2/responses/bound-question "HTTP/1.1 200 OK"
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../root-py311-plugins/pytest_freezegun.py:17: 16 warnings
+  /private/tmp/root-py311-plugins/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_root_clarification_continuation.py::test_question_only_answer_continues_same_job[gap-True-False]
+  /private/tmp/atom-clarification-continuation-20261108/backend/core/graphrag_engine.py:203: SyntaxWarning: "\%" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\%"? A raw string is also an option.
+    Escaped pattern where % and _ are escaped to \%
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_root_clarification_continuation.py::test_resolved_answer_rearms_old_one_shot_recovery
+FAILED tests/test_root_clarification_continuation.py::test_missing_declared_question_binding_refuses_without_resolution[step_id]
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================== 2 failed, 6 passed, 24 warnings in 14.80s ===================

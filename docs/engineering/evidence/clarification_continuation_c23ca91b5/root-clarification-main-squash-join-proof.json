@@ -1,0 +1,12 @@
+{
+  "executed_source": "c23ca91b51aa92f737ad62a845e24e477c5844e8",
+  "tree_before": "ca16e86ad8a68e6983a46c637e355da40cbdd129",
+  "main": "08b9015dbee1cdcfde6b65a082a35cd8859d99c4",
+  "equivalent_ancestor": "652b44a5b06f764784533d3a4cff4bb357e21660",
+  "main_tree": "4507f5c8495303db8326a1af9c5dd49452e2115e",
+  "ancestor_tree": "4507f5c8495303db8326a1af9c5dd49452e2115e",
+  "ancestor_in_candidate": true,
+  "meaning": "Current main is byte-identical to an ancestor already contained by the candidate. Joining squash ancestry does not omit any main change.",
+  "integrated_head": "cc8c0b2b6c8ce2c5c9c7c9ad7e0c440900d38657",
+  "tree_after": "ca16e86ad8a68e6983a46c637e355da40cbdd129"
+}
