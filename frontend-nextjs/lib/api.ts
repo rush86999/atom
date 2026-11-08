@@ -32,8 +32,9 @@ const MAX_RETRIES = 3;
 
 // The shared instance gets a fetch-style helper patched on below, so its type
 // includes it (callers such as lib/boards-api.ts use apiClient.fetch(...)).
+export type ApiFetchOptions = RequestInit & { retry?: boolean };
 type ApiClientWithFetch = AxiosInstance & {
-  fetch: (url: string, init?: RequestInit) => Promise<Response>;
+  fetch: (url: string, init?: ApiFetchOptions) => Promise<Response>;
 };
 
 // Create axios instance with default configuration
@@ -153,7 +154,7 @@ apiClient.interceptors.response.use(
 // instance — requests still flow through the auth-header and 401 interceptors.
 (apiClient as any).fetch = async (
   url: string,
-  init: RequestInit = {},
+  init: ApiFetchOptions = {},
 ): Promise<Response> => {
   const toResponse = (status: number, statusText: string, data: any): Response => {
     const body =
@@ -177,6 +178,8 @@ apiClient.interceptors.response.use(
       data: init.body,
       signal: init.signal,
       responseType: "json",
+      // Preserve the existing per-request retry policy through this adapter.
+      ...(init.retry === undefined ? {} : { retry: init.retry }),
     });
     return toResponse(response.status, response.statusText, response.data);
   } catch (error: any) {
