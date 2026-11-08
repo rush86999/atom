@@ -10,8 +10,7 @@
  *   POST /api/agent-governance/reject/:id           reject
  */
 
-import React, { useCallback, useEffect, useState } from "react";
-import { panelStyles as ps } from "../styles/panelStyles";
+import { useCallback, useEffect, useState } from "react";
 
 interface PendingApproval {
   approval_id?: string;

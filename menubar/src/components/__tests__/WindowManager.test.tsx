@@ -12,11 +12,11 @@
  * - Hotkey handling
  */
 
-import React from 'react';
 import { render, waitFor, fireEvent } from '@testing-library/react';
-import MenuBar from '../MenuBar';
+import MenuBar from '../../MenuBar';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
+import { useHotkeys } from '../../hooks/useHotkeys';
 
 // Mock Tauri API
 jest.mock('@tauri-apps/api/core', () => ({
@@ -28,60 +28,100 @@ jest.mock('@tauri-apps/api/event', () => ({
 }));
 
 // Mock hooks
-jest.mock('../hooks/useHotkeys', () => ({
+jest.mock('../../hooks/useHotkeys', () => ({
   __esModule: true,
-  default: jest.fn(() => ({
-    'Cmd+Q': { description: 'Quick Chat', action: expect.any(Function) },
-    'Cmd+H': { description: 'Toggle Menu', action: expect.any(Function) },
+  useHotkeys: jest.fn(() => ({
+    config: null,
+    isLoading: false,
+    updateHotkeys: jest.fn(),
+    triggerHotkey: jest.fn(),
+    formatHotkeyForDisplay: jest.fn((hotkey: string) => hotkey),
+    getHotkeyLabel: jest.fn(() => ''),
   })),
 }));
 
 // Mock components
-jest.mock('../components/QuickChat', () => {
+jest.mock('../QuickChat', () => {
+  const ReactModule = jest.requireActual('react') as typeof import('react');
   return function MockQuickChat() {
-    return React.createElement('div', { 'data-testid': 'quick-chat' }, 'QuickChat');
+    return ReactModule.createElement('div', { 'data-testid': 'quick-chat' }, 'QuickChat');
   };
 });
 
-jest.mock('../components/AgentList', () => {
-  return function MockAgentList({ agents }: any) {
-    return React.createElement('div', { 'data-testid': 'agent-list' }, `Agents: ${agents.length}`);
+jest.mock('../AgentList', () => {
+  const ReactModule = jest.requireActual('react') as typeof import('react');
+  return function MockAgentList({ agents }: { agents: ReadonlyArray<unknown> }) {
+    return ReactModule.createElement('div', { 'data-testid': 'agent-list' }, `Agents: ${agents.length}`);
   };
 });
 
-jest.mock('../components/CanvasList', () => {
-  return function MockCanvasList({ canvases }: any) {
-    return React.createElement('div', { 'data-testid': 'canvas-list' }, `Canvases: ${canvases.length}`);
+jest.mock('../CanvasList', () => {
+  const ReactModule = jest.requireActual('react') as typeof import('react');
+  return function MockCanvasList({ canvases }: { canvases: ReadonlyArray<unknown> }) {
+    return ReactModule.createElement('div', { 'data-testid': 'canvas-list' }, `Canvases: ${canvases.length}`);
   };
 });
 
-jest.mock('../components/StatusIndicator', () => {
-  return function MockStatusIndicator({ status }: any) {
-    return React.createElement('div', { 'data-testid': 'status-indicator' }, `Status: ${status}`);
+jest.mock('../StatusIndicator', () => {
+  const ReactModule = jest.requireActual('react') as typeof import('react');
+  return function MockStatusIndicator({ status }: { status: unknown }) {
+    return ReactModule.createElement('div', { 'data-testid': 'status-indicator' }, `Status: ${String(status)}`);
   };
 });
 
-jest.mock('../components/NotificationBadge', () => {
-  return function MockNotificationBadge({ count }: any) {
-    return React.createElement('div', { 'data-testid': 'notification-badge' }, `Notifications: ${count}`);
+jest.mock('../NotificationBadge', () => {
+  const ReactModule = jest.requireActual('react') as typeof import('react');
+  return function MockNotificationBadge({ count }: { count: number }) {
+    return ReactModule.createElement('div', { 'data-testid': 'notification-badge' }, `Notifications: ${count}`);
   };
 });
 
-jest.mock('../components/SettingsModal', () => {
-  return function MockSettingsModal({ show, onClose }: any) {
-    return show
-      ? React.createElement('div', { 'data-testid': 'settings-modal' }, 'Settings')
+jest.mock('../SettingsModal', () => {
+  const ReactModule = jest.requireActual('react') as typeof import('react');
+  return function MockSettingsModal({ isOpen }: { isOpen: boolean }) {
+    return isOpen
+      ? ReactModule.createElement('div', { 'data-testid': 'settings-modal' }, 'Settings')
       : null;
   };
 });
 
-jest.mock('../components/AgentDetail', () => {
-  return function MockAgentDetail({ agent, onClose }: any) {
-    return agent
-      ? React.createElement('div', { 'data-testid': 'agent-detail' }, `Agent: ${agent.name}`)
+jest.mock('../AgentDetail', () => {
+  const ReactModule = jest.requireActual('react') as typeof import('react');
+  return function MockAgentDetail({ agentId, agentName }: { agentId: string; agentName: string }) {
+    return agentId
+      ? ReactModule.createElement('div', { 'data-testid': 'agent-detail' }, `Agent: ${agentName}`)
       : null;
   };
 });
+
+const mockInvoke = invoke as jest.Mock;
+const mockListen = listen as jest.Mock;
+
+type TauriFixture = () => unknown;
+
+function mockTauriCommands(fixtures: Record<string, TauriFixture> = {}) {
+  const handlers: Record<string, TauriFixture> = {
+    get_recent_items: () => ({ agents: [], canvases: [] }),
+    get_unread_notifications: () => [],
+    get_session: () => null,
+    get_connection_status: () => ({
+      status: 'connected',
+      server_time: new Date().toISOString(),
+    }),
+  };
+
+  Object.assign(handlers, fixtures);
+
+  mockInvoke.mockImplementation((command: string) => {
+    const handler = handlers[command];
+    if (!handler) {
+      return Promise.reject(
+        new Error(`Unexpected Tauri command in WindowManager test: ${command}`)
+      );
+    }
+    return Promise.resolve(handler());
+  });
+}
 
 describe('Window Manager (MenuBar)', () => {
   const mockUser = {
@@ -95,7 +135,8 @@ describe('Window Manager (MenuBar)', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (listen as jest.Mock).mockResolvedValue(jest.fn());
+    mockListen.mockImplementation(() => Promise.resolve(jest.fn()));
+    mockTauriCommands();
   });
 
   /**
@@ -103,11 +144,6 @@ describe('Window Manager (MenuBar)', () => {
    * Expected: MenuBar component renders without crashing
    */
   test('test_renders_main_window', async () => {
-    (invoke as jest.Mock).mockResolvedValue({
-      agents: [],
-      canvases: [],
-    });
-
     const { getByTestId } = render(
       <MenuBar user={mockUser} token={mockToken} onLogout={jest.fn()} />
     );
@@ -122,11 +158,13 @@ describe('Window Manager (MenuBar)', () => {
    * Expected: Component mounts and initializes
    */
   test('test_create_window', async () => {
-    (invoke as jest.Mock).mockResolvedValue({
-      agents: [
-        { id: '1', name: 'Agent 1', status: 'online', execution_count: 0 },
-      ],
-      canvases: [],
+    mockTauriCommands({
+      get_recent_items: () => ({
+        agents: [
+          { id: '1', name: 'Agent 1', maturity_level: 'INTERN', status: 'online', last_execution: null, execution_count: 0 },
+        ],
+        canvases: [],
+      }),
     });
 
     const { getByTestId } = render(
@@ -144,11 +182,6 @@ describe('Window Manager (MenuBar)', () => {
    * Expected: Component unmounts cleanly
    */
   test('test_close_window', async () => {
-    (invoke as jest.Mock).mockResolvedValue({
-      agents: [],
-      canvases: [],
-    });
-
     const { unmount } = render(
       <MenuBar user={mockUser} token={mockToken} onLogout={jest.fn()} />
     );
@@ -168,11 +201,6 @@ describe('Window Manager (MenuBar)', () => {
    * Expected: Window state can be toggled
    */
   test('test_minimize_window', async () => {
-    (invoke as jest.Mock).mockResolvedValue({
-      agents: [],
-      canvases: [],
-    });
-
     const { getByTestId } = render(
       <MenuBar user={mockUser} token={mockToken} onLogout={jest.fn()} />
     );
@@ -191,11 +219,6 @@ describe('Window Manager (MenuBar)', () => {
    * Expected: Window can be maximized (Tauri operation)
    */
   test('test_maximize_window', async () => {
-    (invoke as jest.Mock).mockResolvedValue({
-      agents: [],
-      canvases: [],
-    });
-
     const { getByTestId } = render(
       <MenuBar user={mockUser} token={mockToken} onLogout={jest.fn()} />
     );
@@ -215,13 +238,9 @@ describe('Window Manager (MenuBar)', () => {
    */
   test('test_window_focus', async () => {
     const mockUnlisten = jest.fn();
-    (listen as jest.Mock).mockResolvedValue(mockUnlisten);
-    (invoke as jest.Mock).mockResolvedValue({
-      agents: [],
-      canvases: [],
-    });
+    mockListen.mockResolvedValue(mockUnlisten);
 
-    const { getByTestId } = render(
+    render(
       <MenuBar user={mockUser} token={mockToken} onLogout={jest.fn()} />
     );
 
@@ -238,23 +257,37 @@ describe('Window Manager (MenuBar)', () => {
    * Expected: Component manages state correctly
    */
   test('test_window_state_management', async () => {
-    (invoke as jest.Mock).mockResolvedValue({
-      agents: [
-        { id: '1', name: 'Agent 1', status: 'online', execution_count: 5 },
-        { id: '2', name: 'Agent 2', status: 'offline', execution_count: 0 },
-      ],
-      canvases: [
-        { id: 'c1', canvas_type: 'chart', created_at: '2024-01-01' },
-      ],
+    mockTauriCommands({
+      get_recent_items: () => ({
+        agents: [
+          { id: '1', name: 'Agent 1', maturity_level: 'INTERN', status: 'online', last_execution: null, execution_count: 5 },
+          { id: '2', name: 'Agent 2', maturity_level: 'STUDENT', status: 'offline', last_execution: null, execution_count: 0 },
+        ],
+        canvases: [
+          { id: 'c1', canvas_type: 'chart', created_at: '2024-01-01', agent_id: null, agent_name: null },
+        ],
+      }),
     });
 
-    const { getByTestId } = render(
+    const { getByTestId, queryByTestId, getByRole } = render(
       <MenuBar user={mockUser} token={mockToken} onLogout={jest.fn()} />
     );
 
     await waitFor(() => {
       expect(getByTestId('agent-list')).toBeTruthy();
+    });
+    expect(queryByTestId('canvas-list')).toBeNull();
+
+    // The supported UI shows one selected panel, not both panels at once.
+    fireEvent.click(getByRole('button', { name: /Canvas/ }));
+    await waitFor(() => {
       expect(getByTestId('canvas-list')).toBeTruthy();
+    });
+    expect(queryByTestId('agent-list')).toBeNull();
+
+    fireEvent.click(getByRole('button', { name: /Agents/ }));
+    await waitFor(() => {
+      expect(getByTestId('agent-list')).toHaveTextContent('Agents: 2');
     });
 
     // Verify data loaded
@@ -266,11 +299,6 @@ describe('Window Manager (MenuBar)', () => {
    * Expected: Hotkeys are registered and functional
    */
   test('test_hotkey_handling', async () => {
-    (invoke as jest.Mock).mockResolvedValue({
-      agents: [],
-      canvases: [],
-    });
-
     const { getByTestId } = render(
       <MenuBar user={mockUser} token={mockToken} onLogout={jest.fn()} />
     );
@@ -280,7 +308,6 @@ describe('Window Manager (MenuBar)', () => {
     });
 
     // Verify hotkeys hook was called
-    const { useHotkeys } = require('../hooks/useHotkeys');
     expect(useHotkeys).toHaveBeenCalled();
   });
 
@@ -290,13 +317,9 @@ describe('Window Manager (MenuBar)', () => {
    */
   test('test_notification_badge_updates', async () => {
     const mockUnlisten = jest.fn();
-    (listen as jest.Mock).mockResolvedValue(mockUnlisten);
-    (invoke as jest.Mock).mockResolvedValue({
-      agents: [],
-      canvases: [],
-    });
+    mockListen.mockResolvedValue(mockUnlisten);
 
-    const { getByTestId } = render(
+    render(
       <MenuBar user={mockUser} token={mockToken} onLogout={jest.fn()} />
     );
 
@@ -314,14 +337,6 @@ describe('Window Manager (MenuBar)', () => {
    */
   test('test_connection_status_polling', async () => {
     jest.useFakeTimers();
-    (invoke as jest.Mock).mockResolvedValue({
-      agents: [],
-      canvases: [],
-      connectionStatus: {
-        status: 'connected',
-        server_time: new Date().toISOString(),
-      },
-    });
 
     render(
       <MenuBar user={mockUser} token={mockToken} onLogout={jest.fn()} />
@@ -342,12 +357,7 @@ describe('Window Manager (MenuBar)', () => {
    * Expected: Settings modal can be opened and closed
    */
   test('test_settings_modal', async () => {
-    (invoke as jest.Mock).mockResolvedValue({
-      agents: [],
-      canvases: [],
-    });
-
-    const { getByTestId, queryByTestId } = render(
+    const { queryByTestId } = render(
       <MenuBar user={mockUser} token={mockToken} onLogout={jest.fn()} />
     );
 
@@ -364,11 +374,13 @@ describe('Window Manager (MenuBar)', () => {
    * Expected: Agent detail can be shown
    */
   test('test_agent_detail_view', async () => {
-    (invoke as jest.Mock).mockResolvedValue({
-      agents: [
-        { id: '1', name: 'Test Agent', status: 'online', execution_count: 10 },
-      ],
-      canvases: [],
+    mockTauriCommands({
+      get_recent_items: () => ({
+        agents: [
+          { id: '1', name: 'Test Agent', maturity_level: 'INTERN', status: 'online', last_execution: null, execution_count: 10 },
+        ],
+        canvases: [],
+      }),
     });
 
     const { getByTestId } = render(
@@ -389,11 +401,6 @@ describe('Window Manager (MenuBar)', () => {
    * Expected: Logout callback is triggered
    */
   test('test_logout_functionality', async () => {
-    (invoke as jest.Mock).mockResolvedValue({
-      agents: [],
-      canvases: [],
-    });
-
     const mockLogout = jest.fn();
 
     render(
@@ -413,11 +420,11 @@ describe('Window Manager (MenuBar)', () => {
    * Expected: Component handles API errors gracefully
    */
   test('test_error_handling_api_failures', async () => {
-    (invoke as jest.Mock).mockRejectedValue(new Error('API Error'));
+    mockInvoke.mockImplementation(() => Promise.reject(new Error('API Error')));
 
     const consoleSpy = jest.spyOn(console, 'error').mockImplementation();
 
-    const { getByTestId } = render(
+    render(
       <MenuBar user={mockUser} token={mockToken} onLogout={jest.fn()} />
     );
 
@@ -437,11 +444,7 @@ describe('Window Manager (MenuBar)', () => {
    */
   test('test_event_listeners_cleanup', async () => {
     const mockUnlisten = jest.fn();
-    (listen as jest.Mock).mockResolvedValue(mockUnlisten);
-    (invoke as jest.Mock).mockResolvedValue({
-      agents: [],
-      canvases: [],
-    });
+    mockListen.mockResolvedValue(mockUnlisten);
 
     const { unmount } = render(
       <MenuBar user={mockUser} token={mockToken} onLogout={jest.fn()} />
@@ -463,14 +466,12 @@ describe('Window Manager (MenuBar)', () => {
    * Expected: Connection status updates are handled
    */
   test('test_connection_status_updates', async () => {
-    (invoke as jest.Mock).mockResolvedValue({
-      agents: [],
-      canvases: [],
-      connectionStatus: {
+    mockTauriCommands({
+      get_connection_status: () => ({
         status: 'connected',
         server_time: new Date().toISOString(),
         device_id: 'device-123',
-      },
+      }),
     });
 
     const { getByTestId } = render(
@@ -490,15 +491,16 @@ describe('Window Manager (MenuBar)', () => {
    * Expected: Component shows loading state initially
    */
   test('test_loading_state', async () => {
-    (invoke as jest.Mock).mockImplementation(() =>
-      new Promise((resolve) => {
-        setTimeout(() => {
-          resolve({ agents: [], canvases: [] });
-        }, 100);
-      })
-    );
+    mockTauriCommands({
+      get_recent_items: () =>
+        new Promise((resolve) => {
+          setTimeout(() => {
+            resolve({ agents: [], canvases: [] });
+          }, 100);
+        }),
+    });
 
-    const { getByTestId } = render(
+    render(
       <MenuBar user={mockUser} token={mockToken} onLogout={jest.fn()} />
     );
 

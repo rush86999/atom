@@ -12,7 +12,7 @@ interface ChatMessage {
 
 interface QuickChatProps {
   onSend: (message: string, agentId?: string) => Promise<string | undefined>;
-  onSendFeedback?: (messageId: string, feedback: "up" | "down") => void;
+  onSendFeedback?: (messageId: string, feedback: "up" | "down" | null) => void;
   agents: Array<{ id: string; name: string; maturity_level: string }>;
   autoFocus?: boolean;
 }
@@ -111,7 +111,7 @@ export default function QuickChat({
     navigator.clipboard.writeText(content);
   };
 
-  const handleFeedback = (messageId: string, feedback: "up" | "down") => {
+  const handleFeedback = (messageId: string, feedback: "up" | "down" | null) => {
     setHistory((prev) =>
       prev.map((msg) => (msg.id === messageId ? { ...msg, feedback } : msg))
     );

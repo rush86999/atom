@@ -13,7 +13,6 @@ import AnalyticsPanel from "./components/AnalyticsPanel";
 import ApprovalsPanel from "./components/ApprovalsPanel";
 
 type MenuTab = "chat" | "agents" | "canvases" | "workflows" | "approvals" | "integrations" | "analytics";
-import { getIntegrationHealth } from "../src/services/integrationService";
 // Approvals badge: poll count so supervisors see pending HITL items
 
 import AgentDetail from "./components/AgentDetail";
@@ -36,7 +35,7 @@ interface Notification {
   actionUrl?: string;
 }
 
-export default function MenuBar({ user, token, onLogout }: MenuBarProps) {
+export default function MenuBar({ token, onLogout }: MenuBarProps) {
   const [agents, setAgents] = useState<AgentSummary[]>([]);
   const [canvases, setCanvases] = useState<CanvasSummary[]>([]);
   const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>({
@@ -261,11 +260,11 @@ export default function MenuBar({ user, token, onLogout }: MenuBarProps) {
         <div>
           <div style={{ fontSize: "14px", fontWeight: 700, color: "#fff" }}>Atom</div>
           <div style={{ fontSize: "11px", color: "#888" }}>
-            {connectionStatus === ConnectionStatus.CONNECTED ? "Connected" : connectionStatus}
+            {connectionStatus.status === "connected" ? "Connected" : connectionStatus.status}
           </div>
         </div>
         <div style={{ display: "flex", alignItems: "center", gap: "12px" }}>
-          <StatusIndicator status={connectionStatus} />
+          <StatusIndicator status={connectionStatus.status} agentStatus={agentStatus} latency={latency} />
           <NotificationBadge
             count={unreadCount}
             notifications={notifications}
@@ -363,6 +362,7 @@ export default function MenuBar({ user, token, onLogout }: MenuBarProps) {
           <QuickChat
             autoFocus={true}
             onSend={handleQuickChat}
+            agents={agents}
           />
         )}
 

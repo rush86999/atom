@@ -1,143 +1,93 @@
 # Atom Menu Bar Companion
 
-A macOS menu bar companion app for Atom AI-Powered Automation Platform.
+A development macOS companion for Atom, built with React, TypeScript and Tauri 2.
+It provides interfaces for chat, agents, canvases, approvals and workflows.
+Build verification does not establish that every interface works against a live backend.
 
-## Features
+## Verified build scope
 
-- **Quick Chat**: Send messages to agents directly from the menu bar (Cmd+Shift+A)
-- **Recent Agents**: View and quickly access recently used agents
-- **Recent Canvases**: View recent canvas presentations
-- **Connection Status**: Real-time connection status indicator
-- **Native macOS Integration**: System tray, global hotkeys, notifications
+The November 2026 build repair checks the strict TypeScript/Vite build, all 17
+controlled WindowManager frontend tests, and a locked native Rust check and binary
+build over the real frontend assets on Apple Silicon macOS. The local build used
+Node 25.2.1, npm 11.6.2 and Rust/Cargo 1.98.1. These are observed versions, not a
+minimum-version or cross-platform compatibility matrix.
+
+No application launch, real account login, Keychain operation, global shortcut,
+notification, installer, updater, signing/notarization or distribution was qualified
+by that build checkpoint. See the source and test files for implementation details;
+controlled frontend mocks do not certify the corresponding OS or backend operation.
 
 ## Prerequisites
 
-- macOS 10.13+
-- Node.js 18+
-- Rust 1.70+ (for Tauri)
-- Atom backend running on `http://localhost:8000`
+- macOS with Xcode or its command-line tools and a working native Rust toolchain.
+- Node.js and npm; use the checked-in npm lockfile.
+- The configured Tauri bundle minimum is macOS 10.15. That setting is not evidence
+  that this locked dependency set runs on every macOS version from 10.15 onward.
+- An Atom backend is needed for actual account and task operations, not compilation.
 
-## Installation
+See the [Tauri prerequisites](https://v2.tauri.app/start/prerequisites/) and
+[Vite integration guide](https://v2.tauri.app/start/frontend/vite/).
 
-```bash
-cd menubar
-npm install
-```
+## Install and check
 
-## Development
-
-```bash
-# Start Vite dev server
-npm run dev
-
-# Start Tauri dev mode
-npm run tauri:dev
-```
-
-## Building
+Run from this directory:
 
 ```bash
-# Build for production
-npm run tauri:build
+npm ci --ignore-scripts
+npm run build
+npm test -- --runInBand --watch=false
+cd src-tauri
+cargo check --locked
+cargo build --locked
 ```
 
-The built DMG will be in `src-tauri/target/release/bundle/dmg/`.
+Build the frontend first: the native context embeds the real `../dist` assets.
+Do not substitute an empty directory to make the native build pass. Jest uses its
+local crawler (`watchman: false`), without modifying a global Watchman installation.
 
-## Usage
+## Development and packaging
 
-1. **Sign In**: Click the Atom icon in the menu bar and sign in with your Atom credentials
-2. **Quick Chat**: Type your message and press Cmd+Enter to send
-3. **Keyboard Shortcut**: Press `Cmd+Shift+A` anywhere to open quick chat
-4. **View Recent**: Scroll through recent agents and canvases
+`npm run dev` starts Vite. `npm run tauri:dev` starts the native application and
+can access OS facilities; that is a separate runtime exercise. Development and
+packaging must use an explicitly configured test account/backend.
 
-## Configuration
+`npm run tauri:build` invokes the packaging path. It is not covered by the binary
+build above. The checked-in bundle configuration still contains placeholder
+signing identity and updater public-key values. Configure and independently verify
+signing, notarization, updater trust and release artifacts before distribution.
+No developer certificate or updater key is supplied by this repository checkpoint.
 
-Edit `src-tauri/src/commands.rs` to change the API base URL:
+## Configuration and implementation boundaries
 
-```rust
-const API_BASE_URL: &str = "http://localhost:8000";
-```
+- Native HTTP commands currently use `API_BASE_URL` in
+  `src-tauri/src/commands.rs` (`http://localhost:8000`).
+- The WebSocket client has its own URL in `src-tauri/src/websocket.rs`.
+- Some frontend requests use `localStorage.atom_server_url`. Changing that value
+  does **not** change every native request. A unified server configuration remains
+  work to complete; do not assume Settings redirects all traffic.
+- The Tauri content-security policy is a separate network boundary. Check it when
+  changing destinations; do not remove it to make a connection succeed.
+- Native code includes Keychain-backed session handling. Persistence and account
+  behavior need a real, authorized runtime test; compilation is insufficient.
+- `src-tauri/src/hotkeys.rs::register_hotkeys` is currently a placeholder.
+  Keyboard labels, configured shortcuts and a `quick-chat-hotkey` event listener
+  do not establish a working OS-wide shortcut or durable shortcut preferences.
 
-For production, update this to your production API URL.
+## Architecture reference
 
-## Architecture
+- `src/MenuBar.tsx`: current-tab UI and command/event consumers.
+- `src/types.ts` and `src/hooks`: shared frontend types and hooks.
+- `src/components/__tests__/WindowManager.test.tsx`: controlled tab, event and
+  command tests; no real OS integration.
+- `src-tauri/src/main.rs`: application, tray and command registration.
+- `src-tauri/src/commands.rs`: native HTTP and session operations.
+- `src-tauri/src/hotkeys.rs`: shortcut configuration and unfinished registration.
+- `src-tauri/src/websocket.rs`: native WebSocket client.
 
-### Frontend
-- **React 18**: UI framework
-- **TypeScript**: Type safety
-- **Tauri API**: Native system integration
-
-### Backend (Rust)
-- **Tauri v2**: Desktop app framework
-- **tokio**: Async runtime
-- **reqwest**: HTTP client
-- **keyring**: Secure token storage in macOS Keychain
-- **tokio-tungstenite**: WebSocket client
-
-### Backend API Integration
-
-The menubar app communicates with these Atom backend endpoints:
-
-- `POST /api/menubar/auth/login` - Authentication
-- `GET /api/menubar/status` - Connection status
-- `GET /api/menubar/recent/agents` - Recent agents
-- `GET /api/menubar/recent/canvases` - Recent canvases
-- `POST /api/menubar/quick/chat` - Quick chat
-
-## Security
-
-- Tokens stored securely in macOS Keychain
-- HTTPS for production API communication
-- Bearer token authentication
-- Auto-hide on window focus loss
-
-## Development Notes
-
-### Window Behavior
-- Window auto-hides when it loses focus (standard menu bar behavior)
-- Use the system tray icon to show the window again
-- Global hotkey `Cmd+Shift+A` to show and focus quick chat
-
-### State Management
-- Auth token stored in Rust app state and macOS Keychain
-- React components use Tauri invoke to call Rust commands
-- Session persists across app restarts (via Keychain)
-
-### Global Hotkey
-The `Cmd+Shift+A` hotkey is registered in Tauri's setup. When pressed:
-1. Shows the menu bar window
-2. Focuses on the quick chat input
-3. Triggers the `quick-chat-hotkey` event
-
-### WebSocket (Future)
-Real-time agent responses and canvas presentations will be delivered via WebSocket connection. See `src-tauri/src/websocket.rs` for the client implementation.
-
-## Troubleshooting
-
-### "Failed to connect to server"
-- Ensure Atom backend is running on port 8000
-- Check `API_BASE_URL` in `src-tauri/src/commands.rs`
-- Verify network connectivity
-
-### "Login failed"
-- Check email and password
-- Verify backend API is accessible
-- Check backend logs for errors
-
-### Window doesn't appear
-- Check system tray for Atom icon
-- Use `Cmd+Shift+A` hotkey
-- Check App.log for errors
+Keep these boundaries explicit when adding functionality or extending the
+qualification matrix. A successful build must not be presented as a working
+installer, secure updater, live integration or universally compatible companion.
 
 ## License
 
-MIT
-
-## Packaging (post-pilot)
-
-The companion is dev-quality. To ship a real desktop distribution:
-`pnpm tauri build` produces the bundle; signing/notarization require an
-Apple Developer ID (set `APPLE_SIGNING_IDENTITY` + notarytool credentials)
-and the Tauri updater (`tauri.conf.json > plugins > updater`) — none of
-which are configured here. The server URL is read from Settings (stored in
-localStorage `atom_server_url`); nothing is hardcoded.
+See the repository [LICENSE](../LICENSE).
