@@ -1,0 +1,33 @@
+{
+  "packet": "oracle_registry_refresh_20261107",
+  "executed_source": "908026a39",
+  "source_files": {
+    ".github/workflows/ci.yml": "b7dac9089f9b828a7a1e486664bace6b4c979b5027d3971b40d98c5c120f11af",
+    "backend/core/action_effects.py": "47b9130cf601eb581159c117281febbbf692f9372c1226d621bbc55c5c480e5a",
+    "backend/core/action_registry.py": "5acd3dda2b071b73f15b39721f6dd900b0067c319f74cfea47efedc77d017f0c",
+    "backend/core/agent_radio/radio_actions.py": "ff9c99e2376f087a785301ae26f987a18f9d315a0b202234f209ddce003e51b9",
+    "backend/core/agent_radio/radio_service.py": "5fa36db40a25144cc1f7627bb3d31cedd29b0312953dbdd3953ff3ccbe714c29",
+    "backend/core/agent_radio/radio_thread_mutations.py": "d27e9f1f3a35bfac5b4c0685d320c58a70f9970a48439ddb0169b8dfda1ec6ba",
+    "backend/core/connected_actions.py": "8acfce904f280b5e7529cbf44f3af4aede3831e53293df1e37f6c7643d43423a",
+    "backend/core/database.py": "fd3736e7f679b9b30e242597e25a27565d3ab93fc8c0efd3ea0b1cef76e9b16e",
+    "backend/core/generic_agent.py": "432904f89608b6c98b05834957c79023ed82f2ec1162056e3640f8da728f7191",
+    "backend/core/models.py": "9aec60c9155da8af8652b3209839c658d78896837b1a30d38763007b44e14b59",
+    "backend/core/models_registration.py": "87e51e95544b656e4ff18fd525f87d0100bd106b7e30ab7626945540ac95e323",
+    "backend/core/oracle/__init__.py": "70852a61398d0fdcbe4202beaa708dab8045dd49929d77f860c2be357e4614df",
+    "backend/core/oracle/postcondition_verifiers.py": "49e68f5909675a276a7376d8abbcd7c9273eeebce93ee926ff6593531d2f1255",
+    "backend/core/oracle/request_expectations.py": "42d50df14e73773cac837bf68a627e12eca961413f09bf7fb970ad60b0a46cd5",
+    "backend/tests/test_covpush_w80a_radio.py": "79b6620f55ac6f6c5a88b41593e4fecc87021a49a8c12dc9ea91dbf6ba87d89c",
+    "backend/tests/test_oracle_radio_create_thread.py": "087c3ae5069b196e93f490f4b29d37aa6dade78064f4d62490287e1e91120607",
+    "backend/tests/test_oracle_registry_verification_gap.py": "3ccd9be4cac3b651a2ccfbd352b3cb81b6b29d49d02022947511f3d312ee79ee",
+    "backend/tests/unit/agents/test_agent_radio_tool.py": "9e3f4e81b17e1d5bca8cf8f9d447e9ab79da9c7fec670bf16aea88009d3a5b97",
+    "backend/tests/unit/agents/test_radio_actions.py": "317d4fe81bdf6d0fb5e8f24d96ad95da87a2c2440f243f5d28954b31cc90076d"
+  },
+  "artifacts": {
+    "README.md": "50801e98495f90d60a3bb8cad0d14ebeb25ac928c257a10922632410dcdf10c8",
+    "generate_inventory.py": "90b9426ed5418a42754334105b913ee85d5637f25965b06ee1b0527044f2f5b1",
+    "inventory-exit.json": "312bfae32e75bac6515e40a04647e2821cb077e16cc4a6e8122b6ade4ddd0a11",
+    "inventory-run.log": "05772b2ba61e2ece96da261fb27ad2b8268677b9a36f7b8d86a138329a9cd2f1",
+    "inventory.json": "578f8d0ff96e5114e6429e08e0c2a7143769fe8a9eec97fbd7187605bd85b54e",
+    "verification.json": "d109a6b7745c6cae8d478d0c8bfd0a94495d4a3912c917a201775d0f886166ab"
+  }
+}

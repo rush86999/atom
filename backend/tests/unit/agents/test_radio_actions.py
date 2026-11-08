@@ -30,6 +30,23 @@ def _reset_server():
     radio_server.reset_radio_server()
 
 
+def _seed_radio_agents(db_session, tenant_id="t1"):
+    """Persist the real AgentRegistry rows the create-thread authority gate reads."""
+    from core.models import AgentRegistry
+
+    db_session.add_all([
+        AgentRegistry(
+            id="agent_a", name="Agent A", category="operations",
+            module_path="x.a", class_name="A", status="autonomous",
+            enabled=True, tenant_id=tenant_id, workspace_id=None),
+        AgentRegistry(
+            id="agent_b", name="Agent B", category="operations",
+            module_path="x.b", class_name="B", status="intern",
+            enabled=True, tenant_id=tenant_id, workspace_id=None),
+    ])
+    db_session.commit()
+
+
 def _ctx(agent_id="agent_a", tier="autonomous", tenant_id="t1"):
     return {"agent_id": agent_id, "tier": tier, "tenant_id": tenant_id}
 
@@ -100,6 +117,7 @@ class TestHappyPath:
             yield db_session
 
         monkeypatch.setattr("core.database.get_db_session", _cm)
+        _seed_radio_agents(db_session, tenant_id="t1")
 
         # 1) create a thread with two members.
         created = await action_registry.execute_action(
@@ -143,6 +161,7 @@ class TestHappyPath:
             yield db_session
 
         monkeypatch.setattr("core.database.get_db_session", _cm)
+        _seed_radio_agents(db_session, tenant_id="t1")
         created = await action_registry.execute_action(
             "radio.create_thread",
             {"name": "beta", "member_agent_ids": ["agent_b"]},

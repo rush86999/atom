@@ -1,0 +1,101 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-07 14:33:04 [    INFO] MCP Service initialized
+
+tests/test_oracle_radio_create_thread.py::test_exact_create_is_independently_verified 
+-------------------------------- live log setup --------------------------------
+2026-11-07 14:33:04 [    INFO] EscalationManager initialized
+2026-11-07 14:33:04 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 14:33:04 [    INFO] EscalationManager initialized
+2026-11-07 14:33:04 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-07 14:33:04 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-07 14:33:04 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:33:05 [    INFO] radio: thread a58c8671-2d2a-4e63-aff0-c07540e28816 created by agent-a
+PASSED                                                                   [  3%]
+tests/test_oracle_radio_create_thread.py::test_model_supplied_identity_args_cannot_override_server_scope 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:33:06 [    INFO] radio: thread a5b9149d-412d-4070-a00a-848b41f3ef50 created by agent-a
+PASSED                                                                   [  6%]
+tests/test_oracle_radio_create_thread.py::test_same_operation_replay_does_not_duplicate 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:33:07 [    INFO] radio: thread ab18a33d-5ad6-4a41-b0c1-ea47aea0b6f3 created by agent-a
+PASSED                                                                   [  9%]
+tests/test_oracle_radio_create_thread.py::test_changed_material_same_operation_conflicts 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:33:07 [    INFO] radio: thread 687d4334-1837-4026-b414-e89bf2ad7287 created by agent-a
+PASSED                                                                   [ 12%]
+tests/test_oracle_radio_create_thread.py::test_changed_roster_is_refuted 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:33:08 [    INFO] radio: thread dffa9110-cbd6-46da-a849-21087268fe16 created by agent-a
+PASSED                                                                   [ 15%]
+tests/test_oracle_radio_create_thread.py::test_changed_name_case_is_refuted 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:33:09 [    INFO] radio: thread 7e06448b-e934-4b3a-8b5b-1c9c246a2a03 created by agent-a
+PASSED                                                                   [ 18%]
+tests/test_oracle_radio_create_thread.py::test_missing_row_is_refuted 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:33:09 [    INFO] radio: thread dbc513f0-6082-42e8-a420-8f21eada0a53 created by agent-a
+PASSED                                                                   [ 21%]
+tests/test_oracle_radio_create_thread.py::test_duplicate_operation_rows_are_refuted 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:33:10 [    INFO] radio: thread 1792df6c-ee66-43ae-a53f-7433d62434af created by agent-a
+PASSED                                                                   [ 25%]
+tests/test_oracle_radio_create_thread.py::test_stale_member_authority_refutes_replay 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:33:11 [    INFO] radio: thread 0ce5809e-ee98-4832-af52-be1b9b799f17 created by agent-a
+PASSED                                                                   [ 28%]
+tests/test_oracle_radio_create_thread.py::test_moved_member_workspace_refutes 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:33:12 [    INFO] radio: thread a3115482-f5f9-4408-8f1b-d679fd818fdc created by agent-a
+PASSED                                                                   [ 31%]
+tests/test_oracle_radio_create_thread.py::test_legacy_replay_without_result_identity_uses_operation_binding 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:33:12 [    INFO] radio: thread 07187b33-aaa0-4550-b567-57c8c97dd796 created by agent-a
+PASSED                                                                   [ 34%]
+tests/test_oracle_radio_create_thread.py::test_readback_unavailable_is_uncertain_with_known_id 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:33:13 [    INFO] radio: thread 77d9df09-a3b7-42dd-b810-1e447eabcb7b created by agent-a
+PASSED                                                                   [ 37%]
+tests/test_oracle_radio_create_thread.py::test_readback_mismatch_is_uncertain_with_known_id 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:33:14 [    INFO] radio: thread 451971d4-a5e9-4ddb-bff2-41100916d5b2 created by agent-a
+PASSED                                                                   [ 40%]
+tests/test_oracle_radio_create_thread.py::test_commit_failure_is_uncertain_without_row PASSED [ 43%]
+tests/test_oracle_radio_create_thread.py::test_authority_negatives_refuse_before_effect[ghost-members0-tenant-1-ws-1-autonomous-creator agent is not registered] PASSED [ 46%]
+tests/test_oracle_radio_create_thread.py::test_authority_negatives_refuse_before_effect[agent-disabled-members1-tenant-1-ws-1-autonomous-creator agent is disabled] PASSED [ 50%]
+tests/test_oracle_radio_create_thread.py::test_authority_negatives_refuse_before_effect[agent-paused-members2-tenant-1-ws-1-autonomous-creator agent is paused] PASSED [ 53%]
+tests/test_oracle_radio_create_thread.py::test_authority_negatives_refuse_before_effect[agent-c-members3-tenant-1-ws-1-autonomous-below INTERN maturity] PASSED [ 56%]
+tests/test_oracle_radio_create_thread.py::test_authority_negatives_refuse_before_effect[agent-a-members4-tenant-1-ws-1-autonomous-member 'ghost-member' agent is not registered] PASSED [ 59%]
+tests/test_oracle_radio_create_thread.py::test_authority_negatives_refuse_before_effect[agent-a-members5-tenant-1-ws-1-autonomous-member 'agent-disabled' agent is disabled] PASSED [ 62%]
+tests/test_oracle_radio_create_thread.py::test_authority_negatives_refuse_before_effect[agent-a-members6-tenant-1-ws-1-autonomous-another workspace] PASSED [ 65%]
+tests/test_oracle_radio_create_thread.py::test_authority_negatives_refuse_before_effect[agent-a-members7-tenant-1-ws-1-autonomous-another tenant] PASSED [ 68%]
+tests/test_oracle_radio_create_thread.py::test_invalid_material_refuses_before_effect[overrides0-name is required] PASSED [ 71%]
+tests/test_oracle_radio_create_thread.py::test_invalid_material_refuses_before_effect[overrides1-member_agent_ids must list at least one other agent] PASSED [ 75%]
+tests/test_oracle_radio_create_thread.py::test_invalid_material_refuses_before_effect[overrides2-member_agent_ids must list at least one other agent] PASSED [ 78%]
+tests/test_oracle_radio_create_thread.py::test_invalid_material_refuses_before_effect[overrides3-scope_hint must be one of fleet, task, manual] PASSED [ 81%]
+tests/test_oracle_radio_create_thread.py::test_invalid_material_refuses_before_effect[overrides4-name exceeds 255 characters] PASSED [ 84%]
+tests/test_oracle_radio_create_thread.py::test_personal_null_scope_is_valid 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:33:25 [    INFO] radio: thread 78f056da-6ab9-41ba-9638-dba22f4e4cb8 created by personal-a
+PASSED                                                                   [ 87%]
+tests/test_oracle_radio_create_thread.py::test_default_scope_is_valid 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:33:26 [    INFO] radio: thread f03eb097-4019-4dac-ad03-f304b96e1922 created by default-a
+PASSED                                                                   [ 90%]
+tests/test_lead_radio_thread_authority_linearization.py::test_authority_change_before_thread_write_has_zero_effect[agent-a] PASSED [ 93%]
+tests/test_lead_radio_thread_authority_linearization.py::test_authority_change_before_thread_write_has_zero_effect[agent-b] PASSED [ 96%]
+tests/test_lead_radio_thread_authority_linearization.py::test_current_authority_thread_valid_twin 
+-------------------------------- live log call ---------------------------------
+2026-11-07 14:33:28 [    INFO] radio: thread 60e9a3d8-3027-4765-b109-a1238687ebb6 created by agent-a
+PASSED                                                                   [100%]
+
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+======================= 32 passed, 7 warnings in 39.87s ========================
+
+STDERR

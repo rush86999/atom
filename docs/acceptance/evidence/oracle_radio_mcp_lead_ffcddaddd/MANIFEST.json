@@ -1,0 +1,22 @@
+{
+  "executed_source": "ffcddaddd210adcc5c78503c229aae2491716931",
+  "source_files": {
+    "backend/core/agent_radio/radio_actions.py": "956cb76f5367e90c7b9218d47ffed693786de3b7477701f301506cbcd99ec333",
+    "backend/core/agent_radio/radio_thread_mutations.py": "bcdcc1719a972c4e31399885f3b17fb165dabd172f347bd84efbcd6fac37d714",
+    "backend/core/agent_radio/radio_service.py": "5fa36db40a25144cc1f7627bb3d31cedd29b0312953dbdd3953ff3ccbe714c29",
+    "backend/core/mcp_service.py": "14c60c2d985b76f292e8a62cab6f8a3fb683a8e51dd6124df33a329a9814719a",
+    "backend/core/action_registry.py": "2d81845f11c2cf1962e6172fb624a4630f66dec00a5ebd77c3b6bba54ddd1bef",
+    "backend/core/oracle/postcondition_verifiers.py": "f313d0ac4300e940f7093afa711c85e1d0a0e59ce39fc77e40c2161d8cedcf03",
+    "backend/core/oracle/request_expectations.py": "e6bcc5c9bbbc1684a8aa750d4657e95ccaeb0d1d7fb68ba8c75927eda3788381",
+    "backend/tests/test_oracle_radio_create_thread.py": "087c3ae5069b196e93f490f4b29d37aa6dade78064f4d62490287e1e91120607",
+    "backend/tests/test_lead_radio_thread_authority_linearization.py": "f9d44155f5ba7a4021d2a1bcf2d35221e1038c7f99cae285d7b9a7a161ee59d2",
+    "backend/tests/test_lead_radio_mcp_replay.py": "f79c5ebcdd59dfd8e575c447c178abe3944da514b436b6e23e71d9485aabc00f",
+    "backend/tests/test_oracle_radio_thread_replay.py": "147c36bb37433fb734c76772461056e0bf98a7c51d3775361fed2f014d203c62"
+  },
+  "artifacts": {
+    "root-radio-mcp-final-review.log": "efed11a5c8cf489f9b7368234fd2b5e613ddb13c9d0a4ad3f8009ccc7a9738d8",
+    "README.md": "20e7e548f9ca699baa96712b18b524f168c7e43691a3d0f5a95c9fd0560262d6",
+    "root-radio-mcp-final-review.spec.json": "00b3545f4713e077be349925ed295bf8067cd86c659059f891ead73f3bf34baa",
+    "root-radio-mcp-final-review.exit.json": "5250677057ae7deda7192ba5f5fecc7f4d795ecf6ff916669933817bda040e28"
+  }
+}
