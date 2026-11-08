@@ -1,0 +1,32 @@
+{
+  "hosted_head": "ebe22835cd3c858488f30dbcab73ce266519c3e9",
+  "integrated_source": "5c8400a125ee9afe6b1d0302646a260bc51478c0",
+  "comparison": {
+    "backend/requirements.txt": {
+      "hosted_source": "sha256:f898a07127dad556f0ef59b21dc4e92c5cefa612957c15022e951793e30217f9",
+      "integrated_source": "sha256:f898a07127dad556f0ef59b21dc4e92c5cefa612957c15022e951793e30217f9",
+      "equal": true
+    },
+    "scripts/quickstart.sh": {
+      "hosted_source": "sha256:740381e79b0bf9fa2387c74082ac081c72197e0a678e1e95045125567a9e7781",
+      "integrated_source": "sha256:740381e79b0bf9fa2387c74082ac081c72197e0a678e1e95045125567a9e7781",
+      "equal": true
+    },
+    "scripts/ci/verify_quickstart_storage.py": {
+      "hosted_source": "sha256:58a6b58db56c5cd8ac67e20cd527b40af7e395148bdd61880ed61a336bb29f67",
+      "integrated_source": "sha256:58a6b58db56c5cd8ac67e20cd527b40af7e395148bdd61880ed61a336bb29f67",
+      "equal": true
+    },
+    "backend/tests/test_quickstart_matrix_contract.py": {
+      "hosted_source": "sha256:0397014e499a6d7a21c21720c4b2c19230e4388633fdccdb7d6ad38217977b53",
+      "integrated_source": "sha256:0397014e499a6d7a21c21720c4b2c19230e4388633fdccdb7d6ad38217977b53",
+      "equal": true
+    },
+    ".github/workflows/ci.yml": {
+      "hosted_source": "sha256:724959f1625d43501356fd1188c6ebb2ffa0f45356dd9ae6cfd76423c102aec9",
+      "integrated_source": "sha256:68d7c945b056ae20e4dbfcda038946941e2eedbfa851e9a05e61f4d3536ebe4e",
+      "equal": false
+    }
+  },
+  "fresh_integrated_head_CI_required": true
+}
