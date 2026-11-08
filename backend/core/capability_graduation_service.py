@@ -322,6 +322,17 @@ class CapabilityGraduationService:
                     int(active_baseline),
                 )
 
+            # Keep the epoch's clock after the active hold is removed. Legacy
+            # baselines without a clock anchor at their first new observation;
+            # the receipt consumer treats that observation as unverified.
+            if (int(stats.get("epoch_baseline_verified_success") or 0) > 0
+                    and not stats.get("epoch_started_at")):
+                stats["epoch_started_at"] = (
+                    active.get("at") or stats["last_outcome_at"])
+                stats["epoch_time_origin"] = (
+                    "regression_marker" if active.get("at")
+                    else "legacy_first_observed")
+
             # VERIFIED REGRESSION revokes earned autonomy. A capability that had
             # verified successes and then fails external verification is not
             # "slow to gain, fast to lose" only on a score: the runtime gate
@@ -345,6 +356,8 @@ class CapabilityGraduationService:
                     "epoch": int(previous.get("epoch") or 0) + 1,
                     "reentry_successes": 0,
                 }
+                stats["epoch_started_at"] = revocations[capability_name]["at"]
+                stats["epoch_time_origin"] = "verified_regression"
                 _maturities(config)[
                     capability_name] = CapabilityMaturityLevel.STUDENT
 
@@ -437,6 +450,8 @@ class CapabilityGraduationService:
             stats["epoch_baseline_verified_success"] = int(
                 stats.get("verified_success") or 0)
             stats["epoch_baseline_origin"] = "human_correction"
+            stats["epoch_started_at"] = datetime.now(timezone.utc).isoformat()
+            stats["epoch_time_origin"] = "human_correction"
             stats_map[capability_name] = stats
             return config
 

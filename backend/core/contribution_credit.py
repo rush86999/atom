@@ -399,14 +399,20 @@ def _pre_revocation(
     config = _as_dict(raw)
     revocations = _as_dict(config.get("autonomy_revocations"))
     marker = _as_dict(revocations.get(capability))
-    if not marker:
+    stats = _as_dict(_as_dict(config.get("capability_stats")).get(capability))
+    has_epoch = bool(marker or stats.get("epoch_started_at")
+                     or stats.get("epoch_baseline_verified_success"))
+    if not has_epoch:
         return False, True, raw
-    revoked_at = _parse_time(marker.get("at"))
+    marker_at = _parse_time(marker.get("at")) if marker else None
+    epoch_at = _parse_time(stats.get("epoch_started_at")) or (
+        marker_at if "epoch_started_at" not in stats else None)
     source_at = _parse_time(source_created_at)
-    if revoked_at is None or source_at is None:
+    if epoch_at is None or source_at is None or (marker and marker_at is None):
         return True, True, raw
     try:
-        return source_at < revoked_at, True, raw
+        cutoff = max(epoch_at, marker_at) if marker_at else epoch_at
+        return source_at < cutoff, True, raw
     except (TypeError, ValueError):
         return True, True, raw
 
