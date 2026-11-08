@@ -388,7 +388,8 @@ def test_loader_executes_attested_source_despite_valid_stale_bytecode(copied_rep
 
     target = copied_repo / "backend/core/governance_cache.py"
     target.write_text(target.read_text() + "\nSOURCE_BINDING_PROBE = 'old'\n")
-    py_compile.compile(str(target), doraise=True)
+    py_compile.compile(str(target), doraise=True,
+                       invalidation_mode=py_compile.PycInvalidationMode.TIMESTAMP)
     before = target.stat()
     target.write_text(target.read_text().replace("SOURCE_BINDING_PROBE = 'old'",
                                                 "SOURCE_BINDING_PROBE = 'new'"))

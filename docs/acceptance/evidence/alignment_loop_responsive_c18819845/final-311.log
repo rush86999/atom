@@ -1,0 +1,127 @@
+
+tests/test_org_politics_automation.py::TestResolvedFlag::test_default_off_without_env_or_actions 
+-------------------------------- live log setup --------------------------------
+2026-11-08 14:57:23 [    INFO] EscalationManager initialized
+2026-11-08 14:57:23 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 14:57:23 [    INFO] EscalationManager initialized
+2026-11-08 14:57:23 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 14:57:23 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-08 14:57:23 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  2%]
+tests/test_org_politics_automation.py::TestResolvedFlag::test_env_true_wins_over_revoked_action PASSED [  5%]
+tests/test_org_politics_automation.py::TestResolvedFlag::test_env_false_wins_over_applied_action PASSED [  7%]
+tests/test_org_politics_automation.py::TestResolvedFlag::test_applied_action_enables_when_env_unset PASSED [ 10%]
+tests/test_org_politics_automation.py::TestResolvedFlag::test_unknown_flag_defaults_off PASSED [ 12%]
+tests/test_org_politics_automation.py::TestFlagFunctionIntegration::test_skill_trust_follows_action PASSED [ 15%]
+tests/test_org_politics_automation.py::TestFlagFunctionIntegration::test_env_still_kill_switches PASSED [ 17%]
+tests/test_org_politics_automation.py::TestTelemetryReadiness::test_counts_events_and_coi PASSED [ 20%]
+tests/test_org_politics_automation.py::TestTelemetryReadiness::test_empty_db_not_flowing PASSED [ 22%]
+tests/test_org_politics_automation.py::TestAlignmentVerdict::test_green_sweep PASSED [ 25%]
+tests/test_org_politics_automation.py::TestAlignmentVerdict::test_red_sweep_reports_gap PASSED [ 27%]
+tests/test_org_politics_automation.py::TestAlignmentInvalidEvidence::test_malformed_judges_never_certify PASSED [ 30%]
+tests/test_org_politics_automation.py::TestAlignmentInvalidEvidence::test_one_missing_judgment_never_certifies PASSED [ 32%]
+tests/test_org_politics_automation.py::TestAlignmentInvalidEvidence::test_judge_timeout_never_certifies PASSED [ 35%]
+tests/test_org_politics_automation.py::TestAlignmentInvalidEvidence::test_non_finite_judgment_never_certifies PASSED [ 37%]
+tests/test_org_politics_automation.py::TestCertifyPass::test_auto_mode_applies_when_eligible 
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:57:23 [    INFO] [org-politics] 'Skill-scoped trust' enabled automatically: Telemetry healthy (15 recruits) and alignment sweep green (max gap 0.0). 'Skill-scoped trust' enforcement is now ON. (no admin recipient)
+2026-11-08 14:57:23 [    INFO] [org-politics] 'Allocator integrity controls' enabled automatically: Telemetry healthy (15 recruits) and alignment sweep green (max gap 0.0). 'Allocator integrity controls' enforcement is now ON. (no admin recipient)
+2026-11-08 14:57:23 [    INFO] [org-politics] 'Org privilege gates' enabled automatically: Telemetry healthy (15 recruits) and alignment sweep green (max gap 0.0). 'Org privilege gates' enforcement is now ON. (no admin recipient)
+PASSED                                                                   [ 40%]
+tests/test_org_politics_automation.py::TestCertifyPass::test_approve_mode_queues_without_applying 
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:57:23 [    INFO] [org-politics] 'Skill-scoped trust' ready — approval needed: Org telemetry is healthy and the alignment sweep is green. Approve to enable 'Skill-scoped trust'. (no admin recipient)
+2026-11-08 14:57:23 [    INFO] [org-politics] 'Allocator integrity controls' ready — approval needed: Org telemetry is healthy and the alignment sweep is green. Approve to enable 'Allocator integrity controls'. (no admin recipient)
+2026-11-08 14:57:23 [    INFO] [org-politics] 'Org privilege gates' ready — approval needed: Org telemetry is healthy and the alignment sweep is green. Approve to enable 'Org privilege gates'. (no admin recipient)
+PASSED                                                                   [ 42%]
+tests/test_org_politics_automation.py::TestCertifyPass::test_no_alignment_run_blocks_escalation PASSED [ 45%]
+tests/test_org_politics_automation.py::TestCertifyPass::test_low_telemetry_blocks_escalation PASSED [ 47%]
+tests/test_org_politics_automation.py::TestCertifyPass::test_red_sweep_auto_revokes_even_in_approve 
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:57:23 [    INFO] [org-politics] Org-politics enforcement rolled back: 'skill_trust' was automatically revoked: alignment gap 4.0 > 2.0 (no admin recipient)
+PASSED                                                                   [ 50%]
+tests/test_org_politics_automation.py::TestCertifyPass::test_no_requeue_while_pending 
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:57:23 [    INFO] [org-politics] 'Skill-scoped trust' enabled automatically: Telemetry healthy (15 recruits) and alignment sweep green (max gap 0.0). 'Skill-scoped trust' enforcement is now ON. (no admin recipient)
+2026-11-08 14:57:23 [    INFO] [org-politics] 'Allocator integrity controls' enabled automatically: Telemetry healthy (15 recruits) and alignment sweep green (max gap 0.0). 'Allocator integrity controls' enforcement is now ON. (no admin recipient)
+2026-11-08 14:57:23 [    INFO] [org-politics] 'Org privilege gates' enabled automatically: Telemetry healthy (15 recruits) and alignment sweep green (max gap 0.0). 'Org privilege gates' enforcement is now ON. (no admin recipient)
+PASSED                                                                   [ 52%]
+tests/test_org_politics_automation.py::TestCertifyPass::test_invalid_alignment_evidence_does_not_revoke_or_enable PASSED [ 55%]
+tests/test_org_politics_automation.py::TestApprovals::test_pending_and_apply 
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:57:23 [    INFO] [org-politics] 'Skill-scoped trust' ready — approval needed: Org telemetry is healthy and the alignment sweep is green. Approve to enable 'Skill-scoped trust'. (no admin recipient)
+2026-11-08 14:57:23 [    INFO] [org-politics] 'Allocator integrity controls' ready — approval needed: Org telemetry is healthy and the alignment sweep is green. Approve to enable 'Allocator integrity controls'. (no admin recipient)
+2026-11-08 14:57:23 [    INFO] [org-politics] 'Org privilege gates' ready — approval needed: Org telemetry is healthy and the alignment sweep is green. Approve to enable 'Org privilege gates'. (no admin recipient)
+PASSED                                                                   [ 57%]
+tests/test_org_politics_automation.py::TestApprovals::test_reject_marks_rejected 
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:57:23 [    INFO] [org-politics] 'Skill-scoped trust' ready — approval needed: Org telemetry is healthy and the alignment sweep is green. Approve to enable 'Skill-scoped trust'. (no admin recipient)
+2026-11-08 14:57:23 [    INFO] [org-politics] 'Allocator integrity controls' ready — approval needed: Org telemetry is healthy and the alignment sweep is green. Approve to enable 'Allocator integrity controls'. (no admin recipient)
+2026-11-08 14:57:23 [    INFO] [org-politics] 'Org privilege gates' ready — approval needed: Org telemetry is healthy and the alignment sweep is green. Approve to enable 'Org privilege gates'. (no admin recipient)
+PASSED                                                                   [ 60%]
+tests/test_org_politics_automation.py::TestNightlyAlignmentSweep::test_certify_runs_controlled_alignment_sweep_and_queues 
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:57:23 [    INFO] [org-politics] 'Skill-scoped trust' ready — approval needed: Org telemetry is healthy and the alignment sweep is green. Approve to enable 'Skill-scoped trust'. (no admin recipient)
+2026-11-08 14:57:23 [    INFO] [org-politics] 'Allocator integrity controls' ready — approval needed: Org telemetry is healthy and the alignment sweep is green. Approve to enable 'Allocator integrity controls'. (no admin recipient)
+2026-11-08 14:57:23 [    INFO] [org-politics] 'Org privilege gates' ready — approval needed: Org telemetry is healthy and the alignment sweep is green. Approve to enable 'Org privilege gates'. (no admin recipient)
+PASSED                                                                   [ 62%]
+tests/test_org_politics_automation.py::TestNightlyAlignmentSweep::test_nightly_loop_calls_the_automation_pass PASSED [ 65%]
+tests/test_org_politics_registered_loop_join.py::TestRegisteredLoopJoin::test_registered_task_real_pass_files_durable_pending_consent PASSED [ 67%]
+tests/test_org_politics_registered_loop_join.py::TestRegisteredLoopJoin::test_second_tick_does_not_duplicate_open_actions PASSED [ 70%]
+tests/test_org_politics_registered_loop_join.py::TestRegisteredLoopJoin::test_mode_off_registers_no_task PASSED [ 72%]
+tests/test_org_politics_scheduled_entry.py::test_scheduled_notify_pass_files_no_policy_change PASSED [ 75%]
+tests/test_org_politics_scheduled_entry.py::test_scheduled_approve_pass_persists_pending_across_a_new_session PASSED [ 77%]
+tests/test_org_politics_loop_responsiveness.py::test_heartbeat_progresses_while_the_pass_blocks PASSED [ 80%]
+tests/test_org_politics_loop_responsiveness.py::test_contextvars_are_copied_to_worker_and_isolated_from_loop PASSED [ 82%]
+tests/test_org_politics_loop_responsiveness.py::test_passes_remain_serial PASSED [ 85%]
+tests/test_org_politics_loop_responsiveness.py::test_exception_is_followed_by_the_next_tick 
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:57:23 [ WARNING] org-politics automation loop failed: controlled pass failure
+PASSED                                                                   [ 87%]
+tests/test_org_politics_loop_responsiveness.py::test_cancellation_does_not_stop_worker_or_overlap_replacement 
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:57:23 [    INFO] org-politics certification skipped: previous pass still running
+PASSED                                                                   [ 90%]
+tests/test_org_politics_loop_responsiveness.py::test_worker_notification_is_scheduled_on_the_application_loop PASSED [ 92%]
+tests/test_org_politics_loop_responsiveness.py::test_manual_consumer_shared_boundary_remains_responsive PASSED [ 95%]
+tests/test_org_politics_loop_responsiveness.py::test_public_run_now_awaits_shared_boundary PASSED [ 97%]
+tests/test_org_politics_loop_responsiveness.py::test_shutdown_race_closes_unscheduled_notification 
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:57:23 [ WARNING] org-politics notification not scheduled: RuntimeError
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../root-py311-plugins/pytest_freezegun.py:17: 80 warnings
+  /private/tmp/root-py311-plugins/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_org_politics_automation.py::TestResolvedFlag::test_default_off_without_env_or_actions
+  /private/tmp/atom-alignment-loop-responsive-20261108/backend/core/graphrag_engine.py:196: DeprecationWarning: invalid escape sequence '\%'
+    """
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 40 passed, 86 warnings in 17.09s =======================

@@ -174,7 +174,7 @@
         "SECRET_KEY": "ci-test-secret-key",
         "ENVIRONMENT": "development"
       },
-      "run": "python -m pytest tests/test_org_politics_registered_loop_join.py -q --tb=short --timeout=300 --timeout-method=thread\n"
+      "run": "python -m pytest tests/test_org_politics_registered_loop_join.py tests/test_org_politics_scheduled_entry.py tests/test_org_politics_automation.py tests/test_org_politics_loop_responsiveness.py -q --tb=short --timeout=300 --timeout-method=thread\n"
     },
     {
       "name": "Run mini-app runtime-boundary journey (MINI-03 fail-closed joins)",

@@ -1,0 +1,33 @@
+{
+  "source": "d9a45f559033e4f6ae9a2e50725ade3cddfb2b4b",
+  "root": "/private/tmp/root-feedback-sqlite-ct6d7u6c",
+  "command": [
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-alignment-loop-responsive-20261108/backend",
+    "--profile",
+    "bounded",
+    "--",
+    "/usr/local/opt/python@3.11/bin/python3.11",
+    "-m",
+    "pytest",
+    "tests/test_org_politics_automation.py",
+    "tests/test_org_politics_registered_loop_join.py",
+    "tests/test_org_politics_scheduled_entry.py",
+    "-q",
+    "--tb=short",
+    "-p",
+    "no:cacheprovider",
+    "-p",
+    "pytest_freezegun",
+    "-p",
+    "root_no_network",
+    "-p",
+    "no:randomly",
+    "-p",
+    "no:rerunfailures",
+    "--timeout=120",
+    "--timeout-method=thread",
+    "--basetemp=/private/tmp/root-feedback-sqlite-ct6d7u6c/pytest"
+  ]
+}

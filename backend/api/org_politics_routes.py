@@ -88,10 +88,10 @@ async def run_now(
     try:
         from core.org_politics_automation import (
             ensure_automation_task,
-            run_auto_certification,
+            run_auto_certification_async,
         )
 
-        result = cast(Dict[str, Any], run_auto_certification())
+        result = cast(Dict[str, Any], await run_auto_certification_async())
         ensure_automation_task()
         return result
     except Exception as e:
