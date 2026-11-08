@@ -1,0 +1,21 @@
+{
+  "author_terminal_exit": 0,
+  "steps": 35,
+  "tool_counts": {
+    "read": 31,
+    "grep": 3,
+    "edit": 19,
+    "write": 2
+  },
+  "execution_tool_records": [],
+  "readonly_references_unchanged": [
+    "backend/api/org_politics_routes.py",
+    "backend/tests/test_org_politics_loop_responsiveness.py",
+    "backend/tests/test_org_politics_registered_loop_join.py",
+    "backend/tests/test_org_politics_scheduled_entry.py",
+    "backend/tests/unit/core/test_stage_router_automation.py",
+    "backend/tests/unit/test_fleet_router_automation.py"
+  ],
+  "maximum_step_boundary": 35,
+  "qualification": "Native proposal not automatically accepted; root fallback correction and runtime gates follow."
+}

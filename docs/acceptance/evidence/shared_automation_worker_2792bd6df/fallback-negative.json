@@ -1,0 +1,9 @@
+{
+  "actual_exit": 1,
+  "result": {
+    "source_sha256": "8a4fd0b904f291541c807ab94523d86ee34006e754a4766a2e678e2a30e21fc0",
+    "caller_context_preserved": false,
+    "origin_loop_preserved": false,
+    "scope": "actual generic executor fallback, no app DB/model"
+  }
+}

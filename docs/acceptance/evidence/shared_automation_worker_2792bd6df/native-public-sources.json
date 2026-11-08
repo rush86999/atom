@@ -1,0 +1,86 @@
+[
+  {
+    "path": "backend/core/asyncio_compat.py",
+    "source": "330c0e758d66d137264e9d31cb2522dd25b2325e",
+    "sha256": "86e26e92cdb3f70addd5e8f71489efbe43f627112aae8c67050898fbe00eb59a",
+    "editable": true,
+    "unauthenticated_public_equals_git": true
+  },
+  {
+    "path": "backend/core/org_politics_automation.py",
+    "source": "330c0e758d66d137264e9d31cb2522dd25b2325e",
+    "sha256": "cb473c35054f668d2f3660abcadfaabb1cca6d423fd070e495aaaada9f8125a9",
+    "editable": true,
+    "unauthenticated_public_equals_git": true
+  },
+  {
+    "path": "backend/core/llm/stage_router_automation.py",
+    "source": "330c0e758d66d137264e9d31cb2522dd25b2325e",
+    "sha256": "458c03fcf20f5ebc926313b2c61d5ab26b64b44f34dc9e62f07d6a67f4d80132",
+    "editable": true,
+    "unauthenticated_public_equals_git": true
+  },
+  {
+    "path": "backend/core/fleet_orchestration/fleet_router_automation.py",
+    "source": "330c0e758d66d137264e9d31cb2522dd25b2325e",
+    "sha256": "864e7058b2bfc4ae759c85ade5e2c1d2604177a25e3d888deb5903f34cb35066",
+    "editable": true,
+    "unauthenticated_public_equals_git": true
+  },
+  {
+    "path": "backend/api/stage_router_routes.py",
+    "source": "330c0e758d66d137264e9d31cb2522dd25b2325e",
+    "sha256": "57125779ec1ed79efcc64d4b31d86c8708f5ee36cd62c2467e0a4a306d9c4ca1",
+    "editable": true,
+    "unauthenticated_public_equals_git": true
+  },
+  {
+    "path": "backend/api/fleet_router_routes.py",
+    "source": "330c0e758d66d137264e9d31cb2522dd25b2325e",
+    "sha256": "545b84956eff561722ae7ce1683a674aa6c7e64c1239976e4392013b1f952d41",
+    "editable": true,
+    "unauthenticated_public_equals_git": true
+  },
+  {
+    "path": "backend/api/org_politics_routes.py",
+    "source": "330c0e758d66d137264e9d31cb2522dd25b2325e",
+    "sha256": "012b92b7af924c4a6000123fac364becff1fdec66acfe95063b29c8f0a6850b2",
+    "editable": false,
+    "unauthenticated_public_equals_git": true
+  },
+  {
+    "path": "backend/tests/test_org_politics_loop_responsiveness.py",
+    "source": "330c0e758d66d137264e9d31cb2522dd25b2325e",
+    "sha256": "302fb80fdc8f25823b6ffa1074e6722bce8e42d48c00629588bba971830b4c4b",
+    "editable": false,
+    "unauthenticated_public_equals_git": true
+  },
+  {
+    "path": "backend/tests/test_org_politics_registered_loop_join.py",
+    "source": "330c0e758d66d137264e9d31cb2522dd25b2325e",
+    "sha256": "30fb6da382b8857d2f8f6724016d2296c6c15c8ede053be696ad3ccc250e9dc5",
+    "editable": false,
+    "unauthenticated_public_equals_git": true
+  },
+  {
+    "path": "backend/tests/test_org_politics_scheduled_entry.py",
+    "source": "330c0e758d66d137264e9d31cb2522dd25b2325e",
+    "sha256": "4373564937e46a30d83d126497dbbe8c18c7a354e607038b20bc92dfac4b3f94",
+    "editable": false,
+    "unauthenticated_public_equals_git": true
+  },
+  {
+    "path": "backend/tests/unit/core/test_stage_router_automation.py",
+    "source": "330c0e758d66d137264e9d31cb2522dd25b2325e",
+    "sha256": "428009e03b6607e3291b493efc8edf275c54041bd1ce0ed4e10735399fa15fe3",
+    "editable": false,
+    "unauthenticated_public_equals_git": true
+  },
+  {
+    "path": "backend/tests/unit/test_fleet_router_automation.py",
+    "source": "330c0e758d66d137264e9d31cb2522dd25b2325e",
+    "sha256": "4f84e4b5975f863dad1665186e1a3445422d4ae4aee14c44e11c94eedb4bc241",
+    "editable": false,
+    "unauthenticated_public_equals_git": true
+  }
+]

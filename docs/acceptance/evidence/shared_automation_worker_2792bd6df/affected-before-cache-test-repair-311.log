@@ -1,0 +1,395 @@
+
+tests/test_org_politics_automation.py::TestResolvedFlag::test_default_off_without_env_or_actions 
+-------------------------------- live log setup --------------------------------
+2026-11-08 15:30:15 [    INFO] EscalationManager initialized
+2026-11-08 15:30:15 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 15:30:15 [    INFO] EscalationManager initialized
+2026-11-08 15:30:15 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 15:30:15 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-08 15:30:15 [    INFO] AgentTaskRegistry initialized
+PASSED                                                                   [  0%]
+tests/test_org_politics_automation.py::TestResolvedFlag::test_env_true_wins_over_revoked_action PASSED [  1%]
+tests/test_org_politics_automation.py::TestResolvedFlag::test_env_false_wins_over_applied_action PASSED [  1%]
+tests/test_org_politics_automation.py::TestResolvedFlag::test_applied_action_enables_when_env_unset PASSED [  2%]
+tests/test_org_politics_automation.py::TestResolvedFlag::test_unknown_flag_defaults_off PASSED [  2%]
+tests/test_org_politics_automation.py::TestFlagFunctionIntegration::test_skill_trust_follows_action PASSED [  3%]
+tests/test_org_politics_automation.py::TestFlagFunctionIntegration::test_env_still_kill_switches PASSED [  3%]
+tests/test_org_politics_automation.py::TestTelemetryReadiness::test_counts_events_and_coi PASSED [  4%]
+tests/test_org_politics_automation.py::TestTelemetryReadiness::test_empty_db_not_flowing PASSED [  4%]
+tests/test_org_politics_automation.py::TestAlignmentVerdict::test_green_sweep PASSED [  5%]
+tests/test_org_politics_automation.py::TestAlignmentVerdict::test_red_sweep_reports_gap PASSED [  5%]
+tests/test_org_politics_automation.py::TestAlignmentInvalidEvidence::test_malformed_judges_never_certify PASSED [  6%]
+tests/test_org_politics_automation.py::TestAlignmentInvalidEvidence::test_one_missing_judgment_never_certifies PASSED [  6%]
+tests/test_org_politics_automation.py::TestAlignmentInvalidEvidence::test_judge_timeout_never_certifies PASSED [  7%]
+tests/test_org_politics_automation.py::TestAlignmentInvalidEvidence::test_non_finite_judgment_never_certifies PASSED [  7%]
+tests/test_org_politics_automation.py::TestCertifyPass::test_auto_mode_applies_when_eligible 
+-------------------------------- live log call ---------------------------------
+2026-11-08 15:30:15 [    INFO] [org-politics] 'Skill-scoped trust' enabled automatically: Telemetry healthy (15 recruits) and alignment sweep green (max gap 0.0). 'Skill-scoped trust' enforcement is now ON. (no admin recipient)
+2026-11-08 15:30:15 [    INFO] [org-politics] 'Allocator integrity controls' enabled automatically: Telemetry healthy (15 recruits) and alignment sweep green (max gap 0.0). 'Allocator integrity controls' enforcement is now ON. (no admin recipient)
+2026-11-08 15:30:15 [    INFO] [org-politics] 'Org privilege gates' enabled automatically: Telemetry healthy (15 recruits) and alignment sweep green (max gap 0.0). 'Org privilege gates' enforcement is now ON. (no admin recipient)
+PASSED                                                                   [  8%]
+tests/test_org_politics_automation.py::TestCertifyPass::test_approve_mode_queues_without_applying 
+-------------------------------- live log call ---------------------------------
+2026-11-08 15:30:15 [    INFO] [org-politics] 'Skill-scoped trust' ready — approval needed: Org telemetry is healthy and the alignment sweep is green. Approve to enable 'Skill-scoped trust'. (no admin recipient)
+2026-11-08 15:30:15 [    INFO] [org-politics] 'Allocator integrity controls' ready — approval needed: Org telemetry is healthy and the alignment sweep is green. Approve to enable 'Allocator integrity controls'. (no admin recipient)
+2026-11-08 15:30:15 [    INFO] [org-politics] 'Org privilege gates' ready — approval needed: Org telemetry is healthy and the alignment sweep is green. Approve to enable 'Org privilege gates'. (no admin recipient)
+PASSED                                                                   [  8%]
+tests/test_org_politics_automation.py::TestCertifyPass::test_no_alignment_run_blocks_escalation PASSED [  9%]
+tests/test_org_politics_automation.py::TestCertifyPass::test_low_telemetry_blocks_escalation PASSED [  9%]
+tests/test_org_politics_automation.py::TestCertifyPass::test_red_sweep_auto_revokes_even_in_approve 
+-------------------------------- live log call ---------------------------------
+2026-11-08 15:30:15 [    INFO] [org-politics] Org-politics enforcement rolled back: 'skill_trust' was automatically revoked: alignment gap 4.0 > 2.0 (no admin recipient)
+PASSED                                                                   [ 10%]
+tests/test_org_politics_automation.py::TestCertifyPass::test_no_requeue_while_pending 
+-------------------------------- live log call ---------------------------------
+2026-11-08 15:30:15 [    INFO] [org-politics] 'Skill-scoped trust' enabled automatically: Telemetry healthy (15 recruits) and alignment sweep green (max gap 0.0). 'Skill-scoped trust' enforcement is now ON. (no admin recipient)
+2026-11-08 15:30:15 [    INFO] [org-politics] 'Allocator integrity controls' enabled automatically: Telemetry healthy (15 recruits) and alignment sweep green (max gap 0.0). 'Allocator integrity controls' enforcement is now ON. (no admin recipient)
+2026-11-08 15:30:15 [    INFO] [org-politics] 'Org privilege gates' enabled automatically: Telemetry healthy (15 recruits) and alignment sweep green (max gap 0.0). 'Org privilege gates' enforcement is now ON. (no admin recipient)
+PASSED                                                                   [ 10%]
+tests/test_org_politics_automation.py::TestCertifyPass::test_invalid_alignment_evidence_does_not_revoke_or_enable PASSED [ 11%]
+tests/test_org_politics_automation.py::TestApprovals::test_pending_and_apply 
+-------------------------------- live log call ---------------------------------
+2026-11-08 15:30:15 [    INFO] [org-politics] 'Skill-scoped trust' ready — approval needed: Org telemetry is healthy and the alignment sweep is green. Approve to enable 'Skill-scoped trust'. (no admin recipient)
+2026-11-08 15:30:15 [    INFO] [org-politics] 'Allocator integrity controls' ready — approval needed: Org telemetry is healthy and the alignment sweep is green. Approve to enable 'Allocator integrity controls'. (no admin recipient)
+2026-11-08 15:30:15 [    INFO] [org-politics] 'Org privilege gates' ready — approval needed: Org telemetry is healthy and the alignment sweep is green. Approve to enable 'Org privilege gates'. (no admin recipient)
+PASSED                                                                   [ 11%]
+tests/test_org_politics_automation.py::TestApprovals::test_reject_marks_rejected 
+-------------------------------- live log call ---------------------------------
+2026-11-08 15:30:15 [    INFO] [org-politics] 'Skill-scoped trust' ready — approval needed: Org telemetry is healthy and the alignment sweep is green. Approve to enable 'Skill-scoped trust'. (no admin recipient)
+2026-11-08 15:30:15 [    INFO] [org-politics] 'Allocator integrity controls' ready — approval needed: Org telemetry is healthy and the alignment sweep is green. Approve to enable 'Allocator integrity controls'. (no admin recipient)
+2026-11-08 15:30:15 [    INFO] [org-politics] 'Org privilege gates' ready — approval needed: Org telemetry is healthy and the alignment sweep is green. Approve to enable 'Org privilege gates'. (no admin recipient)
+PASSED                                                                   [ 12%]
+tests/test_org_politics_automation.py::TestNightlyAlignmentSweep::test_certify_runs_controlled_alignment_sweep_and_queues 
+-------------------------------- live log call ---------------------------------
+2026-11-08 15:30:15 [    INFO] [org-politics] 'Skill-scoped trust' ready — approval needed: Org telemetry is healthy and the alignment sweep is green. Approve to enable 'Skill-scoped trust'. (no admin recipient)
+2026-11-08 15:30:15 [    INFO] [org-politics] 'Allocator integrity controls' ready — approval needed: Org telemetry is healthy and the alignment sweep is green. Approve to enable 'Allocator integrity controls'. (no admin recipient)
+2026-11-08 15:30:15 [    INFO] [org-politics] 'Org privilege gates' ready — approval needed: Org telemetry is healthy and the alignment sweep is green. Approve to enable 'Org privilege gates'. (no admin recipient)
+PASSED                                                                   [ 12%]
+tests/test_org_politics_automation.py::TestNightlyAlignmentSweep::test_nightly_loop_calls_the_automation_pass PASSED [ 13%]
+tests/test_org_politics_registered_loop_join.py::TestRegisteredLoopJoin::test_registered_task_real_pass_files_durable_pending_consent PASSED [ 13%]
+tests/test_org_politics_registered_loop_join.py::TestRegisteredLoopJoin::test_second_tick_does_not_duplicate_open_actions PASSED [ 14%]
+tests/test_org_politics_registered_loop_join.py::TestRegisteredLoopJoin::test_mode_off_registers_no_task PASSED [ 14%]
+tests/test_org_politics_scheduled_entry.py::test_scheduled_notify_pass_files_no_policy_change PASSED [ 15%]
+tests/test_org_politics_scheduled_entry.py::test_scheduled_approve_pass_persists_pending_across_a_new_session PASSED [ 15%]
+tests/test_org_politics_loop_responsiveness.py::test_heartbeat_progresses_while_the_pass_blocks PASSED [ 16%]
+tests/test_org_politics_loop_responsiveness.py::test_contextvars_are_copied_to_worker_and_isolated_from_loop PASSED [ 16%]
+tests/test_org_politics_loop_responsiveness.py::test_passes_remain_serial PASSED [ 17%]
+tests/test_org_politics_loop_responsiveness.py::test_exception_is_followed_by_the_next_tick 
+-------------------------------- live log call ---------------------------------
+2026-11-08 15:30:15 [ WARNING] org-politics automation loop failed: controlled pass failure
+PASSED                                                                   [ 17%]
+tests/test_org_politics_loop_responsiveness.py::test_cancellation_does_not_stop_worker_or_overlap_replacement 
+-------------------------------- live log call ---------------------------------
+2026-11-08 15:30:15 [    INFO] org-politics certification skipped: previous pass still running
+PASSED                                                                   [ 18%]
+tests/test_org_politics_loop_responsiveness.py::test_worker_notification_is_scheduled_on_the_application_loop PASSED [ 18%]
+tests/test_org_politics_loop_responsiveness.py::test_manual_consumer_shared_boundary_remains_responsive PASSED [ 19%]
+tests/test_org_politics_loop_responsiveness.py::test_public_run_now_awaits_shared_boundary PASSED [ 19%]
+tests/test_org_politics_loop_responsiveness.py::test_shutdown_race_closes_unscheduled_notification 
+-------------------------------- live log call ---------------------------------
+2026-11-08 15:30:15 [ WARNING] org-politics notification not scheduled: RuntimeError
+PASSED                                                                   [ 20%]
+tests/unit/core/test_stage_router_automation.py::TestVerdict::test_insufficient_arms_keeps_shadow PASSED [ 20%]
+tests/unit/core/test_stage_router_automation.py::TestVerdict::test_certify_when_gain_clears_gap PASSED [ 21%]
+tests/unit/core/test_stage_router_automation.py::TestVerdict::test_certify_blocked_by_cost_ratio 
+-------------------------------- live log call ---------------------------------
+2026-11-08 15:30:15 [    INFO] Workload certify blocked by cost ratio 50.0 > 2.0 (capable +8.0%)
+PASSED                                                                   [ 21%]
+tests/unit/core/test_stage_router_automation.py::TestVerdict::test_revoke_on_regression PASSED [ 22%]
+tests/unit/core/test_stage_router_automation.py::TestVerdict::test_keep_shadow_without_verdict PASSED [ 22%]
+tests/unit/core/test_stage_router_automation.py::TestCertifyWorkloads::test_off_mode_is_noop PASSED [ 23%]
+tests/unit/core/test_stage_router_automation.py::TestCertifyWorkloads::test_approve_mode_queues_not_applies PASSED [ 23%]
+tests/unit/core/test_stage_router_automation.py::TestCertifyWorkloads::test_auto_mode_applies_immediately PASSED [ 24%]
+tests/unit/core/test_stage_router_automation.py::TestCertifyWorkloads::test_notify_mode_never_writes PASSED [ 24%]
+tests/unit/core/test_stage_router_automation.py::TestCertifyWorkloads::test_revoke_applies_even_in_approve_mode PASSED [ 25%]
+tests/unit/core/test_stage_router_automation.py::TestCertifyWorkloads::test_missing_agent_kept PASSED [ 25%]
+tests/unit/core/test_stage_router_automation.py::TestApprovalFlow::test_approve_applies_enforce PASSED [ 26%]
+tests/unit/core/test_stage_router_automation.py::TestApprovalFlow::test_reject_marks_rejected_config_untouched PASSED [ 26%]
+tests/unit/core/test_stage_router_automation.py::TestApprovalFlow::test_no_pending_returns_not_applied PASSED [ 27%]
+tests/unit/core/test_stage_router_automation.py::TestRunAndStatus::test_run_disabled_in_off_mode PASSED [ 27%]
+tests/unit/core/test_stage_router_automation.py::TestRunAndStatus::test_run_certification_updates_last_run 
+-------------------------------- live log call ---------------------------------
+2026-11-08 15:30:15 [    INFO] [stage-router automation] approve: certified=[] revoked=[] queued=['agent-1'] notified=[]
+PASSED                                                                   [ 28%]
+tests/unit/core/test_stage_router_automation.py::TestRunAndStatus::test_automation_status_shape PASSED [ 28%]
+tests/unit/core/test_stage_router_automation.py::TestRunAndStatus::test_set_automation_config_validates_mode 
+-------------------------------- live log call ---------------------------------
+2026-11-08 15:30:15 [ WARNING] Ignoring invalid mode 'bogus'
+PASSED                                                                   [ 29%]
+tests/unit/core/test_stage_router_automation.py::TestNotificationDedupe::test_approve_mode_queues_once_across_passes PASSED [ 29%]
+tests/unit/core/test_stage_router_automation.py::TestNotificationDedupe::test_auto_mode_applies_once_across_passes PASSED [ 30%]
+tests/unit/core/test_stage_router_automation.py::TestNotificationDedupe::test_notify_mode_respects_cooldown PASSED [ 30%]
+tests/unit/core/test_stage_router_automation.py::TestNotificationDedupe::test_revoke_fires_once PASSED [ 31%]
+tests/unit/core/test_stage_router_automation.py::TestNotificationDedupe::test_kept_revoke_audit_written_once PASSED [ 31%]
+tests/unit/core/test_stage_router_automation.py::TestIntentRespect::test_auto_mode_never_overwrites_manual_opt_out PASSED [ 32%]
+tests/unit/core/test_stage_router_automation.py::TestIntentRespect::test_auto_mode_recertifies_after_auto_revoke_recovers PASSED [ 32%]
+tests/unit/core/test_stage_router_automation.py::TestIntentRespect::test_rejection_suppresses_requeue_until_stats_change PASSED [ 33%]
+tests/unit/test_fleet_router_automation.py::TestVerdict::test_collecting_below_min_rows PASSED [ 33%]
+tests/unit/test_fleet_router_automation.py::TestVerdict::test_blocked_on_unhealthy_recruitment PASSED [ 34%]
+tests/unit/test_fleet_router_automation.py::TestVerdict::test_revoke_on_baseline_regression PASSED [ 34%]
+tests/unit/test_fleet_router_automation.py::TestVerdict::test_collecting_when_baseline_below_floor PASSED [ 35%]
+tests/unit/test_fleet_router_automation.py::TestVerdict::test_enable_when_healthy PASSED [ 35%]
+tests/unit/test_fleet_router_automation.py::TestModes::test_off_mode_is_noop PASSED [ 36%]
+tests/unit/test_fleet_router_automation.py::TestModes::test_approve_mode_queues_approval PASSED [ 36%]
+tests/unit/test_fleet_router_automation.py::TestModes::test_approve_mode_dedupes_pending PASSED [ 37%]
+tests/unit/test_fleet_router_automation.py::TestModes::test_auto_mode_applies_immediately PASSED [ 37%]
+tests/unit/test_fleet_router_automation.py::TestModes::test_revoke_applies_immediately_in_approve_mode PASSED [ 38%]
+tests/unit/test_fleet_router_automation.py::TestModes::test_approval_apply_flips_override PASSED [ 38%]
+tests/unit/test_fleet_router_automation.py::TestModes::test_approval_reject_then_unchanged_is_kept PASSED [ 39%]
+tests/unit/test_fleet_router_automation.py::TestModes::test_no_pending_approval_reports_reason PASSED [ 39%]
+tests/unit/test_fleet_router_automation.py::TestResolvedEnforce::test_env_kill_switch_wins PASSED [ 40%]
+tests/unit/test_fleet_router_automation.py::TestResolvedEnforce::test_applied_enable_override_enforces PASSED [ 40%]
+tests/unit/test_fleet_router_automation.py::TestResolvedEnforce::test_revoked_row_means_shadow PASSED [ 41%]
+tests/unit/test_fleet_router_automation.py::TestResolvedEnforce::test_approval_row_does_not_enforce PASSED [ 41%]
+tests/unit/test_fleet_router_automation.py::TestResolvedEnforce::test_empty_db_means_shadow PASSED [ 42%]
+tests/unit/test_fleet_router_automation.py::TestConfigStatus::test_set_automation_config_validates_mode PASSED [ 42%]
+tests/unit/test_fleet_router_automation.py::TestConfigStatus::test_run_auto_certification_off_mode PASSED [ 43%]
+tests/unit/test_fleet_router_automation.py::TestConfigStatus::test_run_auto_certification_never_raises 
+-------------------------------- live log call ---------------------------------
+2026-11-08 15:30:15 [ WARNING] Fleet router automation pass failed: db down
+PASSED                                                                   [ 43%]
+tests/unit/test_fleet_router_automation.py::TestConfigStatus::test_get_automation_status_shape PASSED [ 44%]
+tests/test_governance_cache.py::TestGovernanceCacheInit::test_cache_initialization_default_params PASSED [ 44%]
+tests/test_governance_cache.py::TestGovernanceCacheInit::test_cache_initialization_custom_params PASSED [ 45%]
+tests/test_governance_cache.py::TestGovernanceCacheInit::test_cache_initialization_stats PASSED [ 45%]
+tests/test_governance_cache.py::TestCacheOperations::test_cache_set_and_get_success PASSED [ 46%]
+tests/test_governance_cache.py::TestCacheOperations::test_cache_get_miss PASSED [ 46%]
+tests/test_governance_cache.py::TestCacheOperations::test_cache_set_updates_existing PASSED [ 47%]
+tests/test_governance_cache.py::TestCacheOperations::test_cache_key_format PASSED [ 47%]
+tests/test_governance_cache.py::TestCacheOperations::test_cache_multiple_entries PASSED [ 48%]
+tests/test_governance_cache.py::TestCacheOperations::test_cache_data_isolation PASSED [ 48%]
+tests/test_governance_cache.py::TestCacheExpiration::test_cache_expiration_after_ttl PASSED [ 49%]
+tests/test_governance_cache.py::TestCacheExpiration::test_cache_expiration_increments_misses PASSED [ 49%]
+tests/test_governance_cache.py::TestCacheInvalidation::test_invalidate_specific_action PASSED [ 50%]
+tests/test_governance_cache.py::TestCacheInvalidation::test_invalidate_all_agent_actions PASSED [ 50%]
+tests/test_governance_cache.py::TestCacheInvalidation::test_invalidate_agent_convenience_method PASSED [ 51%]
+tests/test_governance_cache.py::TestCacheInvalidation::test_invalidate_increments_counter PASSED [ 51%]
+tests/test_governance_cache.py::TestCacheInvalidation::test_clear_all_cache_entries 
+-------------------------------- live log call ---------------------------------
+2026-11-08 15:30:18 [    INFO] Cleared 3 cache entries
+PASSED                                                                   [ 52%]
+tests/test_governance_cache.py::TestCacheStatistics::test_cache_hit_rate_calculation PASSED [ 52%]
+tests/test_governance_cache.py::TestCacheStatistics::test_cache_stats_all_fields PASSED [ 53%]
+tests/test_governance_cache.py::TestCacheStatistics::test_get_hit_rate_convenience_method PASSED [ 53%]
+tests/test_governance_cache.py::TestDirectoryCaching::test_cache_directory_permission PASSED [ 54%]
+tests/test_governance_cache.py::TestDirectoryCaching::test_check_directory_miss PASSED [ 54%]
+tests/test_governance_cache.py::TestDirectoryCaching::test_directory_and_action_separate_keys PASSED [ 55%]
+tests/test_governance_cache.py::TestLRUEviction::test_lru_eviction_when_full PASSED [ 55%]
+tests/test_governance_cache.py::TestLRUEviction::test_lru_eviction_increments_counter PASSED [ 56%]
+tests/test_governance_cache.py::TestAsyncGovernanceCache::test_async_cache_get 
+-------------------------------- live log setup --------------------------------
+2026-11-08 15:30:18 [    INFO] Initialized global governance cache
+PASSED                                                                   [ 56%]
+tests/test_governance_cache.py::TestAsyncGovernanceCache::test_async_cache_set PASSED [ 57%]
+tests/test_governance_cache.py::TestAsyncGovernanceCache::test_async_cache_invalidate PASSED [ 57%]
+tests/test_governance_cache.py::TestAsyncGovernanceCache::test_async_cache_get_stats PASSED [ 58%]
+tests/test_governance_cache.py::TestMessagingCache::test_messaging_cache_initialization PASSED [ 58%]
+tests/test_governance_cache.py::TestMessagingCache::test_cache_platform_capabilities PASSED [ 59%]
+tests/test_governance_cache.py::TestMessagingCache::test_cache_monitor_definition PASSED [ 59%]
+tests/test_governance_cache.py::TestMessagingCache::test_cache_template_render PASSED [ 60%]
+tests/test_governance_cache.py::TestMessagingCache::test_cache_platform_features PASSED [ 60%]
+tests/test_governance_cache.py::TestMessagingCache::test_messaging_cache_stats PASSED [ 61%]
+tests/test_governance_cache.py::TestMessagingCache::test_invalidate_monitor PASSED [ 61%]
+tests/test_governance_cache.py::TestGlobalCacheInstances::test_get_governance_cache_singleton 
+-------------------------------- live log call ---------------------------------
+2026-11-08 15:30:18 [    INFO] Initialized global governance cache
+PASSED                                                                   [ 62%]
+tests/test_governance_cache.py::TestGlobalCacheInstances::test_get_async_governance_cache_singleton 
+-------------------------------- live log call ---------------------------------
+2026-11-08 15:30:18 [    INFO] Initialized global governance cache
+PASSED                                                                   [ 62%]
+tests/test_governance_cache.py::TestGlobalCacheInstances::test_get_messaging_cache_singleton 
+-------------------------------- live log call ---------------------------------
+2026-11-08 15:30:18 [    INFO] Initialized global messaging cache
+PASSED                                                                   [ 63%]
+tests/test_governance_cache.py::TestCachedGovernanceCheckDecorator::test_decorator_caches_results 
+-------------------------------- live log call ---------------------------------
+2026-11-08 15:30:18 [    INFO] Initialized global governance cache
+PASSED                                                                   [ 63%]
+tests/test_governance_cache.py::TestCachedGovernanceCheckDecorator::test_decorator_different_params PASSED [ 64%]
+tests/test_governance_cache.py::TestThreadSafety::test_concurrent_cache_operations PASSED [ 64%]
+tests/test_governance_cache_async_safety.py::TestGovernanceCacheAsyncSafety::test_dual_lock_system_exists FAILED [ 65%]
+tests/test_governance_cache_async_safety.py::TestGovernanceCacheAsyncSafety::test_async_methods_use_async_lock PASSED [ 65%]
+tests/test_governance_cache_async_safety.py::TestGovernanceCacheAsyncSafety::test_concurrent_async_operations_safe PASSED [ 66%]
+tests/test_governance_cache_async_safety.py::TestGovernanceCacheAsyncSafety::test_async_invalidate_safe PASSED [ 66%]
+tests/test_governance_cache_async_safety.py::TestGovernanceCacheAsyncSafety::test_async_stats_safe PASSED [ 67%]
+tests/test_governance_cache_async_safety.py::TestGovernanceCacheAsyncSafety::test_sync_methods_still_work PASSED [ 67%]
+tests/test_governance_cache_async_safety.py::TestGovernanceCacheAsyncSafety::test_mixed_sync_and_async_safe PASSED [ 68%]
+tests/test_governance_cache_async_safety.py::TestGovernanceCacheAsyncSafety::test_async_lock_blocks_concurrent_modification 
+-------------------------------- live log call ---------------------------------
+2026-11-08 15:30:18 [   ERROR] Task was destroyed but it is pending!
+task: <Task pending name='Task-132' coro=<GovernanceCache._cleanup_expired() running at /private/tmp/atom-shared-automation-worker-20261108/backend/core/governance_cache.py:98> wait_for=<Future pending cb=[Task.task_wakeup()]>>
+2026-11-08 15:30:18 [   ERROR] Task was destroyed but it is pending!
+task: <Task pending name='Task-134' coro=<GovernanceCache._cleanup_expired() done, defined at /private/tmp/atom-shared-automation-worker-20261108/backend/core/governance_cache.py:94> wait_for=<Future pending cb=[Task.task_wakeup()]>>
+2026-11-08 15:30:18 [   ERROR] Task was destroyed but it is pending!
+task: <Task pending name='Task-136' coro=<GovernanceCache._cleanup_expired() done, defined at /private/tmp/atom-shared-automation-worker-20261108/backend/core/governance_cache.py:94> wait_for=<Future pending cb=[Task.task_wakeup()]>>
+2026-11-08 15:30:18 [   ERROR] Task was destroyed but it is pending!
+task: <Task pending name='Task-158' coro=<GovernanceCache._cleanup_expired() done, defined at /private/tmp/atom-shared-automation-worker-20261108/backend/core/governance_cache.py:94> wait_for=<Future pending cb=[Task.task_wakeup()]>>
+2026-11-08 15:30:18 [   ERROR] Task was destroyed but it is pending!
+task: <Task pending name='Task-160' coro=<GovernanceCache._cleanup_expired() done, defined at /private/tmp/atom-shared-automation-worker-20261108/backend/core/governance_cache.py:94> wait_for=<Future pending cb=[Task.task_wakeup()]>>
+2026-11-08 15:30:18 [   ERROR] Task was destroyed but it is pending!
+task: <Task pending name='Task-162' coro=<GovernanceCache._cleanup_expired() done, defined at /private/tmp/atom-shared-automation-worker-20261108/backend/core/governance_cache.py:94> wait_for=<Future pending cb=[Task.task_wakeup()]>>
+2026-11-08 15:30:18 [   ERROR] Task was destroyed but it is pending!
+task: <Task pending name='Task-164' coro=<GovernanceCache._cleanup_expired() done, defined at /private/tmp/atom-shared-automation-worker-20261108/backend/core/governance_cache.py:94> wait_for=<Future pending cb=[Task.task_wakeup()]>>
+PASSED                                                                   [ 68%]
+tests/test_governance_cache_async_safety.py::TestGovernanceCacheAsyncSafety::test_background_cleanup_uses_async_lock PASSED [ 69%]
+tests/test_governance_cache_async_safety.py::TestAsyncGovernanceCacheWrapper::test_wrapper_delegates_to_async_methods PASSED [ 69%]
+tests/test_governance_cache_async_safety.py::TestAsyncGovernanceCacheWrapper::test_wrapper_invalidate PASSED [ 70%]
+tests/test_governance_cache_async_safety.py::TestAsyncGovernanceCacheWrapper::test_wrapper_stats PASSED [ 70%]
+tests/test_governance_cache_async_safety.py::TestCachedGovernanceCheckDecorator::test_decorator_uses_async_methods PASSED [ 71%]
+tests/test_ci_backend_lane_contract.py::test_every_existing_backend_command_environment_and_setup_is_preserved 
+-------------------------------- live log call ---------------------------------
+2026-11-08 15:30:18 [   ERROR] Task was destroyed but it is pending!
+task: <Task pending name='Task-178' coro=<GovernanceCache._cleanup_expired() done, defined at /private/tmp/atom-shared-automation-worker-20261108/backend/core/governance_cache.py:94> wait_for=<Future pending cb=[Task.task_wakeup()]>>
+2026-11-08 15:30:18 [   ERROR] Task was destroyed but it is pending!
+task: <Task pending name='Task-180' coro=<GovernanceCache._cleanup_expired() done, defined at /private/tmp/atom-shared-automation-worker-20261108/backend/core/governance_cache.py:94> wait_for=<Future pending cb=[Task.task_wakeup()]>>
+2026-11-08 15:30:18 [   ERROR] Task was destroyed but it is pending!
+task: <Task pending name='Task-182' coro=<GovernanceCache._cleanup_expired() done, defined at /private/tmp/atom-shared-automation-worker-20261108/backend/core/governance_cache.py:94> wait_for=<Future pending cb=[Task.task_wakeup()]>>
+2026-11-08 15:30:18 [   ERROR] Task was destroyed but it is pending!
+task: <Task pending name='Task-184' coro=<GovernanceCache._cleanup_expired() done, defined at /private/tmp/atom-shared-automation-worker-20261108/backend/core/governance_cache.py:94> wait_for=<Future pending cb=[Task.task_wakeup()]>>
+PASSED                                                                   [ 71%]
+tests/test_ci_backend_lane_contract.py::test_required_backend_check_waits_for_both_lanes_even_on_failure PASSED [ 72%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-success] PASSED [ 72%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-failure] PASSED [ 73%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-cancelled] PASSED [ 73%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-skipped] PASSED [ 74%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-] PASSED [ 74%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-success] PASSED [ 75%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-failure] PASSED [ 75%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-cancelled] PASSED [ 76%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-skipped] PASSED [ 76%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-] PASSED [ 77%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-success] PASSED [ 77%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-failure] PASSED [ 78%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-cancelled] PASSED [ 78%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-skipped] PASSED [ 79%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-] PASSED [ 79%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-success] PASSED [ 80%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-failure] PASSED [ 80%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-cancelled] PASSED [ 81%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-skipped] PASSED [ 81%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-] PASSED [ 82%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-success] PASSED [ 82%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-failure] PASSED [ 83%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-cancelled] PASSED [ 83%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-skipped] PASSED [ 84%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-] PASSED [ 84%]
+tests/test_shared_automation_worker.py::test_worker_receives_copied_context_and_origin_loop PASSED [ 85%]
+tests/test_shared_automation_worker.py::test_worker_converts_stopiteration_to_runtimeerror PASSED [ 85%]
+tests/test_shared_automation_worker.py::test_thread_gate_is_serial_per_gate_and_independent_across_gates 
+-------------------------------- live log call ---------------------------------
+2026-11-08 15:30:20 [    INFO] automation skipped: previous pass still running
+PASSED                                                                   [ 86%]
+tests/test_shared_automation_worker.py::test_schedule_notification_delivers_on_original_loop PASSED [ 86%]
+tests/test_shared_automation_worker.py::test_schedule_notification_unbound_creates_no_coroutine PASSED [ 87%]
+tests/test_shared_automation_worker.py::test_schedule_notification_threadsafe_refusal_closes_one_coroutine 
+-------------------------------- live log call ---------------------------------
+2026-11-08 15:30:20 [ WARNING] automation notification not scheduled: RuntimeError
+PASSED                                                                   [ 87%]
+tests/test_shared_automation_worker.py::test_schedule_notification_create_task_refusal_closes_one_coroutine 
+-------------------------------- live log call ---------------------------------
+2026-11-08 15:30:20 [ WARNING] automation notification not scheduled: RuntimeError
+PASSED                                                                   [ 88%]
+tests/test_shared_automation_worker.py::test_executor_fallback_preserves_context_and_origin PASSED [ 88%]
+tests/test_router_automation_responsiveness.py::test_owner_loop_heartbeat_progresses_while_pass_blocks[stage] PASSED [ 89%]
+tests/test_router_automation_responsiveness.py::test_owner_loop_heartbeat_progresses_while_pass_blocks[fleet] PASSED [ 89%]
+tests/test_router_automation_responsiveness.py::test_owner_worker_context_is_copied_and_isolated[stage] PASSED [ 90%]
+tests/test_router_automation_responsiveness.py::test_owner_worker_context_is_copied_and_isolated[fleet] PASSED [ 90%]
+tests/test_router_automation_responsiveness.py::test_owner_passes_are_serial_and_new_call_skips[stage] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 15:30:20 [    INFO] stage-router certification skipped: previous pass still running
+PASSED                                                                   [ 91%]
+tests/test_router_automation_responsiveness.py::test_owner_passes_are_serial_and_new_call_skips[fleet] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 15:30:20 [    INFO] fleet-router certification skipped: previous pass still running
+PASSED                                                                   [ 91%]
+tests/test_router_automation_responsiveness.py::test_independent_owners_do_not_suppress_each_other PASSED [ 92%]
+tests/test_router_automation_responsiveness.py::test_cancellation_does_not_release_surviving_worker[stage] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 15:30:20 [    INFO] stage-router certification skipped: previous pass still running
+PASSED                                                                   [ 92%]
+tests/test_router_automation_responsiveness.py::test_cancellation_does_not_release_surviving_worker[fleet] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 15:30:20 [    INFO] fleet-router certification skipped: previous pass still running
+PASSED                                                                   [ 93%]
+tests/test_router_automation_responsiveness.py::test_exception_releases_gate_and_next_pass_runs[stage] PASSED [ 93%]
+tests/test_router_automation_responsiveness.py::test_exception_releases_gate_and_next_pass_runs[fleet] PASSED [ 94%]
+tests/test_router_automation_responsiveness.py::test_stopiteration_becomes_runtimeerror_and_releases_gate[stage] PASSED [ 94%]
+tests/test_router_automation_responsiveness.py::test_stopiteration_becomes_runtimeerror_and_releases_gate[fleet] PASSED [ 95%]
+tests/test_router_automation_responsiveness.py::test_worker_notification_is_delivered_on_application_loop[stage] PASSED [ 95%]
+tests/test_router_automation_responsiveness.py::test_worker_notification_is_delivered_on_application_loop[fleet] PASSED [ 96%]
+tests/test_router_automation_responsiveness.py::test_unbound_notification_uses_existing_sync_fallback[stage] PASSED [ 96%]
+tests/test_router_automation_responsiveness.py::test_unbound_notification_uses_existing_sync_fallback[fleet] PASSED [ 97%]
+tests/test_router_automation_responsiveness.py::test_owner_shutdown_race_closes_unscheduled_coroutine[stage] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 15:30:20 [ WARNING] Stage-router notification not scheduled: RuntimeError
+PASSED                                                                   [ 97%]
+tests/test_router_automation_responsiveness.py::test_owner_shutdown_race_closes_unscheduled_coroutine[fleet] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 15:30:20 [ WARNING] Fleet router notification not scheduled: RuntimeError
+PASSED                                                                   [ 98%]
+tests/test_router_automation_responsiveness.py::test_run_now_route_awaits_shared_worker_boundary[api.stage_router_routes-core.llm.stage_router_automation-Automation run failed] PASSED [ 98%]
+tests/test_router_automation_responsiveness.py::test_run_now_route_awaits_shared_worker_boundary[api.fleet_router_routes-core.fleet_orchestration.fleet_router_automation-Automation run failed] PASSED [ 99%]
+tests/test_router_automation_responsiveness.py::test_run_now_route_preserves_error_shape[api.stage_router_routes-core.llm.stage_router_automation-Automation run failed] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 15:30:20 [   ERROR] Automation run failed: controlled route failure
+PASSED                                                                   [ 99%]
+tests/test_router_automation_responsiveness.py::test_run_now_route_preserves_error_shape[api.fleet_router_routes-core.fleet_orchestration.fleet_router_automation-Automation run failed] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 15:30:20 [   ERROR] Fleet automation run failed: controlled route failure
+PASSED                                                                   [100%]
+
+=================================== FAILURES ===================================
+_________ TestGovernanceCacheAsyncSafety.test_dual_lock_system_exists __________
+tests/test_governance_cache_async_safety.py:33: in test_dual_lock_system_exists
+    assert isinstance(cache._lock, threading.Lock), \
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: isinstance() arg 2 must be a type, a tuple of types, or a union
+=============================== warnings summary ===============================
+../../../../usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833
+  /usr/local/lib/python3.11/site-packages/_pytest/config/__init__.py:833: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+core/fleet_orchestration/scaling_proposal_service.py:48
+  /private/tmp/atom-shared-automation-worker-20261108/backend/core/fleet_orchestration/scaling_proposal_service.py:48: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class ScalingProposal(BaseModel):
+
+core/fleet_orchestration/fleet_scaler_service.py:43
+  /private/tmp/atom-shared-automation-worker-20261108/backend/core/fleet_orchestration/fleet_scaler_service.py:43: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.12/migration/
+    class ScalingOperation(BaseModel):
+
+../../root-py311-plugins/pytest_freezegun.py:17: 400 warnings
+  /private/tmp/root-py311-plugins/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_org_politics_automation.py::TestResolvedFlag::test_default_off_without_env_or_actions
+  /private/tmp/atom-shared-automation-worker-20261108/backend/core/graphrag_engine.py:196: DeprecationWarning: invalid escape sequence '\%'
+    """
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+---------------------------- live log sessionfinish ----------------------------
+2026-11-08 15:30:20 [   ERROR] Task was destroyed but it is pending!
+task: <Task pending name='Task-166' coro=<GovernanceCache._cleanup_expired() running at /private/tmp/atom-shared-automation-worker-20261108/backend/core/governance_cache.py:98> wait_for=<Future pending cb=[Task.task_wakeup()]>>
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_governance_cache_async_safety.py::TestGovernanceCacheAsyncSafety::test_dual_lock_system_exists
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: DeprecationWarning: invalid escape sequence '\$'
+
+<unknown>:1
+  <unknown>:1: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:131
+  <unknown>:131: DeprecationWarning: invalid escape sequence '\ '
+
+<unknown>:925
+  <unknown>:925: DeprecationWarning: invalid escape sequence '\.'
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================= 1 failed, 199 passed, 408 warnings in 26.44s =================

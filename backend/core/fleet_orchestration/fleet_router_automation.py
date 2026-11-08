@@ -28,11 +28,19 @@ Env knobs (all optional):
 from __future__ import annotations
 
 import asyncio
-from core.asyncio_compat import get_event_loop, iscoroutinefunction
+from core.asyncio_compat import (
+    get_event_loop,
+    iscoroutinefunction,
+    notification_loop_var,
+    run_sync_in_worker,
+    run_with_thread_gate,
+    schedule_notification,
+)
 import hashlib
 import json
 import logging
 import os
+import threading
 import time
 import uuid
 from datetime import datetime, timezone
@@ -81,6 +89,11 @@ _interval_min: float = _env_float("ATOM_FLEET_ROUTER_AUTO_INTERVAL_MIN", 60.0)
 _last_run: Dict[str, Any] = {}
 _last_notified: Dict[str, float] = {}
 _automation_task: Optional[asyncio.Task] = None
+
+# Worker boundary: the owning application loop and this owner's distinct
+# process-local pass gate. Other automation owners keep their own gates.
+_notification_loop = notification_loop_var("fleet_router_notification_loop")
+_pass_gate = threading.Lock()
 
 
 def automation_mode() -> str:
@@ -234,18 +247,31 @@ async def _notify(notification_type: str, title: str, message: str, action_url: 
 
 
 def _spawn_notification(notification_type: str, title: str, message: str, action_url: str = "") -> None:
-    async def _run() -> None:
-        await _notify(notification_type, title, message, action_url)
+    def notification_factory():
+        return _notify(notification_type, title, message, action_url)
 
+    if schedule_notification(
+        _notification_loop,
+        notification_factory,
+        asyncio_module=asyncio,
+        logger_=logger,
+        label="Fleet router",
+    ):
+        return
     try:
         loop = get_event_loop()
         if loop.is_running():
-            loop.create_task(_run())
-        else:
-            asyncio.run(_run())
+            notification = notification_factory()
+            try:
+                loop.create_task(notification)
+            except Exception:
+                notification.close()
+                raise
+            return
+        asyncio.run(notification_factory())
     except Exception:
         try:
-            asyncio.run(_run())
+            asyncio.run(notification_factory())
         except Exception:
             pass
 
@@ -567,6 +593,22 @@ def run_auto_certification() -> Dict[str, Any]:
         return {"enabled": True, "mode": _mode, "error": "pass failed"}
 
 
+def _run_auto_certification_guarded() -> Dict[str, Any]:
+    """Run one pass unless a surviving worker still owns this owner's gate."""
+    return run_with_thread_gate(
+        _pass_gate,
+        run_auto_certification,
+        label="fleet-router certification",
+        log=logger,
+    )
+
+
+async def run_auto_certification_async() -> Dict[str, Any]:
+    """Offload one owned-session pass and preserve notification-loop context."""
+    return await run_sync_in_worker(
+        _run_auto_certification_guarded, _notification_loop)
+
+
 def pending_approvals(db) -> List[Dict[str, Any]]:
     pending = _pending_row(db)
     return [pending] if pending else []
@@ -627,7 +669,7 @@ async def fleet_router_automation_loop() -> None:
     while True:
         await asyncio.sleep(max(_interval_min, 0.5) * 60)
         try:
-            run_auto_certification()
+            await run_auto_certification_async()
         except asyncio.CancelledError:
             raise
         except Exception as e:
