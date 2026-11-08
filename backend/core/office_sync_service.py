@@ -20,6 +20,8 @@ Co-editing model (#39):
     canvases pick up agent-side edits too.
 """
 
+from core.local_paths import resolve_local_path
+
 import asyncio
 import logging
 import os
@@ -548,9 +550,8 @@ class OfficeSyncService:
         ext = Path(file_name).suffix.lower()
         if ext not in {".xlsx", ".xlsm", ".docx", ".pptx"}:
             return {"success": False, "error": f"Unsupported office format: {ext}"}
-        office_dir = Path(
-            os.getenv("ATOM_OFFICE_DIR", os.path.join("data", "office"))
-        ).resolve()
+        office_dir = resolve_local_path(
+            os.getenv("ATOM_OFFICE_DIR") or os.path.join("data", "office"))
         office_dir.mkdir(parents=True, exist_ok=True)
         target = _validate_office_path(
             str(office_dir / f"{safe_stem}-{uuid.uuid4().hex[:8]}{ext}")

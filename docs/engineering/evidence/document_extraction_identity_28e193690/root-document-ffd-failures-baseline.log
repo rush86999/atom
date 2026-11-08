@@ -1,0 +1,200 @@
+
+tests/api/test_document_routes_coverage_w52.py::TestIngestDocument::test_ingest_success 
+-------------------------------- live log setup --------------------------------
+2026-11-08 02:22:18 [    INFO] EscalationManager initialized
+2026-11-08 02:22:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 02:22:18 [    INFO] EscalationManager initialized
+2026-11-08 02:22:18 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 02:22:18 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-08 02:22:18 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-08 02:22:18 [    INFO] HTTP Request: POST http://testserver/api/documents/ingest "HTTP/1.1 200 OK"
+FAILED                                                                   [ 10%]
+tests/api/test_document_routes_coverage_w52.py::TestWorkspaceBranches::test_upload_workspace_resolution_exception_warned 
+-------------------------------- live log call ---------------------------------
+2026-11-08 02:22:18 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+FAILED                                                                   [ 20%]
+tests/core/test_auto_document_ingestion_coverage.py::TestDocumentParser::test_parse_csv_with_large_file 
+-------------------------------- live log call ---------------------------------
+2026-11-08 02:22:18 [    INFO] Extracted 0 formulas from CSV /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/tmphhjiensu.csv
+FAILED                                                                   [ 30%]
+tests/test_covpush_ingest.py::TestAtomSaaSClient::test_fetch_agents 
+-------------------------------- live log call ---------------------------------
+2026-11-08 02:22:18 [   ERROR] Failed to fetch agents: Error 500
+FAILED                                                                   [ 40%]
+tests/test_covpush_ingest.py::TestAtomSaaSClient::test_http_client_headers FAILED [ 50%]
+tests/test_covpush_ingest.py::TestDocumentParser::test_parse_csv_truncation 
+-------------------------------- live log call ---------------------------------
+2026-11-08 02:22:18 [    INFO] Extracted 0 formulas from CSV /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/tmpg4wjvutp.csv
+FAILED                                                                   [ 60%]
+tests/test_covpush_ingest.py::TestAutoDocumentIngestionService::test_sync_integration_duplicate_not_modified 
+-------------------------------- live log call ---------------------------------
+2026-11-08 02:22:18 [    INFO] Updated ingestion settings for dropbox: enabled=True
+2026-11-08 02:22:18 [    INFO] Starting document sync for dropbox
+2026-11-08 02:22:18 [ WARNING] Dropbox access token not configured
+FAILED                                                                   [ 70%]
+tests/test_covpush_w93_pomdp_misc.py::TestAutoDocumentIngestion::test_process_file_bytes_branches 
+-------------------------------- live log call ---------------------------------
+2026-11-08 02:22:18 [ WARNING] Failed to parse a.txt (txt): p
+2026-11-08 02:22:18 [    INFO] Redacted secrets from a.txt
+FAILED                                                                   [ 80%]
+tests/test_covpush_w93_pomdp_misc.py::TestAutoDocumentIngestion::test_sync_full_loop 
+-------------------------------- live log call ---------------------------------
+2026-11-08 02:22:18 [    INFO] Updated ingestion settings for google_drive: enabled=True
+2026-11-08 02:22:18 [    INFO] MCP Service initialized
+2026-11-08 02:22:18 [    INFO] Starting document sync for google_drive
+2026-11-08 02:22:18 [ WARNING] Redacted 0 secrets from b.txt
+2026-11-08 02:22:18 [ WARNING] Freshness reevaluate failed for google_drive: reeval fail
+FAILED                                                                   [ 90%]
+tests/test_covpush_w93_pomdp_misc.py::TestAutoDocumentIngestion::test_persist_freshness_on_ingest FAILED [100%]
+
+=================================== FAILURES ===================================
+____________________ TestIngestDocument.test_ingest_success ____________________
+tests/api/test_document_routes_coverage_w52.py:154: in test_ingest_success
+    assert data["chunk_count"] == 1
+E   assert 2 == 1
+------------------------------ Captured log setup ------------------------------
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.embedding_service:embedding_service.py:131 Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+INFO     core.agent_task_registry:agent_task_registry.py:64 AgentTaskRegistry initialized
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/documents/ingest "HTTP/1.1 200 OK"
+___ TestWorkspaceBranches.test_upload_workspace_resolution_exception_warned ____
+tests/api/test_document_routes_coverage_w52.py:406: in test_upload_workspace_resolution_exception_warned
+    assert handler.add_document.call_args.kwargs["workspace_id"] is None
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'workspace_id'
+------------------------------ Captured log call -------------------------------
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+______________ TestDocumentParser.test_parse_csv_with_large_file _______________
+tests/core/test_auto_document_ingestion_coverage.py:401: in test_parse_csv_with_large_file
+    assert "... (truncated)" in result
+E   AssertionError: assert '... (truncated)' in 'Row1 | Row2\nValue0 | Data0\nValue1 | Data1\nValue2 | Data2\nValue3 | Data3\nValue4 | Data4\nValue5 | Data5\nValue6 | Data6\nValue7 | Data7\nValue8 | Data8\nValue9 | Data9\nValue10 | Data10\nValue11 | Data11\nValue12 | Data12\nValue13 | Data13\nValue14 | Data14\nValue15 | Data15\nValue16 | Data16\nValue17 | Data17\nValue18 | Data18\nValue19 | Data19\nValue20 | Data20\nValue21 | Data21\nValue22 | Data22\nValue23 | Data23\nValue24 | Data24\nValue25 | Data25\nValue26 | Data26\nValue27 | Data27\nValue28 | Data28\nValue29 | Data29\nValue30 | Data30\nValue31 | Data31\nValue32 | Data32\nValue33 | Data33\nValue34 | Data34\nValue35 | Data35\nValue36 | Data36\nValue37 | Data37\nValue38 | Data38\nValue39 | Data39\nValue40 | Data40\nValue41 | Data41\nValue42 | Data42\nValue43 | Data43\nValue44 | Data44\nValue45 | Data45\nValue46 | Data46\nValue47 | Data47\nValue48 | Data48\nValue49 | Data49\nValue50 | Data50\nValue51 | Data51\nValue52 | Data52\nValue53 | Data53\nValue54 | Data54\nValue55 | Data55\nValue56 | Data56\nValue57 | Data57\nValue58 | Data58\nValue59 | Data59\nValue60 | Data60\nValue61 | Data61\nValue62 | Data62\nValue63 | Data63\nValue64 | Data64\nValue65 | Data65\nValue66 | Data66...| Data1945\nValue1946 | Data1946\nValue1947 | Data1947\nValue1948 | Data1948\nValue1949 | Data1949\nValue1950 | Data1950\nValue1951 | Data1951\nValue1952 | Data1952\nValue1953 | Data1953\nValue1954 | Data1954\nValue1955 | Data1955\nValue1956 | Data1956\nValue1957 | Data1957\nValue1958 | Data1958\nValue1959 | Data1959\nValue1960 | Data1960\nValue1961 | Data1961\nValue1962 | Data1962\nValue1963 | Data1963\nValue1964 | Data1964\nValue1965 | Data1965\nValue1966 | Data1966\nValue1967 | Data1967\nValue1968 | Data1968\nValue1969 | Data1969\nValue1970 | Data1970\nValue1971 | Data1971\nValue1972 | Data1972\nValue1973 | Data1973\nValue1974 | Data1974\nValue1975 | Data1975\nValue1976 | Data1976\nValue1977 | Data1977\nValue1978 | Data1978\nValue1979 | Data1979\nValue1980 | Data1980\nValue1981 | Data1981\nValue1982 | Data1982\nValue1983 | Data1983\nValue1984 | Data1984\nValue1985 | Data1985\nValue1986 | Data1986\nValue1987 | Data1987\nValue1988 | Data1988\nValue1989 | Data1989\nValue1990 | Data1990\nValue1991 | Data1991\nValue1992 | Data1992\nValue1993 | Data1993\nValue1994 | Data1994\nValue1995 | Data1995\nValue1996 | Data1996\nValue1997 | Data1997\nValue1998 | Data1998\nValue1999 | Data1999'
+------------------------------ Captured log call -------------------------------
+INFO     core.formula_extractor:formula_extractor.py:461 Extracted 0 formulas from CSV /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/tmphhjiensu.csv
+_____________________ TestAtomSaaSClient.test_fetch_agents _____________________
+tests/test_covpush_ingest.py:1392: in test_fetch_agents
+    assert result == {"agents": [], "total": 0, "page": 1, "page_size": 20}
+E   AssertionError: assert {'agents': []...ize': 20, ...} == {'agents': []...age_size': 20}
+E     
+E     Omitting 4 identical items, use -vv to show
+E     Left contains 1 more item:
+E     {'source': 'error'}
+E     
+E     Full diff:
+E       {...
+E     
+E     ...Full output truncated (6 lines hidden), use '-vv' to show
+------------------------------ Captured log call -------------------------------
+ERROR    core.atom_saas_client:atom_saas_client.py:313 Failed to fetch agents: Error 500
+_________________ TestAtomSaaSClient.test_http_client_headers __________________
+tests/test_covpush_ingest.py:1652: in test_http_client_headers
+    assert kwargs["headers"]["X-API-Token"] == "tok-123"
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   KeyError: 'X-API-Token'
+_________________ TestDocumentParser.test_parse_csv_truncation _________________
+tests/test_covpush_ingest.py:2072: in test_parse_csv_truncation
+    assert "... (truncated)" in text
+E   AssertionError: assert '... (truncated)' in 'row0 | x\nrow1 | x\nrow2 | x\nrow3 | x\nrow4 | x\nrow5 | x\nrow6 | x\nrow7 | x\nrow8 | x\nrow9 | x\nrow10 | x\nrow11 | x\nrow12 | x\nrow13 | x\nrow14 | x\nrow15 | x\nrow16 | x\nrow17 | x\nrow18 | x\nrow19 | x\nrow20 | x\nrow21 | x\nrow22 | x\nrow23 | x\nrow24 | x\nrow25 | x\nrow26 | x\nrow27 | x\nrow28 | x\nrow29 | x\nrow30 | x\nrow31 | x\nrow32 | x\nrow33 | x\nrow34 | x\nrow35 | x\nrow36 | x\nrow37 | x\nrow38 | x\nrow39 | x\nrow40 | x\nrow41 | x\nrow42 | x\nrow43 | x\nrow44 | x\nrow45 | x\nrow46 | x\nrow47 | x\nrow48 | x\nrow49 | x\nrow50 | x\nrow51 | x\nrow52 | x\nrow53 | x\nrow54 | x\nrow55 | x\nrow56 | x\nrow57 | x\nrow58 | x\nrow59 | x\nrow60 | x\nrow61 | x\nrow62 | x\nrow63 | x\nrow64 | x\nrow65 | x\nrow66 | x\nrow67 | x\nrow68 | x\nrow69 | x\nrow70 | x\nrow71 | x\nrow72 | x\nrow73 | x\nrow74 | x\nrow75 | x\nrow76 | x\nrow77 | x\nrow78 | x\nrow79 | x\nrow80 | x\nrow81 | x\nrow82 | x\nrow83 | x\nrow84 | x\nrow85 | x\nrow86 | x\nrow87 | x\nrow88 | x\nrow89 | x\nrow90 | x\nrow91 | x\nrow92 | x\nrow93 | x\nrow94 | x\nrow95 | x\nrow96 | x\nrow97 | x\nrow98 | x\nrow99 | x\nrow100 | x\nrow101 | x\nrow102 | x\nrow103 | x\nrow104 | x\nrow105 | x\nrow106 | x\nrow107 | x\nrow108 | x\... x\nrow1408 | x\nrow1409 | x\nrow1410 | x\nrow1411 | x\nrow1412 | x\nrow1413 | x\nrow1414 | x\nrow1415 | x\nrow1416 | x\nrow1417 | x\nrow1418 | x\nrow1419 | x\nrow1420 | x\nrow1421 | x\nrow1422 | x\nrow1423 | x\nrow1424 | x\nrow1425 | x\nrow1426 | x\nrow1427 | x\nrow1428 | x\nrow1429 | x\nrow1430 | x\nrow1431 | x\nrow1432 | x\nrow1433 | x\nrow1434 | x\nrow1435 | x\nrow1436 | x\nrow1437 | x\nrow1438 | x\nrow1439 | x\nrow1440 | x\nrow1441 | x\nrow1442 | x\nrow1443 | x\nrow1444 | x\nrow1445 | x\nrow1446 | x\nrow1447 | x\nrow1448 | x\nrow1449 | x\nrow1450 | x\nrow1451 | x\nrow1452 | x\nrow1453 | x\nrow1454 | x\nrow1455 | x\nrow1456 | x\nrow1457 | x\nrow1458 | x\nrow1459 | x\nrow1460 | x\nrow1461 | x\nrow1462 | x\nrow1463 | x\nrow1464 | x\nrow1465 | x\nrow1466 | x\nrow1467 | x\nrow1468 | x\nrow1469 | x\nrow1470 | x\nrow1471 | x\nrow1472 | x\nrow1473 | x\nrow1474 | x\nrow1475 | x\nrow1476 | x\nrow1477 | x\nrow1478 | x\nrow1479 | x\nrow1480 | x\nrow1481 | x\nrow1482 | x\nrow1483 | x\nrow1484 | x\nrow1485 | x\nrow1486 | x\nrow1487 | x\nrow1488 | x\nrow1489 | x\nrow1490 | x\nrow1491 | x\nrow1492 | x\nrow1493 | x\nrow1494 | x\nrow1495 | x\nrow1496 | x\nrow1497 | x\nrow1498 | x\nrow1499 | x'
+------------------------------ Captured log call -------------------------------
+INFO     core.formula_extractor:formula_extractor.py:461 Extracted 0 formulas from CSV /var/folders/sq/kf_272b520nc5wnsp27hq1h00000gn/T/tmpg4wjvutp.csv
+_ TestAutoDocumentIngestionService.test_sync_integration_duplicate_not_modified _
+tests/test_covpush_ingest.py:2360: in test_sync_integration_duplicate_not_modified
+    assert result["files_skipped"] == 1
+E   assert 0 == 1
+------------------------------ Captured log call -------------------------------
+INFO     core.auto_document_ingestion:auto_document_ingestion.py:1235 Updated ingestion settings for dropbox: enabled=True
+INFO     core.auto_document_ingestion:auto_document_ingestion.py:1647 Starting document sync for dropbox
+WARNING  core.auto_document_ingestion:auto_document_ingestion.py:2390 Dropbox access token not configured
+__________ TestAutoDocumentIngestion.test_process_file_bytes_branches __________
+tests/test_covpush_w93_pomdp_misc.py:1087: in test_process_file_bytes_branches
+    assert (await svc.process_file_bytes(b"ab", "a.txt"))["reason"] == "no_text"
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+core/auto_document_ingestion.py:1468: in process_file_bytes
+    _content_hash = extraction_content_hash(text)
+                    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+core/doc_freshness_service.py:117: in extraction_content_hash
+    return f"ev{EXTRACTION_VERSION}:{hash_text(text)}"
+                                     ^^^^^^^^^^^^^^^
+core/doc_freshness_service.py:94: in hash_text
+    return hashlib.sha256(text.encode("utf-8")).hexdigest()
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   TypeError: object supporting the buffer API required
+------------------------------ Captured log call -------------------------------
+WARNING  core.auto_document_ingestion:auto_document_ingestion.py:1392 Failed to parse a.txt (txt): p
+INFO     core.auto_document_ingestion:auto_document_ingestion.py:1421 Redacted secrets from a.txt
+________________ TestAutoDocumentIngestion.test_sync_full_loop _________________
+tests/test_covpush_w93_pomdp_misc.py:1165: in test_sync_full_loop
+    assert r["files_ingested"] == 1  # ext-stale re-ingested
+    ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+E   assert 0 == 1
+------------------------------ Captured log call -------------------------------
+INFO     core.auto_document_ingestion:auto_document_ingestion.py:1235 Updated ingestion settings for google_drive: enabled=True
+INFO     integrations.mcp_service:mcp_service.py:123 MCP Service initialized
+INFO     core.auto_document_ingestion:auto_document_ingestion.py:1647 Starting document sync for google_drive
+WARNING  core.auto_document_ingestion:auto_document_ingestion.py:1732 Redacted 0 secrets from b.txt
+WARNING  core.auto_document_ingestion:auto_document_ingestion.py:1883 Freshness reevaluate failed for google_drive: reeval fail
+__________ TestAutoDocumentIngestion.test_persist_freshness_on_ingest __________
+tests/test_covpush_w93_pomdp_misc.py:1272: in test_persist_freshness_on_ingest
+    svc._persist_freshness_on_ingest(doc, source_url="u",
+core/auto_document_ingestion.py:2050: in _persist_freshness_on_ingest
+    if existing.id != doc.id:
+       ^^^^^^^^^^^
+E   AttributeError: 'types.SimpleNamespace' object has no attribute 'id'
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../root-py311-plugins/pytest_freezegun.py:17: 20 warnings
+  /private/tmp/root-py311-plugins/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/api/test_document_routes_coverage_w52.py::TestIngestDocument::test_ingest_success
+  /private/tmp/atom-document-regression-baseline-20261108/backend/core/graphrag_engine.py:203: SyntaxWarning: "\%" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\%"? A raw string is also an option.
+    Escaped pattern where % and _ are escaped to \%
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/api/test_document_routes_coverage_w52.py::TestIngestDocument::test_ingest_success
+FAILED tests/api/test_document_routes_coverage_w52.py::TestWorkspaceBranches::test_upload_workspace_resolution_exception_warned
+FAILED tests/core/test_auto_document_ingestion_coverage.py::TestDocumentParser::test_parse_csv_with_large_file
+FAILED tests/test_covpush_ingest.py::TestAtomSaaSClient::test_fetch_agents - ...
+FAILED tests/test_covpush_ingest.py::TestAtomSaaSClient::test_http_client_headers
+FAILED tests/test_covpush_ingest.py::TestDocumentParser::test_parse_csv_truncation
+FAILED tests/test_covpush_ingest.py::TestAutoDocumentIngestionService::test_sync_integration_duplicate_not_modified
+FAILED tests/test_covpush_w93_pomdp_misc.py::TestAutoDocumentIngestion::test_process_file_bytes_branches
+FAILED tests/test_covpush_w93_pomdp_misc.py::TestAutoDocumentIngestion::test_sync_full_loop
+FAILED tests/test_covpush_w93_pomdp_misc.py::TestAutoDocumentIngestion::test_persist_freshness_on_ingest
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================= 10 failed, 28 warnings in 10.29s =======================

@@ -1,0 +1,409 @@
+{
+  "schema_version": 1,
+  "executed_source": "07be04804d082bad81e81fee30bcc605200f00f4",
+  "status": "passed at controlled local ordinary-browser scope",
+  "stages": [
+    {
+      "name": "source_retained_profile_and_fixture_proof",
+      "checks": {
+        "source_proof_ok": true,
+        "expected_sha_ok": true,
+        "tracked_tree_clean": true,
+        "per_file_match": true,
+        "retained_api_test_bytes_unchanged": true,
+        "core_documents_profile": true,
+        "frozen_source_contract": true,
+        "search_deferred": true,
+        "launcher_paths_present": true,
+        "acc_metadata_dir_writable": true,
+        "acc_venv_freeze_not_tracked": true,
+        "legacy_fixture_set_verified": true,
+        "fastembed_cache_complete": true,
+        "fastembed_runtime_present": true,
+        "fixture_over_20k_tail": true,
+        "fixture_width_identity": true
+      }
+    },
+    {
+      "name": "fresh_marked_world_built_once",
+      "checks": {
+        "manifest_present": true,
+        "fixture_present": true,
+        "marker_present": true,
+        "marker_source_matches": true,
+        "marker_fixture_labelled": true,
+        "disk_preflight_ok": true,
+        "preflight_source_matches_frozen": true,
+        "export_tree_matches_manifest": true,
+        "launcher_rechecked_before_build": true,
+        "acc_metadata_rechecked_before_build": true,
+        "legacy_fixture_set_rechecked_before_build": true,
+        "storage_guard_was_required": true
+      }
+    },
+    {
+      "name": "backend_source_bound_to_git_bytes",
+      "checks": {
+        "frozen_source_sha_present": true,
+        "frozen_source_matches_head": true,
+        "preflight_source_matches_frozen": true,
+        "git_repo_present": true,
+        "git_commit_resolved": true,
+        "tracked_backend_files_present": true,
+        "all_tracked_backend_files_exported": true,
+        "no_unexpected_backend_files": true,
+        "git_blob_read_ok": true,
+        "git_blob_bytes_match_export": true,
+        "code_manifest_matches_git_blobs": true,
+        "export_tree_matches_git_blobs": true,
+        "code_manifest_keys_match_export": true,
+        "export_tree_keys_match_export": true,
+        "all_git_modes_supported": true,
+        "manifest_export_hash_present": true,
+        "manifest_source_revision_not_conflicting": true,
+        "export_tree_matches_code_manifest": true,
+        "backend_export_hash_present": true,
+        "backend_export_hash_bound": true,
+        "health_cwd_exact": true,
+        "descriptor_export_exact": true,
+        "health_source_id_observed": true
+      }
+    },
+    {
+      "name": "backend_process_identity_and_runtime_flags",
+      "checks": {
+        "pid_alive": true,
+        "cwd_is_world_backend_root": true,
+        "db_is_run_db": true,
+        "db_not_live_dev_db": true,
+        "db_parent_is_run_data": true,
+        "scheduler_and_ingestion_explicitly_off": true,
+        "evolution_flag_explicitly_false": true,
+        "worker_flags_proven_off": true,
+        "dotenv_isolation_guard_installed": true,
+        "embedding_provider_default": true,
+        "fastembed_model_default": true,
+        "fastembed_cache_env_absent": true,
+        "tmpdir_matches_driver": true,
+        "no_provider_shim": true,
+        "sandbox_profile_local_only": true,
+        "no_byok_config_in_world": true,
+        "byok_config_generated_or_absent": true,
+        "byok_key_store_empty": true,
+        "byok_credential_free": true,
+        "byok_env_not_forwarded": true,
+        "no_credential_env_forwarded": true
+      }
+    },
+    {
+      "name": "frontend_source_bytes_match_git",
+      "checks": {
+        "source_proof_ok": true,
+        "files_checked": true,
+        "cwd_is_world_copy": true,
+        "node_modules_symlinked_not_installed": true,
+        "no_env_local_copied": true,
+        "api_url_bound_to_backend": true
+      }
+    },
+    {
+      "name": "core_documents_profile_search_deferred",
+      "checks": {
+        "profile_core": true,
+        "documents_enabled": true,
+        "search_deferred": true,
+        "tasks_not_forced": true,
+        "boards_not_forced": true
+      }
+    },
+    {
+      "name": "bootstrap_account_and_null_default_scope_bound",
+      "checks": {
+        "public_id_present": true,
+        "email_is_bootstrap_admin": true,
+        "sql_actor_exact": true,
+        "public_workspace_matches_sql": true,
+        "personal_default_workspace_preserved": true,
+        "personal_default_tenant_preserved": true,
+        "password_not_recorded": true,
+        "normal_bootstrap_account_only": true
+      }
+    },
+    {
+      "name": "ordinary_admin_ui_login",
+      "checks": {
+        "attempted": true,
+        "landed_off_login": true,
+        "token_present_after_login": true,
+        "no_seeded_cookie": true
+      }
+    },
+    {
+      "name": "public_onboarding_status_and_wizard",
+      "checks": {
+        "completion_durable": true,
+        "wizard_seen_or_already_complete": true,
+        "dismissed_through_real_buttons": true,
+        "not_a_fixed_visibility_race": true
+      }
+    },
+    {
+      "name": "documents_surface_opened_from_ordinary_nav",
+      "checks": {
+        "url_is_documents": true,
+        "heading_visible": true,
+        "upload_input_present": true,
+        "data_nav_link_used": true,
+        "search_deferred_copy_visible": true,
+        "no_search_request_yet": true
+      }
+    },
+    {
+      "name": "ordinary_txt_upload_returns_bound_document_identity",
+      "checks": {
+        "http_2xx": true,
+        "doc_id_present": true,
+        "doc_id_is_scoped_content_key": true,
+        "doc_id_format": true,
+        "title_is_uploaded_filename": true,
+        "metadata_filename": true,
+        "metadata_file_type_txt": true,
+        "metadata_pg_join_key": true,
+        "metadata_integration_manual_upload": true,
+        "source_version_is_ev4": true,
+        "source_version_matches_fixture_text": true,
+        "chunk_count_from_full_text": true,
+        "exactly_one_upload_request": true,
+        "success_message_visible": true
+      }
+    },
+    {
+      "name": "list_link_opens_exact_document_with_full_content",
+      "checks": {
+        "detail_http_200": true,
+        "url_doc_id_exact": true,
+        "api_data_id_exact": true,
+        "api_title_exact": true,
+        "api_content_full_text": true,
+        "api_content_sha256_exact": true,
+        "api_index_source_version": true,
+        "api_content_over_20k": true,
+        "ui_doc_id_visible": true,
+        "ui_head_marker_visible": true,
+        "ui_tail_marker_visible": true,
+        "export_control_visible": true,
+        "three_export_formats": true,
+        "no_export_error_before_export": true
+      }
+    },
+    {
+      "name": "reload_preserves_same_document_and_content",
+      "checks": {
+        "reload_http_200": true,
+        "same_url_doc_id": true,
+        "same_api_id": true,
+        "same_content_sha256": true,
+        "same_index_source_version": true,
+        "tail_still_visible": true,
+        "no_export_error_after_reload": true
+      }
+    },
+    {
+      "name": "durable_sql_and_index_bind_uploaded_revision",
+      "checks": {
+        "sql_row_found": true,
+        "sql_id_exact": true,
+        "sql_file_name": true,
+        "sql_file_type_txt": true,
+        "sql_manual_upload": true,
+        "sql_external_id_upload_binding": true,
+        "sql_fresh": true,
+        "sql_source_version_matches_upload": true,
+        "index_source_version_matches_upload": true,
+        "sql_file_size_matches_fixture": true,
+        "sql_workspace_preserves_null_default": true,
+        "lance_store_under_run_data": true,
+        "lance_store_named_default_shared": true,
+        "sql_not_live_dev_db": true
+      }
+    },
+    {
+      "name": "browser_download_text_exact_api_bytes",
+      "checks": {
+        "http_200": true,
+        "request_path_exact": true,
+        "request_format_exact": true,
+        "request_has_no_client_path_param": true,
+        "exactly_one_export_request": true,
+        "download_failure_absent": true,
+        "download_saved": true,
+        "response_body_read": true,
+        "suggested_filename_exact": true,
+        "download_url_is_blob_object": true,
+        "payload_ok": true,
+        "payload_api_bytes_nonempty": true,
+        "payload_download_bytes_nonempty": true,
+        "payload_download_equals_api_bytes": true,
+        "payload_download_sha256_equals_api": true,
+        "payload_content_type_exact": true,
+        "payload_content_disposition_attachment": true,
+        "payload_content_disposition_filename": true,
+        "payload_cache_control_no_store": true,
+        "payload_x_content_type_options_nosniff": true,
+        "payload_x_document_id_exact": true,
+        "payload_x_document_content_kind": true,
+        "payload_x_document_provenance_authoritative": true,
+        "payload_x_document_source_version_exact": true,
+        "payload_x_document_source_version_kind": true,
+        "payload_x_document_source_version_status": true,
+        "payload_x_document_freshness_fresh": true,
+        "payload_x_document_stored_text_sha256": true,
+        "payload_x_document_export_sha256": true,
+        "payload_expected_full_text_over_20k": true,
+        "payload_expected_tail_marker_present": true,
+        "payload_body_equals_full_stored_text": true,
+        "payload_body_length_exact": true,
+        "payload_body_contains_tail_marker": true,
+        "payload_body_beyond_20k_present": true,
+        "payload_download_sha256_equals_stored_text": true,
+        "payload_markdown_transform_header": true
+      }
+    },
+    {
+      "name": "browser_download_markdown_exact_api_bytes",
+      "checks": {
+        "http_200": true,
+        "request_path_exact": true,
+        "request_format_exact": true,
+        "request_has_no_client_path_param": true,
+        "exactly_one_export_request": true,
+        "download_failure_absent": true,
+        "download_saved": true,
+        "response_body_read": true,
+        "suggested_filename_exact": true,
+        "download_url_is_blob_object": true,
+        "payload_ok": true,
+        "payload_api_bytes_nonempty": true,
+        "payload_download_bytes_nonempty": true,
+        "payload_download_equals_api_bytes": true,
+        "payload_download_sha256_equals_api": true,
+        "payload_content_type_exact": true,
+        "payload_content_disposition_attachment": true,
+        "payload_content_disposition_filename": true,
+        "payload_cache_control_no_store": true,
+        "payload_x_content_type_options_nosniff": true,
+        "payload_x_document_id_exact": true,
+        "payload_x_document_content_kind": true,
+        "payload_x_document_provenance_authoritative": true,
+        "payload_x_document_source_version_exact": true,
+        "payload_x_document_source_version_kind": true,
+        "payload_x_document_source_version_status": true,
+        "payload_x_document_freshness_fresh": true,
+        "payload_x_document_stored_text_sha256": true,
+        "payload_x_document_export_sha256": true,
+        "payload_expected_full_text_over_20k": true,
+        "payload_expected_tail_marker_present": true,
+        "payload_body_equals_full_stored_text": true,
+        "payload_body_length_exact": true,
+        "payload_body_contains_tail_marker": true,
+        "payload_body_beyond_20k_present": true,
+        "payload_download_sha256_equals_stored_text": true,
+        "payload_markdown_transform_header": true
+      }
+    },
+    {
+      "name": "browser_download_json_exact_api_bytes",
+      "checks": {
+        "http_200": true,
+        "request_path_exact": true,
+        "request_format_exact": true,
+        "request_has_no_client_path_param": true,
+        "exactly_one_export_request": true,
+        "download_failure_absent": true,
+        "download_saved": true,
+        "response_body_read": true,
+        "suggested_filename_exact": true,
+        "download_url_is_blob_object": true,
+        "payload_ok": true,
+        "payload_api_bytes_nonempty": true,
+        "payload_download_bytes_nonempty": true,
+        "payload_download_equals_api_bytes": true,
+        "payload_download_sha256_equals_api": true,
+        "payload_content_type_exact": true,
+        "payload_content_disposition_attachment": true,
+        "payload_content_disposition_filename": true,
+        "payload_cache_control_no_store": true,
+        "payload_x_content_type_options_nosniff": true,
+        "payload_x_document_id_exact": true,
+        "payload_x_document_content_kind": true,
+        "payload_x_document_provenance_authoritative": true,
+        "payload_x_document_source_version_exact": true,
+        "payload_x_document_source_version_kind": true,
+        "payload_x_document_source_version_status": true,
+        "payload_x_document_freshness_fresh": true,
+        "payload_x_document_stored_text_sha256": true,
+        "payload_x_document_export_sha256": true,
+        "payload_expected_full_text_over_20k": true,
+        "payload_expected_tail_marker_present": true,
+        "payload_json_parsed": true,
+        "payload_json_document_id": true,
+        "payload_json_content_equals_full_stored_text": true,
+        "payload_json_content_tail_marker": true,
+        "payload_json_content_length_exact": true,
+        "payload_json_stored_text_bytes": true,
+        "payload_json_stored_text_sha256": true,
+        "payload_json_source_version_exact": true,
+        "payload_json_source_version_kind": true,
+        "payload_json_source_version_status": true,
+        "payload_json_provenance_authoritative": true,
+        "payload_json_freshness_fresh": true,
+        "payload_json_format": true,
+        "payload_json_content_kind": true,
+        "payload_json_file_name_expected": true,
+        "payload_json_title_expected": true,
+        "payload_json_reader": true
+      }
+    },
+    {
+      "name": "three_formats_bind_same_document_and_revision",
+      "checks": {
+        "three_formats_proven": true,
+        "all_payloads_ok": true,
+        "all_downloads_equal_api_bytes": true,
+        "all_tails_present": true,
+        "all_source_versions_match_upload": true,
+        "all_doc_ids_match_upload": true,
+        "json_version_matches_upload": true,
+        "json_version_matches_sql_and_index": true
+      }
+    },
+    {
+      "name": "ordinary_download_boundary_not_search_or_binary",
+      "checks": {
+        "no_foreign_origin_requests": true,
+        "no_search_endpoint_request": true,
+        "no_search_page_navigation": true,
+        "all_export_requests_one_doc": true,
+        "export_request_count_three": true,
+        "upload_request_count_one": true,
+        "no_export_error_banner": true,
+        "no_original_binary_parameter": true,
+        "search_capability_deferred": true,
+        "no_provider_model_call": true
+      }
+    }
+  ],
+  "stage_count": 19,
+  "named_assertion_count": 294,
+  "exactly_one_upload_request": true,
+  "raw_records_published": false,
+  "processes_stopped": true,
+  "qualification_notes": [
+    "Synthetic TXT upload/open/reload and stored-text Text/Markdown/JSON downloads only.",
+    "Cached local dependencies; not a fresh installation qualification.",
+    "Original binary download, format breadth, grounding and general autonomy are not established.",
+    "Unknown extraction-truncation metadata remains unknown; complete fixture content was independently byte-verified."
+  ],
+  "served_llm_quality_qualified": false,
+  "local_embedding_index_used": true
+}

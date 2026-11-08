@@ -6,6 +6,8 @@ grant an operation.
 """
 from __future__ import annotations
 
+from core.local_paths import resolve_local_path
+
 import logging
 import os
 import uuid
@@ -501,7 +503,7 @@ async def capability_assign(
                 "document": ".docx", "spreadsheet": ".xlsx",
                 "presentation": ".pptx",
             }[kind]
-            output_root = Path(
+            output_root = resolve_local_path(
                 os.getenv("ATOM_ASSIGNMENT_OUTPUT_DIR")
                 or os.getenv("ATOM_OFFICE_DIR")
                 or os.path.join("data", "office", "assignments"))

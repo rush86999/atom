@@ -1320,6 +1320,12 @@ def launch_server(port: int, world: Path, provider_shim: bool = False,
     env.update({
         "DATABASE_URL": f"sqlite:///{launch_server.last_run_dir / 'data' / 'atom.db'}",
         "ATOM_DATA_DIR": str(launch_server.last_run_dir / "data"),
+        # Code exports are immutable. Backend-anchored storage defaults must
+        # not write beside __file__ inside world/code; fresh launches and
+        # same-run restarts share only their own declared mutable state.
+        "ATOM_OFFICE_DIR": str(launch_server.last_run_dir / "data" / "office"),
+        "ATOM_ASSIGNMENT_OUTPUT_DIR": str(
+            launch_server.last_run_dir / "data" / "office" / "assignments"),
         "LANCEDB_URI": str(world / "data" / "atom_memory"),
         "ATOM_SHEET_DATASETS": "1",
         # Core release configuration: streaming is outside the verified claim.

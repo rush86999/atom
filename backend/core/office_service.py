@@ -5,6 +5,8 @@ Provides core utilities for reading, modifying, and rendering Word (.docx),
 Excel (.xlsx), and PowerPoint (.pptx) documents without native Office dependencies.
 """
 
+from core.local_paths import resolve_local_path
+
 from core.asyncio_compat import get_event_loop, iscoroutinefunction
 import logging
 import os
@@ -80,12 +82,12 @@ def _validate_office_path(file_path: str) -> str:
     if not file_path:
         raise ValueError("file_path is required")
     bases = [
-        Path(os.getenv("ATOM_OFFICE_DIR", os.path.join("data", "office"))).resolve(),
-        Path(os.getenv("ATOM_ASSIGNMENT_OUTPUT_DIR", os.path.join(
-            "data", "office", "assignments"))).resolve(),
+        resolve_local_path(os.getenv("ATOM_OFFICE_DIR") or os.path.join("data", "office")),
+        resolve_local_path(os.getenv("ATOM_ASSIGNMENT_OUTPUT_DIR") or os.path.join(
+            "data", "office", "assignments")),
     ]
     try:
-        resolved = Path(file_path).resolve()
+        resolved = resolve_local_path(file_path)
     except (OSError, ValueError) as e:
         raise ValueError("Invalid file path")
     # Resolve symlinks/relative escapes: the resolved path must be under one

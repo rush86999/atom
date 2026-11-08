@@ -1595,14 +1595,14 @@ class TestAutoDocumentIngestion:
         if has_pypdf:
             assert await adi.DocumentParser._parse_pdf(b"not pdf") == ""
         else:
-            assert "parser not available" in await adi.DocumentParser._parse_pdf(b"x")
+            assert await adi.DocumentParser._parse_pdf(b"x") == ""
         with patch.dict(sys.modules, {"pypdf": None}):
-            assert "parser not available" in await adi.DocumentParser._parse_pdf(b"x")
+            assert await adi.DocumentParser._parse_pdf(b"x") == ""
 
     async def test_parse_docx_branches(self):
         assert await adi.DocumentParser._parse_docx(b"nope") == ""
         with patch.dict(sys.modules, {"docx": None}):
-            assert "parser not available" in await adi.DocumentParser._parse_docx(b"x")
+            assert await adi.DocumentParser._parse_docx(b"x") == ""
 
     async def test_parse_excel_branches(self):
         # real tiny workbook via openpyxl (pandas may not parse raw xlsx path
@@ -1637,7 +1637,7 @@ class TestAutoDocumentIngestion:
         assert "cell" in out3
         # no parser at all
         with patch.dict(sys.modules, {"pandas": None, "openpyxl": None}):
-            assert "parser not available" in await adi.DocumentParser._parse_excel(b"x")
+            assert await adi.DocumentParser._parse_excel(b"x") == ""
         # pandas raising → ""
         import pandas
         with patch.object(pandas, "ExcelFile", side_effect=RuntimeError("pe")):

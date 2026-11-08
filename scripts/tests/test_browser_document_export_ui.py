@@ -1005,3 +1005,155 @@ def test_documents_navigation_accepts_intentionally_hidden_upload_input(driver):
     page.wait_for_selector.assert_not_called()
     page.get_by_role.assert_called_once_with(
         "heading", name="Knowledge Base", exact=True)
+
+
+@pytest.fixture
+def api_git_packet(driver, tmp_path, monkeypatch):
+    repo = tmp_path / "api-repo"
+    repo.mkdir()
+    _git(repo, "init", "-q")
+    (repo / "runtime.py").write_text("runtime = 1\n")
+    _commit(repo, "runtime")
+    source = _git(repo, "rev-parse", "HEAD").strip()
+    directory = repo / "evidence"
+    directory.mkdir()
+    (directory / "result.json").write_text('{"passed": true}\n')
+    manifest = {
+        "executed_source": source,
+        "source_files": {"runtime.py": _sha((repo / "runtime.py").read_bytes())},
+        "artifacts": {"result.json": _sha((directory / "result.json").read_bytes())},
+    }
+    path = directory / "MANIFEST.json"
+    path.write_text(json.dumps(manifest))
+    _commit(repo, "packet")
+    monkeypatch.setattr(driver, "REPO", repo)
+    monkeypatch.setattr(driver, "RETAINED_EVIDENCE", path)
+    return repo, directory, path, manifest, source
+
+
+def test_api_packet_default_uses_complete_committed_evidence(driver, api_git_packet):
+    proof = driver._retained_evidence_probe()
+    assert proof["ok"] is True, proof
+    assert proof["git_verification"]["artifact_ok"] == 1
+
+
+def test_api_packet_dirty_manifest_cannot_mask_committed_artifact_failure(driver, api_git_packet):
+    repo, directory, path, manifest, _ = api_git_packet
+    bad = dict(manifest, artifacts={"result.json": "0" * 64})
+    path.write_text(json.dumps(bad))
+    _commit(repo, "invalid recorded hash")
+    path.write_text(json.dumps(manifest))
+    assert driver._retained_evidence_probe()["ok"] is False
+
+
+def test_api_packet_selector_uses_pinned_packet_without_disk_manifest(driver, api_git_packet):
+    repo, directory, path, _, _ = api_git_packet
+    packet_ref = _git(repo, "rev-parse", "HEAD").strip()
+    path.unlink()
+    proof = driver._retained_evidence_probe("evidence", packet_ref)
+    assert proof["ok"] is True, proof
+    assert proof["evidence_ref_commit"] == packet_ref
+
+
+@pytest.mark.parametrize("change", ["altered", "deleted"])
+def test_api_packet_refuses_changed_current_source(driver, api_git_packet, change):
+    repo, *_ = api_git_packet
+    if change == "deleted":
+        (repo / "runtime.py").unlink()
+    else:
+        (repo / "runtime.py").write_text("runtime = 2\n")
+    assert driver._retained_evidence_probe()["ok"] is False
+
+
+def test_api_packet_requires_artifacts_at_selected_ref(driver, api_git_packet):
+    repo, directory, *_ = api_git_packet
+    _git(repo, "rm", "evidence/result.json")
+    _commit(repo, "missing retained artifact")
+    assert driver._retained_evidence_probe()["ok"] is False
+
+
+def test_api_packet_requires_nonempty_source_map(driver, api_git_packet):
+    repo, _, path, manifest, _ = api_git_packet
+    path.write_text(json.dumps(dict(manifest, source_files={})))
+    _commit(repo, "empty declared source")
+    assert driver._retained_evidence_probe()["ok"] is False
+
+
+@pytest.mark.parametrize("ref", ["not-a-ref", ":0", "INDEX"])
+def test_api_packet_requires_committed_known_ref(driver, api_git_packet, ref):
+    assert driver._retained_evidence_probe(evidence_ref=ref)["ok"] is False
+
+
+def test_api_packet_runtime_ref_is_not_assumed_to_contain_later_packet(driver, api_git_packet):
+    *_, source = api_git_packet
+    assert driver._retained_evidence_probe(evidence_ref=source)["ok"] is False
+
+
+@pytest.mark.parametrize("restart", [False, True], ids=["fresh-run", "same-run-restart"])
+def test_launcher_binds_mutable_office_paths_to_its_run(driver, tmp_path, monkeypatch, restart):
+    """Inspect the real launch consumer before any subprocess can dispatch."""
+    import httpx
+    world = tmp_path / "world"
+    (world / "backend_root").mkdir(parents=True)
+    reused = world / "runs" / "retained-run" if restart else None
+    if reused:
+        (reused / "data").mkdir(parents=True)
+    seeded = []
+
+    def seed(_world, run):
+        (run / "data").mkdir(parents=True)
+        seeded.append(run)
+
+    def unserved(*args, **kwargs):
+        raise httpx.ConnectError("controlled unused test port")
+
+    class StoppedBeforeDispatch(Exception):
+        pass
+
+    def inspect_dispatch(*args, **kwargs):
+        env = kwargs["env"]
+        data = Path(env["ATOM_DATA_DIR"])
+        assert data == driver.R.launch_server.last_run_dir / "data"
+        assert Path(env["ATOM_OFFICE_DIR"]) == data / "office"
+        assert Path(env["ATOM_ASSIGNMENT_OUTPUT_DIR"]) == data / "office" / "assignments"
+        assert Path(env["ATOM_OFFICE_DIR"]).is_absolute()
+        assert Path(env["ATOM_ASSIGNMENT_OUTPUT_DIR"]).is_absolute()
+        assert len(seeded) == (0 if restart else 1)
+        raise StoppedBeforeDispatch()
+
+    monkeypatch.setenv("ATOM_OFFICE_DIR", str(tmp_path / "foreign-office"))
+    monkeypatch.setenv("ATOM_ASSIGNMENT_OUTPUT_DIR", str(tmp_path / "foreign-output"))
+    monkeypatch.setattr(driver.R, "_seed_run_data", seed)
+    monkeypatch.setattr(driver.R, "_sandbox_profile", lambda *a, **k: "controlled test profile")
+    monkeypatch.setattr(httpx, "get", unserved)
+    monkeypatch.setattr(driver.R.subprocess, "Popen", inspect_dispatch)
+    with pytest.raises(StoppedBeforeDispatch):
+        driver.R.launch_server(8057, world, provider_shim=False, reuse_run_dir=reused)
+
+
+def test_fresh_upload_prediction_uses_golden_raw_scope_contract(driver):
+    assert driver._expected_scoped_upload_id(
+        "New document π\n", {"route_workspace_id": None, "raw_tenant_id": None}
+    ) == "doc_1fbd7d02963c62cac7e3026f"
+
+
+def test_fresh_upload_prediction_never_collapses_namespace_material(driver):
+    scopes = [None, "", "default", "Scope-01", "scope-01", "Scope01", "Scope-1"]
+    ids = {
+        driver._expected_scoped_upload_id(
+            "same text", {"route_workspace_id": workspace, "raw_tenant_id": tenant})
+        for workspace in scopes for tenant in scopes
+    }
+    assert len(ids) == len(scopes) ** 2
+
+
+@pytest.mark.parametrize("actor", [
+    {}, {"route_workspace_id": None}, {"raw_tenant_id": None},
+    {"route_workspace_id": False, "raw_tenant_id": None},
+    {"route_workspace_id": None, "raw_tenant_id": 1},
+    {"route_workspace_id": [], "raw_tenant_id": None},
+    {"route_workspace_id": "w", "raw_tenant_id": {}},
+])
+def test_fresh_upload_prediction_refuses_unknown_or_malformed_scope(driver, actor):
+    with pytest.raises(driver.DriverError, match="exact known route scope"):
+        driver._expected_scoped_upload_id("same text", actor)
