@@ -1047,3 +1047,10 @@ public mapper placed authority denial before an earlier uncertain effect.
 Moved that check after reconciliation classification: a proven no-effect
 refusal for the later operation cannot certify an earlier operation as absent.
 The new targeted regression passed 1/1; full affected verification is pending.
+
+
+The combined a8a1be3ad source passed 20/20 focused controls on Python 3.14
+(public admitted-route twins plus tier/denial/uncertainty controls). The real
+public-route probe is now included in the existing governance CI step, rather
+than relying only on helper-level denial assertions. Python 3.11 is still
+running; no hosted or app-wide completion is inferred.
