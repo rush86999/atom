@@ -1773,6 +1773,8 @@ def _gap_question_binding_valid(
     question: Dict[str, Any], step: Optional[Dict[str, Any]],
 ) -> bool:
     """A declared binding cannot be replaced by a convenient gap-id match."""
+    if not question.get("question_id"):
+        return False
     declared_step = str(question.get("step_id") or "")
     actual_step = str((step or {}).get("step_id") or "")
     if declared_step and declared_step != actual_step:
@@ -1781,6 +1783,8 @@ def _gap_question_binding_valid(
     if declared_operation:
         operation = _operation_by_id(record, declared_operation)
         if not operation or not actual_step:
+            return False
+        if declared_operation != str(_operation_id_for_step(record, step) or ""):
             return False
         if (str(operation.get("assignment_id") or "")
                 != str(assignment.get("assignment_id") or "")
@@ -4365,6 +4369,24 @@ class AssignmentExecutor:
             fresh_question = next((
                 item for item in (record.get("task_revision") or {}).get("unresolved") or []
                 if item.get("question_id") == question_id), {})
+            if not fresh_question:
+                raise AssignmentError("The outstanding question changed before settlement")
+            if fresh_question.get("status") != "open":
+                if resolution_matches(
+                        fresh_question.get("resolution"), resolution,
+                        fresh_question.get("resolution_value")):
+                    raise _ExternalReplyStop({
+                        "status": "already_resolved",
+                        "assignment": assignment_projection(assignment),
+                        "open_gaps": open_unresolved_questions(record),
+                    })
+                raise AssignmentError("The question was settled with a different answer")
+            material_keys = (
+                "question_id", "kind", "concept", "question", "inputs",
+                "waiting", "step_id", "source_operation", "affected_subjects")
+            if canonical_sha256({key: fresh_question.get(key) for key in material_keys}) != (
+                    canonical_sha256({key: question.get(key) for key in material_keys})):
+                raise AssignmentError("The question material changed before settlement")
             if not _gap_question_binding_valid(
                     record, assignment, fresh_question,
                     _step_for_gap_question(assignment, fresh_question)):
@@ -4376,8 +4398,13 @@ class AssignmentExecutor:
                 confirmed_mapping=confirmed_mapping)
             return new_plan, {"reopened_steps": reopened}, transition
 
-        result = self.lifecycle.mutate_assignment_and_task(
-            run_id, compute, rationale=f"gap {question_id} resolved")
+        try:
+            result = self.lifecycle.mutate_assignment_and_task(
+                run_id, compute, rationale=f"gap {question_id} resolved")
+        except _ExternalReplyStop as stop:
+            # A peer accepted the identical answer. Acknowledge its durable
+            # settlement without another revision, reopen, wake or effect.
+            return stop.result
         if mapping_applied:
             self._persist_gap_mapping_lesson(
                 str((mapping.get("mapping_source") or {}).get("lesson_id") or ""),
@@ -4841,13 +4868,6 @@ class AssignmentExecutor:
         assignment_status = str(current.get("status") or "")
         question_id = str(question.get("question_id") or "")
         step = _step_for_gap_question(current, question)
-        if not _gap_question_binding_valid(record, current, question, step):
-            raise _ExternalReplyStop({
-                "status": "unmatched",
-                "message": (
-                    "No step carries this gap question. The response was not "
-                    "used to resume work."),
-            })
         step_id = str((step or {}).get("step_id") or "")
         waiting = dict(question.get("waiting") or {})
         projection = _gap_reply_waiting_projection(question)
@@ -4931,6 +4951,14 @@ class AssignmentExecutor:
                 _external_reply_replay_result(
                     matches[-1], step or {}, assignment_status,
                     explicit=explicit))
+
+        if not _gap_question_binding_valid(record, current, question, step):
+            raise _ExternalReplyStop({
+                "status": "unmatched",
+                "message": (
+                    "No step carries this gap question. The response was not "
+                    "used to resume work."),
+            })
 
         # Exact receipt replay is checked first; only a new/changed reply can
         # meet a terminal assignment or an already-settled question.
