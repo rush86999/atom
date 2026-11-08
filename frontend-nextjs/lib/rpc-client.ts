@@ -36,6 +36,16 @@ export interface RpcError extends Error {
   status?: number;
   action?: string;
   details?: unknown;
+  /**
+   * Semantic handler result for a body-level `{ success: false }` envelope.
+   *
+   * `POST /api/rpc/{action}` propagates an in-handler `success: false` to the
+   * outer envelope, so the handler's typed result lives in `body.data`. It is
+   * preserved verbatim here for callers that understand their own action's
+   * result schema. It is NOT promoted into `message`: only the generic
+   * transport-safe message is user-facing by default.
+   */
+  actionResult?: unknown;
 }
 
 /**
@@ -78,6 +88,11 @@ export const rpc = {
         const e: RpcError = new Error(body.message || `Action '${name}' failed`) as RpcError;
         e.action = name;
         e.details = body.details;
+        // Additive: keep the action's own typed failure result for callers
+        // that know its schema (e.g. mini-app authoring). Deliberately not
+        // merged into `message`/`details`, and not trusted for transport
+        // failures (those go through toRpcError below).
+        e.actionResult = body.data;
         throw e;
       }
       return body.data as T;

@@ -28,6 +28,7 @@ from core.agent_world_model import AgentExperience, WorldModelService
 from core.base_routes import BaseAPIRouter
 from core.database import SessionLocal, get_db, get_db_session
 from core.enterprise_security import AuditEvent, EventType, SecurityLevel, enterprise_security
+from core.governance_tier import canonical_governance_tier
 from core.models import (
     AgentExecution,
     AgentFeedback,
@@ -1442,6 +1443,17 @@ _TRUSTED_CONTEXT_KEYS = (
     "proposal_id",
     "goal_id",
     "trigger",
+    # Governance maturity/provenance are server-owned. A request body cannot
+    # raise the sandbox tier, relabel where a run came from, or bind the BPE
+    # namespace. Dispatch rebuilds these from the durable admission.
+    "tier",
+    "tier_at_issuance",
+    "governance_tier",
+    "governance_tier_source",
+    "_trusted_governance_tier",
+    "provenance",
+    "canvas_provenance",
+    "_bpe_principal_scope",
     # Missing-information continuation material is also server-owned. The
     # same reservation strips it from initial business parameters and their
     # durable replay snapshot; actual resume loads it from trusted rows.
@@ -1656,6 +1668,12 @@ def _execution_outcome(
         return failed(
             raw or "uncertain", "execution_uncertain",
             "reconcile_operation", requires=True)
+    # A producer-owned terminal actor/scope denial is a proven no-effect
+    # refusal for that operation. Earlier uncertain effects still require
+    # reconciliation and must not be hidden by a later authority denial.
+    if result.get("terminal_authority_denial") is True:
+        return failed(
+            "blocked", "execution_authority_denied", "review_authority")
     if contradictory:
         return failed(
             "contradictory", "execution_contradictory",
@@ -1732,6 +1750,12 @@ def _public_outcome_message(outcome: Dict[str, Any]) -> str:
         return (
             "The agent run is blocked by a missing prerequisite. Resolve "
             "it before retrying.")
+    if reason == "execution_authority_denied":
+        return (
+            "The run stopped because the admitted actor or workspace "
+            "authority is no longer valid. The refused operation applied no "
+            "effect. Review earlier results and refresh authority before "
+            "retrying.")
     if reason == "execution_result_missing":
         return (
             "The agent run did not report a usable outcome. Review the "
@@ -2005,6 +2029,84 @@ def _admitted_parameters_match(
     return actual == expected
 
 
+def _admitted_governance_tier(
+    payload: Dict[str, Any],
+    receipt: Dict[str, Any],
+    *,
+    current_status: Any,
+    current_enabled: bool,
+) -> tuple[Optional[str], str, Optional[str]]:
+    """Reconcile the durable admission's governance maturity.
+
+    New admissions persist ``governance_tier`` in BOTH the job material and
+    the admission receipt.  Old jobs have no such key; their receipt's
+    existing canonical ``prior_status`` is trustworthy, and a canonical
+    current row is the only remaining fallback.  Runtime labels
+    (``running``/``idle``/``success``) never become a maturity tier.
+
+    Returns ``(tier, source, error)``.  ``error`` is a truthful refusal code;
+    a missing tier with no error is an explicit restricted legacy ceiling.
+    """
+    payload = payload if isinstance(payload, dict) else {}
+    receipt = receipt if isinstance(receipt, dict) else {}
+    extra = receipt.get("extra") if isinstance(
+        receipt.get("extra"), dict) else {}
+    receipt_prior = canonical_governance_tier(receipt.get("prior_status"))
+    current = canonical_governance_tier(current_status)
+
+    if "governance_tier" in payload:
+        raw_job_tier = payload.get("governance_tier")
+        job_tier = canonical_governance_tier(raw_job_tier)
+        job_source = str(payload.get("governance_tier_source") or "")
+        job_prior = canonical_governance_tier(payload.get("prior_status"))
+        if raw_job_tier is not None and job_tier is None:
+            return None, "", "governance_tier_unverified"
+        if job_tier is None:
+            # Explicit new admission under the restricted legacy ceiling.
+            if job_source != "legacy_unverified" or job_prior is not None:
+                return None, "", "governance_tier_unverified"
+            if "governance_tier" in extra:
+                if (
+                    extra.get("governance_tier") is not None
+                    or str(extra.get("governance_tier_source") or "")
+                    != job_source
+                ):
+                    return None, "", "governance_tier_unverified"
+            elif receipt and receipt_prior is not None:
+                return None, "", "governance_tier_unverified"
+            return None, "legacy_unverified", None
+
+        if job_source not in (
+            "admission", "legacy_receipt", "legacy_current",
+        ):
+            return None, "", "governance_tier_unverified"
+        if job_prior is not None and job_prior != job_tier:
+            return None, "", "governance_tier_unverified"
+        if not receipt:
+            # A canonical job tier with no admission receipt is not verified.
+            return None, "", "governance_tier_unverified"
+        if "governance_tier" in extra:
+            if canonical_governance_tier(extra.get("governance_tier")) != job_tier:
+                return None, "", "governance_tier_unverified"
+            receipt_source = str(extra.get("governance_tier_source") or "")
+            if receipt_source and receipt_source != job_source:
+                return None, "", "governance_tier_unverified"
+        elif receipt_prior is not None:
+            if receipt_prior != job_tier:
+                return None, "", "governance_tier_unverified"
+        else:
+            return None, "", "governance_tier_unverified"
+        return job_tier, job_source, None
+
+    # Legacy job material: no governed tier was persisted. Reconcile only an
+    # existing receipt/current canonical maturity; never infer from runtime.
+    if receipt_prior is not None:
+        return receipt_prior, "legacy_receipt", None
+    if current is not None and current_enabled:
+        return current, "legacy_current", None
+    return None, "legacy_unverified", None
+
+
 def _trusted_execution_context(
     bind,
     *,
@@ -2031,9 +2133,11 @@ def _trusted_execution_context(
         return None
 
     operation_id = ""
+    payload: Dict[str, Any] = {}
     try:
-        payload = json.loads(job.result_summary or "{}")
-        if isinstance(payload, dict):
+        parsed_payload = json.loads(job.result_summary or "{}")
+        if isinstance(parsed_payload, dict):
+            payload = parsed_payload
             operation_id = str(payload.get("operation_id") or "")
     except (TypeError, ValueError):
         operation_id = ""
@@ -2050,6 +2154,23 @@ def _trusted_execution_context(
             "operation=%s actor=%s", job_id, operation_id, actor_id)
         return None
 
+    governance_tier, tier_source, tier_error = _admitted_governance_tier(
+        payload,
+        receipt,
+        current_status=(None if agent is None else agent.status),
+        current_enabled=bool(
+            True if agent is None else getattr(agent, "enabled", True)),
+    )
+    if tier_error:
+        logger.warning(
+            "trusted context refused: %s job=%s agent=%s",
+            tier_error, job_id, agent_id)
+        return {
+            "_governance_tier_error": tier_error,
+            "job_id": job_id,
+            "execution_id": execution_id,
+        }
+
     namespace = _execution_namespace(agent, {
         "job_id": job_id,
         "execution_id": execution_id,
@@ -2057,6 +2178,17 @@ def _trusted_execution_context(
         "actor_id": actor_id,
         "user_id": actor_id,
     })
+    # Freeze the verified admission maturity. A legacy job with no canonical
+    # receipt/current source carries an explicit restricted marker; the agent
+    # runner then applies the student ceiling without inventing an issued tier.
+    namespace["governance_tier"] = governance_tier
+    namespace["governance_tier_source"] = tier_source
+    namespace["_trusted_governance_tier"] = governance_tier
+    if governance_tier is not None:
+        namespace["tier_at_issuance"] = governance_tier
+    else:
+        namespace["governance_tier_restricted"] = True
+        namespace["governance_tier_next_action"] = "review_agent_maturity"
     # Freeze the accepted admission scope; never let a moved agent or a
     # different current owner relabel this already-admitted run.
     resolved_workspace = None
@@ -2650,6 +2782,26 @@ async def _dispatch_admitted_run(
         _restore_agent_status(agent_id, prior_status, bind)
         return None
 
+    tier_error = str(trusted.get("_governance_tier_error") or "")
+    if tier_error:
+        logger.warning(
+            "Admitted agent run not dispatched (%s): agent=%s job=%s",
+            tier_error, agent_id, job_id)
+        outcome = _execution_outcome({"status": "failed"})
+        outcome["reason"] = tier_error
+        outcome["next_action"] = "refresh_required_state"
+        _finish_job(
+            job_id, outcome, bind,
+            execution_id=execution_id, agent_id=agent_id)
+        await _broadcast_agent_outcome(
+            agent_id, outcome,
+            _execution_namespace(
+                _safe_get(bind, AgentRegistry, agent_id),
+                {"job_id": job_id, "execution_id": execution_id,
+                 "actor_id": actor_id, "user_id": actor_id}))
+        _restore_agent_status(agent_id, prior_status, bind)
+        return None
+
     try:
         result = await execute_agent_task(
             agent_id, parameters, execution_context=trusted)
@@ -3172,6 +3324,23 @@ async def resume_information_wait_action(
                 "handled": True,
                 "resumed": False,
                 "status": "authority_unavailable",
+                "job_id": job_id,
+                "execution_id": execution_id,
+            }
+
+        tier_error = str(trusted.get("_governance_tier_error") or "")
+        if tier_error:
+            outcome = _execution_outcome({"status": "failed"})
+            outcome["reason"] = tier_error
+            outcome["next_action"] = "refresh_required_state"
+            _finish_job(
+                job_id, outcome, bind,
+                execution_id=execution_id, agent_id=agent_id)
+            return {
+                "handled": True,
+                "resumed": False,
+                "status": "tier_unavailable",
+                "reason": tier_error,
                 "job_id": job_id,
                 "execution_id": execution_id,
             }

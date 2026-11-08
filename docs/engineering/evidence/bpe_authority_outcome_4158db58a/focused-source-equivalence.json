@@ -1,0 +1,12 @@
+{
+  "executed_source": "a8a1be3adf0fd3a8f721d5b305c6528bd5d15d78",
+  "ci_checkpoint": "4158db58a3b51a634c2848d1ee628e77f20a986e",
+  "changed_files": [
+    ".github/workflows/ci.yml",
+    "LEAD_REVIEW.md"
+  ],
+  "runtime_and_test_bytes_identical": true,
+  "py311_passed": 20,
+  "py314_passed": 20,
+  "no_source_relabeling": true
+}

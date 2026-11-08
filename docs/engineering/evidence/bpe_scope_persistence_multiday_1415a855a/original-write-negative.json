@@ -1,0 +1,10 @@
+{
+  "source": "b7639cd5c90cadd29542db51c4216ff9558c791e",
+  "file_sha256": "bb4b97c92179156f980cb5b0ec5f7505627bd8d08ff23eab845061bec50320c0",
+  "valid_save_return": true,
+  "valid_loaded": true,
+  "failed_replace_save_return": true,
+  "old_snapshot_preserved": true,
+  "failure_contract_pass": false,
+  "scope": "pure actual file-store consumer; injected replace error; no DB/server/model"
+}

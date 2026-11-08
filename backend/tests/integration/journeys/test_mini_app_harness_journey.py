@@ -85,11 +85,22 @@ def _auth(token):
     return {"Authorization": f"Bearer {token}"}
 
 
-def _rpc(client, token, action, params=None):
+def _rpc(client, token, action, params=None, *, expected_success=True):
+    """Call an action and assert the OUTER envelope either succeeded or failed.
+
+    ``POST /api/rpc/{action}`` truthfully propagates an in-handler
+    ``success=False`` to the outer envelope (``rpc_routes.py``). Intentional
+    negative journeys must therefore say so explicitly instead of requiring
+    ``success: true`` for every call; the returned ``data`` still carries the
+    handler result (including its own ``success``/``error`` fields).
+    """
     resp = client.post(f"/api/rpc/{action}", json={"params": params or {}}, headers=_auth(token))
     assert resp.status_code == 200, f"{action} -> {resp.status_code} {resp.text}"
     body = resp.json()
-    assert body.get("success") is True, f"{action} top-level failed: {body}"
+    assert body.get("success") is expected_success, (
+        f"{action} outer success {body.get('success')!r} != expected "
+        f"{expected_success!r}: {body}"
+    )
     return body["data"]  # the handler result the harness consumes
 
 
@@ -141,15 +152,28 @@ class TestMiniAppHarnessJourney:
         assert wl["success"] is True
         assert wl["version"] == 1
 
-        # Syntax gate rejects invalid source.
-        bad = _rpc(client, token, "mini_app_write_logic", {"app_id": app_id, "source": BAD_SYNTAX})
+        # Syntax gate rejects invalid source. This is an intentional negative:
+        # the handler's success=False is propagated to the outer envelope, so
+        # the expectation is explicit rather than waived.
+        bad = _rpc(
+            client, token, "mini_app_write_logic",
+            {"app_id": app_id, "source": BAD_SYNTAX},
+            expected_success=False,
+        )
         assert bad["success"] is False
         assert "SyntaxError" in bad.get("error", "")
+
+        # The rejected source was never persisted: the live controller source
+        # is still the last valid save, and no checkpoint/version was appended.
+        still_saved = client.get(f"/api/canvas/{blueprint}/logic", headers=_auth(token))
+        assert still_saved.status_code == 200, still_saved.text
+        assert still_saved.json()["data"]["source"] == STARTER
 
         # 4) Logic history + revert (clean-state recovery)
         hist = _rpc(client, token, "mini_app_logic_history", {"app_id": app_id})
         versions = [h["version"] for h in hist["history"]]
-        assert 1 in versions
+        assert versions == [1], versions  # BAD_SYNTAX appended no checkpoint
+        assert hist["history"][0]["preview"] == STARTER
         rev = _rpc(client, token, "mini_app_revert_logic", {"app_id": app_id, "version": 1})
         assert rev["success"] is True
 
@@ -171,7 +195,11 @@ class TestMiniAppHarnessJourney:
         # response and keeps them server-side; the pointer stays actionable
         # (probe mini_app_status + host-setup doc), matching the shipped
         # run_stateful(RuntimeError) message.
-        dev = _rpc(client, token, "mini_app_dev_run", {"app_id": app_id, "inputs": {}})
+        dev = _rpc(
+            client, token, "mini_app_dev_run",
+            {"app_id": app_id, "inputs": {}},
+            expected_success=False,
+        )
         assert dev["success"] is False
         assert "Mini-app runtime unavailable" in dev.get("error", "")
         assert "mini_app_status" in dev.get("error", "")
@@ -190,6 +218,8 @@ class TestMiniAppHarnessJourney:
         tr_body = tests_run.json()
         assert tr_body.get("success") is True, tr_body  # the report surface ran
         tr = tr_body["data"]
+        # The report surface itself succeeded even though every case failed.
+        assert tr["success"] is True
         assert tr["total"] == 1 and tr["passed"] == 0 and tr["all_passed"] is False
         case = tr["results"][0]
         assert case["name"] == "runs increments"
@@ -220,13 +250,21 @@ class TestMiniAppHarnessJourney:
 
         # 11) Stateful run — FAIL CLOSED without Firecracker (same sanitized
         # funnel as step 7).
-        run = _rpc(client, token, "mini_app_run", {"canvas_id": instance_canvas, "inputs": {}})
+        run = _rpc(
+            client, token, "mini_app_run",
+            {"canvas_id": instance_canvas, "inputs": {}},
+            expected_success=False,
+        )
         assert run["success"] is False
         assert "Mini-app runtime unavailable" in run.get("error", "")
 
         # 12) Install-before-publish is rejected
         scaf2 = _rpc(client, token, "mini_app_scaffold", {"name": f"Unpublished {uuid.uuid4().hex[:6]}"})
-        pre = _rpc(client, token, "mini_app_install", {"app_id": scaf2["app_id"]})
+        pre = _rpc(
+            client, token, "mini_app_install",
+            {"app_id": scaf2["app_id"]},
+            expected_success=False,
+        )
         assert pre["success"] is False
         assert "not published" in pre.get("error", "").lower()
 

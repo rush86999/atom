@@ -1,0 +1,18 @@
+{
+  "scope": "isolated synthetic asyncio sleep only; no product call",
+  "results": [
+    {
+      "real_asyncio": false,
+      "terminal": false,
+      "bounded_probe_timeout": true,
+      "real_seconds": 3.01
+    },
+    {
+      "real_asyncio": true,
+      "terminal": true,
+      "exit": 0,
+      "finished_marker": true,
+      "real_seconds": 0.075
+    }
+  ]
+}

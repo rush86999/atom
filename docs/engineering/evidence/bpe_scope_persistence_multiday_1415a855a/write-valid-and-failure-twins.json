@@ -1,0 +1,18 @@
+{
+  "source": "1793281a13d4dafb3daecb7433ca7646628b53dd",
+  "runtime_sha256": "e2561ff9e46b7e736df94f91c1e0665231d8213f7d17141e3fd7032af288dea9",
+  "valid_save_load": true,
+  "failure_checks": {
+    "replace": {
+      "returned_false": true,
+      "old_preserved": true,
+      "no_tmp": true
+    },
+    "write": {
+      "returned_false": true,
+      "old_preserved": true,
+      "no_tmp": true
+    }
+  },
+  "scope": "actual file-store consumer with injected replacement/write failures; no DB/server/model; not crash durability"
+}

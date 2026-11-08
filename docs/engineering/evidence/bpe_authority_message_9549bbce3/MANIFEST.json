@@ -1,0 +1,17 @@
+{
+  "executed_source": "9549bbce3aac349565015c3226c955fe02493c85",
+  "source_files": {
+    "backend/api/agent_routes.py": "ba11824577f43d612e175e601497aafbd569824c0e0d6ff612eeeb993b0ead7a",
+    "backend/tests/test_bpe_governance_tier_issuance.py": "572036f65a66b8dda03ab08bbdc2bfdcbda53ca5b694f2738b6884255f49ba95",
+    "backend/tests/test_root_bpe_public_actor_probe.py": "446c15aa29339000fde1a891e396c704f85ba0a62b4cfc9ad55ea29453796a14"
+  },
+  "artifacts": {
+    "root-bpe-actor-outcome-954.exit.json": "1539187b9d0fc29bf2cc46e6d91ced481b61cb5130c8587f4a175f3f05c2d978",
+    "root-bpe-actor-outcome-954.spec.json": "797cd659f1a8327eadc4f192cbcebd748ac87f739bc56d612b1c5e360265ea2a",
+    "README.md": "885f911bdf4ad26e932740c8ede5f628fcc167696edce3925fe45f1c82519333",
+    "root-bpe-actor-outcome-954-py311.spec.json": "2c4e8c836113abceb410303859bcaa14b7f68a3e06c444fdff2602bde850c1e6",
+    "root-bpe-actor-outcome-954-py311.exit.json": "2b4dab0f4d3d59cd7c57c47c129f3626735b41b182f2d23e9ed8364e07bdff84",
+    "root-bpe-actor-outcome-954.log": "b1ad44dcc212d0e8c6b2cfbb63dfd108f5af7b5a1250d47ce3ab9cd215c12b58",
+    "root-bpe-actor-outcome-954-py311.log": "0f69d33f9cf628d21610dbcff142a3848b9a923eb506c25de3086d341f9873d0"
+  }
+}
