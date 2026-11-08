@@ -1,0 +1,24 @@
+{
+  "source": "fa6a047f67ad762b5c04e97ea3a8124ea323a004",
+  "root": "/private/tmp/root-feedback-sqlite-t61twztf",
+  "command": [
+    "/private/tmp/atom-agent-cli/run_bounded_test_gate.py",
+    "--cwd",
+    "/private/tmp/atom-assignment-reply-identity-20261108/backend",
+    "--profile",
+    "bounded",
+    "--",
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "tests/test_assignment_external_reply_identity.py",
+    "tests/test_root_assignment_reply_material_probe.py",
+    "-q",
+    "--tb=short",
+    "-p",
+    "no:cacheprovider",
+    "--timeout=120",
+    "--timeout-method=thread",
+    "--basetemp=/private/tmp/root-feedback-sqlite-t61twztf/pytest"
+  ]
+}
