@@ -4790,14 +4790,14 @@ class AssignmentExecutor:
         assignment_status = str(current.get("status") or "")
         question_id = str(question.get("question_id") or "")
         step = _step_for_gap_question(current, question)
-        if step is None:
+        if step is None and question.get("source_operation"):
             raise _ExternalReplyStop({
                 "status": "unmatched",
                 "message": (
                     "No step carries this gap question. The response was not "
                     "used to resume work."),
             })
-        step_id = str(step.get("step_id") or "")
+        step_id = str((step or {}).get("step_id") or "")
         waiting = dict(question.get("waiting") or {})
         projection = _gap_reply_waiting_projection(question)
         fact = str(projection.get("fact") or "")
@@ -4841,7 +4841,7 @@ class AssignmentExecutor:
         # backing step identity (a re-raised question on the same conceptual
         # wait is the same scope).
         if explicit:
-            for other in steps:
+            for other in [*steps, current]:
                 for receipt in _external_reply_receipts(other):
                     if str(receipt.get("identity_kind") or "") != "explicit":
                         continue
@@ -4862,7 +4862,7 @@ class AssignmentExecutor:
         # assignment's question receipts so exact replay still works after the
         # original wait is cleared/closed.
         all_receipts: List[Dict[str, Any]] = []
-        for item in steps:
+        for item in [*steps, current]:
             all_receipts.extend(_external_reply_receipts(item))
         matches = _external_reply_matching_receipts(
             all_receipts, reply_id=reply_id, digest=digest,
@@ -4878,7 +4878,7 @@ class AssignmentExecutor:
                     str(matches[-1].get("material_sha256") or "")))
             raise _ExternalReplyStop(
                 _external_reply_replay_result(
-                    matches[-1], step, assignment_status,
+                    matches[-1], step or {}, assignment_status,
                     explicit=explicit))
 
         # Exact receipt replay is checked first; only a new/changed reply can
@@ -4918,14 +4918,8 @@ class AssignmentExecutor:
                 "The reply rejected the current candidates; the question "
                 "remains open and was not reopened or woken.")
             new_plan = copy.deepcopy(current)
-            item = step_by_id(new_plan, step_id)
-            if item is None:
-                raise _ExternalReplyStop({
-                    "status": "unmatched",
-                    "message": (
-                        "No step carries this gap question. The response was "
-                        "not used to resume work."),
-                })
+            item = step_by_id(new_plan, step_id) if step is not None else new_plan
+            assert item is not None
             item_receipts = _external_reply_receipts(item)
             item_receipts.append(_external_reply_receipt(
                 reply_id=reply_id, digest=digest,
@@ -4958,7 +4952,7 @@ class AssignmentExecutor:
 
         # Resolve the question, reopen the blocked step, keep the accepted
         # receipt and supersede the old waiting operation in ONE CAS write.
-        operation_id = _operation_id_for_step(record, step) or ""
+        operation_id = (_operation_id_for_step(record, step) or "") if step is not None else ""
         accepted_at = _utc_now_iso()
         new_plan = copy.deepcopy(current)
         reopened = _reopen_resolved_gap_steps(
@@ -4966,15 +4960,9 @@ class AssignmentExecutor:
             mapping=plan["mapping"],
             mapping_applied=bool(plan.get("mapping_applied")),
             confirmed_mapping=plan.get("confirmed_mapping") or {})
-        item = step_by_id(new_plan, step_id)
-        if item is None:
-            raise _ExternalReplyStop({
-                "status": "unmatched",
-                "message": (
-                    "No step carries this gap question. The response was not "
-                    "used to resume work."),
-            })
-        item["external_response"] = {
+        item = step_by_id(new_plan, step_id) if step is not None else new_plan
+        assert item is not None
+        accepted_response = {
             "correlation_id": correlation_id,
             "fact": fact,
             "subject": subject,
@@ -4990,6 +4978,8 @@ class AssignmentExecutor:
             "material_sha256": digest,
             "at": accepted_at,
         }
+        if step is not None:
+            item["external_response"] = accepted_response
         item_receipts = _external_reply_receipts(item)
         item_receipts.append(_external_reply_receipt(
             reply_id=reply_id, digest=digest,
@@ -5186,7 +5176,7 @@ class AssignmentExecutor:
             # An explicit ID names one run/wait scope. Reusing it on another
             # correlation/fact/subject is a scope conflict, not a new reply.
             if explicit:
-                for other in steps:
+                for other in [*steps, current]:
                     for receipt in _external_reply_receipts(other):
                         if str(receipt.get("identity_kind") or "") != (
                                 "explicit"):

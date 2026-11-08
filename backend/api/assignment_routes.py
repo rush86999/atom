@@ -2580,7 +2580,7 @@ async def record_assignment_response(
     # An authorized reply can make a previously blocked capability ready.
     # Hand the fresh evidence to the same adaptation contract so the model,
     # not the route, chooses the supported next work.
-    if result.get("status") == "resumed":
+    if result.get("status") in ("resumed", "resolved"):
         assignment = executor.lifecycle.get_assignment(run_id) or {}
         provenance = assignment.get("provenance") or {}
         # A deterministic initial discovery does not make the job
@@ -2687,7 +2687,18 @@ async def resolve_assignment_gap(
         raise HTTPException(status_code=409, detail=str(exc))
     if result.get("status") in ("already_resolved", "rejected_candidates"):
         return result
-    return await executor.resume(run_id)
+    resumed = await executor.resume(run_id)
+    assignment = executor.lifecycle.get_assignment(run_id) or {}
+    provenance = assignment.get("provenance") or {}
+    if provenance.get("use_model", True) is not False:
+        rounds = await _advance_employee_work(
+            executor, run_id, _employee_llm(current_user, db), max_rounds=1,
+            deadline_seconds=180.0,
+            provider_model=_employee_provider_model(),
+            allow_completed_evidence=True)
+        if rounds:
+            return {**resumed, "adaptive_rounds": rounds}
+    return resumed
 
 
 @router.post("/{run_id}/mappings/correct")
