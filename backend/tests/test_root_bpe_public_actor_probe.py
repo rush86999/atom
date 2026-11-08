@@ -61,7 +61,18 @@ def test_public_note_respects_actor_revocation_at_tool_time(real_env, monkeypatc
     records = [json.loads(p.read_text()) for p in root.glob('*.json')]
     wrote = marker in json.dumps(records)
     capture = {'revoked': revoke, 'http': response.status_code, 'persisted_marker': wrote, 'transport_trace': trace}
+    capture['outcome'] = (response.json().get('data') or {}).get('outcome')
     try:
         assert wrote is (not revoke), capture
+        if revoke:
+            # Refusing the effect is necessary but not sufficient: a model's
+            # later "done" cannot turn revoked work into business success.
+            assert capture['outcome'] != 'success', capture
+            assert response.status_code != 200, capture
+        else:
+            from core.models import TaskOperationRecord
+            assert response.status_code == 200 and capture['outcome'] == 'success', capture
+            with real_env.SessionLocal() as db:
+                assert db.query(TaskOperationRecord).filter(TaskOperationRecord.status == 'succeeded').count() == 1
     finally:
         reset_registry()
