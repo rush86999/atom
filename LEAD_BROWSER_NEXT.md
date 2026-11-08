@@ -9,7 +9,7 @@ was launched during preparation.** Root owns all execution/acceptance.
 - Frozen product base: `ccf31f073f3fda88163e2a5dcc94fd545affae53`
   (PR756 packet; the 37-case API evidence is at
   `docs/acceptance/evidence/document_export_lead_011b8373e`)
-- Episode source: **the branch comit that contains this file**. Dispatch it
+- Episode source: **the branch commit that contains this file**. Dispatch it
   explicitly, never by guesswork:
 
   ```sh
