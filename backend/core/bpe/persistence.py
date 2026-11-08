@@ -49,17 +49,42 @@ class BPEWorkspaceStore:
             logger.debug("bpe store read failed: %s", e)
             return {}
 
-    def _write(self, workspace_id: str, scopes: Dict[str, Any]) -> None:
+    def _write(self, workspace_id: str, scopes: Dict[str, Any]) -> bool:
+        """Write one workspace atomically. Returns True only on success.
+
+        The replacement is best-effort but its outcome must be truthful:
+        a failed ``os.replace`` leaves the previous file intact and the
+        caller must not report a successful persist. Any temporary file
+        created for this attempt is removed on every path, including
+        replacement failures.
+        """
         path = self._path_for(workspace_id)
+        tmp: Optional[str] = None
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
             # Atomic-ish write: temp file in the same dir, then replace.
             fd, tmp = tempfile.mkstemp(dir=str(path.parent), suffix=".tmp")
-            with os.fdopen(fd, "w", encoding="utf-8") as f:
-                json.dump(scopes, f)
+            try:
+                handle = os.fdopen(fd, "w", encoding="utf-8")
+            except Exception:
+                os.close(fd)  # fdopen failed before taking ownership of fd
+                raise
+            with handle:
+                json.dump(scopes, handle)
             os.replace(tmp, path)
+            tmp = None  # replaced successfully; nothing left to clean up
+            return True
         except Exception as e:
             logger.debug("bpe store write failed: %s", e)
+            return False
+        finally:
+            if tmp is not None:
+                try:
+                    os.unlink(tmp)
+                except FileNotFoundError:
+                    pass
+                except OSError as e:
+                    logger.debug("bpe store temp cleanup failed: %s", e)
 
     def save(self, snapshot: Dict[str, Any]) -> bool:
         """Persist one workspace snapshot (``BPEWorkspace.to_dict`` shape)."""
@@ -84,8 +109,7 @@ class BPEWorkspaceStore:
             if len(payload) > MAX_STATE_CHARS:
                 logger.debug("bpe store snapshot too large; skipping persist")
                 return False
-            self._write(workspace_id, scopes)
-            return True
+            return bool(self._write(workspace_id, scopes))
         except Exception as e:
             logger.debug("bpe store save failed: %s", e)
             return False

@@ -1,89 +1,93 @@
-# LEAD REVIEW — BPE current-principal scope (Phase 1, finite)
+# LEAD REVIEW — BPE persistence write truth (finite)
 
-Branch: `codex/bpe-current-principal-scope-20261108`
-Base: `8ded00232c30961a990e675e06ec672ef6a43910`
+Branch: `codex/bpe-persistence-write-truth-20261108`
+Base: `b7639cd5c90cadd29542db51c4216ff9558c791e`
 
-## Defect
+## Root cause
 
-`POST /api/rpc/{action}` supplied `user`/`user_id`/`db`, but the BPE handlers
-read `workspace_id` / `agent_id` / `session_id` from the dispatch context and
-defaulted a miss to `("default", "atom_main", "")`. Every authenticated RPC
-caller appended to one shared buffer. The Generic path had the same
-caller-params-as-context exposure (`api/agent_routes.py` passes request params
-as the run context).
+`BPEWorkspaceStore._write()` caught every exception — including an `OSError`
+from `os.replace()` — logged at debug level, and returned `None`.
+`save()` ignored that outcome and unconditionally returned `True` after
+calling `_write()`. A failed replacement therefore reported a successful
+persist even though the previous file was still the only content on disk.
+The same path also abandoned the `mkstemp` temporary file whenever the write
+or replacement failed.
 
 ## Repair (runtime)
 
-- `core/bpe/actions.py` — single scope resolver for all four actions:
-  - authenticated `User` row is re-read fresh and must be active;
-  - canonical workspace = the row's `workspace_id`, or an isolated
-    `personal:<user_id>` namespace for the single-tenant NULL/Personal default;
-  - scope key is per-principal (`user:<id>`), so a same-workspace peer still
-    never inherits another user's buffer;
-  - the principal's raw `tenant_id` is checked against the real Workspace
-    row's tenant under the existing NULL/`default` single-tenant policy. A
-    contradictory real tenant/workspace pair refuses *before* `get_workspace`
-    and before any append (`scope_workspace_tenant_mismatch`); a missing real
-    Workspace row refuses too. The principal row and the old buffer are left
-    untouched;
-  - `note` and `commit` claim the active principal row (and the protected
-    Workspace row) with a conditional no-op UPDATE before writing. The claim
-    freezes the tenant/workspace binding read during resolution, so a peer
-    changing either concurrently makes the claim match zero rows and the append
-    is refused (`scope_principal_*` / `scope_authority_changed` /
-    `scope_workspace_tenant_mismatch`);
-  - a stale presented row that disagrees with the fresh row is refused rather
-    than silently moved/merged;
-  - bare/shared `default` is refused for caller/legacy contexts; it is only
-    accepted as a server-bound agent scope with a real session/run key;
-  - read-only `track`/`recall` resolve the same compatible current authority
-    (no peer read and no tenant-contradictory read).
-- `core/generic_agent.py` / `core/atom_meta_agent.py` — bind the reserved
-  server-authority scope after reading caller params. Prompt rendering, episode
-  reset and close-out all read the same binding, so the prompt and the action
-  handlers address one namespace. A caller-supplied reserved copy is dropped.
-- `core/bpe/actions.py` `bpe_scope_from_context` — on a resolution denial it
-  returns an empty scope; prompt/close-out callers skip BPE state. It no longer
-  falls back to a raw reserved or shared-`default` context value. Legitimate
-  server-bound scopes still resolve normally.
-- `api/rpc_routes.py` — the action's own `success: false` is no longer wrapped
-  in an outer `success: true`.
+`backend/core/bpe/persistence.py` only:
 
-Original action effects (`read` / `update` / `create`) are unchanged; no
-read-only relabel, no model-controlled metadata authority, no blanket
-registered-action exemption.
+- `_write()` now returns `bool`. `True` is returned only after
+  `os.replace()` returns successfully; any `mkdir`, `mkstemp`, `fdopen`,
+  `json.dump`, or `os.replace` exception returns `False`.
+- The file descriptor is closed explicitly if `os.fdopen()` fails before
+  taking ownership of it.
+- A `finally` block unlinks the attempt's temporary file on every failed
+  path. A missing temp file is tolerated; cleanup errors are logged without
+  changing the write result. On success the temp path is consumed by the
+  replace, so cleanup is skipped.
+- `save()` returns the `_write()` result, preserving the existing public
+  `True`/`False` contract and all other valid save/load behavior: the
+  oversized-snapshot rejection, corrupt-read degradation, LRU bound, and
+  round-trip load are unchanged.
+- No `fsync`, no new durability claim, no retry, no new store/schema/engine,
+  and no global configuration change.
 
-## Tests
+## Failure-first control inventory
 
-- `tests/test_lead_bpe_rpc_scope.py` — root-supplied v2 twins. Test bodies are
-  unchanged; the fixture now re-runs the production `@register_action`
-  decorators per case. Reason: `tests/conftest.py`
-  `_isolate_registered_actions` restores the registry after every case while
-  the module import is cached, so without re-registration cases 2+ saw 404s.
-  This is test-fixture isolation, not a product failure.
-- `tests/test_bpe_current_principal_scope.py` — real-row twins: tampered body
-  params, different workspace, NULL/Personal and literal-`default` isolation,
-  missing/inactive principal, stale authority change, claim-before-append,
-  contradictory tenant/workspace vs matching current-authority twin,
-  dispatch-context binding, a bounded **real** `GenericAgent.execute`
-  consumer (LLM/step/memory/recording stubbed, no provider), MCP current
-  context, all four actions, recall read isolation, scope-helper fail-closed,
-  anonymous default refusal.
+1. **Replacement failure** — `os.replace()` raises `OSError` →
+   `_write()` `False` → `save()` `False`.
+2. **Write failure** — `mkdir`/`mkstemp`/`fdopen`/`json.dump` raises →
+   `_write()` `False` → `save()` `False`.
+3. **Previous-file preservation** — data is written only to the temp file;
+   `os.replace()` is the final step, so any earlier failure leaves the
+   previous file intact.
+4. **No abandoned temporary file** — the `finally` cleanup removes the
+   attempt's temp file after replacement or any write error.
+5. **Truthful return** — the caller-visible `save()` result is the actual
+   replacement outcome, not a post-hoc constant.
+6. **Valid twin** — a successful save still returns `True` and loads back the
+   same snapshot.
 
-The `GenericAgent` twin exercises the actual `execute` binding and dispatches
-the production action through the loop; it is a controlled bounded consumer,
-**not** a qualified full-model/Generic-execute qualification.
+Root owns the failure-first tests and the serial acceptance run; no Python or
+pytest was executed in this bounded task.
 
-Verification is deferred to the root test run (no Python/pytest/server was
-executed in this finite task).
+## Caller implications
+
+- `backend/core/generic_agent.py:1006` and
+  `backend/core/atom_meta_agent.py:1831` call `save()` inside
+  `try/except`, but do not inspect the boolean. Because `save()` has never
+  raised, those blocks silently accepted a false success. This fix makes the
+  outcome truthful for those callers but deliberately leaves their
+  in-memory fallback/no-logging behavior unchanged; surfacing or retrying
+  `False` is outside this bounded fix.
+- `backend/core/bpe/workspace.py:455` uses `load()` on a registry miss; the
+  read path is untouched.
+- `backend/tests/core/test_bpe_evolution.py` uses explicit temporary
+  directories and its valid save/load, LRU, oversized-rejection, and corrupt
+  read twins remain valid.
+
+## Path anchoring (traced and documented, not rewritten)
+
+`DATA_DIR = Path(os.getenv("ATOM_BPE_DATA_DIR", "backend/data/bpe_workspaces"))`
+is CWD-relative and resolved once at import. `__init__()` only substitutes
+`DATA_DIR` when no explicit `data_dir` is supplied, and all three production
+call sites construct `BPEWorkspaceStore()` with no directory. Consequently:
+
+- started from the repo root, the default resolves to
+  `<repo>/backend/data/bpe_workspaces` (the intended location);
+- started from `backend/`, it resolves to
+  `<repo>/backend/backend/data/bpe_workspaces`, diverging from the documented
+  `backend/`-anchored store convention unless `ATOM_BPE_DATA_DIR` is absolute.
+
+This is the known relative-path anchoring bug class in `AGENTS.md`. It is not
+changed here because it is outside this write-outcome repair; a follow-up
+should anchor the default to `backend/` (as `core.automation_settings` does)
+or require an absolute env override. Root tests pass explicit temp
+directories, so they do not exercise the default path.
 
 ## Explicitly open (not claimed here)
 
-- Phase 2 durable harness receipts / producer-owned note identity.
-- Oracle honesty for `workspace.note` (the current uncertain/close-out gap is
-  **not** fixed in this phase).
-- Stable long-wait planning memory.
-- Full Generic-execute qualification (the bounded consumer is not that claim).
-- Multi-worker / multi-process BPE persistence semantics.
-- Legacy `default.json` is left untouched: no owner inference, migration or
-  cross-user copy is performed.
+- Callers do not log, retry, or otherwise act on a `False` save result.
+- No fsync/durability guarantee and no multi-process locking semantics.
+- Broader BPE/Oracle gaps and principal/workspace scope work are untouched.
