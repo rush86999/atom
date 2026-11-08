@@ -29,14 +29,14 @@ Reused existing infrastructure (no new engine):
   * ``scripts/acceptance/browser_agent_job_wait.py``
     (source/health/source-binding/API/DB/screenshot/wait helpers)
 
-Credential isolation: before launch the driver installs value-free
-``world/.env`` and ``world/backend_root/.env`` shadow guards. Without them a
-bare ``load_dotenv()`` in world code walks up from
+Credential isolation: the general launcher installs value-free
+``.env``/``.env.local`` guards at the world root and backend farm root before
+Popen. Without them a bare ``load_dotenv()`` in world code walks up from
 ``backend/data/acceptance_worlds`` and can load the live ``backend/.env``
 (operator model config, BYOK Fernet key, API keys) into the sandboxed server.
-The core-profile evolution OFF default is proven from the exported source plus
-the live ``/api/product/profile`` core response; an explicit actual-env
-``true`` still fails.
+The driver explicitly sets ``ATOM_AGENT_EVOLUTION_ENABLED=false`` before launch
+and the launcher whitelist forwards it; the actual child process env is the
+only positive worker-flag proof. Source/profile shape is diagnostic only.
 
 Why the retained 37-case API suite is referenced, not re-run
 ------------------------------------------------------------
@@ -118,10 +118,6 @@ FASTEMBED_REQUIRED_FILES = (
     "special_tokens_map.json",
 )
 HEAVY_THRESHOLD_BYTES = 4 * 1024 * 1024 * 1024
-DOTENV_SHADOW_TEXT = (
-    "# Acceptance-world guard: shadow live backend/.env discovery.\n"
-    "# This file intentionally defines no values.\n"
-)
 DOC_ID_RE = re.compile(r"^doc_[0-9a-f]{24}$")
 EXTRACTION_RE = re.compile(r"^ev4:[0-9a-f]{64}$")
 
@@ -851,9 +847,15 @@ def _profile_probe() -> Dict[str, Any]:
         route = route_capability("/documents")
         checks = _profile_contract_checks(
             profile, documents, search, tasks, boards, route, applied)
+        # The worker-default dict is a driver-process source diagnostic, not
+        # proof of the sandboxed server's actual env. Exclude it from `ok`;
+        # the execute step proves the three flags from the real child process.
+        authority_checks = {
+            key: value for key, value in checks.items()
+            if key != "background_worker_defaults_off"}
         return {
             **checks,
-            "ok": all(checks.values()),
+            "ok": all(authority_checks.values()),
             "profile": profile,
             "documents_enabled": documents,
             "search_enabled": search,
@@ -861,6 +863,9 @@ def _profile_probe() -> Dict[str, Any]:
             "boards_enabled": boards,
             "documents_route": route,
             "runtime_defaults": applied,
+            "worker_defaults_diagnostic": checks.get(
+                "background_worker_defaults_off"),
+            "worker_defaults_positive_authority": False,
             "checks": checks,
         }
     except Exception as exc:  # noqa: BLE001 - reported, not hidden
@@ -1854,74 +1859,6 @@ def _execute_ready(args: argparse.Namespace) -> Dict[str, Any]:
     return {"dependencies": deps, "ports": {str(k): v for k, v in ports.items()}}
 
 
-def _install_dotenv_shadow_guard(world: Path) -> Dict[str, Any]:
-    """Stop python-dotenv's upward search before it reaches the live .env.
-
-    The isolated export lives under ``backend/data/acceptance_worlds``, so a
-    bare ``load_dotenv()`` in product code can walk up from the world and load
-    the live ``backend/.env`` (operator credentials, BYOK key, model config)
-    into the sandboxed server. A value-free guard at the world root and the
-    backend farm root shadows that search. This is a harness safety guard, not
-    product configuration.
-    """
-    targets = [Path(world) / ".env", Path(world) / "backend_root" / ".env"]
-    files: Dict[str, Any] = {}
-    problems: List[str] = []
-    for path in targets:
-        try:
-            if path.is_symlink():
-                problems.append(
-                    f"{path} is a symlink; refusing to follow it")
-                files[str(path)] = {
-                    "present": True,
-                    "guard_installed": False,
-                    "symlink": True,
-                }
-                continue
-            if path.exists():
-                current = path.read_text(encoding="utf-8", errors="replace")
-                if current.strip() and current != DOTENV_SHADOW_TEXT:
-                    problems.append(
-                        f"{path} already has content; refusing to overwrite")
-                    files[str(path)] = {
-                        "present": True,
-                        "guard_installed": False,
-                        "bytes": path.stat().st_size,
-                    }
-                    continue
-            path.write_text(DOTENV_SHADOW_TEXT, encoding="utf-8")
-            os.chmod(path, 0o600)
-            readback = path.read_text(encoding="utf-8")
-            files[str(path)] = {
-                "present": True,
-                "guard_installed": readback == DOTENV_SHADOW_TEXT,
-                "bytes": path.stat().st_size,
-                "contains_values": any(
-                    line.strip() and not line.strip().startswith("#")
-                    for line in readback.splitlines()),
-            }
-        except OSError as exc:
-            problems.append(f"{path}: {type(exc).__name__}: {exc}")
-            files[str(path)] = {
-                "present": path.exists(),
-                "guard_installed": False,
-            }
-    ok = bool(files) and all(
-        entry.get("guard_installed") is True
-        and entry.get("contains_values") is not True
-        for entry in files.values()) and not problems
-    return {
-        "ok": ok,
-        "files": files,
-        "problems": problems,
-        "live_dotenv_shadowed": ok,
-        "note": (
-            "A bare load_dotenv() walks up from the world/code export under "
-            "backend/data/acceptance_worlds and would otherwise load the live "
-            "backend/.env. These value-free guards stop that walk."),
-    }
-
-
 def _build_world(world: Path, source_sha: str,
                  heavy_approved: bool) -> Dict[str, Any]:
     from core.world_storage_guard import require_storage_ready
@@ -1956,11 +1893,6 @@ def _build_world(world: Path, source_sha: str,
     R.build_world.snapshot_working_tree = True
     R.build_world.full_dev_db = False
     R.build_world(world, refreeze_db=True)
-    dotenv_guard = _install_dotenv_shadow_guard(world)
-    if not dotenv_guard.get("ok"):
-        raise DriverError(
-            "dotenv shadow guard failed; the sandboxed server could load the "
-            f"live backend/.env: {dotenv_guard}")
     manifest = world / "MANIFEST.json"
     fixture = world / "fixture" / "atom.db"
     if not manifest.exists() or not fixture.exists():
@@ -1999,7 +1931,6 @@ def _build_world(world: Path, source_sha: str,
         "acc_metadata": support["launcher"]["acc_metadata"],
         "fixture_inventory": support["fixture_inventory"],
         "prebuild_support": support["checks"],
-        "dotenv_guard": dotenv_guard,
         "manifest_path": str(manifest),
         "fixture_path": str(fixture),
         "preflight": pre,
@@ -2224,190 +2155,53 @@ def _ast_call_name(node: Any) -> str:
     return ""
 
 
-def _module_level_statements(tree: ast.AST) -> List[ast.stmt]:
-    """Module-level statements, descending into top-level try/if blocks."""
-    out: List[ast.stmt] = []
-
-    def walk(statements: List[ast.stmt]) -> None:
-        for statement in statements:
-            out.append(statement)
-            if isinstance(statement, (ast.Try, ast.If)):
-                walk(statement.body)
-                walk(statement.orelse)
-            if isinstance(statement, ast.Try):
-                for handler in statement.handlers:
-                    walk(handler.body)
-                walk(statement.finalbody)
-
-    walk(list(getattr(tree, "body", [])))
-    return out
-
-
-def _runtime_defaults_source_probe(
-    product_profile_source: str,
-    main_api_app_source: str,
-) -> Dict[str, Any]:
-    """Prove the exported core profile applies a safe evolution OFF default.
-
-    ``main_api_app`` imports ``apply_runtime_defaults`` and calls it at module
-    import, before the app is built. The function early-returns for non-core
-    profiles and sets ``ATOM_AGENT_EVOLUTION_ENABLED=false`` for core. This is
-    a source-bound proof of the runtime default, not a claim that ``ps eww``
-    can see a post-exec ``setenv`` (it cannot on macOS).
-    """
-    problems: List[str] = []
-    try:
-        profile_tree = ast.parse(product_profile_source)
-        app_tree = ast.parse(main_api_app_source)
-    except SyntaxError as exc:
-        return {
-            "ok": False,
-            "checks": {"source_parse_ok": False},
-            "problems": [f"{type(exc).__name__}: {exc}"],
-            "defaults": {},
-        }
-    default_profile = None
-    for node in _module_level_statements(profile_tree):
-        if isinstance(node, ast.Assign):
-            for target in node.targets:
-                if isinstance(target, ast.Name) and target.id == "DEFAULT_PROFILE":
-                    default_profile = _ast_constant(node.value)
-    apply_func = next((
-        node for node in profile_tree.body
-        if isinstance(node, ast.FunctionDef)
-        and node.name == "apply_runtime_defaults"), None)
-    defaults: Dict[str, str] = {}
-    if apply_func is not None:
-        for node in ast.walk(apply_func):
-            if not isinstance(node, ast.Assign):
-                continue
-            if not any(
-                    isinstance(target, ast.Name) and target.id == "defaults"
-                    for target in node.targets):
-                continue
-            if isinstance(node.value, ast.Dict):
-                for key_node, value_node in zip(
-                        node.value.keys, node.value.values):
-                    key = _ast_constant(key_node)
-                    value = _ast_constant(value_node)
-                    if isinstance(key, str) and isinstance(value, str):
-                        defaults[key] = value
-    imported_defaults = any(
-        isinstance(node, ast.ImportFrom)
-        and node.module == "core.product_profile"
-        and any(alias.name == "apply_runtime_defaults" for alias in node.names)
-        for node in ast.walk(app_tree))
-    applied_at_import = any(
-        isinstance(node, ast.Expr)
-        and isinstance(node.value, ast.Call)
-        and _ast_call_name(node.value.func) in {
-            "_apply_profile_defaults", "apply_runtime_defaults"}
-        for node in _module_level_statements(app_tree))
-    checks = {
-        "source_parse_ok": True,
-        "default_profile_core": default_profile == "core",
-        "evolution_default_false": (
-            defaults.get("ATOM_AGENT_EVOLUTION_ENABLED") == "false"),
-        "scheduler_default_false": (
-            defaults.get("ENABLE_SCHEDULER") == "false"),
-        "ingestion_default_false": (
-            defaults.get("ENABLE_INGESTION_SYNC") == "false"),
-        "main_api_app_imports_runtime_defaults": imported_defaults,
-        "main_api_app_applies_defaults_at_import": applied_at_import,
-    }
-    if apply_func is None:
-        problems.append("apply_runtime_defaults not found in product_profile")
-    if not imported_defaults:
-        problems.append("main_api_app does not import apply_runtime_defaults")
-    if not applied_at_import:
-        problems.append("main_api_app does not call the defaults at import")
-    return {
-        "ok": all(checks.values()),
-        "checks": checks,
-        "default_profile": default_profile,
-        "defaults": defaults,
-        "problems": problems,
-    }
-
-
 def _runtime_defaults_probe(
     world: Path,
     descriptor: Dict[str, Any],
     live_profile: Dict[str, Any],
 ) -> Dict[str, Any]:
-    """Combine exported-source proof with the live core profile response."""
+    """Diagnostic source/profile facts; NEVER positive runtime proof.
+
+    Source text mentioning defaults does not prove the running process has the
+    flag off. Only the child process's actual environment is authoritative.
+    This function always reports ``ok=False`` and is never a positive check.
+    """
     profile_path = Path(world) / "code" / "backend" / "core" / "product_profile.py"
     app_path = Path(world) / "code" / "backend" / "main_api_app.py"
-    try:
-        source = _runtime_defaults_source_probe(
-            profile_path.read_text(encoding="utf-8"),
-            app_path.read_text(encoding="utf-8"),
-        )
-    except OSError as exc:
-        return {
-            "ok": False,
-            "checks": {"source_readable": False},
-            "error": f"{type(exc).__name__}: {exc}",
-            "problems": ["exported product_profile/main_api_app is unreadable"],
-        }
+    problems: List[str] = []
+    source_files: Dict[str, Any] = {}
+    for name, path in (
+            ("product_profile", profile_path),
+            ("main_api_app", app_path)):
+        try:
+            source_files[name] = {
+                "path": str(path),
+                "sha256": _sha256_file(path),
+            }
+        except OSError as exc:
+            problems.append(
+                f"{name}: {type(exc).__name__}: {exc}")
+            source_files[name] = {"path": str(path), "sha256": None}
     env = descriptor.get("effective_env") or {}
     live_body = (live_profile or {}).get("body") or {}
-    live_core = live_body.get("profile") == "core"
-    no_evolution_override = (
-        env.get("ATOM_AGENT_EVOLUTION_ENABLED") in (None, "false"))
-    no_profile_override = env.get("ATOM_PRODUCT_PROFILE") in (None, "core")
-    source_checks = source.get("checks") or {}
-    evolution_runtime_default_false = bool(
-        source_checks.get("evolution_default_false") is True
-        and source_checks.get("main_api_app_applies_defaults_at_import") is True
-        and source_checks.get("default_profile_core") is True
-        and live_core
-        and no_evolution_override)
-    checks = {
-        **source_checks,
-        "live_profile_core": live_core,
-        "no_evolution_env_override": no_evolution_override,
-        "no_profile_env_override": no_profile_override,
-        "evolution_runtime_default_false": evolution_runtime_default_false,
-    }
-    problems = list(source.get("problems") or [])
-    if not live_core:
-        problems.append("live /api/product/profile did not report core")
-    if not no_evolution_override:
-        problems.append("launch env carries an evolution override")
-    if not no_profile_override:
-        problems.append("launch env carries a non-core profile override")
     return {
-        "ok": all(checks.values()),
-        "checks": checks,
-        "source": {
-            "product_profile": {
-                "path": str(profile_path),
-                "sha256": _sha256_file(profile_path),
-            },
-            "main_api_app": {
-                "path": str(app_path),
-                "sha256": _sha256_file(app_path),
-            },
-        },
-        "default_profile": source.get("default_profile"),
-        "defaults": source.get("defaults"),
+        "ok": False,
+        "diagnostic_only": True,
+        "positive_authority": False,
+        "source_files": source_files,
         "live_profile": {
             "status": (live_profile or {}).get("status"),
             "profile": live_body.get("profile"),
         },
-        "launch_env_override": {
+        "launch_env": {
             "ATOM_AGENT_EVOLUTION_ENABLED": env.get(
                 "ATOM_AGENT_EVOLUTION_ENABLED"),
             "ATOM_PRODUCT_PROFILE": env.get("ATOM_PRODUCT_PROFILE"),
         },
         "evidence_note": (
-            "The running app answered /api/product/profile with core; the "
-            "exported main_api_app calls apply_runtime_defaults at import and "
-            "the exported core profile sets ATOM_AGENT_EVOLUTION_ENABLED=false "
-            "unless an operator override is present. ps eww cannot show that "
-            "post-exec setenv, and the info log is emitted before logging is "
-            "configured."),
+            "Source/profile shape is diagnostic only. The actual child process "
+            "env (ATOM_AGENT_EVOLUTION_ENABLED, ENABLE_SCHEDULER, "
+            "ENABLE_INGESTION_SYNC all false) is the only positive authority."),
         "problems": problems,
     }
 
@@ -2750,7 +2544,7 @@ def _byok_generated_default_probe(
     keys_ok = bool(
         (not keys_path.exists())
         or (keys_regular and keys_content["ok"]))
-    enc_ok = bool(
+    enc_shape_ok = bool(
         (not enc_path.exists())
         or (enc_regular and enc_content["ok"]))
     credential_free = bool(
@@ -2760,7 +2554,7 @@ def _byok_generated_default_probe(
              or (config_regular
                  and config_content["checks"]["no_credential_value_fields"])))
     generated_default_catalog = bool(
-        config_ok and keys_ok and enc_ok and not world_code_seed
+        config_ok and keys_ok and not world_code_seed
         and not byok_env_keys and credential_free)
     operator_config_present = bool(
         (config_path.exists() and not generated_default_catalog)
@@ -2778,7 +2572,7 @@ def _byok_generated_default_probe(
             not keys_path.exists()
             or (keys_regular
                 and keys_content["checks"]["key_store_empty"])),
-        "encryption_key_generated_shape": enc_ok,
+        "encryption_key_shape_diagnostic": enc_shape_ok,
         "no_world_code_byok_seed": not world_code_seed,
         "no_byok_env_forwarded": not byok_env_keys,
         "credential_free": credential_free,
@@ -2800,7 +2594,9 @@ def _byok_generated_default_probe(
     if keys_regular and not keys_content["ok"]:
         problems.append("byok_keys.json is not the empty generated store")
     if enc_regular and not enc_content["ok"]:
-        problems.append("byok_encryption_key is not a generated Fernet key")
+        problems.append(
+            "diagnostic: byok_encryption_key is not a URL-safe Fernet shape; "
+            "shape alone does not establish origin")
     if world_code_seed:
         problems.append("BYOK files are seeded inside the code export")
     if byok_env_keys:
@@ -2823,6 +2619,7 @@ def _byok_generated_default_probe(
         "generated_default_catalog": generated_default_catalog,
         "operator_config_present": operator_config_present,
         "credential_free": credential_free,
+        "encryption_key_shape_ok": enc_shape_ok,
         "byok_env_keys": byok_env_keys,
         "files": {
             "config": _sanitized_file(config_path),
@@ -2865,22 +2662,9 @@ def _worker_defaults_probe(
         "ENABLE_INGESTION_SYNC",
         "ATOM_AGENT_EVOLUTION_ENABLED",
     )
-    runtime_evolution = bool(
-        (runtime_defaults or {}).get("checks", {}).get(
-            "evolution_runtime_default_false") is True)
-    evidence: Dict[str, bool] = {}
-    for key in worker_keys:
-        actual = values.get(key)
-        if actual is not None:
-            # The actual process environment is authoritative: an explicit
-            # true is never rescued by a log line or a source default.
-            evidence[key] = actual == "false"
-            continue
-        evidence[key] = bool(
-            str(log_defaults.get(key)) == "false"
-            or (key == "ATOM_AGENT_EVOLUTION_ENABLED"
-                and runtime_evolution))
-    env_flags = all(values.get(key) == "false" for key in worker_keys)
+    evidence: Dict[str, bool] = {
+        key: values.get(key) == "false" for key in worker_keys}
+    env_flags = all(evidence.values())
     log_flags = all(str(log_defaults.get(key)) == "false"
                     for key in worker_keys)
     env_ok = env.get("ok") is True
@@ -2899,7 +2683,6 @@ def _worker_defaults_probe(
         "env_probe_ok": env_ok,
         "worker_flags_off_from_actual_env": env_flags,
         "worker_flags_off_from_startup_log": log_flags,
-        "evolution_runtime_default_false": runtime_evolution,
         "worker_flags_proven": all(evidence.values()),
         "embedding_provider_default": (
             values.get("EMBEDDING_PROVIDER") in (None, "fastembed")
@@ -2920,6 +2703,8 @@ def _worker_defaults_probe(
         "env": env,
         "worker_flag_evidence": evidence,
         "runtime_defaults": runtime_defaults,
+        "runtime_defaults_diagnostic_only": (
+            (runtime_defaults or {}).get("diagnostic_only") is True),
         "startup_log_defaults": log_defaults,
         "startup_log_error": log_error,
         "hf_hub_offline_present": values.get("HF_HUB_OFFLINE") is not None,
@@ -3274,7 +3059,6 @@ def _run_execute(args: argparse.Namespace) -> int:
             key: value for key, value in build.items()
             if key not in ("code_manifest", "export_tree", "manifest_doc")
         }
-        scenario["dotenv_guard"] = build.get("dotenv_guard")
         step("fresh_marked_world_built_once", {
             "manifest_present": Path(build["manifest_path"]).is_file(),
             "fixture_present": Path(build["fixture_path"]).is_file(),
@@ -3300,8 +3084,6 @@ def _run_execute(args: argparse.Namespace) -> int:
             "legacy_fixture_set_rechecked_before_build": (
                 (build.get("prebuild_support") or {}).get(
                     "legacy_fixture_inventory_verified") is True),
-            "dotenv_shadow_guard_installed": (
-                (build.get("dotenv_guard") or {}).get("ok") is True),
             "storage_guard_was_required": True,
         }, details={"world": str(world), "marker": build["marker"]})
 
@@ -3311,11 +3093,19 @@ def _run_execute(args: argparse.Namespace) -> int:
         os.environ["ALLOWED_HOSTS"] = (
             f"localhost,127.0.0.1,localhost:{args.backend_port},"
             f"localhost:{args.frontend_port}")
+        # Explicit safe OFF for this acceptance episode. The general launcher
+        # whitelist forwards this one boolean, so the actual child process env
+        # (not source shape) is the positive proof; explicit callers that set
+        # it true keep that semantics.
+        os.environ["ATOM_AGENT_EVOLUTION_ENABLED"] = "false"
         backend_proc = R.launch_server(
             args.backend_port, world, provider_shim=False)
         cleanups.append(("backend", backend_proc))
         run_dir = R.launch_server.last_run_dir
         descriptor = dict(R.launch_server.descriptor)
+        dotenv_isolation = getattr(
+            R.launch_server, "last_dotenv_isolation", {}) or {}
+        scenario["dotenv_isolation"] = dotenv_isolation
         db_path = run_dir / "data" / "atom.db"
         health = D3._health(args.backend_port)
         identity = health.get("identity") or {}
@@ -3403,11 +3193,13 @@ def _run_execute(args: argparse.Namespace) -> int:
                     "ENABLE_SCHEDULER") == "false"
                 and (worker.get("env", {}).get("values") or {}).get(
                     "ENABLE_INGESTION_SYNC") == "false"),
-            "evolution_runtime_default_false": (
-                worker.get("checks", {}).get(
-                    "evolution_runtime_default_false") is True),
+            "evolution_flag_explicitly_false": (
+                (worker.get("env", {}).get("values") or {}).get(
+                    "ATOM_AGENT_EVOLUTION_ENABLED") == "false"),
             "worker_flags_proven_off": (
                 worker.get("checks", {}).get("worker_flags_proven") is True),
+            "dotenv_isolation_guard_installed": (
+                dotenv_isolation.get("ok") is True),
             "embedding_provider_default": (
                 worker.get("checks", {}).get(
                     "embedding_provider_default") is True),

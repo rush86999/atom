@@ -701,30 +701,30 @@ def _write_byok_files(run_dir: Path, *, config: dict | None = None,
         encryption_key, encoding="utf-8")
 
 
-def test_runtime_defaults_source_probe_accepts_core_off_default(driver):
-    proof = driver._runtime_defaults_source_probe(
-        RUNTIME_PROFILE_SOURCE, RUNTIME_APP_SOURCE)
-    assert proof["ok"], proof["problems"]
-    assert proof["checks"]["evolution_default_false"] is True
-    assert proof["checks"]["main_api_app_applies_defaults_at_import"] is True
+def test_runtime_defaults_probe_is_diagnostic_only(driver, tmp_path):
+    world = tmp_path / "world"
+    core = world / "code" / "backend" / "core"
+    core.mkdir(parents=True)
+    (core / "product_profile.py").write_text(
+        RUNTIME_PROFILE_SOURCE, encoding="utf-8")
+    # The fixture profile only constructs/returns a dict; it never writes
+    # os.environ. Source shape must never certify a live worker flag.
+    assert "os.environ" not in RUNTIME_PROFILE_SOURCE
+    dead_call = RUNTIME_APP_SOURCE.replace(
+        "    _apply_profile_defaults()",
+        "    if False:\n        _apply_profile_defaults()")
+    (world / "code" / "backend" / "main_api_app.py").write_text(
+        dead_call, encoding="utf-8")
+    proof = driver._runtime_defaults_probe(
+        world, {"effective_env": {}},
+        {"status": 200, "body": {"profile": "core"}})
+    assert proof["ok"] is False
+    assert proof["diagnostic_only"] is True
+    assert proof["positive_authority"] is False
+    assert proof["live_profile"]["profile"] == "core"
 
 
-def test_runtime_defaults_source_probe_rejects_on_or_uncalled(driver):
-    on = RUNTIME_PROFILE_SOURCE.replace(
-        '"ATOM_AGENT_EVOLUTION_ENABLED": "false"',
-        '"ATOM_AGENT_EVOLUTION_ENABLED": "true"')
-    assert not driver._runtime_defaults_source_probe(
-        on, RUNTIME_APP_SOURCE)["ok"]
-    uncalled = RUNTIME_APP_SOURCE.replace("_apply_profile_defaults()", "pass")
-    assert not driver._runtime_defaults_source_probe(
-        RUNTIME_PROFILE_SOURCE, uncalled)["ok"]
-    full = RUNTIME_PROFILE_SOURCE.replace(
-        'DEFAULT_PROFILE = "core"', 'DEFAULT_PROFILE = "full"')
-    assert not driver._runtime_defaults_source_probe(
-        full, RUNTIME_APP_SOURCE)["ok"]
-
-
-def test_runtime_defaults_probe_requires_live_core_and_no_override(
+def test_runtime_defaults_probe_valid_source_still_only_diagnostic(
         driver, tmp_path):
     world = tmp_path / "world"
     core = world / "code" / "backend" / "core"
@@ -733,23 +733,12 @@ def test_runtime_defaults_probe_requires_live_core_and_no_override(
         RUNTIME_PROFILE_SOURCE, encoding="utf-8")
     (world / "code" / "backend" / "main_api_app.py").write_text(
         RUNTIME_APP_SOURCE, encoding="utf-8")
-    live = {"status": 200, "body": {"profile": "core"}}
     proof = driver._runtime_defaults_probe(
-        world, {"effective_env": {}}, live)
-    assert proof["ok"], proof["problems"]
-    assert proof["checks"]["evolution_runtime_default_false"] is True
-
-    overridden = driver._runtime_defaults_probe(
-        world, {"effective_env": {
-            "ATOM_AGENT_EVOLUTION_ENABLED": "true"}}, live)
-    assert not overridden["ok"]
-    assert overridden["checks"]["no_evolution_env_override"] is False
-
-    full_live = driver._runtime_defaults_probe(
         world, {"effective_env": {}},
-        {"status": 200, "body": {"profile": "full"}})
-    assert not full_live["ok"]
-    assert full_live["checks"]["live_profile_core"] is False
+        {"status": 200, "body": {"profile": "core"}})
+    assert proof["ok"] is False
+    assert proof["diagnostic_only"] is True
+    assert proof["positive_authority"] is False
 
 
 def test_byok_source_and_generated_config_accept(driver):
@@ -817,17 +806,21 @@ def test_byok_generated_default_probe_rejects_keys_or_env_override(
     assert overridden["byok_env_keys"] == ["BYOK_CONFIG_FILE"]
 
 
-def test_byok_generated_default_probe_rejects_operator_encryption_key(
+def test_byok_key_shape_is_diagnostic_not_origin_proof(
         driver, tmp_path):
     world = tmp_path / "world"
     run_dir = tmp_path / "run"
     _write_byok_files(run_dir, encryption_key="A" * 42 + "/=")
     proof = driver._byok_generated_default_probe(
         world, run_dir, {"effective_env": {}}, source_text=BYOK_SOURCE)
-    assert not proof["ok"]
-    assert proof["checks"]["encryption_key_generated_shape"] is False
-    assert proof["generated_default_catalog"] is False
-    assert proof["operator_config_present"] is True
+    # A non-URL-safe key shape is recorded as a diagnostic, but shape alone
+    # does not label the catalog/operator origin either way.
+    assert proof["checks"]["encryption_key_shape_diagnostic"] is False
+    assert proof["encryption_key_shape_ok"] is False
+    assert proof["generated_default_catalog"] is True
+    assert proof["operator_config_present"] is False
+    assert proof["credential_free"] is True
+    assert proof["ok"] is True
 
 
 def test_byok_generated_default_probe_rejects_world_code_seed(
@@ -844,45 +837,82 @@ def test_byok_generated_default_probe_rejects_world_code_seed(
     assert proof["checks"]["no_world_code_byok_seed"] is False
 
 
-def test_dotenv_shadow_guard_installs_value_free_files(driver, tmp_path):
-    world = tmp_path / "world"
+def test_launcher_dotenv_isolation_stops_at_world(driver, tmp_path,
+                                                  monkeypatch):
+    from dotenv import find_dotenv
+    parent_marker = tmp_path / ".env"
+    parent_local = tmp_path / ".env.local"
+    parent_marker.write_text("PARENT_MARKER=do-not-load\n", encoding="utf-8")
+    parent_local.write_text(
+        "PARENT_LOCAL_MARKER=do-not-load\n", encoding="utf-8")
+    world = tmp_path / "backend" / "data" / "acceptance_worlds" / "world"
     (world / "backend_root").mkdir(parents=True)
-    proof = driver._install_dotenv_shadow_guard(world)
-    assert proof["ok"], proof["problems"]
-    for path in (world / ".env", world / "backend_root" / ".env"):
+    report = driver.R._install_dotenv_isolation(world)
+    assert report["ok"], report["problems"]
+    for path in (
+            world / ".env", world / ".env.local",
+            world / "backend_root" / ".env",
+            world / "backend_root" / ".env.local"):
         text = path.read_text(encoding="utf-8")
-        assert text == driver.DOTENV_SHADOW_TEXT
-        assert all(
-            not line.strip() or line.strip().startswith("#")
-            for line in text.splitlines())
-    assert proof["live_dotenv_shadowed"] is True
+        assert text == driver.R.DOTENV_WORLD_GUARD
+        assert "PARENT_MARKER" not in text
+    # The synthetic parent markers are untouched and never copied.
+    assert parent_marker.read_text(encoding="utf-8") == (
+        "PARENT_MARKER=do-not-load\n")
+    assert parent_local.read_text(encoding="utf-8") == (
+        "PARENT_LOCAL_MARKER=do-not-load\n")
+    # A bare find starting at the world farm stops at the world guard, not
+    # at the synthetic parent credentials.
+    monkeypatch.chdir(world / "backend_root")
+    found = Path(find_dotenv(usecwd=True)).resolve()
+    assert found == (world / "backend_root" / ".env").resolve()
+    assert found != parent_marker.resolve()
 
 
-def test_dotenv_shadow_guard_refuses_existing_values(driver, tmp_path):
+def test_launcher_dotenv_isolation_refuses_nonempty_and_symlink(
+        driver, tmp_path):
     world = tmp_path / "world"
     (world / "backend_root").mkdir(parents=True)
-    (world / ".env").write_text("OPENAI_API_KEY=not-a-real-key\n",
-                                encoding="utf-8")
-    proof = driver._install_dotenv_shadow_guard(world)
-    assert not proof["ok"]
-    assert proof["live_dotenv_shadowed"] is False
-    assert (world / ".env").read_text(encoding="utf-8").startswith(
-        "OPENAI_API_KEY=")
+    (world / ".env").write_text(
+        "OPERATOR_MARKER=do-not-load\n", encoding="utf-8")
+    report = driver.R._install_dotenv_isolation(world)
+    assert not report["ok"]
+    assert "OPERATOR_MARKER=do-not-load\n" == (
+        world / ".env").read_text(encoding="utf-8")
 
-
-def test_dotenv_shadow_guard_refuses_symlink(driver, tmp_path):
-    world = tmp_path / "world"
-    (world / "backend_root").mkdir(parents=True)
     live = tmp_path / "live.env"
-    live.write_text("OPENAI_API_KEY=not-a-real-key\n", encoding="utf-8")
-    (world / ".env").symlink_to(live)
-    proof = driver._install_dotenv_shadow_guard(world)
-    assert not proof["ok"]
-    assert proof["live_dotenv_shadowed"] is False
-    assert live.read_text(encoding="utf-8").startswith("OPENAI_API_KEY=")
+    live.write_text("LIVE_MARKER=do-not-load\n", encoding="utf-8")
+    guard_path = world / "backend_root" / ".env.local"
+    if guard_path.exists() or guard_path.is_symlink():
+        guard_path.unlink()
+    guard_path.symlink_to(live)
+    report = driver.R._install_dotenv_isolation(world)
+    assert not report["ok"]
+    assert live.read_text(encoding="utf-8") == "LIVE_MARKER=do-not-load\n"
 
 
-def test_worker_defaults_accepts_runtime_evolution_default(
+def test_launcher_whitelist_forwards_the_evolution_flag(driver):
+    assert "ATOM_AGENT_EVOLUTION_ENABLED" in driver.R.SERVER_ENV_WHITELIST
+
+
+def test_worker_defaults_all_actual_false_is_the_valid_twin(
+        driver, tmp_path, monkeypatch):
+    log = tmp_path / "server.log"
+    log.write_text("no worker defaults line\n", encoding="utf-8")
+    values = {
+        "ENABLE_SCHEDULER": "false",
+        "ENABLE_INGESTION_SYNC": "false",
+        "ATOM_AGENT_EVOLUTION_ENABLED": "false",
+        "TMPDIR": tempfile.gettempdir(),
+    }
+    monkeypatch.setattr(
+        driver, "_process_env_probe",
+        lambda pid, keys: {"ok": True, "values": dict(values)})
+    proven = driver._worker_defaults_probe(1, log)
+    assert proven["checks"]["worker_flags_proven"] is True
+
+
+def test_worker_defaults_absent_actual_env_cannot_certify(
         driver, tmp_path, monkeypatch):
     log = tmp_path / "server.log"
     log.write_text("no worker defaults line\n", encoding="utf-8")
@@ -895,17 +925,17 @@ def test_worker_defaults_accepts_runtime_evolution_default(
     monkeypatch.setattr(
         driver, "_process_env_probe",
         lambda pid, keys: {"ok": True, "values": dict(values)})
-    runtime = {"checks": {"evolution_runtime_default_false": True}}
-    proven = driver._worker_defaults_probe(1, log, runtime_defaults=runtime)
-    assert proven["checks"]["evolution_runtime_default_false"] is True
-    assert proven["checks"]["worker_flags_proven"] is True
+    runtime = {
+        "ok": False,
+        "diagnostic_only": True,
+    }
+    proof = driver._worker_defaults_probe(1, log, runtime_defaults=runtime)
+    assert proof["checks"]["worker_flags_off_from_actual_env"] is False
+    assert proof["checks"]["worker_flags_proven"] is False
+    assert proof["runtime_defaults_diagnostic_only"] is True
 
-    unproven = driver._worker_defaults_probe(1, log)
-    assert unproven["checks"]["evolution_runtime_default_false"] is False
-    assert unproven["checks"]["worker_flags_proven"] is False
 
-
-def test_worker_defaults_rejects_runtime_proof_when_env_flag_is_on(
+def test_worker_defaults_true_actual_env_fails_even_with_diagnostic(
         driver, tmp_path, monkeypatch):
     log = tmp_path / "server.log"
     log.write_text("no worker defaults line\n", encoding="utf-8")
@@ -918,6 +948,9 @@ def test_worker_defaults_rejects_runtime_proof_when_env_flag_is_on(
     monkeypatch.setattr(
         driver, "_process_env_probe",
         lambda pid, keys: {"ok": True, "values": dict(values)})
-    runtime = {"checks": {"evolution_runtime_default_false": True}}
+    runtime = {
+        "ok": False,
+        "diagnostic_only": True,
+    }
     proof = driver._worker_defaults_probe(1, log, runtime_defaults=runtime)
     assert proof["checks"]["worker_flags_proven"] is False

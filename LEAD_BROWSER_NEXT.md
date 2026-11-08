@@ -24,17 +24,21 @@ was launched during preparation.** Root owns all execution/acceptance.
   nine source/test hashes still match the current bytes; preflight refuses if
   they drift. Do not re-run the broad API/model/browser matrix to “refresh” it.
 
-## 2. New files (harness only)
+## 2. Files changed (harness/orchestration only)
 
 - `scripts/acceptance/browser_document_export_ui.py` — finite browser harness,
   preflight by default, root-only `--execute`.
 - `scripts/tests/test_browser_document_export_ui.py` — pure helper tests
   (no world/server/browser/model/download). Root test gate may collect it with
   the existing `scripts/tests` suite; it was **not run during preparation**.
+- `backend/scripts/orchestration_acceptance/run_isolated.py` — minimal general
+  launcher change: whitelist `ATOM_AGENT_EVOLUTION_ENABLED` and install
+  value-free dotenv isolation before Popen for all callers.
 - `LEAD_BROWSER_NEXT.md` — this handoff.
 
-No product/runtime/frontend/export-authorization file changed. `opencode.jsonc`
-stays untracked.
+No product/business-runtime/frontend/export-authorization file changed; the
+launcher edit is acceptance orchestration only. The retained 37-case API
+source files remain byte-exact. `opencode.jsonc` stays untracked.
 
 ### Harness-only repair after the first real attempt
 
@@ -80,34 +84,46 @@ and used an isolated scratch DB. It failed **before frontend/login/upload** at
 
 Diagnosis (from the launcher/default-worker/config producers):
 
-- The core profile **does** apply `ATOM_AGENT_EVOLUTION_ENABLED=false` at
-  import in `main_api_app`, but it logs before logging is configured and
-  `ps eww` cannot observe a post-exec `setenv` on macOS. The harness now proves
-  the runtime default from the exported source plus the live
-  `/api/product/profile` core response, and treats an explicit actual-env
-  `true` as authoritative (it is never rescued by a log/source default).
+- `ATOM_AGENT_EVOLUTION_ENABLED` was absent from the actual process env: the
+  launcher set scheduler/ingestion false but did not whitelist that key. The
+  core profile applies it false at import, but that is not observable after
+  `setenv` via `ps eww`, and the info log is emitted before logging is
+  configured. **Source-only shape is not live proof.** The general launcher
+  whitelist now forwards `ATOM_AGENT_EVOLUTION_ENABLED`, and this driver sets it
+  to `"false"` explicitly before launch, so the actual child env is the positive
+  proof. Explicit callers that set it true keep that explicit semantics.
+  The old source/profile probe is retained only as `diagnostic_only` data and
+  always reports `ok=False`; it is never a positive step check.
 - `byok_config.json` is the product's generated 33-provider default catalog;
-  `byok_keys.json` is the empty generated store. The harness now validates the
+  `byok_keys.json` is the empty generated store. The harness validates the
   exact source-derived provider ids/fields, rejects any credential-bearing
-  field or non-empty key store, and returns only sanitized shapes/keys/hashes.
-- **Security finding:** the retained world's `byok_encryption_key` was mirrored
-  from the live `backend/.env`, because a bare `load_dotenv()` in world code
-  walks up from `backend/data/acceptance_worlds` into the live backend tree.
-  That also exposed live operator model config. The harness now installs
-  value-free `.env` shadow guards at `world/.env` and
-  `world/backend_root/.env` before launch, so dotenv stops at the world and
-  the Fernet key is generated inside the run data. The guard refuses symlinks
-  or any pre-existing values. The retained world/logs were **not** modified.
-  Do not reuse or distribute that retained run data; root should handle the
-  mirrored key per its secrets policy (never print it).
+  field or non-empty key store, and returns only sanitized ids/field names/
+  sizes/hashes. Key shape is a diagnostic only — origin comes from fresh-world
+  dotenv isolation, an unseeded run data dir, the empty key store, and no
+  operator forwarding.
+- **Security finding:** the retained world's `byok_encryption_key` could have
+  been mirrored from the live `backend/.env`, because a bare `load_dotenv()` in
+  world code walks up from `backend/data/acceptance_worlds` into the live
+  backend tree. That also exposed live operator model config. The minimal
+  reusable guard now lives in the general launcher
+  (`run_isolated._install_dotenv_isolation`), before Popen: value-free
+  `.env`/`.env.local` shadows at both `world/` and `world/backend_root/` cover
+  bare `find_dotenv`, the explicit `backend_dir/.env`, `project_root/.env` and
+  `project_root/.env.local` loaders, and the farm/code symlink relation. It
+  refuses symlinks or pre-existing nonempty non-guard files without printing
+  their values. This is a shared caller-impact change: every `launch_server`
+  caller gets the guards, and a caller that pre-seeded a nonempty world `.env`/
+  `.env.local` now fails loudly. The retained world/logs were **not** modified.
+  Do not claim past worlds were credential-free; the exec-env allowlist alone
+  does not prove post-import dotenv behavior. Do not reuse or distribute the
+  retained run data; root should handle any mirrored key per its secrets
+  policy (never print it). Possible contamination is reported, not certified.
 
-The minimal broader launcher change, if root wants the evolution flag
-explicitly present in the actual env, is to add
-`ATOM_AGENT_EVOLUTION_ENABLED` to `SERVER_ENV_WHITELIST` and set it to `"false"`
-in `launch_server`'s env alongside `ENABLE_SCHEDULER`/`ENABLE_INGESTION_SYNC`.
-This repair deliberately did **not** edit `run_isolated.py`; the runtime default
-is proven instead. A broader dotenv-isolation fix should keep worlds outside the
-live backend tree or pass an explicit non-live dotenv path.
+No broader launcher change is required for the evolution flag: the whitelist
+entry above is the authorized minimal fix. A broader dotenv-isolation change
+would keep worlds outside the live backend tree or pass an explicit non-live
+dotenv path; the launcher guard already protects this lane. No operator env or
+private key values were read or published while authoring this change.
 
 Operational note: the first `bf3` preflight exited `2` because the retained
 API packet was missing; root restored the existing Git packet and the rerun
@@ -287,18 +303,19 @@ runs the real gate.
   the SQL mirror is `default`. No scope broadening, member account or foreign
   workspace is created.
 - Background worker defaults are proven off from the actual server process
-  env and/or the startup log; no provider shim, no BYOK config, no live DB.
-  Specifically: scheduler/ingestion are explicit actual-env `false`, and
-  `ATOM_AGENT_EVOLUTION_ENABLED=false` is proven from the exported core
-  profile's import-time default plus the live `/api/product/profile` core
-  response. An explicit actual-env `true` fails closed.
-- `world/.env` and `world/backend_root/.env` are value-free guards installed
-  before launch, so `load_dotenv()` cannot walk up into the live
+  environment: `ENABLE_SCHEDULER`, `ENABLE_INGESTION_SYNC` and
+  `ATOM_AGENT_EVOLUTION_ENABLED` are all actual-env `false`. Source/profile
+  shape and the startup log are diagnostic only; they are never positive
+  authority. No provider shim, no operator BYOK config, no live DB.
+- The general launcher installs value-free `.env` and `.env.local` guards at
+  both the world root and the backend farm root before Popen, so bare
+  `load_dotenv()` and the explicit app loaders cannot walk up into the live
   `backend/.env`. The BYOK files, if present, are the product-generated default
-  catalog, the empty generated key store, and a run-local generated Fernet key;
-  operator config, non-empty keys, credential-bearing fields or BYOK env
-  overrides fail closed. Evidence carries only provider ids, field names,
-  sizes and hashes.
+  catalog and empty key store; operator config, non-empty keys,
+  credential-bearing fields or BYOK env overrides fail closed. Fernet-key shape
+  is diagnostic only; origin is established by the fresh-world dotenv
+  isolation, unseeded run data, empty key store and no operator forwarding.
+  Evidence carries only provider ids, field names, sizes and hashes.
 - Only this harness's own backend/frontend PIDs are stopped and their actual
   exit is recorded. The world is preserved, never reset.
 - The 55 checksummed files are legacy framework inputs required by the builder,
@@ -350,3 +367,19 @@ Before `--execute`, decide only:
 
 If any answer is no, keep the non-executable truth: the harness refuses and
 reports the concrete prerequisite. Do not fabricate browser coverage.
+
+## 10. Root verification commands (root runs; author did not)
+
+Use the branch commit that contains this file:
+
+```sh
+cd /private/tmp/atom-document-stored-export-20261107
+EPISODE_SHA="$(git rev-parse HEAD)"
+pytest -q /private/tmp/test_root_export_worker_runtime_proof.py
+pytest -q scripts/tests/test_browser_document_export_ui.py
+```
+
+Then run the section-3 preflight and section-4 execute commands with
+`--expect-source-sha "$EPISODE_SHA"`. Use a **new** world name; never reuse
+`document_export_ui_bf3_root_20261108`. All three worker flags must appear
+`false` in the child process actual env for the runtime step to pass.
