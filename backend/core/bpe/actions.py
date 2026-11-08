@@ -39,6 +39,7 @@ from __future__ import annotations
 import logging
 import os
 import time
+import uuid
 from typing import Any, Dict, Optional, Tuple
 
 from core.action_registry import register_action
@@ -351,6 +352,29 @@ def _build_user_scope(
     }, None
 
 
+def _user_scope_for(
+    db: Any,
+    user_id: str,
+    *,
+    agent_id: str,
+    trusted_workspace: Optional[str] = None,
+    run_key: Optional[str] = None,
+) -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
+    """Resolve one fresh active principal into its canonical BPE scope."""
+    row, denial = _fresh_active_user(db, user_id)
+    if denial:
+        return None, denial
+    scope, denial = _build_user_scope(
+        db, row, user_id, agent_id=agent_id,
+        trusted_workspace=trusted_workspace,
+    )
+    if denial:
+        return None, denial
+    if run_key:
+        scope["scope_key"] = f"user:{user_id}:{run_key}"
+    return scope, None
+
+
 def resolve_scope(context: Dict[str, Any]) -> Tuple[Optional[Dict[str, Any]], Optional[Dict[str, Any]]]:
     """Resolve the canonical BPE namespace, or a typed no-effect denial.
 
@@ -378,15 +402,11 @@ def resolve_scope(context: Dict[str, Any]) -> Tuple[Optional[Dict[str, Any]], Op
 
     # 1) Authenticated principal (RPC / request-bound MCP).
     if user_id and db is not None:
-        row, denial = _fresh_active_user(db, user_id)
+        scope, denial = _user_scope_for(
+            db, user_id, agent_id=trusted_agent or "atom_main")
         if denial:
             return None, denial
         presented_workspace = _user_workspace_from(presented_user)
-        scope, denial = _build_user_scope(
-            db, row, user_id, agent_id=trusted_agent or "atom_main"
-        )
-        if denial:
-            return None, denial
         # A stale presented row may disagree with the current row; refuse
         # instead of silently moving the buffer or merging two authorities.
         if presented_workspace and presented_workspace != scope["workspace_id"]:
@@ -396,7 +416,7 @@ def resolve_scope(context: Dict[str, Any]) -> Tuple[Optional[Dict[str, Any]], Op
             )
         return scope, None
 
-    # A user object without a DB session cannot prove *current* activity.
+    # A user *object* without a DB session cannot prove current activity.
     if presented_user is not None and user_id and db is None:
         return None, _deny(
             _SCOPE_PRINCIPAL_UNVERIFIED,
@@ -409,20 +429,39 @@ def resolve_scope(context: Dict[str, Any]) -> Tuple[Optional[Dict[str, Any]], Op
         workspace_id = str(trusted.get("workspace_id") or "").strip()
         scope_key = str(trusted.get("scope_key") or "").strip()
         scoped_user_id = str(trusted.get("user_id") or "").strip()
-        if scoped_user_id and db is not None:
-            row, denial = _fresh_active_user(db, scoped_user_id)
-            if denial:
-                return None, denial
-            scope, denial = _build_user_scope(
-                db, row, scoped_user_id,
-                agent_id=str(trusted.get("agent_id") or "atom_main"),
-                trusted_workspace=workspace_id,
-            )
-            if denial:
-                return None, denial
-            if scope_key:
-                scope["scope_key"] = f"user:{scoped_user_id}:{scope_key}"
-            return scope, None
+        if scoped_user_id:
+            # An admitted actor must be re-read from CURRENT User/Workspace
+            # state, never downgraded to the anonymous/server branch. The
+            # agent loop's long-lived context carries no DB session, so use a
+            # bounded owned session for this resolution only (never stored on
+            # the context across model calls/HITL waits).
+            if db is not None:
+                return _user_scope_for(
+                    db, scoped_user_id,
+                    agent_id=str(trusted.get("agent_id") or "atom_main"),
+                    trusted_workspace=workspace_id,
+                    run_key=scope_key or None,
+                )
+            try:
+                from core.database import get_db_session as _get_db_session
+
+                with _get_db_session() as owned_db:
+                    return _user_scope_for(
+                        owned_db, scoped_user_id,
+                        agent_id=str(trusted.get("agent_id") or "atom_main"),
+                        trusted_workspace=workspace_id,
+                        run_key=scope_key or None,
+                    )
+            except Exception as e:  # noqa: BLE001 — unverifiable fails closed
+                logger.warning(
+                    "bpe server-bound principal verification failed closed: %s",
+                    e,
+                )
+                return None, _deny(
+                    _SCOPE_PRINCIPAL_UNVERIFIED,
+                    "BPE workspace could not verify the admitted principal; "
+                    "nothing was written.",
+                )
         # ``default`` is tolerated only for a server-bound agent scope with a
         # real session/run key: that is single-tenant Personal parity, not a
         # shared anonymous buffer.
@@ -474,6 +513,22 @@ def bpe_scope_from_context(context: Dict[str, Any]) -> Tuple[str, str, str]:
     return "", "", ""
 
 
+def stable_run_scope_key(*, job_id: Any = None,
+                         chat_session_id: Any = None) -> str:
+    """Stable BPE run key for a server-bound agent dispatch.
+
+    An admitted job keeps ONE namespace across the initial run and every
+    resume (fresh process included): the durable ``job_id`` is the identity
+    that survives execution-id churn. Non-admitted chat runs keep their
+    server chat-session key, else receive a fresh per-run key.
+    """
+    durable_job = str(job_id or "").strip()
+    if durable_job:
+        return durable_job
+    session = str(chat_session_id or "").strip()
+    return session or str(uuid.uuid4())
+
+
 def bind_trusted_scope(context: Dict[str, Any], *, workspace_id: Any,
                        agent_id: Any, scope_key: Any,
                        user_id: Any = None) -> Optional[Dict[str, Any]]:
@@ -495,21 +550,12 @@ def bind_trusted_scope(context: Dict[str, Any], *, workspace_id: Any,
     return context
 
 
-def _claim_authority(context: Dict[str, Any], scope: Dict[str, Any]) -> Optional[Dict[str, Any]]:
-    """Claim the active principal (and workspace) before an append.
-
-    A conditional no-op UPDATE executes inside the same transaction as the
-    buffer append. Zero rows means the principal was deactivated/changed (or
-    the workspace vanished) after the earlier read, so the append is refused
-    before any effect. Follow-up reads only select the typed error; they never
-    authorize the write.
-    """
-    if scope.get("authority") != "user":
-        return None
-    raw_db = (context or {}).get("db")
-    db = raw_db if _is_db_session(raw_db) else None
+def _claim_authority_in_db(
+    db: Any, scope: Dict[str, Any],
+) -> Optional[Dict[str, Any]]:
+    """Claim the frozen principal/workspace inside one provided session."""
     user_id = scope.get("user_id")
-    if db is None or not user_id:
+    if not user_id:
         return None
 
     try:
@@ -627,6 +673,41 @@ def _claim_authority(context: Dict[str, Any], scope: Dict[str, Any]) -> Optional
             "Could not verify BPE workspace authority; nothing was written.",
         )
     return None
+
+
+def _claim_authority(context: Dict[str, Any], scope: Dict[str, Any]) -> Optional[Dict[str, Any]]:
+    """Claim the active principal (and workspace) before an append.
+
+    A conditional no-op UPDATE executes before the buffer append. Zero rows
+    means the principal was deactivated/changed (or the workspace vanished)
+    after the earlier read, so the append is refused before any effect.
+    Follow-up reads only select the typed error; they never authorize the
+    write.
+
+    The long-lived agent dispatch context carries no DB session (sessions must
+    not stay resident across model calls/HITL waits), so a server-bound
+    principal uses a bounded owned session for this claim only. RPC/request
+    callers keep using the session they supplied.
+    """
+    if scope.get("authority") != "user":
+        return None
+    user_id = scope.get("user_id")
+    if not user_id:
+        return None
+    raw_db = (context or {}).get("db")
+    if _is_db_session(raw_db):
+        return _claim_authority_in_db(raw_db, scope)
+    try:
+        from core.database import get_db_session as _get_db_session
+
+        with _get_db_session() as owned_db:
+            return _claim_authority_in_db(owned_db, scope)
+    except Exception as e:  # noqa: BLE001 — unverifiable authority fails closed
+        logger.warning("bpe authority claim session failed closed: %s", e)
+        return _deny(
+            _SCOPE_AUTHORITY_MISSING,
+            "Could not verify BPE workspace authority; nothing was written.",
+        )
 
 
 def _resolve_workspace(context: Dict[str, Any], *, claim: bool = False):

@@ -521,18 +521,23 @@ class AtomMetaAgent:
         # never choose the buffer. The rendered Prompt, episode reset and
         # close-out all read this same binding.
         try:
-            from core.bpe.actions import bind_trusted_scope
+            from core.bpe.actions import bind_trusted_scope, stable_run_scope_key
             from core.chat_session_context import current_chat_session_id
 
             bind_trusted_scope(
                 context,
                 workspace_id=self.workspace_id,
                 agent_id="atom_main",
-                # The caller-supplied ``execution_id`` is not a namespace
-                # source; only a server-bound chat turn or a fresh per-run
-                # key is.
-                scope_key=current_chat_session_id() or str(uuid.uuid4()),
-                user_id=getattr(getattr(self, "user", None), "id", None),
+                # A server-bound chat turn, a durable job key, or a fresh
+                # per-run key is the stable identity; never caller params.
+                scope_key=stable_run_scope_key(
+                    job_id=(context or {}).get("job_id"),
+                    chat_session_id=current_chat_session_id(),
+                ),
+                user_id=(
+                    (context or {}).get("actor_id")
+                    or getattr(getattr(self, "user", None), "id", None)
+                ),
             )
         except Exception as _bpe_bind_err:  # noqa: BLE001
             logger.debug(f"bpe scope bind skipped: {_bpe_bind_err}")
@@ -819,14 +824,24 @@ class AtomMetaAgent:
         # run_id/tier, the shared sandbox gate (and _meta_agent_sandbox_check)
         # returns None — "no policy in scope" — so the default-on sandbox never
         # engaged on this, the primary agent surface: every tool call ran
-        # ungated. setdefault keeps caller-supplied values authoritative.
+        # ungated. The governance tier is explicitly rebuilt from the trusted
+        # registry row (never from caller params and never from the transient
+        # execution state); an unverifiable row fails closed to ``student``.
+        from core.governance_tier import canonical_governance_tier
+
         try:
-            _tier = (self._get_atom_registry().status or "autonomous").lower()
-        except Exception:  # noqa: BLE001 — a registry hiccup must not break runs
-            _tier = "autonomous"
-        context.setdefault("run_id", execution_id)
-        context.setdefault("execution_id", execution_id)
-        context.setdefault("tier_at_issuance", _tier)
+            _tier_row = self._get_atom_registry()
+            _tier = canonical_governance_tier(
+                getattr(_tier_row, "status", None)) or "student"
+            if getattr(_tier_row, "enabled", True) is False:
+                _tier = "student"
+        except Exception:  # noqa: BLE001 — a registry hiccup must not widen
+            _tier = "student"
+        context["run_id"] = execution_id
+        context["execution_id"] = execution_id
+        context["governance_tier"] = _tier
+        context["tier_at_issuance"] = _tier
+        context["governance_tier_source"] = "meta_registry"
 
         # 0. Get Tenant ID and Create Execution Record
         tenant_id = None

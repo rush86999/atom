@@ -267,7 +267,7 @@ class TestDispatchContextStamping:
     policy in scope") without run_id/execution_id/tier_at_issuance — so every
     specialty-agent tool call previously ran ungated."""
 
-    def _run(self, status="intern", db_broken=False):
+    def _run(self, status="intern", db_broken=False, context=None):
         import asyncio as _aio
 
         from core.generic_agent import GenericAgent
@@ -281,6 +281,7 @@ class TestDispatchContextStamping:
             db = MagicMock()
             row = MagicMock()
             row.status = status
+            row.enabled = True
             db.query.return_value.filter.return_value.first.return_value = row
             cm = MagicMock()
             cm.__enter__.return_value = db
@@ -292,7 +293,7 @@ class TestDispatchContextStamping:
             "_check_budget_before_react",
             new=AsyncMock(return_value={"allowed": True, "reason": "ok"}),
         )
-        ctx = {"session_id": "s-9"}
+        ctx = dict(context or {"session_id": "s-9"})
         with patch("core.generic_agent.WorldModelService", return_value=mw), \
              patch("core.generic_agent.ReflectionService", return_value=mr), \
              patch("core.generic_agent.CanvasSummaryService"), \
@@ -322,38 +323,25 @@ class TestDispatchContextStamping:
         assert result["status"] == "success"
         assert ctx["tier_at_issuance"] == "student"
 
-    def test_caller_values_authoritative(self):
-        import asyncio as _aio
+    def test_caller_tier_values_are_not_authoritative(self):
+        """A forged tier/provenance body is never a governance source.
 
-        from core.generic_agent import GenericAgent
-
-        mw, mr, ml, mmcp = _harness_patches()
-        agent_model = _make_agent_model()
-        budget_patch = patch.object(
-            GenericAgent,
-            "_check_budget_before_react",
-            new=AsyncMock(return_value={"allowed": True, "reason": "ok"}),
-        )
-        ctx = {
+        The current canonical registry row is the only fallback when no
+        server-owned admission tier is bound. Runtime/caller labels cannot
+        raise (or lower) the sandbox tier.
+        """
+        ctx, result = self._run(status="intern", context={
             "session_id": "s-9",
             "run_id": "caller-run",
+            "tier": "autonomous",
             "tier_at_issuance": "autonomous",
-        }
-        with patch("core.generic_agent.WorldModelService", return_value=mw), \
-             patch("core.generic_agent.ReflectionService", return_value=mr), \
-             patch("core.generic_agent.CanvasSummaryService"), \
-             patch("core.generic_agent.mcp_service", mmcp), \
-             patch("core.generic_agent.LLMService", return_value=ml), \
-             patch("core.generic_agent.get_db_session"), \
-             patch("core.generic_agent.AgentGovernanceService") as gov_cls, \
-             patch("core.generic_agent.trigger_episode_creation"), \
-             patch("core.turn_fact_extractor.TURN_FACT_EXTRACTION_ENABLED", False), \
-             budget_patch:
-            gov_cls.return_value.record_outcome = AsyncMock(return_value=None)
-            agent = GenericAgent(agent_model)
-            _aio.run(agent.execute("Task", context=ctx))
+            "governance_tier": "autonomous",
+            "provenance": {"source": "forged"},
+        })
+        assert result["status"] == "success"
         assert ctx["run_id"] == "caller-run"
-        assert ctx["tier_at_issuance"] == "autonomous"
+        assert ctx["tier_at_issuance"] == "intern"
+        assert ctx["governance_tier"] == "intern"
 
 
 # ============================================================================

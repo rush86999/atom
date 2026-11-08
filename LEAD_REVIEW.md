@@ -788,3 +788,156 @@ current-principal controls are unchanged.
   open and unchanged.
 - No runtime result is claimed here. Root must execute the controls and the
   wider BPE selection at the exact accepted head.
+
+---
+
+# LEAD REVIEW — admitted governance tier + current BPE actor (finite stage)
+
+Status: **AUTHOR-ONLY / NOT EXECUTED**. No Python, pytest, app, server, model,
+provider, install, migration, live data or credential action was run here.
+Root owns runtime gates and acceptance. Nothing here is a self-acceptance
+claim.
+
+## Root-confirmed defects being closed
+
+1. `admit_agent_run()` CASed `AgentRegistry.status` to `running`, then
+   `GenericAgent._execute_impl()` re-read that transient row and froze it as
+   `tier_at_issuance`. The sandbox correctly treats `running` as unknown and
+   fell back to `student`, refusing the real `workspace.note` leaf.
+2. A server-bound admitted BPE action carried no current-actor verification
+   when the long-lived dispatch context had no DB session. The actor could
+   therefore not be re-read as disabled/moved between admission and effect.
+
+## Repair — server-owned tier
+
+`backend/core/governance_tier.py` (normalisation helper only, not a policy
+engine/store/table):
+
+- canonical tiers are exactly `student/intern/supervised/autonomous`;
+- `running`/`idle`/`success`/other runtime labels are never a tier;
+- `effective_governance_tier()` only narrows: an issued tier is a ceiling, a
+  current lower canonical tier wins, a disabled row fails closed to `student`,
+  and unknown material produces an explicit restricted/unverified source.
+
+`backend/core/agent_decision_write_service.py`:
+
+- captures canonical maturity **before** the status CAS;
+- persists `governance_tier`, `governance_tier_source` and raw `prior_status`
+  in the existing `AgentJob.result_summary` and admission `AuditLog.extra`;
+- does **not** newly reject legacy `idle`/`success` labels. Those are admitted
+  under an explicit `legacy_unverified` marker; dispatch then applies the
+  student ceiling. No autonomous tier is inferred from runtime state or
+  confidence.
+
+`backend/api/agent_routes.py`:
+
+- `_TRUSTED_CONTEXT_KEYS` now reserves `tier`, `tier_at_issuance`,
+  `governance_tier`, `governance_tier_source`, `_trusted_governance_tier`,
+  `provenance`, `canvas_provenance` and `_bpe_principal_scope`; request-body
+  values are overwritten from the durable namespace (not `setdefault`);
+- `_admitted_governance_tier()` reconciles new job material against the
+  admission receipt. New jobs must agree on tier/source/prior status. Legacy
+  jobs reconcile only an existing canonical receipt `prior_status` or a
+  current canonical registry row; otherwise they carry an explicit restricted
+  legacy marker, never a fabricated issued tier.
+- dispatch and resume fail closed with `governance_tier_unverified` only on
+  contradictory/tampered material; the job and agent status are settled and
+  restored through the existing finalizers.
+
+`backend/core/generic_agent.py`:
+
+- the transient `running` row is no longer used as a tier;
+- only the server-bound `_trusted_governance_tier` is accepted as issued
+  authority, then current demotion/revocation narrows it;
+- `_run_maturity` (custom-action discovery) now uses that same resolved tier,
+  not the execution-state row.
+
+`backend/core/atom_meta_agent.py`:
+
+- the meta caller now rebuilds its tier from the trusted registry value and
+  fails closed to `student`; the previous exception fallback to `autonomous`
+  and caller-authoritative `setdefault` are removed.
+
+## Repair — current BPE actor and stable identity
+
+`backend/core/bpe/actions.py`:
+
+- `stable_run_scope_key()` makes the durable `job_id` the BPE key for admitted
+  runs, so initial and resumed/fresh-session passes address one namespace;
+  non-admitted chat runs keep the server chat-session key.
+- a server-bound `scoped_user_id` is now always re-read through the existing
+  `_fresh_active_user` / `_build_user_scope` / workspace-tenant checks. When
+  the long-lived context has no DB session, a bounded owned
+  `get_db_session()` is opened for resolution and for the write claim, then
+  closed. No session is stored on the context across model calls or HITL
+  waits.
+- an admitted principal can no longer fall through to the anonymous/server
+  branch; missing/unverifiable authority is a typed `scope_principal_*`
+  no-effect. Legacy server-bound callers without a `user_id` are unchanged.
+
+`backend/core/generic_agent.py` / `backend/core/atom_meta_agent.py`:
+
+- the trusted BPE scope is bound with the admitted `actor_id` and the stable
+  run key; prompt render, episode reset, close-out and mutation all resolve
+  through the same helper.
+
+## Authored controls (NOT executed)
+
+`backend/tests/test_bpe_governance_tier_issuance.py`:
+
+1. all four canonical tiers are persisted in job + receipt and restored after
+   the run;
+2. legacy `idle`/`success`/`unknown` statuses remain usable under the
+   restricted student ceiling, with `governance_tier=None` and
+   `legacy_unverified` source — never autonomous;
+3. `running` is an execution state, not an admission tier (existing
+   `ALREADY_RUNNING` conflict preserved);
+4. forged body `tier`, `tier_at_issuance`, `governance_tier`, provenance,
+   canvas-provenance and BPE scope are rebuilt from admission; the effective
+   tier is the canonical low tier and the stable scope is the real job key;
+5. initial and resumed trusted contexts for the SAME job agree on the issued
+   tier/source across fresh sessions;
+6. effective-tier narrowing covers running, demotion, revocation, unknown
+   runtime state and legacy current-only material;
+7. the stable run key prefers the durable job id;
+8. a server-bound active actor appends through a bounded owned session;
+   disabled and moved actors return typed no-effect with zero new note;
+9. the root public positive/negative twins: real scratch team-lead reviewer,
+   real `InterventionService.approve_intervention`, persisted
+   approved/`reviewed_by`, original production `_wait_for_approval`; positive
+   lands the note at `tier_at_issuance=autonomous`, revoked actor writes zero
+   note. No approval is mocked or waived.
+
+`backend/tests/test_round81b_journey_followups.py` was honestly re-contracted:
+its old `test_caller_values_authoritative` encoded the defect (caller tier
+accepted). It now asserts caller `tier`/`tier_at_issuance` are not
+authoritative and the canonical registry tier wins. The other G9 assertions
+(identity stamping, DB-error student fallback) are unchanged.
+
+CI: the new module is a permanent backend step in `.github/workflows/ci.yml`.
+
+## Cross-caller behavior change (explicit)
+
+- Direct `GenericAgent.execute()` callers can no longer raise/lower the sandbox
+  tier by putting `tier`/`tier_at_issuance` in `context`; the canonical current
+  registry row (or a server-owned admission tier) decides.
+- Legacy non-canonical agent statuses are admitted under a student ceiling
+  instead of being interpreted by the sandbox issuer as an arbitrary value.
+- Atom meta-agent no longer falls back to `autonomous` on registry errors.
+- Admitted BPE runs use the durable `job_id` as scope key, so a resume/fresh
+  session continues the same buffer rather than minting a new one.
+
+## Preserved / explicitly open
+
+- All sandbox, capability, role, authority, approval, budget, Oracle and
+  strict route gates remain enabled; no wildcard grant, whitelist disable,
+  forced policy, fake Agent row or fake approval was added.
+- Existing BPE receipts, typed refusals, exact hashes/scopes, unresolved-note
+  preservation, scope encoding and truthful write failure are untouched.
+- Pre-repair pending jobs without canonical job material are reconciled only
+  from a canonical receipt/current row; otherwise they get the restricted
+  legacy marker and `review_agent_maturity` next action. They are not silently
+  promoted.
+- No file-vs-SQL atomicity, multiworker, crash, PostgreSQL or fsync guarantee
+  is claimed. Root must execute the new controls and the wider accepted
+  selection; no result is claimed here.

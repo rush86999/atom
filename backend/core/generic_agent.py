@@ -184,17 +184,27 @@ class GenericAgent:
             # as ``context`` (api/agent_routes.py), so a caller-supplied
             # workspace/agent/session id must never choose the buffer.
             # ``self.workspace_id``/``self.id`` come from the agent registry
-            # row; the run key is the chat turn bound by the server, else a
-            # fresh per-run id.
+            # row; an admitted run's durable job id is the stable key across
+            # initial/resume fresh sessions, else the server chat turn key.
             try:
-                from core.bpe.actions import bind_trusted_scope
-                import uuid as _uuid
+                from core.bpe.actions import (
+                    bind_trusted_scope,
+                    stable_run_scope_key,
+                )
 
                 bind_trusted_scope(
                     context,
                     workspace_id=getattr(self, "workspace_id", None) or "default",
                     agent_id=str(self.id),
-                    scope_key=current_chat_session_id() or str(_uuid.uuid4()),
+                    scope_key=stable_run_scope_key(
+                        job_id=(context or {}).get("job_id"),
+                        chat_session_id=current_chat_session_id(),
+                    ),
+                    # The admitted actor is re-read from current User/Workspace
+                    # state at the BPE leaf. Never fall back to server mode for
+                    # an admitted principal. Direct internal callers without an
+                    # actor keep the legacy server-bound scope.
+                    user_id=(context or {}).get("actor_id"),
                 )
             except Exception as _bpe_bind_err:  # noqa: BLE001
                 logger.debug(f"bpe scope bind skipped: {_bpe_bind_err}")
@@ -256,6 +266,11 @@ class GenericAgent:
             context["_uncertain_operations"] = []
         context["_uncertain_operations_execution"] = _exec_identity
         self._reload_uncertain_operations(context)
+        # Governance maturity is NOT the same as the transient execution-state
+        # row (``running`` while this admitted job executes). Use only the
+        # server-owned tier frozen by admission/dispatch, then let a current
+        # canonical demotion (or revocation) narrow it. Never accept a
+        # caller-supplied ``tier``/``tier_at_issuance`` as authority.
         try:
             from core.database import get_db_session as _get_db_session_local
             with _get_db_session_local() as _tier_db:
@@ -264,10 +279,28 @@ class GenericAgent:
                     .filter(AgentRegistry.id == self.id)
                     .first()
                 )
-            _tier = str((_tier_row.status if _tier_row else None) or "student").lower()
+            _tier_status = None if _tier_row is None else _tier_row.status
+            _tier_enabled = bool(
+                True if _tier_row is None
+                else getattr(_tier_row, "enabled", True))
         except Exception:
-            _tier = "student"
-        context.setdefault("tier_at_issuance", _tier)
+            _tier_status = None
+            _tier_enabled = True
+        from core.governance_tier import effective_governance_tier
+        _trusted_tier = context.get("_trusted_governance_tier")
+        _tier, _tier_source = effective_governance_tier(
+            _trusted_tier,
+            _tier_status,
+            current_enabled=_tier_enabled,
+        )
+        context["governance_tier"] = _tier
+        context["tier_at_issuance"] = _tier
+        context["governance_tier_source"] = _tier_source
+        if _tier_source in {"unverified", "current_unverified"}:
+            context["governance_tier_restricted"] = True
+            context["governance_tier_next_action"] = "review_agent_maturity"
+        elif not context.get("governance_tier_restricted"):
+            context.pop("governance_tier_next_action", None)
 
         start_time = datetime.now(timezone.utc)
         logger.info(f"Agent {self.name} ({self.id}) starting task: {task_input[:50]}")
@@ -441,17 +474,18 @@ class GenericAgent:
                 _objective_loop = objective_loop_enabled()
 
                 # W5 (P5b/P5c): utility threading + maturity for custom-action
-                # discovery. Never raises; every measurement is best-effort.
+                # discovery. The run's governance tier was resolved above from
+                # the trusted admission/current canonical row; the transient
+                # AgentRegistry ``running`` execution state must not become a
+                # maturity floor. Never raises; every measurement is
+                # best-effort.
                 _baseline_success_rate = await self._measure_success_rate()
                 _utility_delta: Optional[float] = None
                 try:
-                    from core.models import AgentRegistry as _AgentRegistryModel
-                    with get_db_session() as _mdb:
-                        _row = _mdb.query(_AgentRegistryModel).filter(
-                            _AgentRegistryModel.id == self.id
-                        ).first()
-                    if _row is not None:
-                        self._run_maturity = getattr(_row, "status", None)
+                    from core.governance_tier import canonical_governance_tier
+
+                    self._run_maturity = canonical_governance_tier(
+                        (context or {}).get("tier_at_issuance"))
                 except Exception:
                     self._run_maturity = None
 
@@ -3265,6 +3299,22 @@ What is your next step?"""
                     else:
                         _metadata.pop("resume_state", None)
                         _metadata.pop("wait_receipt", None)
+                    # Durable truth for the sandbox ceiling this run actually
+                    # used. A legacy/unverified maturity is explicit, not
+                    # silently promoted or hidden.
+                    _tier_at_issuance = (context or {}).get(
+                        "tier_at_issuance")
+                    if _tier_at_issuance:
+                        _metadata["governance_tier"] = str(
+                            _tier_at_issuance)
+                    if (context or {}).get("governance_tier_source"):
+                        _metadata["governance_tier_source"] = str(
+                            context["governance_tier_source"])
+                    if (context or {}).get("governance_tier_restricted"):
+                        _metadata["governance_tier_restricted"] = True
+                    if (context or {}).get("governance_tier_next_action"):
+                        _metadata["governance_tier_next_action"] = str(
+                            context["governance_tier_next_action"])
 
                     if _existing is None:
                         _exec = AgentExecution(
