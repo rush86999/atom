@@ -196,3 +196,12 @@ different workspaces aliases the global SQL document id. The second upload
 can return200 but export404 and update the first workspace's metadata. An
 independent real-factory two-workspace probe is being added before repair.
 No complete DOCX acceptance is claimed.
+
+
+The shared-index fixture also contains prior legitimate vector rows. Refusal
+controls now compare complete SQL and Arrow-row snapshots rather than
+expecting global index count0. At380cf77c0 the independent REAL workspace
+handler factory (distinct physical directories) reproduced the actual product
+identity defect: identical DOCX content in two workspaces got the same docid;
+second upload200/export404 and peer_record_unchanged=false. This is not a
+fixture-only problem and must be repaired before document acceptance.

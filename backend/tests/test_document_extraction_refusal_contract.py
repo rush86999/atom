@@ -73,6 +73,13 @@ def _sql_snapshot(ctx):
                   for r in ctx.session.query(IngestedDocument).all())
 
 
+def _storage_snapshot(ctx):
+    table = ctx.handler.get_table("documents")
+    rows = table.to_arrow().to_pylist() if table is not None else []
+    return {"sql": _sql_snapshot(ctx),
+            "index": sorted(rows, key=lambda r: str(r.get("id") or ""))}
+
+
 def _assert_refused_without_side_effects(ctx, tmp_path, response, before):
     """The typed refusal must precede every durable/background side effect."""
     assert response.status_code == 422, response.text
@@ -82,8 +89,7 @@ def _assert_refused_without_side_effects(ctx, tmp_path, response, before):
     assert detail["details"]["file_type"]
 
     ctx.session.expire_all()
-    assert _sql_snapshot(ctx) == before
-    assert _index_count(ctx) == 0
+    assert _storage_snapshot(ctx) == before
     assert not (tmp_path / "uploads").exists()
 
 
@@ -101,7 +107,7 @@ def test_docx_without_extracted_content_refuses_before_side_effects(
     else:
         payload = _docx_bytes("   \n\t  ")
 
-    before = _sql_snapshot(exported)
+    before = _storage_snapshot(exported)
     response = _post(exported, payload, invalid + ".docx")
     _assert_refused_without_side_effects(exported, tmp_path, response, before)
 
@@ -123,7 +129,7 @@ def test_missing_docx_parser_is_absence_not_factual_content(
     assert asyncio.run(DocumentParser.parse_document(
         b"docx", "docx", "missing.docx")) == ""
 
-    before = _sql_snapshot(exported)
+    before = _storage_snapshot(exported)
     response = _post(exported, b"docx", "missing.docx")
     _assert_refused_without_side_effects(exported, tmp_path, response, before)
 
@@ -134,7 +140,7 @@ def test_malformed_workbook_refusal_dispatches_no_sheet_background_work(
     monkeypatch.setattr(DocumentParser, "_docling_processor", False)
     monkeypatch.setenv("ATOM_OFFICE_DIR", str(tmp_path))
 
-    before = _sql_snapshot(exported)
+    before = _storage_snapshot(exported)
     with patch(
         "core.sheet_dataset_service.sheet_datasets_enabled",
         return_value=True,
@@ -147,8 +153,7 @@ def test_malformed_workbook_refusal_dispatches_no_sheet_background_work(
     assert _error_code(response) == "DOCUMENT_EXTRACTION_EMPTY"
     schedule.assert_not_called()
     exported.session.expire_all()
-    assert _sql_snapshot(exported) == before
-    assert _index_count(exported) == 0
+    assert _storage_snapshot(exported) == before
     assert not (tmp_path / "uploads").exists()
 
 
@@ -233,7 +238,7 @@ def test_parallel_ingestion_upload_whitespace_refuses_before_writes(
     monkeypatch.setattr(
         "core.docling_processor.is_docling_available", lambda: False)
 
-    before = _sql_snapshot(exported)
+    before = _storage_snapshot(exported)
     response = exported.client.post(
         "/api/document-ingestion/upload",
         files={"file": ("blank.txt", b"   \n\t  ", "text/plain")},
@@ -243,8 +248,7 @@ def test_parallel_ingestion_upload_whitespace_refuses_before_writes(
     assert "document_id" not in response.text
 
     exported.session.expire_all()
-    assert _sql_snapshot(exported) == before
-    assert _index_count(exported) == 0
+    assert _storage_snapshot(exported) == before
 
 
 def test_parallel_ingestion_upload_nonempty_is_retained(exported, monkeypatch):
