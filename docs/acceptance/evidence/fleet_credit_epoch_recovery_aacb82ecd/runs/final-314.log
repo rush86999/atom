@@ -1,0 +1,386 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-08 14:02:37 [    INFO] MCP Service initialized
+
+tests/test_contribution_credit_evidence_boundary.py::test_completed_status_and_weight_do_not_create_verified_evidence 
+-------------------------------- live log setup --------------------------------
+2026-11-08 14:02:38 [    INFO] EscalationManager initialized
+2026-11-08 14:02:38 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 14:02:38 [    INFO] EscalationManager initialized
+2026-11-08 14:02:38 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 14:02:38 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-08 14:02:38 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:02:38 [    INFO] contribution_credit: 1 specialist outcome(s) credited for exec exec-9 (audit 7a1097cb-534b-418f-918f-5c4b43b0c3eb)
+PASSED                                                                   [  0%]
+tests/test_contribution_credit_evidence_boundary.py::test_same_chain_credit_replay_does_not_add_more_usage 
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:02:38 [    INFO] contribution_credit: 1 specialist outcome(s) credited for exec exec-9 (audit a0cf3a5e-7b3d-4b0c-9ff0-b6e6cc84310b)
+PASSED                                                                   [  1%]
+tests/test_contribution_credit_evidence_boundary.py::test_disabled_feature_still_has_no_effect PASSED [  1%]
+tests/test_contribution_credit_evidence_boundary.py::test_contribution_weights_are_not_the_verification_authority PASSED [  2%]
+tests/test_contribution_credit_p4.py::TestComputeChainCredit::test_all_success_sums_to_outcome_last_gets_most PASSED [  3%]
+tests/test_contribution_credit_p4.py::TestComputeChainCredit::test_failed_step_gets_zero_upstream_survives PASSED [  3%]
+tests/test_contribution_credit_p4.py::TestComputeChainCredit::test_late_failure_dampens_but_does_not_zero PASSED [  4%]
+tests/test_contribution_credit_p4.py::TestComputeChainCredit::test_unknown_status_counts_half PASSED [  5%]
+tests/test_contribution_credit_p4.py::TestComputeChainCredit::test_empty_and_single PASSED [  5%]
+tests/test_contribution_credit_p4.py::TestComputeChainCredit::test_duplicate_agents_aggregate PASSED [  6%]
+tests/test_contribution_credit_p4.py::TestApplyCredit::test_strong_weight_alone_is_not_verification PASSED [  6%]
+tests/test_contribution_credit_p4.py::TestApplyCredit::test_claimed_receipt_id_cannot_substitute_for_readback PASSED [  7%]
+tests/test_contribution_credit_p4.py::TestApplyCredit::test_moderate_credit_records_unverified_only PASSED [  8%]
+tests/test_contribution_credit_p4.py::TestApplyCredit::test_zero_weight_skipped_no_poison PASSED [  8%]
+tests/test_contribution_credit_p4.py::TestRecordChainCredit::test_flag_off_noop PASSED [  9%]
+tests/test_contribution_credit_p4.py::TestRecordChainCredit::test_happy_path_applies_credits 
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:02:38 [    INFO] contribution_credit: 3 specialist outcome(s) credited for exec exec-9 (audit 99e80bbf-548c-4433-9f16-9d87ef4410f3)
+PASSED                                                                   [ 10%]
+tests/test_contribution_credit_p4.py::TestRecordChainCredit::test_missing_execution_is_noop_never_raises PASSED [ 10%]
+tests/test_contribution_credit_p4.py::TestFinalizeWireIn::test_record_fleet_execution_outcome_calls_credit PASSED [ 11%]
+tests/test_fleet_credit_receipt_integration.py::test_real_oracle_receipt_positive_and_replay_are_idempotent 
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:02:39 [    INFO] contribution_credit: 1 specialist outcome(s) credited for exec parent-exec (audit audit-credit)
+PASSED                                                                   [ 11%]
+tests/test_fleet_credit_receipt_integration.py::test_completed_status_and_forged_verified_flag_earn_zero 
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:02:39 [    INFO] contribution_credit: 1 specialist outcome(s) credited for exec parent-exec (audit audit-credit)
+PASSED                                                                   [ 12%]
+tests/test_fleet_credit_receipt_integration.py::test_foreign_child_binding_is_refused_not_downgraded 
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:02:40 [ WARNING] contribution_credit: refusing contradictory child binding for link link-credit-0
+PASSED                                                                   [ 13%]
+tests/test_fleet_credit_receipt_integration.py::test_distinct_real_child_outcomes_each_learn_once 
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:02:40 [    INFO] contribution_credit: 2 specialist outcome(s) credited for exec parent-exec (audit audit-credit)
+PASSED                                                                   [ 13%]
+tests/test_fleet_credit_receipt_integration.py::test_missing_scope_ambiguous_audit_and_shadow_are_refused PASSED [ 14%]
+tests/test_fleet_credit_receipt_integration.py::test_missing_credit_recovery_and_duplicate_contender 
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:02:41 [    INFO] contribution_credit: 1 specialist outcome(s) credited for exec parent-exec (audit audit-credit)
+PASSED                                                                   [ 15%]
+tests/test_fleet_credit_receipt_integration.py::test_finalizer_does_not_credit_a_nonunique_execution_join PASSED [ 15%]
+tests/test_fleet_credit_receipt_integration.py::test_pre_revocation_work_cannot_become_new_success 
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:02:42 [    INFO] contribution_credit: 1 specialist outcome(s) credited for exec parent-exec (audit audit-credit)
+PASSED                                                                   [ 16%]
+tests/test_fleet_credit_receipt_integration.py::test_forced_sqlite_stale_writer_cannot_erase_peer_revocation PASSED [ 16%]
+tests/test_fleet_credit_receipt_integration.py::test_dirty_new_and_deleted_caller_state_is_never_committed 
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:02:43 [    INFO] contribution_credit: 1 specialist outcome(s) credited for exec parent-exec (audit audit-credit)
+PASSED                                                                   [ 17%]
+tests/test_fleet_credit_receipt_integration.py::test_already_flushed_caller_edit_blocks_independent_write_and_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:02:44 [ WARNING] contribution_credit: entry skipped for ag-fleet/finance.payment.post.406ba3ef8bc04294aaf70066da106906 (OperationalError)
+PASSED                                                                   [ 18%]
+tests/test_fleet_credit_receipt_integration.py::test_lost_cache_recovers_full_child_output_without_redispatch PASSED [ 18%]
+tests/test_capability_credit_cas_boundary.py::test_stale_success_cannot_erase_committed_regression PASSED [ 19%]
+tests/test_capability_revocation_epoch.py::test_verified_regression_keeps_student_until_new_reentry_credit[25] PASSED [ 20%]
+tests/test_capability_revocation_epoch.py::test_verified_regression_keeps_student_until_new_reentry_credit[50] PASSED [ 20%]
+tests/test_capability_revocation_epoch.py::test_old_credit_does_not_return_autonomy_after_reentry PASSED [ 21%]
+tests/test_capability_revocation_epoch.py::test_fresh_verified_work_preserves_existing_ladder PASSED [ 22%]
+tests/test_capability_revocation_epoch.py::test_bookkeeping_without_a_verified_success_cannot_advance[True-unverified] PASSED [ 22%]
+tests/test_capability_revocation_epoch.py::test_bookkeeping_without_a_verified_success_cannot_advance[False-unverified] PASSED [ 23%]
+tests/test_capability_revocation_epoch.py::test_bookkeeping_without_a_verified_success_cannot_advance[False-verified] PASSED [ 23%]
+tests/test_capability_revocation_epoch.py::test_existing_revocation_baseline_survives_marker_clear_and_restart PASSED [ 24%]
+tests/test_capability_revocation_epoch.py::test_second_regression_starts_another_fresh_epoch PASSED [ 25%]
+tests/test_capability_revocation_epoch.py::test_active_revocation_cannot_inherit_unknown_or_older_lifetime_credit[unknown_baseline] PASSED [ 25%]
+tests/test_capability_revocation_epoch.py::test_active_revocation_cannot_inherit_unknown_or_older_lifetime_credit[stale_stats_baseline] PASSED [ 26%]
+tests/test_fleet_credit_actual_producer_boundary.py::test_real_fleet_dispatch_produces_receipt_and_unique_credit 
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:02:52 [ WARNING] Failed to extract canvas metadata: 'AgentExecution' object has no attribute 'session_id'
+2026-11-08 14:02:52 [    INFO] Created episode b7a2d9ff-beb3-4481-8f48-2bea0e32d19c for agent ag-fleet (outcome=completed, constitutional_score=1.00)
+2026-11-08 14:02:52 [    INFO] Recorded outcome for ag-fleet: success
+2026-11-08 14:02:52 [    INFO] contribution_credit: 1 specialist outcome(s) credited for exec parent-exec (audit audit-credit)
+PASSED                                                                   [ 27%]
+tests/test_fleet_credit_scope_boundary.py::test_credit_refuses_changed_authoritative_scope[agent_tenant] PASSED [ 27%]
+tests/test_fleet_credit_scope_boundary.py::test_credit_refuses_changed_authoritative_scope[agent_workspace] PASSED [ 28%]
+tests/test_fleet_credit_scope_boundary.py::test_credit_refuses_changed_authoritative_scope[operation_tenant] PASSED [ 28%]
+tests/test_fleet_credit_scope_boundary.py::test_scope_move_after_admission_cannot_publish_credit[tenant_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:02:54 [ WARNING] contribution_credit: entry skipped for ag-fleet/canvas.scope_race.b6ad2dc7e53141148aafb9f6e54feaf6 (RuntimeError)
+PASSED                                                                   [ 29%]
+tests/test_fleet_credit_scope_boundary.py::test_scope_move_after_admission_cannot_publish_credit[workspace_id] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:02:55 [ WARNING] contribution_credit: entry skipped for ag-fleet/canvas.scope_race.5cc8c75450fc4b91aa727026f036fd12 (RuntimeError)
+PASSED                                                                   [ 30%]
+tests/test_contribution_credit_legacy_boundary.py::test_legacy_helper_cannot_promote_a_claimed_receipt PASSED [ 30%]
+tests/test_ci_backend_lane_contract.py::test_every_existing_backend_command_environment_and_setup_is_preserved PASSED [ 31%]
+tests/test_ci_backend_lane_contract.py::test_required_backend_check_waits_for_both_lanes_even_on_failure PASSED [ 32%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-success] PASSED [ 32%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-failure] PASSED [ 33%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-cancelled] PASSED [ 33%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-skipped] PASSED [ 34%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-] PASSED [ 35%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-success] PASSED [ 35%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-failure] PASSED [ 36%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-cancelled] PASSED [ 37%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-skipped] PASSED [ 37%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-] PASSED [ 38%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-success] PASSED [ 38%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-failure] PASSED [ 39%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-cancelled] PASSED [ 40%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-skipped] PASSED [ 40%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-] PASSED [ 41%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-success] PASSED [ 42%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-failure] PASSED [ 42%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-cancelled] PASSED [ 43%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-skipped] PASSED [ 44%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-] PASSED [ 44%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-success] PASSED [ 45%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-failure] PASSED [ 45%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-cancelled] PASSED [ 46%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-skipped] PASSED [ 47%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-] PASSED [ 47%]
+tests/test_capability_correction_epoch.py::test_human_correction_does_not_reuse_lifetime_credit 
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:02:57 [    INFO] Reset maturity for agent-revocation-1:canvas_edit to STUDENT. Reason: owner corrected the business rule
+2026-11-08 14:02:57 [    INFO] autonomy cycle reset: agent-revocation-1 lost earned canvas_edit autonomy (owner corrected the business rule)
+PASSED                                                                   [ 48%]
+tests/test_capability_correction_epoch.py::test_correction_epoch_survives_restart_and_follows_fresh_ladder 
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:02:57 [    INFO] Reset maturity for agent-revocation-1:canvas_edit to STUDENT. Reason: human correction
+2026-11-08 14:02:57 [    INFO] autonomy cycle reset: agent-revocation-1 lost earned canvas_edit autonomy (human correction)
+PASSED                                                                   [ 49%]
+tests/test_capability_correction_epoch.py::test_repeated_correction_rebinds_the_baseline_and_keeps_history 
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:02:58 [    INFO] Reset maturity for agent-revocation-1:canvas_edit to STUDENT. Reason: human correction
+2026-11-08 14:02:58 [    INFO] autonomy cycle reset: agent-revocation-1 lost earned canvas_edit autonomy (human correction)
+2026-11-08 14:02:58 [    INFO] Reset maturity for agent-revocation-1:canvas_edit to STUDENT. Reason: human correction
+2026-11-08 14:02:58 [    INFO] autonomy cycle reset: agent-revocation-1 lost earned canvas_edit autonomy (human correction)
+PASSED                                                                   [ 49%]
+tests/test_capability_correction_epoch.py::test_correction_leaves_other_capabilities_untouched 
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:02:59 [    INFO] Reset maturity for agent-revocation-1:canvas_edit to STUDENT. Reason: human correction
+2026-11-08 14:02:59 [    INFO] autonomy cycle reset: agent-revocation-1 lost earned canvas_edit autonomy (human correction)
+PASSED                                                                   [ 50%]
+tests/test_capability_correction_epoch.py::test_correction_from_zero_keeps_the_existing_policy_fixture_compatible 
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:02:59 [    INFO] Reset maturity for agent-revocation-1:canvas_edit to STUDENT. Reason: human correction
+2026-11-08 14:02:59 [    INFO] autonomy cycle reset: agent-revocation-1 lost earned canvas_edit autonomy (human correction)
+PASSED                                                                   [ 50%]
+tests/test_capability_correction_epoch.py::test_unknown_identity_or_topic_reset_is_reported_truthfully PASSED [ 51%]
+tests/test_fleet_credit_epoch_atomic.py::test_peer_regression_between_eligibility_and_credit_rolls_back_receipt 
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:03:00 [ WARNING] contribution_credit: entry skipped for ag-fleet/canvas.epoch_race.bbb524449e9c4837ae4ff8ff3ecf863f (RuntimeError)
+PASSED                                                                   [ 52%]
+tests/test_fleet_credit_epoch_atomic.py::test_recovery_downgrades_old_work_and_replay_does_not_double_count 
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:03:01 [ WARNING] contribution_credit: entry skipped for ag-fleet/canvas.epoch_recovery.5fec569d08794246aa62147921ddfc0b (RuntimeError)
+2026-11-08 14:03:01 [    INFO] contribution_credit: 1 specialist outcome(s) credited for exec parent-exec (audit audit-credit)
+PASSED                                                                   [ 52%]
+tests/test_fleet_credit_epoch_atomic.py::test_legitimate_fresh_verified_credit_and_replay_stay_positive 
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:03:01 [    INFO] contribution_credit: 1 specialist outcome(s) credited for exec parent-exec (audit audit-credit)
+PASSED                                                                   [ 53%]
+tests/test_capability_correction_independent.py::test_human_correction_does_not_reuse_lifetime_credit 
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:03:02 [    INFO] Reset maturity for agent-revocation-1:canvas_edit to STUDENT. Reason: owner corrected the business rule
+2026-11-08 14:03:02 [    INFO] autonomy cycle reset: agent-revocation-1 lost earned canvas_edit autonomy (owner corrected the business rule)
+PASSED                                                                   [ 54%]
+tests/test_fleet_credit_epoch_independent.py::test_peer_regression_cannot_turn_old_receipt_into_new_epoch_work 
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:03:03 [ WARNING] contribution_credit: entry skipped for ag-fleet/canvas.epoch_race.81bfc6fffa9648b3bc7947d03763cded (RuntimeError)
+PASSED                                                                   [ 54%]
+tests/test_capability_epoch_extended_independent.py::test_correction_earns_ladder_from_new_successes_only[5] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:03:03 [    INFO] Reset maturity for agent-revocation-1:canvas_edit to STUDENT. Reason: human correction
+2026-11-08 14:03:03 [    INFO] autonomy cycle reset: agent-revocation-1 lost earned canvas_edit autonomy (human correction)
+PASSED                                                                   [ 55%]
+tests/test_capability_epoch_extended_independent.py::test_correction_earns_ladder_from_new_successes_only[25] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:03:04 [    INFO] Reset maturity for agent-revocation-1:canvas_edit to STUDENT. Reason: human correction
+2026-11-08 14:03:04 [    INFO] autonomy cycle reset: agent-revocation-1 lost earned canvas_edit autonomy (human correction)
+PASSED                                                                   [ 55%]
+tests/test_capability_epoch_extended_independent.py::test_correction_earns_ladder_from_new_successes_only[50] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:03:05 [    INFO] Reset maturity for agent-revocation-1:canvas_edit to STUDENT. Reason: human correction
+2026-11-08 14:03:05 [    INFO] autonomy cycle reset: agent-revocation-1 lost earned canvas_edit autonomy (human correction)
+PASSED                                                                   [ 56%]
+tests/test_capability_epoch_extended_independent.py::test_old_receipt_is_not_new_work_after_reentry_marker_clears 
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:03:06 [    INFO] contribution_credit: 20 specialist outcome(s) credited for exec parent-exec (audit audit-credit)
+2026-11-08 14:03:06 [    INFO] contribution_credit: 1 specialist outcome(s) credited for exec parent-exec (audit audit-credit)
+PASSED                                                                   [ 57%]
+tests/test_capability_epoch_extended_independent.py::test_unknown_epoch_clock_is_not_evidence[0] PASSED [ 57%]
+tests/test_capability_epoch_extended_independent.py::test_unknown_epoch_clock_is_not_evidence[25] PASSED [ 58%]
+tests/test_capability_epoch_extended_independent.py::test_epoch_clock_normalizes_server_timestamp_strings[2026-11-08T12:00:00Z] PASSED [ 59%]
+tests/test_capability_epoch_extended_independent.py::test_epoch_clock_normalizes_server_timestamp_strings[2026-11-08T07:00:00-05:00] PASSED [ 59%]
+tests/test_capability_epoch_extended_independent.py::test_epoch_clock_normalizes_server_timestamp_strings[2026-11-08 12:00:00] PASSED [ 60%]
+tests/test_capability_epoch_extended_independent.py::test_epoch_clock_normalizes_server_timestamp_strings[2026-11-08T13:00:00+01:00] PASSED [ 61%]
+tests/test_capability_epoch_extended_independent.py::test_epoch_clock_normalizes_sqlite_naive_datetime PASSED [ 61%]
+tests/test_capability_epoch_extended_independent.py::test_incomplete_epoch_clock_is_unknown[None] PASSED [ 62%]
+tests/test_capability_epoch_extended_independent.py::test_incomplete_epoch_clock_is_unknown[] PASSED [ 62%]
+tests/test_capability_epoch_extended_independent.py::test_incomplete_epoch_clock_is_unknown[not-a-time] PASSED [ 63%]
+tests/test_capability_epoch_extended_independent.py::test_incomplete_epoch_clock_is_unknown[2026-11-08] PASSED [ 64%]
+tests/test_capability_epoch_extended_independent.py::test_versioned_verification_clock_cannot_fall_back_to_legacy[bool_version] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:03:07 [    INFO] contribution_credit: 1 specialist outcome(s) credited for exec parent-exec (audit audit-credit)
+PASSED                                                                   [ 64%]
+tests/test_capability_epoch_extended_independent.py::test_versioned_verification_clock_cannot_fall_back_to_legacy[unknown_version] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:03:08 [    INFO] contribution_credit: 1 specialist outcome(s) credited for exec parent-exec (audit audit-credit)
+PASSED                                                                   [ 65%]
+tests/test_capability_epoch_extended_independent.py::test_versioned_verification_clock_cannot_fall_back_to_legacy[missing_version] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:03:09 [    INFO] contribution_credit: 1 specialist outcome(s) credited for exec parent-exec (audit audit-credit)
+PASSED                                                                   [ 66%]
+tests/test_capability_epoch_extended_independent.py::test_versioned_verification_clock_cannot_fall_back_to_legacy[missing_dispatch] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:03:09 [    INFO] contribution_credit: 1 specialist outcome(s) credited for exec parent-exec (audit audit-credit)
+PASSED                                                                   [ 66%]
+tests/test_capability_epoch_extended_independent.py::test_versioned_verification_clock_cannot_fall_back_to_legacy[missing_verification] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:03:10 [    INFO] contribution_credit: 1 specialist outcome(s) credited for exec parent-exec (audit audit-credit)
+PASSED                                                                   [ 67%]
+tests/test_capability_epoch_extended_independent.py::test_versioned_verification_clock_cannot_fall_back_to_legacy[reversed] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:03:11 [    INFO] contribution_credit: 1 specialist outcome(s) credited for exec parent-exec (audit audit-credit)
+PASSED                                                                   [ 67%]
+tests/test_capability_epoch_extended_independent.py::test_real_receipt_clock_is_ordered_by_server PASSED [ 68%]
+tests/test_autonomy_policy_gate.py::test_topics_for_canvas_email_vs_default PASSED [ 69%]
+tests/test_autonomy_policy_gate.py::test_list_topics_flags_canvas_relevance PASSED [ 69%]
+tests/test_autonomy_policy_gate.py::test_gate_human_always_proposes_even_for_mature_hire PASSED [ 70%]
+tests/test_autonomy_policy_gate.py::test_gate_auto_plus_mature_executes PASSED [ 71%]
+tests/test_autonomy_policy_gate.py::test_gate_auto_plus_immature_proposes PASSED [ 71%]
+tests/test_autonomy_policy_gate.py::test_gate_without_hire_failopen PASSED [ 72%]
+tests/test_autonomy_policy_gate.py::test_trust_gate_off_is_neutral_pass PASSED [ 72%]
+tests/test_autonomy_policy_gate.py::test_trust_gate_low_score_demotes_to_propose PASSED [ 73%]
+tests/test_autonomy_policy_gate.py::test_trust_gate_high_score_executes PASSED [ 74%]
+tests/test_autonomy_policy_gate.py::test_trust_gate_unknown_agent_failopen PASSED [ 74%]
+tests/test_autonomy_policy_gate.py::test_gate_topics_have_governance_metadata PASSED [ 75%]
+tests/test_autonomy_policy_gate.py::test_set_mode_accepts_until_corrected PASSED [ 76%]
+tests/test_autonomy_policy_gate.py::test_topic_for_action_maps_proposal_types PASSED [ 76%]
+tests/test_autonomy_policy_gate.py::test_until_corrected_executes_when_cycle_never_earned PASSED [ 77%]
+tests/test_autonomy_policy_gate.py::test_correction_reset_proposes_until_reearned 
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:03:19 [    INFO] Reset maturity for hire-1:canvas_edit to STUDENT. Reason: user correction
+2026-11-08 14:03:19 [    INFO] autonomy cycle reset: hire-1 lost earned canvas_edit autonomy (user correction)
+PASSED                                                                   [ 77%]
+tests/test_autonomy_policy_gate.py::test_other_modes_ignore_cycle_entry 
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:03:20 [    INFO] Reset maturity for hire-1:canvas_edit to STUDENT. Reason: human correction
+2026-11-08 14:03:20 [    INFO] autonomy cycle reset: hire-1 lost earned canvas_edit autonomy (human correction)
+PASSED                                                                   [ 78%]
+tests/test_autonomy_policy_gate.py::test_cycle_unknown_hire_failopen PASSED [ 79%]
+tests/test_generic_oracle_mutation_contract.py::test_committed_declared_write_without_verifier_is_not_success PASSED [ 79%]
+tests/test_generic_oracle_mutation_contract.py::test_unverified_timeout_does_not_invite_retry PASSED [ 80%]
+tests/test_generic_oracle_mutation_contract.py::test_explicit_read_stays_usable PASSED [ 81%]
+tests/test_generic_oracle_mutation_contract.py::test_broken_verdicts_do_not_manufacture_business_success[refuting] PASSED [ 81%]
+tests/test_generic_oracle_mutation_contract.py::test_broken_verdicts_do_not_manufacture_business_success[raising] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:03:22 [ WARNING] [Oracle] postcondition check for test.generic.verdict.3a1a93aae489475a8a0705f82e55b415 failed: verifier transport unavailable
+PASSED                                                                   [ 82%]
+tests/test_generic_oracle_mutation_contract.py::test_broken_verdicts_do_not_manufacture_business_success[none] PASSED [ 83%]
+tests/test_generic_oracle_mutation_contract.py::test_real_effect_with_independent_readback_is_verified PASSED [ 83%]
+tests/test_generic_oracle_mutation_contract.py::test_disabled_oracle_cannot_lend_success[ATOM_ORACLE_VERIFIER_ENABLED] PASSED [ 84%]
+tests/test_generic_oracle_mutation_contract.py::test_disabled_oracle_cannot_lend_success[ATOM_ORACLE_ENFORCE] PASSED [ 84%]
+tests/test_generic_oracle_mutation_contract.py::test_registered_plan_only_output_stays_usable PASSED [ 85%]
+tests/test_generic_oracle_mutation_contract.py::test_returned_payload_cannot_overwrite_frozen_request[False] PASSED [ 86%]
+tests/test_generic_oracle_mutation_contract.py::test_returned_payload_cannot_overwrite_frozen_request[True] PASSED [ 86%]
+tests/test_generic_oracle_mutation_contract.py::test_handler_arg_mutation_does_not_rewrite_authorized_request[False] PASSED [ 87%]
+tests/test_generic_oracle_mutation_contract.py::test_handler_arg_mutation_does_not_rewrite_authorized_request[True] PASSED [ 88%]
+tests/test_generic_oracle_mutation_contract.py::test_durable_claim_replays_without_second_dispatch PASSED [ 88%]
+tests/test_generic_oracle_mutation_contract.py::test_changed_material_with_same_operation_is_refused PASSED [ 89%]
+tests/test_generic_oracle_mutation_contract.py::test_uncertain_timeout_claim_never_resends_on_restart 
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:03:26 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='autodev_guidance'
+PASSED                                                                   [ 89%]
+tests/test_generic_oracle_mutation_contract.py::test_replay_with_refuted_fresh_readback_is_not_success PASSED [ 90%]
+tests/test_generic_oracle_mutation_contract.py::test_landed_effect_then_failed_selfreport_is_uncertain PASSED [ 91%]
+tests/test_generic_oracle_mutation_contract.py::test_landed_effect_then_ordinary_exception_is_uncertain PASSED [ 91%]
+tests/test_generic_oracle_mutation_contract.py::test_pre_effect_no_effect_refusal_stays_truthful PASSED [ 92%]
+tests/test_generic_oracle_mutation_contract.py::test_unqualified_registered_effect_metadata_is_conservative PASSED [ 93%]
+tests/test_generic_oracle_mutation_contract.py::test_normal_dispatch_without_operation_id_is_durable PASSED [ 93%]
+tests/test_generic_oracle_mutation_contract.py::test_server_intent_slot_is_not_reminted_by_model_material PASSED [ 94%]
+tests/test_generic_oracle_mutation_contract.py::test_cold_resume_without_explicit_operation_id_reloads_claim 
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:03:33 [    INFO] Agent Scratch Agent (scratch-agent) starting task: resume the normal task
+2026-11-08 14:03:33 [    INFO] EscalationManager initialized
+2026-11-08 14:03:33 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 94%]
+tests/test_generic_oracle_mutation_contract.py::test_explicit_operation_without_workspace_is_refused_before_effect PASSED [ 95%]
+tests/test_generic_oracle_mutation_contract.py::test_handler_context_carries_server_operation_identity PASSED [ 96%]
+tests/test_generic_oracle_mutation_contract.py::test_cold_resume_with_unreadable_claim_store_stays_unresolved 
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:03:35 [    INFO] Agent Scratch Agent (scratch-agent) starting task: continue original task
+PASSED                                                                   [ 96%]
+tests/test_generic_oracle_mutation_contract.py::test_zero_claim_read_only_execution_stays_success 
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:03:35 [    INFO] Agent Scratch Agent (scratch-agent) starting task: answer the question
+PASSED                                                                   [ 97%]
+tests/test_generic_oracle_mutation_contract.py::test_mark_status_expected_status_is_database_cas PASSED [ 98%]
+tests/test_generic_oracle_mutation_contract.py::test_execution_finalization_blocks_unverified_mutation_but_keeps_reads 
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:03:36 [    INFO] Agent Scratch Agent (scratch-agent) starting task: do the thing
+2026-11-08 14:03:36 [   ERROR] AUDIT GAP for execution 507ee0b9-e151-44cb-9340-52db30ff54c6: {'complete': False, 'execution_id': '507ee0b9-e151-44cb-9340-52db30ff54c6', 'expected_events': 5, 'actual_events': 4, 'coverage_percentage': 80.0, 'checked_at': '2026-11-08T19:03:36.415127+00:00'}
+2026-11-08 14:03:36 [    INFO] EscalationManager initialized
+2026-11-08 14:03:36 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 14:03:36 [   ERROR] Session sess-final not found
+PASSED                                                                   [ 98%]
+tests/test_generic_oracle_mutation_contract.py::test_execution_finalization_allows_verified_mutation 
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:03:37 [    INFO] Agent Scratch Agent (scratch-agent) starting task: do the verified thing
+2026-11-08 14:03:37 [    INFO] EscalationManager initialized
+2026-11-08 14:03:37 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 14:03:37 [   ERROR] Session sess-final not found
+PASSED                                                                   [ 99%]
+tests/test_generic_oracle_mutation_contract.py::test_cold_resumed_execution_reloads_unresolved_claim 
+-------------------------------- live log call ---------------------------------
+2026-11-08 14:03:37 [    INFO] Agent Scratch Agent (scratch-agent) starting task: resume the task
+PASSED                                                                   [100%]
+
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../root-py311-plugins/pytest_freezegun.py:17: 318 warnings
+  /private/tmp/root-py311-plugins/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_contribution_credit_evidence_boundary.py::test_completed_status_and_weight_do_not_create_verified_evidence
+  /private/tmp/atom-goal-wake-failure-boundary-20261108/backend/core/graphrag_engine.py:203: SyntaxWarning: "\%" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\%"? A raw string is also an option.
+    Escaped pattern where % and _ are escaped to \%
+
+tests/test_contribution_credit_evidence_boundary.py: 2 warnings
+tests/test_contribution_credit_p4.py: 3 warnings
+tests/test_fleet_credit_receipt_integration.py: 7 warnings
+tests/test_fleet_credit_actual_producer_boundary.py: 1 warning
+tests/test_fleet_credit_epoch_atomic.py: 2 warnings
+tests/test_capability_epoch_extended_independent.py: 27 warnings
+  /private/tmp/atom-goal-wake-failure-boundary-20261108/backend/core/contribution_credit.py:787: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "applied_at": datetime.utcnow().isoformat(),
+
+tests/test_contribution_credit_p4.py::TestFinalizeWireIn::test_record_fleet_execution_outcome_calls_credit
+  /private/tmp/atom-goal-wake-failure-boundary-20261108/backend/core/fleet_orchestration/scaling_proposal_service.py:48: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class ScalingProposal(BaseModel):
+
+tests/test_contribution_credit_p4.py::TestFinalizeWireIn::test_record_fleet_execution_outcome_calls_credit
+  /private/tmp/atom-goal-wake-failure-boundary-20261108/backend/core/fleet_orchestration/fleet_scaler_service.py:43: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class ScalingOperation(BaseModel):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+================= 159 passed, 369 warnings in 77.77s (0:01:17) =================

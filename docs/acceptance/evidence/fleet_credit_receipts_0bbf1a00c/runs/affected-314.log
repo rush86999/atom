@@ -1,0 +1,1111 @@
+
+----------------------------- live log collection ------------------------------
+2026-11-08 13:11:35 [    INFO] MCP Service initialized
+2026-11-08 13:11:36 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-08 13:11:36 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-08 13:11:36 [    INFO] EscalationManager initialized
+2026-11-08 13:11:36 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 13:11:36 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-08 13:11:36 [   ERROR] provider policy unreadable — failing closed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-08 13:11:36 [   ERROR] provider policy is invalid for workspace=default tenant=default — all AI dispatch is denied until fixed: ATOM_LLM_PROVIDER_POLICY is unreadable: (sqlite3.OperationalError) no such table: runtime_settings
+[SQL: SELECT runtime_settings."key" AS runtime_settings_key, runtime_settings.value_json AS runtime_settings_value_json, runtime_settings.updated_by AS runtime_settings_updated_by, runtime_settings.updated_at AS runtime_settings_updated_at 
+FROM runtime_settings 
+WHERE runtime_settings."key" = ?]
+[parameters: ('ATOM_LLM_PROVIDER_POLICY',)]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-08 13:11:36 [    INFO] EscalationManager initialized
+2026-11-08 13:11:36 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 13:11:36 [ WARNING] Failed to refresh excluded models cache: (sqlite3.OperationalError) no such table: model_catalog
+[SQL: SELECT model_catalog.model_id AS model_catalog_model_id 
+FROM model_catalog 
+WHERE model_catalog.exclude_from_general_routing = 1]
+(Background on this error at: https://sqlalche.me/e/20/e3q8)
+2026-11-08 13:11:36 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+
+tests/test_contribution_credit_evidence_boundary.py::test_completed_status_and_weight_do_not_create_verified_evidence 
+-------------------------------- live log setup --------------------------------
+2026-11-08 13:11:36 [    INFO] AgentTaskRegistry initialized
+-------------------------------- live log call ---------------------------------
+2026-11-08 13:11:36 [    INFO] contribution_credit: 1 specialist outcome(s) credited for exec exec-9 (audit 1f2eb5be-4973-4a89-b075-12252a268021)
+PASSED                                                                   [  0%]
+tests/test_contribution_credit_evidence_boundary.py::test_same_chain_credit_replay_does_not_add_more_usage 
+-------------------------------- live log call ---------------------------------
+2026-11-08 13:11:37 [    INFO] contribution_credit: 1 specialist outcome(s) credited for exec exec-9 (audit 73cd9e61-6065-4ca5-b911-c1e495cfeb5a)
+PASSED                                                                   [  0%]
+tests/test_contribution_credit_evidence_boundary.py::test_disabled_feature_still_has_no_effect PASSED [  1%]
+tests/test_contribution_credit_evidence_boundary.py::test_contribution_weights_are_not_the_verification_authority PASSED [  1%]
+tests/test_contribution_credit_p4.py::TestComputeChainCredit::test_all_success_sums_to_outcome_last_gets_most PASSED [  2%]
+tests/test_contribution_credit_p4.py::TestComputeChainCredit::test_failed_step_gets_zero_upstream_survives PASSED [  2%]
+tests/test_contribution_credit_p4.py::TestComputeChainCredit::test_late_failure_dampens_but_does_not_zero PASSED [  3%]
+tests/test_contribution_credit_p4.py::TestComputeChainCredit::test_unknown_status_counts_half PASSED [  3%]
+tests/test_contribution_credit_p4.py::TestComputeChainCredit::test_empty_and_single PASSED [  3%]
+tests/test_contribution_credit_p4.py::TestComputeChainCredit::test_duplicate_agents_aggregate PASSED [  4%]
+tests/test_contribution_credit_p4.py::TestApplyCredit::test_strong_weight_alone_is_not_verification PASSED [  4%]
+tests/test_contribution_credit_p4.py::TestApplyCredit::test_explicit_receipt_backed_entry_records_verified_success PASSED [  5%]
+tests/test_contribution_credit_p4.py::TestApplyCredit::test_moderate_credit_records_unverified_only PASSED [  5%]
+tests/test_contribution_credit_p4.py::TestApplyCredit::test_zero_weight_skipped_no_poison PASSED [  6%]
+tests/test_contribution_credit_p4.py::TestRecordChainCredit::test_flag_off_noop PASSED [  6%]
+tests/test_contribution_credit_p4.py::TestRecordChainCredit::test_happy_path_applies_credits 
+-------------------------------- live log call ---------------------------------
+2026-11-08 13:11:37 [    INFO] contribution_credit: 3 specialist outcome(s) credited for exec exec-9 (audit 7288b7f1-bcab-45a6-bdc6-85ffe2fe2ced)
+PASSED                                                                   [  6%]
+tests/test_contribution_credit_p4.py::TestRecordChainCredit::test_missing_execution_is_noop_never_raises PASSED [  7%]
+tests/test_contribution_credit_p4.py::TestFinalizeWireIn::test_record_fleet_execution_outcome_calls_credit PASSED [  7%]
+tests/test_fleet_credit_receipt_integration.py::test_real_oracle_receipt_positive_and_replay_are_idempotent 
+-------------------------------- live log call ---------------------------------
+2026-11-08 13:11:37 [    INFO] contribution_credit: 1 specialist outcome(s) credited for exec parent-exec (audit audit-credit)
+PASSED                                                                   [  8%]
+tests/test_fleet_credit_receipt_integration.py::test_completed_status_and_forged_verified_flag_earn_zero 
+-------------------------------- live log call ---------------------------------
+2026-11-08 13:11:38 [    INFO] contribution_credit: 1 specialist outcome(s) credited for exec parent-exec (audit audit-credit)
+PASSED                                                                   [  8%]
+tests/test_fleet_credit_receipt_integration.py::test_foreign_child_binding_is_refused_not_downgraded 
+-------------------------------- live log call ---------------------------------
+2026-11-08 13:11:38 [ WARNING] contribution_credit: refusing contradictory child binding for link link-credit-0
+PASSED                                                                   [  9%]
+tests/test_fleet_credit_receipt_integration.py::test_distinct_real_child_outcomes_each_learn_once 
+-------------------------------- live log call ---------------------------------
+2026-11-08 13:11:39 [    INFO] contribution_credit: 2 specialist outcome(s) credited for exec parent-exec (audit audit-credit)
+PASSED                                                                   [  9%]
+tests/test_fleet_credit_receipt_integration.py::test_missing_scope_ambiguous_audit_and_shadow_are_refused PASSED [  9%]
+tests/test_fleet_credit_receipt_integration.py::test_missing_credit_recovery_and_duplicate_contender 
+-------------------------------- live log call ---------------------------------
+2026-11-08 13:11:40 [    INFO] contribution_credit: 1 specialist outcome(s) credited for exec parent-exec (audit audit-credit)
+PASSED                                                                   [ 10%]
+tests/test_fleet_credit_receipt_integration.py::test_finalizer_does_not_credit_a_nonunique_execution_join PASSED [ 10%]
+tests/test_fleet_credit_receipt_integration.py::test_pre_revocation_work_cannot_become_new_success 
+-------------------------------- live log call ---------------------------------
+2026-11-08 13:11:41 [    INFO] contribution_credit: 1 specialist outcome(s) credited for exec parent-exec (audit audit-credit)
+PASSED                                                                   [ 11%]
+tests/test_fleet_credit_receipt_integration.py::test_forced_sqlite_stale_writer_cannot_erase_peer_revocation PASSED [ 11%]
+tests/test_fleet_credit_receipt_integration.py::test_dirty_new_and_deleted_caller_state_is_never_committed 
+-------------------------------- live log call ---------------------------------
+2026-11-08 13:11:42 [    INFO] contribution_credit: 1 specialist outcome(s) credited for exec parent-exec (audit audit-credit)
+PASSED                                                                   [ 12%]
+tests/test_fleet_credit_receipt_integration.py::test_already_flushed_caller_edit_blocks_independent_write_and_is_refused 
+-------------------------------- live log call ---------------------------------
+2026-11-08 13:11:43 [ WARNING] contribution_credit: entry skipped for ag-fleet/finance.payment.post.6bb9529c496743c3b529ef9ae9ff137c (OperationalError)
+PASSED                                                                   [ 12%]
+tests/test_fleet_credit_receipt_integration.py::test_lost_cache_recovers_full_child_output_without_redispatch PASSED [ 12%]
+tests/test_capability_credit_cas_boundary.py::test_stale_success_cannot_erase_committed_regression PASSED [ 13%]
+tests/test_capability_revocation_epoch.py::test_verified_regression_keeps_student_until_new_reentry_credit[25] PASSED [ 13%]
+tests/test_capability_revocation_epoch.py::test_verified_regression_keeps_student_until_new_reentry_credit[50] PASSED [ 14%]
+tests/test_capability_revocation_epoch.py::test_old_credit_does_not_return_autonomy_after_reentry PASSED [ 14%]
+tests/test_capability_revocation_epoch.py::test_fresh_verified_work_preserves_existing_ladder PASSED [ 15%]
+tests/test_capability_revocation_epoch.py::test_bookkeeping_without_a_verified_success_cannot_advance[True-unverified] PASSED [ 15%]
+tests/test_capability_revocation_epoch.py::test_bookkeeping_without_a_verified_success_cannot_advance[False-unverified] PASSED [ 16%]
+tests/test_capability_revocation_epoch.py::test_bookkeeping_without_a_verified_success_cannot_advance[False-verified] PASSED [ 16%]
+tests/test_capability_revocation_epoch.py::test_existing_revocation_baseline_survives_marker_clear_and_restart PASSED [ 16%]
+tests/test_capability_revocation_epoch.py::test_second_regression_starts_another_fresh_epoch PASSED [ 17%]
+tests/test_capability_revocation_epoch.py::test_active_revocation_cannot_inherit_unknown_or_older_lifetime_credit[unknown_baseline] PASSED [ 17%]
+tests/test_capability_revocation_epoch.py::test_active_revocation_cannot_inherit_unknown_or_older_lifetime_credit[stale_stats_baseline] PASSED [ 18%]
+tests/test_fleet_credit_actual_producer_boundary.py::test_real_fleet_dispatch_produces_receipt_and_unique_credit 
+-------------------------------- live log call ---------------------------------
+2026-11-08 13:11:51 [ WARNING] Failed to extract canvas metadata: 'AgentExecution' object has no attribute 'session_id'
+2026-11-08 13:11:51 [    INFO] Created episode b292414b-61df-4293-9e4b-8e71f5818292 for agent ag-fleet (outcome=completed, constitutional_score=1.00)
+2026-11-08 13:11:51 [    INFO] Recorded outcome for ag-fleet: success
+2026-11-08 13:11:51 [    INFO] contribution_credit: 1 specialist outcome(s) credited for exec parent-exec (audit audit-credit)
+PASSED                                                                   [ 18%]
+tests/test_orch02_fleet_contract.py::test_foreign_chain_is_not_read_or_mutated[False] PASSED [ 19%]
+tests/test_orch02_fleet_contract.py::test_foreign_chain_is_not_read_or_mutated[True] PASSED [ 19%]
+tests/test_orch02_fleet_contract.py::test_empty_capabilities_are_not_domain_qualification 
+-------------------------------- live log call ---------------------------------
+2026-11-08 13:11:52 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-08 13:11:52 [    INFO] EscalationManager initialized
+2026-11-08 13:11:52 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 13:11:52 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-08 13:11:52 [    INFO] LanceDBHandler initialized. ID: 4985373072. LANCEDB_AVAILABLE: True
+2026-11-08 13:11:52 [    INFO] Lazy loading LanceDB connection...
+2026-11-08 13:11:52 [    INFO] Connecting to LanceDB at /private/tmp/root-feedback-sqlite-5f2s9_oc/lance with storage_options=None
+2026-11-08 13:11:52 [    INFO] LanceDB connected successfully
+PASSED                                                                   [ 19%]
+tests/test_orch02_fleet_contract.py::test_completed_cache_binds_exact_task_and_roster_material[opaque_task_case] PASSED [ 20%]
+tests/test_orch02_fleet_contract.py::test_completed_cache_binds_exact_task_and_roster_material[roster_domain] PASSED [ 20%]
+tests/test_orch02_fleet_contract.py::test_cancelled_chain_does_not_return_old_completed_cache PASSED [ 21%]
+tests/test_orch02_fleet_contract.py::test_enforced_response_finalizes_its_durable_execution[success] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 13:11:55 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-08 13:11:55 [    INFO] EscalationManager initialized
+2026-11-08 13:11:55 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 13:11:55 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-08 13:11:55 [    INFO] LanceDBHandler initialized. ID: 4986400400. LANCEDB_AVAILABLE: True
+2026-11-08 13:11:55 [    INFO] Lazy loading LanceDB connection...
+2026-11-08 13:11:55 [    INFO] Connecting to LanceDB at /private/tmp/root-feedback-sqlite-5f2s9_oc/lance with storage_options=None
+2026-11-08 13:11:55 [    INFO] LanceDB connected successfully
+PASSED                                                                   [ 21%]
+tests/test_orch02_fleet_contract.py::test_enforced_response_finalizes_its_durable_execution[failure] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 13:11:55 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-08 13:11:55 [    INFO] EscalationManager initialized
+2026-11-08 13:11:55 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 13:11:55 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-08 13:11:55 [    INFO] LanceDBHandler initialized. ID: 4971658464. LANCEDB_AVAILABLE: True
+2026-11-08 13:11:55 [    INFO] Lazy loading LanceDB connection...
+2026-11-08 13:11:55 [    INFO] Connecting to LanceDB at /private/tmp/root-feedback-sqlite-5f2s9_oc/lance with storage_options=None
+2026-11-08 13:11:55 [    INFO] LanceDB connected successfully
+PASSED                                                                   [ 22%]
+tests/test_orch02_fleet_contract.py::test_enforced_response_finalizes_its_durable_execution[cancelled] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 13:11:56 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-08 13:11:56 [    INFO] EscalationManager initialized
+2026-11-08 13:11:56 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 13:11:56 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-08 13:11:56 [    INFO] LanceDBHandler initialized. ID: 4971650864. LANCEDB_AVAILABLE: True
+2026-11-08 13:11:56 [    INFO] Lazy loading LanceDB connection...
+2026-11-08 13:11:56 [    INFO] Connecting to LanceDB at /private/tmp/root-feedback-sqlite-5f2s9_oc/lance with storage_options=None
+2026-11-08 13:11:56 [    INFO] LanceDB connected successfully
+PASSED                                                                   [ 22%]
+tests/test_orch02_fleet_contract.py::test_shared_audit_bracket_uses_same_execution_and_truthful_success 
+-------------------------------- live log call ---------------------------------
+2026-11-08 13:11:56 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-08 13:11:56 [    INFO] EscalationManager initialized
+2026-11-08 13:11:56 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 13:11:56 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-08 13:11:56 [    INFO] LanceDBHandler initialized. ID: 4990484560. LANCEDB_AVAILABLE: True
+2026-11-08 13:11:56 [    INFO] Lazy loading LanceDB connection...
+2026-11-08 13:11:56 [    INFO] Connecting to LanceDB at /private/tmp/root-feedback-sqlite-5f2s9_oc/lance with storage_options=None
+2026-11-08 13:11:56 [    INFO] LanceDB connected successfully
+PASSED                                                                   [ 22%]
+tests/test_orch02_fleet_contract.py::test_contradictory_or_terminal_failure_is_not_specialist_success[raw0] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 13:11:57 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-08 13:11:57 [    INFO] EscalationManager initialized
+2026-11-08 13:11:57 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 13:11:57 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-08 13:11:57 [    INFO] LanceDBHandler initialized. ID: 4986310720. LANCEDB_AVAILABLE: True
+2026-11-08 13:11:57 [    INFO] Lazy loading LanceDB connection...
+2026-11-08 13:11:57 [    INFO] Connecting to LanceDB at /private/tmp/root-feedback-sqlite-5f2s9_oc/lance with storage_options=None
+2026-11-08 13:11:57 [    INFO] LanceDB connected successfully
+PASSED                                                                   [ 23%]
+tests/test_orch02_fleet_contract.py::test_contradictory_or_terminal_failure_is_not_specialist_success[raw1] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 13:11:57 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-08 13:11:57 [    INFO] EscalationManager initialized
+2026-11-08 13:11:57 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 13:11:57 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-08 13:11:57 [    INFO] LanceDBHandler initialized. ID: 4986316976. LANCEDB_AVAILABLE: True
+2026-11-08 13:11:57 [    INFO] Lazy loading LanceDB connection...
+2026-11-08 13:11:57 [    INFO] Connecting to LanceDB at /private/tmp/root-feedback-sqlite-5f2s9_oc/lance with storage_options=None
+2026-11-08 13:11:57 [    INFO] LanceDB connected successfully
+PASSED                                                                   [ 23%]
+tests/test_orch02_specialist_response.py::test_enforced_response_consumes_specialist_work 
+-------------------------------- live log call ---------------------------------
+2026-11-08 13:11:58 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-08 13:11:58 [    INFO] EscalationManager initialized
+2026-11-08 13:11:58 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 13:11:58 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-08 13:11:58 [    INFO] LanceDBHandler initialized. ID: 4986547792. LANCEDB_AVAILABLE: True
+2026-11-08 13:11:58 [    INFO] Lazy loading LanceDB connection...
+2026-11-08 13:11:58 [    INFO] Connecting to LanceDB at /private/tmp/root-feedback-sqlite-5f2s9_oc/lance with storage_options=None
+2026-11-08 13:11:58 [    INFO] LanceDB connected successfully
+PASSED                                                                   [ 24%]
+tests/test_orch02_specialist_response.py::test_partial_success_preserves_failed_specialist 
+-------------------------------- live log call ---------------------------------
+2026-11-08 13:11:59 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-08 13:11:59 [    INFO] EscalationManager initialized
+2026-11-08 13:11:59 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 13:11:59 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-08 13:11:59 [    INFO] LanceDBHandler initialized. ID: 4986548560. LANCEDB_AVAILABLE: True
+2026-11-08 13:11:59 [    INFO] Lazy loading LanceDB connection...
+2026-11-08 13:11:59 [    INFO] Connecting to LanceDB at /private/tmp/root-feedback-sqlite-5f2s9_oc/lance with storage_options=None
+2026-11-08 13:11:59 [    INFO] LanceDB connected successfully
+PASSED                                                                   [ 24%]
+tests/test_orch02_specialist_response.py::test_all_failed_is_explicit_non_success 
+-------------------------------- live log call ---------------------------------
+2026-11-08 13:11:59 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-08 13:11:59 [    INFO] EscalationManager initialized
+2026-11-08 13:11:59 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 13:11:59 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-08 13:11:59 [    INFO] LanceDBHandler initialized. ID: 4993210544. LANCEDB_AVAILABLE: True
+2026-11-08 13:11:59 [    INFO] Lazy loading LanceDB connection...
+2026-11-08 13:11:59 [    INFO] Connecting to LanceDB at /private/tmp/root-feedback-sqlite-5f2s9_oc/lance with storage_options=None
+2026-11-08 13:11:59 [    INFO] LanceDB connected successfully
+PASSED                                                                   [ 25%]
+tests/test_orch02_specialist_response.py::test_missing_or_foreign_specialist_is_no_suitable 
+-------------------------------- live log call ---------------------------------
+2026-11-08 13:12:00 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-08 13:12:00 [    INFO] EscalationManager initialized
+2026-11-08 13:12:00 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 13:12:00 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-08 13:12:00 [    INFO] LanceDBHandler initialized. ID: 4995505024. LANCEDB_AVAILABLE: True
+2026-11-08 13:12:00 [    INFO] Lazy loading LanceDB connection...
+2026-11-08 13:12:00 [    INFO] Connecting to LanceDB at /private/tmp/root-feedback-sqlite-5f2s9_oc/lance with storage_options=None
+2026-11-08 13:12:00 [    INFO] LanceDB connected successfully
+PASSED                                                                   [ 25%]
+tests/test_orch02_specialist_response.py::test_wrong_capability_is_not_dispatched 
+-------------------------------- live log call ---------------------------------
+2026-11-08 13:12:00 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-08 13:12:00 [    INFO] EscalationManager initialized
+2026-11-08 13:12:00 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 13:12:00 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-08 13:12:00 [    INFO] LanceDBHandler initialized. ID: 4993052784. LANCEDB_AVAILABLE: True
+2026-11-08 13:12:00 [    INFO] Lazy loading LanceDB connection...
+2026-11-08 13:12:00 [    INFO] Connecting to LanceDB at /private/tmp/root-feedback-sqlite-5f2s9_oc/lance with storage_options=None
+2026-11-08 13:12:00 [    INFO] LanceDB connected successfully
+PASSED                                                                   [ 25%]
+tests/test_orch02_specialist_response.py::test_disabled_specialist_is_not_dispatched 
+-------------------------------- live log call ---------------------------------
+2026-11-08 13:12:01 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-08 13:12:01 [    INFO] EscalationManager initialized
+2026-11-08 13:12:01 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 13:12:01 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-08 13:12:01 [    INFO] LanceDBHandler initialized. ID: 4996699472. LANCEDB_AVAILABLE: True
+2026-11-08 13:12:01 [    INFO] Lazy loading LanceDB connection...
+2026-11-08 13:12:01 [    INFO] Connecting to LanceDB at /private/tmp/root-feedback-sqlite-5f2s9_oc/lance with storage_options=None
+2026-11-08 13:12:01 [    INFO] LanceDB connected successfully
+PASSED                                                                   [ 26%]
+tests/test_orch02_specialist_response.py::test_cancellation_stops_before_next_specialist 
+-------------------------------- live log call ---------------------------------
+2026-11-08 13:12:01 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-08 13:12:01 [    INFO] EscalationManager initialized
+2026-11-08 13:12:01 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 13:12:01 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-08 13:12:01 [    INFO] LanceDBHandler initialized. ID: 4993623264. LANCEDB_AVAILABLE: True
+2026-11-08 13:12:01 [    INFO] Lazy loading LanceDB connection...
+2026-11-08 13:12:01 [    INFO] Connecting to LanceDB at /private/tmp/root-feedback-sqlite-5f2s9_oc/lance with storage_options=None
+2026-11-08 13:12:01 [    INFO] LanceDB connected successfully
+PASSED                                                                   [ 26%]
+tests/test_orch02_specialist_response.py::test_duplicate_continuation_uses_cached_result 
+-------------------------------- live log call ---------------------------------
+2026-11-08 13:12:02 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-08 13:12:02 [    INFO] EscalationManager initialized
+2026-11-08 13:12:02 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 13:12:02 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-08 13:12:02 [    INFO] LanceDBHandler initialized. ID: 4997364048. LANCEDB_AVAILABLE: True
+2026-11-08 13:12:02 [    INFO] Lazy loading LanceDB connection...
+2026-11-08 13:12:02 [    INFO] Connecting to LanceDB at /private/tmp/root-feedback-sqlite-5f2s9_oc/lance with storage_options=None
+2026-11-08 13:12:02 [    INFO] LanceDB connected successfully
+2026-11-08 13:12:02 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-08 13:12:02 [    INFO] EscalationManager initialized
+2026-11-08 13:12:02 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 13:12:02 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-08 13:12:02 [    INFO] LanceDBHandler initialized. ID: 4998669776. LANCEDB_AVAILABLE: True
+2026-11-08 13:12:02 [    INFO] Lazy loading LanceDB connection...
+2026-11-08 13:12:02 [    INFO] Connecting to LanceDB at /private/tmp/root-feedback-sqlite-5f2s9_oc/lance with storage_options=None
+2026-11-08 13:12:02 [    INFO] LanceDB connected successfully
+PASSED                                                                   [ 27%]
+tests/test_orch02_specialist_response.py::test_chat_handler_returns_specialist_work_as_user_message 
+-------------------------------- live log call ---------------------------------
+2026-11-08 13:12:03 [    INFO] ComputerUseAgent initialized for tenant default
+2026-11-08 13:12:03 [ WARNING] Initializing DEPRECATED TokenStorage. Please migrate to ConnectionService.
+2026-11-08 13:12:03 [    INFO] No token storage file found, starting empty
+2026-11-08 13:12:03 [    INFO] WorkflowScheduler using SQLAlchemyJobStore
+2026-11-08 13:12:03 [    INFO] EscalationManager initialized
+2026-11-08 13:12:03 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 13:12:03 [    INFO] ChatOrchestrator initialized with LLMService for tenant: default
+2026-11-08 13:12:03 [    INFO] EscalationManager initialized
+2026-11-08 13:12:03 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 13:12:03 [    INFO] NaturalLanguageEngine initialized with LLMService for tenant: default
+2026-11-08 13:12:03 [    INFO] Slack Enhanced Service initialized
+2026-11-08 13:12:03 [    INFO] Loaded 0 persisted sessions from file.
+2026-11-08 13:12:03 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-08 13:12:03 [    INFO] EscalationManager initialized
+2026-11-08 13:12:03 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 13:12:03 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-08 13:12:03 [    INFO] LanceDBHandler initialized. ID: 5003128592. LANCEDB_AVAILABLE: True
+2026-11-08 13:12:03 [    INFO] Lazy loading LanceDB connection...
+2026-11-08 13:12:03 [    INFO] Connecting to LanceDB at /private/tmp/root-feedback-sqlite-5f2s9_oc/lance with storage_options=None
+2026-11-08 13:12:03 [    INFO] LanceDB connected successfully
+PASSED                                                                   [ 27%]
+tests/test_orch02_specialist_response.py::test_generic_domain_with_empty_capabilities_remains_supported 
+-------------------------------- live log call ---------------------------------
+2026-11-08 13:12:04 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-08 13:12:04 [    INFO] EscalationManager initialized
+2026-11-08 13:12:04 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 13:12:04 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-08 13:12:04 [    INFO] LanceDBHandler initialized. ID: 5003332960. LANCEDB_AVAILABLE: True
+2026-11-08 13:12:04 [    INFO] Lazy loading LanceDB connection...
+2026-11-08 13:12:04 [    INFO] Connecting to LanceDB at /private/tmp/root-feedback-sqlite-5f2s9_oc/lance with storage_options=None
+2026-11-08 13:12:04 [    INFO] LanceDB connected successfully
+PASSED                                                                   [ 28%]
+tests/test_orch02_specialist_response.py::test_empty_roster_is_explicit_no_suitable 
+-------------------------------- live log call ---------------------------------
+2026-11-08 13:12:04 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-08 13:12:04 [    INFO] EscalationManager initialized
+2026-11-08 13:12:04 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 13:12:04 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-08 13:12:04 [    INFO] LanceDBHandler initialized. ID: 4986349968. LANCEDB_AVAILABLE: True
+2026-11-08 13:12:04 [    INFO] Lazy loading LanceDB connection...
+2026-11-08 13:12:04 [    INFO] Connecting to LanceDB at /private/tmp/root-feedback-sqlite-5f2s9_oc/lance with storage_options=None
+2026-11-08 13:12:04 [    INFO] LanceDB connected successfully
+PASSED                                                                   [ 28%]
+tests/test_orch07_fleet_audit_consumer.py::test_shadow_consumer_writes_scoped_decision_and_exact_outcome 
+-------------------------------- live log call ---------------------------------
+2026-11-08 13:12:05 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-08 13:12:05 [    INFO] EscalationManager initialized
+2026-11-08 13:12:05 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 13:12:05 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-08 13:12:05 [    INFO] LanceDBHandler initialized. ID: 4991053936. LANCEDB_AVAILABLE: True
+2026-11-08 13:12:05 [    INFO] Lazy loading LanceDB connection...
+2026-11-08 13:12:05 [    INFO] Connecting to LanceDB at /private/tmp/root-feedback-sqlite-5f2s9_oc/lance with storage_options=None
+2026-11-08 13:12:05 [    INFO] LanceDB connected successfully
+2026-11-08 13:12:05 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-1: Tenant tenant-1 not found
+2026-11-08 13:12:05 [    INFO] EscalationManager initialized
+2026-11-08 13:12:05 [    INFO] CognitiveTierService initialized for workspace: workspace-1
+PASSED                                                                   [ 29%]
+tests/test_orch07_fleet_audit_consumer.py::test_enforced_response_consumes_specialists_and_finalizes 
+-------------------------------- live log call ---------------------------------
+2026-11-08 13:12:06 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-08 13:12:06 [    INFO] EscalationManager initialized
+2026-11-08 13:12:06 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 13:12:06 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-08 13:12:06 [    INFO] LanceDBHandler initialized. ID: 4963066864. LANCEDB_AVAILABLE: True
+2026-11-08 13:12:06 [    INFO] Lazy loading LanceDB connection...
+2026-11-08 13:12:06 [    INFO] Connecting to LanceDB at /private/tmp/root-feedback-sqlite-5f2s9_oc/lance with storage_options=None
+2026-11-08 13:12:06 [    INFO] LanceDB connected successfully
+PASSED                                                                   [ 29%]
+tests/test_orch07_fleet_audit_consumer.py::test_outcome_join_is_exact_idempotent_and_stale_refused PASSED [ 29%]
+tests/test_orch07_fleet_audit_consumer.py::test_scope_conflict_and_missing_execution_do_not_default PASSED [ 30%]
+tests/test_orch07_fleet_audit_consumer.py::test_calibration_excludes_pending_and_scope_unverified PASSED [ 30%]
+tests/test_orch07_fleet_audit_consumer.py::test_shadow_only_healthy_data_queues_consent_not_silent_enforce PASSED [ 31%]
+tests/test_orch07_fleet_audit_consumer.py::test_attempted_route_is_not_reported_as_served 
+-------------------------------- live log call ---------------------------------
+2026-11-08 13:12:09 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-08 13:12:09 [    INFO] EscalationManager initialized
+2026-11-08 13:12:09 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 13:12:09 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-08 13:12:09 [    INFO] LanceDBHandler initialized. ID: 5299137712. LANCEDB_AVAILABLE: True
+2026-11-08 13:12:09 [    INFO] Lazy loading LanceDB connection...
+2026-11-08 13:12:09 [    INFO] Connecting to LanceDB at /private/tmp/root-feedback-sqlite-5f2s9_oc/lance with storage_options=None
+2026-11-08 13:12:09 [    INFO] LanceDB connected successfully
+2026-11-08 13:12:09 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-1: Tenant tenant-1 not found
+PASSED                                                                   [ 31%]
+tests/test_orch07_fleet_binding_contract.py::test_outcome_write_is_atomic_against_competing_writer[outcome] PASSED [ 32%]
+tests/test_orch07_fleet_binding_contract.py::test_outcome_write_is_atomic_against_competing_writer[workspace] PASSED [ 32%]
+tests/test_orch07_fleet_binding_contract.py::test_missing_execution_agent_is_not_caller_authority PASSED [ 32%]
+tests/test_orch07_fleet_binding_contract.py::test_changed_execution_agent_cannot_certify_old_decision PASSED [ 33%]
+tests/test_orch07_fleet_binding_contract.py::test_same_boolean_different_outcome_material_is_not_exact_replay PASSED [ 33%]
+tests/test_orch07_fleet_binding_contract.py::test_explicit_unverified_rows_never_count_for_calibration PASSED [ 34%]
+tests/test_orch07_fleet_binding_contract.py::test_old_handler_route_does_not_certify_current_unserved_call 
+-------------------------------- live log call ---------------------------------
+2026-11-08 13:12:14 [    INFO] Atom executing request: analyze my sales pipeline in detail this quarter... (mode: manual)
+2026-11-08 13:12:14 [    INFO] EscalationManager initialized
+2026-11-08 13:12:14 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 13:12:14 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-08 13:12:14 [    INFO] LanceDBHandler initialized. ID: 5299803216. LANCEDB_AVAILABLE: True
+2026-11-08 13:12:14 [    INFO] Lazy loading LanceDB connection...
+2026-11-08 13:12:14 [    INFO] Connecting to LanceDB at /private/tmp/root-feedback-sqlite-5f2s9_oc/lance with storage_options=None
+2026-11-08 13:12:14 [    INFO] LanceDB connected successfully
+2026-11-08 13:12:14 [ WARNING] [BudgetEnforcementService] Unable to verify spend for tenant tenant-1: Tenant tenant-1 not found
+PASSED                                                                   [ 34%]
+tests/test_generic_oracle_mutation_contract.py::test_committed_declared_write_without_verifier_is_not_success PASSED [ 35%]
+tests/test_generic_oracle_mutation_contract.py::test_unverified_timeout_does_not_invite_retry PASSED [ 35%]
+tests/test_generic_oracle_mutation_contract.py::test_explicit_read_stays_usable PASSED [ 35%]
+tests/test_generic_oracle_mutation_contract.py::test_broken_verdicts_do_not_manufacture_business_success[refuting] PASSED [ 36%]
+tests/test_generic_oracle_mutation_contract.py::test_broken_verdicts_do_not_manufacture_business_success[raising] 
+-------------------------------- live log call ---------------------------------
+2026-11-08 13:12:16 [ WARNING] [Oracle] postcondition check for test.generic.verdict.46cb27805b064b81bad5086cf6e75574 failed: verifier transport unavailable
+PASSED                                                                   [ 36%]
+tests/test_generic_oracle_mutation_contract.py::test_broken_verdicts_do_not_manufacture_business_success[none] PASSED [ 37%]
+tests/test_generic_oracle_mutation_contract.py::test_real_effect_with_independent_readback_is_verified PASSED [ 37%]
+tests/test_generic_oracle_mutation_contract.py::test_disabled_oracle_cannot_lend_success[ATOM_ORACLE_VERIFIER_ENABLED] PASSED [ 38%]
+tests/test_generic_oracle_mutation_contract.py::test_disabled_oracle_cannot_lend_success[ATOM_ORACLE_ENFORCE] PASSED [ 38%]
+tests/test_generic_oracle_mutation_contract.py::test_registered_plan_only_output_stays_usable PASSED [ 38%]
+tests/test_generic_oracle_mutation_contract.py::test_returned_payload_cannot_overwrite_frozen_request[False] PASSED [ 39%]
+tests/test_generic_oracle_mutation_contract.py::test_returned_payload_cannot_overwrite_frozen_request[True] PASSED [ 39%]
+tests/test_generic_oracle_mutation_contract.py::test_handler_arg_mutation_does_not_rewrite_authorized_request[False] PASSED [ 40%]
+tests/test_generic_oracle_mutation_contract.py::test_handler_arg_mutation_does_not_rewrite_authorized_request[True] PASSED [ 40%]
+tests/test_generic_oracle_mutation_contract.py::test_durable_claim_replays_without_second_dispatch PASSED [ 41%]
+tests/test_generic_oracle_mutation_contract.py::test_changed_material_with_same_operation_is_refused PASSED [ 41%]
+tests/test_generic_oracle_mutation_contract.py::test_uncertain_timeout_claim_never_resends_on_restart 
+-------------------------------- live log call ---------------------------------
+2026-11-08 13:12:21 [ WARNING] [WS-DEBUG] Attempted broadcast to EMPTY channel: 'workspace:default'. type='autodev_guidance'
+PASSED                                                                   [ 41%]
+tests/test_generic_oracle_mutation_contract.py::test_replay_with_refuted_fresh_readback_is_not_success PASSED [ 42%]
+tests/test_generic_oracle_mutation_contract.py::test_landed_effect_then_failed_selfreport_is_uncertain PASSED [ 42%]
+tests/test_generic_oracle_mutation_contract.py::test_landed_effect_then_ordinary_exception_is_uncertain PASSED [ 43%]
+tests/test_generic_oracle_mutation_contract.py::test_pre_effect_no_effect_refusal_stays_truthful PASSED [ 43%]
+tests/test_generic_oracle_mutation_contract.py::test_unqualified_registered_effect_metadata_is_conservative PASSED [ 44%]
+tests/test_generic_oracle_mutation_contract.py::test_normal_dispatch_without_operation_id_is_durable PASSED [ 44%]
+tests/test_generic_oracle_mutation_contract.py::test_server_intent_slot_is_not_reminted_by_model_material PASSED [ 45%]
+tests/test_generic_oracle_mutation_contract.py::test_cold_resume_without_explicit_operation_id_reloads_claim 
+-------------------------------- live log call ---------------------------------
+2026-11-08 13:12:26 [    INFO] Agent Scratch Agent (scratch-agent) starting task: resume the normal task
+2026-11-08 13:12:26 [    INFO] EscalationManager initialized
+2026-11-08 13:12:26 [    INFO] CognitiveTierService initialized for workspace: default
+PASSED                                                                   [ 45%]
+tests/test_generic_oracle_mutation_contract.py::test_explicit_operation_without_workspace_is_refused_before_effect PASSED [ 45%]
+tests/test_generic_oracle_mutation_contract.py::test_handler_context_carries_server_operation_identity PASSED [ 46%]
+tests/test_generic_oracle_mutation_contract.py::test_cold_resume_with_unreadable_claim_store_stays_unresolved 
+-------------------------------- live log call ---------------------------------
+2026-11-08 13:12:28 [    INFO] Agent Scratch Agent (scratch-agent) starting task: continue original task
+PASSED                                                                   [ 46%]
+tests/test_generic_oracle_mutation_contract.py::test_zero_claim_read_only_execution_stays_success 
+-------------------------------- live log call ---------------------------------
+2026-11-08 13:12:28 [    INFO] Agent Scratch Agent (scratch-agent) starting task: answer the question
+PASSED                                                                   [ 47%]
+tests/test_generic_oracle_mutation_contract.py::test_mark_status_expected_status_is_database_cas PASSED [ 47%]
+tests/test_generic_oracle_mutation_contract.py::test_execution_finalization_blocks_unverified_mutation_but_keeps_reads 
+-------------------------------- live log call ---------------------------------
+2026-11-08 13:12:29 [    INFO] Agent Scratch Agent (scratch-agent) starting task: do the thing
+2026-11-08 13:12:29 [   ERROR] AUDIT GAP for execution 31b27a86-05c4-43fa-b525-b7ab3177f002: {'complete': False, 'execution_id': '31b27a86-05c4-43fa-b525-b7ab3177f002', 'expected_events': 5, 'actual_events': 4, 'coverage_percentage': 80.0, 'checked_at': '2026-11-08T18:12:29.171950+00:00'}
+2026-11-08 13:12:29 [    INFO] EscalationManager initialized
+2026-11-08 13:12:29 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 13:12:29 [   ERROR] Session sess-final not found
+PASSED                                                                   [ 48%]
+tests/test_generic_oracle_mutation_contract.py::test_execution_finalization_allows_verified_mutation 
+-------------------------------- live log call ---------------------------------
+2026-11-08 13:12:29 [    INFO] Agent Scratch Agent (scratch-agent) starting task: do the verified thing
+2026-11-08 13:12:29 [    INFO] EscalationManager initialized
+2026-11-08 13:12:29 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 13:12:29 [   ERROR] Session sess-final not found
+PASSED                                                                   [ 48%]
+tests/test_generic_oracle_mutation_contract.py::test_cold_resumed_execution_reloads_unresolved_claim 
+-------------------------------- live log call ---------------------------------
+2026-11-08 13:12:30 [    INFO] Agent Scratch Agent (scratch-agent) starting task: resume the task
+PASSED                                                                   [ 48%]
+tests/test_autonomy_revocation.py::test_verified_regression_blocks_the_runtime_gate PASSED [ 49%]
+tests/test_autonomy_revocation.py::test_revocation_survives_a_new_session PASSED [ 49%]
+tests/test_autonomy_revocation.py::test_first_failure_without_prior_success_is_not_a_regression PASSED [ 50%]
+tests/test_autonomy_revocation.py::test_verified_work_can_reearn_the_capability PASSED [ 50%]
+tests/test_autonomy_revocation.py::test_reentry_requires_new_successes_after_the_revocation PASSED [ 51%]
+tests/test_autonomy_revocation.py::test_second_regression_resets_the_reentry_baseline PASSED [ 51%]
+tests/test_autonomy_revocation.py::test_revocation_lookup_fails_closed 
+-------------------------------- live log call ---------------------------------
+2026-11-08 13:12:33 [ WARNING] autonomy revocation check unavailable: authority store down
+2026-11-08 13:12:33 [ WARNING] autonomy revocation check unavailable: authority store down
+PASSED                                                                   [ 51%]
+tests/test_autonomy_policy_gate.py::test_topics_for_canvas_email_vs_default PASSED [ 52%]
+tests/test_autonomy_policy_gate.py::test_list_topics_flags_canvas_relevance PASSED [ 52%]
+tests/test_autonomy_policy_gate.py::test_gate_human_always_proposes_even_for_mature_hire PASSED [ 53%]
+tests/test_autonomy_policy_gate.py::test_gate_auto_plus_mature_executes PASSED [ 53%]
+tests/test_autonomy_policy_gate.py::test_gate_auto_plus_immature_proposes PASSED [ 54%]
+tests/test_autonomy_policy_gate.py::test_gate_without_hire_failopen PASSED [ 54%]
+tests/test_autonomy_policy_gate.py::test_trust_gate_off_is_neutral_pass PASSED [ 54%]
+tests/test_autonomy_policy_gate.py::test_trust_gate_low_score_demotes_to_propose PASSED [ 55%]
+tests/test_autonomy_policy_gate.py::test_trust_gate_high_score_executes PASSED [ 55%]
+tests/test_autonomy_policy_gate.py::test_trust_gate_unknown_agent_failopen PASSED [ 56%]
+tests/test_autonomy_policy_gate.py::test_gate_topics_have_governance_metadata PASSED [ 56%]
+tests/test_autonomy_policy_gate.py::test_set_mode_accepts_until_corrected PASSED [ 57%]
+tests/test_autonomy_policy_gate.py::test_topic_for_action_maps_proposal_types PASSED [ 57%]
+tests/test_autonomy_policy_gate.py::test_until_corrected_executes_when_cycle_never_earned PASSED [ 58%]
+tests/test_autonomy_policy_gate.py::test_correction_reset_proposes_until_reearned 
+-------------------------------- live log call ---------------------------------
+2026-11-08 13:12:40 [    INFO] Reset maturity for hire-1:canvas_edit to STUDENT. Reason: user correction
+2026-11-08 13:12:40 [    INFO] autonomy cycle reset: hire-1 lost earned canvas_edit autonomy (user correction)
+PASSED                                                                   [ 58%]
+tests/test_autonomy_policy_gate.py::test_other_modes_ignore_cycle_entry 
+-------------------------------- live log call ---------------------------------
+2026-11-08 13:12:41 [    INFO] Reset maturity for hire-1:canvas_edit to STUDENT. Reason: human correction
+2026-11-08 13:12:41 [    INFO] autonomy cycle reset: hire-1 lost earned canvas_edit autonomy (human correction)
+PASSED                                                                   [ 58%]
+tests/test_autonomy_policy_gate.py::test_cycle_unknown_hire_failopen PASSED [ 59%]
+tests/test_skill_scoped_trust_p3.py::TestTrustScoreMath::test_no_evidence_anywhere_is_neutral PASSED [ 59%]
+tests/test_skill_scoped_trust_p3.py::TestTrustScoreMath::test_laundering_guard_caps_borrowed_score PASSED [ 60%]
+tests/test_skill_scoped_trust_p3.py::TestTrustScoreMath::test_direct_evidence_dominates_when_present PASSED [ 60%]
+tests/test_skill_scoped_trust_p3.py::TestTrustScoreMath::test_shrinkage_pulls_toward_pool PASSED [ 61%]
+tests/test_skill_scoped_trust_p3.py::TestTrustScoreMath::test_fast_fail_penalty_applies_and_is_capped PASSED [ 61%]
+tests/test_skill_scoped_trust_p3.py::TestTrustScoreMath::test_unverified_successes_do_not_inflate PASSED [ 61%]
+tests/test_skill_scoped_trust_p3.py::TestCollectStats::test_exact_then_alias_matching PASSED [ 62%]
+tests/test_skill_scoped_trust_p3.py::TestCollectStats::test_missing_config_yields_neutral PASSED [ 62%]
+tests/test_skill_scoped_trust_p3.py::TestRecordUsageAsymmetry::test_failed_verification_records_penalty_counter PASSED [ 63%]
+tests/test_skill_scoped_trust_p3.py::TestRecordUsageAsymmetry::test_success_stamps_timestamp_without_penalty PASSED [ 63%]
+tests/test_skill_scoped_trust_p3.py::TestMatcherIntegration::test_flag_off_preserves_global_confidence_ordering PASSED [ 64%]
+tests/test_skill_scoped_trust_p3.py::TestMatcherIntegration::test_flag_on_lets_domain_evidence_win PASSED [ 64%]
+tests/test_skill_scoped_trust_p3.py::TestMatcherIntegration::test_flag_default_off PASSED [ 64%]
+tests/test_auto_dev/test_capability_gate.py::TestCapabilityGateMaturityGates::test_student_maturity_blocked PASSED [ 65%]
+tests/test_auto_dev/test_capability_gate.py::TestCapabilityGateMaturityGates::test_intern_maturity_blocked_for_evolver PASSED [ 65%]
+tests/test_auto_dev/test_capability_gate.py::TestCapabilityGateMaturityGates::test_supervised_maturity_allowed PASSED [ 66%]
+tests/test_auto_dev/test_capability_gate.py::TestCapabilityGateMaturityGates::test_autonomous_maturity_allowed PASSED [ 66%]
+tests/test_auto_dev/test_capability_gate.py::TestCapabilityGateTenantOptIn::test_checks_auto_dev_enabled PASSED [ 67%]
+tests/test_auto_dev/test_capability_gate.py::TestCapabilityGateTenantOptIn::test_returns_false_if_opt_in_disabled PASSED [ 67%]
+tests/test_auto_dev/test_capability_gate.py::TestCapabilityGateTenantOptIn::test_handles_missing_tenant_settings PASSED [ 67%]
+tests/test_auto_dev/test_capability_gate.py::TestCapabilityGateCapabilityCheck::test_can_use_skill_generation PASSED [ 68%]
+tests/test_auto_dev/test_capability_gate.py::TestCapabilityGateCapabilityCheck::test_can_use_evolution PASSED [ 68%]
+tests/test_auto_dev/test_capability_gate.py::TestCapabilityGateCapabilityCheck::test_different_maturity_requirements PASSED [ 69%]
+tests/test_auto_dev/test_capability_gate.py::TestCapabilityGateErrorHandling::test_handles_missing_agent 
+-------------------------------- live log call ---------------------------------
+2026-11-08 13:12:43 [   ERROR] Failed to get maturity for nonexistent-agent: Agent not found
+PASSED                                                                   [ 69%]
+tests/test_auto_dev/test_capability_gate.py::TestCapabilityGateErrorHandling::test_returns_false_on_errors PASSED [ 70%]
+tests/test_auto_dev/test_capability_gate.py::TestCapabilityGateDailyLimits::test_max_mutations_per_day PASSED [ 70%]
+tests/test_auto_dev/test_capability_gate.py::TestCapabilityGateDailyLimits::test_max_skill_candidates_per_day PASSED [ 70%]
+tests/test_auto_dev/test_capability_gate.py::TestCapabilityGateMaturityHelpers::test_is_at_least_function PASSED [ 71%]
+tests/test_auto_dev/test_capability_gate.py::TestCapabilityGateMaturityHelpers::test_maturity_order PASSED [ 71%]
+tests/test_outcome_verification.py::TestDeriveOutcome::test_all_succeeded FAILED [ 72%]
+tests/test_outcome_verification.py::TestDeriveOutcome::test_any_failure PASSED [ 72%]
+tests/test_outcome_verification.py::TestDeriveOutcome::test_partial_when_max_steps PASSED [ 73%]
+tests/test_outcome_verification.py::TestDeriveOutcome::test_empty_is_unknown PASSED [ 73%]
+tests/test_outcome_verification.py::TestOutcomePrefilter::test_filter_str_includes_outcome_when_set PASSED [ 74%]
+tests/test_outcome_verification.py::TestOutcomePrefilter::test_no_outcome_when_not_set PASSED [ 74%]
+tests/test_outcome_verification.py::TestOutcomePrefilter::test_retrieve_failed_similar_prefilters_failure PASSED [ 74%]
+tests/test_outcome_verification.py::TestParseToolOutcome::test_dict_with_verified_true PASSED [ 75%]
+tests/test_outcome_verification.py::TestParseToolOutcome::test_dict_with_verified_false PASSED [ 75%]
+tests/test_outcome_verification.py::TestParseToolOutcome::test_dict_without_verified_is_unverified PASSED [ 76%]
+tests/test_outcome_verification.py::TestParseToolOutcome::test_explicit_success_false PASSED [ 76%]
+tests/test_outcome_verification.py::TestParseToolOutcome::test_json_string_with_single_quotes PASSED [ 77%]
+tests/test_outcome_verification.py::TestParseToolOutcome::test_json_string_proper PASSED [ 77%]
+tests/test_outcome_verification.py::TestParseToolOutcome::test_plain_string_unverified PASSED [ 77%]
+tests/test_outcome_verification.py::TestParseToolOutcome::test_none_observation PASSED [ 78%]
+tests/test_outcome_verification.py::TestParseToolOutcome::test_evidence_as_dict_serialized PASSED [ 78%]
+tests/test_outcome_verification.py::TestParseToolOutcome::test_silent_no_op_classified_unverified PASSED [ 79%]
+tests/test_outcome_verification.py::TestParseToolOutcome::test_never_raises_on_garbage PASSED [ 79%]
+tests/test_outcome_verification.py::TestCoerceVerified::test_valid_passes_through PASSED [ 80%]
+tests/test_outcome_verification.py::TestCoerceVerified::test_invalid_defaults_unverified PASSED [ 80%]
+tests/test_outcome_verification.py::TestGraduationVerifiedGating::test_verified_success_increments_verified_counter PASSED [ 80%]
+tests/test_outcome_verification.py::TestGraduationVerifiedGating::test_unverified_success_does_not_increment_verified PASSED [ 81%]
+tests/test_outcome_verification.py::TestGraduationVerifiedGating::test_graduation_only_promotes_on_verified PASSED [ 81%]
+tests/test_outcome_verification.py::TestGraduationVerifiedGating::test_graduation_promotes_on_5_verified PASSED [ 82%]
+tests/test_outcome_verification.py::TestGraduationVerifiedGating::test_mixed_verified_and_unverified PASSED [ 82%]
+tests/test_outcome_verification.py::TestGraduationVerifiedGating::test_failed_verification_does_not_increment_verified PASSED [ 83%]
+tests/test_outcome_verification.py::TestReasoningStepVerifiedColumn::test_step_persists_verified_state PASSED [ 83%]
+tests/test_outcome_verification.py::TestReasoningStepVerifiedColumn::test_step_defaults_unverified PASSED [ 83%]
+tests/test_final_audit_fixes.py::TestFreshInstallSchemaCreation::test_startup_calls_create_all 
+-------------------------------- live log call ---------------------------------
+2026-11-08 13:12:44 [    INFO] core product profile worker defaults: {'ENABLE_SCHEDULER': 'false', 'ENABLE_INGESTION_SYNC': 'false', 'ATOM_AGENT_EVOLUTION_ENABLED': 'false'}
+FAILED                                                                   [ 84%]
+tests/test_final_audit_fixes.py::TestSpawnAgentArgs::test_reset_maturity_called_with_3_args PASSED [ 84%]
+tests/test_final_audit_fixes.py::TestSpawnAgentArgs::test_reset_maturity_signature_accepts_3_args PASSED [ 85%]
+tests/test_final_audit_fixes.py::TestSecurityMiddlewareFailClosed::test_no_bare_except_pass_on_body_scan PASSED [ 85%]
+tests/test_final_audit_fixes.py::TestSecurityMiddlewareFailClosed::test_scan_failure_returns_400_not_200 PASSED [ 86%]
+tests/test_fleet_credit_scope_boundary.py::test_credit_refuses_changed_authoritative_scope[agent_tenant] PASSED [ 86%]
+tests/test_fleet_credit_scope_boundary.py::test_credit_refuses_changed_authoritative_scope[agent_workspace] PASSED [ 87%]
+tests/test_fleet_credit_scope_boundary.py::test_credit_refuses_changed_authoritative_scope[operation_tenant] PASSED [ 87%]
+tests/test_fleet_credit_scope_boundary.py::test_scope_move_after_admission_cannot_publish_credit[tenant_id] PASSED [ 87%]
+tests/test_fleet_credit_scope_boundary.py::test_scope_move_after_admission_cannot_publish_credit[workspace_id] PASSED [ 88%]
+tests/test_ci_backend_lane_contract.py::test_every_existing_backend_command_environment_and_setup_is_preserved PASSED [ 88%]
+tests/test_ci_backend_lane_contract.py::test_required_backend_check_waits_for_both_lanes_even_on_failure PASSED [ 89%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-success] PASSED [ 89%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-failure] PASSED [ 90%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-cancelled] PASSED [ 90%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-skipped] PASSED [ 90%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[success-] PASSED [ 91%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-success] PASSED [ 91%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-failure] PASSED [ 92%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-cancelled] PASSED [ 92%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-skipped] PASSED [ 93%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[failure-] PASSED [ 93%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-success] PASSED [ 93%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-failure] PASSED [ 94%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-cancelled] PASSED [ 94%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-skipped] PASSED [ 95%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[cancelled-] PASSED [ 95%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-success] PASSED [ 96%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-failure] PASSED [ 96%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-cancelled] PASSED [ 96%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-skipped] PASSED [ 97%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[skipped-] PASSED [ 97%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-success] PASSED [ 98%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-failure] PASSED [ 98%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-cancelled] PASSED [ 99%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-skipped] PASSED [ 99%]
+tests/test_ci_backend_lane_contract.py::test_real_gate_shell_requires_both_successes[-] PASSED [100%]
+
+=================================== FAILURES ===================================
+_____________________ TestDeriveOutcome.test_all_succeeded _____________________
+tests/test_outcome_verification.py:56: in test_all_succeeded
+    assert svc._derive_outcome([_exec("completed"), _exec("completed")]) == "success"
+E   AssertionError: assert 'partial' == 'success'
+E     
+E     - success
+E     + partial
+_________ TestFreshInstallSchemaCreation.test_startup_calls_create_all _________
+tests/test_final_audit_fixes.py:29: in test_startup_calls_create_all
+    src = inspect.getsource(main_mod.lifespan)
+                            ^^^^^^^^^^^^^^^^^
+E   AttributeError: module 'main_api_app' has no attribute 'lifespan'
+----------------------------- Captured stdout call -----------------------------
+[2026-11-08 13:12:44] [[92mINFO[0m] [core.logging_config] Logging initialized at INFO level
+[2026-11-08 13:12:44] [[92mINFO[0m] [backend.main_api_app] ================================================================================
+[2026-11-08 13:12:44] [[92mINFO[0m] [backend.main_api_app] ATOM PLATFORM API STARTUP
+[2026-11-08 13:12:44] [[92mINFO[0m] [backend.main_api_app] ================================================================================
+[2026-11-08 13:12:44] [[92mINFO[0m] [backend.main_api_app] Python version: 3.14.7 (main, Sep  1 2026, 14:05:28) [Clang 22.1.3 ]
+[2026-11-08 13:12:44] [[92mINFO[0m] [backend.main_api_app] Working directory: /private/tmp/atom-goal-wake-failure-boundary-20261108/backend
+[2026-11-08 13:12:44] [[92mINFO[0m] [backend.main_api_app] Python path: ['/private/tmp/atom-goal-wake-failure-boundary-20261108', '/private/tmp/atom-goal-wake-failure-boundary-20261108/backend', '/private/tmp/atom-goal-wake-failure-boundary-20261108']...
+[2026-11-08 13:12:44] [[92mINFO[0m] [backend.main_api_app] ✓ uvicorn imported
+[2026-11-08 13:12:44] [[92mINFO[0m] [backend.main_api_app] ✓ Standard library imports successful
+[2026-11-08 13:12:44] [[92mINFO[0m] [backend.main_api_app] ✓ dotenv imported
+[2026-11-08 13:12:44] [[92mINFO[0m] [backend.main_api_app] ✓ sqlalchemy.orm and exceptions imported
+[2026-11-08 13:12:44] [[92mINFO[0m] [backend.main_api_app] ✓ core.models imported
+[2026-11-08 13:12:44] [[92mINFO[0m] [backend.main_api_app] ✓ core.models_registration imported
+[2026-11-08 13:12:44] [[92mINFO[0m] [backend.main_api_app] ✓ core.cache.RedisCacheService imported
+[2026-11-08 13:12:44] [[92mINFO[0m] [backend.main_api_app] ✓ core.database imported
+[2026-11-08 13:12:44] [[93mWARNING[0m] [backend.main_api_app] Failed to import quota_manager: No module named 'core.quota_manager'
+[1794161564.853257] Starting imports in main_api_app.py...
+[1794161564.853271] FastAPI imported
+[2026-11-08 13:12:44] [[92mINFO[0m] [backend.main_api_app] ✓ FastAPI imports successful
+[2026-11-08 13:12:44] [[92mINFO[0m] [core.llm.escalation_manager] EscalationManager initialized
+[2026-11-08 13:12:44] [[92mINFO[0m] [core.llm.cognitive_tier_service] CognitiveTierService initialized for workspace: default
+[2026-11-08 13:12:44] [[92mINFO[0m] [enhanced_ai_workflow_endpoints] RealAIWorkflowService modernized with unified LLMService.
+[2026-11-08 13:12:44] [[92mINFO[0m] [enhanced_ai_workflow_endpoints] RealAIWorkflowService modernized with unified LLMService.
+[2026-11-08 13:12:44] [[92mINFO[0m] [core.llm.escalation_manager] EscalationManager initialized
+[2026-11-08 13:12:44] [[92mINFO[0m] [core.llm.cognitive_tier_service] CognitiveTierService initialized for workspace: default
+[2026-11-08 13:12:44] [[92mINFO[0m] [integrations.atom_communication_ingestion_pipeline] Webhook processor initialized and callback registered
+[2026-11-08 13:12:44] [[93mWARNING[0m] [core.workflow_notifier] WorkflowNotifier: Slack initialization deferred: 'list' object has no attribute 'get'
+[2026-11-08 13:12:45] [[93mWARNING[0m] [root] Discord integration services not available: No module named 'atom_ingestion_pipeline'
+[2026-11-08 13:12:45] [[92mINFO[0m] [integrations.atom_discord_integration] ATOM Discord Integration initialized
+[2026-11-08 13:12:45] [[93mWARNING[0m] [root] Enterprise services not available: No module named 'ai_enhanced_service'. Using stubs/None.
+[2026-11-08 13:12:45] [[92mINFO[0m] [core.llm.escalation_manager] EscalationManager initialized
+[2026-11-08 13:12:45] [[92mINFO[0m] [core.llm.cognitive_tier_service] CognitiveTierService initialized for workspace: default
+[2026-11-08 13:12:45] [[92mINFO[0m] [core.embedding_service] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+[2026-11-08 13:12:45] [[92mINFO[0m] [core.lancedb_handler] LanceDBHandler initialized. ID: 5325923152. LANCEDB_AVAILABLE: True
+[2026-11-08 13:12:45] [[92mINFO[0m] [integrations.atom_telegram_integration] LanceDB handler initialized for Telegram integration
+[2026-11-08 13:12:45] [[92mINFO[0m] [integrations.atom_telegram_integration] Telegram Integration initialized
+[2026-11-08 13:12:45] [[93mWARNING[0m] [root] AI integration services not available: No module named 'atom_discord_integration'
+[2026-11-08 13:12:45] [[92mINFO[0m] [integrations.atom_ai_integration] ATOM AI Integration initialized
+[2026-11-08 13:12:45] [[93mWARNING[0m] [root] Enterprise security services not available: No module named 'ai_enhanced_service'
+[2026-11-08 13:12:45] [[92mINFO[0m] [integrations.atom_enterprise_security_service] Enterprise Security Service initialized
+[2026-11-08 13:12:45] [[93mWARNING[0m] [root] Enterprise unified services not available: No module named 'ai_enhanced_service'
+[2026-11-08 13:12:45] [[92mINFO[0m] [integrations.atom_enterprise_unified_service] Enterprise Unified Service initialized
+[2026-11-08 13:12:45] [[93mWARNING[0m] [root] Google Chat integration services not available: No module named 'atom_ingestion_pipeline'
+[2026-11-08 13:12:45] [[92mINFO[0m] [integrations.google_chat_enhanced_service] Google Chat Enhanced Service initialized
+[2026-11-08 13:12:45] [[92mINFO[0m] [integrations.atom_google_chat_integration] ATOM Google Chat Integration initialized
+[2026-11-08 13:12:45] [[92mINFO[0m] [integrations.teams_enhanced_service] Teams Enhanced Service initialized
+[2026-11-08 13:12:45] [[92mINFO[0m] [integrations.atom_teams_integration] ATOM Teams Integration initialized
+[2026-11-08 13:12:45] [[92mINFO[0m] [integrations.atom_workflow_automation_service] Workflow Automation Service initialized
+[2026-11-08 13:12:45] [[92mINFO[0m] [integrations.atom_whatsapp_integration] WhatsApp Integration initialized
+[2026-11-08 13:12:45] [[93mWARNING[0m] [root] AI enhanced service not available for Document Logic Service
+[2026-11-08 13:12:45] [[93mWARNING[0m] [core.agent_integration_gateway] Enterprise document_logic_service not available, using stub
+[2026-11-08 13:12:45] [[92mINFO[0m] [integrations.google_chat_enhanced_service] Google Chat Enhanced Service initialized
+[2026-11-08 13:12:45] [[93mWARNING[0m] [core.agent_integration_gateway] Marketing service not available
+[2026-11-08 13:12:45] [[93mWARNING[0m] [core.agent_integration_gateway] Meta Business service not available
+[2026-11-08 13:12:45] [[93mWARNING[0m] [core.agent_integration_gateway] OpenClaw service not available
+[2026-11-08 13:12:45] [[92mINFO[0m] [integrations.slack_enhanced_service] Slack Enhanced Service initialized
+[2026-11-08 13:12:45] [[92mINFO[0m] [integrations.teams_enhanced_service] Teams Enhanced Service initialized
+{"level": "WARNING", "message": "Redis unavailable - webhook ingestion will process synchronously", "timestamp": "2026-11-08T18:12:45.168302+00:00", "logger": "core.webhook_ingestion_triggers", "module": "structured_logger", "function": "_log", "line": 118}
+[2026-11-08 13:12:45] [[93mWARNING[0m] [core.webhook_ingestion_triggers] Redis unavailable - webhook ingestion will process synchronously
+[2026-11-08 13:12:45] [[92mINFO[0m] [integrations.outlook_service_enhanced] OutlookEnhancedService initialized
+[2026-11-08 13:12:45] [[93mWARNING[0m] [backend.main_api_app] No .env file found in any expected location. Realizing on system env vars.
+[2026-11-08 13:12:45] [[92mINFO[0m] [backend.main_api_app] Startup API key check
+[2026-11-08 13:12:45] [[92mINFO[0m] [backend.main_api_app] CORS Allowed Origins: ['https://atomagentos.com', 'https://app.atomagentos.com', 'https://admin.atomagentos.com', 'https://api.atomagentos.com', 'http://localhost:3000', 'http://127.0.0.1:3000', 'http://localhost:3001', 'http://127.0.0.1:3001']
+[2026-11-08 13:12:45] [[92mINFO[0m] [backend.main_api_app] Creating FastAPI application...
+[2026-11-08 13:12:45] [[92mINFO[0m] [backend.main_api_app] ✓ FastAPI app instance created
+[2026-11-08 13:12:45] [[93mWARNING[0m] [backend.main_api_app] Connection leak detector not available: No module named 'core.connection_leak_detector'
+[2026-11-08 13:12:45] [[92mINFO[0m] [backend.main_api_app] ✓ Outlook integration routes registered at /api/integrations/outlook and /api/v1/integrations/outlook
+[2026-11-08 13:12:45] [[92mINFO[0m] [backend.main_api_app] ⊘ Test mode detected: Loading only critical integrations for security tests
+[2026-11-08 13:12:45] [[92mINFO[0m] [backend.main_api_app] DEBUG: Processing critical integration: auth
+[2026-11-08 13:12:45] [[92mINFO[0m] [core.lazy_integration_registry] Loading integration: auth (core.auth_endpoints)
+[2026-11-08 13:12:45] [[92mINFO[0m] [core.lazy_integration_registry] ✓ Loaded auth
+[2026-11-08 13:12:45] [[92mINFO[0m] [backend.main_api_app]   ✓ auth (critical for tests, prefix: root)
+[2026-11-08 13:12:45] [[92mINFO[0m] [backend.main_api_app] DEBUG: Processing critical integration: oauth
+[2026-11-08 13:12:45] [[92mINFO[0m] [core.lazy_integration_registry] Loading integration: oauth (api.oauth_routes)
+[2026-11-08 13:12:45] [[92mINFO[0m] [core.lazy_integration_registry] ✓ Loaded oauth
+[2026-11-08 13:12:45] [[92mINFO[0m] [backend.main_api_app]   ✓ oauth (critical for tests, prefix: root)
+[2026-11-08 13:12:45] [[92mINFO[0m] [backend.main_api_app] DEBUG: Processing critical integration: whatsapp
+[2026-11-08 13:12:45] [[92mINFO[0m] [core.lazy_integration_registry] Loading integration: whatsapp (integrations.whatsapp_fastapi_routes)
+[2026-11-08 13:12:45] [[92mINFO[0m] [core.lazy_integration_registry] ✓ Loaded whatsapp
+[2026-11-08 13:12:45] [[92mINFO[0m] [backend.main_api_app]   ✓ whatsapp (critical for tests, prefix: /api/v1/integrations/whatsapp)
+[2026-11-08 13:12:45] [[92mINFO[0m] [backend.main_api_app] DEBUG: Processing critical integration: microsoft365
+[2026-11-08 13:12:45] [[92mINFO[0m] [core.lazy_integration_registry] Loading integration: microsoft365 (integrations.microsoft365_routes)
+[2026-11-08 13:12:45] [[92mINFO[0m] [core.lazy_integration_registry] ✓ Loaded microsoft365
+[2026-11-08 13:12:45] [[92mINFO[0m] [backend.main_api_app]   ✓ microsoft365 (critical for tests, prefix: /api/v1/integrations/microsoft365)
+[2026-11-08 13:12:45] [[92mINFO[0m] [backend.main_api_app] DEBUG: Processing critical integration: outlook
+[2026-11-08 13:12:45] [[92mINFO[0m] [core.lazy_integration_registry] Loading integration: outlook (integrations.outlook_routes)
+[2026-11-08 13:12:45] [[92mINFO[0m] [core.lazy_integration_registry] ✓ Loaded outlook
+[2026-11-08 13:12:45] [[92mINFO[0m] [backend.main_api_app]   ✓ outlook (critical for tests, prefix: /api/integrations/outlook)
+[2026-11-08 13:12:45] [[92mINFO[0m] [backend.main_api_app] DEBUG: Processing critical integration: twilio
+[2026-11-08 13:12:45] [[92mINFO[0m] [core.lazy_integration_registry] Loading integration: twilio (integrations.twilio_routes)
+[2026-11-08 13:12:45] [[92mINFO[0m] [core.lazy_integration_registry] ✓ Loaded twilio
+[2026-11-08 13:12:45] [[92mINFO[0m] [backend.main_api_app]   ✓ twilio (critical for tests, prefix: /api/v1/integrations/twilio)
+[2026-11-08 13:12:45] [[92mINFO[0m] [backend.main_api_app] DEBUG: Processing critical integration: notion
+[2026-11-08 13:12:45] [[92mINFO[0m] [core.lazy_integration_registry] Loading integration: notion (integrations.notion_routes)
+[2026-11-08 13:12:45] [[92mINFO[0m] [core.lazy_integration_registry] ✓ Loaded notion
+[2026-11-08 13:12:45] [[92mINFO[0m] [backend.main_api_app]   ✓ notion (critical for tests, prefix: /api/v1/integrations/notion)
+[2026-11-08 13:12:45] [[92mINFO[0m] [backend.main_api_app] DEBUG: Processing critical integration: mailchimp
+[2026-11-08 13:12:45] [[92mINFO[0m] [core.lazy_integration_registry] Loading integration: mailchimp (integrations.mailchimp_routes)
+[2026-11-08 13:12:45] [[92mINFO[0m] [core.lazy_integration_registry] ✓ Loaded mailchimp
+[2026-11-08 13:12:45] [[92mINFO[0m] [backend.main_api_app]   ✓ mailchimp (critical for tests, prefix: /api/v1/integrations/mailchimp)
+[2026-11-08 13:12:45] [[92mINFO[0m] [backend.main_api_app] DEBUG: Processing critical integration: zoho_crm
+[2026-11-08 13:12:45] [[93mWARNING[0m] [core.lazy_integration_registry] Unknown integration: zoho_crm
+[2026-11-08 13:12:45] [[93mWARNING[0m] [backend.main_api_app]   ✗ zoho_crm could not be loaded
+[2026-11-08 13:12:45] [[92mINFO[0m] [backend.main_api_app] DEBUG: Processing critical integration: zoho_projects
+[2026-11-08 13:12:45] [[93mWARNING[0m] [core.lazy_integration_registry] Unknown integration: zoho_projects
+[2026-11-08 13:12:45] [[93mWARNING[0m] [backend.main_api_app]   ✗ zoho_projects could not be loaded
+[2026-11-08 13:12:45] [[92mINFO[0m] [backend.main_api_app] DEBUG: Processing critical integration: zoho_workdrive
+[2026-11-08 13:12:45] [[92mINFO[0m] [core.lazy_integration_registry] Loading integration: zoho_workdrive (api.zoho_workdrive_routes)
+[2026-11-08 13:12:45] [[92mINFO[0m] [core.lazy_integration_registry] ✓ Loaded zoho_workdrive
+[2026-11-08 13:12:45] [[92mINFO[0m] [backend.main_api_app]   ✓ zoho_workdrive (critical for tests, prefix: /api/v1/integrations/zoho-workdrive)
+[2026-11-08 13:12:45] [[92mINFO[0m] [backend.main_api_app] DEBUG: Processing critical integration: salesforce
+[2026-11-08 13:12:45] [[92mINFO[0m] [core.lazy_integration_registry] Loading integration: salesforce (integrations.salesforce_routes)
+[2026-11-08 13:12:45] [[92mINFO[0m] [core.lazy_integration_registry] ✓ Loaded salesforce
+[2026-11-08 13:12:45] [[92mINFO[0m] [backend.main_api_app]   ✓ salesforce (critical for tests, prefix: /api/v1/integrations/salesforce)
+[2026-11-08 13:12:45] [[92mINFO[0m] [backend.main_api_app] DEBUG: Processing critical integration: pipedrive
+[2026-11-08 13:12:45] [[93mWARNING[0m] [core.lazy_integration_registry] Unknown integration: pipedrive
+[2026-11-08 13:12:45] [[93mWARNING[0m] [backend.main_api_app]   ✗ pipedrive could not be loaded
+[2026-11-08 13:12:45] [[92mINFO[0m] [backend.main_api_app] DEBUG: Processing critical integration: freshsales
+[2026-11-08 13:12:45] [[93mWARNING[0m] [core.lazy_integration_registry] Unknown integration: freshsales
+[2026-11-08 13:12:45] [[93mWARNING[0m] [backend.main_api_app]   ✗ freshsales could not be loaded
+[2026-11-08 13:12:45] [[92mINFO[0m] [backend.main_api_app] DEBUG: Processing critical integration: asana
+[2026-11-08 13:12:45] [[92mINFO[0m] [core.lazy_integration_registry] Loading integration: asana (integrations.asana_routes)
+[2026-11-08 13:12:45] [[92mINFO[0m] [integrations.asana_service] AsanaService initialized for tenant default... without access token
+[2026-11-08 13:12:45] [[92mINFO[0m] [core.lazy_integration_registry] ✓ Loaded asana
+[2026-11-08 13:12:45] [[92mINFO[0m] [backend.main_api_app]   ✓ asana (critical for tests, prefix: /api/v1/integrations/asana)
+[2026-11-08 13:12:45] [[92mINFO[0m] [backend.main_api_app] DEBUG: Processing critical integration: monday
+[2026-11-08 13:12:45] [[92mINFO[0m] [core.lazy_integration_registry] Loading integration: monday (integrations.monday_routes)
+[2026-11-08 13:12:45] [[92mINFO[0m] [core.lazy_integration_registry] ✓ Loaded monday
+[2026-11-08 13:12:45] [[92mINFO[0m] [backend.main_api_app]   ✓ monday (critical for tests, prefix: /api/v1/integrations/monday)
+[2026-11-08 13:12:45] [[92mINFO[0m] [backend.main_api_app] DEBUG: Processing critical integration: bigcommerce
+[2026-11-08 13:12:45] [[93mWARNING[0m] [core.lazy_integration_registry] Unknown integration: bigcommerce
+[2026-11-08 13:12:45] [[93mWARNING[0m] [backend.main_api_app]   ✗ bigcommerce could not be loaded
+[2026-11-08 13:12:45] [[92mINFO[0m] [backend.main_api_app]   Other integrations will load on-demand.
+[2026-11-08 13:12:45] [[92mINFO[0m] [backend.main_api_app] ✓ Agent audit trail mounted at /api/audit
+[2026-11-08 13:12:45] [[92mINFO[0m] [backend.main_api_app] ✓ Live Workflow Endpoints mounted at /api/v1/workflows (incl. /conductor/execute)
+[2026-11-08 13:12:45] [[92mINFO[0m] [backend.main_api_app] ✓ Unified RPC surface mounted at /api/rpc/{action_name} (P1)
+[2026-11-08 13:12:45] [[92mINFO[0m] [backend.main_api_app] ✓ Gatekeeper config surface mounted at /api/gatekeeper (P3)
+[2026-11-08 13:12:45] [[92mINFO[0m] [backend.main_api_app] ✓ External MCP client config mounted at /api/mcp/servers (P6)
+[2026-11-08 13:12:45] [[92mINFO[0m] [backend.main_api_app] ✓ Mini-apps router mounted at /api/mini-apps
+[2026-11-08 13:12:45] [[92mINFO[0m] [backend.main_api_app] ✓ Automation Settings mounted at /api/v1/settings/automations
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Finance Live API mounted at /api/atom/finance/live
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Projects Live API mounted at /api/atom/projects/live
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Sales Live API mounted at /api/atom/sales/live
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Arbor HTR endpoints mounted at /api/v1/hypothesis-tree
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] Loading Core API Routes...
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ OAuth Status and Authorization Routes Loaded
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Telegram Chat Routes Loaded
+[2026-11-08 13:12:46] [[92mINFO[0m] [integrations.slack_service_unified] Slack unified service initialized with base URL: https://slack.com/api
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Slack Chat Routes Loaded
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Mobile Workflows Routes Loaded at /api/mobile/workflows
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Operations Routes Loaded at /api/operations
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Tools Routes Loaded at /api/tools
+[2026-11-08 13:12:46] [[93mWARNING[0m] [integrations.adapters.line_adapter] LINE adapter not configured or httpx not available
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ LINE Routes Loaded at /api/line (auth-gated)
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✅ Desktop authentication routes enabled (secure API keys)
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✅ Deep linking system enabled
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✅ Debug tenant check system enabled
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Analytics Engine Routes Loaded
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Workflow Import/Export Routes Loaded
+[2026-11-08 13:12:46] [[93mWARNING[0m] [backend.main_api_app] Failed to load Governance Verification routes: No module named 'api.routes.admin'
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ JIT Verification & Admin Governance Routes Loaded
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Workspace Context Routes Loaded
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Governance Manual Fact Entry Routes Loaded
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Queue Monitoring Routes Loaded
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Auto-Dev Review Routes Loaded
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Canvas Skill Integration Routes Loaded
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Business Facts Routes Loaded
+[2026-11-08 13:12:46] [[93mWARNING[0m] [backend.main_api_app] Failed to load Paused Tasks routes: No module named 'api.routes.admin'
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Migration Routes Loaded
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Embedding Routes Loaded
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Tenant Management Routes Loaded
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Federation Routes Loaded
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Local Model Routes Loaded (/api/local-models)
+[2026-11-08 13:12:46] [[93mWARNING[0m] [backend.main_api_app] Failed to load business intelligence routes: No module named 'sales.deal_ingestion_routes'
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Skill Management & Execution Routes Loaded
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Learn Routes Loaded (workflow→skill distillation)
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Admin Skill & Evolution Routes Loaded
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Workflow UI Endpoints Loaded
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Time-Travel Endpoints Loaded
+[2026-11-08 13:12:46] [[93mWARNING[0m] [backend.main_api_app] Test deployed routes not found: No module named 'api.routes.test_deployed_routes'
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Messaging OAuth (BYOK) Routes Loaded
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Explicit Outlook Integration Routes Loaded at /api/integrations/outlook
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Shopify REST routes loaded
+[2026-11-08 13:12:46] [[92mINFO[0m] [integrations.atom_communication_ingestion_pipeline] Configured ingestion for whatsapp
+[2026-11-08 13:12:46] [[92mINFO[0m] [integrations.atom_communication_ingestion_pipeline] Configured ingestion for slack
+[2026-11-08 13:12:46] [[92mINFO[0m] [integrations.atom_communication_ingestion_pipeline] Configured ingestion for email
+[2026-11-08 13:12:46] [[92mINFO[0m] [integrations.atom_communication_ingestion_pipeline] Configured ingestion for telegram
+[2026-11-08 13:12:46] [[92mINFO[0m] [integrations.atom_communication_ingestion_pipeline] Configured ingestion for discord
+[2026-11-08 13:12:46] [[92mINFO[0m] [integrations.atom_communication_ingestion_pipeline] Configured ingestion for sms
+[2026-11-08 13:12:46] [[92mINFO[0m] [integrations.atom_communication_ingestion_pipeline] Configured ingestion for calls
+[2026-11-08 13:12:46] [[92mINFO[0m] [integrations.atom_communication_ingestion_pipeline] Configured ingestion for microsoft_teams
+[2026-11-08 13:12:46] [[92mINFO[0m] [integrations.atom_communication_ingestion_pipeline] Configured ingestion for zoom
+[2026-11-08 13:12:46] [[92mINFO[0m] [integrations.atom_communication_ingestion_pipeline] Configured ingestion for notion
+[2026-11-08 13:12:46] [[92mINFO[0m] [integrations.atom_communication_ingestion_pipeline] Configured ingestion for linear
+[2026-11-08 13:12:46] [[92mINFO[0m] [integrations.atom_communication_ingestion_pipeline] Configured ingestion for outlook
+[2026-11-08 13:12:46] [[92mINFO[0m] [integrations.atom_communication_ingestion_pipeline] Configured ingestion for gmail
+[2026-11-08 13:12:46] [[92mINFO[0m] [integrations.atom_communication_ingestion_pipeline] Configured ingestion for salesforce
+[2026-11-08 13:12:46] [[92mINFO[0m] [integrations.atom_communication_ingestion_pipeline] Configured ingestion for asana
+[2026-11-08 13:12:46] [[92mINFO[0m] [integrations.atom_communication_ingestion_pipeline] Configured ingestion for dropbox
+[2026-11-08 13:12:46] [[92mINFO[0m] [integrations.atom_communication_ingestion_pipeline] Configured ingestion for box
+[2026-11-08 13:12:46] [[92mINFO[0m] [integrations.atom_communication_ingestion_pipeline] Configured ingestion for tableau
+[2026-11-08 13:12:46] [[92mINFO[0m] [integrations.atom_communication_ingestion_pipeline] Configured ingestion for zoho
+[2026-11-08 13:12:46] [[92mINFO[0m] [integrations.atom_communication_ingestion_pipeline] Configured ingestion for xero
+[2026-11-08 13:12:46] [[92mINFO[0m] [integrations.atom_communication_ingestion_pipeline] Configured ingestion for quickbooks
+[2026-11-08 13:12:46] [[93mWARNING[0m] [backend.main_api_app] Razorpay routes not found, skipping: No module named 'api.routes.integrations'
+[2026-11-08 13:12:46] [[93mWARNING[0m] [integrations.trello_service] TrelloService for tenant default...: credentials not found. Service will be disabled.
+[2026-11-08 13:12:46] [[93mWARNING[0m] [root] Enterprise services not available: No module named 'ai_enhanced_service'
+[2026-11-08 13:12:46] [[92mINFO[0m] [integrations.atom_hubspot_integration_service] HubSpot Integration Service initialized
+[2026-11-08 13:12:46] [[93mWARNING[0m] [backend.main_api_app] SageHR routes not found, skipping: No module named 'api.routes.integrations'
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] Loading Slack webhooks...
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Slack webhooks loaded
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] Loading Shopify webhooks...
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Shopify webhooks loaded
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] Loading Twilio webhooks...
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Twilio webhooks loaded
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Standardized Webhook Endpoints Loaded
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Admin Routes Loaded
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ 2FA Routes Loaded
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Board WebSocket channel mounted at /ws/boards/{id}
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ ACP bridge mounted at /acp/ws
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ A2A endpoint mounted at /api/a2 (+ /.well-known/agent-card.json)
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ OIDC SSO mounted at /api/auth/sso/oidc
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ SCIM v2 mounted at /api/scim/v2
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Observability mounted at /api/observability
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ BambooHR integration mounted at /api/bamboohr
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Twitter/X integration mounted at /api/twitter
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ MCP Routes Loaded
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Availability Routes Loaded
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Proposal Routes Loaded
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Supervision-Learning Routes Loaded
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Integrations Catalog Routes Loaded
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Dynamic Options Routes Loaded
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Webhook Routes Loaded
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Universal Auth Routes Loaded
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Meta Compliance Routes Loaded
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Consolidated Hardened WhatsApp Routes Loaded
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ External Integration Routes Loaded
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Connection Management Routes Loaded
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Integration Status Routes Loaded
+[2026-11-08 13:12:46] [[92mINFO[0m] [core.llm.escalation_manager] EscalationManager initialized
+[2026-11-08 13:12:46] [[92mINFO[0m] [core.llm.cognitive_tier_service] CognitiveTierService initialized for workspace: default
+[2026-11-08 13:12:46] [[92mINFO[0m] [integrations.chat_orchestrator] ChatOrchestrator initialized with LLMService for tenant: default
+[2026-11-08 13:12:46] [[92mINFO[0m] [core.llm.escalation_manager] EscalationManager initialized
+[2026-11-08 13:12:46] [[92mINFO[0m] [core.llm.cognitive_tier_service] CognitiveTierService initialized for workspace: default
+[2026-11-08 13:12:46] [[92mINFO[0m] [ai.nlp_engine] NaturalLanguageEngine initialized with LLMService for tenant: default
+[2026-11-08 13:12:46] [[92mINFO[0m] [integrations.slack_enhanced_service] Slack Enhanced Service initialized
+[2026-11-08 13:12:46] [[92mINFO[0m] [integrations.chat_orchestrator] Loaded 0 persisted sessions from file.
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Chat Routes Loaded (incl. /api/chat/feedback, /api/chat/routing-stats)
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Agent Governance Routes Loaded
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ HITL Approvals Alias Routes Loaded (/api/agents/approvals)
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Durable Assignment Routes Loaded (/api/assignments)
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Conversation Learning Routes Loaded (/api/conversation-learning)
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Enterprise User Management Routes Loaded (/api/enterprise/users|roles|teams|workspaces)
+[2026-11-08 13:12:46] [[93mWARNING[0m] [core.atom_saas_client] ATOM_SAAS_API_TOKEN not set - API calls to Atom SaaS may fail
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Workflow Marketplace Routes Loaded (/api/marketplace/*)
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Agent Maturity Journey Routes Loaded (/api/maturity)
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Protection API Routes Loaded (Skill Scanner)
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ User Preference Routes Loaded
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Canvas Terminal Routes Loaded
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Browser Automation Routes Loaded
+{"level": "INFO", "message": "Device WebSocket module loaded - real device communication enabled", "timestamp": "2026-11-08T18:12:46.708432+00:00", "logger": "tools.device_tool", "module": "structured_logger", "function": "_log", "line": 118}
+[2026-11-08 13:12:46] [[92mINFO[0m] [tools.device_tool] Device WebSocket module loaded - real device communication enabled
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Device Capabilities Routes Loaded
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Canvas Recording Routes Loaded
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Autonomy Routes Loaded (action HITL policy)
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Meeting Routes Loaded (attendance tracking)
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Custom Components Routes Loaded
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Canvas Email Routes Loaded (/api/canvas/email)
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Canvas Capability Routes Loaded (/api/canvas/{id}/capability)
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Canvas PDF Routes Loaded (/api/canvas/pdf)
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Installation Profile Routes Loaded (/api/installation)
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Playbook Routes Loaded (/api/playbooks)
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Goal Run Routes Loaded (/api/goal-runs)
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Goal Routes Loaded (/api/goals)
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Usage Analytics Routes Loaded
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Health Monitoring Routes Loaded
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ System Status aggregate mounted at /api/status
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Product profile mounted at /api/product/profile
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Service registry mounted at /api/services/registry
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Ported Features (Canvas/Agent) Processing Complete
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Governance Analytics & Remediation Routes Loaded
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Memory Routes Loaded
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Memory Management Routes Loaded (Consolidation, Archival, Recovery)
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Memory Add-on Routes Loaded (Stripe Billing)
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Document & Data Ingestion Routes Loaded
+[2026-11-08 13:12:46] [[92mINFO[0m] [backend.main_api_app] ✓ Document Hub Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Experience Marketplace Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Agent Marketplace Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Test Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ AI Workflows Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Background Agent Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.core.lancedb_handler] Creating isolated LanceDBHandler for workspace: default_shared at ./data/atom_memory/default_shared
+[2026-11-08 13:12:47] [[92mINFO[0m] [core.llm.escalation_manager] EscalationManager initialized
+[2026-11-08 13:12:47] [[92mINFO[0m] [core.llm.cognitive_tier_service] CognitiveTierService initialized for workspace: default
+[2026-11-08 13:12:47] [[92mINFO[0m] [core.embedding_service] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.core.lancedb_handler] LanceDBHandler initialized. ID: 5466218448. LANCEDB_AVAILABLE: True
+[2026-11-08 13:12:47] [[93mWARNING[0m] [backend.core.lancedb_handler] LanceDB not initialized, chat history disabled
+[2026-11-08 13:12:47] [[93mWARNING[0m] [backend.main_api_app] Integration Data routes not found, skipping: No module named 'api.routes.integrations'
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Integration Data Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Integration & Service Health Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Historical Sync Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Worker Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Component Marketplace Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Agent Coordination Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ OpenClaw Skill Integration Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ OpenClaw Scan Integration Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ OpenClaw Governance Integration Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Skill Composition Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Live Command Center APIs Loaded (Comm, Sales, Projects, Finance)
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Scheduler Routes Loaded (QStash Ready)
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Desktop Bridge Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Satellite Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Mobile Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Invitation Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Support Ticketing Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Bug Triage Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Communication Hub Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Universal Communication Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Document Hub Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Admin Retention Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Billing Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Public Pricing Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Social Media Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Audit Log Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Shell Security Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Consolidated Core Routes Loaded (Intelligence, Marketing, Skills, Memory)
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ BYOK API Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ LLM Gateway Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ MCP Server Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ SSO API Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Feature Flag Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Sandbox Execution Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ External API Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Entity Type Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Entity Query Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Entity Linking Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Ingestion CRUD Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Entity Skill Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Agent Integration Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Meta Agent Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Admin Integration Catalog Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Domain Marketplace Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Agent-Domain Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Agent Marketplace Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Domain-Aware Graduation Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Capability Matrix Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Learning & Adaptation Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Stage Router Management Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Learning Router Management Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Admin Runtime Settings Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ BPE Workspace Admin Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Fleet Router Management Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Decision Plane Management Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Decision Automation Loop Scheduled (mode=off)
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Org-Politics Management Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Org-Politics Automation Loop Scheduled (mode=auto)
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Trust Calibration Routes Loaded (shadow, flag-gated)
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Ontology Draft Automation Routes Loaded
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Core Routes Loaded Successfully
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✓ Microsoft 365 Routes Loaded (isolated)
+[2026-11-08 13:12:47] [[92mINFO[0m] [backend.main_api_app] ✅ Debug endpoints enabled
+------------------------------ Captured log call -------------------------------
+INFO     core.product_profile:product_profile.py:307 core product profile worker defaults: {'ENABLE_SCHEDULER': 'false', 'ENABLE_INGESTION_SYNC': 'false', 'ATOM_AGENT_EVOLUTION_ENABLED': 'false'}
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+core/fleet_orchestration/scaling_proposal_service.py:48
+  /private/tmp/atom-goal-wake-failure-boundary-20261108/backend/core/fleet_orchestration/scaling_proposal_service.py:48: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class ScalingProposal(BaseModel):
+
+core/fleet_orchestration/fleet_scaler_service.py:43
+  /private/tmp/atom-goal-wake-failure-boundary-20261108/backend/core/fleet_orchestration/fleet_scaler_service.py:43: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class ScalingOperation(BaseModel):
+
+core/graphrag_engine.py:203
+  /private/tmp/atom-goal-wake-failure-boundary-20261108/backend/core/graphrag_engine.py:203: SyntaxWarning: "\%" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\%"? A raw string is also an option.
+    Escaped pattern where % and _ are escaped to \%
+
+../../root-py311-plugins/pytest_freezegun.py:17: 462 warnings
+  /private/tmp/root-py311-plugins/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_contribution_credit_evidence_boundary.py: 2 warnings
+tests/test_contribution_credit_p4.py: 3 warnings
+tests/test_fleet_credit_receipt_integration.py: 7 warnings
+tests/test_fleet_credit_actual_producer_boundary.py: 1 warning
+  /private/tmp/atom-goal-wake-failure-boundary-20261108/backend/core/contribution_credit.py:740: DeprecationWarning: datetime.datetime.utcnow() is deprecated and scheduled for removal in a future version. Use timezone-aware objects to represent datetimes in UTC: datetime.datetime.now(datetime.UTC).
+    "applied_at": datetime.utcnow().isoformat(),
+
+tests/test_orch02_fleet_contract.py: 7 warnings
+tests/test_orch02_specialist_response.py: 12 warnings
+tests/test_orch07_fleet_audit_consumer.py: 3 warnings
+tests/test_orch07_fleet_binding_contract.py: 1 warning
+  /private/tmp/atom-goal-wake-failure-boundary-20261108/backend/core/lancedb_handler.py:407: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    names = set(self.db.table_names())
+
+tests/test_orch02_fleet_contract.py: 14 warnings
+tests/test_orch02_specialist_response.py: 24 warnings
+tests/test_orch07_fleet_audit_consumer.py: 6 warnings
+tests/test_orch07_fleet_binding_contract.py: 2 warnings
+  /Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/asyncio/events.py:94: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    self._context.run(self._callback, *self._args)
+
+tests/test_orch02_fleet_contract.py: 7 warnings
+tests/test_orch02_specialist_response.py: 12 warnings
+tests/test_orch07_fleet_audit_consumer.py: 3 warnings
+tests/test_orch07_fleet_binding_contract.py: 1 warning
+  /private/tmp/atom-goal-wake-failure-boundary-20261108/backend/core/lancedb_handler.py:620: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    if table_name in self.db.table_names():
+
+tests/test_orch02_specialist_response.py::test_chat_handler_returns_specialist_work_as_user_message
+  /private/tmp/atom-goal-wake-failure-boundary-20261108/backend/core/token_storage.py:17: DeprecationWarning: token_storage is deprecated. Use ConnectionService instead.
+    warnings.warn("token_storage is deprecated. Use ConnectionService instead.", DeprecationWarning)
+
+tests/test_outcome_verification.py::TestGraduationVerifiedGating::test_verified_success_increments_verified_counter
+  /private/tmp/atom-goal-wake-failure-boundary-20261108/backend/tests/test_outcome_verification.py:264: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+    stats = db.query(AgentRegistry).get("ag-grad").configuration["capability_stats"]["cap1"]
+
+tests/test_outcome_verification.py::TestGraduationVerifiedGating::test_unverified_success_does_not_increment_verified
+  /private/tmp/atom-goal-wake-failure-boundary-20261108/backend/tests/test_outcome_verification.py:277: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+    stats = db.query(AgentRegistry).get("ag-grad").configuration["capability_stats"]["cap1"]
+
+tests/test_outcome_verification.py::TestGraduationVerifiedGating::test_failed_verification_does_not_increment_verified
+  /private/tmp/atom-goal-wake-failure-boundary-20261108/backend/tests/test_outcome_verification.py:340: LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
+    stats = db.query(AgentRegistry).get("ag-grad").configuration["capability_stats"]["cap1"]
+
+tests/test_final_audit_fixes.py::TestFreshInstallSchemaCreation::test_startup_calls_create_all
+  /private/tmp/atom-goal-wake-failure-boundary-20261108/backend/api/routes/ingestion_crud_routes.py:26: PydanticDeprecatedSince20: Support for class-based `config` is deprecated, use ConfigDict instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    class DiscoveredEntityResponse(BaseModel):
+
+tests/test_final_audit_fixes.py::TestFreshInstallSchemaCreation::test_startup_calls_create_all
+  /private/tmp/atom-goal-wake-failure-boundary-20261108/backend/api/routes/ingestion_crud_routes.py:102: PydanticDeprecatedSince20: `min_items` is deprecated and will be removed, use `min_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    entity_ids: List[UUID] = Field(..., min_items=1, description="List of entity UUIDs to delete")
+
+tests/test_final_audit_fixes.py::TestFreshInstallSchemaCreation::test_startup_calls_create_all
+  /private/tmp/atom-goal-wake-failure-boundary-20261108/backend/integrations/whatsapp_fastapi_routes.py:49: PydanticDeprecatedSince20: `max_items` is deprecated and will be removed, use `max_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    recipients: List[str] = Field(
+
+tests/test_final_audit_fixes.py::TestFreshInstallSchemaCreation::test_startup_calls_create_all
+  /private/tmp/atom-goal-wake-failure-boundary-20261108/backend/api/episode_routes.py:397: FastAPIDeprecationWarning: `regex` has been deprecated, please use `pattern` instead
+    canvas_context_detail: str = Query("summary", regex="^(summary|standard|full)$"),
+
+tests/test_final_audit_fixes.py::TestFreshInstallSchemaCreation::test_startup_calls_create_all
+  /private/tmp/atom-goal-wake-failure-boundary-20261108/backend/api/admin_routes.py:202: PydanticDeprecatedSince20: Using extra keyword arguments on `Field` is deprecated and will be removed. Use `json_schema_extra` instead. (Extra keys: 'unique'). Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    name: str = Field(..., min_length=1, max_length=100, unique=True, description="Role name (must be unique)")
+
+tests/test_final_audit_fixes.py::TestFreshInstallSchemaCreation::test_startup_calls_create_all
+  /private/tmp/atom-goal-wake-failure-boundary-20261108/backend/api/admin_routes.py:1017: PydanticDeprecatedSince20: `min_items` is deprecated and will be removed, use `min_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    conflict_ids: List[int] = Field(..., min_items=1, max_items=100, description="List of conflict IDs to resolve (max 100)")
+
+tests/test_final_audit_fixes.py::TestFreshInstallSchemaCreation::test_startup_calls_create_all
+  /private/tmp/atom-goal-wake-failure-boundary-20261108/backend/api/admin_routes.py:1017: PydanticDeprecatedSince20: `max_items` is deprecated and will be removed, use `max_length` instead. Deprecated in Pydantic V2.0 to be removed in V3.0. See Pydantic V2 Migration Guide at https://errors.pydantic.dev/2.13/migration/
+    conflict_ids: List[int] = Field(..., min_items=1, max_items=100, description="List of conflict IDs to resolve (max 100)")
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_outcome_verification.py::TestDeriveOutcome::test_all_succeeded
+FAILED tests/test_final_audit_fixes.py::TestFreshInstallSchemaCreation::test_startup_calls_create_all
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+============ 2 failed, 229 passed, 587 warnings in 94.29s (0:01:34) ============

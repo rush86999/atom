@@ -1,0 +1,49 @@
+FFFF                                                                     [100%]
+=================================== FAILURES ===================================
+___________ test_correction_earns_ladder_from_new_successes_only[5] ____________
+../../root_credit_epoch_extended_probe_20261108.py:27: in test_correction_earns_ladder_from_new_successes_only
+    assert service.get_maturity('agent-revocation-1','canvas_edit')==expected
+E   AssertionError: assert 'intern' == 'student'
+E     
+E     - student
+E     + intern
+___________ test_correction_earns_ladder_from_new_successes_only[25] ___________
+../../root_credit_epoch_extended_probe_20261108.py:27: in test_correction_earns_ladder_from_new_successes_only
+    assert service.get_maturity('agent-revocation-1','canvas_edit')==expected
+E   AssertionError: assert 'intern' == 'student'
+E     
+E     - student
+E     + intern
+___________ test_correction_earns_ladder_from_new_successes_only[50] ___________
+../../root_credit_epoch_extended_probe_20261108.py:27: in test_correction_earns_ladder_from_new_successes_only
+    assert service.get_maturity('agent-revocation-1','canvas_edit')==expected
+E   AssertionError: assert 'intern' == 'student'
+E     
+E     - student
+E     + intern
+_________ test_old_receipt_is_not_new_work_after_reentry_marker_clears _________
+../../root_credit_epoch_extended_probe_20261108.py:50: in test_old_receipt_is_not_new_work_after_reentry_marker_clears
+    assert cfg['capability_maturities'][action]=='intern'
+E   AssertionError: assert 'student' == 'intern'
+E     
+E     - intern
+E     + student
+=============================== warnings summary ===============================
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+  /private/tmp/root-py311-plugins/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED ../../root_credit_epoch_extended_probe_20261108.py::test_correction_earns_ladder_from_new_successes_only[5]
+FAILED ../../root_credit_epoch_extended_probe_20261108.py::test_correction_earns_ladder_from_new_successes_only[25]
+FAILED ../../root_credit_epoch_extended_probe_20261108.py::test_correction_earns_ladder_from_new_successes_only[50]
+FAILED ../../root_credit_epoch_extended_probe_20261108.py::test_old_receipt_is_not_new_work_after_reentry_marker_clears
+4 failed, 8 warnings in 6.09s

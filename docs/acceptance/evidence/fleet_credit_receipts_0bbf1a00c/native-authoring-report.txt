@@ -1,0 +1,55 @@
+I'll start by reading the work orders.
+
+Now I'll implement the CAS-based configuration writer in the graduation service.
+
+Implemented the v2 transaction/recovery revisions in the allowed public copies only.
+
+## Changed files
+
+Production:
+- `backend/core/capability_graduation_service.py`
+- `backend/core/contribution_credit.py`
+- `backend/core/fleet_orchestration/fleet_routing_stats.py`
+- `backend/core/fleet_admiral.py`
+
+Tests:
+- `backend/tests/test_fleet_credit_receipt_integration.py`
+
+`backend/core/generic_agent.py` was not changed.
+
+## What changed
+
+- Replaced `with_for_update()` / `populate_existing()` with a real database CAS:
+  - conditional `UPDATE` over the exact observed physical JSON value
+  - distinguishes SQL `NULL` from JSON `null`
+  - bounded reload/retry, fail-closed after contention
+  - shared by `record_usage`, the verified-regression writer, and `reset_maturity`
+- Borrowed-session handling now treats any active transaction or pending edit as caller-owned, including already-flushed edits:
+  - uses an independent owned session when the engine can provide one
+  - explicitly refuses when it cannot, without committing, rolling back, expiring, or flushing caller state
+  - no longer borrows a caller transaction for receipt consumption
+- Receipt + counter update remains transactional:
+  - if the capability counter CAS cannot be applied, the receipt savepoint is rolled back
+  - recovery can still apply a missing credit later
+- Fleet child dispatch now persists the full specialist output inside the succeeded `TaskOperationRecord` claim, written in the same conditional state transition.
+- A lost chain cache/link result now recovers that full output from the succeeded claim without re-dispatching and without using truncated `output_summary`.
+- Fleet finalizer no longer credits an ambiguous nonunique audit join; it requires one exact audit id and now reports multi-row joins as `conflict`.
+- Added tests for:
+  - real Oracle positive, same-run and fresh-session replay
+  - forged/raw verification flags
+  - scope/ambiguity/shadow refusal
+  - distinct outcomes and missing-credit recovery
+  - forced SQLite stale-writer vs peer revocation CAS race
+  - dirty, flushed, new, and deleted caller objects
+  - full specialist output recovery without redispatch
+  - ambiguous finalizer joins
+
+## Remaining risks — not qualified
+
+- I did not run tests, imports, Python compilation, servers, or any runtime probe, per instructions. Runtime/syntax qualification remains with Root.
+- SQLite snapshot/`database is locked` contention during a borrowed active transaction fails closed: the credit may be deferred to a later recovery pass rather than immediately retried.
+- Independent writing is refused for Connection-bound sessions and `StaticPool`/`SingletonThreadPool` engines when the caller already owns transaction state.
+- Child claims created before this change do not contain the full output; such legacy loss cases remain honestly unresolved and are not re-dispatched.
+- CAS uses `CAST(configuration AS TEXT)` equality; behavior on PostgreSQL JSONB text normalization was not executed here.
+- The child binding still includes `actor_id`; a resume presenting a different authenticated user becomes a claim conflict rather than a replay.
+- Full specialist output is now stored at rest in `task_operation_records.result_json`; it is not logged, but sensitivity is a data-at-rest consideration.

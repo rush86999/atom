@@ -1,0 +1,65 @@
+{
+  "status": "submitted_for_independent_review_not_self_accepted",
+  "executed_source": "0328d06300f54700411f0c768fadef2b62042d42",
+  "pr": 787,
+  "scope": "Legacy compatibility entries never manufacture verified capability credit; genuine durable fleet receipt consumption remains supported.",
+  "runtime_change": "apply_credit remains unverified usage accounting. No production caller found; the real fleet path uses record_chain_credit and remains positively tested.",
+  "runs": [
+    {
+      "label": "original-negative",
+      "executed_source": "6995ece6cc1d7243f2874acd3d7221e96ba6cec7",
+      "actual_exit": 1,
+      "artifact": "runs/original-negative.log",
+      "result": "1 failed; invented receipt label earned unsupported verified credit"
+    },
+    {
+      "label": "successor-311",
+      "executed_source": "0328d06300f54700411f0c768fadef2b62042d42",
+      "actual_exit": 0,
+      "artifact": "runs/successor-311.log",
+      "result": "76 passed"
+    },
+    {
+      "label": "successor-314",
+      "executed_source": "0328d06300f54700411f0c768fadef2b62042d42",
+      "actual_exit": 0,
+      "artifact": "runs/successor-314.log",
+      "result": "76 passed"
+    }
+  ],
+  "source_files_identical_to_broader_tested_predecessor": [
+    "backend/core/capability_graduation_service.py",
+    "backend/core/fleet_admiral.py",
+    "backend/core/fleet_orchestration/fleet_routing_stats.py",
+    "backend/core/generic_agent.py",
+    "backend/tests/test_capability_credit_cas_boundary.py",
+    "backend/tests/test_contribution_credit_evidence_boundary.py",
+    "backend/tests/test_fleet_credit_actual_producer_boundary.py",
+    "backend/tests/test_fleet_credit_receipt_integration.py",
+    "backend/tests/test_fleet_credit_scope_boundary.py"
+  ],
+  "historical_predecessor": "docs/acceptance/evidence/fleet_credit_receipts_0bbf1a00c/ at evidence commit 6995ece6c; 229 passed/2 known failures per runtime remains attributed to 0bbf1a00c, not this successor.",
+  "successor_gate_breakdown": {
+    "focused": 49,
+    "ci_preservation": 27,
+    "total_per_runtime": 76,
+    "python_versions": [
+      "3.11",
+      "3.14"
+    ]
+  },
+  "no_positive_shortcut": "Real FleetAdmiral/GenericAgent wrapper/mutation/Oracle readback/durable execution/credit positive remains in gate; one effect and one credit on replay. Controlled decision driver and preapproved tool governance exclude model judgment and authorization qualification.",
+  "limits": [
+    "Feature off by default",
+    "No PostgreSQL runtime, multi-worker or soak qualification",
+    "No general adaptive judgment or whole-app completion claim",
+    "No live provider/business effect, credential change, spend or deployment"
+  ],
+  "historical_metrics_unchanged": {
+    "historical": "111/123",
+    "planner": "5/5",
+    "goal_router": "1/2",
+    "alignment_gap": 3.0
+  },
+  "full_app_goal": "open"
+}

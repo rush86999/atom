@@ -217,6 +217,10 @@
       "run": "python -m pytest tests/test_autonomy_revocation.py tests/test_capability_revocation_epoch.py -q --tb=short --timeout=300 --timeout-method=thread\n"
     },
     {
+      "name": "Run verifier-backed fleet contribution credit controls",
+      "run": "python -m pytest tests/test_contribution_credit_p4.py tests/test_contribution_credit_evidence_boundary.py tests/test_fleet_credit_receipt_integration.py tests/test_capability_credit_cas_boundary.py tests/test_fleet_credit_actual_producer_boundary.py tests/test_fleet_credit_scope_boundary.py tests/test_contribution_credit_legacy_boundary.py tests/test_capability_correction_epoch.py tests/test_fleet_credit_epoch_atomic.py tests/test_capability_correction_independent.py tests/test_fleet_credit_epoch_independent.py tests/test_capability_epoch_extended_independent.py tests/test_autonomy_policy_gate.py -q --tb=short --timeout=300 --timeout-method=thread\n"
+    },
+    {
       "name": "Run cache benchmark reproducer contract",
       "timeout-minutes": 3,
       "env": {

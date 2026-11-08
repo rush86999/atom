@@ -1,0 +1,22 @@
+F                                                                        [100%]
+=================================== FAILURES ===================================
+_____________ test_stale_success_cannot_erase_committed_regression _____________
+../../root_capability_credit_cas_probe_20261108.py:31: in test_stale_success_cannot_erase_committed_regression
+    assert cfg['capability_stats']['canvas_edit'].get('failures_verified', 0) == 1
+E   AssertionError: assert 0 == 1
+E    +  where 0 = <built-in method get of dict object at 0x10dbf6040>('failures_verified', 0)
+E    +    where <built-in method get of dict object at 0x10dbf6040> = {'success': 26, 'total': 26, 'verified_success': 26, 'last_outcome_at': '2026-11-08T17:36:28.947576+00:00'}.get
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../root-py311-plugins/pytest_freezegun.py:17
+../../root-py311-plugins/pytest_freezegun.py:17
+  /private/tmp/root-py311-plugins/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED ../../root_capability_credit_cas_probe_20261108.py::test_stale_success_cannot_erase_committed_regression
+1 failed, 3 warnings in 1.60s

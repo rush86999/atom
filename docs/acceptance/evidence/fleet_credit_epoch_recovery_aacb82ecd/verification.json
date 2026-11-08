@@ -1,0 +1,116 @@
+{
+  "status": "submitted_for_independent_review_not_self_accepted",
+  "executed_source": "aacb82ecdce1b8fc39bb42c763ce124f311fa134",
+  "pr": 787,
+  "runs": [
+    {
+      "label": "weak-reset-check",
+      "harness_source": "4065930f22252d132e59082fa336538c97993073",
+      "actual_exit": 0,
+      "summary": "1 passed, 2 warnings in 2.34s",
+      "artifact": "runs/weak-reset-check.log"
+    },
+    {
+      "label": "runtime-reset-negative",
+      "harness_source": "4065930f22252d132e59082fa336538c97993073",
+      "actual_exit": 1,
+      "summary": "1 failed, 2 warnings in 2.33s",
+      "artifact": "runs/runtime-reset-negative.log"
+    },
+    {
+      "label": "accepted-counter-negative",
+      "harness_source": "4065930f22252d132e59082fa336538c97993073",
+      "actual_exit": 1,
+      "summary": "1 failed, 2 warnings in 2.31s",
+      "artifact": "runs/accepted-counter-negative.log"
+    },
+    {
+      "label": "receipt-epoch-race-negative",
+      "harness_source": "4065930f22252d132e59082fa336538c97993073",
+      "actual_exit": 1,
+      "summary": "1 failed, 2 warnings in 3.75s",
+      "artifact": "runs/receipt-epoch-race-negative.log"
+    },
+    {
+      "label": "extended-epoch-negative",
+      "harness_source": "4065930f22252d132e59082fa336538c97993073",
+      "actual_exit": 1,
+      "summary": "4 failed, 8 warnings in 6.09s",
+      "artifact": "runs/extended-epoch-negative.log"
+    },
+    {
+      "label": "native-proposal",
+      "harness_source": "4dbd000f571de2e22d96118883237850930df024",
+      "actual_exit": 1,
+      "summary": "============ 1 failed, 90 passed, 190 warnings in 60.62s (0:01:00) =============",
+      "artifact": "runs/native-proposal.log"
+    },
+    {
+      "label": "persistent-clock-initial",
+      "harness_source": "1291bf4b87da65a4a2524498ee90288be8bc47f0",
+      "actual_exit": 1,
+      "summary": "============ 1 failed, 109 passed, 228 warnings in 72.37s (0:01:12) ============",
+      "artifact": "runs/persistent-clock-initial.log"
+    },
+    {
+      "label": "utc-normalization-initial",
+      "harness_source": "63c8990125855be0b77ab195131d0ecb55cdf607",
+      "actual_exit": 1,
+      "summary": "============ 1 failed, 118 passed, 246 warnings in 80.07s (0:01:20) ============",
+      "artifact": "runs/utc-normalization-initial.log"
+    },
+    {
+      "label": "final-311",
+      "harness_source": "aacb82ecdce1b8fc39bb42c763ce124f311fa134",
+      "actual_exit": 0,
+      "summary": "================ 159 passed, 326 warnings in 121.65s (0:02:01) =================",
+      "artifact": "runs/final-311.log"
+    },
+    {
+      "label": "final-314",
+      "harness_source": "aacb82ecdce1b8fc39bb42c763ce124f311fa134",
+      "actual_exit": 0,
+      "summary": "================= 159 passed, 369 warnings in 77.77s (0:01:17) =================",
+      "artifact": "runs/final-314.log"
+    }
+  ],
+  "final_result": {
+    "python311": 159,
+    "python314": 159,
+    "exit_codes": [
+      0,
+      0
+    ],
+    "scope": "Controlled scratch SQLite, correction and regression epochs, unique receipt credit, current scope/caller transaction boundaries and GenericAgent Oracle mutation controls."
+  },
+  "important_attribution": [
+    "Weak first reset probe checked final tier only; a pass did not prove runtime autonomy-cycle safety. Stronger cycle and fresh-ladder probes refuted it.",
+    "Accepted-main counter was loaded into current scratch harness; this is not a whole-main checkout or whole-app baseline. Exact module source/hash retained.",
+    "Native source authoring fixed the initial reset and atomic snapshot cases without running tests. Root extended probes refuted the post-marker case; root persisted epoch cutoffs and normalized UTC.",
+    "Retained scratch rows proved whole-second SQL timestamps could not order same-second dispatches around microsecond corrections. No cutoff rounding was used.",
+    "Fresh Oracle success now stores server-owned precise dispatch and verification clocks/version in the existing operation receipt. Replay does not refresh these. Strict version/type/completeness/order checks refuse contradictions; legacy coarse/unknown clocks do not earn unsupported fresh credit.",
+    "All predecessor packets and failed logs remain at their actual source identities. Earlier 229-pass/2-known-failure affected selection is not reattributed to this source."
+  ],
+  "positive_requirements": [
+    "Human correction retains lifetime counts but requires NEW 5/20/50 successes; does not fabricate regression failures.",
+    "Verified regression keeps its existing 20-new-success reentry requirement.",
+    "Peer regression between eligibility and consumption refuses stale snapshot/receipt; recovery rechecks and replay does not double-credit.",
+    "Old receipts remain ineligible after active marker removal; genuinely fresh real SQL/Oracle results still re-enter.",
+    "Unknown legacy epoch clocks anchor without crediting the unknown observation; future post-anchor proof remains eligible.",
+    "Real fleet/GenericAgent public wrapper/claim/recorder/Oracle/credit positive remains, using deterministic decision driver and preapproved tool governance."
+  ],
+  "limitations": [
+    "Flag remains off by default",
+    "Counter/receipt integrity is not general model competence or universal autonomy qualification",
+    "No PostgreSQL runtime, multi-worker, soak or served multi-model qualification",
+    "Controlled local effects only; no live provider/business/credential/spend/deployment action",
+    "No new table, store, router or approval lifecycle"
+  ],
+  "historical_metrics_unchanged": {
+    "historical": "111/123",
+    "planner": "5/5",
+    "goal_router": "1/2",
+    "alignment_gap": 3.0
+  },
+  "full_app_goal": "open"
+}
