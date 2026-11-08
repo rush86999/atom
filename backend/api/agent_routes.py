@@ -1657,12 +1657,6 @@ def _execution_outcome(
 
     raw = _safe_outcome_token(result.get("status"), default="")
     requires_reconciliation = bool(result.get("requires_reconciliation"))
-    # A producer-owned terminal actor/scope denial is a proven no-effect
-    # refusal. It outranks a later success/uncertain label from the model or a
-    # survivor of a parallel batch.
-    if result.get("terminal_authority_denial") is True:
-        return failed(
-            "blocked", "execution_authority_denied", "review_authority")
     contradictory = bool(
         raw in _RESULT_SUCCESS_STATUSES
         and (
@@ -1674,6 +1668,12 @@ def _execution_outcome(
         return failed(
             raw or "uncertain", "execution_uncertain",
             "reconcile_operation", requires=True)
+    # A producer-owned terminal actor/scope denial is a proven no-effect
+    # refusal for that operation. Earlier uncertain effects still require
+    # reconciliation and must not be hidden by a later authority denial.
+    if result.get("terminal_authority_denial") is True:
+        return failed(
+            "blocked", "execution_authority_denied", "review_authority")
     if contradictory:
         return failed(
             "contradictory", "execution_contradictory",

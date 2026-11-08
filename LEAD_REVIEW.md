@@ -1037,3 +1037,13 @@ The inherited `e13bb21e3` root probe is unchanged.
   model semantic failure nor model success; no new evaluator or store.
 - Root must reexecute `root-bpe-actor-outcome-negative` and the affected gates
   at the committed head. No passing result is claimed here.
+
+
+## Root follow-through: uncertainty precedence
+
+The delivered 39174dbe9 controls passed 19/19 on Python 3.14, including
+the original public active/revoked actor twins. Review then found that the
+public mapper placed authority denial before an earlier uncertain effect.
+Moved that check after reconciliation classification: a proven no-effect
+refusal for the later operation cannot certify an earlier operation as absent.
+The new targeted regression passed 1/1; full affected verification is pending.

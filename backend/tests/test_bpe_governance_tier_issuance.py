@@ -641,3 +641,17 @@ def test_public_note_respects_actor_revocation_after_real_review(
                 for entry in trace), capture
     finally:
         reset_registry()
+
+
+def test_terminal_denial_does_not_hide_prior_uncertain_effect():
+    from api.agent_routes import _execution_outcome
+
+    outcome = _execution_outcome({
+        "status": "blocked",
+        "terminal_authority_denial": True,
+        "requires_reconciliation": True,
+        "uncertain_operations": [{"operation_id": "earlier-effect"}],
+    })
+    assert outcome["requires_reconciliation"] is True
+    assert outcome["reason"] == "execution_uncertain"
+    assert outcome["next_action"] == "reconcile_operation"
