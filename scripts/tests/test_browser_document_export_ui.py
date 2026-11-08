@@ -1129,3 +1129,31 @@ def test_launcher_binds_mutable_office_paths_to_its_run(driver, tmp_path, monkey
     monkeypatch.setattr(driver.R.subprocess, "Popen", inspect_dispatch)
     with pytest.raises(StoppedBeforeDispatch):
         driver.R.launch_server(8057, world, provider_shim=False, reuse_run_dir=reused)
+
+
+def test_fresh_upload_prediction_uses_golden_raw_scope_contract(driver):
+    assert driver._expected_scoped_upload_id(
+        "New document π\n", {"route_workspace_id": None, "raw_tenant_id": None}
+    ) == "doc_1fbd7d02963c62cac7e3026f"
+
+
+def test_fresh_upload_prediction_never_collapses_namespace_material(driver):
+    scopes = [None, "", "default", "Scope-01", "scope-01", "Scope01", "Scope-1"]
+    ids = {
+        driver._expected_scoped_upload_id(
+            "same text", {"route_workspace_id": workspace, "raw_tenant_id": tenant})
+        for workspace in scopes for tenant in scopes
+    }
+    assert len(ids) == len(scopes) ** 2
+
+
+@pytest.mark.parametrize("actor", [
+    {}, {"route_workspace_id": None}, {"raw_tenant_id": None},
+    {"route_workspace_id": False, "raw_tenant_id": None},
+    {"route_workspace_id": None, "raw_tenant_id": 1},
+    {"route_workspace_id": [], "raw_tenant_id": None},
+    {"route_workspace_id": "w", "raw_tenant_id": {}},
+])
+def test_fresh_upload_prediction_refuses_unknown_or_malformed_scope(driver, actor):
+    with pytest.raises(driver.DriverError, match="exact known route scope"):
+        driver._expected_scoped_upload_id("same text", actor)

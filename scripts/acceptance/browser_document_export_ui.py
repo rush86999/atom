@@ -311,6 +311,25 @@ def _fixture_document(run_id: str) -> Tuple[str, str, str]:
     return filename, text, tail
 
 
+def _expected_scoped_upload_id(text: str, actor: Dict[str, Any]) -> str:
+    """Independently predict a fresh scoped upload from pre-upload SQL scope.
+
+    This fixture has never been uploaded before. Legacy-id adoption is tested
+    separately by the API controls, not inferred from an upload response here.
+    Known SQL NULL remains distinct from a missing identity or literal default.
+    """
+    required = ("route_workspace_id", "raw_tenant_id")
+    if not isinstance(text, str) or not isinstance(actor, dict) or any(
+            key not in actor or (actor[key] is not None and not isinstance(actor[key], str))
+            for key in required):
+        raise DriverError("expected upload identity requires exact known route scope")
+    material = json.dumps(
+        {"content": text, "workspace_id": actor["route_workspace_id"],
+         "tenant_id": actor["raw_tenant_id"]},
+        ensure_ascii=False, separators=(",", ":"), sort_keys=True)
+    return "doc_" + _sha256_text(material)[:24]
+
+
 def _expected_download_name(title: str, export_format: str,
                             doc_id: str) -> str:
     stem = re.sub(r"\.[a-z0-9]{1,8}$", "", str(title or ""), flags=re.I)
@@ -2952,13 +2971,6 @@ def _run_execute(args: argparse.Namespace) -> int:
     fixture_path = fixture_dir / fixture_filename
     fixture_path.write_bytes(fixture_text.encode("utf-8"))
     expected_version = f"ev4:{_sha256_text(fixture_text)}"
-    expected_doc_id = "doc_" + _sha256_text(fixture_text)[:24]
-    expected_filename = _expected_download_name(
-        fixture_filename, "text", expected_doc_id)
-    expected_markdown_name = _expected_download_name(
-        fixture_filename, "markdown", expected_doc_id)
-    expected_json_name = _expected_download_name(
-        fixture_filename, "json", expected_doc_id)
 
     run_marker = {
         "schema": "atom-document-stored-export-ui-run-1",
@@ -3332,6 +3344,20 @@ def _run_execute(args: argparse.Namespace) -> int:
                 raise DriverError("authenticated public identity read failed")
             me_body = me_response.json()
             actor = _actor_scope(db_path, me_body)
+            expected_doc_id = _expected_scoped_upload_id(fixture_text, actor)
+            expected_filename = _expected_download_name(
+                fixture_filename, "text", expected_doc_id)
+            expected_markdown_name = _expected_download_name(
+                fixture_filename, "markdown", expected_doc_id)
+            expected_json_name = _expected_download_name(
+                fixture_filename, "json", expected_doc_id)
+            scenario["expected_upload_identity"] = {
+                "id": expected_doc_id,
+                "workspace_id": actor["route_workspace_id"],
+                "tenant_id": actor["raw_tenant_id"],
+                "computed_before_upload": True,
+                "basis": "synthetic fixture + exact SQL-bound route scope, not upload response",
+            }
             scenario["actor_scope"] = actor
             scenario["api_login"] = login_meta
             step("bootstrap_account_and_null_default_scope_bound", {
@@ -3479,7 +3505,7 @@ def _run_execute(args: argparse.Namespace) -> int:
                 step("ordinary_txt_upload_returns_bound_document_identity", {
                     "http_2xx": 200 <= upload_status < 300,
                     "doc_id_present": bool(doc_id),
-                    "doc_id_is_content_key": (
+                    "doc_id_is_scoped_content_key": (
                         doc_id == expected_doc_id),
                     "doc_id_format": bool(DOC_ID_RE.fullmatch(doc_id)),
                     "title_is_uploaded_filename": (
