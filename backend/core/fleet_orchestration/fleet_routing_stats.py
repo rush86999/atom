@@ -420,7 +420,25 @@ def record_fleet_execution_outcome(
             try:
                 from core.contribution_credit import record_chain_credit
 
-                record_chain_credit(execution_id)
+                # Pass the EXACT audit row (when known) plus the authenticated
+                # scope that was just joined. The credit consumer treats these
+                # as assertions against the audit/execution rows, never as
+                # substitute authority.
+                credit_audit_id = audit_id
+                if not credit_audit_id:
+                    for candidate in (
+                            list(result.get("applied") or [])
+                            + list(result.get("already_applied") or [])):
+                        if str(candidate) != str(execution_id):
+                            credit_audit_id = str(candidate)
+                            break
+                record_chain_credit(
+                    execution_id,
+                    audit_id=credit_audit_id,
+                    tenant_id=auth_tenant,
+                    workspace_id=auth_workspace,
+                    agent_id=auth_agent,
+                )
             except Exception as cc_err:
                 logger.debug("contribution credit skipped: %s", cc_err)
         return result

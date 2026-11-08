@@ -93,6 +93,10 @@ class GenericAgent:
         self.name = agent_model.name
         self.config = agent_model.configuration or {}
         self.workspace_id = workspace_id
+        # Keep the registry's authenticated tenant on the runtime object so
+        # child AgentExecution/operation receipts are not written as "default"
+        # (and can be joined back to the fleet scope exactly).
+        self.tenant_id = getattr(agent_model, "tenant_id", None)
         self.vision_enabled = getattr(agent_model, "vision_enabled", False)
         self.last_screenshot: Optional[str] = None # Base64 data
 
@@ -1025,6 +1029,10 @@ class GenericAgent:
             "output": final_answer,
             "steps": steps,
             "status": status,
+            # Server-owned durable identity for this child run. Callers must
+            # persist this exact id on their link/outcome rather than infer it
+            # from the transient result text.
+            "execution_id": _run_uuid,
             "stuck_reason": stuck_reason,
             "complexity": complexity.value,
             "step_efficiency": step_efficiency,

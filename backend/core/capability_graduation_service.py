@@ -64,6 +64,9 @@ class CapabilityGraduationService:
         capability_name: str,
         success: bool,
         verified: str = "unverified",
+        *,
+        commit: bool = True,
+        lock: bool = True,
     ):
         """
         Record usage of a capability to progress maturity.
@@ -77,10 +80,29 @@ class CapabilityGraduationService:
                 Unverified successes still count in the denominator (they
                 *lower* the success ratio), so silent no-ops cannot inflate
                 capability stats (general critique, fixed).
+            commit: When False the caller owns the surrounding transaction
+                (used by the fleet credit receipt consumer so the receipt and
+                this counter update commit together).
+            lock: Serialize the read/modify/write of the JSON configuration
+                where the database supports row locks. This keeps a concurrent
+                verified regression/revocation from being overwritten by a
+                stale credit writer.
         """
-        agent = self.db.query(AgentRegistry).filter(
+        query = self.db.query(AgentRegistry).filter(
             AgentRegistry.id == agent_id
-        ).first()
+        )
+        if lock:
+            try:
+                query = query.with_for_update()
+                # Refresh any entity already in the identity map; otherwise a
+                # stale pre-regression copy could overwrite a peer's committed
+                # revocation marker with an old configuration blob.
+                query = query.populate_existing()
+            except Exception:
+                # Legacy/mock sessions may not expose FOR UPDATE; correctness
+                # then falls back to the database's normal write serialization.
+                pass
+        agent = query.first()
 
         if not agent:
             return
@@ -194,7 +216,8 @@ class CapabilityGraduationService:
                 # Autonomous requires high confidence
                 self._update_maturity(agent, capability_name, CapabilityMaturityLevel.AUTONOMOUS)
 
-        self.db.commit()
+        if commit:
+            self.db.commit()
 
     def reset_maturity(self, agent_id: str, capability_name: str, reason: str):
         """Reset capability maturity to STUDENT level."""

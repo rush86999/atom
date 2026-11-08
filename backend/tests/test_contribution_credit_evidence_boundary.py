@@ -8,7 +8,12 @@ from copy import deepcopy
 from sqlalchemy.orm import sessionmaker
 
 from core.contribution_credit import compute_chain_credit, record_chain_credit
-from core.models import AgentRegistry, DelegationChain, FleetRoutingAudit
+from core.models import (
+    AgentExecution,
+    AgentRegistry,
+    DelegationChain,
+    FleetRoutingAudit,
+)
 from tests.test_contribution_credit_p4 import chain_db, _seed_fleet
 
 
@@ -20,6 +25,11 @@ def _completed_without_verifier(db):
     audit.agent_id = "atom_main"
     audit.success = True
     audit.enforced = True
+    audit.decision_source = "fleet_eligible"
+    if db.get(AgentExecution, "exec-9") is None:
+        db.add(AgentExecution(
+            id="exec-9", agent_id="atom_main", tenant_id="t1",
+            workspace_id="w1", status="completed"))
     chain = db.query(DelegationChain).filter_by(id="chain-1").one()
     chain.status = "completed"
     chain.metadata_json = {"workspace_id": "w1"}
