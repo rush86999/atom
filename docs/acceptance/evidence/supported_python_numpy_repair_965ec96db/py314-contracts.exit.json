@@ -1,0 +1,17 @@
+{
+  "source": "965ec96db49b5b463c2679e5002cb26b9dad975e",
+  "command": [
+    "/Users/rushiparikh/projects/atom/backend/venv314/bin/python",
+    "-m",
+    "pytest",
+    "--noconftest",
+    "-p",
+    "no:cacheprovider",
+    "backend/tests/test_ci_backend_lane_contract.py",
+    "backend/tests/test_quickstart_matrix_contract.py",
+    "backend/tests/test_quickstart_python_guard.py",
+    "-q"
+  ],
+  "actual_exit": 0,
+  "head_after": "965ec96db49b5b463c2679e5002cb26b9dad975e"
+}

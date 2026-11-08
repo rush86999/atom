@@ -1,0 +1,50 @@
+{
+  "head": "ebe22835cd3c858488f30dbcab73ce266519c3e9",
+  "runtime_source": "965ec96db49b5b463c2679e5002cb26b9dad975e",
+  "run": 42520057948,
+  "reports": [
+    {
+      "python": "3.11",
+      "job": 128851375128,
+      "checks": {
+        "Python 3.11": true,
+        "Backend dependencies installed": true,
+        "Frontend dependencies installed": true,
+        "Quickstart artifacts OK": true,
+        "Backend alive from quickstart env": true,
+        "\"rows_written_and_read\": 1": true
+      },
+      "storage_line": "2026-11-08T20:32:20.7156801Z {\"application_database_accessed\": false, \"embedding_model_constructed\": false, \"rows_written_and_read\": 1, \"scope\": \"installed storage binary smoke; synthetic temporary vector store\", \"versions\": {\"fastembed\": \"0.9.1\", \"lancedb\": \"0.24.3\", \"numpy\": \"1.26.4\", \"pyarrow\": \"25.0.1\"}}",
+      "log_sha256": "sha256:e76166815911e90544410006085684f924f1f4f2bc757d9122cd41ced6955617"
+    },
+    {
+      "python": "3.12",
+      "job": 128851374620,
+      "checks": {
+        "Python 3.12": true,
+        "Backend dependencies installed": true,
+        "Frontend dependencies installed": true,
+        "Quickstart artifacts OK": true,
+        "Backend alive from quickstart env": true,
+        "\"rows_written_and_read\": 1": true
+      },
+      "storage_line": "2026-11-08T20:30:20.2886244Z {\"application_database_accessed\": false, \"embedding_model_constructed\": false, \"rows_written_and_read\": 1, \"scope\": \"installed storage binary smoke; synthetic temporary vector store\", \"versions\": {\"fastembed\": \"0.9.1\", \"lancedb\": \"0.24.3\", \"numpy\": \"1.26.4\", \"pyarrow\": \"25.0.1\"}}",
+      "log_sha256": "sha256:3a237f84a59810d4f9c0a862444bf3d804c366e186dd483f5e3183e60635c1e1"
+    },
+    {
+      "python": "3.13",
+      "job": 128851374637,
+      "checks": {
+        "Python 3.13": true,
+        "Backend dependencies installed": true,
+        "Frontend dependencies installed": true,
+        "Quickstart artifacts OK": true,
+        "Backend alive from quickstart env": true,
+        "\"rows_written_and_read\": 1": true
+      },
+      "storage_line": "2026-11-08T20:30:37.1072185Z {\"application_database_accessed\": false, \"embedding_model_constructed\": false, \"rows_written_and_read\": 1, \"scope\": \"installed storage binary smoke; synthetic temporary vector store\", \"versions\": {\"fastembed\": \"0.9.1\", \"lancedb\": \"0.24.3\", \"numpy\": \"2.4.6\", \"pyarrow\": \"25.0.1\"}}",
+      "log_sha256": "sha256:085f29e2690572cd60510fc80ad1fe83ef0d056d406f1f5e6724df4885c880c4"
+    }
+  ],
+  "scope": "Ubuntu clean dependency install, synthetic pinned storage binary roundtrip, generated environment backend alive; not full app or platform breadth"
+}

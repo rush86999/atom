@@ -1,0 +1,33 @@
+{
+  "runs-on": "ubuntu-latest",
+  "steps": [
+    {
+      "uses": "actions/checkout@v4"
+    },
+    {
+      "uses": "actions/setup-python@v5",
+      "with": {
+        "python-version": "3.11"
+      }
+    },
+    {
+      "uses": "actions/setup-node@v4",
+      "with": {
+        "node-version": "20"
+      }
+    },
+    {
+      "name": "Run make setup (quickstart.sh)",
+      "run": "make setup"
+    },
+    {
+      "name": "Verify setup artifacts",
+      "run": "test -d backend/venv\ntest -f backend/.env\ntest -d frontend-nextjs/node_modules\ntest -f frontend-nextjs/.env.local\ngrep -q \"SECRET_KEY=\" backend/.env\necho \"Quickstart artifacts OK\"\n"
+    },
+    {
+      "name": "Boot the full app from the generated env",
+      "working-directory": "backend",
+      "run": "source venv/bin/activate\npython -m uvicorn main_api_app:app --host 127.0.0.1 --port 8001 > /tmp/quickstart-backend.log 2>&1 &\nfor i in $(seq 1 30); do\n  curl -fs http://127.0.0.1:8001/alive > /dev/null 2>&1 && { echo \"Backend alive from quickstart env\"; exit 0; }\n  sleep 2\ndone\necho \"Backend failed to boot from quickstart env:\"; tail -40 /tmp/quickstart-backend.log; exit 1\n"
+    }
+  ]
+}
