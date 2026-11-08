@@ -16,7 +16,7 @@ from core.assignment_plan import new_assignment
 from core.employee_adaptation import WorkAdaptationProposal
 
 
-def _create_ready_job(route_env, tmp_path, *, use_model=True):
+def _create_ready_job(route_env, tmp_path, *, use_model=True, employee_objective=True):
     read = bind_applied_read(
         _verified_quote_evidence(), _route_source_authority(tmp_path),
         "clarification-prices.json")
@@ -25,7 +25,8 @@ def _create_ready_job(route_env, tmp_path, *, use_model=True):
         employee_id="lead-1", workspace_id="ws-1", tenant_id="tenant-1",
         steps=[read], teaching_snapshot=_terms_teaching(),
         authorized_actions=["retrieve", "calculate"],
-        provenance={"use_model": use_model, "started_from": "employee_objective"},
+        provenance=({"use_model": use_model, "started_from": "employee_objective"}
+                    if employee_objective else {"started_from": "explicit_plan"}),
         completion_criteria=[
             {"kind": "required_work_complete", "required": True},
             {"criterion_id": "employee_result:objective",
@@ -227,3 +228,75 @@ def test_missing_declared_question_binding_refuses_without_resolution(
     assert after == before
     assert after["task_revision"]["unresolved"][0]["question_id"] == added[0]["question_id"]
     assert after["task_revision"]["unresolved"][0]["status"] == "open"
+
+
+@pytest.mark.parametrize("binding", ["step_id", "source_operation"])
+def test_contradictory_binding_cannot_fall_back_to_another_gap_step(
+        route_env, tmp_path, binding):
+    import copy
+    from core.task_lifecycle import add_unresolved_questions
+
+    run_id = _create_ready_job(route_env, tmp_path, use_model=False)
+    question = {
+        "kind": "missing_evidence", "concept": "scope", "question": "Confirm scope?",
+        "next_action": "Answer", "waiting": {
+            "state": "waiting_for_person", "party": "owner",
+            "correlation_id": "contradictory-binding"},
+    }
+    kwargs = {}
+    if binding == "step_id":
+        question["step_id"] = "different-step"
+    else:
+        kwargs["source_operation"] = "different-operation"
+    added = add_unresolved_questions(route_env["lifecycle"], run_id, [question], **kwargs)
+
+    def attach_other_step(record, assignment):
+        out = copy.deepcopy(assignment)
+        out["steps"][0]["gap_ids"] = [added[0]["question_id"]]
+        return out, {"attached": True}
+
+    route_env["lifecycle"].mutate_assignment(run_id, attach_other_step)
+    before = route_env["lifecycle"].get_task(run_id)
+    response = route_env["client"].post(
+        f"/api/assignments/{run_id}/responses/contradictory-binding",
+        json={"reply_id": "wrong-binding", "response": "confirmed"})
+    assert response.status_code == 404, response.text
+    assert route_env["lifecycle"].get_task(run_id) == before
+
+
+@pytest.mark.parametrize("answer_route", ["gap", "response"])
+def test_explicit_plan_answer_does_not_opt_in_to_model_work(
+        route_env, tmp_path, monkeypatch, answer_route):
+    from api.assignment_routes import _record_information_wait
+
+    run_id = _create_ready_job(route_env, tmp_path, employee_objective=False)
+    question = _run(_record_information_wait(route_env["executor"], run_id, [{
+        "kind": "business_decision", "concept": "scope", "question": "Confirm scope?",
+        "next_action": "Answer", "waiting": {
+            "state": "waiting_for_person", "party": "owner",
+            "correlation_id": "explicit-plan-answer"},
+    }]))[0]
+    calls = []
+
+    async def proposal(context, observations, **kwargs):
+        calls.append(run_id)
+        return {"source": "model", "technical_fallback": False, "errors": [],
+                "proposal": WorkAdaptationProposal(
+                    decision="replan", reason="accepted rows support quote",
+                    observation_ids=[v["observation_id"] for v in observations],
+                    work_request=_quote_request()).model_dump()}
+
+    monkeypatch.setattr("api.assignment_routes.propose_adaptation", proposal)
+    monkeypatch.setattr("api.assignment_routes._employee_llm", lambda *_: object())
+    if answer_route == "gap":
+        path = f"/api/assignments/{run_id}/gaps/{question['question_id']}/resolve"
+        body = {"resolution": "scope confirmed"}
+    else:
+        path = f"/api/assignments/{run_id}/responses/explicit-plan-answer"
+        body = {"reply_id": "explicit-answer", "response": "scope confirmed"}
+    response = route_env["client"].post(path, json=body)
+    assert response.status_code == 200, response.text
+    assert not route_env["executor"].status(run_id)["open_gaps"]
+    assert calls == [], response.json()
+    assert not any(v.get("adapter") == "quote.calculate"
+                   for v in route_env["lifecycle"].get_assignment(run_id)["steps"])
