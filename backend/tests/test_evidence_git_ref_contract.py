@@ -129,3 +129,35 @@ def test_explicit_digest_never_accepts_bad_algorithm_encoding_or_material(
     git(repo, "commit", "-qm", "invalid explicit digest")
     result = checker.verify(repo, directory, "HEAD", True)
     assert result["passed"] is False and result["failures"], result
+
+
+@pytest.mark.parametrize("change", ["altered", "deleted"])
+def test_candidate_cannot_borrow_a_valid_historical_source_packet(packet, change):
+    repo, directory, manifest = packet
+    if change == "deleted":
+        git(repo, "rm", "runtime.py")
+    else:
+        (repo / "runtime.py").write_text("runtime = 'omitted repair'\n")
+        git(repo, "add", "runtime.py")
+    git(repo, "commit", "-qm", "candidate changes executed material")
+    assert checker.verify(repo, directory, "HEAD", True)["passed"] is True
+    result = checker.verify(repo, directory, "HEAD", True, candidate_ref="HEAD")
+    assert result["passed"] is False
+    assert result["source_ok"] == result["artifact_ok"] == 1
+    assert result["candidate_ok"] == 0
+    assert any("candidate source" in item for item in result["failures"])
+
+
+def test_matching_candidate_source_accepts_unrelated_evidence_commit(packet):
+    repo, directory, manifest = packet
+    result = checker.verify(repo, directory, "HEAD", True, candidate_ref="HEAD")
+    assert result["passed"] is True
+    assert result["candidate_ok"] == 1
+    assert result["candidate_ref_commit"] == git(repo, "rev-parse", "HEAD")
+
+
+def test_unknown_candidate_ref_refuses_without_falling_back(packet):
+    repo, directory, manifest = packet
+    result = checker.verify(repo, directory, "HEAD", True, candidate_ref="not-a-ref")
+    assert result["passed"] is False
+    assert any("candidate ref does not resolve" in item for item in result["failures"])
