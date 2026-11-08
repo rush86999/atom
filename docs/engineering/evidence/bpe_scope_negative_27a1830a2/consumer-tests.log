@@ -1,0 +1,33 @@
+...s.Fs.sFss                                                             [100%]
+=================================== FAILURES ===================================
+__________ test_landed_note_must_not_force_uncertain_or_drop_the_note __________
+../../atom-agent-cli/oracle-note-next-readonly-probe.py:226: in test_landed_note_must_not_force_uncertain_or_drop_the_note
+    assert result.get("success") is True, result
+E   AssertionError: {'success': False, 'buffered': 1, 'oracle_verified': False, 'oracle_evidence': 'no registered postcondition verifier', ...}
+E   assert False is True
+E    +  where False = <built-in method get of dict object at 0x12378f980>('success')
+E    +    where <built-in method get of dict object at 0x12378f980> = {'success': False, 'buffered': 1, 'oracle_verified': False, 'oracle_evidence': 'no registered postcondition verifier', ...}.get
+___________________ test_empty_note_is_a_pre_effect_refusal ____________________
+../../atom-agent-cli/oracle-note-next-readonly-probe.py:253: in test_empty_note_is_a_pre_effect_refusal
+    assert str(result.get("status") or "").lower() != "uncertain", result
+E   AssertionError: {'success': False, 'error': 'note requires content', 'oracle_verified': False, 'oracle_evidence': 'no registered postcondition verifier', ...}
+E   assert 'uncertain' != 'uncertain'
+E    +  where 'uncertain' = <built-in method lower of str object at 0x10c53b830>()
+E    +    where <built-in method lower of str object at 0x10c53b830> = 'uncertain'.lower
+E    +      where 'uncertain' = str(('uncertain'))
+E    +        where 'uncertain' = <built-in method get of dict object at 0x12369c740>('status')
+E    +          where <built-in method get of dict object at 0x12369c740> = {'success': False, 'error': 'note requires content', 'oracle_verified': False, 'oracle_evidence': 'no registered postcondition verifier', ...}.get
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: 24 warnings
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=========================== short test summary info ============================
+FAILED ../../atom-agent-cli/oracle-note-next-readonly-probe.py::test_landed_note_must_not_force_uncertain_or_drop_the_note
+FAILED ../../atom-agent-cli/oracle-note-next-readonly-probe.py::test_empty_note_is_a_pre_effect_refusal
+2 failed, 5 passed, 5 skipped, 25 warnings in 3.24s

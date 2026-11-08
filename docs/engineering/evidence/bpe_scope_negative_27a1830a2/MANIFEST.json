@@ -1,0 +1,27 @@
+{
+  "executed_source": "27a1830a27e73ed30124a82d01bb710e26bc7113",
+  "main_equivalent": "8ded00232c30961a990e675e06ec672ef6a43910",
+  "qualification": "negative only; mounted RPC1fail1pass and controlled step2fail5pass5skip; full governed episode unrun",
+  "source_files": {
+    "backend/api/rpc_routes.py": "d555cd7fa2f2f85b9d3b335d4a42badaeefc28b44346e65a47ad93fc79fd8e75",
+    "backend/core/action_registry.py": "2d81845f11c2cf1962e6172fb624a4630f66dec00a5ebd77c3b6bba54ddd1bef",
+    "backend/core/action_effects.py": "47b9130cf601eb581159c117281febbbf692f9372c1226d621bbc55c5c480e5a",
+    "backend/core/bpe/actions.py": "778bedb24169869ea8bf6595c86f05a2627c43dec6d05f9c87dbe3ad4ef41e70",
+    "backend/core/bpe/workspace.py": "b1e9a5ed06416fa38da8ce623289ae2a18c13928534eddb695277d23730c5319",
+    "backend/core/bpe/persistence.py": "bb4b97c92179156f980cb5b0ec5f7505627bd8d08ff23eab845061bec50320c0",
+    "backend/core/bpe/consolidation.py": "39f688b95c31fee2c715b81f27c6781dd5dacc696bec1b15bacb2ebd56e8bd15",
+    "backend/core/generic_agent.py": "432904f89608b6c98b05834957c79023ed82f2ec1162056e3640f8da728f7191",
+    "backend/core/models.py": "9aec60c9155da8af8652b3209839c658d78896837b1a30d38763007b44e14b59"
+  },
+  "artifacts": {
+    "README.md": "d419d39d1280e8c97421e94ef39da6fdc069ae97c07021a7fbbfab53c1a8f5f3",
+    "consumer-probe-authored.py": "84bd00e7d562ec563617ee668f7d1bfb59ec8aa5f8214e7be43178c3053137b3",
+    "consumer-tests.log": "41cd0899d6902ba2174554c7115eda5a0607d4f0e50da14ce99dfa87cf571aff",
+    "consumer.exit.json": "777e826e7cb9d1cfcce54a5d070a803c9d0afde123054956acdebc0e8b650bd7",
+    "consumer.spec.json": "f5eee5415cffd4d4dd869ef5c52700de8b279e3d38f38a4df07ea7e35a537063",
+    "rpc-scope-probe-v2.py": "894fb7aedb50a3d2ccec03de521d46d54e7ef7edd9c0e8534e2ec689b9782ba2",
+    "rpc-tests.log": "62a466b1c281445a6788e84af60aa0d7e9341d9b3863cd7bf3614654658c7e53",
+    "rpc.exit.json": "c0fe60c8ed34956c68e42f20517aee4c725465664af2c4c4cc9b281f0a2d7b32",
+    "rpc.spec.json": "f760164dbafa5690ae2c138eae68a2a17d21846dc5f353e6559b0a35cbe9a5fa"
+  }
+}

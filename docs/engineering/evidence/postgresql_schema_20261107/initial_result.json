@@ -1,0 +1,25 @@
+{
+  "scratch": "/private/tmp/root-pg-schema-70utwgb7",
+  "scope": "actual main-equivalent ORM metadata on installed PostgreSQL14 private unix-socket cluster; no TCP/live DB/provider",
+  "status": "failed",
+  "postgres_version": "postgres (PostgreSQL) 14.24 (Homebrew)",
+  "crash_durability_qualified": false,
+  "initdb_no_sync": true,
+  "initdb_exit": 0,
+  "pid": 55625,
+  "server_identity": [
+    "atom_scratch",
+    "postgres",
+    "/private/tmp/root-pg-schema-70utwgb7/data",
+    null,
+    "PostgreSQL 14.24 (Homebrew) on x86_64-apple-darwin23.6.0, compiled by Apple clang version 16.0.0 (clang-1600.0.26.6), 64-bit"
+  ],
+  "checkout_source": "27a1830a27e73ed30124a82d01bb710e26bc7113",
+  "model_sha256": "9aec60c9155da8af8652b3209839c658d78896837b1a30d38763007b44e14b59",
+  "metadata_table_count": 376,
+  "error_class": "OperationalError",
+  "error_message_first_line": "(psycopg2.errors.OutOfMemory) out of shared memory",
+  "whole_postgresql_qualified": false,
+  "process_exit": 0,
+  "finished": 1794095043.655494
+}

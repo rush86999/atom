@@ -1,0 +1,18 @@
+{
+  "executed_source": "27a1830a27e73ed30124a82d01bb710e26bc7113",
+  "source_files": {
+    "backend/api/canvas_routes.py": "7e31aae03d685063d50a3d50d0f21fcae8c2250a91b63d7cde4a136e704cc731",
+    "backend/tools/canvas_crud_tool.py": "be810f46a3d6be3a9a3b8ed069a075e746d18bf04e2fe3947ec144380c33ebc3",
+    "backend/core/models.py": "9aec60c9155da8af8652b3209839c658d78896837b1a30d38763007b44e14b59",
+    "backend/core/database.py": "fd3736e7f679b9b30e242597e25a27565d3ab93fc8c0efd3ea0b1cef76e9b16e",
+    "backend/core/personal_scope.py": "fb475dcd302845a2d3fb8ed50da1acd2849f0103fa403a395393d4b52d1e21b3"
+  },
+  "artifacts": {
+    "runner.py": "6f377a7fa668641cd7cf401ffad9132da2fc58d6a8e43d648677d25589e78cf9",
+    "README.md": "dc5bc3e067e52deb4e1a971b9fecaf722166fc3223fb14aee459abc544bf8998",
+    "baseline.log": "f531018a00a512c636392f1cf13746e4d31a9c062b76d9d48354e2f01357fafa",
+    "probe.py": "332b911fa3a421b56a5e0714e74d925355987fbd4610035df4353159d229678e",
+    "baseline.exit.json": "a9349e9d476c613d381d124b0c2240568d0669df391d9551b037e38e3cf0db21",
+    "baseline.spec.json": "47f652604c0732bad84a30ea45a9a697f53eaf081218b63310bcd8f91596ba6b"
+  }
+}
