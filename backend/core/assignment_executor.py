@@ -4952,14 +4952,6 @@ class AssignmentExecutor:
                     matches[-1], step or {}, assignment_status,
                     explicit=explicit))
 
-        if not _gap_question_binding_valid(record, current, question, step):
-            raise _ExternalReplyStop({
-                "status": "unmatched",
-                "message": (
-                    "No step carries this gap question. The response was not "
-                    "used to resume work."),
-            })
-
         # Exact receipt replay is checked first; only a new/changed reply can
         # meet a terminal assignment or an already-settled question.
         if (assignment_status in TERMINAL_ASSIGNMENT_STATES
@@ -4970,6 +4962,14 @@ class AssignmentExecutor:
                 "message": (
                     f"The assignment/question wait is {assignment_status or 'settled'}; "
                     "this new or changed reply identity was not used."),
+            })
+
+        if not _gap_question_binding_valid(record, current, question, step):
+            raise _ExternalReplyStop({
+                "status": "unmatched",
+                "message": (
+                    "No step carries this gap question. The response was not "
+                    "used to resume work."),
             })
 
         resolution_text = str(response or "")
