@@ -332,3 +332,16 @@ asserts the competitor ran. Exact conflict/receipt assertions are retained.
 No production logic was changed by this test-scaffold correction. Original
 failed log/spec/exit remain root-assignment-gap-349-focused in retained
 scratch evidence. Further semantic and affected verification remain pending.
+
+
+## Root internal settlement integrity negative
+
+At e51d68bbf a direct internal-helper probe supplied a nonexistent question
+and observed a waiting operation become superseded. This is an internal
+contract failure, not a demonstrated public exploit. Requested resolution
+metadata alone is no longer proof: the helper now requires the actual fresh
+OPEN-before/resolved-after snapshots, exact bounded resolution value and the
+question's own source_operation, in addition to assignment/step/status binding.
+Missing prior/question/operation identity refuses settlement. Eleven permanent
+positive/negative controls were authored; execution is pending. Existing27
+focused public/direct controls passed before this root integrity repair.

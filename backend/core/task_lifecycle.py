@@ -527,6 +527,8 @@ def _supersede_gap_settlement_operations(
     operations: List[Dict[str, Any]],
     assignment: Dict[str, Any],
     transition: Optional[Dict[str, Any]],
+    *,
+    previous_task: Optional[Dict[str, Any]] = None,
 ) -> List[Dict[str, Any]]:
     """Supersede ONLY a waiting operation backing a question resolved here.
 
@@ -549,10 +551,30 @@ def _supersede_gap_settlement_operations(
     }
     if not requested or (transition or {}).get("kind") != "record_unresolved":
         return operations
+    # A requested resolution is not proof that apply_transition settled it.
+    # Missing/already-closed questions are ignored by that general function.
+    # Require an actual OPEN -> resolved change in this CAS snapshot.
+    prior_open = {
+        str(q.get("question_id")): q
+        for q in (previous_task or {}).get("unresolved") or []
+        if isinstance(q, dict) and q.get("status") == "open"
+        and str(q.get("question_id") or "")
+    }
+    settled = {
+        str(q.get("question_id")): q
+        for q in (task or {}).get("unresolved") or []
+        if isinstance(q, dict) and q.get("status") == "resolved"
+        and str(q.get("question_id") or "")
+    }
     resolved_ids = {
         str(item.get("question_id"))
         for item in (transition or {}).get("resolutions") or []
-        if isinstance(item, dict) and str(item.get("question_id") or "")
+        if isinstance(item, dict)
+        and str(item.get("question_id") or "") in prior_open
+        and str(item.get("question_id") or "") in settled
+        and settled[str(item["question_id"])].get("resolution_value") == (
+            _bounded_text(item.get("value"), 400)
+            or _bounded_text(item.get("resolution"), 400))
     }
     if not resolved_ids:
         return operations
@@ -573,6 +595,14 @@ def _supersede_gap_settlement_operations(
         if str(op.get("assignment_id") or "") != assignment_id:
             continue
         if str(op.get("step_id") or "") not in eligible_steps:
+            continue
+        # The question's original operation is immutable source identity;
+        # another waiting attempt on that step cannot borrow its answer.
+        if not any(
+            str(prior_open[qid].get("source_operation") or "")
+            == str(op.get("operation_id") or "")
+            for qid in resolved_ids
+        ):
             continue
         if op.get("status") != "waiting":
             continue
@@ -1946,7 +1976,8 @@ class TaskLifecycle:
                     record["task_revision"], transition, operations)
                 validate_task_revision(new_revision)
                 operations = _supersede_gap_settlement_operations(
-                    new_revision, operations, new_assignment, transition)
+                    new_revision, operations, new_assignment, transition,
+                    previous_task=record["task_revision"])
             lifecycle = {
                 "task_revision": new_revision,
                 "operations": operations,
