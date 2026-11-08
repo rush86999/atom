@@ -1,0 +1,23 @@
+{
+  "executed_source": "965ec96db49b5b463c2679e5002cb26b9dad975e",
+  "source_files": {
+    ".github/workflows/ci.yml": "sha256:724959f1625d43501356fd1188c6ebb2ffa0f45356dd9ae6cfd76423c102aec9",
+    "backend/tests/test_quickstart_matrix_contract.py": "sha256:0397014e499a6d7a21c21720c4b2c19230e4388633fdccdb7d6ad38217977b53",
+    "backend/tests/fixtures/quickstart_before_supported_matrix.json": "sha256:b0909a3b3c7aeef2a4ae1e3af1374aeaa811bb8d99ab949fe155503d20e19720",
+    "backend/requirements.txt": "sha256:f898a07127dad556f0ef59b21dc4e92c5cefa612957c15022e951793e30217f9",
+    "scripts/quickstart.sh": "sha256:740381e79b0bf9fa2387c74082ac081c72197e0a678e1e95045125567a9e7781",
+    "scripts/ci/verify_quickstart_storage.py": "sha256:58a6b58db56c5cd8ac67e20cd527b40af7e395148bdd61880ed61a336bb29f67"
+  },
+  "artifacts": {
+    "README.md": "sha256:4b78c5a862d5a94193b77116a7562d8f56f2cee38399e86b835b9c3ed9e9da9b",
+    "existing314-storage-smoke.json": "sha256:2a1971ccdf29fc780906e5edbf22f449033152feda119cff0af79920e1241d95",
+    "existing314-storage-smoke.log": "sha256:1197446827f5f634fc2b10134559fbfd12ffadee4134fc1e51429c6a96079a4b",
+    "failure-attribution.json": "sha256:abba2b5f44ede5b52b6add6650a7a3aebe4781fe57195e1704304477c497a264",
+    "py311-contracts.exit.json": "sha256:284bf36ff00858b261544b5d8536f7703b2a0c20e550eb47e724fc30fe0f0345",
+    "py311-contracts.log": "sha256:b1b170a32b734b060fb75550395b6fd9c966b2044cec8a75ea152adf8b04fa83",
+    "py314-contracts.exit.json": "sha256:05480d5af532873dfc4d9ec544abf2869604e354ddf12293aa8d0662867bed94",
+    "py314-contracts.log": "sha256:e24fdf3d868a71d81055a448cdd0fdebec108736010bcce550c8ba3c887e9d1a",
+    "python313-original-install-failure.log": "sha256:5a83b0bb1af38d89e7cd31d3e85d2595a75265535faa084b4923159d36db5574",
+    "verification.json": "sha256:2421eda806cb21ccad5c9d33efd921891ff2d218d6627f29c34166bc924ddab1"
+  }
+}

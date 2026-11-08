@@ -1,0 +1,11 @@
+{
+  "source": "965ec96db49b5b463c2679e5002cb26b9dad975e",
+  "contracts": {
+    "python3.11": 46,
+    "python3.14": 46
+  },
+  "actual_clean_install_python3.13": "pending hosted execution",
+  "numpy_constraint": "NumPy1 preserved below3.13; >=2.1,<3 for3.13+",
+  "storage_smoke": "Existing diagnostic3.14 only; numpy2.5.3, pyarrow25.0.1, lancedb0.38.0, fastembed0.8.0. Not pinned0.24.3 or fresh3.13 qualification.",
+  "historical_matrix_packet_preserved": "supported_python_matrix_38111baf8"
+}

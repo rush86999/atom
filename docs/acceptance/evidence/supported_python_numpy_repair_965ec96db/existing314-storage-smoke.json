@@ -1,0 +1,4 @@
+{
+  "exit": 0,
+  "scope": "existing diagnostic venv only; not new Python3.13 or pinned-package installation qualification"
+}
