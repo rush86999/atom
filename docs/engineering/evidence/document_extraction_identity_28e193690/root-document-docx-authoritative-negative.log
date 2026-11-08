@@ -1,0 +1,170 @@
+
+tests/test_root_document_parse_honesty.py::test_real_docx_upload_open_reload_export_positive 
+-------------------------------- live log setup --------------------------------
+2026-11-08 01:04:51 [    INFO] EscalationManager initialized
+2026-11-08 01:04:51 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 01:04:51 [    INFO] EscalationManager initialized
+2026-11-08 01:04:51 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 01:04:51 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-08 01:04:51 [    INFO] AgentTaskRegistry initialized
+2026-11-08 01:04:51 [    INFO] EscalationManager initialized
+2026-11-08 01:04:51 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 01:04:51 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-08 01:04:51 [    INFO] LanceDBHandler initialized. ID: 5122045456. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-08 01:04:51 [    INFO] Lazy loading LanceDB connection...
+2026-11-08 01:04:51 [    INFO] Connecting to LanceDB at /private/tmp/root-feedback-sqlite-qwhogiwm/lance with storage_options=None
+2026-11-08 01:04:51 [    INFO] LanceDB connected successfully
+2026-11-08 01:04:51 [    INFO] Table 'documents' created successfully
+2026-11-08 01:04:51 [    INFO] Document added to 'documents': doc_7d16de473bf39450e411b110
+2026-11-08 01:04:51 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+2026-11-08 01:04:51 [    INFO] HTTP Request: GET http://testserver/api/documents/doc_7d16de473bf39450e411b110 "HTTP/1.1 200 OK"
+2026-11-08 01:04:51 [    INFO] HTTP Request: GET http://testserver/api/documents/doc_7d16de473bf39450e411b110 "HTTP/1.1 200 OK"
+2026-11-08 01:04:51 [    INFO] HTTP Request: GET http://testserver/api/documents/doc_7d16de473bf39450e411b110/export?format=text "HTTP/1.1 200 OK"
+PASSED                                                                   [ 33%]
+tests/test_root_document_parse_honesty.py::test_docx_without_extracted_content_does_not_become_fresh_evidence[malformed] 
+-------------------------------- live log setup --------------------------------
+2026-11-08 01:04:51 [    INFO] EscalationManager initialized
+2026-11-08 01:04:51 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 01:04:51 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-08 01:04:51 [    INFO] LanceDBHandler initialized. ID: 5124578576. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-08 01:04:51 [   ERROR] DOCX parse error: File is not a zip file
+2026-11-08 01:04:51 [    INFO] Lazy loading LanceDB connection...
+2026-11-08 01:04:51 [    INFO] Connecting to LanceDB at /private/tmp/root-feedback-sqlite-qwhogiwm/lance with storage_options=None
+2026-11-08 01:04:51 [    INFO] LanceDB connected successfully
+2026-11-08 01:04:51 [    INFO] Document added to 'documents': doc_c9fc758ceb912cb549c2e793
+2026-11-08 01:04:51 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+2026-11-08 01:04:51 [    INFO] HTTP Request: GET http://testserver/api/documents/doc_c9fc758ceb912cb549c2e793/export?format=text "HTTP/1.1 200 OK"
+FAILED                                                                   [ 66%]
+tests/test_root_document_parse_honesty.py::test_docx_without_extracted_content_does_not_become_fresh_evidence[empty] 
+-------------------------------- live log setup --------------------------------
+2026-11-08 01:04:51 [    INFO] EscalationManager initialized
+2026-11-08 01:04:51 [    INFO] CognitiveTierService initialized for workspace: default
+2026-11-08 01:04:51 [    INFO] Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+2026-11-08 01:04:51 [    INFO] LanceDBHandler initialized. ID: 5124691376. LANCEDB_AVAILABLE: True
+-------------------------------- live log call ---------------------------------
+2026-11-08 01:04:51 [    INFO] Lazy loading LanceDB connection...
+2026-11-08 01:04:51 [    INFO] Connecting to LanceDB at /private/tmp/root-feedback-sqlite-qwhogiwm/lance with storage_options=None
+2026-11-08 01:04:51 [    INFO] LanceDB connected successfully
+2026-11-08 01:04:51 [    INFO] Document added to 'documents': doc_c687608d0a34fc88f8473d8b
+2026-11-08 01:04:51 [    INFO] HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+2026-11-08 01:04:51 [    INFO] HTTP Request: GET http://testserver/api/documents/doc_c687608d0a34fc88f8473d8b/export?format=text "HTTP/1.1 200 OK"
+FAILED                                                                   [100%]
+
+=================================== FAILURES ===================================
+_ test_docx_without_extracted_content_does_not_become_fresh_evidence[malformed] _
+tests/test_root_document_parse_honesty.py:65: in test_docx_without_extracted_content_does_not_become_fresh_evidence
+    assert response.status_code in (415, 422), capture
+E   AssertionError: {'status': 200, 'body': {'id': 'doc_c9fc758ceb912cb549c2e793', 'title': 'malformed.docx', 'type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'metadata': {'source': 'upload', 'size': 18, 'title': 'malformed.docx', 'filename': 'malformed.docx', ...}, ...}, 'expected': 'typed refusal, not a fresh placeholder document', 'export_status': 200, ...}
+E   assert 200 in (415, 422)
+E    +  where 200 = <Response [200 OK]>.status_code
+------------------------------ Captured log setup ------------------------------
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.embedding_service:embedding_service.py:131 Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+INFO     core.lancedb_handler:lancedb_handler.py:221 LanceDBHandler initialized. ID: 5124578576. LANCEDB_AVAILABLE: True
+----------------------------- Captured stdout call -----------------------------
+ROOT_DOCUMENT_EXTRACTION_CAPTURE {"body": {"chunk_count": 1, "id": "doc_c9fc758ceb912cb549c2e793", "ingested_at": "2026-11-08T01:04:51.823657", "metadata": {"author": "next03-46c8fe905d@example.com", "doc_id": "doc_c9fc758ceb912cb549c2e793", "file_type": "docx", "filename": "malformed.docx", "ingested_at": "2026-11-08T01:04:51.823657", "integration_id": "manual_upload", "pg_document_id": "doc_c9fc758ceb912cb549c2e793", "size": 18, "source": "upload", "source_content_hash": "ev4:c9fc758ceb912cb549c2e79336721fac9d989be5465787cea544762b887ae839", "source_type": "upload", "title": "malformed.docx"}, "title": "malformed.docx", "type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"}, "expected": "typed refusal, not a fresh placeholder document", "export_provenance": "authoritative", "export_status": 200, "export_text": "[Empty or unparseable file: malformed.docx]", "status": 200}
+------------------------------ Captured log call -------------------------------
+ERROR    core.auto_document_ingestion:auto_document_ingestion.py:549 DOCX parse error: File is not a zip file
+INFO     core.lancedb_handler:lancedb_handler.py:229 Lazy loading LanceDB connection...
+INFO     core.lancedb_handler:lancedb_handler.py:326 Connecting to LanceDB at /private/tmp/root-feedback-sqlite-qwhogiwm/lance with storage_options=None
+INFO     core.lancedb_handler:lancedb_handler.py:331 LanceDB connected successfully
+INFO     core.lancedb_handler:lancedb_handler.py:1163 Document added to 'documents': doc_c9fc758ceb912cb549c2e793
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/api/documents/doc_c9fc758ceb912cb549c2e793/export?format=text "HTTP/1.1 200 OK"
+__ test_docx_without_extracted_content_does_not_become_fresh_evidence[empty] ___
+tests/test_root_document_parse_honesty.py:65: in test_docx_without_extracted_content_does_not_become_fresh_evidence
+    assert response.status_code in (415, 422), capture
+E   AssertionError: {'status': 200, 'body': {'id': 'doc_c687608d0a34fc88f8473d8b', 'title': 'empty.docx', 'type': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'metadata': {'source': 'upload', 'size': 36563, 'title': 'empty.docx', 'filename': 'empty.docx', ...}, ...}, 'expected': 'typed refusal, not a fresh placeholder document', 'export_status': 200, ...}
+E   assert 200 in (415, 422)
+E    +  where 200 = <Response [200 OK]>.status_code
+------------------------------ Captured log setup ------------------------------
+INFO     core.llm.escalation_manager:escalation_manager.py:165 EscalationManager initialized
+INFO     core.llm.cognitive_tier_service:cognitive_tier_service.py:64 CognitiveTierService initialized for workspace: default
+INFO     core.embedding_service:embedding_service.py:131 Initialized EmbeddingService: provider=fastembed, model=BAAI/bge-small-en-v1.5, workspace=default
+INFO     core.lancedb_handler:lancedb_handler.py:221 LanceDBHandler initialized. ID: 5124691376. LANCEDB_AVAILABLE: True
+----------------------------- Captured stdout call -----------------------------
+ROOT_DOCUMENT_EXTRACTION_CAPTURE {"body": {"chunk_count": 1, "id": "doc_c687608d0a34fc88f8473d8b", "ingested_at": "2026-11-08T01:04:51.935074", "metadata": {"author": "next03-53dbb033ec@example.com", "doc_id": "doc_c687608d0a34fc88f8473d8b", "file_type": "docx", "filename": "empty.docx", "ingested_at": "2026-11-08T01:04:51.935074", "integration_id": "manual_upload", "pg_document_id": "doc_c687608d0a34fc88f8473d8b", "size": 36563, "source": "upload", "source_content_hash": "ev4:c687608d0a34fc88f8473d8baa61cad2e2bfcd773510a435cc6e8f645986ef66", "source_type": "upload", "title": "empty.docx"}, "title": "empty.docx", "type": "application/vnd.openxmlformats-officedocument.wordprocessingml.document"}, "expected": "typed refusal, not a fresh placeholder document", "export_provenance": "authoritative", "export_status": 200, "export_text": "[Empty or unparseable file: empty.docx]", "status": 200}
+------------------------------ Captured log call -------------------------------
+INFO     core.lancedb_handler:lancedb_handler.py:229 Lazy loading LanceDB connection...
+INFO     core.lancedb_handler:lancedb_handler.py:326 Connecting to LanceDB at /private/tmp/root-feedback-sqlite-qwhogiwm/lance with storage_options=None
+INFO     core.lancedb_handler:lancedb_handler.py:331 LanceDB connected successfully
+INFO     core.lancedb_handler:lancedb_handler.py:1163 Document added to 'documents': doc_c687608d0a34fc88f8473d8b
+INFO     httpx:_client.py:1025 HTTP Request: POST http://testserver/api/documents/upload "HTTP/1.1 200 OK"
+INFO     httpx:_client.py:1025 HTTP Request: GET http://testserver/api/documents/doc_c687608d0a34fc88f8473d8b/export?format=text "HTTP/1.1 200 OK"
+=============================== warnings summary ===============================
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/_pytest/config/__init__.py:885: PytestAssertRewriteWarning: Module already imported so cannot be rewritten; tests.e2e.fixtures.service_mock_fixtures
+    self.import_plugin(import_spec)
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/starlette/testclient.py:45: DeprecationWarning: The anyio.abc.BlockingPortal alias is deprecated, use anyio.from_thread.BlockingPortal instead.
+    _PortalFactoryType = Callable[[], AbstractContextManager[anyio.abc.BlockingPortal]]
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/schemathesis/generation/coverage.py:305: DeprecationWarning: jsonschema.exceptions.RefResolutionError is deprecated as of version 4.18.0. If you wish to catch potential reference resolution errors, directly catch referencing.exceptions.Unresolvable.
+    ref_error: type[Exception] = jsonschema.RefResolutionError,
+
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+../../../../Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17
+  /Users/rushiparikh/projects/atom/backend/venv314/lib/python3.14/site-packages/pytest_freezegun.py:17: DeprecationWarning: distutils Version classes are deprecated. Use packaging.version instead.
+    if LooseVersion(pytest.__version__) < LooseVersion('3.6.0'):
+
+tests/test_root_document_parse_honesty.py::test_real_docx_upload_open_reload_export_positive
+  /private/tmp/atom-document-extraction-honesty-20261108/backend/core/graphrag_engine.py:203: SyntaxWarning: "\%" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\%"? A raw string is also an option.
+    Escaped pattern where % and _ are escaped to \%
+
+tests/test_root_document_parse_honesty.py::test_real_docx_upload_open_reload_export_positive
+tests/test_root_document_parse_honesty.py::test_docx_without_extracted_content_does_not_become_fresh_evidence[malformed]
+tests/test_root_document_parse_honesty.py::test_docx_without_extracted_content_does_not_become_fresh_evidence[empty]
+  /private/tmp/atom-document-extraction-honesty-20261108/backend/core/lancedb_handler.py:407: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    names = set(self.db.table_names())
+
+tests/test_root_document_parse_honesty.py::test_real_docx_upload_open_reload_export_positive
+tests/test_root_document_parse_honesty.py::test_real_docx_upload_open_reload_export_positive
+tests/test_root_document_parse_honesty.py::test_real_docx_upload_open_reload_export_positive
+tests/test_root_document_parse_honesty.py::test_real_docx_upload_open_reload_export_positive
+tests/test_root_document_parse_honesty.py::test_real_docx_upload_open_reload_export_positive
+tests/test_root_document_parse_honesty.py::test_docx_without_extracted_content_does_not_become_fresh_evidence[malformed]
+tests/test_root_document_parse_honesty.py::test_docx_without_extracted_content_does_not_become_fresh_evidence[empty]
+  /Users/rushiparikh/.local/share/uv/python/cpython-3.14.7-macos-aarch64-none/lib/python3.14/asyncio/events.py:94: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    self._context.run(self._callback, *self._args)
+
+tests/test_root_document_parse_honesty.py::test_real_docx_upload_open_reload_export_positive
+tests/test_root_document_parse_honesty.py::test_real_docx_upload_open_reload_export_positive
+tests/test_root_document_parse_honesty.py::test_real_docx_upload_open_reload_export_positive
+tests/test_root_document_parse_honesty.py::test_real_docx_upload_open_reload_export_positive
+  /private/tmp/atom-document-extraction-honesty-20261108/backend/core/lancedb_handler.py:620: DeprecationWarning: table_names() is deprecated, use list_tables() instead
+    if table_name in self.db.table_names():
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+======================== WARNING: Low Assertion Density ========================
+  tests/test_provider_registry_api.py: 0.145 (target: 0.15)
+  tests/test_round70_llm_credential_subscription.py: 0.102 (target: 0.15)
+  tests/test_notion_service.py: 0.083 (target: 0.15)
+  tests/test_canvas_training_context.py: 0.127 (target: 0.15)
+  tests/test_assessment_rules_semantics.py: 0.098 (target: 0.15)
+=========================== short test summary info ============================
+FAILED tests/test_root_document_parse_honesty.py::test_docx_without_extracted_content_does_not_become_fresh_evidence[malformed]
+FAILED tests/test_root_document_parse_honesty.py::test_docx_without_extracted_content_does_not_become_fresh_evidence[empty]
+=========================== warnings summary (final) ===========================
+<unknown>:314
+  <unknown>:314: SyntaxWarning: "\$" is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\$"? A raw string is also an option.
+
+<unknown>:6
+  <unknown>:6: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:134
+  <unknown>:134: SyntaxWarning: "\ " is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\ "? A raw string is also an option.
+
+<unknown>:944
+  <unknown>:944: SyntaxWarning: "\." is an invalid escape sequence. Such sequences will not work in the future. Did you mean "\\."? A raw string is also an option.
+
+-- Docs: https://docs.pytest.org/en/stable/how-to/capture-warnings.html
+=================== 2 failed, 1 passed, 28 warnings in 9.86s ===================
