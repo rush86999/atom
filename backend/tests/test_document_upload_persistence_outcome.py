@@ -28,11 +28,11 @@ row and is readable/exportable, or (b) a truthful non-2xx unavailable/uncertain/
 refused outcome.  It does not invent an error code and does not assume a new
 engine or schema.  Existing peer rows are snapshotted and must survive.
 
-Current expected result: the fault twin FAILS on the public code because the
-upload returns HTTP 200 while the injected SQL commit never persisted the
-authoritative row.  That failure is the point of the proposal.  This module was
-authored only; it has not been executed here.  The runtime repair is root-owned
-after independent execution.
+Historical baseline: the fault twin fails when upload returns HTTP 200 while
+the SQL commit never persisted the authoritative row.  That original failure
+motivates this regression.  The proposal was authored without execution; root
+execution and runtime-repair results are attributed separately to their frozen
+sources.  The assertion remains unchanged after the producer repair.
 """
 from __future__ import annotations
 
