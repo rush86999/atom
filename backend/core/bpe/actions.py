@@ -176,6 +176,11 @@ def resolve_scope(context: Dict[str, Any]) -> Tuple[Optional[Dict[str, Any]], Op
             "Principal identity changed; refresh before writing.",
         )
     user_id = presented_id or context_user_id
+    trusted_scope = ctx.get(PRINCIPAL_SCOPE_CONTEXT_KEY)
+    trusted_agent = (
+        str(trusted_scope.get("agent_id") or "")
+        if isinstance(trusted_scope, dict) else ""
+    )
 
     # 1) Authenticated principal (RPC / request-bound MCP).
     if user_id and db is not None:
@@ -193,7 +198,7 @@ def resolve_scope(context: Dict[str, Any]) -> Tuple[Optional[Dict[str, Any]], Op
             )
         return {
             "workspace_id": authoritative_workspace,
-            "agent_id": "atom_main",
+            "agent_id": trusted_agent or "atom_main",
             # Per-principal key: same user continues their own buffer, a
             # different user (including a NULL/Personal default principal)
             # never inherits it.
