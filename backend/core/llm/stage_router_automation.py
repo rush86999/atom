@@ -36,9 +36,17 @@ Never raises: any failure is logged and the loop continues.
 from __future__ import annotations
 
 import asyncio
-from core.asyncio_compat import get_event_loop, iscoroutinefunction
+from core.asyncio_compat import (
+    get_event_loop,
+    iscoroutinefunction,
+    notification_loop_var,
+    run_sync_in_worker,
+    run_with_thread_gate,
+    schedule_notification,
+)
 import logging
 import os
+import threading
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
 
@@ -65,6 +73,12 @@ _automation_task: Optional[asyncio.Task] = None
 # Per-agent last-notification timestamps (monotonic) — dedupes the ``notify``
 # mode so a workload that stays "ready" doesn't ping the admin every pass.
 _last_notified: Dict[str, float] = {}
+
+# Worker boundary: the application loop that owns the pass running in a worker
+# thread, plus this owner's own process-local exclusion gate. Neither is
+# shared with the other automation owners.
+_notification_loop = notification_loop_var("stage_router_notification_loop")
+_pass_gate = threading.Lock()
 
 
 def automation_mode() -> str:
@@ -247,17 +261,35 @@ def _spawn_notification(
     """Fire a notification without blocking the certification pass.
 
     In a running event loop (server) the notification runs as a background
-    task; in a sync/CLI context it runs inline via a throwaway loop.
+    task; in a sync/CLI context it runs inline via a throwaway loop. A worker
+    thread's copied context names the application loop, so delivery returns
+    there rather than to a worker-private loop.
     """
+    def notification_factory():
+        return _notify(notification_type, title, message, action_url)
+
+    if schedule_notification(
+        _notification_loop,
+        notification_factory,
+        asyncio_module=asyncio,
+        logger_=logger,
+        label="Stage-router",
+    ):
+        return
     try:
         loop = get_event_loop()
         if loop.is_running():
-            loop.create_task(_notify(notification_type, title, message, action_url))
+            notification = notification_factory()
+            try:
+                loop.create_task(notification)
+            except Exception:
+                notification.close()
+                raise
             return
     except Exception:
         pass
     try:
-        asyncio.run(_notify(notification_type, title, message, action_url))
+        asyncio.run(notification_factory())
     except Exception as e:  # pragma: no cover - defensive
         logger.warning(f"Stage-router notification failed (non-fatal): {e}")
 
@@ -493,6 +525,22 @@ def run_auto_certification() -> Dict[str, Any]:
         return {"enabled": True, "mode": _MODE, "error": "pass failed"}
 
 
+def _run_auto_certification_guarded() -> Dict[str, Any]:
+    """Run one pass unless a surviving worker still owns this owner's gate."""
+    return run_with_thread_gate(
+        _pass_gate,
+        run_auto_certification,
+        label="stage-router certification",
+        log=logger,
+    )
+
+
+async def run_auto_certification_async() -> Dict[str, Any]:
+    """Offload one owned-session pass and preserve notification-loop context."""
+    return await run_sync_in_worker(
+        _run_auto_certification_guarded, _notification_loop)
+
+
 # ── Approval management (management API) ────────────────────────────────────
 
 
@@ -587,7 +635,7 @@ async def stage_router_automation_loop() -> None:
     while True:
         try:
             await asyncio.sleep(max(_INTERVAL_MIN, 0.5) * 60)
-            run_auto_certification()
+            await run_auto_certification_async()
         except asyncio.CancelledError:
             break
         except Exception as e:  # pragma: no cover - defensive
