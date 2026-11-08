@@ -472,3 +472,108 @@ current-principal controls are unchanged.
   open and unchanged.
 - No runtime result is claimed here. Root must execute the controls and the
   wider BPE selection at the exact accepted head.
+
+---
+
+# LEAD REVIEW — truthful RPC failure consumer/journey integration repair
+
+Status: **AUTHOR-ONLY / NOT EXECUTED**. No Python, pytest, app, server,
+provider, npm/install, browser or live-DB command was run here. Root owns
+execution and acceptance.
+
+## Exact hosted failure at head `222587fd7`
+
+- PR 764 primary selection: **904 passed, 1 skipped** (unchanged from local).
+- All later groups passed until the MINI03 journey:
+  **1 failed / 7 passed / 1 skipped** at
+  `backend/tests/integration/journeys/test_mini_app_harness_journey.py:145`
+  → helper at line 92.
+- The failing call was `mini_app_write_logic` with
+  `BAD_SYNTAX = "def broken(:"`. The real response was:
+
+  ```json
+  {"success": false,
+   "data": {"success": false,
+            "error": "SyntaxError: invalid syntax (<unknown>, line 1)"},
+   "action": "mini_app_write_logic"}
+  ```
+
+- The journey helper required `success is True` for **every** call, including
+  this intentional negative, so it failed on a truthful envelope before the
+  test could assert the handler's own error. The older mainc97 wrapper only
+  asserted transport success; it did not exercise this cross-caller contract.
+  This is not an unrelated failure, and neither prior result is erased.
+
+## Contract decision
+
+`backend/api/rpc_routes.py` intentionally propagates an explicit in-handler
+`success: false` to the outer envelope. That generic behavior stays
+byte-for-byte unchanged: no action-name exception, no hidden `data.success`,
+no waived gate, no skip/xfail/removal. The repair fixes the **consumer
+class**:
+
+1. **Journey** — `_rpc(..., expected_success=True)` now asserts the outer
+   envelope equals the expected outcome and returns `data`. Only the four
+   intended negatives pass `expected_success=False` (bad Python, dev-run
+   unavailable, stateful run unavailable, install-before-publish). Every
+   nested error/status/assertion is retained. After bad syntax the journey now
+   also proves no rejected write landed: the controller source is still
+   `STARTER` and logic history is exactly `[1]` with the `STARTER` preview.
+   `mini_app_run_tests` remains an outer-success report surface and explicitly
+   keeps `data.success: true`, `total: 1`, `passed: 0`, `all_passed: false`,
+   per-case unavailable error, and the absence of fabricated `stdout`/`state`.
+   Product runtime/hypervisor availability is untouched.
+2. **Shared client** — `RpcError` gains additive `actionResult`, set only for a
+   body-level `{success: false}` envelope from `body.data`. It still throws on
+   outer failure, keeps `action`, `status`, `details`, the generic message and
+   transport-safe HTTP/network mapping. `body.data.error` is never promoted to
+   the global message, and no integration-name logic was added.
+3. **MiniAppHarness** — a small local typed extractor reads
+   `RpcError.actionResult` only when the handler itself reported
+   `success: false` and supplied a string `error`. Scaffold, dev-run, publish
+   and install catches use that already-exposed safe error and otherwise fall
+   back to the existing generic `RpcError` message. HTTP/unknown/raw axios or
+   server detail is never rendered. The direct PUT save catch keeps its
+   existing `detail` contract; no feature is force-enabled.
+4. **Frontend gates** — new tests:
+   - `frontend-nextjs/tests/lib/rpc-client-failure.test.ts` (success
+     passthrough; semantic failure in `actionResult` with operation/audit
+     metadata; generic non-promoted message; HTTP 500 detail confined to
+     `details`; network failures have no `actionResult`);
+   - `frontend-nextjs/tests/components/mini-app-harness-rpc-failure.test.tsx`
+     (rendered SyntaxError and sanitized runtime-unavailable semantic
+     failures; install catch; HTTP 500 generic/not rendered; a non-failure
+     `actionResult.error` is not trusted; successful dev-run positive twin).
+   Both are selected by a new step in the existing `frontend-typecheck` CI job:
+   `npx jest tests/lib/rpc-client-failure.test.ts
+   tests/components/mini-app-harness-rpc-failure.test.tsx --runInBand
+   --no-coverage`.
+
+## Why expected-negative assertions get stricter, not weaker
+
+Before, the helper encoded "the outer envelope must be true" for all calls.
+The intentional negatives could only pass by misrepresenting the backend
+contract or by removing their assertions. Now each negative declares its
+expected outcome and still asserts the handler's nested failure plus its exact
+error, while the bad-syntax case additionally proves the invalid source was
+not persisted and no checkpoint/version was appended. No gate was relaxed and
+no test was skipped or deleted.
+
+## Files changed (owned only)
+
+- `backend/tests/integration/journeys/test_mini_app_harness_journey.py`
+- `frontend-nextjs/lib/rpc-client.ts`
+- `frontend-nextjs/components/canvas/MiniAppHarness.tsx`
+- `frontend-nextjs/tests/lib/rpc-client-failure.test.ts` (new)
+- `frontend-nextjs/tests/components/mini-app-harness-rpc-failure.test.tsx` (new)
+- `.github/workflows/ci.yml`
+- `LEAD_REVIEW.md` (this append)
+
+No backend runtime, policy, authority, BPE, Oracle, provider, engine,
+`api/rpc_routes.py`, or existing root-scope bytes were changed.
+
+## Root validation remaining
+
+Root must run the journey under both Python selections, run the new frontend
+Jest selection (and the wider frontend gate if required), and recheck all
+exact-head hosted checks before any merge. This handoff claims no execution.
